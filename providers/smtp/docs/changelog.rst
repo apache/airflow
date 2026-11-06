@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix async SmtpHook connections failing when STARTTLS is enabled, and raise aiosmtplib minimum to 5.1.0 (#75529)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add emailer utilities to the SMTP provider (#74623)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix SMTP email backend documentation link (#75243)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.1
 .....
 

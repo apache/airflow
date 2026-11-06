@@ -185,13 +185,13 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _axcom_push,
     _defer_task,
-    _execute_task,
     _find_native_dag_importer,
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
     _run_execute_callable,
     _serialize_outlet_events,
+    _TaskRunner,
     _xcom_push,
     check_xcom_backend_supports_loops,
     finalize,
@@ -1997,6 +1997,7 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
     assert ti.state == TaskInstanceState.SKIPPED
+    assert ti.end_date == instant
 
     mock_supervisor_comms.send.assert_called_with(
         TaskState(state=TaskInstanceState.SKIPPED, end_date=instant)
@@ -2112,7 +2113,7 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
     ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
 
     with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+        _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
@@ -2941,6 +2942,13 @@ class TestRuntimeTaskInstance:
             ),
             "ti": runtime_ti,
         }
+
+    def test_state_store_accessor_carries_stats_tags(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="hello"))
+
+        accessor = runtime_ti.get_template_context()["task_state_store"]
+
+        assert accessor._stats_tags == {**runtime_ti.stats_tags, "operator": "BaseOperator"}
 
     def test_task_state_store_scope_carries_region_coordinates(self, create_runtime_ti):
         region_id = uuid7()
@@ -5419,6 +5427,7 @@ class TestTaskRunnerCallsListeners:
             self.state = []
             self.component = None
             self.error = None
+            self.end_date = None
 
         @hookimpl
         def on_starting(self, component):
@@ -5440,6 +5449,7 @@ class TestTaskRunnerCallsListeners:
         @hookimpl
         def on_task_instance_skipped(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.SKIPPED)
+            self.end_date = task_instance.end_date
 
         @hookimpl
         def before_stopping(self, component):
@@ -5659,10 +5669,12 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
         context = runtime_ti.get_template_context()
-        state, _, _ = run(runtime_ti, context, log)
+        state, msg, _ = run(runtime_ti, context, log)
         finalize(runtime_ti, state, context, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
+        assert listener.end_date is not None
+        assert listener.end_date == msg.end_date
 
     def test_listener_access_outlet_event_on_running_and_success(
         self, mocked_parse, mock_supervisor_comms, listener_manager
@@ -5895,6 +5907,22 @@ class TestTaskRunnerCallsCallbacks:
             log_url = runtime_ti.log_url
             assert log_url == expected_url
 
+    @pytest.mark.parametrize(("map_index", "mapped_path"), [(-1, ""), (1, "/mapped/1")])
+    def test_runtime_task_instance_log_url_selects_a_task_instance_in_a_region_by_its_region(
+        self, create_runtime_ti, map_index, mapped_path
+    ):
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id="test_dag", run_id="test_run", try_number=2, map_index=map_index
+        )
+        runtime_ti.region_id, runtime_ti.region_index = uuid7(), 1
+
+        with conf_vars({("api", "base_url"): "http://localhost:8080/"}):
+            assert runtime_ti.log_url == (
+                f"http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task{mapped_path}"
+                f"?region_id={runtime_ti.region_id}&region_index=1&try_number=2"
+            )
+
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
 
@@ -5951,6 +5979,40 @@ class TestTaskRunnerCallsCallbacks:
             f"duration should not be None, got {callback_data['duration']}"
         )
         assert callback_data["duration"] >= 0, f"duration should be >= 0, got {callback_data['duration']}"
+
+    @pytest.mark.parametrize(
+        ("callback_kind", "expected_state"),
+        [
+            pytest.param("on_success_callback", TaskInstanceState.SUCCESS, id="success"),
+            pytest.param("on_failure_callback", TaskInstanceState.FAILED, id="failure"),
+        ],
+    )
+    def test_task_callback_context_has_callback_meta(self, create_runtime_ti, callback_kind, expected_state):
+        """Task-level callbacks should receive callback.source=TASK in the context."""
+        from airflow.sdk.definitions.context import CallbackSource
+
+        captured = {}
+
+        def capture_callback(context):
+            captured["callback"] = context.get("callback")
+
+        succeeds = callback_kind == "on_success_callback"
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                if succeeds:
+                    return "ok"
+                raise RuntimeError("boom")
+
+        task = CustomOperator(task_id="cb_task", **{callback_kind: capture_callback})
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == expected_state
+        assert captured["callback"].source is CallbackSource.TASK
 
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
@@ -6210,6 +6272,8 @@ class TestTriggerDagRunOperator:
 
         assert state == expected_state
         assert msg.state == expected_state
+        assert ti.end_date is not None
+        assert ti.end_date == msg.end_date
 
         expected_calls = [
             mock.call.send(

@@ -57,6 +57,7 @@ from airflow.providers.common.ai.utils.decision import (
     threshold_for,
 )
 from airflow.providers.common.ai.utils.masking import mask_secrets
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.sdk.definitions.retry_policy import (
@@ -66,7 +67,7 @@ try:
         RetryPolicy,
     )
 except ImportError:
-    raise ImportError(
+    raise AirflowOptionalProviderFeatureException(
         "LLMRetryPolicy requires Airflow 3.3+ which includes RetryPolicy support. "
         "Please upgrade apache-airflow-core."
     ) from None
@@ -317,7 +318,7 @@ class _ModelRetryPolicy(RetryPolicy):
     def _hook(self) -> PydanticAIHook:
         from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
-        return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 
     def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
         if self.include_traceback:

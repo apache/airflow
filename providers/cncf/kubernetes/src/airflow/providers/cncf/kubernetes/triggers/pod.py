@@ -102,6 +102,7 @@ class KubernetesPodTrigger(BaseTrigger):
         the operator to print latest logs. If ``None`` will wait until container done.
     :param last_log_time: where to resume logs from
     :param trigger_kwargs: additional keyword parameters to send in the event
+    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
     """
 
     def __init__(
@@ -126,6 +127,7 @@ class KubernetesPodTrigger(BaseTrigger):
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        log_events_on_startup: bool = True,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -142,6 +144,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
         self.schedule_timeout = schedule_timeout
+        self.log_events_on_startup = log_events_on_startup
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
@@ -153,31 +156,33 @@ class KubernetesPodTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreatePodTrigger arguments and classpath."""
-        return (
-            "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger",
-            {
-                "pod_name": self.pod_name,
-                "pod_namespace": self.pod_namespace,
-                "base_container_name": self.base_container_name,
-                "kubernetes_conn_id": self.kubernetes_conn_id,
-                "connection_extras": self.connection_extras,
-                "poll_interval": self.poll_interval,
-                "cluster_context": self.cluster_context,
-                "config_dict": self.config_dict,
-                "in_cluster": self.in_cluster,
-                "get_logs": self.get_logs,
-                "startup_timeout": self.startup_timeout,
-                "startup_check_interval": self.startup_check_interval,
-                "schedule_timeout": self.schedule_timeout,
-                "trigger_start_time": self.trigger_start_time,
-                "on_finish_action": self.on_finish_action.value,
-                "on_kill_action": self.on_kill_action.value,
-                "termination_grace_period": self.termination_grace_period,
-                "last_log_time": self.last_log_time,
-                "logging_interval": self.logging_interval,
-                "trigger_kwargs": self.trigger_kwargs,
-            },
-        )
+        kwargs: dict[str, Any] = {
+            "pod_name": self.pod_name,
+            "pod_namespace": self.pod_namespace,
+            "base_container_name": self.base_container_name,
+            "kubernetes_conn_id": self.kubernetes_conn_id,
+            "connection_extras": self.connection_extras,
+            "poll_interval": self.poll_interval,
+            "cluster_context": self.cluster_context,
+            "config_dict": self.config_dict,
+            "in_cluster": self.in_cluster,
+            "get_logs": self.get_logs,
+            "startup_timeout": self.startup_timeout,
+            "startup_check_interval": self.startup_check_interval,
+            "schedule_timeout": self.schedule_timeout,
+            "trigger_start_time": self.trigger_start_time,
+            "on_finish_action": self.on_finish_action.value,
+            "on_kill_action": self.on_kill_action.value,
+            "termination_grace_period": self.termination_grace_period,
+            "last_log_time": self.last_log_time,
+            "logging_interval": self.logging_interval,
+            "trigger_kwargs": self.trigger_kwargs,
+        }
+        # Subclass triggers with a fixed __init__ signature and older triggerers reject unknown kwargs,
+        # so the default is never emitted.
+        if not self.log_events_on_startup:
+            kwargs["log_events_on_startup"] = False
+        return ("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger", kwargs)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current pod status and yield a TriggerEvent."""
@@ -328,7 +333,11 @@ class KubernetesPodTrigger(BaseTrigger):
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
         pod = await self._get_pod()
         # Start event stream in background
-        events_task = asyncio.create_task(self.pod_manager.watch_pod_events(pod, self.startup_check_interval))
+        events_task = (
+            asyncio.create_task(self.pod_manager.watch_pod_events(pod, self.startup_check_interval))
+            if self.log_events_on_startup
+            else None
+        )
 
         # Await pod start completion
         try:
@@ -340,9 +349,10 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         finally:
             # Stop watching events
-            events_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await events_task
+            if events_task is not None:
+                events_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await events_task
 
         return self.define_pod_container_state(await self._get_pod())
 

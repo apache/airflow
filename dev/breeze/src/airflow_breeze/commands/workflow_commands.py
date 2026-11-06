@@ -24,19 +24,26 @@ import sys
 
 import click
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.common_options import argument_doc_packages, option_answer
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
-from airflow_breeze.utils.gh_workflow_utils import get_staging_only_commits, trigger_workflow_and_monitor
+from airflow_breeze.utils.gh_workflow_utils import (
+    get_staging_only_commits,
+    mirror_hardened_base_images,
+    trigger_workflow_and_monitor,
+)
 from airflow_breeze.utils.github import run_gh_command
 from airflow_breeze.utils.packages import (
     expand_all_provider_distributions,
     get_available_distributions,
     get_long_package_name,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
 WORKFLOW_NAME_MAPS = {
@@ -46,6 +53,18 @@ WORKFLOW_NAME_MAPS = {
     "release-constraints": "release-constraints.yml",
     "reset-staging": "reset-staging.yml",
 }
+
+# Every branch the upgrade check runs for has a scheduled workflow of its own on main.
+UPGRADE_CHECK_WORKFLOW_PREFIX = "scheduled-upgrade-check-"
+UPGRADE_CHECK_BRANCHES = sorted(
+    {AIRFLOW_BRANCH}
+    | {
+        path.stem.removeprefix(UPGRADE_CHECK_WORKFLOW_PREFIX)
+        for path in (AIRFLOW_ROOT_PATH / ".github" / "workflows").glob(
+            f"{UPGRADE_CHECK_WORKFLOW_PREFIX}*.yml"
+        )
+    }
+)
 
 # X.Y.Z or X.Y.ZrcN - the workflow derives the release stage from which of the two it is given,
 # so there is no separate switch that could disagree with the version.
@@ -462,19 +481,93 @@ def check_providers_are_in_site_index(doc_packages: tuple[str, ...], exclude_doc
     default="main",
     show_default=True,
 )
-def workflow_run_release_constraints(version: str, ref: str, workflow_branch: str):
+@click.option(
+    "--fail-on-pending-provider-candidates",
+    type=click.Choice(["true", "false"]),
+    default=None,
+    help="Override the final-release guard. Unset derives it from the version (a final fails when a "
+    "provider's newest PyPI version is a pending rc). Set 'false' to pin the currently-released "
+    "providers and proceed through an overlapping provider wave.",
+)
+def workflow_run_release_constraints(
+    version: str, ref: str, workflow_branch: str, fail_on_pending_provider_candidates: str | None
+):
     if not RELEASE_VERSION_PATTERN.match(version):
         console_print(f"[red]Error: '{version}' is not a release version - expected X.Y.Z or X.Y.ZrcN.[/red]")
         sys.exit(1)
     stage = "candidate" if "rc" in version else "final"
     console_print(f"[blue]Triggering constraints generation for the {stage} {version} from {ref}[/blue]")
+    overrides = {"fail-on-pending-provider-candidates": fail_on_pending_provider_candidates or ""}
     trigger_workflow_and_monitor(
         workflow_name=WORKFLOW_NAME_MAPS["release-constraints"],
         repo=APACHE_AIRFLOW_REPO,
         branch=workflow_branch,
         version=version,
         ref=ref,
+        **overrides,
     )
+
+
+@workflow_run_group.command(
+    name="mirror-base-images",
+    help="Mirror the latest hardened base images and wait until they are mirrored.",
+)
+@click.option(
+    "--trigger-upgrade-check/--no-trigger-upgrade-check",
+    default=True,
+    show_default=True,
+    help="Let the mirror run the main upgrade check when a tag moves past its pin. Turn it off when the "
+    "main upgrade check is what runs the mirror.",
+)
+@click.option(
+    "--build-os-deps-images/--no-build-os-deps-images",
+    default=True,
+    show_default=True,
+    help="Also build the OS-dependencies images on the mirrored base images. Turn it off when the "
+    "upgrade check is what runs the mirror: it pins the images the daily build published.",
+)
+def workflow_run_mirror_base_images(trigger_upgrade_check: bool, build_os_deps_images: bool):
+    mirror_hardened_base_images(
+        APACHE_AIRFLOW_REPO,
+        trigger_upgrade_check=trigger_upgrade_check,
+        build_os_deps_images=build_os_deps_images,
+    )
+
+
+@workflow_run_group.command(
+    name="upgrade-check",
+    help="Upgrade the important CI environment of a branch before a release, mirroring the latest "
+    "hardened base images first. For main (before a beta) it runs the upgrade check workflow, which opens "
+    "an upgrade PR, and waits for it. For a vX-Y-test branch (before its test-to-stable PR) it runs the "
+    "upgrade locally and pushes it to the branch, which needs committer rights.",
+)
+@click.option(
+    "--branch",
+    help="Branch to upgrade.",
+    type=BetterChoice(UPGRADE_CHECK_BRANCHES),
+    default=AIRFLOW_BRANCH,
+    show_default=True,
+)
+def workflow_run_upgrade_check(branch: str):
+    if branch == "main":
+        console_print("[blue]Running the upgrade check for main[/blue]")
+        # The scheduled workflow lives on main and checks the branch out itself.
+        trigger_workflow_and_monitor(
+            workflow_name=f"{UPGRADE_CHECK_WORKFLOW_PREFIX}{branch}.yml",
+            repo=APACHE_AIRFLOW_REPO,
+            branch="main",
+        )
+        return
+    # The release branch rules let only committers push without CI having passed, and the workflow's
+    # token is not one, so the upgrade that goes straight onto the branch runs here.
+    console_print(f"[blue]Upgrading {branch} locally and pushing the upgrade to it[/blue]")
+    result = run_command(
+        ["breeze", "ci", "upgrade", "--target-branch", branch, "--push-to-target-branch"],
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
+    )
+    if result.returncode != 0:
+        sys.exit(result.returncode)
 
 
 @workflow_run_group.command(

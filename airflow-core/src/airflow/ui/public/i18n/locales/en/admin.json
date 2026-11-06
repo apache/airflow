@@ -30,6 +30,7 @@
       "firstConfirmMessage_other": "You are about to delete the following connections:",
       "title": "Delete $t(connections.connection_one)"
     },
+    "duplicate": "Duplicate $t(connections.connection_one)",
     "edit": "Edit $t(connections.connection_one)",
     "form": {
       "connectionIdRequired": "Connection ID is required",
@@ -38,6 +39,7 @@
       "connectionTypeRequired": "Connection Type is required",
       "extraFieldsJson": "Extra Fields JSON",
       "helperText": "Connection type missing? Make sure you have installed the corresponding Airflow Providers Package.",
+      "helperTextForDuplicatedRedactedFields": "Redacted fields ('***') are not copied. Fill them in for the new connection.",
       "helperTextForRedactedFields": "Redacted fields ('***') will remain unchanged if not modified.",
       "selectConnectionType": "Select Connection Type",
       "standardFields": "Standard Fields"

@@ -58,6 +58,7 @@ try:
         resolve_function_tool_failure_error_function,
         set_function_tool_failure_error_function,
     )
+    from openai.types.responses import ResponseFunctionToolCall
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
@@ -102,6 +103,10 @@ _DEFAULT_FAILURE_HANDLED = "_function_tool_default_failure_handled"
 
 # Arguments that keep the conversation on OpenAI's servers, which a replayed model call never reaches.
 _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_response_id")
+
+# Set on the copy of a function tool that reports through the journal, so that reserving a position
+# skips tools nothing wraps, such as those of MCP servers or of a handoff agent with a named model.
+_DURABLE_MARKER = "_airflow_durable_tool"
 
 
 async def run_durably(
@@ -219,6 +224,7 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
+    setattr(durable_tool, _DURABLE_MARKER, True)
     invoke = tool.on_invoke_tool
     # Exceptions a custom failure_error_function turned into text, by tool call.
     handled: dict[str, Exception] = {}
@@ -236,17 +242,9 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
         if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
-        try:
-            parsed = json.loads(arguments) if arguments else {}
-        except json.JSONDecodeError:
-            parsed = arguments
-        fingerprint = fingerprint_tool_call(
-            tool.name,
-            # As recorded model answers are masked, so a replayed call's arguments can be too.
-            mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
-            ctx.tool_call_id,
-        )
-        step = durable_run.claim(f"tool:{tool.name}", kind="tool", fingerprint=fingerprint)
+        name = f"tool:{tool.name}"
+        fingerprint = _build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id)
+        step = durable_run.claim_reserved(ctx.tool_call_id, name, kind="tool", fingerprint=fingerprint)
         if step.replayed:
             return step.payload
         try:
@@ -266,6 +264,19 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
 
     durable_tool.on_invoke_tool = on_invoke_tool
     return durable_tool
+
+
+def _build_tool_fingerprint(name: str, arguments: str, call_id: str) -> str | None:
+    try:
+        parsed = json.loads(arguments) if arguments else {}
+    except json.JSONDecodeError:
+        parsed = arguments
+    return fingerprint_tool_call(
+        name,
+        # As recorded model answers are masked, so a replayed call's arguments can be too.
+        mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
+        call_id,
+    )
 
 
 def _as_sent(output: Any) -> Any:
@@ -345,13 +356,16 @@ class _DurableModel(Model):
         )
         if step.replayed:
             try:
-                return ModelResponse(
+                replayed = ModelResponse(
                     output=_OUTPUT_ITEMS.validate_python(step.payload["output"]),
                     usage=Usage(),
                     response_id=step.payload.get("response_id"),
                 )
             except (ValidationError, KeyError, TypeError) as error:
                 self.durable_run.reject(step, reason=f"the recorded model response cannot be read: {error}")
+            else:
+                self._reserve_tool_steps(replayed, tools)
+                return replayed
 
         async def call() -> ModelResponse:
             return await self.wrapped.get_response(
@@ -359,10 +373,34 @@ class _DurableModel(Model):
             )
 
         try:
-            return await step.run(call, to_record=_record_response)
+            response = await step.run(call, to_record=_record_response)
         except Exception:
             self.failed_step = step
             raise
+        self._reserve_tool_steps(response, tools)
+        return response
+
+    def _reserve_tool_steps(self, response: ModelResponse, tools: list[Tool]) -> None:
+        """
+        Claim a position for each of the response's tool calls, in the order the model made them.
+
+        A call whose tool never runs (held for approval, stopped by a guardrail) leaves its position
+        empty, which a retry runs live without disturbing the positions after it. The steps the
+        previous response reserved and no tool took are dropped.
+        """
+        durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
+        self.durable_run.reserve(
+            [
+                (
+                    item.call_id,
+                    f"tool:{item.name}",
+                    _build_tool_fingerprint(item.name, item.arguments, item.call_id),
+                )
+                for item in response.output
+                if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names
+            ],
+            kind="tool",
+        )
 
     def _retried(self, fingerprint: str | None) -> JournalStep | None:
         """

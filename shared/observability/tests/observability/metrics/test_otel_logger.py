@@ -88,6 +88,15 @@ def reset_meter_provider():
 
 
 class TestOtelMetrics:
+    @pytest.fixture(autouse=True)
+    def _clear_otel_env(self, monkeypatch):
+        # CI runners (e.g. RunsOn) export OTEL_EXPORTER_OTLP_ENDPOINT, which otherwise wins
+        # over the Airflow config host/port and leaks into the config-priority assertions.
+        # Clear all OTEL_* vars so each test only sees the env it sets itself.
+        for name in list(os.environ):
+            if name.startswith("OTEL_"):
+                monkeypatch.delenv(name, raising=False)
+
     def setup_method(self):
         self.meter = mock.Mock(MeterProvider)
         self.stats = SafeOtelLogger(otel_provider=self.meter)

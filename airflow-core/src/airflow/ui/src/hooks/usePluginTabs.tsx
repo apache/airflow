@@ -24,6 +24,7 @@ import { usePluginServiceGetPlugins } from "openapi/queries";
 
 import { useColorMode } from "src/context/colorMode";
 import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
+import { getPluginIconSrc } from "src/utils/pluginIcon";
 
 type TabPlugin = {
   icon: ReactNode;
@@ -43,17 +44,13 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
   return scopedViews
     .filter((view) => Boolean(view.url_route))
     .map((view) => {
-      // Choose icon based on theme - prefer dark mode icon if available and in dark mode
-      const iconSrc =
-        colorMode === "dark" && view.icon_dark_mode !== undefined && view.icon_dark_mode !== null
-          ? view.icon_dark_mode
-          : view.icon;
+      const iconSrc = getPluginIconSrc(view, colorMode);
 
       const icon =
-        iconSrc !== undefined && iconSrc !== null ? (
-          <img alt={view.name} src={iconSrc} style={{ height: "1rem", width: "1rem" }} />
-        ) : (
+        iconSrc === undefined ? (
           <LuPlug />
+        ) : (
+          <img alt={view.name} src={iconSrc} style={{ height: "1rem", width: "1rem" }} />
         );
 
       return {

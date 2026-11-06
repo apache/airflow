@@ -33,10 +33,15 @@ Model and connection errors
 
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
-    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, or use a
-    vendor connection type (:doc:`connections/pydantic_ai_azure`,
+    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
+    **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
+    or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
     supply their own platform.
+
+``Connection '...' sets 'model_provider' to '...', which is not a provider pydantic-ai recognizes``
+    The connection's **Default Model Provider** is not a pydantic-ai provider. Check it for a
+    typo; ``openai``, ``openai-chat`` and ``anthropic`` are examples of valid values.
 
 ``'...' is not a provider pydantic-ai recognizes``
     The text before the first ``:`` in the model name is not a pydantic-ai provider.
@@ -130,7 +135,7 @@ as a task failure.
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
     ``capabilities`` would record every step twice. Drop one of them.
 
-``message_history and enable_hitl_review=True cannot be used together``
+``message_history and enable_hitl_review=True cannot be used together`` and ``emit_message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
     than silently dropping the reviewed turns. See :doc:`message_history`.
 
@@ -159,7 +164,7 @@ Run-time errors
     it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
     Pydantic model. See :doc:`durable_execution`.
 
-``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
+Durable execution on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and
     ``[common.ai] durable_cache_path`` must be set. On 3.3 and later the task state store
     is used and the option is ignored. See :doc:`durable_execution`.

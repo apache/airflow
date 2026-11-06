@@ -122,13 +122,8 @@ class ResumableJobMixin(ABC):
             self.poll_until_complete(external_id, context)
             return self.get_job_result(external_id, context)
 
-        stats_tags = {"operator": type(self).__name__}
-        # The task is team-scoped in multi-team deployments; surface team_name on the
-        # resumable_job metrics via the running task instance's stats tags (omitted when
-        # not multi-team or the task has no team).
         ti = context.get("ti")
-        if ti is not None and (team_name := ti.stats_tags.get("team_name")):
-            stats_tags["team_name"] = team_name
+        stats_tags = {**(ti.stats_tags if ti is not None else {}), "operator": type(self).__name__}
 
         reconnect_to: Any = None
         already_succeeded_id: Any = None

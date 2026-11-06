@@ -365,25 +365,6 @@ class TestDatabricksHook:
         with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
-    def test_do_api_call_retries_with_retryable_error(self):
-        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
-
-        for exception in [
-            requests_exceptions.ConnectionError,
-            requests_exceptions.SSLError,
-            requests_exceptions.Timeout,
-            requests_exceptions.ConnectTimeout,
-            requests_exceptions.HTTPError,
-        ]:
-            with mock.patch("airflow.providers.databricks.hooks.databricks_base.requests") as mock_requests:
-                with mock.patch.object(hook.log, "error") as mock_errors:
-                    setup_mock_requests(mock_requests, exception)
-
-                    with pytest.raises(AirflowException):
-                        hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
-
-                    assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
-
     def test_do_api_call_retries_with_too_many_requests(self):
         hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 

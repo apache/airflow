@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import re
 import sys
 from dataclasses import dataclass
 
@@ -93,6 +94,34 @@ def _resolve_string_node(node: ast.expr, module_consts: dict[str, str]) -> str:
         return module_consts[node.id]
     # Give up — return an unresolvable marker (will surface in tests)
     return f"<unresolved:{ast.unparse(node)}>"
+
+
+def strip_path_converters(path: str) -> str:
+    """
+    Drop Starlette path converters from a route path.
+
+    A route declared as ``/{pool_name:path}`` is served, and documented in the
+    OpenAPI spec, as ``/{pool_name}``. The converter only tells Starlette how to
+    match the segment, so leaving it in prints a URL that no client ever calls.
+    """
+    return re.sub(r"\{([^{}:]+):[^{}]+\}", r"{\1}", path)
+
+
+def _extract_route_path(decorator: ast.Call, module_consts: dict[str, str]) -> str:
+    """
+    Resolve the route path from a route decorator.
+
+    FastAPI accepts the path either positionally or as ``path=``, and both forms
+    are in use here. Reading only the positional form silently resolves the whole
+    file to its router prefix, which collapses every route onto one bogus row
+    instead of failing.
+    """
+    if decorator.args:
+        return _resolve_string_node(decorator.args[0], module_consts)
+    path_kwarg = next((kw for kw in decorator.keywords if kw.arg == "path"), None)
+    if path_kwarg is not None:
+        return _resolve_string_node(path_kwarg.value, module_consts)
+    raise RouteParseError(f"Route decorator has no path: {ast.unparse(decorator)}")
 
 
 def _extract_module_string_constants(tree: ast.Module) -> dict[str, str]:
@@ -251,6 +280,9 @@ _FN_TO_RESOURCE_INFO: dict[str, tuple[str, str | None]] = {
     "requires_access_asset": ("Asset", None),
     "requires_access_asset_alias": ("AssetAlias", None),
     "requires_access_view": ("View", None),
+    "requires_access_dag_bundles": ("View", "DAG_BUNDLES"),
+    # Any one of these lets the caller in, and shows the triggers of that kind of owner.
+    "requires_access_trigger": ("DAG.TASK_INSTANCE or DAG.RUN or Asset", None),
 }
 
 
@@ -313,9 +345,7 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                 continue
 
             # Resolve the route path
-            route_suffix = ""
-            if decorator.args:
-                route_suffix = _resolve_string_node(decorator.args[0], module_consts)
+            route_suffix = _extract_route_path(decorator, module_consts)
 
             # Resolve the prefix based on the router variable used in the decorator
             router_prefix = ""
@@ -323,7 +353,7 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                 router_var = decorator.func.value.id
                 router_prefix = routers.get(router_var, "")
 
-            full_path = API_PREFIX + router_prefix + route_suffix
+            full_path = strip_path_converters(API_PREFIX + router_prefix + route_suffix)
 
             # Extract tag (for grouping in the RST table)
             tag = _extract_tag_from_decorator(decorator)
@@ -360,7 +390,8 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                     method = _extract_method_arg(inner)
                     entity = _extract_entity_arg(inner)
                     resource = _build_resource_label(fn_name, entity)
-                    permission = entity if fn_name == "requires_access_view" else method
+                    view_base, forced_view = _FN_TO_RESOURCE_INFO.get(fn_name, (None, None))
+                    permission = (forced_view or entity) if view_base == "View" else method
                     if not isinstance(permission, str):
                         raise ValueError(
                             f"Could not resolve required permission for {fn_name} in {path.name}"

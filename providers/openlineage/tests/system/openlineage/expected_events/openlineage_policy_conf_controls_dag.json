@@ -1,0 +1,759 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_default": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_task_events_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_task_events_beat_emit": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_overridden": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_emit_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_exact_operator": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_default_bash": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extract_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_off": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_full_info": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_conf": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_operator_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extract_overridden": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_overridden": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "grp.t_grouped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_mapped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_regex_task": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_conflict": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_default",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_default",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_default_bash",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_default_bash",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_extract_off",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_extract_off",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_hook_off",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_hook_off",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "echo full_info"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "conf emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false, so emit_dataset_lineage emits nothing",
+        "eventType": "RUNNING",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false, so emit_query_lineage emits nothing",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off.manual_query.1"
+        }
+    },
+    {
+        "$absent": "conf emit false, so emit_query_lineage emits nothing",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_off.manual_query.1"
+        }
+    },
+    {
+        "$absent": "conf emit_task_events false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_task_events_off"
+        }
+    },
+    {
+        "$absent": "conf emit_task_events false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_task_events_off"
+        }
+    },
+    {
+        "$absent": "conf emit_task_events false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_task_events_off"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_task_events_beat_emit",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_task_events_beat_emit",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_conf",
+            "facets": {
+                "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_conf",
+            "facets": {
+                "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_task",
+            "facets": {
+                "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_task",
+            "facets": {
+                "sourceCode": null
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "operator_class": "PolicyConfControlsOperator"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_extract_overridden",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_extract_overridden",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_hook_overridden",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_hook_overridden",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_overridden",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_emit_overridden",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "operator rule emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_emit_off"
+        }
+    },
+    {
+        "$absent": "operator rule emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_emit_off"
+        }
+    },
+    {
+        "$absent": "operator rule emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_operator_emit_off"
+        }
+    },
+    {
+        "$absent": "exact operator rule emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_exact_operator"
+        }
+    },
+    {
+        "$absent": "exact operator rule emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_exact_operator"
+        }
+    },
+    {
+        "$absent": "exact operator rule emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_exact_operator"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.grp.t_grouped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.grp.t_grouped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_mapped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 0
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_mapped",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "mapped": "{{ result == true }}"
+                    },
+                    "taskInstance": {
+                        "map_index": 0
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_regex_task",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_regex_task",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_conflict",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_controls_dag.t_conflict",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    }
+]
