@@ -389,25 +389,22 @@ These include:
   ``CronTriggerTimetable`` -> ``CronDataIntervalTimetable``), one scheduled run
   is skipped to avoid colliding with the previous run's ``logical_date``.
 
-- The ``create_delta_data_intervals`` configuration is now **functional**. Previously, a bug caused
-  ``create_cron_data_intervals`` to silently control timetable selection for both cron-string DAGs
-  **and** ``timedelta``/``relativedelta`` DAGs, making ``create_delta_data_intervals`` a no-op.
+- The ``create_delta_data_intervals`` configuration is now ``False`` by default. This means that the ``DeltaTriggerTimetable`` will be used by default instead of the ``DeltaDataIntervalTimetable``, which Airflow 2 always used.
 
-  This affects users who set ``create_cron_data_intervals = True`` to preserve Airflow 2
-  data-interval semantics for cron DAGs (as the upgrade guide recommends). Because of the bug,
-  that flag was also keeping ``timedelta``/``relativedelta`` DAGs on ``DeltaDataIntervalTimetable``.
-  After this fix those DAGs fall through to ``DeltaTriggerTimetable`` instead, shifting
-  ``logical_date``, ``ds``, ``ts``, and ``data_interval_*`` by one period. The same applies
-  to DAGs migrated via ``conversion_v1_to_v2``.
+  This only affects Dags that pass a **bare** ``timedelta`` or ``relativedelta``
+  to ``schedule=`` (e.g. ``schedule=timedelta(days=1)``), including Dags whose
+  serialized form was written by Airflow 2. ``logical_date``, ``ds``, ``ts`` and
+  ``data_interval_start`` move one period later, while ``data_interval_end``
+  stays the same, so the data interval has zero width and a query between
+  ``data_interval_start`` and ``data_interval_end`` reads nothing. If you rely on
+  these values, set ``create_delta_data_intervals=True`` explicitly to keep
+  ``DeltaDataIntervalTimetable``.
 
-  If you want ``timedelta``/``relativedelta`` DAGs to keep ``DeltaDataIntervalTimetable``
-  behavior, set ``create_delta_data_intervals = True`` explicitly.
+  Set this **before** the upgrade. If you instead change the flag after some
+  Airflow 3 dagruns already exist (going
+  ``DeltaTriggerTimetable`` -> ``DeltaDataIntervalTimetable``), one scheduled run
+  is skipped to avoid colliding with the previous run's ``logical_date``.
 
-  Set this **before** the upgrade. Setting ``create_delta_data_intervals = True`` on the
-  current unpatched Airflow 3 is safe -- the key was previously ignored, so it takes effect
-  only once this fix is in place. If you flip this flag from ``False`` to ``True`` after
-  Airflow 3 DAG runs already exist (``DeltaTriggerTimetable`` -> ``DeltaDataIntervalTimetable``),
-  one scheduled run is skipped to avoid colliding with the previous run's ``logical_date``.
 - **Manual Dag runs and data intervals**: In Airflow 3, do not assume that a manually triggered Dag run's ``data_interval`` is derived from, or equal to, the supplied ``logical_date``. If your Dag logic needs the user-specified trigger date, use ``logical_date`` explicitly. This especially affects workflows that read ``data_interval_start`` or ``data_interval_end`` during manual triggering or when using ``TriggerDagRunOperator``. For detailed migration guidance, see :ref:`data-interval-manual-triggering`.
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 

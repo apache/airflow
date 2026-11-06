@@ -1,52 +1,34 @@
-Fix ``create_delta_data_intervals`` being ignored for timedelta/relativedelta schedules
+``[scheduler] create_delta_data_intervals`` now controls ``timedelta`` and ``relativedelta`` schedules
 
-``[scheduler] create_delta_data_intervals`` now correctly controls timetable selection
-for DAGs that pass a ``timedelta`` or ``relativedelta`` to ``schedule=``. Before this
-fix, ``create_cron_data_intervals`` silently governed both cron-string DAGs **and**
-timedelta/relativedelta DAGs, making ``create_delta_data_intervals`` a no-op.
+Previously, ``[scheduler] create_cron_data_intervals`` chose the timetable for Dags that pass a bare
+``timedelta`` or ``relativedelta`` to ``schedule=``, and ``create_delta_data_intervals`` had no effect.
+Each key now applies only to its own schedule type: ``create_cron_data_intervals`` to cron strings,
+``create_delta_data_intervals`` to ``timedelta`` and ``relativedelta``.
 
 **Who is affected:**
 
-Users who set ``create_cron_data_intervals = True`` in their Airflow 3 config to
-preserve Airflow 2 data-interval semantics for cron DAGs (as recommended by
-``upgrading_to_airflow3.rst``) are also unintentionally running their
-``timedelta``/``relativedelta`` DAGs on ``DeltaDataIntervalTimetable``. After this
-fix, those DAGs will fall through to the correct default (``DeltaTriggerTimetable``)
-unless ``create_delta_data_intervals`` is also set to ``True``.
+Deployments where the two keys have different values. The timetable changes the next time the Dag
+processor parses an affected Dag, including Dags whose serialized form was written by Airflow 2.
 
-This also affects DAGs migrated from Airflow 2 via ``conversion_v1_to_v2``, which
-rebuilds timetables through the same code path.
+- ``create_cron_data_intervals = True`` and ``create_delta_data_intervals = False`` (the default):
+  Dags move from ``DeltaDataIntervalTimetable`` to ``DeltaTriggerTimetable``. ``logical_date``, ``ds``,
+  ``ts`` and ``data_interval_start`` move one period later, while ``data_interval_end`` stays the same,
+  so the data interval has zero width. No run is skipped.
+- ``create_cron_data_intervals = False`` and ``create_delta_data_intervals = True``: Dags move from
+  ``DeltaTriggerTimetable`` to ``DeltaDataIntervalTimetable``. One scheduled run is skipped to avoid
+  colliding with the previous run's ``logical_date``.
 
-**Behaviour changes:**
-
-- ``create_delta_data_intervals`` now takes effect as documented.
-- ``create_cron_data_intervals`` now affects **only** cron-string DAGs.
-- The two config keys are independent, as ``config.yml`` always documented.
+Dags that pass an explicit timetable instance to ``schedule=`` are not affected.
 
 **Migration:**
 
-If you rely on ``DeltaDataIntervalTimetable`` for ``timedelta``/``relativedelta``
-DAGs (i.e. you need contiguous data intervals and ``ds``/``ts`` anchored at
-``data_interval_start``), set this **before** the next scheduler restart::
-
-    [scheduler]
-    create_delta_data_intervals = True
-
-You can safely set this flag on current ``main`` (before this fix ships) because
-``create_delta_data_intervals`` was previously a no-op - setting it to ``True``
-will have no effect until the fix is in place, so there is no risk of an
-unexpected timetable switch during the transition.
-
-Switching a DAG from ``DeltaTriggerTimetable`` to ``DeltaDataIntervalTimetable``
-(i.e. flipping ``create_delta_data_intervals`` from ``False`` to ``True`` when
-existing DAG runs are present) skips one scheduled run to avoid colliding with
-the previous run's ``logical_date``. Plan for this one-period gap or convert
-affected DAGs to an explicit ``DeltaDataIntervalTimetable(...)`` instance in
-``schedule=`` before the flag changes.
+To keep the current timetable, set ``create_delta_data_intervals`` to the same value as
+``create_cron_data_intervals`` before upgrading. The setting has no effect on releases that ignore it,
+so it can be set before upgrading.
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
@@ -54,10 +36,3 @@ affected DAGs to an explicit ``DeltaDataIntervalTimetable(...)`` instance in
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [ ] Code interface changes
-
-* Migration rules needed
-
-  * Users who set ``create_cron_data_intervals = True`` to preserve Airflow 2
-    data-interval behavior for cron DAGs should also set
-    ``create_delta_data_intervals = True`` if they have ``timedelta``/
-    ``relativedelta`` DAGs that depended on ``DeltaDataIntervalTimetable``.
