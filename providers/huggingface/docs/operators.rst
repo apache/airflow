@@ -114,20 +114,12 @@ downstream tasks should load the published Hub repository. Passing
 substitute: that operator writes a durable artifact and its writer accepts
 ``Dataset`` and ``DatasetDict``, not ``IterableDataset``.
 
-For example:
+The system example demonstrates the durable artifact flow and its task handoff:
 
-.. code-block:: python
-
-   from airflow.providers.huggingface.operators.datasets import StreamDatasetOperator
-
-   publish_stream = StreamDatasetOperator(
-       task_id="publish_stream",
-       path="cornell-movie-review-data/rotten_tomatoes",
-       split="train",
-       repo_id="my-org/rotten-tomatoes-clean",
-       transform=normalize_review,
-       predicate=keep_nonempty_review,
-   )
+.. exampleinclude:: /../../huggingface/tests/system/huggingface/example_read_only.py
+    :language: python
+    :start-after: [START huggingface_load_and_map_example]
+    :end-before: [END huggingface_load_and_map_example]
 
 PushToHubOperator
 -----------------
@@ -165,26 +157,10 @@ push commit.
 Example
 -------
 
-.. code-block:: python
+The system example publishes a mapped artifact to a temporary private Hub
+repository and checks the resulting commit and asset event:
 
-   from airflow.providers.huggingface.operators.datasets import (
-       LoadDatasetOperator, MapDatasetOperator, PushToHubOperator,
-   )
-   from my_project.transforms import normalize
-
-   load = LoadDatasetOperator(
-       task_id="load", path="nyu-mll/glue", name="mrpc", split="train",
-       revision="<commit-sha>", output_uri="s3://airflow/data/{{ dag_id }}/{{ run_id }}/mrpc.json",
-       storage_conn_id="aws_default",
-   )
-   transform = MapDatasetOperator(
-       task_id="normalize", input_uri=load.output,
-       output_uri="s3://airflow/data/{{ dag_id }}/{{ run_id }}/mrpc-normalized.json", transform=normalize,
-       storage_conn_id="aws_default",
-   )
-   publish = PushToHubOperator(
-       task_id="publish", input_uri=transform.output,
-       repo_id="my-org/mrpc-normalized",
-       storage_conn_id="aws_default",
-   )
-   load >> transform >> publish
+.. exampleinclude:: /../../huggingface/tests/system/huggingface/example_write.py
+    :language: python
+    :start-after: [START huggingface_map_and_publish_example]
+    :end-before: [END huggingface_map_and_publish_example]

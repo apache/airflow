@@ -28,7 +28,7 @@ in the v1 public API.
 Installation
 ------------
 
-Install into an Airflow environment with Python 3.10 through 3.13:
+Install into an Airflow environment with Python 3.11 through 3.14:
 
 .. code-block:: bash
 

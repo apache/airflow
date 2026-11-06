@@ -135,6 +135,7 @@ with DAG(dag_id="huggingface_system_write", tags=["huggingface", "system-test"])
         output_uri="file:///tmp/hf-provider-system/write-source.json",
         huggingface_conn_id=None,
     )
+    # [START huggingface_map_and_publish_example]
     mapped = MapDatasetOperator(
         task_id="map_public_dataset",
         input_uri=load.output,
@@ -148,6 +149,7 @@ with DAG(dag_id="huggingface_system_write", tags=["huggingface", "system-test"])
         private=True,
         huggingface_conn_id=CONN_ID,
     )
+    # [END huggingface_map_and_publish_example]
 
     @task(inlets=[PUBLISHED_ASSET])
     def verify_xcom_matches_hub_head(publication):

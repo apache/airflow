@@ -28,6 +28,7 @@ def add_pair_text(example):
 
 
 with DAG(dag_id="huggingface_system_read_only", tags=["huggingface", "system-test"]) as dag:
+    # [START huggingface_load_and_map_example]
     load = LoadDatasetOperator(
         task_id="load_public_dataset",
         path=SOURCE_REPO,
@@ -43,6 +44,7 @@ with DAG(dag_id="huggingface_system_read_only", tags=["huggingface", "system-tes
         output_uri="file:///tmp/hf-provider-system/read-only-mapped.json",
         transform=add_pair_text,
     )
+    # [END huggingface_load_and_map_example]
 
     @task
     def verify_xcom_and_artifact(load_ref, mapped_ref):
