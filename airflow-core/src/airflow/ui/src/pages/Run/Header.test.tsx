@@ -86,7 +86,10 @@ const baseDagRun = {
   triggering_user_name: null,
 } satisfies Partial<DAGRunResponse> as unknown as DAGRunResponse;
 
-const buildAlert = (filter: Array<string> | null, id = "alert"): DeadlineAlertResponse => ({
+const buildAlert = (
+  filter: DeadlineAlertResponse["run_type_filter"],
+  id = "alert",
+): DeadlineAlertResponse => ({
   created_at: "2025-01-01T00:00:00Z",
   id,
   interval: 25,
@@ -151,18 +154,17 @@ describe("Header", () => {
     },
   );
 
-  it.each([{ filter: ["scheduled"] }, { filter: ["backfill"] }, { filter: null }])(
-    "shows stored deadlines for backfill with $filter",
-    ({ filter }) => {
-      mockDeadlineData({
-        deadline_alerts: [buildAlert(filter)],
-        deadlines: [buildDeadline()],
-        total_entries: 1,
-      });
-      render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
-      expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
-    },
-  );
+  it.each([{ filter: ["scheduled"] }, { filter: ["backfill"] }, { filter: null }] satisfies Array<{
+    filter: DeadlineAlertResponse["run_type_filter"];
+  }>)("shows stored deadlines for backfill with $filter", ({ filter }) => {
+    mockDeadlineData({
+      deadline_alerts: [buildAlert(filter)],
+      deadlines: [buildDeadline()],
+      total_entries: 1,
+    });
+    render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
+    expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
+  });
 
   it.each(["excluded", "included"])("shows stored %s history with mixed filters", (storedAlert) => {
     mockDeadlineData({
