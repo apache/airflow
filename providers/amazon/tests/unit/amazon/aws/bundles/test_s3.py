@@ -374,7 +374,6 @@ class TestS3ArchiveDagBundle:
             bundle.initialize()
 
         assert recorded
-        assert (bundle.path / "dag_01.py").is_file()
         assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
 
     def test_prefix_refresh_drops_archive_etag_marker(self, s3_bucket, s3_client):
