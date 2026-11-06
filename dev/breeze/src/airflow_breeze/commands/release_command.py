@@ -29,7 +29,10 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-from airflow_breeze.utils.release_constraints import publish_constraints
+from airflow_breeze.utils.release_constraints import (
+    find_pending_provider_candidates,
+    publish_constraints,
+)
 from airflow_breeze.utils.run_utils import run_command
 
 # Pattern to match Airflow release versions (e.g., "3.0.5")
@@ -349,14 +352,21 @@ def regenerate_constraints(version):
     # released version must never point at rc pins. The workflow reads a version without "rcN" and
     # resolves again without them, against the providers now published as finals.
     major, minor = version.split(".")[:2]
-    # By default a final fails if any provider's newest PyPI version is a pending rc (an unresolved
-    # provider wave). The release manager can pin the currently-released providers instead, to ship a
-    # final through an overlapping, independent provider wave. The safe default (no) keeps the guard.
+    # A final fails if any provider's newest PyPI version is a pending rc (an unresolved provider
+    # wave). Only offer the override when that is actually the case; otherwise the run proceeds
+    # normally with the guard on. The safe default (no) keeps the guard.
     fail_on_pending_provider_candidates = None
-    if confirm_action(
-        "Pin the currently-released providers and proceed even if a provider wave is still in rc?"
-    ):
-        fail_on_pending_provider_candidates = False
+    pending = find_pending_provider_candidates()
+    if pending:
+        console_print(
+            "[warning]These providers have a release candidate on PyPI newer than their latest final:"
+        )
+        for distribution, candidate in pending:
+            console_print(f"[warning]  * {distribution}=={candidate}")
+        if confirm_action(
+            "Pin the currently-released providers and proceed even though a provider wave is still in rc?"
+        ):
+            fail_on_pending_provider_candidates = False
     publish_constraints(
         version=version,
         ref=f"v{major}-{minor}-stable",

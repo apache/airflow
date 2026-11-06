@@ -544,7 +544,7 @@ def test_regenerate_constraints_resolves_from_the_stable_branch(monkeypatch, rel
     """The final release resolves from the branch it is cut from, not from main."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
-    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
+    monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
 
     release_cmd.regenerate_constraints("3.3.0")
 
@@ -559,7 +559,7 @@ def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd)
     """No rc suffix reaches the workflow, which is what makes it refuse pre-releases."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
-    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
+    monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
 
     release_cmd.regenerate_constraints("3.0.5")
 
@@ -567,10 +567,31 @@ def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd)
     assert calls["ref"] == "v3-0-stable"
 
 
-def test_regenerate_constraints_keeps_the_guard_by_default(monkeypatch, release_cmd):
+def test_regenerate_constraints_does_not_prompt_without_pending_candidates(monkeypatch, release_cmd):
+    """With no provider wave in rc, the override is never offered and the guard stays on."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
+
+    def fail_if_called(*a, **k):
+        raise AssertionError("confirm_action must not be called when nothing is pending")
+
+    monkeypatch.setattr(release_cmd, "confirm_action", fail_if_called)
+
+    release_cmd.regenerate_constraints("3.3.0")
+
+    assert calls["fail_on_pending_provider_candidates"] is None
+
+
+def test_regenerate_constraints_keeps_the_guard_when_override_declined(monkeypatch, release_cmd):
     """Declining the prompt leaves the pending-candidate guard on (the workflow derives it)."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(
+        release_cmd,
+        "find_pending_provider_candidates",
+        lambda: [("apache-airflow-providers-standard", "2.0.0rc1")],
+    )
     monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
 
     release_cmd.regenerate_constraints("3.3.0")
@@ -582,6 +603,11 @@ def test_regenerate_constraints_override_pins_released_providers(monkeypatch, re
     """Accepting the prompt pins the currently-released providers through an overlapping wave."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(
+        release_cmd,
+        "find_pending_provider_candidates",
+        lambda: [("apache-airflow-providers-standard", "2.0.0rc1")],
+    )
     monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: True)
 
     release_cmd.regenerate_constraints("3.3.0")
