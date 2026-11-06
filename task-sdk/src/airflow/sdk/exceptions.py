@@ -427,3 +427,7 @@ class RemovedInAirflow4Warning(DeprecationWarning):
 
     deprecated_since: str | None = None
     "Indicates the airflow version that started raising this deprecation warning"
+
+
+class TaskGroupCycleDeprecationWarning(DeprecationWarning):
+    """Issued for Dags whose TaskGroups depend on each other in a cycle; Airflow 3.5 will reject them."""

@@ -1,0 +1,1 @@
+Fix the scheduler crashing, and crashing again on every restart, when a queued Dag run's Dag cannot be deserialized, for example because a custom timetable reads a missing Variable. The run is now logged and skipped until its Dag loads.

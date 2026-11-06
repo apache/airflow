@@ -81,7 +81,7 @@ class TestSandboxSpec:
         spec = SandboxSpec()
 
         with pytest.raises(AttributeError):
-            spec.block_network = False  # type: ignore[misc]
+            spec.block_network = False
 
 
 class TestSandboxExecResult:
@@ -113,7 +113,7 @@ class TestErrorHierarchy:
 class TestBackendContract:
     def test_cannot_be_instantiated_without_implementing_everything(self):
         with pytest.raises(TypeError):
-            SandboxBackend()  # type: ignore[abstract]
+            SandboxBackend()
 
     def test_only_lifecycle_and_command_are_required(self):
         # A new backend should have to write three methods, not six: the file
@@ -549,7 +549,7 @@ class TestAttachablePolicy:
         attached = backend.attach("sb", owner="o", holder="h")
 
         assert attached.network is None
-        assert "network stamp this backend cannot read" in caplog.text
+        assert "Sandbox sb carries a network stamp this backend cannot read: 'open-ish'" in caplog.messages
 
     def test_release_clears_only_the_callers_claim(self):
         backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "someone_else"}})

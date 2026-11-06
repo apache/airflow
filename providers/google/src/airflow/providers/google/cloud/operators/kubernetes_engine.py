@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import datetime
 import time
 import warnings
 from collections.abc import Sequence
@@ -41,7 +42,13 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    conf,
+    timezone,
+)
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEHook,
     GKEKubernetesHook,
@@ -63,19 +70,21 @@ from airflow.providers_manager import ProvidersManager
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
-except ImportError:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+except ImportError as e:
+    _pod_exec_import_error = e
 
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import KubernetesPodExecOperator. This operator is only available in cncf-kubernetes "
-        "provider version >=10.22.0"
-    )
+    class KubernetesPodExecOperator(BaseOperator):  # type: ignore[no-redef]
+        """Keep existing GKE operators importable with older Kubernetes providers."""
+
+        def __init__(self, **kwargs) -> None:
+            raise AirflowOptionalProviderFeatureException(
+                "GKEPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10.22.0."
+            ) from _pod_exec_import_error
+
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
 except ImportError:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
     raise AirflowOptionalProviderFeatureException(
         "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
         "provider version >=8.1.0"
@@ -458,7 +467,9 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     "body['node_config'] or body['initial_code_count'] are specified."
                 )
 
-        if not any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+        if not self._is_autopilot_cluster() and not any(
+            [self._body_field("node_config"), self._body_field("initial_node_count")]
+        ):
             if not self._body_field("node_pools"):
                 error_messages.append(
                     "Field body['node_pools'] is required if none of fields "
@@ -476,6 +487,12 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         if isinstance(self.body, dict):
             return self.body.get(field_name, default_value)
         return getattr(self.body, field_name, default_value)
+
+    def _is_autopilot_cluster(self) -> bool:
+        autopilot = self._body_field("autopilot")
+        if isinstance(autopilot, dict):
+            return bool(autopilot.get("enabled"))
+        return bool(getattr(autopilot, "enabled", False))
 
     def _alert_deprecated_body_fields(self) -> None:
         """Generate warning messages if deprecated fields were used in the body."""
@@ -914,6 +931,19 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         on_finish_action = self.on_finish_action
         if type(on_finish_action) is str and self.on_finish_action not in [i.value for i in OnFinishAction]:
             on_finish_action = self.on_finish_action.split(".")[-1].lower()  # type: ignore[assignment]
+
+        # Anchor on ti.start_date so the deadline survives re-deferrals.
+        trigger_kwargs = dict(self.trigger_kwargs or {})
+        defer_timeout: datetime.timedelta | None = None
+        if self.execution_timeout is not None and context is not None:
+            ti_start_date = context["ti"].start_date
+            execution_deadline = int(ti_start_date.timestamp() + self.execution_timeout.total_seconds())
+            trigger_kwargs["_execution_deadline"] = execution_deadline
+            # Allow the trigger to emit its timeout event before the framework backstop fires.
+            remaining = execution_deadline - time.time()
+            poll_buffer = max(60, int(self.poll_interval * 2))
+            defer_timeout = datetime.timedelta(seconds=max(remaining, 0) + poll_buffer)
+
         self.defer(
             trigger=GKEStartPodTrigger(
                 pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
@@ -934,8 +964,10 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 logging_interval=self.logging_interval,
                 last_log_time=last_log_time,
                 use_dns_endpoint=self.use_dns_endpoint,
+                trigger_kwargs=trigger_kwargs,
             ),
             method_name="trigger_reentry",
+            timeout=defer_timeout,
         )
 
 

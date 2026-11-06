@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -133,5 +133,46 @@ describe("Details state reason row", () => {
     expect(screen.getByText("older try: auth error")).toBeInTheDocument();
     expect(screen.queryByText("latest try: rate limit")).not.toBeInTheDocument();
     expect(screen.getByText(i18n.t("common:taskInstance.stateReason"))).toBeInTheDocument();
+  });
+});
+
+describe("Details retry at row", () => {
+  beforeEach(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
+  it("shows when a try waiting to be retried becomes due", () => {
+    renderDetails(buildTaskInstance({ retry_at: "2026-10-29T12:00:30Z", state: "up_for_retry" }));
+
+    const row = screen.getByText(i18n.t("common:taskInstance.retryAt")).closest("tr");
+
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByTestId("time-display")).toHaveAttribute(
+      "datetime",
+      "2026-10-29T12:00:30Z",
+    );
+  });
+
+  it("omits the row when the try has no retry_at", () => {
+    renderDetails(buildTaskInstance({ retry_at: null, state: "up_for_retry" }));
+
+    expect(screen.queryByText(i18n.t("common:taskInstance.retryAt"))).not.toBeInTheDocument();
+  });
+});
+
+describe("Details loop context", () => {
+  beforeEach(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
+  it("shows the loop iteration separately from the map index", () => {
+    renderDetails(buildTaskInstance({ loop_iteration: { iteration: 2, loop_id: "loop" }, map_index: 8 }));
+
+    const iterationRow = screen.getByRole("row", {
+      name: new RegExp(`^${i18n.t("common:taskInstance.iteration")} \\(loop\\)`, "u"),
+    });
+
+    expect(within(iterationRow).getByText("2")).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("common:mapIndex"))).toBeInTheDocument();
   });
 });

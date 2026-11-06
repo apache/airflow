@@ -76,7 +76,7 @@ class ServerTest {
     val toServer = ByteChannel(autoFlush = true)
     val fromServer = ByteChannel(autoFlush = true)
     val comm = CoordinatorComm(toServer, fromServer)
-    val server = Server(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val server = CoordinatorServer(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
 
     val reported = ArrayBlockingQueue<IncomingFrame>(1)
     val supervisor =
@@ -110,7 +110,7 @@ class ServerTest {
     val toServer = ByteChannel(autoFlush = true)
     val fromServer = ByteChannel(autoFlush = true)
     val comm = CoordinatorComm(toServer, fromServer)
-    val server = Server(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val server = CoordinatorServer(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
 
     Assertions.assertThrows(ApiError::class.java) {
       runBlocking {
@@ -128,7 +128,7 @@ class ServerTest {
     val toServer = ByteChannel(autoFlush = true)
     val fromServer = ByteChannel(autoFlush = true)
     val comm = CoordinatorComm(toServer, fromServer)
-    val server = Server(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val server = CoordinatorServer(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
     val bundle = Bundle(listOf(DagDef("parsed_dag").addTask(TaskDef("t", ServerNoopTask::class.java))))
 
     val reported = ArrayBlockingQueue<RawFrame>(1)

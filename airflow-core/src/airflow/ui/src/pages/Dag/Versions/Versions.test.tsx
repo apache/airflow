@@ -224,4 +224,10 @@ describe("Versions", () => {
 
     await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("max_changes=42"));
   });
+
+  it("does not flag the empty max changes field as invalid", () => {
+    renderVersions("?base_version_number=1&target_version_number=3");
+
+    expect(screen.getByLabelText("versions.maxChanges")).not.toHaveAttribute("aria-invalid");
+  });
 });

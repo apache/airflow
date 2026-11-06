@@ -97,9 +97,18 @@ class GitSkills:
 SkillSource = Union[str, "os.PathLike[str]", GitSkills]
 
 
-def _clone_git(source: GitSkills) -> tuple[str, str]:
+@dataclass(frozen=True)
+class _SkillsLocation:
+    """A resolved skills directory, with the Git source and commit it was cloned from."""
+
+    directory: str
+    git: GitSkills | None = None
+    commit: str | None = None
+
+
+def _clone_git(source: GitSkills) -> tuple[str, str, str]:
     """
-    Clone *source* into a fresh temp dir; return (skills_dir, temp_dir_to_remove).
+    Clone *source* into a fresh temp dir; return (skills_dir, temp_dir_to_remove, commit).
 
     When ``conn_id`` is set, credentials come from the Airflow ``git`` connection
     via ``GitHook`` (HTTPS token or SSH key). The token is stripped from the
@@ -162,6 +171,7 @@ def _clone_git(source: GitSkills) -> tuple[str, str]:
         # Strip any embedded credential from .git/config so a skill script in the
         # checkout cannot read it back out of the temporary clone.
         repo.remote("origin").set_url(source.repo_url)
+        commit = repo.head.commit.hexsha
     except Exception as exc:
         shutil.rmtree(temp_dir, ignore_errors=True)
         # GitPython errors embed the failing command, which may contain the
@@ -175,26 +185,26 @@ def _clone_git(source: GitSkills) -> tuple[str, str]:
         raise
 
     skills_dir = os.path.join(temp_dir, source.path) if source.path else temp_dir
-    return skills_dir, temp_dir
+    return skills_dir, temp_dir, commit
 
 
-def _materialize_skills(sources: list[SkillSource]) -> tuple[list[str], Callable[[], None]]:
+def _materialize_skills(sources: list[SkillSource]) -> tuple[list[_SkillsLocation], Callable[[], None]]:
     """
-    Resolve *sources* to local directories; return (directories, cleanup).
+    Resolve *sources* to local directories; return (locations, cleanup).
 
     ``cleanup`` removes any directories cloned for ``GitSkills`` sources; local
     directory sources are returned untouched and are not removed.
     """
-    directories: list[str] = []
+    locations: list[_SkillsLocation] = []
     temp_dirs: list[str] = []
     try:
         for source in sources:
             if isinstance(source, GitSkills):
-                skills_dir, temp_dir = _clone_git(source)
-                directories.append(skills_dir)
+                skills_dir, temp_dir, commit = _clone_git(source)
+                locations.append(_SkillsLocation(skills_dir, git=source, commit=commit))
                 temp_dirs.append(temp_dir)
             elif isinstance(source, (str, os.PathLike)):
-                directories.append(os.fspath(source))
+                locations.append(_SkillsLocation(os.fspath(source)))
             else:
                 raise TypeError(
                     f"Unsupported skill source {type(source).__name__!r}; expected a path or GitSkills."
@@ -209,7 +219,7 @@ def _materialize_skills(sources: list[SkillSource]) -> tuple[list[str], Callable
         for temp_dir in temp_dirs:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    return directories, cleanup
+    return locations, cleanup
 
 
 @contextmanager
@@ -222,8 +232,8 @@ def resolve_skills(sources: list[SkillSource]) -> Iterator[list[str]]:
     ``AgentSkills(skills=...)``). Cloned repositories are removed on exit, so use
     the returned directories inside the ``with`` block.
     """
-    directories, cleanup = _materialize_skills(sources)
+    locations, cleanup = _materialize_skills(sources)
     try:
-        yield directories
+        yield [location.directory for location in locations]
     finally:
         cleanup()

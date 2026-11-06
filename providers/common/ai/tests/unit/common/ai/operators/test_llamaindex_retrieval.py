@@ -20,18 +20,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Installed only in the agent framework CI job (scripts/in_container/run_agent_framework_tests.sh).
+pytest.importorskip("llama_index.core")
+
 from airflow.providers.common.ai.operators.llamaindex_retrieval import LlamaIndexRetrievalOperator
 
 
 @pytest.fixture
 def _li(monkeypatch):
-    """Patch the two LlamaIndex symbols the retrieval operator uses inside execute().
-
-    ``llama_index`` (core + openai embeddings) is a real test dependency
-    declared in ``providers/common/ai/pyproject.toml``'s dev group, so
-    ``monkeypatch.setattr("llama_index.core.X", ...)`` resolves against the
-    real module.
-    """
+    """Patch the two LlamaIndex symbols the retrieval operator uses inside execute()."""
     StorageContext = MagicMock(name="StorageContext")
     load_index_from_storage = MagicMock(name="load_index_from_storage")
     monkeypatch.setattr("llama_index.core.StorageContext", StorageContext)
@@ -170,7 +167,7 @@ class TestRetrievalOperatorOutput:
             task_id="test",
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
-            embed_model=12345,  # type: ignore[arg-type]
+            embed_model=12345,
         )
         with pytest.raises(TypeError, match="embed_model must be"):
             op.execute(context=MagicMock())

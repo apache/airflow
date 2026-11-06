@@ -38,17 +38,16 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
     from requests import Response
+    from sqlalchemy.orm import Session
 
     from airflow._shared.logging.remote import (
         LogMessages,
@@ -143,25 +142,6 @@ class LogType(str, Enum):
 
     TRIGGER = "trigger"
     WORKER = "worker"
-
-
-def _set_task_deferred_context_var():
-    """
-    Tell task log handler that task exited with deferral.
-
-    This exists for the sole purpose of telling elasticsearch handler not to
-    emit end_of_log mark after task deferral.
-
-    Depending on how the task is run, we may need to set this in task command or in local task job.
-    Kubernetes executor requires the local task job invocation; local executor requires the task
-    command invocation.
-
-    :meta private:
-    """
-    logger = logging.getLogger()
-    with suppress(StopIteration):
-        h = next(h for h in logger.handlers if hasattr(h, "ctx_task_deferred"))
-        h.ctx_task_deferred = True
 
 
 def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
@@ -515,41 +495,12 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    @provide_session
-    def _render_filename(self, ti: TaskInstance, try_number: int, *, session=NEW_SESSION) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int, *, session: Session | None = None) -> str:
         """Return the worker log filename."""
-        dag_run = ti.get_dagrun(session=session)
+        from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 
-        date = dag_run.logical_date or dag_run.run_after
-        formatted_date = date.isoformat()
-
-        template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
-        if jinja_tpl:
-            return render_template(
-                jinja_tpl, {"ti": ti, "ts": formatted_date, "try_number": try_number}, native=False
-            )
-
-        if str_tpl:
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
-            else:
-                data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
-            else:
-                data_interval_end = ""
-            return str_tpl.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                logical_date=formatted_date,
-                try_number=try_number,
-            )
-        raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+        context = prepare_task_log_contexts([ti], session=session)[ti.id]
+        return render_task_log_filename(ti, try_number, context=context)
 
     def _get_executor(self, ti: TaskInstance) -> BaseExecutor:
         """
@@ -561,13 +512,24 @@ class FileTaskHandler(logging.Handler):
         :return: executor of the task instance
         """
         executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
-        executor = self.executor_instances.get(executor_name)
+        team_name = None
+        if conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(ti.dag_id)
+        # A team's executor has its own config, such as the cluster its pods run on.
+        cache_key = f"{team_name}:{executor_name}" if team_name else executor_name
+        executor = self.executor_instances.get(cache_key)
         if executor is None:
-            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+            if team_name:
+                executor = ExecutorLoader.load_executor(
+                    ExecutorLoader.resolve_executor_name(ti.executor, team_name)
+                )
+            elif executor_name == self.DEFAULT_EXECUTOR_KEY:
                 executor = ExecutorLoader.get_default_executor()
             else:
                 executor = ExecutorLoader.load_executor(executor_name)
-            self.executor_instances[executor_name] = executor
+            self.executor_instances[cache_key] = executor
 
         return executor
 
@@ -583,18 +545,16 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance record
         :param try_number: current try_number to read log from
         :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
+                         can be used for streaming log reading and auto-tailing.
                          Following attributes are used:
-                         log_pos: (absolute) Char position to which the log
-                                  which was retrieved in previous calls, this
-                                  part will be skipped and only following test
-                                  returned to be added to tail.
-        :return: log message as a string and metadata.
+                         log_pos: Number of log records returned by previous calls.
+                                  These records are skipped and only the following ones are returned.
+        :return: log stream and metadata.
                  Following attributes are used in metadata:
                  end_of_log: Boolean, True if end of log is reached or False
                              if further calls might get more log text.
-                             This is determined by the status of the TaskInstance
-                 log_pos: (absolute) Char position to which the log is retrieved
+                             This is determined by the state and try number of the TaskInstance
+                 log_pos: Number of log records read so far. Only present when end_of_log is False.
         """
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
@@ -677,21 +637,21 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
-            log_pos = stream_accumulator.total_lines
-            out_stream = stream_accumulator.stream
+        out_metadata: LogMetadata = {"end_of_log": end_of_log}
+        if not end_of_log:
+            # Counting lines for log_pos drains the stream; skip when no token is needed.
+            with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+                out_metadata["log_pos"] = stream_accumulator.total_lines
+                out_stream = stream_accumulator.stream
 
-            # skip log stream until the last position
-            if metadata and "log_pos" in metadata:
-                out_stream = islice(out_stream, metadata["log_pos"], None)
-            else:
-                # first time reading log, add messages before interleaved log stream
-                out_stream = chain(header, out_stream)
+        # skip log stream until the last position
+        if metadata and "log_pos" in metadata:
+            out_stream = islice(out_stream, metadata["log_pos"], None)
+        else:
+            # first time reading log, add messages before interleaved log stream
+            out_stream = chain(header, out_stream)
 
-            return out_stream, {
-                "end_of_log": end_of_log,
-                "log_pos": log_pos,
-            }
+        return out_stream, out_metadata
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):

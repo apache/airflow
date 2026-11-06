@@ -364,9 +364,10 @@ _HISTORY_CONFIG = dataclasses.replace(
 )
 
 
-def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+def _check_for_rows(*, session: Session, query: Select, table_name: str, print_rows: bool = False) -> int:
     num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
-    print(f"Found {num_entities} rows meeting deletion criteria.")
+    row_label = "row" if num_entities == 1 else "rows"
+    print(f"Found {num_entities} {row_label} in table {table_name} meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
 
@@ -401,7 +402,7 @@ _ATTEMPT_UUID_CHILDREN = {
     "task_reschedule": "ti_id",
     "hitl_detail": "ti_id",
 }
-_ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance"}
+_ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance", "dynamic_region"}
 
 
 def _archive_cascading_attempt_data(
@@ -435,6 +436,12 @@ def _archive_cascading_attempt_data(
         )
     if source.name == "dag_run":
         selections["task_instance"] = select(ti).where(ti.c.id.in_(producer_ids))
+        region = tables["dynamic_region"]
+        selections["dynamic_region"] = select(region).where(
+            tuple_(region.c.dag_id, region.c.run_id).in_(
+                select(parent_archive.c.dag_id, parent_archive.c.run_id)
+            )
+        )
 
     if not archives:
         archive_names = {}
@@ -490,18 +497,16 @@ def _do_delete(
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
-        if (
-            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
-        ):  # nothing left to delete
+        if not session.scalars(select(limited_query.exists())).one():  # nothing left to delete
             break
 
         batch_no = next(batch_counter)
         suffix = f"__b{batch_no}" if batch_size else ""
 
         if batch_size:
-            print(f"Performing Delete (batch {batch_no}, max {batch_size} rows)...")
+            print(f"Performing Delete from {source_table_name} (batch {batch_no}, max {batch_size} rows)...")
         else:
-            print("Performing Delete...")
+            print(f"Performing Delete from {source_table_name}...")
 
         # using bulk delete
         # create a new table and copy the rows there
@@ -510,7 +515,7 @@ def _do_delete(
             orm_model.schema,
             f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
         )
-        print(f"Moving data to table {target_table_name}")
+        print(f"Moving data from {source_table_name} to table {target_table_name}")
         target_table = None
         # Lets the ``finally`` cleanup below tell the failure path (don't let a
         # cleanup error mask the original) from the success path (a cleanup error
@@ -574,6 +579,11 @@ def _do_delete(
             logger.debug("delete statement:\n%s", delete.compile())
             deleted = cast("CursorResult", session.execute(delete)).rowcount
             session.commit()
+            row_label = "row" if deleted == 1 else "rows"
+            if batch_size:
+                print(f"Deleted {deleted} {row_label} from {source_table_name} (batch {batch_no}).")
+            else:
+                print(f"Deleted {deleted} {row_label} from {source_table_name}.")
 
             # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
             # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
@@ -636,7 +646,7 @@ def _do_delete(
                         exc_info=True,
                     )
 
-    print("Finished Performing Delete")
+    print(f"Finished Performing Delete from {source_table_name}")
 
 
 def _subquery_keep_last(
@@ -759,7 +769,7 @@ def _build_query(
         query = query.outerjoin(
             subquery,
             and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
                 base_table_recency_col == column(max_date_col_name),
             ),
         )
@@ -811,7 +821,12 @@ def _cleanup_table(
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
-    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
+    num_rows = _check_for_rows(
+        session=session,
+        query=query,
+        table_name=_format_table_name(orm_model.schema, orm_model.name),
+        print_rows=False,
+    )
 
     if num_rows and not dry_run:
         if orm_model.name == "xcom_v2":
@@ -872,12 +887,15 @@ def _confirm_delete(
     tables: list[str],
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    asset_ids: list[int] | None = None,
 ) -> None:
     for_tables = f" for tables {tables!r}" if tables else ""
     for_dags = f" for the following dags: {dag_ids!r}" if dag_ids else ""
     excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if exclude_dag_ids else ""
+    for_assets = f" for asset IDs {asset_ids!r}" if asset_ids is not None else ""
     question = (
-        f"You have requested that we purge all data prior to {date}{for_tables}{for_dags}{excluding_dags}.\n"
+        f"You have requested that we purge all data prior to "
+        f"{date}{for_tables}{for_dags}{excluding_dags}{for_assets}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
@@ -1023,6 +1041,7 @@ def run_cleanup(
     table_names: list[str] | None = None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    asset_ids: list[int] | None = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
@@ -1047,6 +1066,8 @@ def run_cleanup(
     :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
         will perform maintenance on all dags.
     :param exclude_dag_ids: Optional. List of dag ids to exclude from maintenance.
+    :param asset_ids: Optional. Only clean events for these asset IDs. Requires table_names=["asset_event"].
+        An empty list selects no events.
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
@@ -1057,12 +1078,27 @@ def run_cleanup(
         if any per-table cleanup encountered an error. By default errors are suppressed, a warning
         summary is logged, and the command exits 0 even if some tables were not cleaned.
     """
+    if asset_ids is not None and set(table_names or []) != {"asset_event"}:
+        raise SystemExit("--asset-ids requires explicitly selecting only --tables asset_event.")
+
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
     # Get all tables to clean (root + dependents)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
+    if asset_ids is not None:
+        asset_config = effective_config_dict["asset_event"]
+        effective_config_dict["asset_event"] = dataclasses.replace(
+            asset_config,
+            extra_columns=[*(asset_config.extra_columns or []), "asset_id"],
+            extra_filters=[
+                *(asset_config.extra_filters or []),
+                literal_column(f"{_BASE_TABLE_ALIAS}.asset_id").in_(asset_ids),
+            ],
+        )
     if dry_run:
         print("Performing dry run for db cleanup.")
+        if asset_ids is not None:
+            print(f"Restricting cleanup to asset IDs {asset_ids!r}.")
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"
@@ -1074,6 +1110,7 @@ def run_cleanup(
             tables=sorted(effective_table_names),
             dag_ids=dag_ids,
             exclude_dag_ids=exclude_dag_ids,
+            asset_ids=asset_ids,
         )
     existing_tables: set[str] = {
         table

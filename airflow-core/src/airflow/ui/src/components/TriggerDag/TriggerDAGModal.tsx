@@ -26,6 +26,7 @@ import { useDagServiceGetDag } from "openapi/queries";
 import { Modal, Tooltip, RadioCardItem, RadioCardRoot } from "src/system-components";
 
 import { useTrigger } from "src/queries/useTrigger";
+import { isOneOf } from "src/utils";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -34,6 +35,8 @@ enum RunMode {
   BACKFILL = "backfill",
   SINGLE = "single",
 }
+
+const isRunMode = isOneOf(Object.values(RunMode));
 
 type TriggerDAGModalProps = {
   readonly dagDisplayName: string;
@@ -106,8 +109,10 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
           {dag ? (
             <RadioCardRoot
               my={4}
-              onChange={(event) => {
-                setRunMode((event.target as HTMLInputElement).value as RunMode);
+              onValueChange={(details) => {
+                if (isRunMode(details.value)) {
+                  setRunMode(details.value);
+                }
               }}
               value={runMode}
             >

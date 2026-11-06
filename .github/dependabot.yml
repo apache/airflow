@@ -46,9 +46,6 @@ updates:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       github-actions-updates:
         patterns:
@@ -268,9 +265,6 @@ updates:
     schedule:
       interval: daily
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       pip-dependency-updates:
         patterns:
@@ -284,9 +278,6 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       3-4-core-ui-package-updates:
         patterns:
@@ -306,9 +297,6 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       3-4-auth-ui-package-updates:
         patterns:
@@ -337,9 +325,6 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       3-4-registry-package-updates:
         patterns:
@@ -359,9 +344,6 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       3-4-ui-plugin-template-package-updates:
         patterns:
@@ -380,9 +362,6 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: v3-4-test
-    # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - remove when the
-    # 3.4.0 RCs start (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
-    open-pull-requests-limit: 0
     groups:
       3-4-uv-dependency-updates:
         patterns:
