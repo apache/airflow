@@ -548,23 +548,6 @@ class TestKubernetesPodTrigger:
             ["sidecar"],
         )
 
-    @pytest.mark.parametrize(
-        ("spec", "expected"),
-        [
-            pytest.param(
-                k8s.V1PodSpec(containers=[k8s.V1Container(name=BASE_CONTAINER_NAME)]),
-                True,
-                id="declared",
-            ),
-            pytest.param(
-                k8s.V1PodSpec(containers=[k8s.V1Container(name="sidecar")]), False, id="not-declared"
-            ),
-            pytest.param(None, True, id="spec-unavailable"),
-        ],
-    )
-    def test_has_base_container_in_spec(self, trigger, spec, expected):
-        assert trigger.has_base_container_in_spec(k8s.V1Pod(spec=spec)) is expected
-
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.hook")

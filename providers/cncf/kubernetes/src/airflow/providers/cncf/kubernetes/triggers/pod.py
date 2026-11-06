@@ -31,6 +31,7 @@ from asgiref.sync import sync_to_async
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
+from airflow.providers.cncf.kubernetes.utils.container import container_is_in_spec
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     OnFinishAction,
@@ -393,7 +394,9 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             pod = await self._get_pod()
             pod_container_state = self.define_pod_container_state(pod)
-            if pod_container_state == ContainerState.UNDEFINED and not self.has_base_container_in_spec(pod):
+            if pod_container_state == ContainerState.UNDEFINED and not container_is_in_spec(
+                pod, self.base_container_name
+            ):
                 # Polling cannot make a container the pod never declares appear, and
                 # ``_execution_deadline`` is only set when the task sets ``execution_timeout``,
                 # so without this the loop would keep polling until the pod reaches a
@@ -648,17 +651,6 @@ class KubernetesPodTrigger(BaseTrigger):
             return ContainerState.FAILED
 
         return self.define_container_state(pod)
-
-    def has_base_container_in_spec(self, pod: V1Pod) -> bool:
-        """
-        Tell whether the pod declares the base container at all.
-
-        A base container that is in the spec but missing from ``container_statuses`` may still
-        report a status, while one the spec never declares never will.
-        """
-        if pod.spec is None:
-            return True
-        return any(c.name == self.base_container_name for c in pod.spec.containers)
 
     @staticmethod
     def should_wait(pod_phase: PodPhase, container_state: ContainerState) -> bool:

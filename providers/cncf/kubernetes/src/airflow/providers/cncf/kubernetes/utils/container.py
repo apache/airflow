@@ -111,6 +111,23 @@ def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.terminated is not None
 
 
+def container_is_in_spec(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examine V1Pod ``pod`` to determine whether ``container_name`` is declared in its spec.
+
+    A container that is in the spec but missing from ``container_statuses`` may still report a
+    status, while one the spec never declares never will.  A spec that lists no container at
+    all is reported as declaring it: Kubernetes never returns such a pod, so an empty list
+    means a partially populated pod object rather than proof the container is absent.
+    """
+    if not pod or pod.spec is None:
+        return True
+    declared_names = [container.name for container in pod.spec.containers or []]
+    if not declared_names:
+        return True
+    return container_name in declared_names
+
+
 def get_container_termination_message(pod: V1Pod, container_name: str):
     with suppress(AttributeError, TypeError):
         container_statuses = pod.status.container_statuses
