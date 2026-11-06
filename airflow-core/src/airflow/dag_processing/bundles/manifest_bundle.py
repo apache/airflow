@@ -41,7 +41,10 @@ from airflow.dag_processing.bundles._filesystem import (
     remove_bundle_tree_forcefully,
     remove_orphaned_temp_snapshots,
 )
-from airflow.dag_processing.bundles.artifact_store import BundleManifestNotFoundError
+from airflow.dag_processing.bundles.artifact_store import (
+    ArtifactStoreConflictError,
+    BundleManifestNotFoundError,
+)
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
     BundleVersion,
@@ -60,6 +63,7 @@ from airflow.dag_processing.bundles.manifest import (
     BundleSourceSnapshot,
     build_bundle_version_manifest,
     build_ref_payload,
+    build_ref_payload_from_manifest,
     compute_file_sha256,
     is_valid_bundle_version,
     validate_bundle_relative_path,
@@ -69,14 +73,12 @@ from airflow.dag_processing.bundles.manifest import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
 
     from airflow.dag_processing.bundles.artifact_store import ArtifactStore
     from airflow.dag_processing.bundles.manifest import BundleVersionManifest
 
 log = logging.getLogger(__name__)
-
-FILESYSTEM_ARTIFACT_BACKEND_TYPE = "local"
 
 
 @contextmanager
@@ -125,24 +127,32 @@ class BundlePublishResult:
 
 @dataclass(frozen=True)
 class PreparedPublishSource:
-    """One materialized source observation prepared by a concrete adapter."""
+    """
+    One materialized source observation prepared by a concrete adapter.
+
+    ``file_version_ids`` maps each relative path to the backend's identifier for the stored
+    object it was materialized from, such as an S3 ``VersionId``; the manifest records them.
+    """
 
     root: Path
     source_snapshot: BundleSourceSnapshot
+    file_version_ids: Mapping[str, str] | None = None
 
 
 class ManifestDagBundleBase(BaseDagBundle, ABC):
     """
     Shared runtime for content-addressed manifest-backed Dag bundles.
 
-    Publishers write immutable snapshots and a release reference under ``published_root``.
-    Airflow parses and runs only validated, read-only cache copies of those snapshots, made
-    in ``versions_dir``; the version is the content hash of the snapshot's manifest, so a
-    pinned version is self-certifying.
+    Publishers write immutable snapshots and a release reference to the artifact store that
+    ``create_artifact_store`` builds. Airflow parses and runs only validated, read-only cache
+    copies of those snapshots, made in ``versions_dir``. The version hashes the canonical file
+    entries (paths, content hashes, sizes, and executable flags), excluding backend metadata
+    and object version IDs. The release reference separately records the full manifest's digest.
 
     :param published_root: Shared filesystem path containing published snapshots and the
         current release reference. Provision this directory on the mounted filesystem before
-        publication; the store creates only its subdirectories.
+        publication; the store creates only its subdirectories. Required by the default
+        ``create_artifact_store``; a subclass whose store has no published root may omit it.
     :param allow_empty_source: Permit publication of a source tree with no files. Off by
         default so that a failed or incomplete sync cannot remove every Dag from the release.
     :param publication_lock_timeout: Seconds a publisher waits for another publisher to
@@ -160,10 +170,30 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if not isinstance(allow_empty_source, bool):
+            raise TypeError("allow_empty_source must be a boolean")
+        self._configured_published_root = published_root
+        self._publication_lock_timeout = publication_lock_timeout
+        self._store: ArtifactStore = self.create_artifact_store()
+        self.allow_empty_source = allow_empty_source
+        self._validated_version_paths: set[tuple[str, str, str]] = set()
+        self._current_manifest_ref: BundleManifestRef | None = None
+        self._release_version_in_use: weakref.finalize | None = None
+
+    def create_artifact_store(self) -> ArtifactStore:
+        """
+        Build the artifact store that holds this bundle's release reference and snapshots.
+
+        Called once from ``__init__``, after ``BaseDagBundle.__init__``, so an override can use
+        ``self.name``. Set any attributes the override needs before calling
+        ``super().__init__``. Report configuration errors as ``TypeError``: callback bundle
+        preparation treats a ``ValueError`` from bundle construction as "bundle no longer
+        configured" and silently drops the callback.
+
+        The default keeps the artifacts on a shared filesystem under ``published_root``.
+        """
+        published_root = self._configured_published_root
         if not published_root:
-            # TypeError, not ValueError: callback bundle preparation treats a ValueError from
-            # bundle construction as "bundle no longer configured" and silently drops the
-            # callback. TypeError matches how any bundle class fails on a bad config kwarg.
             raise TypeError("published_root must be provided")
         published_root_str = str(published_root)
         # A URL-shaped value must fail loudly instead of becoming a filesystem directory
@@ -173,14 +203,13 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             raise TypeError(
                 f"Unsupported published_root scheme: {published_root_str!r}. Use a filesystem path."
             )
-        self._published_root_path = Path(published_root)
-        if _paths_overlap(self._published_root_path, get_bundle_storage_root_path()):
+        published_root_path = Path(published_root)
+        if _paths_overlap(published_root_path, get_bundle_storage_root_path()):
             raise TypeError(
                 "published_root must not overlap Airflow's bundle cache. Configure separate "
                 "authoritative publication and dag_bundle_storage_path locations."
             )
-        if not isinstance(allow_empty_source, bool):
-            raise TypeError("allow_empty_source must be a boolean")
+        publication_lock_timeout = self._publication_lock_timeout
         if (
             not isinstance(publication_lock_timeout, (int, float))
             or isinstance(publication_lock_timeout, bool)
@@ -188,15 +217,11 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             or publication_lock_timeout < 0
         ):
             raise TypeError("publication_lock_timeout must be a finite, non-negative number of seconds")
-        self._store: ArtifactStore = FilesystemArtifactStore(
+        return FilesystemArtifactStore(
             bundle_name=self.name,
-            published_root=self._published_root_path,
+            published_root=published_root_path,
             lock_timeout=publication_lock_timeout,
         )
-        self.allow_empty_source = allow_empty_source
-        self._validated_version_paths: set[tuple[str, str, str]] = set()
-        self._current_manifest_ref: BundleManifestRef | None = None
-        self._release_version_in_use: weakref.finalize | None = None
 
     # Opaque artifact store locators, for messages and publish results.
     @property
@@ -212,7 +237,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         return self._store.snapshots_root
 
     @abstractmethod
-    def _confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
+    def confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
         """Raise if the concrete source no longer matches ``prepared``."""
 
     def get_current_version(self) -> BundleVersion:
@@ -379,7 +404,12 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         self._validated_version_paths.add(cache_key)
 
     def acquire_publication_lock(self):
-        """Serialize publishers through the artifact store's publication guard."""
+        """
+        Return the artifact store's publication guard.
+
+        The guard either serializes publishers with a lock or scopes compare-and-swap
+        baselines without mutual exclusion.
+        """
         return self._store.publication_guard()
 
     def _materialize_cached_version(
@@ -557,8 +587,11 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         version = validate_bundle_version(version, source=f"manifest reference {source} version")
 
         backend = payload.get("backend")
-        if not isinstance(backend, dict) or backend.get("type") != FILESYSTEM_ARTIFACT_BACKEND_TYPE:
-            raise BundleManifestError(f"Bundle manifest reference {source} is not for a local backend")
+        backend_type = self._store.backend_type
+        if not isinstance(backend, dict) or backend.get("type") != backend_type:
+            raise BundleManifestError(
+                f"Bundle manifest reference {source} is not for a {backend_type} backend"
+            )
 
         manifest_data = payload.get("manifest")
         if not isinstance(manifest_data, dict):
@@ -589,7 +622,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         ref_payload = build_ref_payload(
             bundle_name=bundle_name,
             version=version,
-            backend={"type": FILESYSTEM_ARTIFACT_BACKEND_TYPE},
+            backend={"type": backend_type},
             manifest_sha256=manifest_sha256,
             file_count=file_count,
             total_size=total_size,
@@ -643,7 +676,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             manifest,
             expected_version=expected_version,
             expected_bundle_name=self.name,
-            expected_backend_type=FILESYSTEM_ARTIFACT_BACKEND_TYPE,
+            expected_backend_type=self._store.backend_type,
         )
 
     def _validate_snapshot_files(
@@ -842,7 +875,7 @@ def publish_prepared_manifest_dag_bundle(
     source_path = prepared_source.root
     _validate_publish_source_path(
         source_path=source_path,
-        published_root=bundle._published_root_path,
+        store=bundle._store,
         versions_dir=bundle.versions_dir,
     )
     if not prepared_source.source_snapshot.files and not bundle.allow_empty_source:
@@ -872,14 +905,21 @@ def publish_prepared_manifest_dag_bundle(
         manifest_result = build_bundle_version_manifest(
             bundle_name=bundle.name,
             root=source_path,
-            backend_type=FILESYSTEM_ARTIFACT_BACKEND_TYPE,
+            backend_type=bundle._store.backend_type,
             source_snapshot=prepared_source.source_snapshot,
+            file_version_ids=prepared_source.file_version_ids,
         )
-        return _publish_manifest_result(
-            bundle=bundle,
-            manifest_result=manifest_result,
-            prepared_source=prepared_source,
-        )
+        try:
+            return _publish_manifest_result(
+                bundle=bundle,
+                manifest_result=manifest_result,
+                prepared_source=prepared_source,
+            )
+        except ArtifactStoreConflictError as e:
+            raise BundleManifestReferenceChangedError(
+                f"Bundle '{bundle.name}' manifest reference changed during publication: "
+                "another publisher updated the release concurrently"
+            ) from e
 
 
 def _publish_manifest_result(
@@ -888,47 +928,53 @@ def _publish_manifest_result(
     manifest_result: BundleVersionManifest,
     prepared_source: PreparedPublishSource,
 ) -> BundlePublishResult:
-    """Publish a precomputed manifest while the caller holds the publication lock."""
-    ref_payload = dict(manifest_result.ref_payload)
-    manifest_ref = bundle._build_manifest_ref_from_payload(ref_payload, source="publisher")
-    version_path = bundle._store.snapshot_path(manifest_result.version)
-
-    created_snapshot = bundle._store.publish_snapshot(
+    """Publish a precomputed manifest inside the artifact store's publication guard."""
+    version = manifest_result.version
+    publication = bundle._store.publish_snapshot(
         manifest=manifest_result.manifest,
         source_root=prepared_source.root,
-        validate_existing=lambda tree: bundle._validate_snapshot_for_ref(manifest_ref, tree),
+        validate_existing=lambda tree: bundle._validate_materialized_version(
+            version_path=tree, version=version, manifest_ref=None
+        ),
     )
+    # A republish can carry different object version ids for the same version; the reference
+    # must name the manifest the store kept, which a store may return without validating.
+    bundle._validate_snapshot_manifest(publication.manifest, expected_version=version)
+    ref_payload = build_ref_payload_from_manifest(publication.manifest)
+    manifest_ref = bundle._build_manifest_ref_from_payload(ref_payload, source="publisher")
 
-    bundle._confirm_publish_source(prepared_source)
+    bundle.confirm_publish_source(prepared_source)
     bundle._store.write_ref(ref_payload)
 
     return BundlePublishResult(
         bundle_name=bundle.name,
-        version=manifest_result.version,
+        version=version,
         ref_payload=ref_payload,
-        version_path=version_path,
+        version_path=bundle._store.snapshot_path(version),
         manifest_ref_path=bundle.manifest_ref_path,
         manifest_sha256=manifest_ref.manifest_sha256,
         file_count=ref_payload["file_count"],
         total_size=ref_payload["total_size"],
-        created_snapshot=created_snapshot,
+        created_snapshot=publication.created,
     )
 
 
-def _validate_publish_source_path(*, source_path: Path, published_root: Path, versions_dir: Path) -> None:
-    # The store cannot check these: it does not know the local cache, and a source inside
-    # published_root would publish into itself.
-    if _is_same_or_nested_path(published_root, source_path):
-        raise ValueError(
-            "published_root must not be inside source_path. Keep published snapshots "
-            "outside the Dag source tree before publishing a manifest bundle."
-        )
+def _validate_publish_source_path(*, source_path: Path, store: ArtifactStore, versions_dir: Path) -> None:
+    # The store cannot check these: it does not know the local cache, and a source inside a
+    # filesystem published_root would publish into itself. Other stores have no such root.
+    if isinstance(store, FilesystemArtifactStore):
+        published_root = store.published_root
+        if _is_same_or_nested_path(published_root, source_path):
+            raise ValueError(
+                "published_root must not be inside source_path. Keep published snapshots "
+                "outside the Dag source tree before publishing a manifest bundle."
+            )
 
-    if _is_same_or_nested_path(source_path, published_root):
-        raise ValueError(
-            "source_path must not be inside published_root. Keep the Dag source tree "
-            "outside the published snapshots before publishing a manifest bundle."
-        )
+        if _is_same_or_nested_path(source_path, published_root):
+            raise ValueError(
+                "source_path must not be inside published_root. Keep the Dag source tree "
+                "outside the published snapshots before publishing a manifest bundle."
+            )
 
     if _paths_overlap(source_path, versions_dir):
         raise ValueError(

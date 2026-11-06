@@ -60,6 +60,8 @@ from airflow.exceptions import AirflowException
 
 from tests_common.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.usefixtures("isolate_bundle_storage")
+
 BUNDLE_NAME = "manifest-local"
 
 
@@ -124,18 +126,6 @@ def _call_entry_point(bundle: ManifestLocalDagBundle, entry_point: str):
     if entry_point == "path":
         return bundle.path
     return getattr(bundle, entry_point)()
-
-
-@pytest.fixture(autouse=True)
-def _isolate_bundle_storage(tmp_path):
-    with (
-        conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path / "bundles")}),
-        # The tracking folder is resolved once at import time, not from the config above.
-        mock.patch(
-            "airflow.dag_processing.bundles.base.STALE_BUNDLE_TRACKING_FOLDER", tmp_path / "bundles/_tracking"
-        ),
-    ):
-        yield
 
 
 class TestConstruction:
@@ -1175,7 +1165,7 @@ class TestCacheRecovery:
 
         assert tracking_file.exists()
         _set_tracking_timestamp(fresh, published.version, "2000-01-01T00:00:00+00:00")
-        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
+        BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
         assert (fresh.versions_dir / published.version / "dags/example.py").read_text() == "print('dag')"
 
 
@@ -1202,7 +1192,7 @@ class TestStaleVersionCleanup:
 
     @staticmethod
     def _remove_stale_versions(bundle: ManifestLocalDagBundle) -> None:
-        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
+        BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
 
     @pytest.mark.parametrize("snapshot_failure", ["missing", "corrupt"])
     def test_failed_first_refresh_leaves_no_tracking_file(self, tmp_path, snapshot_failure):
@@ -1222,7 +1212,7 @@ class TestStaleVersionCleanup:
         assert not tracking_file.exists()
         del bundle
         gc.collect()
-        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
+        BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
         assert not tracking_file.exists()
 
     @pytest.mark.parametrize("snapshot_failure", ["missing", "corrupt"])
@@ -1252,7 +1242,7 @@ class TestStaleVersionCleanup:
 
         del bundle
         gc.collect()
-        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
+        BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
         assert not first_path.exists()
         assert not first_tracking_file.exists()
 
@@ -1418,5 +1408,5 @@ class TestStaleVersionCleanup:
         gc.collect()
 
         _set_tracking_timestamp(_make_bundle(tmp_path), published.version, self.STALE)
-        BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
+        BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=BUNDLE_NAME)
         assert not tracking_file.exists()

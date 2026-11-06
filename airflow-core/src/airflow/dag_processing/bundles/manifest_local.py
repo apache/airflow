@@ -44,7 +44,7 @@ class ManifestLocalDagBundle(ManifestDagBundleBase):
     publication recorded, never the mutable source directory itself.
     """
 
-    def _confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
+    def confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
         current_snapshot = collect_bundle_source_snapshot(prepared.root)
         if current_snapshot.signature != prepared.source_snapshot.signature:
             raise BundleManifestSourceChangedError(
