@@ -61,23 +61,13 @@ DuckDB support is an optional extra
     :doc:`Lambda executor <../executors/lambda-executor>`, set ``HOME`` in the function's image or
     environment variables.
 
-.. _howto/connection:duckdb_aws:
-
 Run a DuckDB query against Amazon S3
 ====================================
 
-Two connections are involved:
-
-* A **DuckDB on AWS** (``duckdb_aws``) connection which configures DuckDB itself, i.e.: *which DuckDB database and with what settings*.
-  Its id is what you pass to
-  :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` as ``conn_id``, and its
-  type is also what selects :class:`~airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook`.
-* An **AWS** (``aws``) connection says *which AWS identity*, i.e.: keys or role, region, endpoint, etc. The DuckDB
-  connection points at it through ``aws_conn_id``, which defaults to ``aws_default``.
-
-Credentials stay in the usual AWS connection. The ``duckdb_aws`` connection can be empty (though it must exist) and often
-will be with DuckDB's ability to use in-memory databases. Create it, name it whatever you like, and leave every field blank
-to get an in-memory database.
+Two connections are involved: a :ref:`DuckDB on AWS connection <howto/connection:duckdb_aws>` that
+says which DuckDB database to open and with what settings, and an
+:ref:`AWS connection <howto/connection:aws>` that says which AWS identity to use. The DuckDB on AWS
+connection can be empty, though it must exist.
 
 Given that connection, the hook loads the ``httpfs`` and ``aws`` extensions and creates the S3 secret,
 so the task supplies only SQL:
@@ -123,6 +113,8 @@ avoids paying connection setup and extension loading more than once per task:
         with hook.get_conn() as conn:
             conn.execute("CREATE TABLE sales AS SELECT * FROM read_parquet('s3://my-bucket/sales.parquet')")
             return conn.execute("SELECT region, SUM(revenue) FROM sales GROUP BY region").fetchall()
+
+.. _howto/operator:duckdb_aws:credentials:
 
 How credentials reach DuckDB
 ============================
