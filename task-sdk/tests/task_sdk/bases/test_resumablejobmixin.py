@@ -184,6 +184,80 @@ class TestRetryWithDifferentJobStatuses:
         assert op.polled_ids == ["job-002"]
 
 
+class ResumingOperator(ConcreteResumableOperator):
+    """Resumes a failed job, optionally under a new ID or by raising."""
+
+    def __init__(self, resumed_id: str | None = None, error: Exception | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.resumed_id = resumed_id
+        self.error = error
+        self.resume_calls: list[tuple[str, str]] = []
+
+    def resume_failed_job(self, external_id: JsonValue, status: str, context) -> JsonValue | None:
+        self.resume_calls.append((str(external_id), status))
+        if self.error is not None:
+            raise self.error
+        return self.resumed_id
+
+
+class TestResumeFailedJob:
+    @pytest.mark.parametrize(
+        ("resumed_id", "expected_stored"),
+        [
+            pytest.param("job-001", "job-001", id="resumed_in_place"),
+            pytest.param("job-001-repair", "job-001-repair", id="resumed_under_new_id"),
+        ],
+    )
+    def test_resumes_instead_of_resubmitting(self, resumed_id, expected_stored):
+        op = ResumingOperator(task_id="test_task", resumed_id=resumed_id)
+        op._status_map["job-001"] = "FAILED"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        result = op.execute_resumable(make_context(task_state))
+
+        assert op.resume_calls == [("job-001", "FAILED")]
+        assert op.submitted_ids == []
+        assert op.polled_ids == [resumed_id]
+        assert result == f"result-of-{resumed_id}"
+        assert task_state.get("test_job_id") == expected_stored
+
+    @pytest.mark.parametrize(
+        "error", [None, RuntimeError("repair endpoint down")], ids=["declined", "raised"]
+    )
+    def test_resubmits_when_resume_declined_or_raises(self, error):
+        op = ResumingOperator(task_id="test_task", resumed_id=None, error=error)
+        op._status_map["job-001"] = "FAILED"
+        op._next_id = "job-002"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == ["job-002"]
+        assert op.polled_ids == ["job-002"]
+        assert task_state.get("test_job_id") == "job-002"
+
+    @pytest.mark.parametrize("status", ["RUNNING", "SUCCEEDED"])
+    def test_not_asked_when_job_did_not_fail(self, status):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+        op._status_map["job-001"] = status
+
+        op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        assert op.resume_calls == []
+
+    def test_resume_on_retry_false_resubmits_without_asking(self):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001", resume_on_retry=False)
+        op._status_map["job-001"] = "FAILED"
+        op._next_id = "job-002"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert op.resume_calls == []
+        assert op.submitted_ids == ["job-002"]
+        assert task_state.get("test_job_id") == "job-002"
+
+
 class TestNoneExternalId:
     def test_none_external_id_is_not_stored(self):
         """submit_job() returning None must not call task_state.set()."""

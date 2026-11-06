@@ -26,6 +26,13 @@
 Changelog
 ---------
 
+.. note::
+
+    On Airflow 3.5 and later, a durable ``DatabricksRunNowOperator`` that retries after its stored run
+    failed now repairs that run, rerunning only the failed tasks, instead of starting a new run. Set
+    ``resume_on_retry=False`` to keep starting a new run. ``repair_run`` is unchanged: it still repairs
+    once within a try.
+
 7.24.0
 ......
 
