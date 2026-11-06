@@ -31,7 +31,7 @@ const assetWithDependencies = {
   scheduled_dags: [],
   updated_at: "2025-01-02T00:00:00Z",
   uri: "s3://bucket/asset",
-  watchers: [{ created_date: "2025-01-01T00:00:00Z", name: "my_watcher", trigger_id: 5 }],
+  watchers: [{ created_date: "2025-01-01T00:00:00Z", name: "my_watcher", status: "running", trigger_id: 5 }],
 };
 
 const plainAsset = {

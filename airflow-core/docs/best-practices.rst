@@ -591,11 +591,9 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 
     from datetime import datetime
 
-    from airflow.sdk import DAG
-    from airflow.sdk import task
     from airflow.exceptions import AirflowException
     from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.utils.trigger_rule import TriggerRule
+    from airflow.sdk import DAG, TriggerRule, task
 
 
     @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)

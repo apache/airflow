@@ -16,11 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Security, status
+from fastapi import Header, HTTPException, Security, status
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
@@ -54,11 +55,13 @@ def upsert_hitl_detail(
     task_instance_id: UUID,
     payload: HITLDetailRequest,
     session: SessionDep,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
 ) -> HITLDetailRequest:
     """
     Create a Human-in-the-loop detail for a specific Task Instance.
 
-    There're 3 cases handled here.
+    A POST that repeats the ``Idempotency-Key`` of the stored request is a retry of it, so the request and
+    any response it already has are kept. Otherwise there're 3 cases handled here.
 
     1. If a HITLOperator task instance does not have a HITLDetail,
        a new HITLDetail is created without a response section.
@@ -79,6 +82,7 @@ def upsert_hitl_detail(
         "params": payload.params,
         "assignees": [user.model_dump() for user in payload.assigned_users],
         "created_at": timezone.utcnow(),
+        "idempotency_key": idempotency_key,
     }
     # Same lock order as the park transition and the Core API response path (TaskInstance, then
     # hitl_detail), so a response landing between the read and the flush cannot survive the rewrite.
@@ -86,6 +90,14 @@ def upsert_hitl_detail(
     hitl_detail_model = session.scalar(
         select(HITLDetail).where(HITLDetail.ti_id == task_instance_id).with_for_update(of=HITLDetail)
     )
+    if (
+        hitl_detail_model is not None
+        and idempotency_key is not None
+        and hitl_detail_model.idempotency_key == idempotency_key
+    ):
+        # The client retried a POST whose response it lost. A running task can be answered by then,
+        # so rewriting the request would discard that answer.
+        return HITLDetailRequest.model_validate(hitl_detail_model)
     if not hitl_detail_model:
         hitl_detail_model = HITLDetail(ti_id=task_instance_id, **request_part)
     else:
