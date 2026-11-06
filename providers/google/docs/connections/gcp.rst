@@ -33,7 +33,7 @@ There are three ways to connect to Google Cloud using Airflow:
 2. Using a `service account
    <https://cloud.google.com/docs/authentication/#service_accounts>`_ by specifying a key file in JSON format.
    Key can be specified as a path to the key file (``Keyfile Path``), as a key payload (``Keyfile JSON``)
-   or as a secret in Secret Manager (``Keyfile Secret Name``). Only one way of defining the key can be used at a time.
+   or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
    If you need to manage multiple keys then you should configure multiple connections.
 3. Using a `credential configuration file <https://googleapis.dev/python/google-auth/2.9.0/user-guide.html#external-credentials-workload-identity-federation>`_,
    by specifying the path to or the content of a valid credential configuration file.
@@ -129,7 +129,7 @@ IdP Extra Request Parameters
 Anonymous credentials (ignores all other settings)
     Use anonymous credentials for APIs that do not require authentication, such as reading public
     Cloud Storage objects. Cannot be combined with ``Keyfile Path``, ``Keyfile JSON``,
-    ``Credential Configuration File`` or ``Keyfile Secret Name``.
+    ``Credential Configuration File`` or ``Secret name which holds Keyfile JSON``.
 
 Keyfile Secret Name (in GCP Secret Manager)
     Secret ID in Secret Manager containing a `service account
