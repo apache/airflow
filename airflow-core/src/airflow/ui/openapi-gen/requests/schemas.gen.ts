@@ -12720,7 +12720,7 @@ export const $DeadlineAlertResponse = {
             anyOf: [
                 {
                     items: {
-                        type: 'string'
+                        '$ref': '#/components/schemas/DagRunType'
                     },
                     type: 'array'
                 },

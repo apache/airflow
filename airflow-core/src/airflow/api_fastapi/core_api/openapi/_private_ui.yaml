@@ -4263,7 +4263,7 @@ components:
         run_type_filter:
           anyOf:
           - items:
-              type: string
+              $ref: '#/components/schemas/DagRunType'
             type: array
           - type: 'null'
           title: Run Type Filter

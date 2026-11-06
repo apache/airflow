@@ -26,6 +26,7 @@ from pydantic import AliasPath, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import CallbackState
+from airflow.utils.types import DagRunType
 
 
 class DeadlineResponse(BaseModel):
@@ -53,7 +54,7 @@ class DeadlineAlertResponse(BaseModel):
 
     id: UUID
     name: str | None = None
-    run_type_filter: list[str] | None = None
+    run_type_filter: list[DagRunType] | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
     interval: float | None = Field(
         default=None,
