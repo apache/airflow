@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type FC, lazy, Suspense } from "react";
+import { type ComponentType, lazy, Suspense } from "react";
 
 import { Spinner } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
@@ -51,7 +51,7 @@ export type PluginProps = {
   taskInstance?: TaskInstanceResponse;
 };
 
-type PluginComponentType = FC<PluginProps>;
+type PluginComponentType = ComponentType<PluginProps>;
 
 const loadPluginDependencies = async () => {
   const { registerPluginDependencies } = await import("src/utils/registerPluginDependencies");
@@ -74,7 +74,8 @@ export const loadPlugin = (
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
       let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
-        PluginComponentType | undefined;
+        | PluginComponentType
+        | undefined;
 
       if (pluginComponent === undefined) {
         pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;

@@ -16,23 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
- */
-import prettier from "eslint-plugin-prettier";
-
-import { off } from "./off.js";
 
 /**
- * ESLint TypeScript namespace.
+ * Airflow UI lint rules, in the plugin shape both ESLint and oxlint (`jsPlugins`) load.
  */
-export const prettierNamespace = "prettier";
+import { noReactNamespaceTypes } from "./no-react-namespace-types.js";
 
-/**
- * ESLint Prettier rules.
- * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
- */
-export const prettierRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
-  plugins: { [prettierNamespace]: prettier },
-  rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
-});
+export const airflowNamespace = "airflow";
+
+export default {
+  meta: { name: airflowNamespace },
+  rules: {
+    "no-react-namespace-types": noReactNamespaceTypes,
+  },
+};

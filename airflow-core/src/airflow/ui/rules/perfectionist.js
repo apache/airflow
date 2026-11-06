@@ -22,7 +22,6 @@
 import perfectionist from "eslint-plugin-perfectionist";
 
 import { ERROR } from "./levels.js";
-import { off } from "./off.js";
 
 /**
  * ESLint `perfectionist` namespace.
@@ -62,10 +61,10 @@ export const perfectionistRules = /** @type {const} @satisfies {FlatConfig.Confi
 
     /*
      * `sort-imports` is intentionally left off: import order is owned by
-     * `@trivago/prettier-plugin-sort-imports` (see `importOrder` in
-     * `.prettierrc`). The prek hook runs `eslint --fix` before
-     * `prettier --write`, so enabling it here would let Prettier overwrite
-     * ESLint's ordering and leave `pnpm lint` failing with no possible fix.
+     * oxfmt's `sortImports` (see `.oxfmtrc.json`). The prek hook runs
+     * `eslint --fix` before `oxfmt --write`, so enabling it here would let
+     * oxfmt overwrite ESLint's ordering and leave `pnpm lint` failing with no
+     * possible fix.
      */
 
     /**
@@ -140,7 +139,5 @@ export const perfectionistRules = /** @type {const} @satisfies {FlatConfig.Confi
         ],
       },
     ],
-
-    ...off("sort-keys"),
   },
 });
