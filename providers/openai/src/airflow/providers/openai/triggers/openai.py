@@ -21,7 +21,7 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.providers.openai.hooks.openai import BatchStatus, OpenAIHook
+from airflow.providers.openai.hooks.openai import BatchStatus, OpenAIHook, TerminationReason
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -103,6 +103,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
+                            "termination_reason": TerminationReason.TIMEOUT,
                             "message": (
                                 f"Batch {self.batch_id} has not reached a terminal status after "
                                 f"{elapsed:.0f} seconds."
@@ -116,6 +117,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "success",
+                        "termination_reason": TerminationReason.COMPLETED,
                         "message": f"Batch {self.batch_id} has completed successfully.",
                         "batch_id": self.batch_id,
                     }
@@ -124,6 +126,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "cancelled",
+                        "termination_reason": TerminationReason.CANCELLED,
                         "message": f"Batch {self.batch_id} has been cancelled.",
                         "batch_id": self.batch_id,
                     }
@@ -132,6 +135,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "error",
+                        "termination_reason": TerminationReason.FAILED,
                         "message": f"Batch failed:\n{self.batch_id}",
                         "batch_id": self.batch_id,
                     }
@@ -140,7 +144,8 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "error",
-                        "message": f"Batch couldn't be completed within the hour time window :\n{self.batch_id}",
+                        "termination_reason": TerminationReason.EXPIRED,
+                        "message": f"Batch couldn't be completed within its completion window:\n{self.batch_id}",
                         "batch_id": self.batch_id,
                     }
                 )
@@ -148,9 +153,17 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "error",
+                        "termination_reason": TerminationReason.UNEXPECTED_STATUS,
                         "message": f"Batch {self.batch_id} has failed.",
                         "batch_id": self.batch_id,
                     }
                 )
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e), "batch_id": self.batch_id})
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "termination_reason": TerminationReason.POLLING_ERROR,
+                    "message": str(e),
+                    "batch_id": self.batch_id,
+                }
+            )

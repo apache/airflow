@@ -494,12 +494,10 @@ class TestResolveFieldType:
         ],
     )
     def test_optional_generic_raises(self, hint):
-        """A generic wrapped in ``| None`` must be rejected on every supported Python.
+        """A generic wrapped in ``| None`` must be rejected as an unsupported annotation.
 
         The union passes the top-level origin check and reduces to ``list[int]``,
-        which is a ``type`` instance on 3.10 and only stopped being one in 3.11
-        (gh-101162). Without checking the reduced member this resolved to a
-        container type on the oldest supported Python while passing on 3.12.
+        which must be rejected explicitly rather than as a bare non-type.
         """
         with pytest.raises(TypeError, match="unsupported annotation"):
             _resolve_field_type("some_field", hint)

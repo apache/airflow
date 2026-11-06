@@ -72,9 +72,21 @@ def get_provider_info():
                 "tags": ["software"],
             },
             {
-                "integration-name": "Modal",
+                "integration-name": "Modal Sandboxes",
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
+            },
+            {"integration-name": "Islo", "external-doc-url": "https://docs.islo.dev/", "tags": ["service"]},
+            {
+                "integration-name": "OpenSandbox",
+                "external-doc-url": "https://open-sandbox.ai/",
+                "tags": ["software"],
+            },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
+            {
+                "integration-name": "NVIDIA OpenShell",
+                "external-doc-url": "https://github.com/NVIDIA/OpenShell",
+                "tags": ["software"],
             },
         ],
         "hooks": [
@@ -96,14 +108,18 @@ def get_provider_info():
             {
                 "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
-            }
+            },
+            {
+                "name": "ai_model_panel",
+                "plugin-class": "airflow.providers.common.ai.plugins.model_panel.ModelPanelPlugin",
+            },
         ],
         "config": {
             "common.ai": {
                 "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
                 "options": {
                     "durable_cache_path": {
-                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True`` on Airflow\n**< 3.3**. Each task execution writes a single JSON file under this\npath containing its cached model responses and tool results, so that\non retry the agent can replay completed steps instead of re-issuing\nLLM calls and tool invocations. The file is deleted on successful task\ncompletion.\n\nRequired for ``durable=True`` only on Airflow < 3.3. On Airflow >= 3.3\nthe cache is stored in the AIP-103 task state store and this option is\nignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is\naccepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).\n",
+                        "description": "ObjectStorage URI used to persist per-step caches for durable execution\non Airflow **< 3.3**. Each task execution writes a single JSON file under this\npath containing its cached model responses and tool results, so that\non retry the agent can replay completed steps instead of re-issuing\nLLM calls and tool invocations. The file is deleted on successful task\ncompletion.\n\nRequired for durable execution only on Airflow < 3.3. On Airflow >= 3.3\nthe cache is stored in the AIP-103 task state store and this option is\nignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is\naccepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).\n",
                         "version_added": "0.1.0",
                         "type": "string",
                         "example": "file:///tmp/airflow_durable_cache",
@@ -117,7 +133,7 @@ def get_provider_info():
                         "default": "False",
                     },
                     "capture_content": {
-                        "description": "Capture prompt, completion, and tool-call content on the emitted\nGenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).\n\nOff by default: only token counts, model id, latency, tool names, and\nfinish reason are recorded, never message text. Turning this on exports\nmodel inputs and outputs to your tracing backend without redaction. Airflow's\nsecret masking applies to logs and rendered template fields, not to\nOpenTelemetry span attributes, so it does not scrub this content.\nEnable it only for debugging in a trusted environment. Has no effect\nunless ``otel_export_enabled`` is ``True``.\n",
+                        "description": "Capture prompt, completion, and tool-call content on the emitted\nGenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).\n\nOff by default: only token counts, model id, latency, tool names, and\nfinish reason are recorded, never message text. Turning this on exports\nmodel inputs and outputs to your tracing backend without redaction. Airflow's\nsecret masking applies to logs and rendered template fields, not to\nOpenTelemetry span attributes. The exception is what a function tool\nreturns or raises while it runs in an agent this provider builds, which\nis masked before the span records it. Enable it only for debugging in\na trusted environment. Has no effect unless ``otel_export_enabled`` is\n``True``.\n",
                         "version_added": "0.4.0",
                         "type": "boolean",
                         "example": "False",
@@ -132,15 +148,42 @@ def get_provider_info():
                 "hook-name": "Pydantic AI",
                 "connection-type": "pydanticai",
                 "external-services": [
-                    "OpenAI",
+                    "Alibaba Cloud Model Studio",
                     "Anthropic",
-                    "Google",
                     "AWS Bedrock",
-                    "Groq",
-                    "Mistral AI",
+                    "AWS Bedrock Mantle",
+                    "Azure OpenAI",
+                    "Cerebras",
+                    "Cohere",
+                    "Crusoe",
                     "DeepSeek",
+                    "Fireworks AI",
+                    "GitHub Copilot",
+                    "Google Gemini",
+                    "Google Vertex AI",
+                    "Groq",
+                    "Heroku",
+                    "Hugging Face",
+                    "LiteLLM",
+                    "Meta",
+                    "Mistral AI",
+                    "Moonshot AI",
+                    "Nebius",
                     "Ollama",
+                    "OpenAI",
+                    "OpenAI Decisions",
+                    "OpenRouter",
+                    "OVHcloud",
+                    "Pydantic AI Gateway",
+                    "SambaNova",
+                    "Snowflake Cortex",
+                    "System One",
+                    "Together AI",
+                    "TypeSafe",
+                    "Vercel AI Gateway",
                     "vLLM",
+                    "xAI",
+                    "Z.AI",
                 ],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -153,8 +196,28 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
+                        "description": "Model as provider:name (e.g. openai:gpt-5), or bare with a Default Model Provider",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "model_provider": {
+                        "label": "Default Model Provider",
+                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat). Any provider the installed pydantic-ai recognizes works.\n",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "examples": [
+                                "openai-chat",
+                                "openai",
+                                "anthropic",
+                                "ollama",
+                                "litellm",
+                                "openrouter",
+                                "groq",
+                                "mistral",
+                                "deepseek",
+                                "together",
+                                "fireworks",
+                            ],
+                        },
                     },
                     "fallback_conn_ids": {
                         "label": "Fallback Connections",
@@ -299,7 +362,7 @@ def get_provider_info():
                     },
                     "vertexai": {
                         "label": "Force Vertex AI Mode",
-                        "description": "Ignored (kept for compatibility); mode is now selected via the Model field's prefix.",
+                        "description": "Deprecated and ignored; the Model field's prefix selects the mode.",
                         "schema": {"type": ["boolean", "null"]},
                     },
                     "api_key": {
@@ -323,6 +386,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",
                 "hook-name": "MCP Server",
                 "connection-type": "mcp",
+                "external-services": ["Any MCP server (user-supplied endpoint)"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "Auth Token"},

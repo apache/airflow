@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import Table, delete, or_, select
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
@@ -68,7 +68,9 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
     # To ensure the TaskInstance and DagRun model is deleted before
     # each of the model DagVersion and BackFill respectively.
     models_for_deletion = [TaskInstance, DagRun] + [
-        model for model in get_sqla_model_classes() if model.__name__ not in ["TaskInstance", "DagRun"]
+        model
+        for model in get_sqla_model_classes()
+        if model.__name__ not in ["TaskInstance", "DagRun"] and isinstance(model.__table__, Table)
     ]
 
     count: int = 0
@@ -82,7 +84,10 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
     # This handles the case when the dag_id is changed in the file
     session.execute(
         delete(ParseImportError).where(
-            ParseImportError.filename == dag.relative_fileloc,
+            or_(
+                ParseImportError.source_reference == dag.relative_fileloc,
+                ParseImportError.filename == dag.relative_fileloc,
+            ),
             ParseImportError.bundle_name == dag.bundle_name,
         )
     )

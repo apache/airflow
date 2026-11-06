@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = ["PyYAML>=6.0", "rich>=13.6.0"]
 # ///
 """Regenerate the Java SDK compatibility table in ``java-sdk/README.md`` and the Dokka module doc.
@@ -40,7 +40,7 @@ from lang_sdk_compat_matrix import (
     LANG_SDKS,
     README_MATRIX_FOOTER,
     README_MATRIX_HEADER,
-    CapabilitiesDoc,
+    Capabilities,
     load_capabilities,
     render_markdown_table,
 )
@@ -63,10 +63,10 @@ def read_gradle_schema_version() -> str | None:
     return None
 
 
-def check_schema_version(doc: CapabilitiesDoc) -> bool:
+def check_schema_version(doc: Capabilities) -> bool:
     """Whether the manifest agrees with the schema version the JAR manifest is stamped with."""
     gradle_version = read_gradle_schema_version()
-    declared = doc["supervisor_schema_version"]
+    declared = doc.supervisor_schema_version
     if gradle_version is None or gradle_version == declared:
         return True
     console.print(

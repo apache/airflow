@@ -27,6 +27,107 @@
 Changelog
 ---------
 
+11.0.0
+......
+
+.. note::
+  ``@task.kubernetes_cmd`` now renders only the command returned by the decorated function inside
+  ``execute()``. Its other template fields are rendered once before ``execute()`` and are no
+  longer rendered a second time.
+
+.. note::
+  In multi-team mode, a team's ``KubernetesExecutor`` now reads ``in_cluster``, ``config_file``,
+  ``cluster_context``, ``verify_ssl``, ``ssl_ca_cert`` and ``api_client_retry_configuration`` from the
+  team's ``[kubernetes_executor]`` config. Like all team config, these don't fall back to the
+  un-prefixed section. If your teams connected using the un-prefixed values, set them for each team.
+
+.. warning::
+  The deprecated ``KubernetesExecutor.cleanup_stuck_queued_tasks`` and ``LocalKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated cleanup_stuck_queued_tasks from KubernetesExecutor and LocalKubernetesExecutor (#76129)``
+
+Features
+~~~~~~~~
+
+* ``Emit resumable_job metrics from KubernetesPodOperator (#75734)``
+* ``Let each team's KubernetesExecutor connect to its own cluster (#75251)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Restore the on_operator_resuming callback in KubernetesPodOperator (#76035)``
+* ``Report Kubernetes API 403 errors from the deferrable pod trigger (#76081)``
+* ``Fix KubernetesJobOperator dry_run printing a Pod instead of a Job (#75403)``
+
+Misc
+~~~~
+
+* ``Bump the default XCom sidecar image to alpine:3.24.3 (#75270)``
+* ``Remove unused Spark pod try number helper (#75787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused Spark application expectation helper (#75877)``
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Parametrize Spark sensor waiting-state tests (#75879)``
+
+10.25.0
+.......
+
+.. note::
+
+    TCP keepalive settings now apply through the Kubernetes client configuration,
+    including with urllib3 2.x. This release requires ``kubernetes>=36.0.1,<37.0.0``.
+
+Features
+~~~~~~~~
+
+* ``Make KubernetesPodOperator event logging best-effort and optional (#75016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kubernetes TCP keepalive not being applied with urllib3 2.x (#74921)``
+* ``Fix 'KubernetesExecutor' leaving invalid-config tasks stuck in queued (#74512)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop loading the task runner on every Airflow process startup (#74496)``
+
+10.24.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Allow a custom Kubernetes client factory for KubernetesExecutor (#73014)``
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Look up task logs by task try UUID (#74204)``
+* ``Honor the polling interval for deferred Kubernetes jobs (#74143)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+
 10.23.0
 .......
 
@@ -38,6 +139,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix KubernetesExecutor not queuing tasks on Airflow 3.0.x (#73764)``
 * ``Prevent KubernetesExecutor from launching stale workloads (#69762)``
 * ``Fix KubernetesPodOperator discarding successful XCom when sidecar kill fails (#72068)``
 * ``Fix deferrable Kubernetes 401s with a default exec-based kubeconfig (#72300)``
@@ -47,6 +149,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Bump the default XCom sidecar image to alpine 3.24.2 (#73629)``
 * ``Unify executor workload queues (#63491)``
 
 Doc-only
@@ -58,6 +161,9 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``Add dedicated tests for cncf.kubernetes secret and k8s_model modules (#73751)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
    * ``[main] Upgrade important CI environment (#73308)``
    * ``Remove real sleeps from slow provider unit tests (#73478)``

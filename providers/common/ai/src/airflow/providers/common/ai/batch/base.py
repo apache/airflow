@@ -28,10 +28,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Required
 
-from typing_extensions import Required, TypedDict
+from typing_extensions import TypedDict
 
+from airflow.providers.common.ai.batch import dispatch
 from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, LLMBatchModelMismatchError
 
 if TYPE_CHECKING:
@@ -42,13 +43,19 @@ class BatchRequest(TypedDict, total=False):
     """
     One input item for ``@task.llm_batch``.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     A bare string ``"foo"`` is shorthand for ``{"prompt": "foo"}``; the operator
     normalizes to this shape before anything else sees the input.
     """
 
     prompt: Required[str]
     #: Per-request model override, written as ``"<provider>:<model>"`` (the same form the
-    #: operator's own ``model_id`` uses). ``None`` inherits the batch-level ``model_id``.
+    #: operator's own ``model_id`` uses, so a bare name takes the connection's Default
+    #: Provider). ``None`` inherits the batch-level ``model_id``.
     #: Anthropic allows a different model per request in the same batch; OpenAI requires
     #: every request in a batch to resolve to the same model.
     model: str | None
@@ -137,6 +144,11 @@ class ExtractedOutput:
 class BatchAdapter(ABC):
     """
     Adapter contract between the common.ai batch surface and one provider's batch API.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     ``batch/dispatch.py`` selects a concrete subclass by the ``model_id`` prefix
     (request shape) and checks the connection type against
@@ -286,15 +298,15 @@ class BatchAdapter(ABC):
         Resolve a per-request ``model`` override to this adapter's bare model name.
 
         ``request_model`` must be ``None`` (inherit the batch-level default,
-        already bare) or a ``"<provider>:<model>"`` string whose prefix equals
-        :attr:`name`. A request naming a different provider is rejected before
-        any network call rather than sent to the wrong provider's model
-        namespace.
+        already bare) or a ``"<provider>:<model>"`` string whose prefix selects
+        this adapter (:attr:`name`, or an alias such as ``openai-chat``). A
+        request naming a different provider is rejected before any network call
+        rather than sent to the wrong provider's model namespace.
         """
         if request_model is None:
             return default_bare_model
         prefix, sep, bare = request_model.partition(":")
-        if not sep or prefix != self.name or not bare:
+        if not sep or dispatch.adapter_name_for_prefix(prefix) != self.name or not bare:
             raise LLMBatchModelMismatchError(
                 f"Request {request_index} sets model={request_model!r}, which does not resolve "
                 f"to the {self.name!r} adapter this batch is using. Per-request model overrides "

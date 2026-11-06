@@ -35,6 +35,7 @@ class CalendarTimeRangeResponse(BaseModel):
         "planned",
     ]
     count: int
+    is_backfill: bool = False
 
 
 class CalendarTimeRangeCollectionResponse(BaseModel):

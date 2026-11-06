@@ -18,14 +18,14 @@
  */
 import { useState } from "react";
 
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Button, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { Alert, Modal } from "src/system-components";
 
-import { Modal } from "src/system-components";
+import { TaskTrySelect } from "src/components/TaskTrySelect";
 
 import {
   LOG_SHOW_LOG_LEVEL_KEY,
@@ -36,6 +36,7 @@ import {
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -45,34 +46,19 @@ import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
 import { getDownloadText } from "./utils";
 
 export const Logs = () => {
-  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const { dagId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { error, historical, isLoading, taskInstance } = useTaskInstanceView();
   const { t: translate } = useTranslation("dag");
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
-  const parsedMapIndex = parseInt(mapIndex, 10);
 
-  const {
-    data: taskInstance,
-    error,
-    isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      dagId,
-      dagRunId: runId,
-      mapIndex: parsedMapIndex,
-      taskId,
-    },
-    undefined,
-    {
-      enabled: !isNaN(parsedMapIndex),
-    },
-  );
+  const defaultTryNumber = taskInstance?.try_number;
 
   const onSelectTryNumber = (newTryNumber: number) => {
-    if (newTryNumber === taskInstance?.try_number) {
+    if (newTryNumber === defaultTryNumber && !historical) {
       searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
       searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
@@ -80,7 +66,13 @@ export const Logs = () => {
     setSearchParams(searchParams);
   };
 
-  const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
+  const tryNumber = tryNumberParam === null ? defaultTryNumber : parseInt(tryNumberParam, 10);
+
+  const isPendingTry =
+    !historical &&
+    taskInstance !== undefined &&
+    tryNumber === taskInstance.try_number &&
+    (taskInstance.state === null || taskInstance.state === "up_for_retry");
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
@@ -96,16 +88,20 @@ export const Logs = () => {
     fetchedData,
     isLoading: isLoadingLogs,
     parsedData,
-  } = useLogs({
-    dagId,
-    logLevelFilters,
-    showLogLevel,
-    showSource,
-    showTimestamp,
-    sourceFilters,
-    taskInstance,
-    tryNumber,
-  });
+  } = useLogs(
+    {
+      dagId,
+      historical,
+      logLevelFilters,
+      showLogLevel,
+      showSource,
+      showTimestamp,
+      sourceFilters,
+      taskInstance,
+      tryNumber,
+    },
+    { enabled: Boolean(taskInstance) && !isPendingTry },
+  );
 
   const downloadTextLines = getDownloadText({
     fetchedData,
@@ -160,7 +156,7 @@ export const Logs = () => {
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(new Blob([logContent], { type: "text/plain" }));
-    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}.txt`;
+    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${tryNumber}.txt`;
     document.body.append(element);
     element.click();
     element.remove();
@@ -176,30 +172,37 @@ export const Logs = () => {
   useShortcut({
     ...SHORTCUTS.logs.toggleWrap,
     callback: toggleWrap,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleFullscreen,
     callback: toggleFullscreen,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleExpand,
     callback: toggleExpanded,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleTimestamp,
     callback: toggleTimestamp,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleLogLevel,
     callback: toggleLogLevel,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.toggleSource,
     callback: toggleSource,
+    options: { enabled: !isPendingTry },
   });
   useShortcut({
     ...SHORTCUTS.logs.downloadLogs,
     callback: downloadLogs,
+    options: { enabled: !isPendingTry },
   });
 
   const onOpenChange = () => {
@@ -248,6 +251,37 @@ export const Logs = () => {
     searchQuery: searchQuery || undefined,
     wrap,
   };
+
+  if (isPendingTry) {
+    const isRetry = taskInstance.state === "up_for_retry";
+
+    return (
+      <Box p={2}>
+        {taskInstance.try_number > 1 ? (
+          <TaskTrySelect
+            onSelectTryNumber={onSelectTryNumber}
+            selectedTryNumber={tryNumber}
+            taskInstance={taskInstance}
+          />
+        ) : undefined}
+        <Alert
+          status="info"
+          title={translate(isRetry ? "logs.waitingToRetry" : "logs.tryNotStarted", { tryNumber })}
+        >
+          {isRetry ? translate("logs.tryNotStarted") : undefined}
+          {taskInstance.try_number > 1 ? (
+            <Box mt={3}>
+              <Button onClick={() => onSelectTryNumber(taskInstance.try_number - 1)} variant="outline">
+                {translate(isRetry ? "logs.viewFailedTry" : "logs.viewPreviousTry", {
+                  tryNumber: taskInstance.try_number - 1,
+                })}
+              </Button>
+            </Box>
+          ) : undefined}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>

@@ -56,16 +56,20 @@ class SSHRemoteJobOperator(BaseOperator):
     continues running independently of the SSH connection.
 
     The remote job is wrapped to:
-    - Run detached from the SSH session (via nohup on POSIX, Start-Process on Windows)
+    - Run detached from the SSH session (via nohup on POSIX, Win32_Process on Windows)
     - Redirect stdout/stderr to a log file
     - Write the exit code to a file on completion
 
     :param ssh_conn_id: SSH connection ID from Airflow Connections
     :param command: Command to execute on the remote host (templated)
     :param remote_host: Override the host from the connection (templated)
-    :param environment: Environment variables to set for the command (templated)
+    :param environment: Environment variables to set for the command (templated).
+        Values are passed as literal strings; the remote shell does not expand ``$VAR``
+        or ``$(...)`` in them.
     :param remote_base_dir: Base directory for job artifacts (templated).
-        Defaults to /tmp/airflow-ssh-jobs on POSIX, C:\\Windows\\Temp\\airflow-ssh-jobs on Windows
+        Defaults to /tmp/airflow-ssh-jobs on POSIX, $env:TEMP\\airflow-ssh-jobs on Windows.
+        On Windows a leading ``$env:NAME`` is expanded on the remote host and the rest of
+        the path is used literally.
     :param poll_interval: Seconds between status polls (default: 5)
     :param log_chunk_size: Max bytes to read per poll (default: 65536)
     :param timeout: Hard timeout in seconds for the entire operation

@@ -32,8 +32,6 @@ import json
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
-import structlog
-
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
     BatchState,
@@ -43,9 +41,10 @@ from airflow.providers.common.ai.batch.base import (
     SubmitResult,
 )
 from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.base import BatchRequest
@@ -74,6 +73,21 @@ def _batch_status(batch: Any) -> BatchStatus:
     return _STATUS_MAP.get(batch.processing_status, "in_progress")
 
 
+def _utf8_size(payload: Any) -> int:
+    r"""
+    Measure what one inline ``batches.create`` request costs on the wire, in bytes.
+
+    The SDK serializes the batch itself and hands httpx a finished body, so its own
+    encoder settles the size (``anthropic/_utils/_json.py``): ``ensure_ascii=False``,
+    ``separators=(",", ":")``, then UTF-8. The ``json.dumps`` defaults would charge a
+    CJK character the six bytes of its ``\uXXXX`` escape rather than the three it
+    occupies, plus a byte of whitespace per separator. The ``{"requests": [...]}``
+    framing the requests sit in belongs to the batch, not to one request, so the
+    caller adds it.
+    """
+    return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
+
+
 def _build_client(api_key: str | None, base_url: str | None) -> Any:
     try:
         from anthropic import Anthropic
@@ -93,6 +107,11 @@ def _build_client(api_key: str | None, base_url: str | None) -> Any:
 class AnthropicBatchAdapter(BatchAdapter):
     """
     Batch adapter for Anthropic's Message Batches API.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     :param api_key: Passed straight to the ``anthropic.Anthropic`` client.
         ``None`` falls back to the SDK's own env-var resolution
@@ -211,7 +230,7 @@ class AnthropicBatchAdapter(BatchAdapter):
             )
 
         directive = self.build_output_directive(output_spec)
-        directive_bytes = len(json.dumps(directive))
+        directive_bytes = _utf8_size(directive)
         built = self._iter_requests(
             requests,
             model=model,
@@ -221,9 +240,12 @@ class AnthropicBatchAdapter(BatchAdapter):
             max_tokens=max_tokens,
             request_params=request_params,
         )
-        total_bytes = 0
+        # The requests reach Anthropic as one ``{"requests": [...]}`` body, so the limit is
+        # charged the framing and the comma joining each pair as well, the way ``openai.py``
+        # is charged a newline per JSONL line.
+        total_bytes = len('{"requests":[]}')
         for index, item in enumerate(built):
-            total_bytes += len(json.dumps(item))
+            total_bytes += _utf8_size(item) + (1 if index else 0)
             if total_bytes > self.max_payload_bytes:
                 raise LLMBatchLimitExceededError(
                     f"Anthropic batch accepts a payload of at most {self.max_payload_bytes} bytes; "

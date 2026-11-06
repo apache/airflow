@@ -15,22 +15,51 @@
     specific language governing permissions and limitations
     under the License.
 
-Tool call logging: ``LoggingToolset``
-=====================================
+Tool call logging
+=================
 
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
-``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
-in real time. ``AgentOperator`` applies it automatically (see
-``enable_tool_logging``), but you can also use it directly with any pydantic-ai
-``Agent``:
+.. note::
+
+    Experimental: the constructor and the behaviour of
+    :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` can change
+    or be removed in a minor release of this provider. See :ref:`howto/stability`.
+
+:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` wraps the
+assembled function toolset so that each tool invocation is logged in real time.
+Logging covers tools supplied through ``toolsets=``,
+``agent_params={"tools": [...]}``, and capabilities such as factory-backed
+toolsets, nested capabilities, and MCP toolsets. Output tools such as
+``final_result`` and provider-native tools, including native MCP, are not
+covered by Airflow's real-time tool-call logging. Tools added by another
+capability through its own wrapper toolset, such as ToolSearch's
+``search_tools`` and CodeMode's ``run_code``, are also not covered. A tool hidden with
+``.defer_loading()`` is logged once the model finds it, and its result is masked like
+any other (see :doc:`progressive_disclosure`).
+
+``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
+``enable_tool_logging=True``. If ``capabilities=`` already contains one,
+including inside a combined or wrapper capability, the operator does not add
+another, so the logger on the supplied instance is used.
+
+For an agent you build yourself, pass the capability to any pydantic-ai ``Agent``:
 
 .. code-block:: python
 
-    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+    from pydantic_ai import Agent
+
+    from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
-    sql_toolset = SQLToolset(db_conn_id="my_db")
-    logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
+    agent = Agent(
+        "openai:gpt-5",
+        toolsets=[SQLToolset(db_conn_id="my_db")],
+        capabilities=[ToolLoggingCapability()],
+    )
 
-Each tool call produces two INFO log lines (name + timing) and optional
-DEBUG-level argument logging. Exceptions are logged and re-raised.
+Each tool call logs its name and timing at INFO, inside a collapsible
+``::group::`` block in the task log, and its arguments at DEBUG. Control-flow
+signals that let the model retry, report a failed tool result, defer or skip a
+call, or wait for approval are logged at INFO and re-raised. Other exceptions,
+including ``SkipToolValidation`` raised by a tool body, are logged at ERROR
+with a traceback and re-raised. Pass ``logger`` to ``ToolLoggingCapability`` to send the
+lines to a logger other than the module's own.

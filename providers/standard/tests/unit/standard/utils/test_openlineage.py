@@ -88,9 +88,39 @@ def _mock_ol_parent_info():
     }
 
 
-def test_get_openlineage_parent_info():
+@pytest.mark.parametrize(
+    "root_job_type",
+    [
+        pytest.param(
+            {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"}, id="type"
+        ),
+        pytest.param(None, id="no-type"),
+    ],
+)
+@patch(IMPORTLIB_VERSION, autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_root_job_namespace", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_root_job_name", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_root_run_id", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_job_namespace", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_job_name", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_run_id", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_root_job_type", autospec=True)
+@patch(f"{OL_MACROS_PATH}.lineage_job_type", autospec=True)
+def test_get_openlineage_parent_info(
+    mock_job_type,
+    mock_root_job_type,
+    mock_run_id,
+    mock_job_name,
+    mock_job_namespace,
+    mock_root_run_id,
+    mock_root_job_name,
+    mock_root_job_namespace,
+    mock_version,
+    root_job_type,
+):
     """Test that _get_openlineage_parent_info calls all macros correctly and returns proper structure."""
     ti = MagicMock()
+    parent_job_type = {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "TASK"}
     expected_values = {
         "parentRunId": "parent-run-id-123",
         "parentJobName": "parent-job-name",
@@ -98,57 +128,72 @@ def test_get_openlineage_parent_info():
         "rootParentRunId": "root-run-id-456",
         "rootParentJobName": "root-job-name",
         "rootParentJobNamespace": "root-namespace",
+        "parentJobType": parent_job_type,
     }
+    if root_job_type is not None:
+        expected_values["rootParentJobType"] = root_job_type
+    mock_run_id.return_value = expected_values["parentRunId"]
+    mock_job_name.return_value = expected_values["parentJobName"]
+    mock_job_namespace.return_value = expected_values["parentJobNamespace"]
+    mock_root_run_id.return_value = expected_values["rootParentRunId"]
+    mock_root_job_name.return_value = expected_values["rootParentJobName"]
+    mock_root_job_namespace.return_value = expected_values["rootParentJobNamespace"]
+    mock_job_type.return_value = parent_job_type
+    mock_root_job_type.return_value = root_job_type
+    mock_version.side_effect = lambda package: (
+        OPENLINEAGE_PROVIDER_MIN_VERSION  # Exactly minimum version
+        if package == "apache-airflow-providers-openlineage"
+        else pytest.fail(f"Unexpected package: {package}")
+    )
 
-    def _mock_version(package):
-        if package == "apache-airflow-providers-openlineage":
-            return OPENLINEAGE_PROVIDER_MIN_VERSION  # Exactly minimum version
-        raise Exception(f"Unexpected package: {package}")
+    result = _get_openlineage_parent_info(ti)
 
-    with (
-        patch(f"{OL_MACROS_PATH}.lineage_run_id", return_value=expected_values["parentRunId"]) as mock_run_id,
-        patch(
-            f"{OL_MACROS_PATH}.lineage_job_name", return_value=expected_values["parentJobName"]
-        ) as mock_job_name,
-        patch(
-            f"{OL_MACROS_PATH}.lineage_job_namespace",
-            return_value=expected_values["parentJobNamespace"],
-        ) as mock_job_namespace,
-        patch(
-            f"{OL_MACROS_PATH}.lineage_root_run_id",
-            return_value=expected_values["rootParentRunId"],
-        ) as mock_root_run_id,
-        patch(
-            f"{OL_MACROS_PATH}.lineage_root_job_name",
-            return_value=expected_values["rootParentJobName"],
-        ) as mock_root_job_name,
-        patch(
-            f"{OL_MACROS_PATH}.lineage_root_job_namespace",
-            return_value=expected_values["rootParentJobNamespace"],
-        ) as mock_root_job_namespace,
-        patch(IMPORTLIB_VERSION, side_effect=_mock_version),
-    ):
-        result = _get_openlineage_parent_info(ti)
+    # Verify all macros were called correctly
+    mock_run_id.assert_called_once_with(ti)
+    mock_job_name.assert_called_once_with(ti)
+    mock_job_namespace.assert_called_once_with()
+    mock_root_run_id.assert_called_once_with(ti)
+    mock_root_job_name.assert_called_once_with(ti)
+    mock_root_job_namespace.assert_called_once_with(ti)
+    mock_job_type.assert_called_once_with()
+    mock_root_job_type.assert_called_once_with(ti)
 
-        # Verify all macros were called correctly
-        mock_run_id.assert_called_once_with(ti)
-        mock_job_name.assert_called_once_with(ti)
-        mock_job_namespace.assert_called_once()  # No args
-        mock_root_run_id.assert_called_once_with(ti)
-        mock_root_job_name.assert_called_once_with(ti)
-        mock_root_job_namespace.assert_called_once_with(ti)
+    assert result == expected_values
 
-        # Verify result structure
-        assert isinstance(result, dict)
-        assert result == expected_values
-        assert set(result.keys()) == {
-            "parentRunId",
-            "parentJobName",
-            "parentJobNamespace",
-            "rootParentRunId",
-            "rootParentJobName",
-            "rootParentJobNamespace",
-        }
+
+@patch(IMPORTLIB_VERSION, autospec=True, return_value=OPENLINEAGE_PROVIDER_MIN_VERSION)
+@patch(f"{OL_MACROS_PATH}.lineage_root_job_namespace", autospec=True, return_value="root-ns")
+@patch(f"{OL_MACROS_PATH}.lineage_root_job_name", autospec=True, return_value="root-job-name")
+@patch(f"{OL_MACROS_PATH}.lineage_root_run_id", autospec=True, return_value="root-run-id")
+@patch(f"{OL_MACROS_PATH}.lineage_job_namespace", autospec=True, return_value="ns")
+@patch(f"{OL_MACROS_PATH}.lineage_job_name", autospec=True, return_value="job-name")
+@patch(f"{OL_MACROS_PATH}.lineage_run_id", autospec=True, return_value="run-id")
+def test_get_openlineage_parent_info_without_job_type_macros(
+    _mock_run_id,
+    _mock_job_name,
+    _mock_job_namespace,
+    _mock_root_run_id,
+    _mock_root_job_name,
+    _mock_root_job_namespace,
+    _mock_version,
+    monkeypatch,
+):
+    """Test that job types are skipped when the OpenLineage provider doesn't have job type macros."""
+    from airflow.providers.openlineage.plugins import macros
+
+    monkeypatch.delattr(macros, "lineage_job_type")
+    monkeypatch.delattr(macros, "lineage_root_job_type")
+
+    result = _get_openlineage_parent_info(MagicMock())
+
+    assert result == {
+        "parentRunId": "run-id",
+        "parentJobName": "job-name",
+        "parentJobNamespace": "ns",
+        "rootParentRunId": "root-run-id",
+        "rootParentJobName": "root-job-name",
+        "rootParentJobNamespace": "root-ns",
+    }
 
 
 @pytest.mark.parametrize(
@@ -268,9 +313,11 @@ def test_inject_parent_info_with_non_dict_openlineage_returns_unchanged():
         "parentRunId",
         "parentJobName",
         "parentJobNamespace",
+        "parentJobType",
         "rootParentRunId",
-        "rootJobName",
-        "rootJobNamespace",
+        "rootParentJobName",
+        "rootParentJobNamespace",
+        "rootParentJobType",
     ],
 )
 def test_inject_parent_info_with_existing_forbidden_key_returns_unchanged(forbidden_key):

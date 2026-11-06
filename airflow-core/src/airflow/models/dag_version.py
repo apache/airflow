@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.models.taskinstance import TaskInstance
 
 
 log = logging.getLogger(__name__)
@@ -233,6 +234,7 @@ class DagVersion(Base):
         dag_id: str,
         version_number: int | None = None,
         *,
+        load_dag_code: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
@@ -241,12 +243,16 @@ class DagVersion(Base):
         :param dag_id: The DAG ID.
         :param version_number: The version number to look up. When ``None``, the latest
             version is returned; any other value -- ``0`` included -- is used as a filter.
+        :param load_dag_code: Whether to eagerly load the associated DagCode in the same query.
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
         if version_number is not None:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
+
+        if load_dag_code:
+            version_select_obj = version_select_obj.options(joinedload(cls.dag_code))
 
         return session.scalar(version_select_obj.order_by(cls.version_number.desc()).limit(1))
 
@@ -411,7 +417,24 @@ def _resolve_version_data(
     """Return a bundle version's ``version_data`` manifest, but only for pinned runs."""
     # Expose version_data only when the run is pinned (bundle_version set) and a DagVersion is
     # present, so the bundle initializes against the exact version the run used. Unpinned runs
-    # follow the latest bundle state, and legacy rows have no DagVersion.
-    if dag_version is not None and bundle_version is not None:
+    # follow the latest bundle state, and legacy rows have no DagVersion. A code-only update
+    # overwrites a reused DagVersion's bundle metadata in place, so its manifest describes the
+    # pinned bundle only while the two bundle versions still match.
+    if (
+        dag_version is not None
+        and bundle_version is not None
+        and dag_version.bundle_version == bundle_version
+    ):
         return dag_version.version_data
     return None
+
+
+def _resolve_ti_callback_bundle_info(
+    ti: TaskInstance,
+) -> tuple[str, str | None, dict[str, Any] | None]:
+    """Resolve bundle metadata for task callbacks and emails using the run's execution bundle."""
+    bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+    # A code-only update can advance the DagVersion's bundle while the run stays pinned.
+    bundle_version = ti.dag_run.bundle_version
+    version_data = _resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version)
+    return bundle_name, bundle_version, version_data

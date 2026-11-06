@@ -108,11 +108,11 @@ const createQueryClient = () =>
   });
 
 const createWrapper =
-  (queryClient: QueryClient) =>
+  (queryClient: QueryClient, search = "") =>
   ({ children }: PropsWithChildren) => (
     <ChakraProvider value={defaultSystem}>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>{children}</MemoryRouter>
+        <MemoryRouter initialEntries={[`/${search}`]}>{children}</MemoryRouter>
       </QueryClientProvider>
     </ChakraProvider>
   );
@@ -140,6 +140,20 @@ const expectTryState = (tryNumber: number, state: string) => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("TaskTrySelect", () => {
+  it("reads tries from the exact loop coordinate rather than the public map index", async () => {
+    const queryClient = createQueryClient();
+    const regionId = "11111111-1111-4111-8111-111111111111";
+    const taskInstance = { ...buildTaskInstance(TASK_A, 2), region_id: regionId, region_index: 3 };
+    const fetch = vi
+      .spyOn(TaskInstanceService, "getMappedTaskInstanceTries")
+      .mockResolvedValue(buildTaskTries([taskInstance]));
+
+    render(<TaskTrySelect taskInstance={taskInstance} />, { wrapper: createWrapper(queryClient) });
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ mapIndex: -1, regionId, regionIndex: 3 })),
+    );
+  });
+
   it("refetches cached tries immediately when switching tasks", async () => {
     const queryClient = createQueryClient();
     const params = {
@@ -207,7 +221,7 @@ describe("TaskTrySelect", () => {
     await expectTries([1, 2, 3, 4]);
   });
 
-  it("uses a real current try but not retry or null placeholders", async () => {
+  it("uses the current try state including pending retries and cleared tries", async () => {
     const queryClient = createQueryClient();
     const params = {
       dagId: DAG_ID,
@@ -243,7 +257,7 @@ describe("TaskTrySelect", () => {
         taskInstance={buildTaskInstance("mapped_task", 2, { mapIndex: 1, state: "up_for_retry" })}
       />,
     );
-    expectTryState(2, "failed");
+    expectTryState(2, "up_for_retry");
 
     rerender(
       <TaskTrySelect
@@ -252,7 +266,7 @@ describe("TaskTrySelect", () => {
         taskInstance={buildTaskInstance("mapped_task", 2, { mapIndex: 1, state: null })}
       />,
     );
-    expectTryState(2, "failed");
+    expect(screen.getByTestId("log-attempt-select-button-2").querySelector("[data-state]")).toBeNull();
 
     fireEvent.click(screen.getByTestId("log-attempt-select-button-1"));
     expect(onSelectTryNumber).toHaveBeenCalledOnce();

@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { server } from "src/mocks/server";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-let server: SetupServer;
+beforeAll(() => preloadAppRoutes(["/dag_bundles"]));
 
 /** Requests the page has made to the bundles endpoint since the last reset. */
 let requestCount = 0;
@@ -102,11 +101,6 @@ const renderSettled = async (): Promise<number> => {
   return requestCount;
 };
 
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
-});
-
 beforeEach(() => {
   requestCount = 0;
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -114,11 +108,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  server.resetHandlers();
   localStorage.clear();
 });
-
-afterAll(() => server.close());
 
 describe("Dag Bundles auto-refresh", () => {
   it("floors a short configured interval at ten seconds", async () => {

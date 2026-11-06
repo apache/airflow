@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_schema_compare:
 
-Detect schema drift: ``LLMSchemaCompareOperator``
-=================================================
+Detect schema drift: ``LLMSchemaCompareOperator`` and ``@task.llm_schema_compare``
+==================================================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
 to compare schemas across different database systems and detect drift using LLM reasoning.
@@ -63,9 +63,15 @@ columns alone:
 With Object Storage or a Database Table
 ---------------------------------------
 
+.. note::
+
+    A source whose connection is not a ``DbApiHook`` runs on the DataFusion
+    engine of ``common.sql``, which pins ``datafusion`` below 52 because the DataFusion
+    52 crate is not supported with ``iceberg-core``.
+
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
-object-storage sources (S3 or GCS Parquet, CSV, Iceberg, etc.) in the comparison.
+object-storage sources (S3, GCS, Azure Blob Storage, Parquet, CSV, Iceberg, etc.) in the comparison.
 These can be freely combined with ``db_conn_ids``. Whether an entry is
 introspected via ``DbApiHook`` or DataFusion depends on what its ``conn_id``
 resolves to, not on its ``uri``/``format`` fields: a ``DataSourceConfig``
@@ -135,10 +141,6 @@ expire with the default ``on_approval_timeout="fail"``, fails the task:
     :start-after: [START howto_operator_llm_schema_compare_approval]
     :end-before: [END howto_operator_llm_schema_compare_approval]
 
-``require_approval=True`` requires a string prompt: a decorated callable
-returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
-call.
-
 ``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
 behaviour are inherited from
@@ -189,8 +191,10 @@ Parameters
   severity definitions. Passing a value **replaces** the default, so concatenate
   with ``DEFAULT_SYSTEM_PROMPT`` to extend it (see
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor.
+- ``model_settings``: Pydantic AI ``ModelSettings`` for the model call, such as
+  ``temperature`` or ``max_tokens``. Supports Jinja templating.
+- ``output_retries``: How many times the model is asked again when its output fails
+  validation. Default ``None`` (Pydantic AI's default).
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
@@ -210,7 +214,8 @@ Parameters
   review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
   ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
-  before approving.  Default ``False``.
+  before approving.  An edit that is not a valid result fails the task with
+  ``ReviewedOutputValidationError``.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
 - ``approval_assigned_users``: Users allowed to answer the review.  ``None``
@@ -222,3 +227,6 @@ Logging
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

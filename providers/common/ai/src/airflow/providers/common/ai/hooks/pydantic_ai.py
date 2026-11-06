@@ -16,20 +16,34 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
+import contextvars
+import functools
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.providers import infer_provider_class
+from typing_extensions import ParamSpec
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
 
+# An Airflow task is never interactive, and pydantic-ai's first-run banner on stderr would
+# land in the task log as ERROR lines.
+pydantic_ai.BANNER_ENABLED = False
+
 OutputT = TypeVar("OutputT")
+P = ParamSpec("P")
+R = TypeVar("R")
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -37,8 +51,11 @@ OutputT = TypeVar("OutputT")
 _UNSET: Any = object()
 
 FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
+MODEL_PROVIDER_EXTRA_KEY = "model_provider"
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, MutableMapping
+
     from pydantic_ai.models import KnownModelName, Model
 
     from airflow.providers.common.compat.sdk import Connection
@@ -54,10 +71,13 @@ def _has_recognized_provider_prefix(model_name: str) -> bool:
     ``infer_provider_class`` actually recognizes counts as a platform prefix.
     """
     prefix, sep, _ = model_name.partition(":")
-    if not sep:
-        return False
+    return bool(sep) and _is_recognized_provider(prefix)
+
+
+def _is_recognized_provider(name: str) -> bool:
+    """Return whether *name* is a provider ``infer_provider_class`` recognizes."""
     try:
-        infer_provider_class(prefix)
+        infer_provider_class(name)
     except ImportError:
         return True  # recognized provider; its optional dependency just isn't installed
     except ValueError:
@@ -86,12 +106,39 @@ def _looks_like_unrecognized_provider_prefix(prefix: str) -> bool:
     return bool(_PROVIDER_SLUG_RE.match(prefix))
 
 
+# The async methods run their blocking lookups here, never on asyncio's default executor:
+# ``asend()`` reads its reply on that executor while it holds the comms lock, so blocking
+# lookups that fill it leave nothing to run the read and the task hangs. One worker also
+# serializes this process's hook lookups on Airflow 3.0 and 3.1, where the channel to the
+# supervisor has no lock of its own.
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="pydantic-ai-hook")
+
+
+async def _run_off_loop(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
+    """Run ``fn`` on the hook's own worker thread, with the caller's context variables (task logging binds them)."""
+    call = functools.partial(contextvars.copy_context().run, fn, *args, **kwargs)
+    return await asyncio.get_running_loop().run_in_executor(_executor, call)
+
+
+def _get_registered_hooks() -> MutableMapping[str, Any]:
+    """Return the connection-type-to-``HookInfo`` registry that ``Connection.get_hook`` dispatches through."""
+    # Airflow 3.2+ resolves hooks through the task runtime's manager; earlier versions,
+    # Airflow 2 included, go through ``ProvidersManager``. Both expose the same ``hooks`` mapping.
+    try:
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+    except ImportError:
+        from airflow.providers_manager import ProvidersManager
+
+        return ProvidersManager().hooks
+    return ProvidersManagerTaskRuntime().hooks
+
+
 class PydanticAIHook(BaseHook):
     """
     Hook for LLM access via pydantic-ai.
 
     Covers providers that use a standard ``api_key`` + optional ``base_url``
-    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, …).
+    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, GitHub Copilot, …).
 
     For cloud providers with non-standard auth use the dedicated subclasses:
     :class:`PydanticAIAzureHook`, :class:`PydanticAIBedrockHook`,
@@ -101,7 +148,8 @@ class PydanticAIHook(BaseHook):
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
         - **extra** JSON: ``{"model": "openai:gpt-5",
-          "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``
+          "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``; add
+          ``"model_provider": "openai-chat"`` to resolve bare model names on this connection
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier. A name whose segment before the first ``:``
@@ -113,8 +161,9 @@ class PydanticAIHook(BaseHook):
         platform: vendor subclasses (:class:`PydanticAIAzureHook`,
         :class:`PydanticAIBedrockHook`, :class:`PydanticAIVertexHook`) each default
         to their own platform via :attr:`model_provider`; the generic connection
-        type has none, so a bare name there raises ``ValueError`` instead of
-        reaching pydantic-ai's own, less actionable ``Unknown model`` error.
+        type uses the ``model_provider`` in its extra, and without one a bare name there
+        raises ``ValueError`` instead of reaching pydantic-ai's own, less actionable
+        ``Unknown model`` error.
         Overrides the model stored in the connection's extra field. Whichever of
         the two configures the primary's model is forwarded (only while still
         bare) down the fallback chain -- see :meth:`_resolve_fallback_models`.
@@ -133,8 +182,9 @@ class PydanticAIHook(BaseHook):
     default_conn_name = "pydanticai_default"
     conn_type = "pydanticai"
     hook_name = "Pydantic AI"
-    # Platform to prefix a bare model_id with (e.g. "azure"); None for the generic
-    # connection type, which has no platform of its own. Vendor subclasses override this.
+    # Platform to prefix a bare model_id with (e.g. "azure"). Vendor subclasses set it; the
+    # generic connection type leaves it None and reads extra["model_provider"] instead (see
+    # _get_model_provider).
     model_provider: str | None = None
 
     def __init__(
@@ -157,6 +207,59 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``.
+
+        Airflow 3's ``BaseHook.get_hook`` already takes ``hook_params``; Airflow 2's does
+        not, so this mirrors the Airflow 3 body.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
+        conn = cls.get_connection(conn_id)
+        hooks = _get_registered_hooks()
+        # Resolved from the registry rather than from ``cls.conn_type`` or the subclasses
+        # imported so far: operators call this on the base class, and a subclass from another
+        # provider (e.g. Snowflake's ``pydanticai_snowflake``) is only imported on lookup.
+        # A missing or unregistered type is left to ``conn.get_hook``, whose error explains a
+        # URI that parsed with no type, or the '-'/'_' spelling a renamed type needs.
+        hook_info = hooks.get(conn.conn_type) if conn.conn_type else None
+        # ``generic`` and ``email`` are registered with ``hook_class_name=None``; that is not a
+        # Pydantic AI hook either.
+        if hook_info is not None and (
+            hook_info.hook_class_name is None
+            or not issubclass(import_string(hook_info.hook_class_name), PydanticAIHook)
+        ):
+            expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
+            raise ValueError(
+                f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
+                f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
+                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
+            )
+        # The check above guarantees a ``PydanticAIHook``. Seeding saves the second fetch of
+        # this same connection its first ``get_conn`` would make.
+        hook = conn.get_hook(hook_params=hook_params)
+        hook._seed_connection(conn)
+        return hook
+
+    @classmethod
+    async def aget_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``, for use inside an async task.
+
+        The async counterpart of :meth:`get_hook`, with the same connection type check and
+        the connection already cached on the hook. ``get_connection`` sends to the supervisor
+        synchronously, which blocks the event loop while another async call is in flight (from
+        Airflow 3.3.1 it raises ``DeadlockImminentError`` instead), but only waits its turn from
+        any other thread, so the lookup runs on the hook's own worker thread.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
+        return await _run_off_loop(cls.get_hook, conn_id, hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -206,19 +309,23 @@ class PydanticAIHook(BaseHook):
     def _get_conn_and_extra(self) -> tuple[Connection, dict[str, Any]]:
         """Return this hook's connection and its deserialized extra, fetching at most once."""
         if self._conn is None:
-            self._conn = self.get_connection(self.llm_conn_id)
-            self._conn_extra_dejson = self._conn.extra_dejson
+            # Published together, once both are in hand: a reader never sees the connection
+            # next to the empty default extra, whether ``extra_dejson`` is still masking in
+            # another thread (``get_conn()`` called from two threads on one hook) or raised.
+            conn = self.get_connection(self.llm_conn_id)
+            extra = conn.extra_dejson
+            self._conn, self._conn_extra_dejson = conn, extra
         return self._conn, self._conn_extra_dejson
 
     def _seed_connection(self, conn: Connection) -> None:
         """
-        Prime this hook's connection cache with an already-fetched ``Connection``.
+        Prime this hook's connection cache with a ``Connection`` the caller already fetched.
 
-        Used by :meth:`_resolve_fallback_models`, which must call ``conn.get_hook()`` to
-        dispatch a fallback's hook class from its ``conn_type`` and so already holds the
-        ``Connection`` that call built the hook from. Without this, :meth:`_get_conn_and_extra`
-        would fetch that same connection a second time the first time it runs, doubling the
-        Execution API round trips a fallback chain costs.
+        A caller that dispatches the hook class from ``conn.get_hook()`` holds the
+        ``Connection`` it built the hook from: :meth:`get_hook` for the hook it returns,
+        :meth:`_resolve_fallback_models` for each fallback. Without this,
+        :meth:`_get_conn_and_extra` would fetch that same connection a second time the first
+        time it runs.
         """
         self._conn = conn
         self._conn_extra_dejson = conn.extra_dejson
@@ -268,6 +375,46 @@ class PydanticAIHook(BaseHook):
         )
         return self._model
 
+    async def aget_conn(self) -> Model:
+        """
+        Return the configured pydantic-ai ``Model``, for use inside an async task.
+
+        The same model as :meth:`get_conn`, fallback chain included. Resolving it reads
+        connections with ``get_connection`` and ``extra_dejson``, and a subclass's
+        :meth:`_get_provider_kwargs` may read more (Snowflake's builds a ``SnowflakeHook``);
+        each of those sends to the supervisor synchronously, which blocks the event loop while
+        another async call is in flight (from Airflow 3.3.1 it raises ``DeadlockImminentError``
+        instead), but only waits its turn from any other thread, so the resolution runs on the
+        hook's own worker thread.
+        """
+        if self._model is not None:
+            return self._model
+        return await _run_off_loop(self.get_conn)
+
+    def _get_model_provider(self) -> str | None:
+        """
+        Return the platform to prefix a bare model name with.
+
+        A vendor subclass's own :attr:`model_provider` wins: its credential fields are mapped
+        for that one platform, so a ``model_provider`` in its extra is ignored. The generic
+        connection type takes the ``model_provider`` in its extra, if any.
+
+        :raises ValueError: if the extra's ``model_provider`` is not a provider pydantic-ai recognizes.
+        """
+        if self.model_provider is not None:
+            return self.model_provider
+        _, extra = self._get_conn_and_extra()
+        provider = extra.get(MODEL_PROVIDER_EXTRA_KEY)
+        if not provider:
+            return None
+        if not isinstance(provider, str) or not _is_recognized_provider(provider):
+            raise ValueError(
+                f"Connection '{self.llm_conn_id}' sets '{MODEL_PROVIDER_EXTRA_KEY}' to {provider!r}, "
+                "which is not a provider pydantic-ai recognizes (e.g. 'openai', 'openai-chat', "
+                "'anthropic')."
+            )
+        return provider
+
     def _qualify_model_name(self, model_name: str, *, forwarded_from_conn_id: str | None = None) -> str:
         """
         Prefix a bare model name with this connection's platform.
@@ -288,9 +435,12 @@ class PydanticAIHook(BaseHook):
             return model_name
         if _has_recognized_provider_prefix(model_name):
             return model_name
-        if self.model_provider is not None:
+        model_provider = self._get_model_provider()
+        if model_provider is not None:
             prefix, sep, _ = model_name.partition(":")
-            if sep and _looks_like_unrecognized_provider_prefix(prefix):
+            # Only a vendor type warns: behind a generic connection's Default Model Provider, a
+            # "name:tag" id such as Ollama's "llama3:70b" is the normal spelling, not a typo.
+            if sep and self.model_provider is not None and _looks_like_unrecognized_provider_prefix(prefix):
                 self.log.warning(
                     "Model name '%s' on connection '%s' contains ':' but its prefix '%s' is not a "
                     "provider pydantic-ai recognizes; treating the whole string as a bare %s model id "
@@ -299,19 +449,20 @@ class PydanticAIHook(BaseHook):
                     model_name,
                     self.llm_conn_id,
                     prefix,
-                    self.model_provider,
-                    self.model_provider,
+                    model_provider,
+                    model_provider,
                     model_name,
                     prefix,
                 )
-            return f"{self.model_provider}:{model_name}"
+            return f"{model_provider}:{model_name}"
 
         if forwarded_from_conn_id is not None:
             raise ValueError(
                 f"Connection '{self.llm_conn_id}' has no default model provider, so the bare model "
                 f"name '{model_name}' -- forwarded from primary connection '{forwarded_from_conn_id}' "
                 f"-- cannot be resolved here. Give '{forwarded_from_conn_id}' a 'provider:model' "
-                f"string, or set an explicit 'model' on '{self.llm_conn_id}'."
+                f"string, or set an explicit 'model' or a '{MODEL_PROVIDER_EXTRA_KEY}' in the extra "
+                f"of '{self.llm_conn_id}'."
             )
 
         prefix, sep, _ = model_name.partition(":")
@@ -320,13 +471,15 @@ class PydanticAIHook(BaseHook):
                 f"Connection '{self.llm_conn_id}' has no default model provider, and '{prefix}' is "
                 f"not a provider pydantic-ai recognizes, so '{model_name}' cannot be resolved. If "
                 "this is a vendor's own model id containing a ':' (e.g. a Bedrock-style "
-                "version-suffixed id), use a vendor connection type (Azure/Bedrock/Vertex) instead; "
-                f"if '{prefix}' is meant to be a provider prefix, check it for a typo."
+                "version-suffixed id), use a vendor connection type (Azure/Bedrock/Vertex) or set a "
+                f"default '{MODEL_PROVIDER_EXTRA_KEY}' in the connection's extra; if '{prefix}' is "
+                "meant to be a provider prefix, check it for a typo."
             )
         raise ValueError(
             f"Connection '{self.llm_conn_id}' has no default model provider, so the bare model name "
-            f"'{model_name}' cannot be resolved. Use a vendor connection type (Azure/Bedrock/Vertex) "
-            "or set an explicit 'provider:model' string."
+            f"'{model_name}' cannot be resolved. Use a vendor connection type (Azure/Bedrock/Vertex), "
+            f"set an explicit 'provider:model' string, or set a default '{MODEL_PROVIDER_EXTRA_KEY}' "
+            "in the connection's extra."
         )
 
     def _get_configured_model_name(self) -> str | KnownModelName | None:
@@ -352,14 +505,16 @@ class PydanticAIHook(BaseHook):
             name with an embedded ``:`` of its own (a vendor's own native id, e.g.
             Bedrock's version-suffixed ``us.anthropic.claude-opus-4-6-v1:0``) is only
             forwarded when *forwarded_model_provider* matches this connection's own
-            :attr:`model_provider` -- that spelling is only meaningful on the
-            platform that produced it.
+            platform (see :meth:`_get_model_provider`) -- that spelling is only
+            meaningful on the platform that produced it.
         :param forwarded_from_conn_id: The primary connection's ID, for error messages
             attributing an unresolvable forwarded name to where it actually came from.
-        :param forwarded_model_provider: The primary connection's :attr:`model_provider`;
+        :param forwarded_model_provider: The primary connection's platform;
             see *forwarded_model_id* above for how it gates forwarding.
         """
         conn, extra = self._get_conn_and_extra()
+        # Read up front, so a bad ``model_provider`` in the extra fails even when the model name pins its own.
+        model_provider = self._get_model_provider()
 
         model_name: str | KnownModelName | None = self._get_configured_model_name()
         forwarded = False
@@ -367,7 +522,7 @@ class PydanticAIHook(BaseHook):
             not model_name
             and forwarded_model_id
             and not _has_recognized_provider_prefix(forwarded_model_id)
-            and (":" not in forwarded_model_id or forwarded_model_provider == self.model_provider)
+            and (":" not in forwarded_model_id or forwarded_model_provider == model_provider)
         ):
             model_name = forwarded_model_id
             forwarded = True
@@ -396,13 +551,12 @@ class PydanticAIHook(BaseHook):
             def _provider_factory(pname: str) -> Any:
                 try:
                     return infer_provider_class(pname)(**_kwargs)
-                except TypeError:
-                    self.log.warning(
-                        "Provider '%s' rejected kwargs %s; falling back to env-var auth",
-                        pname,
-                        list(_kwargs),
-                    )
-                    return infer_provider(pname)
+                except TypeError as e:
+                    raise ValueError(
+                        f"Could not build provider '{pname}' from the fields on connection "
+                        f"'{self.llm_conn_id}' (fields passed: {', '.join(_kwargs)}): {e}. "
+                        "Not falling back to environment-variable auth, which would authenticate as a different identity."
+                    ) from e
 
             return infer_model(model_name, provider_factory=_provider_factory)
 
@@ -455,6 +609,7 @@ class PydanticAIHook(BaseHook):
             return []
 
         forwarded_model_id = self._get_configured_model_name()
+        forwarded_model_provider = self._get_model_provider()
 
         self.log.info("Resolving LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
 
@@ -499,7 +654,7 @@ class PydanticAIHook(BaseHook):
                 hook._resolve_own_model(
                     forwarded_model_id=forwarded_model_id,
                     forwarded_from_conn_id=self.llm_conn_id,
-                    forwarded_model_provider=self.model_provider,
+                    forwarded_model_provider=forwarded_model_provider,
                 )
             )
 
@@ -562,6 +717,12 @@ class PydanticAIHook(BaseHook):
         GenAI spans through Airflow's tracing pipeline. See
         :mod:`airflow.providers.common.ai.observability`.
 
+        What each tool returns or raises while it runs passes through Airflow's secret
+        masker before the model sees it, whichever toolset or capability supplied the
+        tool: the agent gets a
+        :class:`~airflow.providers.common.ai.utils.toolset_base.MaskingCapability` after
+        any ``capabilities`` passed in.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
             Required when *spec_file* is not given. When *spec_file* is given,
@@ -583,6 +744,9 @@ class PydanticAIHook(BaseHook):
         # it after construction so a caller that passes its own ``instrument``
         # still wins over the provider's auto-instrumentation.
         caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
+        # Last, so it is the innermost capability; see MaskingCapability.
+        agent_kwargs["capabilities"] = [*(agent_kwargs.get("capabilities") or ()), MaskingCapability()]
 
         if spec_file is not None:
             from_file_kwargs = dict(agent_kwargs)
@@ -610,15 +774,68 @@ class PydanticAIHook(BaseHook):
                 agent.instrument = settings
         return agent
 
+    @overload
+    async def acreate_agent(
+        self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    async def acreate_agent(self, *, instructions: str, **agent_kwargs) -> Agent[object, str]: ...
+
+    @overload
+    async def acreate_agent(
+        self,
+        output_type: type[OutputT],
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    async def acreate_agent(
+        self,
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, str]: ...
+
+    async def acreate_agent(
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str | None = None,
+        spec_file: str | Path | None = None,
+        **agent_kwargs,
+    ) -> Agent[object, Any]:
+        """
+        Create a pydantic-ai Agent configured with this hook's model, for use inside an async task.
+
+        The async counterpart of :meth:`create_agent`, with the same parameters, built on the
+        hook's own worker thread for the reason given in :meth:`aget_conn`. Run the agent with
+        ``await agent.run(...)``.
+        """
+        if spec_file is not None:
+            build = functools.partial(
+                self.create_agent, output_type, spec_file=spec_file, instructions=instructions, **agent_kwargs
+            )
+        elif instructions is None:
+            raise ValueError("instructions is required when spec_file is not provided.")
+        else:
+            build = functools.partial(
+                self.create_agent, output_type, instructions=instructions, **agent_kwargs
+            )
+        return await _run_off_loop(build)
+
     def test_connection(self) -> tuple[bool, str]:
         """
         Test connection by resolving the model.
 
-        A success here can come from this connection's own credentials, or -- when a
-        provider class rejects them with a ``TypeError`` -- from a silent retry against
-        the standard environment variables, which ignores those credentials entirely.
-        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
-        two apart. Does NOT make an LLM API call — that would be expensive and fail for
+        A provider class that cannot be built from the connection's fields is reported as a failure
+        naming the provider, the fields passed and the provider's ``TypeError`` text.
+
+        Does NOT make an LLM API call — that would be expensive and fail for
         reasons unrelated to connectivity (quotas, billing, rate limits).
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
@@ -627,9 +844,9 @@ class PydanticAIHook(BaseHook):
         """
         try:
             self.get_conn()
-            return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)
+        return True, "Model resolved successfully."
 
 
 class PydanticAIAzureHook(PydanticAIHook):
@@ -784,7 +1001,7 @@ class PydanticAIVertexHook(PydanticAIHook):
 
     1. ``service_account_info`` (JSON object) in ``extra``
        — loaded into a ``google.auth.credentials.Credentials``
-       object and passed as ``credentials`` to ``GoogleProvider``.
+       object and passed as ``credentials`` to ``GoogleCloudProvider``.
     2. ``api_key`` in ``extra`` — for Generative Language API (non-Vertex) or
        Vertex API-key auth.
     3. Application Default Credentials (``GOOGLE_APPLICATION_CREDENTIALS``,
@@ -816,8 +1033,11 @@ class PydanticAIVertexHook(PydanticAIHook):
     above), so its presence alone cannot tell the two platforms apart; guessing
     would risk silently authenticating against the wrong endpoint. To use the
     Generative Language API, set an explicit ``google:``-prefixed model id (on
-    the hook or the connection's ``model`` extra) -- that spelling already
-    works today.
+    the hook or the connection's ``model`` extra). ``GoogleProvider`` accepts only
+    ``api_key`` and ``base_url`` (without a key it reads ``GOOGLE_API_KEY``), so on
+    this connection type that spelling must not set Vertex-only fields
+    (``project``, ``location``, ``service_account_info``): they are rejected
+    (fail closed).
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.5-flash"``. A
@@ -855,7 +1075,7 @@ class PydanticAIVertexHook(PydanticAIHook):
         sa_info = extra.get("service_account_info")
         kwargs: dict[str, Any] = {}
 
-        # Direct GoogleProvider scalar kwargs.
+        # Scalar kwargs: GoogleCloudProvider takes all four; GoogleProvider only api_key/base_url.
         for _key in ("api_key", "project", "location", "base_url"):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
@@ -863,11 +1083,10 @@ class PydanticAIVertexHook(PydanticAIHook):
         # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
         # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
         # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
-        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # catch: it logs a warning and falls back to env-var auth rather than raising --
-        # authenticating as the wrong identity (with *all* other kwargs discarded). Accept
-        # the field for backward compatibility but never forward it: which API is used is
-        # now controlled by the model prefix.
+        # raise TypeError, which the base hook's `except TypeError` in get_conn() would turn
+        # into a ValueError rejecting the whole connection. Accept the field for backward
+        # compatibility but never forward it: which API is used is now controlled by the
+        # model prefix.
         if extra.get("vertexai") is not None:
             self.log.warning(
                 "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "

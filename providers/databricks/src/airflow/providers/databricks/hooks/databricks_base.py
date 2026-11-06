@@ -51,6 +51,7 @@ from tenacity import (
 )
 
 from airflow import __version__
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.exceptions import DatabricksApiError
@@ -196,6 +197,12 @@ class BaseDatabricksHook(BaseHook):
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
+
+    async def _a_cache_databricks_conn(self) -> None:
+        # The sync ``get_connection`` cannot run on the triggerer's event loop on Airflow 3.0, so fill
+        # the ``databricks_conn`` cache asynchronously and let the sync helpers read it from there.
+        if "databricks_conn" not in self.__dict__:
+            self.__dict__["databricks_conn"] = await get_async_connection(self.databricks_conn_id, hook=self)
 
     @cached_property
     def user_agent_header(self) -> dict[str, str]:
@@ -1393,6 +1400,7 @@ class BaseDatabricksHook(BaseHook):
         :return: If the api call returns a OK status code,
             this function returns the response in JSON. Otherwise, throw an AirflowException.
         """
+        await self._a_cache_databricks_conn()
         method, endpoint = endpoint_info
 
         full_endpoint = f"api/{endpoint}"

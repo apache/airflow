@@ -84,7 +84,7 @@ apache-airflow-providers-apache-impala package
 `Apache Impala <https://impala.apache.org/>`__.
 
 
-Release: 1.9.3
+Release: 1.9.4
 
 Provider package
 ----------------
@@ -124,12 +124,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-apache-impala[kerberos]
 
 
-==============  ======================
+==============  ==============================
 Extra           Dependencies
-==============  ======================
+==============  ==============================
 ``kerberos``    ``kerberos>=1.3.0``
-``sqlalchemy``  ``sqlalchemy>=1.4.54``
-==============  ======================
+``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
+==============  ==============================
 
 Downloading official packages
 -----------------------------
@@ -137,5 +137,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-impala 1.9.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-impala 1.9.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-impala 1.9.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-impala 1.9.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.9.4-py3-none-any.whl.sha512>`__)

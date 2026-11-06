@@ -25,8 +25,6 @@ providers_prefix = "apache-airflow-providers-"
 @dataclass
 class DocBuildParams:
     package_filter: tuple[str, ...]
-    docs_only: bool
-    spellcheck_only: bool
     short_doc_packages: tuple[str, ...]
     one_pass_only: bool = False
     include_commits: bool = False
@@ -37,10 +35,6 @@ class DocBuildParams:
     @property
     def args_doc_builder(self) -> list[str]:
         doc_args = []
-        if self.docs_only:
-            doc_args.append("--docs-only")
-        if self.spellcheck_only:
-            doc_args.append("--spellcheck-only")
         if self.one_pass_only:
             doc_args.append("--one-pass-only")
         if self.include_commits:

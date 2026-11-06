@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_file_analysis:
 
-Analyze files and images: ``LLMFileAnalysisOperator``
-=====================================================
+Analyze files and images: ``LLMFileAnalysisOperator`` and ``@task.llm_file_analysis``
+=====================================================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
 or the ``@task.llm_file_analysis`` decorator to analyze files from object storage
@@ -150,8 +150,10 @@ Parameters
   built-in read-only guidance.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``model_settings``: Pydantic AI ``ModelSettings`` for the model call, such as
+  ``temperature`` or ``max_tokens``. Supports Jinja templating.
+- ``output_retries``: How many times the model is asked again when its output fails
+  validation. Default ``None`` (Pydantic AI's default).
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
@@ -194,3 +196,13 @@ Parquet and Avro readers require their corresponding optional extras:
 
     pip install "apache-airflow-providers-common-ai[parquet]"
     pip install "apache-airflow-providers-common-ai[avro]"
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
+for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

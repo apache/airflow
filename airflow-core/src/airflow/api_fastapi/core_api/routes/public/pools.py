@@ -122,7 +122,7 @@ def get_pools(
     pools = session.scalars(pools_select)
 
     return PoolCollectionResponse(
-        pools=pools,
+        pools=[PoolResponse.model_validate(pool) for pool in pools],
         total_entries=total_entries,
     )
 
@@ -144,7 +144,9 @@ def patch_pool(
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
-    if patch_body.name and patch_body.name != pool_name:
+    # Tested against None, not truthiness: a blank name is a mismatch like any other, and
+    # treating it as "no name supplied" let it fall through and rename the pool to "".
+    if patch_body.name is not None and patch_body.name != pool_name:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "Invalid body, pool name from request body doesn't match uri parameter",

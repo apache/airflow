@@ -24,6 +24,8 @@ repos:
     hooks:
       - id: mypy-docker-tests
         name: Run mypy for docker-tests
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py docker-tests
         pass_filenames: false

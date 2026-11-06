@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{total}} 件中 {{count}} 件のアセットが更新されました",
+  "assetSchedule": "{{total, number}} 件中 {{count, number}} 件のアセットが更新されました",
   "dagActions": {
     "delete": {
       "button": "Dag を削除",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "タスクが見つかりません",
-      "title": "影響を受けたタスク: {{count}} 件"
+      "title": "影響を受けたタスク: {{count, number}} 件"
     },
     "clear": {
       "button": "{{type}} を消去",

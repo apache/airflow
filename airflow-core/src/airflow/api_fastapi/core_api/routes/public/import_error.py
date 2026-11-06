@@ -147,6 +147,7 @@ def get_import_errors(
                     "id",
                     "timestamp",
                     "filename",
+                    "source_reference",
                     "bundle_name",
                     "stacktrace",
                 ],
@@ -263,6 +264,7 @@ def get_import_errors(
             ParseImportError.id,
             ParseImportError.timestamp,
             ParseImportError.filename,
+            ParseImportError.source_reference,
             ParseImportError.bundle_name,
             ParseImportError.stacktrace,
         )

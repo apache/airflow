@@ -77,6 +77,7 @@ const (
 	TypeGetXComSequenceItem         = "GetXComSequenceItem"
 	TypeGetXComSequenceSlice        = "GetXComSequenceSlice"
 	TypeHITLDetailRequestResult     = "HITLDetailRequestResult"
+	TypeHITLDetailResponseResult    = "HITLDetailResponseResult"
 	TypeInactiveAssetsResult        = "InactiveAssetsResult"
 	TypeMaskSecret                  = "MaskSecret"
 	TypeOKResponse                  = "OKResponse"
@@ -90,6 +91,7 @@ const (
 	TypeSentFDs                     = "SentFDs"
 	TypeSetAssetStateStoreByName    = "SetAssetStateStoreByName"
 	TypeSetAssetStateStoreByURI     = "SetAssetStateStoreByUri"
+	TypeSetExecutionTimeout         = "SetExecutionTimeout"
 	TypeSetRenderedFields           = "SetRenderedFields"
 	TypeSetRenderedMapIndex         = "SetRenderedMapIndex"
 	TypeSetTaskStateStore           = "SetTaskStateStore"
@@ -105,6 +107,7 @@ const (
 	TypeTaskStateStoreResult        = "TaskStateStoreResult"
 	TypeTaskStatesResult            = "TaskStatesResult"
 	TypeTriggerDagRun               = "TriggerDagRun"
+	TypeUpdateDagRunNote            = "UpdateDagRunNote"
 	TypeUpdateHITLDetail            = "UpdateHITLDetail"
 	TypeValidateInletsAndOutlets    = "ValidateInletsAndOutlets"
 	TypeVariableKeysResult          = "VariableKeysResult"
@@ -280,6 +283,9 @@ func EnsureType(m any) any {
 	case HITLDetailRequestResult:
 		b.Type = TypeHITLDetailRequestResult
 		return b
+	case HITLDetailResponseResult:
+		b.Type = TypeHITLDetailResponseResult
+		return b
 	case InactiveAssetsResult:
 		b.Type = TypeInactiveAssetsResult
 		return b
@@ -318,6 +324,9 @@ func EnsureType(m any) any {
 		return b
 	case SetAssetStateStoreByURI:
 		b.Type = TypeSetAssetStateStoreByURI
+		return b
+	case SetExecutionTimeout:
+		b.Type = TypeSetExecutionTimeout
 		return b
 	case SetRenderedFields:
 		b.Type = TypeSetRenderedFields
@@ -363,6 +372,9 @@ func EnsureType(m any) any {
 		return b
 	case TriggerDagRun:
 		b.Type = TypeTriggerDagRun
+		return b
+	case UpdateDagRunNote:
+		b.Type = TypeUpdateDagRunNote
 		return b
 	case UpdateHITLDetail:
 		b.Type = TypeUpdateHITLDetail

@@ -1,0 +1,11 @@
+Task SDK API client trusts the system certificate store instead of ``certifi``
+
+With ``[api] client_use_public_certs`` enabled (the default), the Task SDK client that talks to the
+Execution API now trusts the operating system's certificate store through ``truststore`` instead of
+the ``certifi`` CA bundle. CAs from ``[api] ssl_ca_file`` and ``[api] ssl_cert`` are still trusted
+in addition to the system store, and ``certifi`` is no longer a Task SDK dependency.
+
+Workers must have the public CAs they rely on installed in the system store (for example, the
+``ca-certificates`` package on Debian-based images). On macOS and Windows, certificate validation
+is delegated to the operating system, which can reject server certificates that OpenSSL accepted,
+such as private-CA certificates without the ``serverAuth`` extended key usage.

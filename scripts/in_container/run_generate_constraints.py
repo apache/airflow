@@ -20,7 +20,9 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
 import sys
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,13 +37,8 @@ from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, cons
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
-
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.11")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
 PYPI_LOOKUP_PARALLELISM = 8
@@ -139,6 +136,7 @@ class ConfigParams:
     allow_pre_releases: bool
     constraints_github_repository: str
     default_constraints_branch: str
+    fail_on_pending_provider_candidates: bool
     github_actions: bool
     python: str
 
@@ -237,21 +235,49 @@ def freeze_distributions_to_file(
     console.print(f"[green]Constraints generated to file: {file.name}. Wrote {count_lines} lines")
 
 
+def _github_headers(accept: str) -> dict[str, str]:
+    headers = {"Accept": accept}
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
+    else:
+        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
+    return headers
+
+
+def _constraints_branch_has_other_python_files(config_params: ConfigParams) -> bool:
+    """Tell a first publication for a new Python from a baseline that should exist but is missing."""
+    listing_url = (
+        f"https://api.github.com/repos/{config_params.constraints_github_repository}/contents/"
+        f"?ref={config_params.default_constraints_branch}"
+    )
+    r = requests.get(listing_url, timeout=60, headers=_github_headers("application/vnd.github.v3+json"))
+    r.raise_for_status()
+    other_python_file = re.compile(rf"{re.escape(config_params.airflow_constraints_mode)}-3\.\d+\.txt")
+    return any(
+        other_python_file.fullmatch(entry["name"])
+        and entry["name"] != f"{config_params.airflow_constraints_mode}-{config_params.python}.txt"
+        for entry in r.json()
+    )
+
+
 def download_latest_constraint_file(config_params: ConfigParams):
     constraints_url = (
         "https://api.github.com/repos/"
         f"{config_params.constraints_github_repository}/contents/"
         f"{config_params.airflow_constraints_mode}-{config_params.python}.txt?ref={config_params.default_constraints_branch}"
     )
-    # download the latest constraints file
-    # download using requests
-    headers = {"Accept": "application/vnd.github.v3.raw"}
-    if os.environ.get("GITHUB_TOKEN"):
-        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
-    else:
-        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
-    r = requests.get(constraints_url, timeout=60, headers=headers)
+    r = requests.get(constraints_url, timeout=60, headers=_github_headers("application/vnd.github.v3.raw"))
+    if r.status_code == 404 and _constraints_branch_has_other_python_files(config_params):
+        # The first generation for a new Python has no file to compare with: diff against an empty
+        # baseline. A 404 on a branch that carries no file of this mode at all is still an error.
+        console.print(
+            f"[yellow]No {config_params.airflow_constraints_mode} file for Python {config_params.python} on "
+            f"{config_params.default_constraints_branch}, but other Pythons have one - first publication, "
+            "using an empty baseline."
+        )
+        config_params.latest_constraints_file.write_text("")
+        return
     r.raise_for_status()
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)
@@ -319,6 +345,24 @@ def _read_provider_versions_from_constraints(constraints_file: Path) -> dict[str
     return provider_versions
 
 
+def _is_pre_release(version: str) -> bool:
+    try:
+        return Version(version).is_prerelease
+    except InvalidVersion:
+        return False
+
+
+def find_pre_release_provider_pins(constraints_file: Path) -> dict[str, str]:
+    """Return the providers ``constraints_file`` pins at a pre-release, e.g. by a release candidate."""
+    if not constraints_file.exists():
+        return {}
+    return {
+        provider: version
+        for provider, version in _read_provider_versions_from_constraints(constraints_file).items()
+        if _is_pre_release(version)
+    }
+
+
 def write_provider_downgrade_slack_message(
     config_params: ConfigParams, downgraded: list[tuple[str, str, str]]
 ) -> None:
@@ -381,6 +425,32 @@ def write_provider_downgrade_slack_message(
     console.print(f"[yellow]Wrote provider downgrade Slack payload to {slack_message_file}")
 
 
+def check_baseline_pre_releases_unchanged(
+    config_params: ConfigParams, kept_pre_releases: dict[str, str]
+) -> None:
+    """
+    Fail if the candidates pinned by the baseline changed while the constraints were being resolved.
+
+    The pins are chosen from the baseline read before the resolution, which takes minutes. A release
+    candidate's constraints published in the meantime would otherwise be overwritten by this run's
+    older pins - and, the baseline now pinning candidates, without the downgrade check noticing.
+    """
+    current_pre_releases = find_pre_release_provider_pins(config_params.latest_constraints_file)
+    if current_pre_releases == kept_pre_releases:
+        return
+    console.print(
+        "[red]The release candidates pinned by the constraints branch changed while the constraints "
+        "were being generated:[/]"
+    )
+    for provider in sorted(kept_pre_releases.keys() | current_pre_releases.keys()):
+        console.print(
+            f"[red]  * {provider}: {kept_pre_releases.get(provider, '-')} -> "
+            f"{current_pre_releases.get(provider, '-')}"
+        )
+    console.print("[yellow]Run the generation again so it starts from the updated constraints.")
+    sys.exit(1)
+
+
 def check_providers_not_downgraded(config_params: ConfigParams) -> None:
     """
     Fail generation if any released provider is downgraded compared to the latest constraints.
@@ -391,7 +461,9 @@ def check_providers_not_downgraded(config_params: ConfigParams) -> None:
     being published.
 
     A release candidate is exempt: it pins the wave being voted on, which sorts below the released
-    versions a constraints branch may already carry, so the comparison says nothing there.
+    versions a constraints branch may already carry, so the comparison says nothing there. So is a
+    provider the baseline pins at a pre-release: the generation keeps that pin while PyPI still
+    serves it, so a lower version means it was yanked - the outcome of a failed vote, not a break.
     """
     if config_params.allow_pre_releases:
         console.print(
@@ -407,7 +479,7 @@ def check_providers_not_downgraded(config_params: ConfigParams) -> None:
     downgraded: list[tuple[str, str, str]] = []
     for provider, latest_version in latest_versions.items():
         current_version = current_versions.get(provider)
-        if current_version is None:
+        if current_version is None or _is_pre_release(latest_version):
             continue
         try:
             if Version(current_version) < Version(latest_version):
@@ -487,13 +559,18 @@ def is_file_installable(pypi_file: dict, target_python: Version) -> bool:
 
 
 def find_newest_version_in_pypi(
-    distribution: str, python_version: str, allow_pre_releases: bool
+    distribution: str,
+    python_version: str,
+    allow_pre_releases: bool,
+    kept_pre_release: str | None = None,
 ) -> str | None:
     """Return the newest version of ``distribution`` PyPI can install for ``python_version``.
 
     A pre-release is only ever considered when ``allow_pre_releases`` is set, and even then it wins
     only by sorting above every final release - so a provider with a candidate in the wave being
-    voted on resolves to that candidate while one without keeps its last release. Versions PyPI can
+    voted on resolves to that candidate while one without keeps its last release. The one exception
+    is ``kept_pre_release``, the candidate the baseline constraints already pin: it stays eligible so
+    that a run without pre-releases does not move the provider back below it. Versions PyPI can
     no longer serve for the Python being resolved - fully yanked, or excluded by ``requires_python``
     - are passed over, because pinning one leaves the resolution nothing to install. ``None``
     (nothing installable at all, e.g. a provider whose first release is still in this wave) leaves
@@ -505,13 +582,14 @@ def find_newest_version_in_pypi(
         return None
     response.raise_for_status()
     target_python = Version(python_version)
+    kept_version = Version(kept_pre_release) if kept_pre_release else None
     newest_version: Version | None = None
     for version, files in response.json().get("releases", {}).items():
         try:
             parsed_version = Version(version)
         except InvalidVersion:
             continue
-        if parsed_version.is_prerelease and not allow_pre_releases:
+        if parsed_version.is_prerelease and not allow_pre_releases and parsed_version != kept_version:
             continue
         if not any(is_file_installable(pypi_file, target_python) for pypi_file in files):
             continue
@@ -523,7 +601,30 @@ def find_newest_version_in_pypi(
     return str(newest_version)
 
 
-def build_pinned_provider_requirements(python_version: str, allow_pre_releases: bool) -> list[str]:
+def exit_on_pending_provider_candidates(pending: list[tuple[str, str]]) -> None:
+    """Stop a final release's constraints while a provider candidate is neither released nor yanked."""
+    console.print(
+        "[red]These providers have a release candidate on PyPI that is newer than their latest "
+        "final release:[/]"
+    )
+    for distribution, version in pending:
+        console.print(f"[red]  * {distribution}=={version}")
+    console.print(
+        "[yellow]Constraints for a final Airflow release cannot pin a release candidate, and passing "
+        "over it would publish constraints that silently ignore it. Clear each candidate first, "
+        "then run the release constraints again:[/]\n"
+        "[yellow]  * release it - publish the final version once its vote has passed, or[/]\n"
+        "[yellow]  * yank it on PyPI if it is not going to be released - yanked versions are skipped.[/]"
+    )
+    sys.exit(1)
+
+
+def build_pinned_provider_requirements(
+    python_version: str,
+    allow_pre_releases: bool,
+    kept_pre_releases: dict[str, str] | None = None,
+    fail_on_pending_candidates: bool = False,
+) -> list[str]:
     """Exact pins for every active provider, at the newest version PyPI holds for it.
 
     Naming the versions retrieved from PyPI leaves the providers nothing to resolve: the constraints
@@ -533,8 +634,14 @@ def build_pinned_provider_requirements(python_version: str, allow_pre_releases: 
     satisfying the lower bounds. It also keeps pre-releases confined to the providers: no
     third-party dependency can answer with one, because no requirement here mentions a pre-release
     of anything else.
+
+    ``kept_pre_releases`` maps providers to the candidates the baseline constraints pin; those are
+    kept while PyPI serves them. With ``fail_on_pending_candidates`` - the constraints of a final
+    release - the lookup sees candidates too, and any provider whose newest version is one fails the
+    run instead: it must be released or yanked first.
     """
     distributions = get_all_active_provider_distributions(python_version)
+    kept_pre_releases = kept_pre_releases or {}
     console.print(f"[bright_blue]Retrieving the newest PyPI version of {len(distributions)} providers.")
     with ThreadPoolExecutor(max_workers=PYPI_LOOKUP_PARALLELISM) as executor:
         newest_versions = list(
@@ -542,9 +649,18 @@ def build_pinned_provider_requirements(python_version: str, allow_pre_releases: 
                 find_newest_version_in_pypi,
                 distributions,
                 repeat(python_version),
-                repeat(allow_pre_releases),
+                repeat(allow_pre_releases or fail_on_pending_candidates),
+                [kept_pre_releases.get(distribution) for distribution in distributions],
             )
         )
+    if fail_on_pending_candidates:
+        pending = [
+            (distribution, version)
+            for distribution, version in zip(distributions, newest_versions)
+            if version is not None and _is_pre_release(version)
+        ]
+        if pending:
+            exit_on_pending_provider_candidates(pending)
     return [
         f"{distribution}=={version}"
         for distribution, version in zip(distributions, newest_versions)
@@ -631,10 +747,17 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     ]
 
     # Every run pins the providers at the versions PyPI holds when it is generated. Only a run for
-    # a release candidate considers the rc versions of the wave being voted on; a final regenerates
-    # these against the published releases, so a released constraints file can never carry an rc pin.
+    # a release candidate picks up the rc versions of the wave being voted on. A regular run keeps
+    # the candidates the baseline already pins, so it does not undo a candidate's constraints while
+    # the vote is on. A final fails while any provider still has a candidate that was neither
+    # released nor yanked, so a released constraints file can never carry an rc pin.
+    download_latest_constraint_file(config_params)
+    kept_pre_releases = find_pre_release_provider_pins(config_params.latest_constraints_file)
     pinned_provider_requirements = build_pinned_provider_requirements(
-        config_params.python, config_params.allow_pre_releases
+        config_params.python,
+        config_params.allow_pre_releases,
+        kept_pre_releases=kept_pre_releases,
+        fail_on_pending_candidates=config_params.fail_on_pending_provider_candidates,
     )
     console.print(
         f"[bright_blue]Pinning {len(pinned_provider_requirements)} provider distributions to the "
@@ -688,6 +811,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             config_params, constraints_file, distributions_to_exclude_from_constraints
         )
     download_latest_constraint_file(config_params)
+    check_baseline_pre_releases_unchanged(config_params, kept_pre_releases)
     diff_constraints(config_params)
     check_providers_not_downgraded(config_params)
 
@@ -764,11 +888,20 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     "only on PyPI as rc versions.",
     envvar="ALLOW_PRE_RELEASES",
 )
+@click.option(
+    "--fail-on-pending-provider-candidates",
+    is_flag=True,
+    default=False,
+    help="Fail when a provider's newest version on PyPI is a release candidate that was neither "
+    "released nor yanked. Used when constraints are generated for a final Airflow release.",
+    envvar="FAIL_ON_PENDING_PROVIDER_CANDIDATES",
+)
 def generate_constraints(
     airflow_constraints_mode: str,
     allow_pre_releases: bool,
     constraints_github_repository: str,
     default_constraints_branch: str,
+    fail_on_pending_provider_candidates: bool,
     github_actions: bool,
     python: str,
     use_uv: bool,
@@ -778,6 +911,7 @@ def generate_constraints(
         allow_pre_releases=allow_pre_releases,
         constraints_github_repository=constraints_github_repository,
         default_constraints_branch=default_constraints_branch,
+        fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
         github_actions=github_actions,
         python=python,
     )

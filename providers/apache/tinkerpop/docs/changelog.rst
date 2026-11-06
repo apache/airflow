@@ -18,6 +18,40 @@
 ``apache-airflow-providers-apache-tinkerpop``
 
 
+1.2.2
+.....
+
+.. note::
+
+    This release excludes Python 3.14 because ``gremlinpython`` does not support it.
+    Version 1.2.1 incorrectly declared Python 3.14 support; on Python 3.14, pip may
+    retain that older provider version instead of installing 1.2.2. Use Python 3.11-3.13.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude unsupported Python 3.14 from Apache TinkerPop (#74559)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.2.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
 1.2.0
 .....
 

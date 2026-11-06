@@ -1335,6 +1335,58 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
+    async def aload_bytes(
+        self,
+        bytes_data: bytes,
+        key: str,
+        bucket_name: str | None = None,
+        replace: bool = False,
+        encrypt: bool = False,
+        acl_policy: str | None = None,
+    ) -> None:
+        """
+        Load bytes to S3 asynchronously.
+
+        The async counterpart of :meth:`load_bytes`, on the aiobotocore client of
+        :meth:`get_async_conn`, so an async task or trigger can upload without blocking its
+        event loop. It sends the object in a single ``PutObject`` request: there is no
+        multipart transfer and ``transfer_config`` is not used, so it is meant for objects
+        below the 5 GB limit of a single upload.
+
+        .. seealso::
+            - :external+boto3:py:meth:`S3.Client.put_object`
+
+        :param bytes_data: bytes to set as content for the key.
+        :param key: S3 key that will point to the file
+        :param bucket_name: Name of the bucket in which to store the file
+        :param replace: A flag to decide whether or not to overwrite the key
+            if it already exists
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :param acl_policy: The string to specify the canned ACL policy for the
+            object to be uploaded
+        """
+        async with await self.get_async_conn() as client:
+            if not replace and await self.get_head_object_async(client, key, bucket_name):
+                raise ValueError(f"The key {key} already exists.")
+
+            # A copy, so the hook's own extra_args keep no per-call settings.
+            extra_args = dict(self.extra_args)
+            if encrypt:
+                extra_args["ServerSideEncryption"] = "AES256"
+            if acl_policy:
+                extra_args["ACL"] = acl_policy
+            if self._requester_pays:
+                extra_args["RequestPayer"] = "requester"
+
+            await client.put_object(Bucket=bucket_name, Key=key, Body=bytes_data, **extra_args)
+
+        get_hook_lineage_collector().add_output_asset(
+            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
+        )
+
+    @unify_bucket_name_and_key
+    @provide_bucket_name
     def load_file_obj(
         self,
         file_obj: BytesIO,
@@ -1510,7 +1562,13 @@ class S3Hook(AwsBaseHook):
             for retry in range(max_retries):
                 bucket_keys = self.list_keys(bucket_name=bucket_name)
                 if not bucket_keys:
-                    break
+                    try:
+                        self.conn.delete_bucket(Bucket=bucket_name)
+                        return
+                    except ClientError as e:
+                        if e.response["Error"]["Code"] != "BucketNotEmpty":
+                            raise
+                        continue
                 if retry:  # Avoid first loop
                     time.sleep(500)
 
@@ -1819,11 +1877,13 @@ class S3Hook(AwsBaseHook):
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
             try:
-                local_target_path.resolve().relative_to(local_dir_resolved)
+                resolved_relative_path = local_target_path.resolve().relative_to(local_dir_resolved)
             except ValueError:
                 raise S3HookPathTraversalError(
                     f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
                 ) from None
+            if resolved_relative_path == Path(".") or obj.key.endswith(("/.", "/..")):
+                continue
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)

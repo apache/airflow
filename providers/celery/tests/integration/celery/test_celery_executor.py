@@ -44,7 +44,7 @@ from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskInstanceKey, conf
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, conf
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import BaseOperator
 from airflow.utils.state import State
@@ -215,16 +215,13 @@ class TestCeleryExecutor:
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
                 dagrun = setup_dagrun_with_success_and_fail_workloads(dag_maker)
                 ti_fail, ti_success = sorted(dagrun.task_instances, key=lambda ti: ti.task_id)
-                # Derive keys from the real task instances so they match what the executor tracks
-                key_fail = TaskInstanceKey(
-                    ti_fail.dag_id, ti_fail.task_id, ti_fail.run_id, ti_fail.try_number, ti_fail.map_index
+                key_fail = (
+                    executor.get_task_key(ti_fail) if executor.supports_task_instance_uuid else ti_fail.key
                 )
-                key_success = TaskInstanceKey(
-                    ti_success.dag_id,
-                    ti_success.task_id,
-                    ti_success.run_id,
-                    ti_success.try_number,
-                    ti_success.map_index,
+                key_success = (
+                    executor.get_task_key(ti_success)
+                    if executor.supports_task_instance_uuid
+                    else ti_success.key
                 )
                 keys = [key_fail, key_success]
                 for ti in (ti_success, ti_fail):
@@ -249,7 +246,7 @@ class TestCeleryExecutor:
                         num_tasks,
                     )
                     sleep(0.4)
-                assert sorted(executor.workloads.keys()) == sorted(keys)
+                assert set(executor.workloads) == set(keys)
                 assert executor.event_buffer[key_success][0] == State.QUEUED
                 assert executor.event_buffer[key_fail][0] == State.QUEUED
 
@@ -278,8 +275,8 @@ class TestCeleryExecutor:
                 ti=TaskInstanceDTO.model_validate(ti, from_attributes=True),
             )
 
-            key = (task.dag.dag_id, task.task_id, ti.run_id, 0, -1)
-            executor.queued_tasks[key] = workload
+            key = executor.get_task_key(ti) if executor.supports_task_instance_uuid else ti.key
+            executor.queue_workload(workload, session=None)
             executor.workload_publish_retries[key] = 1
 
             # Mock send_workload_to_executor to return an error result.
@@ -296,7 +293,7 @@ class TestCeleryExecutor:
                 )
 
             with mock.patch.object(
-                celery_executor_utils, "send_workload_to_executor", side_effect=mock_send_error
+                celery_executor_utils, "send_workload_to_executor", autospec=True, side_effect=mock_send_error
             ):
                 executor.heartbeat()
         assert len(executor.queued_tasks) == 0, "Workload should no longer be queued"
@@ -313,6 +310,7 @@ class TestCeleryExecutor:
                 # Mock `with timeout()` to _instantly_ fail.
                 celery_executor_utils.timeout,
                 "__enter__",
+                autospec=True,
                 side_effect=AirflowTaskTimeout,
             ),
         ):
@@ -330,8 +328,8 @@ class TestCeleryExecutor:
                 ti=TaskInstanceDTO.model_validate(ti, from_attributes=True),
             )
 
-            key = (task.dag.dag_id, task.task_id, ti.run_id, 0, -1)
-            executor.queued_tasks[key] = workload
+            key = executor.get_task_key(ti) if executor.supports_task_instance_uuid else ti.key
+            executor.queue_workload(workload, session=None)
 
             # Test that when heartbeat is called again, workload is published again to Celery Queue.
             executor.heartbeat()

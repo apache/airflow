@@ -20,6 +20,11 @@
 Using LlamaIndex directly: ``LlamaIndexHook``
 =============================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` to
 bridge an Airflow connection to `LlamaIndex <https://docs.llamaindex.ai/>`__
 chat and embedding models. The hook reads credentials (API key, optional
@@ -110,9 +115,21 @@ Parameters
    * - ``embed_model``
      - ``None`` (falls back to ``extra["embed_model"]``)
      - Embedding model name, e.g. ``text-embedding-3-small``.
+   * - ``embedding_kwargs``
+     - ``None``
+     - Additional keyword arguments passed to ``OpenAIEmbedding``, for example
+       ``{"dimensions": 128}``. Values are forwarded without filtering.
+       Connection ``api_key`` and ``api_base`` values take precedence at the top
+       level, but nested options supported by the underlying library can override
+       hook-provided request values, including credentials, the model, and the
+       input. Only pass trusted values.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
      - LLM model name, e.g. ``gpt-5``. Required when calling ``get_llm()``.
+
+.. seealso::
+   `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
+   for valid ``embedding_kwargs`` keys.
 
 Dependencies
 ------------
@@ -125,3 +142,9 @@ That extra installs ``llama-index-core``, ``llama-index-embeddings-openai``,
 and ``llama-index-llms-openai`` -- enough to back the hook's default
 OpenAI return values. For other LlamaIndex vendor packages, install
 their integration package separately.
+
+``llama-index-llms-openai`` caps ``openai`` below 3, while this provider's ``openai`` extra
+needs ``openai`` 3, so the two extras cannot be installed in one environment. For the same
+reason the ``llamaindex`` extra fails to install with a constraints file that pins
+``openai`` 3 or later: build the worker image without the constraints file for this step,
+or with a copy of it that pins ``openai`` below 3.

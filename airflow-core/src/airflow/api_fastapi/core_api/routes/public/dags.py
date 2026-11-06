@@ -23,8 +23,10 @@ from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.orm import selectinload
 
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dags import eager_load_teams, generate_dag_with_latest_run_query
@@ -58,7 +60,13 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkBody,
+    BulkResponse,
+    validate_asset_expression,
+)
 from airflow.api_fastapi.core_api.datamodels.dags import (
+    BulkDAGBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
@@ -69,26 +77,22 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import (
     EditableDagsFilterDep,
     GetUserDep,
+    ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
     requires_access_dag,
+    requires_access_dag_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.dags import BulkDagService, get_scheduling_state
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
-
-
-def _get_scheduling_state(patch_body: DAGPatchBody) -> DagSchedulingState:
-    if patch_body.scheduling_state is not None:
-        return patch_body.scheduling_state
-    if patch_body.is_paused is True:
-        return DagSchedulingState.PAUSED
-    return DagSchedulingState.ACTIVE
 
 
 @dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
@@ -132,7 +136,7 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun"],
                 DagModel,
                 {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
             ).dynamic_depends()
@@ -197,7 +201,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=list(dags),
         total_entries=total_entries,
     )
 
@@ -242,7 +246,11 @@ def get_dag(
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_details(
-    dag_id: str, session: SessionDep, dag_bag: DagBagDep, user: GetUserDep
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    user: GetUserDep,
+    readable_assets_filter: ReadableAssetsFilterDep,
 ) -> DAGDetailsResponse:
     """Get details of Dag."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -274,11 +282,35 @@ def get_dag_details(
         or 0
     )
 
-    # Add is_favorite and active_runs_count fields to the Dag model
+    latest_dag_version = DagVersion.get_latest_version(
+        dag_id, load_dag_model=True, load_bundle_model=True, session=session
+    )
+
+    # Add is_favorite, active_runs_count and latest_dag_version fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(dag_model, "latest_dag_version", latest_dag_version)
 
-    return DAGDetailsResponse.model_validate(dag_model)
+    details = DAGDetailsResponse.model_validate(dag_model)
+    # The redaction lands on the response, not on `dag_model`: that is a live ORM instance whose
+    # session commits when the request ends, so assigning the blanked leaves back onto it would
+    # persist them.
+    details.asset_expression = validate_asset_expression(
+        redact_asset_expression(
+            dag_model.asset_expression, readable_asset_ids=readable_assets_filter.value or set()
+        )
+    )
+    return details
+
+
+@dags_router.patch(
+    # Declared before "/{dag_id}" so this literal segment isn't shadowed by that path param.
+    "/bulk",
+    dependencies=[Depends(requires_access_dag_bulk()), Depends(action_logging())],
+)
+def bulk_dags(request: BulkBody[BulkDAGBody], session: SessionDep) -> BulkResponse:
+    """Bulk pause, resume, or drain Dags by id."""
+    return BulkDagService(session=session, request=request).handle_request()
 
 
 @dags_router.patch(
@@ -327,7 +359,7 @@ def patch_dag(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-    dag.set_scheduling_state(_get_scheduling_state(patch_body))
+    dag.set_scheduling_state(get_scheduling_state(patch_body))
 
     return dag
 
@@ -380,7 +412,7 @@ def patch_dags(
             raise RequestValidationError(errors=e.errors())
 
     dags_select, total_entries = paginated_select(
-        statement=select(DagModel),
+        statement=select(DagModel).options(selectinload(DagModel.tags)),
         filters=[
             exclude_stale,
             paused,
@@ -410,7 +442,7 @@ def patch_dags(
         ],
     ).subquery()
 
-    scheduling_state = _get_scheduling_state(patch_body)
+    scheduling_state = get_scheduling_state(patch_body)
     session.execute(
         update(DagModel)
         .where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id)))
@@ -422,7 +454,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=list(dags),
         total_entries=total_entries,
     )
 

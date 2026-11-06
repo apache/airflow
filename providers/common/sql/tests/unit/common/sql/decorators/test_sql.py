@@ -121,6 +121,25 @@ class TestSqlDecorator:
         assert sql_task.operator.sql == "SELECT 1;"
 
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
+    def test_execute_renders_only_the_returned_sql(self):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        with self.dag_maker:
+
+            @task.sql(conn_id=conn_id, parameters={"name": "{{ name }}"})
+            def sql():
+                return "SELECT :name FROM {{ table }}"
+
+            sql_task = sql()
+
+        op = sql_task.operator
+        context = {"table": "users", "name": "{{ other }}", "other": "rendered twice"}
+        op.render_template_fields(context)
+        op.execute(context=context)
+
+        assert op.sql == "SELECT :name FROM users"
+        assert op.parameters == {"name": "{{ other }}"}
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
     @pytest.mark.parametrize("sql_query", ["", 1, None, [""], ["SELECT 1;", ""]])
     def test_invalid_sql_query(self, sql_query):
         """Test that an exception is thrown when invalid SQL is returned"""

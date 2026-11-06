@@ -20,6 +20,11 @@
 LlamaIndex connection
 =====================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 The ``llamaindex`` connection type configures access to LLM and embedding
 providers for `LlamaIndex <https://docs.llamaindex.ai/>`__. It backs
 :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` (see

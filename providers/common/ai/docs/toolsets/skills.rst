@@ -20,6 +20,11 @@
 Agent Skills: ``AgentSkillsToolset``
 ====================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` loads
 `Agent Skills <https://agentskills.io>`__ -- ``SKILL.md`` bundles (instructions,
 and optionally scripts and resources) that the model discovers and loads *on
@@ -28,10 +33,11 @@ prompt until the model decides it needs one, so a large skill library costs few
 tokens until used (progressive disclosure).
 
 It is backed by the community `pydantic-ai-skills
-<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT); native
-progressive disclosure is in flight upstream in `pydantic/pydantic-ai#5230
-<https://github.com/pydantic/pydantic-ai/pull/5230>`__. Install the optional
-extra to use it:
+<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT). ``pydantic-ai-harness``'s
+`Skills <https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/skills>`__
+capability also loads Agent Skills, as on-demand capabilities, but only their ``SKILL.md``
+instructions: no resources and no ``run_skill_script``.
+Install the optional extra to use this toolset:
 
 .. code-block:: bash
 
@@ -77,6 +83,68 @@ need strict isolation.
     ``branch`` to a trusted ref, and treat skill contents as code that runs in
     your environment.
 
+.. _agent-skills-restricted:
+
+Restricting the agent
+---------------------
+
+This agent can read skills but cannot run any script a skill ships, and files that
+match the ``exclude_resources`` patterns stay out of its reach. The example skills ship
+no scripts, so the exclusion matters once a skill adds one:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
+    :language: python
+    :start-after: [START howto_operator_agent_skills_restricted]
+    :end-before: [END howto_operator_agent_skills_restricted]
+
+The model is offered ``list_skills``, ``load_skill`` and ``read_skill_resource``. A
+call to the excluded tool got ``Unknown tool name: 'run_skill_script'. Available
+tools: 'list_skills', 'load_skill', 'read_skill_resource'``.
+
+The example skills contain no file the patterns match, so the next run used a copy of
+them with ``warehouse.env``, ``secrets/token.txt`` and ``reference.md`` added to
+``sql-reporting``. ``load_skill`` listed only ``reference.md`` as a resource, and
+reading an excluded file got:
+
+.. code-block:: text
+
+    Resource 'warehouse.env' not found in skill 'sql-reporting'. Available resources: ['reference.md']. Use the exact name from load_skill output.
+
+Without ``max_retries``, each skills tool allows as many corrections as the agent's
+``retries``, one by default, and a successful call to that tool resets the count. With
+the default, a second refused read in a row failed the run with
+``UnexpectedModelBehavior``:
+
+.. code-block:: text
+
+    Tool 'read_skill_resource' exceeded max retries count of 1. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
+
+With the example's ``max_retries=3``, the same two refused reads went back to the model,
+which then read ``reference.md`` and finished the run.
+
+``exclude_resources`` hides files from the resource tools only. A skill's scripts can
+still read them, which is why the example excludes ``run_skill_script`` as well.
+
+.. _agent-skills-observability:
+
+Seeing which skills a run used
+------------------------------
+
+When the toolset runs inside an Airflow task, it publishes on XCom, under the key
+``__AIRFLOW__COMMON_AI_SKILLS__``, every skill it offered the agent: its name and
+description, where it came from, and how many times the agent called ``load_skill``,
+``read_skill_resource`` and ``run_skill_script`` for it. A local skill names its path on
+the worker. A ``GitSkills`` skill names the repository, its path inside the repository,
+the ``branch`` you set and the commit that was cloned, so a run that behaves differently
+from an earlier one can be traced to a change in the skill between two commits.
+
+The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
+first, with a link to the skill's folder at that commit for a repository on GitHub or
+GitLab. The counts cover the whole conversation, so calls made before a tool-approval
+pause, a human-review regeneration or a durable retry still count. Several skills toolsets
+on one agent, each wrapped with ``prefixed()`` to keep their tool names apart, share the
+same list. Nothing is published when the task sets ``do_xcom_push=False``.
+
 Parameters
 ----------
 
@@ -94,6 +162,9 @@ Parameters
   it does not stop a skill's ``run_skill_script`` from reading them off disk, so
   pair it with ``exclude_tools={"run_skill_script"}`` when the files are
   genuinely sensitive.
+- ``max_retries``: How many times the model may correct failed calls to one skills tool
+  before the run fails; a successful call to that tool resets the count. Default
+  ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 Using Agent Skills with other frameworks
 ----------------------------------------
@@ -149,17 +220,10 @@ discoverable. See :ref:`agent-skills` for the layout.
   that clone once per run. A local directory is read in place and
   costs nothing.
 
-**A real example.** ``example_agent_skills.py`` loads skills from a local
-directory:
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
-    :language: python
-    :start-after: [START howto_operator_agent_skills_local]
-    :end-before: [END howto_operator_agent_skills_local]
-
-The two skills it ships, ``aip-tracker`` and ``sql-reporting``, are procedural by
-nature: neither adds an endpoint the agent could not already reach. That is the
-signal you are on the right route.
+**A real example.** The local-directory example at the top of this page comes
+from ``example_agent_skills.py``. The two skills it ships, ``aip-tracker`` and
+``sql-reporting``, are procedural by nature: neither adds an endpoint the agent
+could not already reach. That is the signal you are on the right route.
 
 **Credentials and where it runs.** A local directory needs no credential. A
 private repository goes through

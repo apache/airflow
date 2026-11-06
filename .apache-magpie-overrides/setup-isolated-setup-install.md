@@ -74,6 +74,11 @@ plus read-only `docker ps` / `docker info`. No `docker rm`, no
 `docker network prune`, nothing that writes outside the breeze workflow —
 those stay prompt-gated.
 
+The allows only skip the permission prompt. They do not make breeze work
+behind the magpie container gateway, which refuses Docker calls breeze
+depends on (BuildKit sessions, untyped `docker inspect`) by design, so breeze
+cannot run in a session whose `DOCKER_HOST` points at the gateway.
+
 ## Scope notes
 
 - These land in the gitignored, per-machine `.claude/settings.local.json`,
