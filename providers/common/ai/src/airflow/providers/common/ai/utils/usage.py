@@ -55,11 +55,8 @@ def _resolve_field_type(field: str, hint: Any) -> type:
         raise TypeError(f"UsageLimits.{field} has an unsupported annotation {hint!r}")
     if typing.get_origin(resolved) is not None:
         # ``list[int] | None`` passes the top-level check (its origin is a union)
-        # and then reduces to ``list[int]``, which is a ``type`` instance on
-        # Python 3.10 -- only 3.11+ made ``isinstance(list[int], type)`` False
-        # (gh-101162). Without this the annotation the comment above names as
-        # rejected would resolve to a container type on the oldest supported
-        # Python, and a rendered value would reach ``UsageLimits`` unchecked.
+        # and then reduces to ``list[int]``; reject it here so the error names the
+        # unsupported annotation instead of a bare non-type.
         raise TypeError(f"UsageLimits.{field} has an unsupported annotation {hint!r}")
     if not isinstance(resolved, type):
         raise TypeError(f"UsageLimits.{field} resolved to a non-type {resolved!r}")

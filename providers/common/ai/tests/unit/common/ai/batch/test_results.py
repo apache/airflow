@@ -32,7 +32,7 @@ from airflow.providers.common.ai.batch.results import (
     missing_indexes,
     stream_results_to_jsonl,
 )
-from airflow.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 
 class _FakeAdapter(BatchAdapter):

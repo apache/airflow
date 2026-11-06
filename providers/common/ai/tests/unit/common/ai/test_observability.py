@@ -162,6 +162,25 @@ class TestBuildRunIdentityAttributes:
             "airflow.task_instance.id": "ti-1",
         }
 
+    def test_leaves_out_the_task_instance_id_on_airflow_2(self):
+        """A composite key is not a task-instance id, so Airflow 2 spans carry the parts alone."""
+        ti = SimpleNamespace(dag_id="d", task_id="t", run_id="r", try_number=2, map_index=-1)
+
+        assert "airflow.task_instance.id" not in observability.build_run_identity_attributes(ti)
+
+
+class TestTaskInstanceRunKey:
+    def test_uses_the_task_instance_id_when_it_has_one(self):
+        ti = SimpleNamespace(id="0199-uuid", dag_id="d", task_id="t", run_id="r", try_number=2, map_index=3)
+
+        assert observability.make_task_instance_run_key(ti) == "0199-uuid"
+
+    def test_builds_a_per_attempt_key_without_an_id(self):
+        """Airflow 2 task instances have no ``id`` column."""
+        ti = SimpleNamespace(dag_id="d", task_id="t", run_id="r", try_number=2, map_index=3)
+
+        assert observability.make_task_instance_run_key(ti) == "d/r/t/3/2"
+
 
 class TestStampIdentityOnAgentSpans:
     _ATTRS = {

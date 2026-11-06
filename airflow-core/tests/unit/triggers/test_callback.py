@@ -17,13 +17,20 @@
 
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
 
 from airflow.models.callback import CallbackState
 from airflow.sdk import BaseNotifier
-from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, CallbackTrigger
+from airflow.triggers.callback import (
+    PAYLOAD_BODY_KEY,
+    PAYLOAD_STATUS_KEY,
+    CallbackTrigger,
+    InvalidCallbackPathError,
+    _validate_callback,
+)
 
 TEST_MESSAGE = "test_message"
 TEST_CALLBACK_PATH = "classpath.test_callback"
@@ -42,6 +49,57 @@ class ExampleAsyncNotifier(BaseNotifier):
 
     def notify(self, context):
         return f"Sync notification: {self.message}, context: {context}"
+
+
+async def example_async_callback(message, context=None):
+    return f"Async callback: {message}"
+
+
+def example_sync_callback(message, context=None):
+    return f"Sync callback: {message}"
+
+
+class ExampleAsyncCallableObject:
+    async def __call__(self, message, context=None):
+        return f"Async callable object: {message}"
+
+
+class ExamplePlainClass:
+    def __init__(self, message, context=None):
+        self.message = message
+
+
+class TestValidateCallback:
+    @pytest.mark.parametrize(
+        "callback",
+        [
+            pytest.param(example_async_callback, id="coroutine-function"),
+            pytest.param(ExampleAsyncNotifier, id="async-notifier-class"),
+            pytest.param(mock.AsyncMock(), id="async-mock"),
+        ],
+    )
+    def test_valid_callbacks_pass(self, callback):
+        _validate_callback(callback, "some.callback.path")
+
+    @pytest.mark.parametrize(
+        ("callback", "match"),
+        [
+            pytest.param(os, "does not resolve to a callable", id="module"),
+            pytest.param("not-a-callable", "does not resolve to a callable", id="string"),
+            pytest.param(42, "does not resolve to a callable", id="int"),
+            pytest.param(example_sync_callback, "coroutine function or an awaitable", id="sync-function"),
+            pytest.param(os.getcwd, "coroutine function or an awaitable", id="sync-builtin"),
+            pytest.param(ExamplePlainClass, "coroutine function or an awaitable", id="plain-class"),
+            pytest.param(
+                ExampleAsyncCallableObject(),
+                "coroutine function or an awaitable",
+                id="async-callable-object-rejected-like-the-sdk",
+            ),
+        ],
+    )
+    def test_invalid_callbacks_rejected(self, callback, match):
+        with pytest.raises(InvalidCallbackPathError, match=match):
+            _validate_callback(callback, "some.callback.path")
 
 
 class TestCallbackTrigger:
@@ -151,3 +209,57 @@ class TestCallbackTrigger:
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
         assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
         assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])
+
+    @pytest.mark.asyncio
+    async def test_run_with_real_coroutine_function_path(self):
+        trigger = CallbackTrigger(
+            callback_path=f"{__name__}.example_async_callback",
+            callback_kwargs={"message": TEST_MESSAGE},
+        )
+        trigger_gen = trigger.run()
+
+        assert (await anext(trigger_gen)).payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
+        success_event = await anext(trigger_gen)
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_BODY_KEY] == f"Async callback: {TEST_MESSAGE}"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "callback_path",
+        [
+            pytest.param("os.path", id="module"),
+            pytest.param("os.sep", id="non-callable-attribute"),
+            pytest.param(f"{__name__}.ExamplePlainClass", id="plain-class"),
+        ],
+    )
+    async def test_run_fails_for_invalid_callback_path(self, callback_path):
+        trigger = CallbackTrigger(callback_path=callback_path, callback_kwargs={})
+        trigger_gen = trigger.run()
+
+        assert (await anext(trigger_gen)).payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
+        failure_event = await anext(trigger_gen)
+
+        assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
+        assert (
+            "The callback path does not resolve to a valid callback"
+            in failure_event.payload[PAYLOAD_BODY_KEY]
+        )
+        assert "InvalidCallbackPathError" in failure_event.payload[PAYLOAD_BODY_KEY]
+
+    @pytest.mark.asyncio
+    async def test_run_refuses_a_sync_callable_without_calling_it(self):
+        calls = []
+
+        def sync_spy(*args, **kwargs):
+            calls.append((args, kwargs))
+
+        trigger = CallbackTrigger(callback_path=f"{__name__}.example_sync_callback", callback_kwargs={})
+        trigger_gen = trigger.run()
+
+        with mock.patch(f"{__name__}.example_sync_callback", sync_spy):
+            assert (await anext(trigger_gen)).payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
+            failure_event = await anext(trigger_gen)
+
+        assert calls == []
+        assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
+        assert "InvalidCallbackPathError" in failure_event.payload[PAYLOAD_BODY_KEY]

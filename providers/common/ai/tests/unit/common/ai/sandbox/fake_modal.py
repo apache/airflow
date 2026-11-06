@@ -199,6 +199,11 @@ class FakeSandbox:
         self.object_id = object_id
         self.create_kwargs = create_kwargs
         self.calls: list[tuple] = []
+        # What ``Sandbox.create(tags=...)`` stamped, then whatever ``set_tags`` replaced it
+        # with: the real API replaces the whole set rather than merging.
+        self.tags: dict[str, str] = dict(create_kwargs.get("tags") or {})
+        self.get_tags_error: Exception | None = None
+        self.set_tags_error: Exception | None = None
         self.files: dict[str, bytes] = {}
         self.listing: list[FileInfo] = []
         self.terminated = False
@@ -235,6 +240,18 @@ class FakeSandbox:
     def poll(self) -> int | None:
         return self.poll_result
 
+    def get_tags(self) -> dict[str, str]:
+        self.calls.append(("get_tags",))
+        if self.get_tags_error is not None:
+            raise self.get_tags_error
+        return dict(self.tags)
+
+    def set_tags(self, tags: dict[str, str]) -> None:
+        self.calls.append(("set_tags", dict(tags)))
+        if self.set_tags_error is not None:
+            raise self.set_tags_error
+        self.tags = dict(tags)
+
 
 class FakeSandboxFactory:
     """Stands in for ``modal.Sandbox``: records creations and hands out fakes."""
@@ -245,6 +262,7 @@ class FakeSandboxFactory:
         self.from_id_error: Exception | None = None
         self.by_id: dict[str, FakeSandbox] = {}
         self.next_process: FakeProcess | None = None
+        self.from_id_clients: list[FakeClient | None] = []
 
     def create(self, **kwargs: Any) -> FakeSandbox:
         if self.create_error is not None:
@@ -256,7 +274,8 @@ class FakeSandboxFactory:
         self.by_id[sandbox.object_id] = sandbox
         return sandbox
 
-    def from_id(self, object_id: str) -> FakeSandbox:
+    def from_id(self, object_id: str, *, client: FakeClient | None = None) -> FakeSandbox:
+        self.from_id_clients.append(client)
         if self.from_id_error is not None:
             raise self.from_id_error
         try:
@@ -265,18 +284,54 @@ class FakeSandboxFactory:
             raise NotFoundError(f"no such sandbox: {object_id}") from None
 
 
+class FakeClient:
+    """One authenticated client, remembering where its credentials came from."""
+
+    def __init__(self, credentials: tuple[str, str] | None) -> None:
+        self.credentials = credentials
+
+
+class FakeClientFactory:
+    """Stands in for ``modal.Client``: ``from_env`` is the ambient path, ``from_credentials`` the connection."""
+
+    def __init__(self) -> None:
+        self.built: list[FakeClient] = []
+
+    def from_env(self) -> FakeClient:
+        client = FakeClient(None)
+        self.built.append(client)
+        return client
+
+    def from_credentials(self, token_id: str, token_secret: str) -> FakeClient:
+        client = FakeClient((token_id, token_secret))
+        self.built.append(client)
+        return client
+
+
 class FakeApp:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, *, client: FakeClient | None = None, environment_name: str | None = None):
         self.name = name
+        self.client = client
+        self.environment_name = environment_name
 
 
 class FakeAppFactory:
     def __init__(self) -> None:
         self.lookups: list[tuple[str, bool]] = []
+        self.apps: list[FakeApp] = []
 
-    def lookup(self, name: str, *, create_if_missing: bool = False) -> FakeApp:
+    def lookup(
+        self,
+        name: str,
+        *,
+        create_if_missing: bool = False,
+        client: FakeClient | None = None,
+        environment_name: str | None = None,
+    ) -> FakeApp:
         self.lookups.append((name, create_if_missing))
-        return FakeApp(name)
+        app = FakeApp(name, client=client, environment_name=environment_name)
+        self.apps.append(app)
+        return app
 
 
 class FakeImageFactory:
@@ -317,6 +372,7 @@ def build_fake_modal() -> types.ModuleType:
         ("Sandbox", FakeSandboxFactory()),
         ("App", FakeAppFactory()),
         ("Image", FakeImageFactory()),
+        ("Client", FakeClientFactory()),
     ):
         setattr(module, name, attr)
     return module

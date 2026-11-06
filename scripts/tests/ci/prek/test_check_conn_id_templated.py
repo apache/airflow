@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import shutil
 import textwrap
 
 import pytest
-from check_conn_id_templated import build_index, check_file, main
+from check_conn_id_templated import build_index, check_file, iter_source_files, main
 
 BASE = """
     class BaseOperator:
@@ -221,6 +222,29 @@ def test_missing_conn_ids_are_reported(check, code, expected):
     errors = check(code)
     assert len(errors) == 1
     assert errors[0].endswith(f"{expected} missing from template_fields")
+
+
+def test_iter_source_files_skips_tests_and_bytecode_directories(tmp_path):
+    for relative in ("pkg/source.py", "pkg/tests/test_source.py", "pkg/__pycache__/stray.py"):
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text("")
+
+    assert list(iter_source_files([tmp_path])) == [tmp_path / "pkg" / "source.py"]
+
+
+def test_iter_source_files_survives_a_directory_removed_mid_walk(tmp_path):
+    """Another process can remove a __pycache__ directory after the walk has listed it but before it reads it."""
+    for name in ("a", "b"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / f"{name}.py").write_text("")
+
+    found = []
+    for path in iter_source_files([tmp_path]):
+        found.append(path)
+        # Both siblings have been listed by now; remove the one not read yet.
+        shutil.rmtree(tmp_path / ("b" if path.parent.name == "a" else "a"), ignore_errors=True)
+
+    assert len(found) == 1
 
 
 def test_main_skips_files_without_conn_id(tmp_path):

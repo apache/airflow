@@ -20,6 +20,11 @@
 Document and RAG pipelines
 ==========================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 A retrieval pipeline in this provider is three ordinary tasks. :doc:`operators/document_loader`
 parses files (text, CSV, JSON, PDF, DOCX) into a list of ``{"text", "metadata"}`` dicts with
 no AI framework involved. :doc:`operators/llamaindex_embedding` chunks those documents and

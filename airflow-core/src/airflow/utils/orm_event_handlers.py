@@ -24,7 +24,6 @@ import traceback
 from uuid import uuid4
 
 from sqlalchemy import event, exc
-from sqlalchemy.orm import Mapper
 
 from airflow.configuration import conf
 
@@ -33,9 +32,6 @@ log = logging.getLogger(__name__)
 
 def setup_event_handlers(engine):
     """Setups event handlers."""
-    from airflow.models import import_all_models
-
-    event.listen(Mapper, "before_configured", import_all_models, once=True)
 
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):

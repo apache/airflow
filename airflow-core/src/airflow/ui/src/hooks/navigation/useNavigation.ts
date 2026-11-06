@@ -43,11 +43,10 @@ const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
     return NavigationModes.RUN;
   }
-  if (pathname.includes("/tasks/") && !pathname.includes("/runs/")) {
-    return NavigationModes.TASK;
-  }
 
-  return NavigationModes.TI;
+  return pathname.includes("/tasks/") && !pathname.includes("/runs/")
+    ? NavigationModes.TASK
+    : NavigationModes.TI;
 };
 
 const isValidDirection = (direction: NavigationDirection, mode: NavigationMode): boolean => {

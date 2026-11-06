@@ -28,6 +28,7 @@ import { RouterLink, Tooltip } from "src/system-components";
 
 import { DagBundleVersion } from "src/components/DagBundleVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ImportErrorCount } from "src/components/ImportErrorCount";
@@ -44,7 +45,7 @@ const createColumns = (
   translate: TFunction,
   formatRelative: DurationFormat["formatRelative"],
   multiTeam: boolean,
-): Array<ColumnDef<DagBundleResponse>> => [
+): Array<ColumnDef<DataTableFeatures, DagBundleResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: BundleRow) => (
@@ -121,7 +122,7 @@ export const DagBundles = () => {
 
   const refetchInterval = useDagBundleRefetchInterval();
 
-  const { data, error, isFetching, isLoading } = useDagBundleServiceGetDagBundles(
+  const { data, error, isLoading } = useDagBundleServiceGetDagBundles(
     {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
@@ -142,7 +143,6 @@ export const DagBundles = () => {
         data={data?.dag_bundles ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:dagBundle"
         onStateChange={setTableURLState}

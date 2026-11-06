@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Annotated
 from unittest import mock
@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -113,6 +114,28 @@ class TestFilterParam:
 
 
 class TestSortParam:
+    def test_sort_columns_and_primary_key_use_the_selected_alias(self):
+        rows = select(DagRun).subquery("filtered_runs")
+        entity = aliased(DagRun, rows)
+        param = SortParam(["run_id"], entity).set_value(["run_id"])
+
+        query = param.to_orm(select(entity))
+
+        assert all(column.table is rows for _, column, _ in param.get_resolved_columns())
+        assert "ORDER BY filtered_runs.run_id ASC, filtered_runs.id ASC" in str(query)
+
+    def test_compound_sort_requires_named_expressions_for_cursor_values(self):
+        param = SortParam(["id"], DagRun, {"position": [DagRun.id + 1]}).set_value(["position"])
+        with pytest.raises(ValueError, match="Compound sort expressions must have labels"):
+            param.get_resolved_columns()
+
+    def test_compound_sort_uses_expression_label_for_cursor_values(self):
+        param = SortParam(["id"], DagRun, {"position": [(DagRun.id + 1).label("position")]}).set_value(
+            ["position"]
+        )
+        assert [name for name, _, _ in param.get_resolved_columns()] == ["position", "id"]
+        assert param.row_value(SimpleNamespace(position=5, id=4), "position") == 5
+
     def test_sort_param_max_number_of_filers(self):
         param = SortParam([], None, None)
         n_filters = param.MAX_SORT_PARAMS + 1
@@ -600,16 +623,35 @@ class TestDatetimeRangeFilterFactory:
 
     def test_lower_bound_does_not_include_now(self):
         """NULL branch on lower bounds passes unconditionally — no now() call."""
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("start_date", lower_bound_gte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "is null" in sql
         assert "now()" not in sql
         assert "coalesce" not in sql
 
+    @pytest.mark.parametrize("lower_bound_name", ["lower_bound_gte", "lower_bound_gt"])
+    def test_null_lower_bound_clause_is_added_to_null_branch(self, lower_bound_name):
+        """Custom NULL lower-bound clause is ANDed with the attribute IS NULL check."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
+        depends = datetime_range_filter_factory(
+            "start_date",
+            DagRun,
+            null_lower_bound_clause=DagRun.end_date.is_(None),
+        )
+        bounds = dict(lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None)
+        bounds[lower_bound_name] = bound
+        rf = depends(**bounds)
+
+        sql = _compile(rf.to_orm(select(DagRun)))
+
+        assert "start_date is null" in sql
+        assert "end_date is null" in sql
+        assert "start_date is null and" in sql
+
     def test_upper_bound_includes_now_for_running_tasks(self):
         """NULL branch on upper bounds uses now() to proxy the in-progress task's current time."""
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("end_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "is null" in sql
@@ -617,7 +659,7 @@ class TestDatetimeRangeFilterFactory:
         assert "coalesce" not in sql
 
     def test_no_coalesce_for_start_date(self):
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql

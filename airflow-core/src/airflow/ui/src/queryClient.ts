@@ -33,11 +33,9 @@ const retryFunction = (failureCount: number, error: unknown) => {
   const { status } = error as { status?: number };
 
   // Do not retry for client errors (4xx). 429 should be eventually retried though.
-  if (status !== undefined && status >= 400 && status < 500 && status !== 429) {
-    return false;
-  }
-
-  return failureCount < RETRY_COUNT;
+  return (
+    (status === undefined || status < 400 || status >= 500 || status === 429) && failureCount < RETRY_COUNT
+  );
 };
 
 // Track active 403 toast to prevent duplicates when multiple mutations fail

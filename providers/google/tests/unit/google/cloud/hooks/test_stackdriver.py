@@ -29,7 +29,7 @@ from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 
 @mock.patch(
     "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
-    return_value=Connection(conn_id="google_cloud_default"),
+    return_value=mock.MagicMock(spec=Connection),
 )
 def test_deprecated_hook_warns_and_subclasses_new_hook(mock_get_connection):
     with pytest.warns(AirflowProviderDeprecationWarning, match="CloudMonitoring"):

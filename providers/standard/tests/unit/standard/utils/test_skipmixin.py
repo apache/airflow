@@ -60,7 +60,7 @@ class TestSkipMixin:
         self.clean_db()
 
     def test_skip(self, dag_maker, session, time_machine):
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        now = datetime.datetime.now(tz=datetime.UTC)
         time_machine.move_to(now, tick=False)
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]

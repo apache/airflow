@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import posixpath
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
@@ -88,7 +88,7 @@ def datetime_to_epoch_ms(date_time: datetime) -> int:
 
 def datetime_to_epoch_utc_ms(date_time: datetime) -> int:
     """Convert a datetime object to an epoch integer (milliseconds) in UTC timezone."""
-    return int(date_time.replace(tzinfo=timezone.utc).timestamp() * 1_000)
+    return int(date_time.replace(tzinfo=UTC).timestamp() * 1_000)
 
 
 def datetime_to_epoch_us(date_time: datetime) -> int:

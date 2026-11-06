@@ -33,8 +33,7 @@ from airflow.providers.common.ai.batch.base import (
 from airflow.providers.common.ai.decorators.llm_batch import _LLMBatchDecoratedOperator
 from airflow.providers.common.ai.exceptions import LLMBatchInputError
 from airflow.providers.common.ai.operators import llm_batch as llm_batch_module
-from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.sdk import DAG, Connection
+from airflow.providers.common.compat.sdk import DAG, Connection, TaskDeferred
 
 
 class _FakeAdapter(BatchAdapter):

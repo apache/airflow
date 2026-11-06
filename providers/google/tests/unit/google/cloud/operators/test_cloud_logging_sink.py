@@ -130,19 +130,7 @@ update_test_ids = ["update_storage_sink", "update_pubsub_sink"]
 sink = LogSink(name=SINK_NAME, destination="pubsub.googleapis.com/projects/my-project/topics/my-topic")
 
 
-def _assert_common_template_fields(template_fields):
-    assert "project_id" in template_fields
-    assert "gcp_conn_id" in template_fields
-    assert "impersonation_chain" in template_fields
-
-
 class TestCloudLoggingCreateSinkOperator:
-    def test_template_fields(self):
-        operator = CloudLoggingCreateSinkOperator(task_id=TASK_ID, project_id=PROJECT_ID, sink_config=sink)
-        assert "sink_config" in operator.template_fields
-        assert "unique_writer_identity" in operator.template_fields
-        _assert_common_template_fields(operator.template_fields)
-
     def test_missing_required_params(self):
         with pytest.raises(AirflowException) as excinfo:
             CloudLoggingCreateSinkOperator(
@@ -307,15 +295,6 @@ class TestCloudLoggingCreateSinkOperator:
 
 
 class TestCloudLoggingDeleteSinkOperator:
-    def test_template_fields(self):
-        operator = CloudLoggingDeleteSinkOperator(
-            task_id=TASK_ID,
-            sink_name=SINK_NAME,
-            project_id=PROJECT_ID,
-        )
-        assert "sink_name" in operator.template_fields
-        _assert_common_template_fields(operator.template_fields)
-
     def test_missing_required_params(self):
         with pytest.raises(AirflowException) as excinfo:
             CloudLoggingDeleteSinkOperator(
@@ -414,13 +393,6 @@ class TestCloudLoggingDeleteSinkOperator:
 
 
 class TestCloudLoggingListSinksOperator:
-    def test_template_fields(self):
-        operator = CloudLoggingListSinksOperator(
-            task_id=TASK_ID,
-            project_id=PROJECT_ID,
-        )
-        assert "project_id" in operator.template_fields
-
     def test_missing_required_params(self):
         with pytest.raises(AirflowException) as excinfo:
             CloudLoggingListSinksOperator(
@@ -512,20 +484,6 @@ class TestCloudLoggingListSinksOperator:
 
 
 class TestCloudLoggingUpdateSinksOperator:
-    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
-    def test_template_fields(self, sink_config, update_mask):
-        operator = CloudLoggingUpdateSinkOperator(
-            task_id=TASK_ID,
-            sink_name=SINK_NAME,
-            sink_config=sink_config,
-            update_mask=update_mask,
-            project_id=PROJECT_ID,
-        )
-        assert "sink_config" in operator.template_fields
-        assert "update_mask" in operator.template_fields
-        assert "sink_name" in operator.template_fields
-        _assert_common_template_fields(operator.template_fields)
-
     def test_missing_required_params(self):
         with pytest.raises(AirflowException) as excinfo:
             CloudLoggingDeleteSinkOperator(

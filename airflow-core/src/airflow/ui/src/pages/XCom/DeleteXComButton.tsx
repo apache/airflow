@@ -65,6 +65,8 @@ const DeleteXComButton = ({ xcom }: DeleteXComButtonProps) => {
       dagId: xcom.dag_id,
       dagRunId: xcom.run_id,
       mapIndex: xcom.map_index,
+      regionId: xcom.region_id,
+      regionIndex: xcom.region_index,
       taskId: xcom.task_id,
       xcomKey: xcom.key,
     });

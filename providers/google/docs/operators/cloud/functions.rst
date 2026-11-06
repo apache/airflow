@@ -179,6 +179,32 @@ See Google Cloud API documentation `to create a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 
+.. _howto/operator:CloudFunctionInvokeFunctionOperator:
+
+CloudFunctionInvokeFunctionOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the operator to invoke a deployed function in Google Cloud Functions.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionInvokeFunctionOperator`.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_functions/example_functions.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcf_invoke_function]
+    :end-before: [END howto_operator_gcf_invoke_function]
+
+More information
+""""""""""""""""
+
+See Google Cloud Functions API documentation to `call a function
+<https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/call>`_.
+
+
 Reference
 ---------
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import builtins
 import gzip
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -33,13 +34,13 @@ from airflow.providers.common.ai.utils.file_analysis import (
     _DECOMPRESSORS,
     FileAnalysisRequest,
     _infer_partitions,
-    _read_raw_bytes,
     _render_avro,
     _render_parquet,
     _resolve_paths,
     _truncate_text,
     build_file_analysis_request,
     detect_file_format,
+    read_bytes,
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
@@ -337,6 +338,26 @@ class TestBuildFileAnalysisRequest:
         assert '"a": 1' in request.user_content
         assert '"b": 2' in request.user_content
 
+    @pytest.mark.enable_redact
+    def test_json_holding_a_secret_that_json_escapes_is_masked(self, tmp_path, register_secret):
+        secret = register_secret("db-p\u00e4ss-91c3")
+        path = tmp_path / "config.json"
+        path.write_text(json.dumps({"password": secret}), encoding="utf-8")
+
+        request = build_file_analysis_request(
+            file_path=str(path),
+            file_conn_id=None,
+            prompt="Analyze",
+            multi_modal=False,
+            max_files=1,
+            max_file_size_bytes=1024,
+            max_total_size_bytes=1024,
+            max_text_chars=500,
+            sample_rows=10,
+        )
+
+        assert '"password": "***"' in request.user_content
+
     def test_text_context_truncation_is_marked(self, tmp_path):
         path = tmp_path / "huge.log"
         path.write_text("line\n" * 400, encoding="utf-8")
@@ -456,7 +477,7 @@ class TestFileAnalysisHelpers:
         path = tmp_path / f"events.log.{suffix}"
         path.write_bytes(codec.compress(b"line one\nline two\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
+        content = read_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
 
         assert content == b"line one\nline two\n"
 
@@ -477,7 +498,7 @@ class TestFileAnalysisHelpers:
         path = tmp_path / f"events.log.{suffix}"
         path.write_bytes(codec.compress(b"first\n") + separator + codec.compress(b"second\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
+        content = read_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
 
         assert content == expected
 

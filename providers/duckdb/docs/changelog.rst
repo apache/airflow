@@ -25,7 +25,31 @@
 Changelog
 ---------
 
-0.1.0
+.. warning::
+
+  Versions ``0.1.0`` and ``0.1.1`` of ``apache-airflow-providers-duckdb`` were uploaded to PyPI by
+  an earlier project with the same name and were later deleted. They were not released by
+  the Apache Airflow community. Rely only on the versions listed in this changelog, starting with
+  ``0.2.0``.
+
+0.2.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document that DuckDB extension installs need a HOME directory (#74301)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.2.0
 .....
 
 Initial version of the provider.
