@@ -1447,7 +1447,8 @@ class DagRun(Base, LoggingMixin):
                 "DagRun Finished: dag_id=%s, logical_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
                 "state=%s, run_type=%s, "
-                "data_interval_start=%s, data_interval_end=%s,"
+                "data_interval_start=%s, data_interval_end=%s, "
+                "partition_key=%s,"
             )
             self.log.info(
                 msg,
@@ -1465,6 +1466,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
+                self.partition_key,
             )
             session.flush()
             try:
