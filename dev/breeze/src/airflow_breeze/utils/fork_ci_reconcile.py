@@ -134,17 +134,26 @@ TAMPER_WINDOW = timedelta(hours=6)
 # can have done project CI work and are worth listing jobs for.
 SUSPICIOUS_RUN_DURATION = timedelta(minutes=5)
 GATE_MAX_DURATION = timedelta(minutes=5)
-# Paths whose content defines what fork CI runs. A pull request changing them controls its own
-# fork CI result, so a green fork run cannot be trusted for it.
+# Paths that decide the build-info outputs (which jobs run and on which runners): the workflows
+# and actions, the breeze sources whose selective checks compute those outputs, the files that
+# install breeze, and scripts/ci/prek/, which holds the script selective checks runs to generate
+# the gitignored generated/provider_dependencies.json. That script runs with its directory first
+# on sys.path, so any module added there, such as a `yaml.py`, would run too. A pull request
+# changing them controls its own fork CI result and could change where project CI runs. Other CI
+# scripts, Dockerfiles and prek configuration only change what a selected job does, which review
+# of the diff covers like any other change.
 CI_DEFINING_PREFIXES = (
     ".github/",
-    "dev/breeze/",
-    "scripts/ci/",
-    "scripts/docker/",
-    "scripts/in_container/",
-    "Dockerfile",
+    "dev/breeze/src/",
+    "scripts/ci/prek/",
 )
-CI_DEFINING_SUFFIXES = (".pre-commit-config.yaml",)
+CI_DEFINING_FILES = frozenset(
+    {
+        "dev/breeze/pyproject.toml",
+        "dev/breeze/uv.lock",
+        "scripts/ci/install_breeze.sh",
+    }
+)
 PULL_REQUEST_FILES_CAP = 3000
 COMPARE_FILES_CAP = 300
 SLACK_SECTION_LIMIT = 3000
@@ -467,7 +476,7 @@ def changes_ci_definition(files: Sequence[str], *, file_count: int | None = None
     return (
         (len(files) if file_count is None else file_count) >= PULL_REQUEST_FILES_CAP
         or touches(files, CI_DEFINING_PREFIXES)
-        or any(path.endswith(CI_DEFINING_SUFFIXES) for path in files)
+        or any(path in CI_DEFINING_FILES for path in files)
     )
 
 
@@ -759,12 +768,16 @@ def classify(
         plan.close = True
         return plan
 
-    if state == ForkState.GREEN:
+    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
+        # A green run that changes CI files still needs a maintainer's review, which a draft would
+        # hide; the `needs project ci` label marks it instead of the review label.
         if pr.is_draft and _is_bot(pr.last_draft_actor):
             plan.draft = False
         ready = not pr.is_draft or plan.draft is False
-        if ready and LABEL_READY_FOR_REVIEW not in labels:
+        if state == ForkState.GREEN and ready and LABEL_READY_FOR_REVIEW not in labels:
             plan.add_labels.append(LABEL_READY_FOR_REVIEW)
+        elif state == ForkState.GREEN_UNVERIFIED and LABEL_READY_FOR_REVIEW in labels:
+            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     else:
         # A run in progress needs nothing from the author, and drafting on it would draft every
         # approved pull request the moment it is rebased; it is drafted only if the run then fails.
@@ -773,7 +786,7 @@ def classify(
         if LABEL_READY_FOR_REVIEW in labels:
             plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other draft with a pending fork CI status.
+    # otherwise look like any other pull request with a pending fork CI status.
     _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)

@@ -128,3 +128,14 @@ def test_hash_not_written_when_regeneration_fails(mock_hash, mock_regenerate, pr
         generate_provider_dependencies_if_needed()
 
     assert not hash_path.exists()
+
+
+@mock.patch.object(provider_dependencies_module.subprocess, "check_call", autospec=True)
+def test_regenerate_provider_dependencies_ignores_uv_config_from_the_checkout(mock_check_call):
+    provider_dependencies_module.regenerate_provider_dependencies_once.cache_clear()
+    try:
+        provider_dependencies_module.regenerate_provider_dependencies_once()
+    finally:
+        provider_dependencies_module.regenerate_provider_dependencies_once.cache_clear()
+
+    assert mock_check_call.call_args.args[0][:3] == ["uv", "run", "--no-config"]

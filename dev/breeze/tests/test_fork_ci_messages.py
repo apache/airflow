@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -26,14 +27,17 @@ from airflow_breeze.utils.fork_ci_messages import (
     _STATUS_DESCRIPTIONS,
     BEHIND_WARNING_COMMITS,
     CI_CHANGE_MARKER,
+    CI_MODIFICATION_MARKER,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
+    GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
     MAX_LISTED_CI_FILES,
     Marker,
     ci_change_approval_comment,
+    ci_modification_note_comment,
     gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
@@ -159,16 +163,31 @@ def test_job_status_context(name, expected):
     assert job_status_context(name) == f"{JOB_STATUS_CONTEXT_PREFIX}{expected}"
 
 
-def test_ci_change_approval_comment_lists_the_files():
+@pytest.mark.parametrize(
+    ("build_comment", "marker"),
+    [
+        pytest.param(ci_change_approval_comment, CI_CHANGE_MARKER, id="approval"),
+        pytest.param(ci_modification_note_comment, CI_MODIFICATION_MARKER, id="note"),
+    ],
+)
+def test_ci_file_comments_list_the_files(build_comment, marker):
+    if build_comment is ci_modification_note_comment:
+        build_comment = functools.partial(build_comment, gated=False)
     paths = [f".github/workflows/w{i}.yml" for i in range(MAX_LISTED_CI_FILES + 2)]
-    comment = ci_change_approval_comment(
-        ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths]
-    )
+    comment = build_comment(ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths])
 
-    assert comment.startswith(CI_CHANGE_MARKER)
+    assert comment.startswith(marker)
     assert comment.endswith(FOOTER)
     assert "- `dev/breeze/?evil?.py`" in comment
     assert "- `.github/a??@someone.yml`" in comment
     assert "\n@someone" not in comment
     assert "- and 4 more" in comment
     assert f"`{paths[-1]}`" not in comment
+
+
+@pytest.mark.parametrize("gated", [True, False])
+def test_ci_modification_note_mentions_fork_execution_only_when_gated(gated):
+    comment = ci_modification_note_comment(ci_files=["Dockerfile.ci"], gated=gated)
+
+    assert (GATED_NOTE_SENTENCE in comment) is gated
+    assert comment.endswith(FOOTER)
