@@ -3218,6 +3218,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             backfill_id = dag_run.backfill_id
             try:
                 dag = dag_run.dag = cached_get_dag(dag_run)
+                if dag:
+                    _ = dag.timetable
             except DBAPIError:
                 raise
             except Exception:
