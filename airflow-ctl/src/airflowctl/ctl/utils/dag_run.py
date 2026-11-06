@@ -23,6 +23,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import rich
+from rich.markup import escape
 
 from airflowctl.api.client import ServerResponseError
 
@@ -45,7 +46,7 @@ def _get_dag_run_by_run_id(api_client: Client, dag_id: str, run_id: str) -> DAGR
     except ServerResponseError as e:
         if e.response.status_code != 404:
             raise
-        rich.print(f"[red]Dag run {run_id!r} of Dag {dag_id!r} not found[/red]")
+        rich.print(f"[red]Dag run {escape(repr(run_id))} of Dag {escape(repr(dag_id))} not found[/red]")
         sys.exit(1)
 
 
@@ -54,7 +55,7 @@ def _get_dag_run_by_logical_date(api_client: Client, dag_id: str, value: str) ->
     try:
         logical_date = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
-        rich.print(f"[red]Invalid --logical-date: {value!r}[/red]")
+        rich.print(f"[red]Invalid --logical-date: {escape(repr(value))}[/red]")
         sys.exit(1)
     if logical_date.tzinfo is None:
         rich.print("[red]--logical-date must include a timezone offset[/red]")
@@ -74,7 +75,9 @@ def _get_dag_run_by_logical_date(api_client: Client, dag_id: str, value: str) ->
         if e.response.status_code != 404:
             raise
     if not dag_runs:
-        rich.print(f"[red]Dag run for {dag_id} with logical date {value!r} not found[/red]")
+        rich.print(
+            f"[red]Dag run for {escape(dag_id)} with logical date {escape(repr(value))} not found[/red]"
+        )
         sys.exit(1)
     return dag_runs[0]
 
