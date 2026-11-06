@@ -40,7 +40,6 @@ def _require_tar_data_filter() -> None:
 
 def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
     """Unpack a bundle archive without writing outside ``unpack_dir``."""
-    _require_tar_data_filter()
     with tarfile.open(archive_path, "r:*") as tar:
         tar.extractall(unpack_dir, filter="data")
 
