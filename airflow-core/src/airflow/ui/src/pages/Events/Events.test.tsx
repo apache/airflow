@@ -147,8 +147,10 @@ describe("browse audit log", () => {
     vi.useRealTimers();
     fireEvent.click(screen.getByTestId("event_date_range-pill-remove"));
 
-    await waitFor(() => expect(latestSearch).toContain("all_events=1"));
-    expect(events.mock.lastCall?.[0]?.after).toBeUndefined();
+    await waitFor(() => {
+      expect(latestSearch).toContain("all_events=1");
+      expect(events.mock.lastCall?.[0]?.after).toBeUndefined();
+    });
     expect(showAllButton()).not.toBeInTheDocument();
   });
 
