@@ -1343,6 +1343,9 @@ class DagFileProcessorManager(LoggingMixin):
                     str(file.rel_path),
                     file.bundle_name,
                 )
+                # A failed flush leaves the session pending rollback; without this the commit on
+                # session teardown raises and takes down the whole parsing loop.
+                session.rollback()
                 current_stat = self._file_stats[file]
                 self._file_stats[file] = DagFileStat(
                     num_dags=current_stat.num_dags,
