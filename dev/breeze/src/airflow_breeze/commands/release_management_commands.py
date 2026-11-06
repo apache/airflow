@@ -1558,7 +1558,7 @@ def tag_providers(
                 # stdout for every remote, which would make the search below find nothing.
                 dry_run_override=False,
             )
-            if (get_github_repo(result.stdout.strip()) or "").casefold() == "apache/airflow":
+            if (get_github_repo(result.stdout.strip()) or "").casefold() == APACHE_AIRFLOW_GITHUB_REPOSITORY:
                 found_remote = remote
                 break
         except subprocess.CalledProcessError:
