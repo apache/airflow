@@ -8,8 +8,10 @@
       "received": "Revisadas"
     }
   },
+  "requiredAction_many": "Acciones Requeridas",
   "requiredAction_one": "Acción Requerida",
   "requiredAction_other": "Acciones Requeridas",
+  "requiredActionCount_many": "Acciones Requeridas ({{count, number}})",
   "requiredActionCount_one": "Acción Requerida ({{count, number}})",
   "requiredActionCount_other": "Acciones Requeridas ({{count, number}})",
   "requiredActionState": "Estado de Acción Requerida",

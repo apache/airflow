@@ -346,7 +346,7 @@ def get_asset_events(
     # The regexp partition-key filter bounds the query runtime automatically (its dependency applies
     # ``apply_regex_query_timeout`` to this request's session), so no explicit wrapping is needed here.
     base_statement = select(AssetEvent)
-    if name_pattern.value or name_prefix_pattern.value:
+    if name_pattern.value is not None or name_prefix_pattern.value is not None:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
     assets_event_select, total_entries = paginated_select(
@@ -381,7 +381,9 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(
-        asset_events=serialize_asset_events(assets_events, session=session),
+        asset_events=serialize_asset_events(
+            assets_events, readable_dag_ids=readable_asset_events_filter.value, session=session
+        ),
         total_entries=total_entries,
     )
 

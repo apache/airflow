@@ -36,7 +36,9 @@ RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 # "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from
 # source on top of a plain debian-slim base.
 AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.13.16}
+# Empty by default: the hardened flavor takes Python from the base image, and the legacy flavor
+# needs it named (MAJOR.MINOR builds the latest release of that line).
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
@@ -44,6 +46,13 @@ if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
     # Read before apt runs: a package depending on python3 can pull another Python version in.
     BASE_PYTHON_MAJOR_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+    if [[ -n "${AIRFLOW_PYTHON_VERSION}" && "${AIRFLOW_PYTHON_VERSION}." != "${BASE_PYTHON_MAJOR_MINOR}."* ]]; then
+        echo
+        echo "ERROR! AIRFLOW_PYTHON_VERSION is ${AIRFLOW_PYTHON_VERSION}, but the base image has Python ${BASE_PYTHON_MAJOR_MINOR}."
+        echo "The hardened flavor takes Python from BASE_IMAGE: leave AIRFLOW_PYTHON_VERSION empty or pick a BASE_IMAGE with that Python."
+        echo
+        exit 1
+    fi
 elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-/usr/python}
 else
@@ -218,6 +227,47 @@ function keep_image_conffiles() {
     printf '%s\n' force-confdef force-confold > /etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles
 }
 
+function prefer_hardened_apt_repository() {
+    # The hardened base images take their packages from dhi.io, but stock Debian's sources stay
+    # configured beside it and apt installs whichever repository offers the higher version. Debian's
+    # build of a package then replaces Docker's, and its dependencies no longer match the packages the
+    # image ships (docker-hardened-images/catalog#610). Ranking dhi.io above the default priority of
+    # 500 makes apt take Docker's build whenever dhi.io publishes the package, and fall back to Debian
+    # only when it does not.
+    # The priority stays below 1000 so the preference never forces a downgrade: apt still favors
+    # dhi.io's build of a package it publishes, but may take a newer version from another repository
+    # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
+    # ">= 18.6" and dhi.io does not carry. The renumbered builds that sort below the image's own copy
+    # are handled by align_image_packages_with_hardened_repository instead.
+    # The preference covers every apt run - this build's and those of images extending it.
+    mkdir -p /etc/apt/preferences.d
+    printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 999\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+}
+
+function align_image_packages_with_hardened_repository() {
+    # The dhi.io apt repository is live, so it moves on even under a base image pinned to a digest.
+    # Docker renumbered its builds ("14.2.0-19+dhi5" became "14.2.0-19+deb13u0+dhi5", which sorts
+    # lower) and the repository dropped the old numbers, while the image still ships them. Packages
+    # depending on the exact new version (gcc-14 on gcc-14-base, libgmp-dev on libgmp10) are then
+    # uninstallable, because apt will not downgrade the image's copy at a priority below 1000
+    # (docker-hardened-images/catalog#689). Only installed versions no repository offers any more
+    # ("local" ones) are moved to dhi.io's build, so newer packages from other repositories - such as
+    # PGDG's libpq5 - are left alone.
+    local package
+    local dhi_version
+    local -a downgrades=()
+    while read -r package; do
+        dhi_version=$(apt-cache madison "${package}" | awk -F' [|] ' '$3 ~ /dhi\.io/ {print $2; exit}')
+        if [[ -n "${dhi_version}" ]]; then
+            downgrades+=("${package}=${dhi_version}")
+        fi
+    done < <(apt list --installed 2>/dev/null | awk -F/ '/\[installed,local\]/ {print $1}')
+    if (( ${#downgrades[@]} )); then
+        echo "Aligning image packages with the dhi.io repository: ${downgrades[*]}"
+        apt-get install -y --no-install-recommends --allow-downgrades "${downgrades[@]}"
+    fi
+}
+
 function refresh_ldconfig_after_dpkg() {
     # The hardened base images ship libc-bin without its dpkg trigger, so installing a shared library
     # does not refresh the ldconfig cache and ctypes.util.find_library() - which reads that cache -
@@ -274,14 +324,38 @@ function align_perl_base_with_perl() {
     fi
 }
 
+function install_apt_utils() {
+    # apt-utils depends on exactly its own apt version. The hardened images can ship an apt newer than
+    # the one dhi.io publishes, and with dhi.io preferred apt then picks an apt-utils it cannot install
+    # beside the image's apt, so ask for the version matching apt whenever a repository carries it.
+    local apt_version apt_utils_package apt_utils_log
+    apt_version=$(dpkg-query -W -f='${Version}' apt)
+    apt_utils_package="apt-utils"
+    if apt-cache madison apt-utils | awk -v version="${apt_version}" '$3 == version {found = 1} END {exit !found}'; then
+        apt_utils_package="apt-utils=${apt_version}"
+    fi
+    apt_utils_log=$(mktemp)
+    if ! apt-get install -yqq --no-install-recommends "${apt_utils_package}" > "${apt_utils_log}" 2>&1; then
+        echo
+        echo "ERROR! Installing ${apt_utils_package} failed. Output:"
+        echo
+        cat "${apt_utils_log}"
+        rm -f "${apt_utils_log}"
+        exit 1
+    fi
+    rm -f "${apt_utils_log}"
+}
+
 function install_debian_dev_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        prefer_hardened_apt_repository
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -459,8 +533,39 @@ function install_cosign() {
     chmod +x /tmp/cosign
 }
 
+function resolve_python_version() {
+    if [[ -z "${AIRFLOW_PYTHON_VERSION}" ]]; then
+        echo
+        echo "ERROR! The legacy flavor compiles Python from sources, so AIRFLOW_PYTHON_VERSION has to name it:"
+        echo "MAJOR.MINOR for the latest release of that line, or MAJOR.MINOR.PATCH."
+        echo
+        exit 1
+    fi
+    if [[ ! "${AIRFLOW_PYTHON_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        return
+    fi
+    # A release directory appears on python.org with its first pre-release, so take the newest one
+    # that already holds the final tarball.
+    local candidate
+    for candidate in $(wget --tries=3 --waitretry=5 -qO- https://www.python.org/ftp/python/ \
+            | grep -oE "href=\"${AIRFLOW_PYTHON_VERSION//./\\.}\.[0-9]+/\"" \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -V -r); do
+        if wget --tries=3 --waitretry=5 -q --spider \
+                "https://www.python.org/ftp/python/${candidate}/Python-${candidate}.tar.xz"; then
+            echo "Python ${AIRFLOW_PYTHON_VERSION} resolved to its latest release ${candidate}"
+            AIRFLOW_PYTHON_VERSION="${candidate}"
+            return
+        fi
+    done
+    echo
+    echo "ERROR! No release of Python ${AIRFLOW_PYTHON_VERSION} found on python.org."
+    echo
+    exit 1
+}
+
 function install_python() {
     # Only the legacy image flavor compiles Python - the hardened flavor gets it from the base image.
+    resolve_python_version
     wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
@@ -541,11 +646,13 @@ function install_python() {
 function install_debian_runtime_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        prefer_hardened_apt_repository
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates

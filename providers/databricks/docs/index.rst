@@ -158,7 +158,7 @@ Extra               Dependencies
 ``google``          ``apache-airflow-providers-google>=10.24.0``
 ``sdk``             ``databricks-sdk==0.10.0``
 ``standard``        ``apache-airflow-providers-standard``
-``openlineage``     ``apache-airflow-providers-openlineage>=2.3.0``
+``openlineage``     ``apache-airflow-providers-openlineage>=2.16.0``
 ``sqlalchemy``      ``databricks-sqlalchemy>=1.0.2``
 ==================  ================================================================================================================================================================
 

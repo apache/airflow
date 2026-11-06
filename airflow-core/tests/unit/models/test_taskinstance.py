@@ -854,6 +854,67 @@ class TestTaskInstance:
         )
         assert history.try_number == try_number
 
+    @time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+    def test_prepare_next_try_for_retry_stores_deadline_and_starts_empty(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="retry",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=30),
+            )
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.task = task
+        ti.try_number = 1
+        ti.start_date = timezone.utcnow() - datetime.timedelta(minutes=5)
+        ti.end_date = timezone.utcnow()
+        ti.duration = 300.0
+        ti.hostname = "worker-1"
+        ti.unixname = "airflow"
+        ti.pid = 1234
+        ti.queued_dttm = ti.scheduled_dttm = ti.last_heartbeat_at = ti.start_date
+        ti.state = State.UP_FOR_RETRY
+        session.flush()
+
+        successor = ti.prepare_db_for_next_try(session)
+        session.flush()
+        session.expire(successor)
+
+        assert successor.retry_at == timezone.utcnow() + datetime.timedelta(seconds=30)
+        assert successor.next_retry_datetime() == successor.retry_at
+        assert successor.start_date is None
+        assert successor.end_date is None
+        assert successor.duration is None
+        assert successor.hostname is None
+        assert successor.unixname is None
+        assert successor.pid is None
+        assert successor.queued_dttm is None
+        assert successor.scheduled_dttm is None
+        assert successor.last_heartbeat_at is None
+
+    def test_next_retry_datetime_without_stored_deadline_uses_previous_attempt(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="retry",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=30),
+            )
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.task = task
+        ti.try_number = 1
+        failed_at = timezone.datetime(2026, 10, 29, 12)
+        ti.end_date = failed_at
+        ti.state = State.UP_FOR_RETRY
+        successor = ti.prepare_db_for_next_try(session)
+        successor.task = task
+        # A row written before retry_at existed still carries the failed attempt's dates.
+        successor.retry_at = None
+        successor.end_date = failed_at + datetime.timedelta(days=1)
+        session.flush()
+
+        assert successor.next_retry_datetime() == failed_at + datetime.timedelta(seconds=30)
+
     def test_next_retry_datetime(self, dag_maker):
         delay = datetime.timedelta(seconds=30)
         max_delay = datetime.timedelta(minutes=60)
@@ -2885,6 +2946,7 @@ class TestTaskInstance:
             "context_carrier": {},
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
+            "retry_at": None,
             "working_set": True,
             "archived_reason": None,
         }
@@ -3183,7 +3245,7 @@ class TestTaskInstance:
         assert successor.try_number == original_try + 1
         assert successor.working_set is True
         assert successor.state == TaskInstanceState.UP_FOR_RETRY
-        assert successor.end_date == attempt.end_date
+        assert successor.end_date is None
         assert (
             session.scalar(
                 sa.select(sa.func.count())

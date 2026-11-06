@@ -28,10 +28,11 @@
         "lastParsed": "Last Parsed",
         "parseDuration": "Parse Duration"
       },
-      "file_one": "File",
-      "file_other": "Files",
       "importErrorGone": "This import error is no longer recorded. It was probably fixed by a reparse.",
       "neverParsed": "Never",
+      "parsedFile_one": "Parsed File",
+      "parsedFile_other": "Parsed Files",
+      "parsedFilesNote": "Only files that define a Dag or failed to import are listed.",
       "showImportError_one": "View error",
       "showImportError_other": "View {{count, number}} errors"
     },

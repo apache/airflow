@@ -284,8 +284,8 @@ def ti_run(
         )
         # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
         # queueing, so a retry and a resume from deferral each waited for a slot of their own.
-        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
-        # end_date is set), so the two disagree on retries by design.
+        # task.scheduled_duration is one sample per try (emit_state_change_metric returns early once
+        # the try has an end_date, as after a sensor reschedule), so the two disagree on resumes by design.
         # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
         emit_queued_duration = ti.queued_dttm is not None
 
@@ -298,6 +298,7 @@ def ti_run(
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
         retry_delay_override=None,
+        retry_at=None,
         retry_reason=None,
     )
 

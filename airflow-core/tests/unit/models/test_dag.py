@@ -2807,6 +2807,51 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    def test_dags_needing_dagruns_ignores_consumed_adrq(self, dag_maker, session):
+        asset_a = Asset(uri="test://asset-a", group="test-group")
+        asset_b = Asset(uri="test://asset-b", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            schedule=[asset_a, asset_b],
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+        dag_model = dag_maker.dag_model
+        a_id, b_id = (
+            session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+            for asset in (asset_a, asset_b)
+        )
+
+        def _queue_event(asset_id):
+            event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+            )
+            session.flush()
+            return event
+
+        # A stale row for A (event already consumed) and a fresh event for B
+        # do not satisfy the condition.
+        prior_run = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.SUCCESS,
+            logical_date=pendulum.now("UTC"),
+        )
+        prior_run.consumed_asset_events.append(_queue_event(a_id))
+        _queue_event(b_id)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+        assert triggered_date_by_dag == {}
+
+        # A fresh event for A does.
+        _queue_event(a_id)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+        assert set(triggered_date_by_dag) == {dag_model.dag_id}
+
     def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
         self, session, caplog, testing_dag_bundle
     ):
