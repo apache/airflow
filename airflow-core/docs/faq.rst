@@ -643,9 +643,8 @@ upstream task.
 
     import pendulum
 
-    from airflow.sdk import dag, task
     from airflow.exceptions import AirflowException
-    from airflow.utils.trigger_rule import TriggerRule
+    from airflow.sdk import TriggerRule, dag, task
 
 
     @task()
