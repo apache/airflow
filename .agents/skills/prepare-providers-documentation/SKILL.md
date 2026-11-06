@@ -714,8 +714,9 @@ only be performed by Release Managers!"*. That guard exists to stop
 release wave the bumps are legitimate. The release PR **must carry the
 `allow provider dependency bump` label** to bypass it — every prior "Prepare
 providers release …" PR carries this label. Tell the release manager to add
-the label to the PR (it re-triggers the check via the `labeled` event); the
-bumps are not a mistake to revert.
+the label to the PR; the bumps are not a mistake to revert. Adding a label
+does not re-run CI (the workflow has no `labeled` trigger), so if CI already
+ran without it, close and reopen the PR to start a run that sees the label.
 
 ### Phase 5 — Validate
 
