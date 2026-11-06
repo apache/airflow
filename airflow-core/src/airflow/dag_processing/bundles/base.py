@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import fcntl
+import functools
 import logging
 import os
 import shutil
@@ -244,6 +245,25 @@ class BundleVersion:
 
     version: str
     data: dict[str, Any] | None = None
+
+
+class BundleNotReadyError(Exception):
+    """
+    Raised by ``initialize`` when a bundle cannot be served yet but will be on a later attempt.
+
+    The Dag processor retries initialization on a later bundle refresh check instead of waiting.
+
+    :param retry_after: Seconds after which a retry may succeed. It is a hint: the bundle
+        may become ready earlier or later.
+    """
+
+    def __init__(self, message: str, *, retry_after: float) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+    def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+        # The keyword-only retry_after is not in self.args, which default pickling replays.
+        return functools.partial(type(self), retry_after=self.retry_after), self.args
 
 
 def unpack_bundle_version(

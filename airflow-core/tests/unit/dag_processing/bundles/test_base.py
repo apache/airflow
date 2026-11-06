@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import fcntl
 import logging
+import pickle
 import tempfile
 import threading
 from datetime import timedelta
@@ -31,6 +32,7 @@ import time_machine
 from airflow._shared.timezones import timezone as tz
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
+    BundleNotReadyError,
     BundleUsageTrackingManager,
     BundleVersion,
     BundleVersionLock,
@@ -347,3 +349,13 @@ def test_version_data_defaults_to_none():
     """Test that version_data defaults to None when not provided."""
     bundle = BasicBundle(name="test")
     assert bundle.version_data is None
+
+
+def test_bundle_not_ready_error_survives_pickling():
+    error = BundleNotReadyError("source is settling", retry_after=12.5)
+
+    restored = pickle.loads(pickle.dumps(error))
+
+    assert type(restored) is BundleNotReadyError
+    assert str(restored) == "source is settling"
+    assert restored.retry_after == 12.5

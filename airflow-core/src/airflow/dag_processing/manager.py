@@ -51,6 +51,7 @@ from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
+    BundleNotReadyError,
     BundleUsageTrackingManager,
     unpack_bundle_version,
 )
@@ -278,6 +279,8 @@ class DagFileProcessorManager(LoggingMixin):
     """Last time we checked if any bundles are ready to be refreshed"""
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
+    _bundle_initialization_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
+    """Monotonic deadlines for retrying initialization of bundles that are not ready."""
 
     _file_parsing_sort_mode: str = attrs.field(
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
@@ -683,9 +686,13 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _claim_priority_files(self, *, session: Session = NEW_SESSION) -> list[DagFileInfo]:
-        """Fetch priority parsing requests from the metadata database."""
+        """Claim priority parsing requests for ready bundles, leaving the rest pending."""
         files: list[DagFileInfo] = []
-        bundles = {b.name: b for b in self._dag_bundles}
+        bundles = {
+            bundle.name: bundle
+            for bundle in self._dag_bundles
+            if not bundle.supports_versioning or bundle.is_initialized
+        }
         requests = session.scalars(
             select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
         )
@@ -892,9 +899,26 @@ class DagFileProcessorManager(LoggingMixin):
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
+                retry_at = self._bundle_initialization_retry_at.get(bundle.name)
+                if retry_at is not None and now_seconds < retry_at:
+                    self.log.debug(
+                        "Bundle %s is not ready yet; retrying initialization in %.0f seconds",
+                        bundle.name,
+                        retry_at - now_seconds,
+                    )
+                    continue
                 try:
                     bundle.initialize()
                     any_refreshed = True
+                except BundleNotReadyError as e:
+                    self._bundle_initialization_retry_at[bundle.name] = now_seconds + e.retry_after
+                    self.log.info(
+                        "Bundle %s is not ready yet; retrying initialization in %.0f seconds: %s",
+                        bundle.name,
+                        e.retry_after,
+                        e,
+                    )
+                    continue
                 except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue

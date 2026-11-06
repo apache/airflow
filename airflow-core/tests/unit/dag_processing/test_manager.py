@@ -48,8 +48,10 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
-from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleNotReadyError, BundleVersion
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.manifest_local import ManifestLocalDagBundle
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -68,6 +70,7 @@ from airflow.dag_processing.processor import (
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1300,8 +1303,6 @@ class TestDagFileProcessorManager:
         mock_gauge.assert_any_call("dag_processing.import_errors", 2)
 
     def test_file_paths_in_queue_sorted_by_priority(self):
-        from airflow.models.dagbag import DagPriorityParsingRequest
-
         parsing_request = DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder")
         with create_session() as session:
             session.add(parsing_request)
@@ -1326,8 +1327,6 @@ class TestDagFileProcessorManager:
 
     def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle):
         """Ensure the manager only handles parsing requests for bundles being parsed in this manager"""
-        from airflow.models.dagbag import DagPriorityParsingRequest
-
         with create_session() as session:
             session.add(DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder"))
             session.add(DagPriorityParsingRequest(relative_fileloc="file_x.py", bundle_name="testing"))
@@ -1345,6 +1344,47 @@ class TestDagFileProcessorManager:
             parsing_request_after = session2.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
+
+    def test_priority_requests_wait_for_manifest_bundle_initialization(self, tmp_path, monkeypatch, session):
+        source = tmp_path / "source"
+        source.mkdir()
+        (source / "example.py").write_text("from airflow.sdk import DAG\n")
+        monkeypatch.setattr(
+            "airflow.dag_processing.bundles.base.STALE_BUNDLE_TRACKING_FOLDER", tmp_path / "tracking"
+        )
+        with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path / "cache")}):
+            bundle = ManifestLocalDagBundle(
+                name="manifest",
+                published_root=str(tmp_path / "published"),
+                source_path=str(source),
+                source_stability_seconds=0,
+            )
+            ready = LocalDagBundle(name="ready", path=str(source))
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = [bundle, ready]
+            pending_request = DagPriorityParsingRequest(
+                bundle_name=bundle.name, relative_fileloc="example.py"
+            )
+            ready_request = DagPriorityParsingRequest(bundle_name=ready.name, relative_fileloc="example.py")
+            session.add_all([pending_request, ready_request])
+            session.flush()
+
+            assert manager._claim_priority_files(session=session) == [
+                DagFileInfo(bundle_name=ready.name, bundle_path=source, rel_path=Path("example.py"))
+            ]
+            session.flush()
+            assert session.get(DagPriorityParsingRequest, pending_request.id) is pending_request
+            assert session.get(DagPriorityParsingRequest, ready_request.id) is None
+            assert not bundle.is_initialized
+            assert not Path(bundle.manifest_ref_path).exists()
+
+            bundle.initialize()
+
+            assert manager._claim_priority_files(session=session) == [
+                DagFileInfo(bundle_name=bundle.name, bundle_path=bundle.path, rel_path=Path("example.py"))
+            ]
+            session.flush()
+            assert session.get(DagPriorityParsingRequest, pending_request.id) is None
 
     def test_queue_requested_files_for_parsing_uses_public_claim_hook(self):
         file1 = DagFileInfo(
@@ -4322,6 +4362,59 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
 
         healthy_bundle.refresh.assert_called_once()
+
+    @mock.patch.object(DagFileProcessorManager, "_add_new_files_to_queue", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_resort_file_queue", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "clear_orphaned_import_errors", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "deactivate_deleted_dags", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=set())
+    @mock.patch.object(DagFileProcessorManager, "update_bundle_state", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "get_bundle_state",
+        autospec=True,
+        return_value=BundleState(last_refreshed=None, version=None),
+    )
+    @mock.patch("airflow.dag_processing.manager.time.monotonic")
+    def test_refresh_dag_bundles_retries_not_ready_bundle_after_its_hint(
+        self,
+        mock_monotonic,
+        mock_get_bundle_state,
+        mock_update_bundle_state,
+        mock_find_files,
+        mock_deactivate,
+        mock_clear_import_errors,
+        mock_handle_removed,
+        mock_resort,
+        mock_add_files,
+        caplog,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.bundle_refresh_check_interval = 5
+        settling_bundle = self._make_refresh_bundle()
+        settling_bundle.name = "settling_bundle"
+        settling_bundle.is_initialized = False
+        settling_bundle.initialize.side_effect = BundleNotReadyError("source is settling", retry_after=12)
+        healthy_bundle = self._make_refresh_bundle()
+        healthy_bundle.name = "healthy_bundle"
+        manager._dag_bundles = [settling_bundle, healthy_bundle]
+        manager._force_refresh_bundles = set()
+
+        for now in (1000, 1006, 1012):
+            mock_monotonic.return_value = now
+            manager._refresh_dag_bundles({})
+
+        # Not retried at the 1006 check, before the 12-second hint ran out.
+        assert settling_bundle.initialize.call_count == 2
+        settling_bundle.refresh.assert_not_called()
+        assert healthy_bundle.refresh.call_count == 3
+        assert {
+            "event": "Bundle settling_bundle is not ready yet; retrying initialization in 12 seconds: "
+            "source is settling",
+            "log_level": "info",
+        } in caplog
+        assert not [entry for entry in caplog.entries if entry["log_level"] == "error"]
 
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.
