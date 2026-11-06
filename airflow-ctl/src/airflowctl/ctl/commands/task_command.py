@@ -22,6 +22,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import rich
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -35,7 +36,7 @@ def _find_run_id_by_logical_date(api_client, dag_id: str, value: str) -> str:
     try:
         logical_date = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
-        rich.print(f"[red]Invalid --logical-date: {value!r}[/red]")
+        rich.print(f"[red]Invalid --logical-date: {escape(repr(value))}[/red]")
         sys.exit(1)
     if logical_date.tzinfo is None:
         rich.print("[red]--logical-date must include a timezone offset[/red]")
@@ -55,7 +56,9 @@ def _find_run_id_by_logical_date(api_client, dag_id: str, value: str) -> str:
         if e.response.status_code != 404:
             raise
     if not dag_runs:
-        rich.print(f"[red]Dag run for {dag_id} with logical date {value!r} not found[/red]")
+        rich.print(
+            f"[red]Dag run for {escape(dag_id)} with logical date {escape(repr(value))} not found[/red]"
+        )
         sys.exit(1)
     return dag_runs[0].dag_run_id
 
@@ -87,7 +90,9 @@ def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
         task_instances = api_client.task_instances.list(dag_id=args.dag_id, dag_run_id=run_id).task_instances
     except ServerResponseError as e:
         if e.response.status_code == 404:
-            rich.print(f"[red]Dag run {run_id!r} of Dag {args.dag_id!r} not found[/red]")
+            rich.print(
+                f"[red]Dag run {escape(repr(run_id))} of Dag {escape(repr(args.dag_id))} not found[/red]"
+            )
             sys.exit(1)
         raise
 

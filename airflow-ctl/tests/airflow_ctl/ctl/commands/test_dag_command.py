@@ -23,7 +23,7 @@ from unittest import mock
 import httpx
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import DAGResponse, DagRunType
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl import cli_parser
@@ -163,6 +163,33 @@ class TestDagCommands:
                 api_client=api_client,
             )
 
+    def test_pause_fail_prints_server_error_containing_markup(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "bad [/x] value"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.pause(
+                self.parser.parse_args(["dags", "pause", self.dag_id]),
+                api_client=api_client,
+            )
+
+        assert "[/x]" in capsys.readouterr().err
+
+    def test_pause_fail_prints_dag_id_containing_markup(self, capsys):
+        api_client = mock.Mock(spec=Client)
+        api_client.dags.update.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit):
+            dag_command.pause(
+                self.parser.parse_args(["dags", "pause", "my_dag[/y]"]),
+                api_client=api_client,
+            )
+
+        assert "my_dag[/y]" in capsys.readouterr().err
+
     def test_unpause_dag(self, api_client_maker, monkeypatch):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}",
@@ -271,6 +298,33 @@ class TestDagCommands:
             api_client=api_client,
         )
         assert result is None
+
+    def test_next_execution_fail_prints_dag_id_containing_markup(self, capsys):
+        api_client = mock.Mock(spec=Client)
+        api_client.dags.get.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit):
+            dag_command.next_execution(
+                self.parser.parse_args(["dags", "next-execution", "my_dag[/y]"]),
+                api_client=api_client,
+            )
+
+        assert "my_dag[/y]" in capsys.readouterr().out
+
+    def test_next_execution_fail_prints_server_error_containing_markup(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "bad [/x] value"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.next_execution(
+                self.parser.parse_args(["dags", "next-execution", self.dag_id]),
+                api_client=api_client,
+            )
+
+        assert "[/x]" in capsys.readouterr().out
 
     def test_next_execution_fail(self, api_client_maker):
         api_client = api_client_maker(
@@ -408,6 +462,43 @@ class TestDagCommands:
         assert _normalize_rich_output(capsys.readouterr().out) == (
             "Dag run 'missing_run' of Dag 'test_dag' not found"
         )
+
+    def test_state_not_found_by_run_id_prints_ids_containing_markup(self, capsys):
+        api_client = mock.Mock(spec=Client)
+        api_client.dag_runs.get.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit):
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", "my_dag[/y]", "run_[/x]"]),
+                api_client=api_client,
+            )
+
+        output = capsys.readouterr().out
+        assert "run_[/x]" in output
+        assert "my_dag[/y]" in output
+
+    def test_state_prints_invalid_logical_date_containing_markup(self, capsys):
+        with pytest.raises(SystemExit):
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, "--logical-date", "[/x]"]),
+                api_client=mock.Mock(spec=Client),
+            )
+
+        assert "[/x]" in capsys.readouterr().out
+
+    def test_state_not_found_by_logical_date_prints_dag_id_containing_markup(self, capsys):
+        api_client = mock.Mock(spec=Client)
+        api_client.dag_runs.list.return_value = mock.Mock(dag_runs=[])
+
+        with pytest.raises(SystemExit):
+            dag_command.state(
+                self.parser.parse_args(
+                    ["dags", "state", "my_dag[/y]", "--logical-date", "2026-01-01T00:00:00Z"]
+                ),
+                api_client=api_client,
+            )
+
+        assert "my_dag[/y]" in capsys.readouterr().out
 
     def test_state_reraises_non_404_dag_run_get_error(self):
         api_client = mock.MagicMock()
