@@ -558,6 +558,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   `_subprocess.py`), or when the native Lang-SDK Dag parsing sources listed above change — the YAML
   importer itself lives in `task-sdk/src/airflow/sdk/importers/`. Like the other deployed e2e
   suites, enabling them forces `PROD Image building`.
+* `Language SDK XCom backend E2E tests` (the `lang_sdk_xcom_object_storage` mode of the deployed-stack
+  tests, which runs the configured `[core] xcom_backend` for TypeScript, Go and Java task XComs, exposed
+  as the `run-lang-sdk-xcom-e2e-tests` output) run when the coordinator-side backend
+  (`task-sdk/src/airflow/sdk/coordinators/_xcom_backend.py`), the base XCom class
+  (`task-sdk/src/airflow/sdk/bases/xcom.py`), the object storage backend
+  (`providers/common/io/src/airflow/providers/common/io/xcom/`), or the mode's compose override and suite
+  (`airflow-e2e-tests/docker/lang-sdk-xcom-object-storage.yml`,
+  `airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/`) change — the language
+  SDKs themselves are left to their own E2E modes. Like the other deployed e2e suites, enabling them
+  forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -745,6 +755,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-generic-basic-tests                                 | Whether the standalone Airflow and shared distributions tests run: off on component branches          | true                                     |      |
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
+| run-lang-sdk-xcom-e2e-tests                             | Whether language SDK XCom backend e2e tests should be run — on coordinator-side XCom backend, base XCom class, object storage backend, or the mode's compose override/suite changes ("true"/"false") | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |

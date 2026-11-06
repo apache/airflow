@@ -807,6 +807,7 @@ const ErrorTypeGENERICERROR ErrorType = "GENERIC_ERROR"
 const ErrorTypePERMISSIONDENIED ErrorType = "PERMISSION_DENIED"
 const ErrorTypeTASKSTORENOTFOUND ErrorType = "TASK_STORE_NOT_FOUND"
 const ErrorTypeVARIABLENOTFOUND ErrorType = "VARIABLE_NOT_FOUND"
+const ErrorTypeXCOMBACKENDERROR ErrorType = "XCOM_BACKEND_ERROR"
 const ErrorTypeXCOMNOTFOUND ErrorType = "XCOM_NOT_FOUND"
 
 type Extra map[string]JsonValue

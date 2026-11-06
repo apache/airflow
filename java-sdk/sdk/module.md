@@ -108,7 +108,7 @@ meaning of each dimension is defined in the
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.4.0 · supervisor schema: 2027-02-28*
 
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|
@@ -124,6 +124,7 @@ meaning of each dimension is defined in the
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | SLF4J + JPL bridged to the task log |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `custom-xcom-backend` | MAY | ✓ | 3.5.0 | 1.0.0 | the supervisor runs the configured [core] xcom_backend |
 | capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | Airflow metadata embedded in the jar artifact |

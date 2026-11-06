@@ -26,9 +26,17 @@ New bodies in this version:
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import (
+    ResponseInfo,
+    VersionChange,
+    convert_response_to_previous_version_for,
+    enum,
+    schema,
+)
 
 from airflow.sdk.api.datamodels._generated import TIRunContext
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -44,3 +52,17 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
     )
+
+
+class AddXComBackendErrorType(VersionChange):
+    """Report a failure of the configured XCom backend under its own error type."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (enum(ErrorType).didnt_have("XCOM_BACKEND_ERROR"),)
+
+    @convert_response_to_previous_version_for(ErrorResponse)  # type: ignore[arg-type]
+    def report_as_a_generic_error(response: ResponseInfo = None) -> None:  # type: ignore[assignment]
+        """Report the failure as a generic one to a runtime whose version has no type for it."""
+        if response.body.get("error") == ErrorType.XCOM_BACKEND_ERROR.value:
+            response.body["error"] = ErrorType.GENERIC_ERROR.value
