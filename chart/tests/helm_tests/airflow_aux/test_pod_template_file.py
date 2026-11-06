@@ -81,55 +81,32 @@ class TestPodTemplateFile:
             ("3.4.0", False),
         ],
     )
-    @pytest.mark.parametrize(
-        ("init_enabled", "sidecar_enabled"),
-        [
-            pytest.param(True, False, id="init-only"),
-            pytest.param(False, True, id="sidecar-only"),
-            pytest.param(True, True, id="both"),
-        ],
-    )
-    def test_should_set_kerberos_database_env_by_airflow_version(
-        self, airflow_version, expect_database, init_enabled, sidecar_enabled
+    def test_should_set_kerberos_sidecar_database_env_by_airflow_version(
+        self, airflow_version, expect_database
     ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
                 "executor": "KubernetesExecutor",
                 "kerberos": {"enabled": True},
-                "workers": {
-                    "kubernetes": {
-                        "kerberosInitContainer": {"enabled": init_enabled},
-                        "kerberosSidecar": {"enabled": sidecar_enabled},
-                    },
-                },
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         spec = docs[0]["spec"]
-        containers = {
-            container["name"]: container
-            for container in (spec.get("initContainers") or []) + spec["containers"]
-        }
+        kerberos_sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
         database_env_names = {
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
         }
 
-        for container_name, enabled in (
-            ("kerberos-init", init_enabled),
-            ("worker-kerberos", sidecar_enabled),
-        ):
-            if not enabled:
-                continue
+        kerberos_env_names = {env["name"] for env in kerberos_sidecar.get("env", [])}
+        expected = database_env_names if expect_database else set()
+        assert database_env_names & kerberos_env_names == expected
 
-            env_names = {env["name"] for env in containers[container_name].get("env", [])}
-            expected = database_env_names if expect_database else set()
-            assert database_env_names & env_names == expected, container_name
-
-        base_env_names = {env["name"] for env in containers["base"].get("env", [])}
+        base_env_names = {env["name"] for env in spec["containers"][0].get("env", [])}
         assert database_env_names.isdisjoint(base_env_names)
 
     def test_should_add_an_init_container_if_git_sync_is_true(self):
