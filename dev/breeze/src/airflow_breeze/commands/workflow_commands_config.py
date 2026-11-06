@@ -69,6 +69,7 @@ WORKFLOW_RUN_PARAMETERS["breeze workflow-run release-constraints"] = [
             "--version",
             "--ref",
             "--workflow-branch",
+            "--fail-on-pending-provider-candidates",
         ],
     },
 ]
