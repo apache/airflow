@@ -23,6 +23,7 @@ from unittest import mock
 import httpx
 import pytest
 
+from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
@@ -263,6 +264,45 @@ class TestStatesForDagRun:
         assert _normalize_rich_output(capsys.readouterr().out) == (
             "Dag run 'test_run' of Dag 'test_dag' not found"
         )
+
+    def test_states_for_dag_run_not_found_prints_ids_containing_markup(self, capsys):
+        api_client = mock.MagicMock(spec=Client)
+        api_client.task_instances.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.states_for_dag_run(
+                self.parser.parse_args(["tasks", "states-for-dag-run", "my_dag[/y]", "run_[/x]"]),
+                api_client=api_client,
+            )
+
+        output = capsys.readouterr().out
+        assert "run_[/x]" in output
+        assert "my_dag[/y]" in output
+
+    def test_states_for_dag_run_prints_invalid_logical_date_containing_markup(self, capsys):
+        with pytest.raises(SystemExit, match="1"):
+            task_command.states_for_dag_run(
+                self.parser.parse_args(
+                    ["tasks", "states-for-dag-run", self.dag_id, "--logical-date", "[/x]"]
+                ),
+                api_client=mock.MagicMock(spec=Client),
+            )
+
+        assert "[/x]" in capsys.readouterr().out
+
+    def test_states_for_dag_run_not_found_by_logical_date_prints_dag_id_containing_markup(self, capsys):
+        api_client = mock.MagicMock(spec=Client)
+        api_client.dag_runs.list.return_value.dag_runs = []
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.states_for_dag_run(
+                self.parser.parse_args(
+                    ["tasks", "states-for-dag-run", "my_dag[/y]", "--logical-date", "2026-01-01T00:00:00Z"]
+                ),
+                api_client=api_client,
+            )
+
+        assert "my_dag[/y]" in capsys.readouterr().out
 
     @pytest.mark.parametrize(
         "failing_call",
