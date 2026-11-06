@@ -450,15 +450,20 @@ export const TaskInstances = () => {
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
-  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
-    useRowSelection({
-      data: data?.task_instances,
-      getKey: getRowKey,
-    });
+  const {
+    allRowsSelected,
+    clearSelections,
+    deselectKeys,
+    handleRowSelect,
+    handleSelectAll,
+    selectedItems: selectedTaskInstances,
+    selectedRows,
+  } = useRowSelection({
+    data: data?.task_instances,
+    getKey: getRowKey,
+  });
 
   const pluginActions = usePluginActions("task_instance");
-
-  const selectedTaskInstances = (data?.task_instances ?? []).filter((ti) => selectedRows.has(getRowKey(ti)));
 
   const columns = taskInstanceColumns({
     dagId,
