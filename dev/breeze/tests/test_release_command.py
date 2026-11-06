@@ -559,3 +559,29 @@ def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd)
 
     assert "rc" not in str(calls["version"])
     assert calls["ref"] == "v3-0-stable"
+
+
+class _StopRelease(Exception):
+    pass
+
+
+def test_airflow_release_checks_pending_candidates_before_touching_svn(monkeypatch, release_cmd):
+    """The candidate check must run before the first irreversible step, not after the PyPI upload."""
+    calls: list[str] = []
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **kw: True)
+    monkeypatch.setattr(release_cmd, "run_command", lambda *a, **kw: None)
+    monkeypatch.setattr(release_cmd.os, "chdir", lambda *a: None)
+    monkeypatch.setattr(
+        release_cmd, "exit_on_pending_provider_candidates", lambda: calls.append("candidate-check")
+    )
+
+    def stop_at_clone(*a, **kw):
+        calls.append("clone")
+        raise _StopRelease
+
+    monkeypatch.setattr(release_cmd, "clone_asf_repo", stop_at_clone)
+
+    with pytest.raises(_StopRelease):
+        release_cmd.airflow_release.callback("3.4.0", None)
+
+    assert calls == ["candidate-check", "clone"]

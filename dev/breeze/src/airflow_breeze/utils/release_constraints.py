@@ -28,12 +28,80 @@ separate switch that could disagree with it.
 
 from __future__ import annotations
 
+import sys
+from concurrent.futures import ThreadPoolExecutor
+
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
 
 RELEASE_CONSTRAINTS_WORKFLOW = "release-constraints.yml"
 APACHE_AIRFLOW_REPO = "apache/airflow"
+PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
+PYPI_LOOKUP_PARALLELISM = 16
+
+
+def find_newest_published_version(distribution: str) -> str | None:
+    import requests
+    from packaging.version import InvalidVersion, Version
+
+    response = requests.get(PYPI_JSON_API_URL.format(distribution=distribution), timeout=60)
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    newest: Version | None = None
+    for version, files in response.json().get("releases", {}).items():
+        try:
+            parsed = Version(version)
+        except InvalidVersion:
+            continue
+        if not any(not pypi_file.get("yanked") for pypi_file in files):
+            continue
+        if newest is None or parsed > newest:
+            newest = parsed
+    return str(newest) if newest else None
+
+
+def find_pending_provider_candidates() -> list[tuple[str, str]]:
+    """Providers whose newest PyPI version is a candidate - what the final constraints run refuses."""
+    from packaging.version import Version
+
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
+    distributions = [
+        f"apache-airflow-providers-{provider_id.replace('.', '-')}"
+        for provider_id, metadata in sorted(get_provider_dependencies().items())
+        if metadata["state"] == "ready"
+    ]
+    with ThreadPoolExecutor(max_workers=PYPI_LOOKUP_PARALLELISM) as executor:
+        newest_versions = list(executor.map(find_newest_published_version, distributions))
+    return [
+        (distribution, version)
+        for distribution, version in zip(distributions, newest_versions)
+        if version is not None and Version(version).is_prerelease
+    ]
+
+
+def exit_on_pending_provider_candidates() -> None:
+    """Stop a final release before anything irreversible if its constraints run is bound to fail.
+
+    The release-constraints workflow refuses a final while a provider candidate is pending, and it
+    runs after the PyPI upload - failing there leaves the release on PyPI with no constraints.
+    """
+    console_print("[info]Checking PyPI for provider release candidates that are still pending.")
+    pending = find_pending_provider_candidates()
+    if not pending:
+        return
+    console_print(
+        "[error]These providers have a release candidate on PyPI newer than their latest final release:"
+    )
+    for distribution, version in pending:
+        console_print(f"[error]  * {distribution}=={version}")
+    console_print(
+        "[warning]The constraints for this release would fail to resolve after the PyPI upload. "
+        "Release or yank each candidate first, then start the release again."
+    )
+    sys.exit(1)
 
 
 def publish_constraints(*, version: str, ref: str, workflow_branch: str = "main") -> None:

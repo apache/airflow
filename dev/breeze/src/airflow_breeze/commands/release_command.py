@@ -29,7 +29,10 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-from airflow_breeze.utils.release_constraints import publish_constraints
+from airflow_breeze.utils.release_constraints import (
+    exit_on_pending_provider_candidates,
+    publish_constraints,
+)
 from airflow_breeze.utils.run_utils import run_command
 
 # Pattern to match Airflow release versions (e.g., "3.0.5")
@@ -445,6 +448,8 @@ def airflow_release(version, task_sdk_version):
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
+
+    exit_on_pending_provider_candidates()
 
     # Clone the asf repo
     os.chdir("..")
