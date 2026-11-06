@@ -110,6 +110,20 @@ describe("useRememberedFilters", () => {
     expect(result.current.search).toBe("?state=queued");
   });
 
+  it.each([
+    ["a name search", "/dags?name_pattern=etl"],
+    ["a paginated name search", "/dags?name_pattern=etl&offset=40&limit=20"],
+    ["a sort order", "/dags?sort=-dag_id"],
+  ])("leaves a query made only of non-filter params alone: %s", (_, entry) => {
+    localStorage.setItem("dags-last-filters", JSON.stringify("state=running"));
+
+    const { result } = renderRemembered([entry]);
+
+    expect(result.current.search).toBe(new URL(entry, "http://localhost").search);
+    // The explicit query must not be remembered in place of the filters the user set.
+    expect(localStorage.getItem("dags-last-filters")).toBe(JSON.stringify("state=running"));
+  });
+
   it("keeps a pinned default preset ahead of the remembered filters", () => {
     localStorage.setItem("dags-preset-filters-default", JSON.stringify("Pinned"));
     localStorage.setItem("dags-last-filters", JSON.stringify("state=running"));

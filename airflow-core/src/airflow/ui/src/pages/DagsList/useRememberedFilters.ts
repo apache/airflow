@@ -81,7 +81,9 @@ export const useRememberedFilters = (
 
       if (userEdited) {
         setLastFilters("");
-      } else if (defaultPresetName === null) {
+      } else if (defaultPresetName === null && searchParams.size === 0) {
+        // Only a bare landing restores. A query made only of params the filter bar does not own, such
+        // as a name search or a sort order, is still an explicit request and must not be replaced.
         const remembered = filterQuery(lastFilters, filterParams);
 
         if (remembered !== "") {
