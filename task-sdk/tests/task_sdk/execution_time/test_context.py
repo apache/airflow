@@ -1782,6 +1782,7 @@ class TestSecretsBackend:
             with pytest.raises(AirflowNotFoundException, match="isn't defined"):
                 _get_connection("nonexistent_conn")
 
+
 class TestTeamSecretLookups:
     """Lookups pass the current team, so a team's env var wins over a global one of the same name."""
 
@@ -1836,6 +1837,8 @@ class TestTeamSecretLookups:
         await _async_set_variable("my_var", "new_value")
 
         assert mock_log.warning.call_count == 2
+
+
 # ``json.dumps`` of each value is 100 characters; JSON escapes each non-ASCII character to six.
 SIZE_LIMIT_CASES = [
     pytest.param("x" * 98, 100, False, id="ascii-at-limit"),

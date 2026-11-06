@@ -917,12 +917,14 @@ class BaseExecutor(LoggingMixin):
             from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
-            # Only passed when set, so callbacks stored without it run on any Task SDK, while
-            # encoded kwargs fail on a Task SDK that cannot decode them instead of reaching
-            # the callback encoded.
-            encoding_kwargs = {}
+            # Both are only passed when set, so callbacks stored without them run on any Task
+            # SDK: encoded kwargs fail loudly on an SDK that cannot decode them, and a team
+            # callback on an SDK without team support fails loudly instead of reading globals.
+            extra_kwargs: dict[str, Any] = {}
             if kwargs_encoding := workload.callback.data.get(CALLBACK_KWARGS_ENCODING_KEY):
-                encoding_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+                extra_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+            if workload.team_name:
+                extra_kwargs["team_name"] = workload.team_name
             return supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
@@ -930,10 +932,9 @@ class BaseExecutor(LoggingMixin):
                 dag_rel_path=workload.dag_rel_path,
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
-                **({"team_name": workload.team_name} if workload.team_name else {}),
                 token=workload.token,
                 server=server,
-                **encoding_kwargs,
+                **extra_kwargs,
             )
         if isinstance(workload, TestConnection):
             from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test
