@@ -70,16 +70,15 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         )
 
     def execute(self, context: Context):
-        self.render_template_fields(context)
-
-        generated = self._generate_cmds(context)
+        # Render only the command the callable returned. The other template fields were already
+        # rendered before execute().
+        generated = self.render_template(self._generate_cmds(context), context)
         if self.args_only:
             self.cmds = []
             self.arguments = generated
         else:
             self.cmds = generated
             self.arguments = []
-        self.render_template_fields(context)
         return super().execute(context)
 
     def _generate_cmds(self, context: Context) -> list[str]:

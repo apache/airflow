@@ -105,6 +105,13 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      use-pinned-os-deps-images:
+        description: >-
+          Start from the pinned OS-dependencies images (true/false) - false with the "disable image cache"
+          label. A retry with the cache disabled does not change it.
+        required: false
+        default: "true"
+        type: string
       disable-airflow-repo-cache:
         description: "Disable airflow repo cache read from main."
         required: true
@@ -113,84 +120,28 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a prod-image build (true/false)"
         required: true
         type: string
+      packages-prebuilt:
+        description: "Whether the caller already uploaded the prod-packages artifact (true/false)"
+        required: false
+        default: "false"
+        type: string
 permissions:
   contents: read
 jobs:
   build-prod-packages:
     name: "Build Airflow and provider distributions"
-    timeout-minutes: 10
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
-    if: inputs.prod-image-build == 'true'
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Checkout target branch"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - name: "Make /mnt writeable"
-        run: ./scripts/ci/make_mnt_writeable.sh
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Move docker to /mnt"
-        run: ./scripts/ci/move_docker_to_mnt.sh
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Cleanup dist and context file"
-        shell: bash
-        run: rm -fv ./dist/* ./docker-context-files/*
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          platform: ${{ inputs.platform }}
-          save-cache: false
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Prepare providers packages - all providers built from sources"
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-distributions
-          --distributions-list-file ./prod_image_installed_providers.txt
-          --distribution-format wheel --include-not-ready-providers --skip-tag-check
-        if: >
-          inputs.upload-package-artifact == 'true' && inputs.branch == 'main'
-      - name: "Prepare providers packages with only new versions of providers"
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-distributions
-          --distributions-list-file ./prod_image_installed_providers.txt
-          --distribution-format wheel --include-not-ready-providers --github-repository apache/airflow
-        if: >
-          inputs.upload-package-artifact == 'true' && inputs.branch != 'main'
-      - name: "Prepare airflow package"
-        shell: bash
-        run: >
-          breeze release-management prepare-airflow-distributions --distribution-format wheel
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Prepare task-sdk package"
-        shell: bash
-        run: >
-          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Prepare airflow-ctl package"
-        shell: bash
-        run: >
-          breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
-        if: inputs.upload-package-artifact == 'true'
-      - name: "Upload prepared packages as artifacts"
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
-        with:
-          name: prod-packages
-          path: ./dist
-          retention-days: 7
-          if-no-files-found: error
-        if: inputs.upload-package-artifact == 'true'
+    # The CI workflows build the packages before calling this workflow; see prod-packages-build.yml.
+    if: inputs.packages-prebuilt != 'true'
+    uses: ./.github/workflows/prod-packages-build.yml
+    permissions:
+      contents: read
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: ${{ inputs.default-python-version }}
+      branch: ${{ inputs.branch }}
+      upload-package-artifact: ${{ inputs.upload-package-artifact }}
+      prod-image-build: ${{ inputs.prod-image-build }}
 
   build-prod-images:
     strategy:
@@ -202,6 +153,10 @@ jobs:
     runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     needs:
       - build-prod-packages
+    # A skipped build-prod-packages means the caller built the packages already.
+    if: >-
+      !cancelled() && inputs.prod-image-build == 'true' &&
+      (needs.build-prod-packages.result == 'success' || inputs.packages-prebuilt == 'true')
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
@@ -273,6 +228,7 @@ jobs:
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
+          USE_PINNED_OS_DEPS_IMAGES: ${{ inputs.use-pinned-os-deps-images }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
           IMAGE_FLAVOR: ${{ inputs.image-flavor }}

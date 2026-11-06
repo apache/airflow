@@ -35,7 +35,7 @@ from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
 
-CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.11"
+CI_IMAGE = BuildCiParams(python="3.11").airflow_image_name
 
 
 def test_calculate_ci_sources_hash_is_stable_across_checkouts(tmp_path, monkeypatch):

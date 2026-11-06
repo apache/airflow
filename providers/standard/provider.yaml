@@ -22,12 +22,13 @@ description: |
     Airflow Standard Provider
 state: ready
 lifecycle: production
-source-date-epoch: 1792489528
+source-date-epoch: 1793816745
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.0.0
   - 1.21.0
   - 1.20.1
   - 1.20.0
@@ -87,6 +88,7 @@ integrations:
       - /docs/apache-airflow-providers-standard/sensors/datetime.rst
       - /docs/apache-airflow-providers-standard/sensors/file.rst
       - /docs/apache-airflow-providers-standard/sensors/external_task_sensor.rst
+      - /docs/apache-airflow-providers-standard/sensors/asset.rst
 
 operators:
   - integration-name: Standard
@@ -104,6 +106,7 @@ operators:
 sensors:
   - integration-name: Standard
     python-modules:
+      - airflow.providers.standard.sensors.asset
       - airflow.providers.standard.sensors.date_time
       - airflow.providers.standard.sensors.time_delta
       - airflow.providers.standard.sensors.time

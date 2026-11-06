@@ -45,16 +45,16 @@ class DagBundleResponse(BaseModel):
     )
     bundle_url: str | None = Field(
         description=(
-            "A link to view the bundle at ``version``, when one is configured and the caller may "
-            "read Dag versions."
+            "A link to view the bundle at ``version``. Null when the bundle has no URL template, when "
+            "the template needs a version and the bundle has not been refreshed yet, or when the "
+            "template cannot be rendered."
         )
     )
     team_name: str | None = Field(description="The team owning the bundle, in a multi-team deployment.")
-    import_error_count: int | None = Field(
+    import_error_count: int = Field(
         description=(
-            "Number of Dag import errors recorded against this bundle that the caller is permitted "
-            "to see, counted on the same terms as ``GET /importErrors``. Null when the caller may "
-            "not read import errors."
+            "Number of Dag import errors recorded against the bundle. Reading the errors themselves "
+            "is authorized separately, through ``GET /importErrors``."
         )
     )
 
@@ -71,8 +71,7 @@ class DagBundleDetailResponse(DagBundleResponse):
 
     dag_count: int = Field(
         description=(
-            "Number of live Dags recorded against the bundle that the caller is permitted to see, "
-            "counted on the same terms as ``GET /dags``."
+            "Number of live Dags recorded against the bundle, including Dags the caller may not read."
         )
     )
 
@@ -81,19 +80,26 @@ class DagBundleFileResponse(BaseModel):
     """A file in a Dag bundle, as the Dag processor last saw it."""
 
     relative_fileloc: str
-    dag_count: int = Field(description="Number of live Dags the file defines that the caller may read.")
+    dag_count: int = Field(
+        description="Number of live Dags the file defines, including Dags the caller may not read."
+    )
     last_parsed_time: datetime | None = Field(
         description="When the file was last parsed, or null if it has never parsed successfully."
     )
     last_parse_duration: float | None = Field(
         description="How long the last successful parse of the file took, in seconds."
     )
-    import_error_count: int | None = Field(
+    import_error_count: int = Field(
         description=(
-            "Number of import errors recorded against the file, which is at most one. Null when the "
-            "caller may not read import errors -- deliberately not zero, which would read as a "
-            "file with nothing wrong."
+            "Number of import errors recorded against the file, which is at most one. Reading the "
+            "error itself is authorized separately, through ``GET /importErrors``."
         )
+    )
+    can_read_import_error: bool = Field(
+        description=(
+            "Whether the caller may read the file's import error through ``GET /importErrors``, "
+            "possibly with its stack trace redacted. Always false when the file has no error."
+        ),
     )
 
 

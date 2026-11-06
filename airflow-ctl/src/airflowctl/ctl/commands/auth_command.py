@@ -27,16 +27,20 @@ import sys
 import keyring
 import rich
 from keyring.errors import NoKeyringError
+from rich.markup import escape
 
 from airflowctl.api.client import (
     NEW_API_CLIENT,
     ClientKind,
     Credentials,
+    _is_token_in_keyring,
+    _read_api_url,
     get_default_api_url,
     provide_api_client,
 )
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.exceptions import AirflowCtlCredentialInvalidException
 
 
 @provide_api_client(kind=ClientKind.AUTH)
@@ -90,7 +94,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             rich.print(success_message)
             return
         except Exception as e:
-            rich.print(f"[red]Login failed: {e}")
+            rich.print(f"[red]Login failed: {escape(str(e))}")
             sys.exit(1)
 
     # Token-based login
@@ -153,7 +157,7 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
         )
         print(login_response.access_token)
     except Exception as e:
-        rich.print(f"[red]Token generation failed: {e}[/red]", file=sys.stderr)
+        rich.print(f"[red]Token generation failed: {escape(str(e))}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
@@ -187,11 +191,9 @@ def list_envs(args) -> None:
         config_status = "ok"
 
         try:
-            with open(config_path) as f:
-                config = json.load(f)
-                api_url = config.get("api_url", "unknown")
-        except (OSError, json.JSONDecodeError, KeyError) as e:
-            config_status = f"config error: {str(e)[:50]}"
+            api_url = _read_api_url(config_path)
+        except (OSError, ValueError, AirflowCtlCredentialInvalidException) as e:
+            config_status = f"config error: {e}"
             api_url = "error reading config"
 
         # Try to get token from keyring
@@ -206,7 +208,7 @@ def list_envs(args) -> None:
                         debug_creds = json.load(f)
                         if Credentials.token_key_for_environment(env_name) in debug_creds:
                             token_status = "authenticated"
-            else:
+            elif _is_token_in_keyring(config_path):
                 # Check keyring
                 token = keyring.get_password("airflowctl", Credentials.token_key_for_environment(env_name))
                 if token:

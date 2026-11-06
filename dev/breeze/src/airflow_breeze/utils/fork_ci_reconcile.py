@@ -85,6 +85,12 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 
 CI_WORKFLOW_FILE = "ci-amd.yml"
+# The workflows that run a pull request's CI in apache/airflow, depending on its base branch:
+# ci-amd.yml on main and on release branches it was backported to, ci-amd-arm.yml on release
+# branches cut before ci-amd.yml existed, ci.yml on the older v2 and providers release branches,
+# airflow-ctl-tests.yml on the airflow-ctl release branches. A run of any of them reports
+# `CI run started`, which both CI rulesets require on every base.
+PROJECT_CI_WORKFLOW_FILES = frozenset({CI_WORKFLOW_FILE, "ci-amd-arm.yml", "ci.yml", "airflow-ctl-tests.yml"})
 # The files the gate job of ci-amd.yml reads from a pull request's base branch.
 GATE_CONFIG_PATH = ".github/fork-ci-gate.toml"
 GATE_SCRIPT_PATH = "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"
@@ -128,17 +134,26 @@ TAMPER_WINDOW = timedelta(hours=6)
 # can have done project CI work and are worth listing jobs for.
 SUSPICIOUS_RUN_DURATION = timedelta(minutes=5)
 GATE_MAX_DURATION = timedelta(minutes=5)
-# Paths whose content defines what fork CI runs. A pull request changing them controls its own
-# fork CI result, so a green fork run cannot be trusted for it.
+# Paths that decide the build-info outputs (which jobs run and on which runners): the workflows
+# and actions, the breeze sources whose selective checks compute those outputs, the files that
+# install breeze, and scripts/ci/prek/, which holds the script selective checks runs to generate
+# the gitignored generated/provider_dependencies.json. That script runs with its directory first
+# on sys.path, so any module added there, such as a `yaml.py`, would run too. A pull request
+# changing them controls its own fork CI result and could change where project CI runs. Other CI
+# scripts, Dockerfiles and prek configuration only change what a selected job does, which review
+# of the diff covers like any other change.
 CI_DEFINING_PREFIXES = (
     ".github/",
-    "dev/breeze/",
-    "scripts/ci/",
-    "scripts/docker/",
-    "scripts/in_container/",
-    "Dockerfile",
+    "dev/breeze/src/",
+    "scripts/ci/prek/",
 )
-CI_DEFINING_SUFFIXES = (".pre-commit-config.yaml",)
+CI_DEFINING_FILES = frozenset(
+    {
+        "dev/breeze/pyproject.toml",
+        "dev/breeze/uv.lock",
+        "scripts/ci/install_breeze.sh",
+    }
+)
 PULL_REQUEST_FILES_CAP = 3000
 COMPARE_FILES_CAP = 300
 SLACK_SECTION_LIMIT = 3000
@@ -170,6 +185,16 @@ DEFERRED_RUNS_BEFORE_ALERT = 3
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
 RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+# Reading a fork run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2
+# stream) that the next run gets past, so a pull request whose job statuses failed is only reported
+# when it failed in this many consecutive runs.
+JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = 3
+# Fixed text, so the item is posted to Slack once while the failure persists, whatever the error;
+# the run log has each run's error.
+JOB_STATUSES_FAILED_REASON = (
+    f"reporting job statuses failed in {JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT} runs in a row; "
+    "the run log has the errors"
+)
 # A pull request whose fork run finished this long ago with job statuses still not all posted is
 # reported by itself: deferring is expected to catch up within a few runs, not to leave one behind.
 MIRROR_DELAY_BEFORE_ALERT = timedelta(hours=1)
@@ -451,7 +476,7 @@ def changes_ci_definition(files: Sequence[str], *, file_count: int | None = None
     return (
         (len(files) if file_count is None else file_count) >= PULL_REQUEST_FILES_CAP
         or touches(files, CI_DEFINING_PREFIXES)
-        or any(path.endswith(CI_DEFINING_SUFFIXES) for path in files)
+        or any(path in CI_DEFINING_FILES for path in files)
     )
 
 
@@ -743,12 +768,16 @@ def classify(
         plan.close = True
         return plan
 
-    if state == ForkState.GREEN:
+    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
+        # A green run that changes CI files still needs a maintainer's review, which a draft would
+        # hide; the `needs project ci` label marks it instead of the review label.
         if pr.is_draft and _is_bot(pr.last_draft_actor):
             plan.draft = False
         ready = not pr.is_draft or plan.draft is False
-        if ready and LABEL_READY_FOR_REVIEW not in labels:
+        if state == ForkState.GREEN and ready and LABEL_READY_FOR_REVIEW not in labels:
             plan.add_labels.append(LABEL_READY_FOR_REVIEW)
+        elif state == ForkState.GREEN_UNVERIFIED and LABEL_READY_FOR_REVIEW in labels:
+            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     else:
         # A run in progress needs nothing from the author, and drafting on it would draft every
         # approved pull request the moment it is rebased; it is drafted only if the run then fails.
@@ -757,7 +786,7 @@ def classify(
         if LABEL_READY_FOR_REVIEW in labels:
             plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other draft with a pending fork CI status.
+    # otherwise look like any other pull request with a pending fork CI status.
     _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
@@ -981,7 +1010,7 @@ query($q: String!, $cursor: String) {
 
 def find_project_ci_run_url(node: dict[str, Any]) -> str | None:
     """
-    The latest ci-amd.yml pull_request run of a pull request's head commit that still needs `CI run started`.
+    The latest project CI pull_request run of a pull request's head commit that still needs `CI run started`.
 
     None when the commit already has the status, when its latest run has not started because it waits
     for a maintainer's approval or there is none yet, and when the last commit listed is not the head:
@@ -997,7 +1026,7 @@ def find_project_ci_run_url(node: dict[str, Any]) -> str | None:
         suite
         for suite in (commit.get("checkSuites") or {}).get("nodes") or []
         if (run := suite.get("workflowRun") or {}).get("event") == "pull_request"
-        and _workflow_file((run.get("workflow") or {}).get("resourcePath")) == CI_WORKFLOW_FILE
+        and _workflow_file((run.get("workflow") or {}).get("resourcePath")) in PROJECT_CI_WORKFLOW_FILES
     ]
     if not runs:
         return None
@@ -1021,10 +1050,14 @@ def read_project_ci_run_url(client: GitHubClient, repo: str, head_sha: str) -> s
         status["context"] == CI_RUN_STARTED_CONTEXT and status["state"] == "success" for status in statuses
     ):
         return None
-    runs = client.rest_get(
-        f"repos/{repo}/actions/workflows/{CI_WORKFLOW_FILE}/runs"
-        f"?event=pull_request&head_sha={head_sha}&per_page=1"
-    ).get("workflow_runs", [])
+    # Newest first, and across every workflow: which one runs CI depends on the base branch.
+    runs = [
+        run
+        for run in client.rest_get(
+            f"repos/{repo}/actions/runs?event=pull_request&head_sha={head_sha}&per_page=100"
+        ).get("workflow_runs", [])
+        if _workflow_file(run.get("path")) in PROJECT_CI_WORKFLOW_FILES
+    ]
     if not runs or runs[0].get("conclusion") == "action_required":
         return None
     return runs[0]["html_url"]
@@ -1385,11 +1418,7 @@ class JobStatusReporter:
         if self.remaining == 0:
             self._defer(pr, fork)
             return None
-        jobs = self._client.rest_get(
-            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
-            paginate=True,
-            items_key="jobs",
-        )
+        jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -1542,11 +1571,7 @@ class BypassFinder:
 
     def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
         if run.id not in self._jobs:
-            self._jobs[run.id] = self._client.rest_get(
-                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                paginate=True,
-                items_key="jobs",
-            )
+            self._jobs[run.id] = self._client.get_run_jobs(self._repo, run.id)
         return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
@@ -2085,6 +2110,7 @@ def drop_reported(
     record: bool = True,
     deferred_runs: int = 0,
     rate_limited_runs: int = 0,
+    job_status_failure_runs: dict[int, int] | None = None,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
     """
     Leave out the items the previous run already reported, and record this run's items.
@@ -2094,6 +2120,8 @@ def drop_reported(
 
     :param deferred_runs: the consecutive runs that deferred job statuses, recorded for the next run.
     :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
+    :param job_status_failure_runs: per pull request, the consecutive runs whose job statuses failed,
+        recorded for the next run.
     """
     current: dict[str, Any] = {
         "unknown": [list(item) for item in unknown],
@@ -2101,6 +2129,9 @@ def drop_reported(
         "notes": notes,
         "deferred_runs": deferred_runs,
         "rate_limited_runs": rate_limited_runs,
+        "job_status_failure_runs": {
+            str(number): runs for number, runs in (job_status_failure_runs or {}).items()
+        },
     }
     try:
         previous = json.loads(reported_file.read_text())
@@ -2131,6 +2162,24 @@ def read_run_count(reported_file: Path | None, key: str) -> int | None:
     # A record written before the count was kept has none.
     count = previous.get(key, 0)
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
+
+
+def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
+    """Per pull request, the consecutive runs whose job statuses failed, as the previous run recorded."""
+    if reported_file is None:
+        return {}
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        return {}
+    counts = previous.get("job_status_failure_runs") if isinstance(previous, dict) else None
+    if not isinstance(counts, dict):
+        return {}
+    return {
+        int(number): runs
+        for number, runs in counts.items()
+        if number.isdigit() and isinstance(runs, int) and not isinstance(runs, bool)
+    }
 
 
 def log_rate_limits(client: GitHubClient) -> None:
@@ -2228,6 +2277,8 @@ def run_reconcile(
         client, repo=repo, budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes, 0), now=now
     )
 
+    previous_job_status_failure_runs = read_job_status_failure_runs(reported_file)
+    job_status_failure_runs: dict[int, int] = {}
     shared_heads = find_heads_shared_across_bases(prs)
     gate_change_finder = GateChangeFinder(client, repo=repo)
     for listed in prs:
@@ -2247,8 +2298,14 @@ def run_reconcile(
                 try:
                     jobs_reported = job_reporter.report(pr, fork)
                 except Exception as e:
-                    console_print(f"[warning]#{pr.number}: reporting job statuses failed: {e}[/]")
-                    unknown.append((pr.number, f"reporting job statuses failed: {type(e).__name__}: {e}"))
+                    failure_runs = previous_job_status_failure_runs.get(pr.number, 0) + 1
+                    job_status_failure_runs[pr.number] = failure_runs
+                    console_print(
+                        f"[warning]#{pr.number}: reporting job statuses failed ({failure_runs} runs in a "
+                        f"row): {type(e).__name__}: {e}[/]"
+                    )
+                    if failure_runs >= JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT:
+                        unknown.append((pr.number, JOB_STATUSES_FAILED_REASON))
 
             base_config = configs.get(pr.base_ref)
             if base_config is not None:
@@ -2323,6 +2380,7 @@ def run_reconcile(
             record=not client.dry_run,
             deferred_runs=deferred_runs,
             rate_limited_runs=rate_limited_runs,
+            job_status_failure_runs=job_status_failure_runs,
         )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:

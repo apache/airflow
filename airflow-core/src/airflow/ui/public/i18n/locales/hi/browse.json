@@ -28,10 +28,11 @@
         "lastParsed": "अंतिम पार्स",
         "parseDuration": "पार्स अवधि"
       },
-      "file_one": "फ़ाइल",
-      "file_other": "फ़ाइलें",
       "importErrorGone": "यह इम्पोर्ट त्रुटि अब दर्ज नहीं है। संभवतः इसे पुनः पार्स द्वारा ठीक कर दिया गया था।",
       "neverParsed": "कभी नहीं",
+      "parsedFile_one": "पार्स की गई फ़ाइल",
+      "parsedFile_other": "पार्स की गई फ़ाइलें",
+      "parsedFilesNote": "केवल वे फ़ाइलें दिखाई जाती हैं जो कोई डैग परिभाषित करती हैं या जिनका इम्पोर्ट विफल हुआ।",
       "showImportError_one": "त्रुटि देखें",
       "showImportError_other": "{{count, number}} त्रुटियां देखें"
     },

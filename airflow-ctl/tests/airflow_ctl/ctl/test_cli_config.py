@@ -70,6 +70,7 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
+    AirflowCtlCredentialInvalidException,
     AirflowCtlCredentialNotFoundException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
@@ -722,11 +723,18 @@ class TestCliConfigMethods:
         "raised_exception",
         [
             AirflowCtlCredentialNotFoundException("missing credentials"),
+            AirflowCtlCredentialInvalidException("unusable credentials"),
             AirflowCtlConnectionException("connection failed"),
             AirflowCtlKeyringException("keyring failure"),
             AirflowCtlNotFoundException("resource not found"),
         ],
-        ids=["credential-not-found", "connection-error", "keyring-error", "not-found"],
+        ids=[
+            "credential-not-found",
+            "credential-invalid",
+            "connection-error",
+            "keyring-error",
+            "not-found",
+        ],
     )
     def test_safe_call_command_exits_non_zero_for_airflowctl_exceptions(self, raised_exception):
         def raise_error(_args):
@@ -787,6 +795,84 @@ class TestCliConfigMethods:
         assert ctx.value.code == 1
 
     @pytest.mark.parametrize(
+        ("raised_exception", "expected"),
+        [
+            pytest.param(
+                AirflowCtlNotFoundException("resource not found"),
+                ["command failed due to resource not found"],
+                id="airflowctl",
+            ),
+            pytest.param(
+                httpx.RemoteProtocolError("Server disconnected without sending a response."),
+                ["Remote protocol error:", "check if the server is running and the API URL is correct"],
+                id="protocol",
+            ),
+            pytest.param(
+                httpx.ReadTimeout("timed out"),
+                ["Request timeout error: timed out", "the API ready to accept calls"],
+                id="timeout",
+            ),
+            pytest.param(
+                ServerResponseError.from_response(
+                    httpx.Response(
+                        400,
+                        request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                        json={"detail": "bad"},
+                    )
+                ),
+                [
+                    "Server response error: Client error message:",
+                    "Please check the command and its parameters",
+                ],
+                id="server-response",
+            ),
+        ],
+    )
+    def test_safe_call_command_reports_errors_on_stderr(self, raised_exception, expected, capsys):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit):
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        err = " ".join(captured.err.split())
+        for text in expected:
+            assert text in err
+
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            AirflowCtlNotFoundException("not found [/bogus]"),
+            httpx.RemoteProtocolError("protocol error [/bogus]"),
+            httpx.ReadTimeout("timed out [/bogus]"),
+            httpx.HTTPStatusError(
+                "status error [/bogus]",
+                request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                response=httpx.Response(302),
+            ),
+            ServerResponseError(
+                "server error [/bogus]",
+                request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                response=httpx.Response(500, json={"detail": "boom"}),
+            ),
+        ],
+        ids=["airflowctl", "protocol", "timeout", "http-status", "server-response"],
+    )
+    def test_safe_call_command_prints_error_text_containing_markup(self, raised_exception, capsys):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "[/bogus]" in captured.err
+
+    @pytest.mark.parametrize(
         ("response", "hint_expected"),
         [
             pytest.param(
@@ -819,9 +905,9 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
         # Rich hard-wraps at the console width, so normalise before matching on a phrase.
-        out = " ".join(capsys.readouterr().out.split())
-        assert "Server response error:" in out
-        assert ("does not follow" in out) is hint_expected
+        err = " ".join(capsys.readouterr().err.split())
+        assert "Server response error:" in err
+        assert ("does not follow" in err) is hint_expected
 
     @pytest.mark.parametrize(
         ("model", "payload", "expected", "unexpected"),
@@ -859,11 +945,11 @@ class TestCliConfigMethods:
             safe_call_command(raise_validation_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
-        out = " ".join(capsys.readouterr().out.split())
+        err = " ".join(capsys.readouterr().err.split())
         for text in expected:
-            assert text in out
+            assert text in err
         for text in unexpected:
-            assert text not in out
+            assert text not in err
 
     def test_safe_call_command_reports_non_json_response(self, capsys):
         def raise_validation_error(_args):
@@ -873,8 +959,8 @@ class TestCliConfigMethods:
             safe_call_command(raise_validation_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
-        out = " ".join(capsys.readouterr().out.split())
-        assert "Server returned a non-JSON response for PoolResponse" in out
+        err = " ".join(capsys.readouterr().err.split())
+        assert "Server returned a non-JSON response for PoolResponse" in err
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
@@ -1184,6 +1270,37 @@ class TestCliConfigMethods:
         assert args_by_flag["--task-ids"].kwargs["type"] is str
         assert "--output" in args_by_flag
 
+    def test_tasks_get_and_list_args_parse(self):
+        """``tasks get`` and ``tasks list`` parse positionals and optional flags, and reject missing required args."""
+        command_factory = CommandFactory()
+        tasks_group = next(
+            group_command for group_command in command_factory.group_commands if group_command.name == "tasks"
+        )
+        sub_commands = {sub_command.name: sub_command for sub_command in tasks_group.subcommands}
+
+        get_parser = argparse.ArgumentParser()
+        for arg in sub_commands["get"].args:
+            arg.add_to_parser(get_parser)
+        namespace = get_parser.parse_args(["example_bash_operator", "runme_0"])
+        assert namespace.dag_id == "example_bash_operator"
+        assert namespace.task_id == "runme_0"
+        assert namespace.version_number is None
+        namespace = get_parser.parse_args(["example_bash_operator", "runme_0", "--version-number", "3"])
+        assert namespace.version_number == 3
+        with pytest.raises(SystemExit):
+            get_parser.parse_args(["example_bash_operator"])
+
+        list_parser = argparse.ArgumentParser()
+        for arg in sub_commands["list"].args:
+            arg.add_to_parser(list_parser)
+        namespace = list_parser.parse_args(["example_bash_operator"])
+        assert namespace.dag_id == "example_bash_operator"
+        assert namespace.order_by is None
+        namespace = list_parser.parse_args(["example_bash_operator", "--order-by=-start_date"])
+        assert namespace.order_by == "-start_date"
+        with pytest.raises(SystemExit):
+            list_parser.parse_args([])
+
     @pytest.mark.parametrize(
         ("field", "raw_value", "expected_value"),
         [
@@ -1304,6 +1421,8 @@ class TestCliConfigMethods:
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("taskinstances", "state-store", "Manage the state store of a task instance"),
+            ("tasks", "get", "Retrieve a task for a Dag by its ID and task ID"),
+            ("tasks", "list", "List tasks for a Dag"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
@@ -1398,6 +1517,22 @@ class TestCliConfigMethods:
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "test", autospec=True)
+    def test_failed_connections_test_prints_result_and_exits_non_zero(self, mocked_test, mocked_print_as):
+        mocked_test.return_value = ConnectionTestResponse(status=False, message="Connection refused")
+        args = cli_parser.get_parser().parse_args(
+            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert exc_info.value.code == 1
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"status": False, "message": "Connection refused"}
+        ]
 
     @mock.patch.object(AirflowConsole, "print_as", autospec=True)
     @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)

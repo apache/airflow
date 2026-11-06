@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import platform
 import re
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -47,22 +48,23 @@ PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 # runners were reclaimed far more often than the rest (13-54% vs. 1-4%, Oct 2026): m5, m5a, m6a and,
 # for the in-memory runners, r7a, r6a, r6i; r7i, which AWS Spot Advisor rates >20% there, too.
 RUNS_ON_AMD_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "runs-on={run_id}/env=flex/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}"
 )
 RUNS_ON_ARM_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={{0}}/ram={{1}}"
+    "runs-on={run_id}/env=flex/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}"
 )
 # The same runners with docker, /tmp and /home/runner on a RAM disk (RunsOn `extras=tmpfs`), for jobs whose
 # databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
 # ask for memory headroom and also accept the memory-optimized r-family.
 RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i+r8i"
+    "runs-on={run_id}/env=flex/family=m8a+m8i+m7a+m7i+m6i+r8i"
     "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}/extras=tmpfs"
 )
 RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "runs-on={run_id}/env=flex/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}/extras=tmpfs"
 )
 
@@ -364,6 +366,12 @@ SCHEMA_DESTINATION_LOCATIONS = [
 ]
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
+
+# Published docs folders that are not PEP 440 versions, such as Maven snapshots staged for testing.
+# Any other invalid version folder still fails the docs publishing.
+PACKAGES_METADATA_EXCLUDE_VERSIONS: dict[str, list[str]] = {
+    "java-sdk": ["1.0.0-SNAPSHOT"],
+}
 
 
 @clearable_cache
@@ -828,6 +836,7 @@ DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 FILES_FOR_REBUILD_CHECK = [
     "Dockerfile.ci",
     "dev/breeze/src/airflow_breeze/files/hardened_python_image_digests.json",
+    "dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json",
     ".dockerignore",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
@@ -933,6 +942,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "",
         "run-unit-tests": "true",
     },
+    {
+        "python-version": "3.11",
+        "airflow-version": "3.4.0",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
@@ -984,6 +999,69 @@ def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DE
 def get_hardened_python_image_retention_tag(tag: str, digest: str) -> str:
     """Return the mirror tag that keeps a pinned digest tagged after its moving tag has moved on."""
     return f"{tag}-{digest.removeprefix('sha256:')[:12]}"
+
+
+# The OS dependencies of the hardened images come from the dhi.io apt repository, which is live: it
+# moves on - and drops the versions it replaced - under a base image pinned to a digest. The
+# "Mirror hardened base images" workflow therefore also builds images with the OS dependencies already
+# installed, daily, one per installation type of install_os_dependencies.sh. The CI and release builds
+# start from those, pinned to a digest the same way as the Python base images.
+HARDENED_OS_DEPS_IMAGE_REPOSITORY = "ghcr.io/apache/airflow/base/os-deps"
+
+
+@dataclass(frozen=True)
+class OsDepsImageType:
+    """One installation type of install_os_dependencies.sh, built as an image of its own."""
+
+    name: str
+    dockerfile: str
+    # The stage that ends with the installation - its image is the OS-dependencies image.
+    target: str
+    # The build arg naming the image that stage starts from.
+    build_arg: str
+
+
+OS_DEPS_IMAGE_TYPES = (
+    OsDepsImageType(name="ci", dockerfile="Dockerfile.ci", target="ci-os-deps", build_arg="CI_OS_DEPS_IMAGE"),
+    OsDepsImageType(name="dev", dockerfile="Dockerfile", target="dev-os-deps", build_arg="DEV_OS_DEPS_IMAGE"),
+    OsDepsImageType(
+        name="runtime", dockerfile="Dockerfile", target="runtime-os-deps", build_arg="RUNTIME_OS_DEPS_IMAGE"
+    ),
+)
+# Only the default Debian version: the CI image and the default PROD image are built on it, the other
+# ones install their OS dependencies from the apt repositories.
+OS_DEPS_IMAGE_DEBIAN_VERSION = ALLOWED_DEBIAN_VERSIONS[0]
+# Written by scripts/ci/prek/upgrade_important_versions.py together with the Python base image digests,
+# so the pins only move in the upgrade PR, after the full CI has passed on them. Only main carries pins:
+# the images are built from main's install_os_dependencies.sh and Dockerfiles, so the upgrade leaves the
+# file empty on other branches until there are images per branch.
+HARDENED_OS_DEPS_IMAGE_DIGESTS_PATH = (
+    AIRFLOW_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "files"
+    / "hardened_os_deps_image_digests.json"
+)
+HARDENED_OS_DEPS_IMAGE_DIGESTS: dict[str, str] = json.loads(HARDENED_OS_DEPS_IMAGE_DIGESTS_PATH.read_text())
+
+
+def get_os_deps_image_tag(image_type: str, python: str) -> str:
+    """Return the tag of the latest published OS-dependencies image - also the key of its pin."""
+    return f"{image_type}-{get_hardened_python_image_tag(python, OS_DEPS_IMAGE_DEBIAN_VERSION)}"
+
+
+def get_os_deps_image_python_tag(image_type: str, python_tag: str, python_digest: str) -> str:
+    """Return the prefix of the tags of the OS-dependencies images built on one base image digest."""
+    return f"{image_type}-{python_tag}-{python_digest.removeprefix('sha256:')[:12]}"
+
+
+def get_pinned_os_deps_image(image_type: str, python: str) -> str | None:
+    """Return the pinned OS-dependencies image of an installation type, or None if there is no pin."""
+    tag = get_os_deps_image_tag(image_type, python)
+    digest = HARDENED_OS_DEPS_IMAGE_DIGESTS.get(tag)
+    return f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag}@{digest}" if digest else None
 
 
 def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:

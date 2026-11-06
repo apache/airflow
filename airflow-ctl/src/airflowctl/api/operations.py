@@ -66,6 +66,7 @@ from airflowctl.api.datamodels.generated import (
     DAGVersionCollectionResponse,
     DagVersionResponse,
     DAGWarningCollectionResponse,
+    DryRunBackfillCollectionResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -79,9 +80,12 @@ from airflowctl.api.datamodels.generated import (
     ProviderDetailsResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
+    TaskResponse,
     TaskStateStoreBody,
     TaskStateStoreCollectionResponse,
     TaskStateStorePatchBody,
@@ -329,20 +333,26 @@ class BaseOperations:
         total_entries = first_pass.total_entries
         # An older server that omits total_entries leaves it None; treat that as "no more
         # pages" rather than raising on the comparison below.
-        if total_entries is None or total_entries < limit:
+        if total_entries is None:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
             if key != "total_entries" and isinstance(value, list):
                 found_key = key
                 break
+        if found_key is None:
+            return first_pass
         entry_list = getattr(first_pass, found_key)
-        offset = offset + limit
-        while offset < total_entries:
+        # The server may cap ``limit`` (``api.maximum_page_limit``), so advance by the number of
+        # entries received rather than by the requested limit, or the capped-off entries are skipped.
+        page_size = len(entry_list)
+        offset = offset + page_size
+        while page_size and offset < total_entries:
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
-            entry = validate_response(self.response.content, data_model)
-            offset = offset + limit
-            entry_list.extend(getattr(entry, found_key))
+            page_entries = getattr(validate_response(self.response.content, data_model), found_key)
+            entry_list.extend(page_entries)
+            page_size = len(page_entries)
+            offset = offset + page_size
         return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 
@@ -481,13 +491,15 @@ class BackfillOperations(BaseOperations):
         )
         return validate_response(self.response.content, BackfillResponse)
 
-    def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
+    def create_dry_run(
+        self, backfill: BackfillPostBody
+    ) -> DryRunBackfillCollectionResponse | ServerResponseError:
         """Create a dry run backfill."""
         self.response = self.client.post(
             "backfills/dry_run",
             json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
-        return validate_response(self.response.content, BackfillResponse)
+        return validate_response(self.response.content, DryRunBackfillCollectionResponse)
 
     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Get a backfill."""
@@ -697,8 +709,8 @@ class DagRunOperations(BaseOperations):
 
         Args:
             state: Filter Dag runs by state (optional; no filter applied when omitted)
-            start_date: Filter Dag runs by start date (optional)
-            end_date: Filter Dag runs by end date (optional)
+            start_date: Return only Dag runs that started at or after this time (optional)
+            end_date: Return only Dag runs that ended at or before this time (optional)
             limit: Limit the number of results returned
             offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
@@ -720,8 +732,8 @@ class DagRunOperations(BaseOperations):
             limit=limit,
             offset=offset,
             state=str(state) if state is not None else None,
-            start_date=start_date,
-            end_date=end_date,
+            start_date_gte=start_date,
+            end_date_lte=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
             partition_date_gte=partition_date_gte,
@@ -877,6 +889,32 @@ class TaskInstancesOperations(BaseOperations):
         )
         return validate_response(self.response.content, TaskDependencyCollectionResponse)
 
+    def logs(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        try_number: int,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskInstancesLogResponse | ServerResponseError:
+        """Get the logs of a task instance for a given try number."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=None
+        )
+        # Without full_content the endpoint returns one chunk and a continuation token, so a running or
+        # remotely stored log would print only partially.
+        params: dict[str, Any] = {"full_content": True}
+        if map_index is not None and map_index >= 0:
+            params["map_index"] = map_index
+        self.response = self.client.get(
+            f"{path}/logs/{try_number}",
+            params=params,
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskInstancesLogResponse.model_validate_json(self.response.content)
+
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""
         return super().execute_list(
@@ -968,6 +1006,26 @@ class TaskInstancesOperations(BaseOperations):
 
 class TasksOperations(BaseOperations):
     """Tasks operations."""
+
+    def get(
+        self, dag_id: str, task_id: str, version_number: int | None = None
+    ) -> TaskResponse | ServerResponseError:
+        """Get a task for a Dag."""
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/tasks/{_quote_path_param(task_id)}",
+            params=_build_query_params(version_number=version_number),
+        )
+        return validate_response(self.response.content, TaskResponse)
+
+    def list(self, dag_id: str, order_by: str | None = None) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks for a Dag."""
+        # The server returns every task for the Dag in one response, so this
+        # intentionally does not use execute_list's limit/offset pagination.
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/tasks",
+            params=_build_query_params(order_by=order_by),
+        )
+        return validate_response(self.response.content, TaskCollectionResponse)
 
     def clear(
         self, dag_id: str, clear_task_instances: ClearTaskInstancesBody
