@@ -86,9 +86,11 @@ By default Airflow runs Cloud SQL Auth Proxy v1. To run Cloud SQL Auth Proxy v2 
 release to download, as there is no "latest" download for v2, unless the ``sql_proxy_binary_path`` argument
 of the hook or operator points to an existing v2 binary. Both must be v2.2.0 or newer.
 
-Cloud SQL for MySQL 8.4 users authenticating with ``caching_sha2_password`` need v2. v1 cannot complete
-that plugin's full authentication, so connections fail with ``1045 Access denied`` after the server's
-authentication cache is emptied, for example by an instance restart.
+Cloud SQL for MySQL 8.4 users authenticating with ``caching_sha2_password`` need v2.19.0 or newer, and
+must keep the default Unix socket mode (``sql_proxy_use_tcp`` disabled). v1 and older v2 releases cannot
+complete that plugin's full authentication, so connections fail with ``1045 Access denied`` after the
+server's authentication cache is emptied, for example by an instance restart. Over TCP, full authentication
+needs the client to retrieve the server's public key, which the MySQL hook cannot be configured to do.
 
 Cloud SQL Auth Proxy v2 connects only to the instance's public IP by default, while v1 falls back to the
 private IP when the instance has no public IP. Airflow passes ``--auto-ip`` to v2 to keep the v1 behavior,
@@ -117,7 +119,7 @@ Example "extras" field:
       "instance": "testinstance",
       "use_proxy": true,
       "sql_proxy_major_version": 2,
-      "sql_proxy_version": "v2.14.0"
+      "sql_proxy_version": "v2.27.0"
    }
 
 Configuring and using IAM authentication
@@ -198,7 +200,7 @@ Example "extras" field for MySQL:
       "sql_proxy_use_tcp": true,
       "sql_proxy_enable_iam_login": true,
       "sql_proxy_major_version": 2,
-      "sql_proxy_version": "v2.14.0"
+      "sql_proxy_version": "v2.27.0"
    }
 
 .. note::

@@ -601,7 +601,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         default project id taken from the Google Cloud connection.
     :param sql_proxy_version: Specific version of SQL proxy to download
         (for example 'v1.13'). By default, latest version is downloaded.
-        With ``sql_proxy_major_version=2`` the version (for example 'v2.14.0') is required
+        With ``sql_proxy_major_version=2`` the version (for example 'v2.27.0') is required
         to download the proxy, as there is no "latest" download for v2.
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
@@ -714,7 +714,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             if not self.sql_proxy_version:
                 raise ValueError(
                     "The sql_proxy_version must be specified to download Cloud SQL Auth Proxy v2 "
-                    "(for example 'v2.14.0')!"
+                    "(for example 'v2.27.0')!"
                 )
             if not CLOUD_SQL_PROXY_V2_VERSION_REGEX.fullmatch(self.sql_proxy_version):
                 raise ValueError(
@@ -943,7 +943,7 @@ class CloudSQLDatabaseHook(BaseHook):
       proxy, otherwise UNIX sockets are used.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
       v1.13). If not specified, the latest version is downloaded. Required when
-      ``sql_proxy_major_version`` is 2 and the binary has to be downloaded (for example v2.14.0).
+      ``sql_proxy_major_version`` is 2 and the binary has to be downloaded (for example v2.27.0).
     * **sql_proxy_major_version** - (default 1) Major version of Cloud SQL Auth Proxy to use,
       either 1 or 2.
     * **sslcert** - Path to client certificate to authenticate when SSL is used.
