@@ -4844,6 +4844,9 @@ bedrock = [
 boat = [
     { name = "boat-sdk" },
 ]
+boxd = [
+    { name = "boxd" },
+]
 claude-agent-sdk = [
     { name = "claude-agent-sdk" },
 ]
@@ -4931,6 +4934,7 @@ dev = [
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
     { name = "boat-sdk" },
+    { name = "boxd" },
     { name = "claude-agent-sdk" },
     { name = "grpcio" },
     { name = "islo" },
@@ -4965,6 +4969,7 @@ requires-dist = [
     { name = "apache-airflow-providers-modal", marker = "extra == 'modal'", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "boat-sdk", marker = "extra == 'boat'", specifier = ">=1.9.3" },
+    { name = "boxd", marker = "extra == 'boxd'", specifier = ">=0.2.22" },
     { name = "claude-agent-sdk", marker = "extra == 'claude-agent-sdk'", specifier = ">=0.2.160" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
@@ -5001,7 +5006,7 @@ requires-dist = [
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
     { name = "uvicorn", marker = "extra == 'openai-codex'", specifier = ">=0.31.1" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "claude-agent-sdk", "openai-codex"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "boxd", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "claude-agent-sdk", "openai-codex"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5016,6 +5021,7 @@ dev = [
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "boat-sdk", specifier = ">=1.9.3" },
+    { name = "boxd", specifier = ">=0.2.22" },
     { name = "claude-agent-sdk", specifier = ">=0.2.160" },
     { name = "grpcio", specifier = ">=1.78.0" },
     { name = "islo", specifier = ">=0.3.19" },
@@ -11361,6 +11367,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6e/a0/d0a5c44ad6a01f195681ddcb4ce203f06c712811daf1d15f8f8785e8a9f8/botocore-1.43.117.tar.gz", hash = "sha256:71993702832cc37c2495048b9945f2929d306fccb3fb767e9964e437e637fa6c", size = 16366888, upload-time = "2026-10-21T19:29:59.274Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/94/050e35c9febf6dd2fce4a76be587ae4a323964865700467d9d7b082f7133/botocore-1.43.117-py3-none-any.whl", hash = "sha256:5920ef9b3002e1361846549078549d9154a6e0004c22853c01ce7b279d05d495", size = 16061765, upload-time = "2026-10-21T19:29:56.001Z" },
+]
+
+[[package]]
+name = "boxd"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "grpcio" },
+    { name = "httpx" },
+    { name = "protobuf" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1d/37/ad184af822d5b1c8171330986aef06e521d0e3dd0c0c47b3c37f5a1a85b7/boxd-0.3.2.tar.gz", hash = "sha256:03aa9471d1ddd663a379655b19bc7a1f20b6199a5aadfb51238889552450bd75", size = 308049, upload-time = "2026-11-13T01:14:49.059Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/f0/badded7811ce0c26841e0a6145c98413189a138dc2edca2eb61f9abf5787/boxd-0.3.2-py3-none-any.whl", hash = "sha256:b78c9609ea8bbad942a27447718902744ce8904bed2185c79283eea2bfd72c42", size = 199336, upload-time = "2026-11-13T01:14:47.777Z" },
 ]
 
 [[package]]

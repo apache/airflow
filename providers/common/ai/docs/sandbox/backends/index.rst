@@ -31,6 +31,7 @@ Sandbox backends
     boat
     opensandbox
     openshell
+    boxd
     sbx
     custom
 
@@ -47,7 +48,7 @@ assuming the same Dag behaves identically everywhere:
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
   0.125 of one, so set ``cpu``; OpenSandbox and OpenShell take ``cpu`` as a limit the
   server enforces; Boat sizes by ``machine_type``; Islo uses the server default unless
-  you set ``vcpus``.
+  you set ``vcpus``; boxd uses the organization's default size unless you set ``size``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer, and unless constructed with ``host_network_policy="deny-all"`` it refuses
   both an allowlist and ``block_network``, so it refuses a bare ``SandboxSpec()``
@@ -57,25 +58,27 @@ assuming the same Dag behaves identically everywhere:
   request, refusing a sidecar that filters only name resolution (``dns``) rather
   than connections (``dns+nft``); OpenShell enforces it in a per-sandbox supervisor
   on port 443 only, and reads the effective policy back at create and around every
-  operation. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and
-  refused on ``sbx``, OpenSandbox, OpenShell and Islo; OpenShell's address rules admit
+  operation; boxd enforces it outside the guest and admits plain HTTP to a listed
+  host too. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and
+  boxd, though boxd admits HTTP and HTTPS by hostname only, even to a listed
+  address, and it is refused on ``sbx``, OpenSandbox, OpenShell and Islo; OpenShell's address rules admit
   TCP on listed ports only, and it also refuses ``block_network=False``. Islo has no
   per-host form and refuses the spec; Boat has no form of egress control at all and
   refuses every network restriction. Both refuse rather than provision something
   weaker.
 - **Command timeouts.** A timeout destroys an ``sbx`` or Islo sandbox and its files;
-  Modal, Boat and a server-enforced OpenSandbox timeout preserve the sandbox and
+  Modal, Boat, boxd and a server-enforced OpenSandbox timeout preserve the sandbox and
   files. OpenSandbox destroys it only if the command event stream itself stalls
-  past the client-side grace period, and Boat only if its own deadline, set past
-  the one in the guest, ends the call. OpenShell kills the command's session and
+  past the client-side grace period, and Boat and boxd only if their own deadline, set
+  past the one in the guest, ends the call. OpenShell kills the command's session and
   keeps the sandbox; if the gateway stops relaying the command, the backend asks it
   to delete the sandbox, and only a delete that fails too leaves it for the reaper
   described under :ref:`OpenShell <sandbox-backend-openshell>`.
-- **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx``, Boat
-  and OpenShell, which write the target and leave the link in place, and replaces
+- **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx``, Boat,
+  boxd and OpenShell, which write the target and leave the link in place, and replaces
   the link with a regular file on Modal and OpenSandbox.
-- **Attaching.** A Modal sandbox can be provisioned by one task and used by an
-  agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
+- **Attaching.** A Modal or boxd sandbox can be provisioned by one task and used by
+  an agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
   that created it and cannot be reached from another task, OpenSandbox, Boat and
   Islo have no per-sandbox metadata the ownership rules could be kept in, and
   OpenShell does not implement attaching yet, so all five refuse ``SandboxSpec.owner``
