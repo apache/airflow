@@ -387,7 +387,6 @@
       "toggleExpand": "모든 그룹 펼치기/접기",
       "toggleFullscreen": "전체 화면 전환",
       "toggleGraphGrid": "그래프 / 그리드 뷰 전환",
-      "toggleGridCellSelection": "TODO: translate: Add or remove a $t(taskInstance_one) or $t(taskGroup_one) from the selection",
       "toggleLogLevel": "로그 레벨 보기/숨기기",
       "toggleSource": "소스 보기/숨기기",
       "toggleTaskGroup": "$t(taskGroup_one) 펼치기/접기",
