@@ -83,7 +83,6 @@
   "dagRun_one": "Dag Çalıştırması",
   "dagRun_other": "Dag Çalıştırmaları",
   "dagRunId": "Eşsiz Dag Çalıştırma Kimliği",
-  "dagWarnings": "Dag Uyarıları/Hataları",
   "defaultToGraphView": "Varsayılan olarak grafik görünümü",
   "defaultToGridView": "Varsayılan olarak ızgara görünümü",
   "delete": "Sil",

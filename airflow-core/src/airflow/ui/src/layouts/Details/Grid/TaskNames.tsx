@@ -24,10 +24,12 @@ import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
+import type { GridTISummaries } from "openapi/requests";
+
 import { TaskName } from "src/components/TaskName";
 
 import { useGroups } from "src/context/groups";
-import { stripExecutionParams } from "src/utils/executionParams";
+import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
@@ -36,12 +38,13 @@ type Props = {
   readonly depth?: number;
   readonly nodes: Array<GridTask>;
   readonly onRowClick?: () => void;
+  readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
+export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useGroups();
   const { dagId = "", groupId, taskId } = useParams();
@@ -73,7 +76,18 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     onRowClick?.();
   };
 
-  const search = stripExecutionParams(searchParams).toString();
+  const baseSearchParams = stripExecutionParams(searchParams);
+  // A task inside a loop has one row per iteration, so its link needs a coordinate or the API
+  // cannot say which one is meant. The grid shows the task once, so point at the newest.
+  const searchFor = (nodeId: string) => {
+    const summary = tiSummaries?.task_instances.find((ti) => ti.task_id === nodeId);
+
+    return setExecutionCoordinates(
+      new URLSearchParams(baseSearchParams),
+      summary?.latest_region_id,
+      summary?.latest_region_index,
+    ).toString();
+  };
 
   // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =
@@ -126,7 +140,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                   style={{ outline: "none" }}
                   to={{
                     pathname: `/dags/${dagId}/tasks/group/${node.id}`,
-                    search,
+                    search: searchFor(node.id),
                   }}
                 >
                   <Flex alignItems="center" width="100%">
@@ -137,7 +151,6 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                       isLoop={Boolean(node.is_loop)}
                       isMapped={Boolean(node.is_mapped)}
                       label={node.label}
-                      loopMaxIterations={node.loop_max_iterations}
                       paddingLeft={indent(node.depth)}
                       setupTeardownType={node.setup_teardown_type}
                     />
@@ -170,7 +183,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                   replace
                   to={{
                     pathname: `/dags/${dagId}/tasks/${node.id}`,
-                    search,
+                    search: searchFor(node.id),
                   }}
                 >
                   <TaskName

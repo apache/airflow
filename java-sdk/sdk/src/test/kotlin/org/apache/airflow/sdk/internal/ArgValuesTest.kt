@@ -54,7 +54,7 @@ private class NoopArgTask : Task {
   ) = Unit
 }
 
-/** Resolution of the inputs a `@Builder.Deps` class recorded, without runtime bindings. */
+/** Resolution of the inputs an `@Airflow.Deps` class recorded, without runtime bindings. */
 internal class ArgValuesTest {
   /** Upstream task ids read through the transport, in arrival order. */
   private val pulls = java.util.concurrent.CopyOnWriteArrayList<String>()

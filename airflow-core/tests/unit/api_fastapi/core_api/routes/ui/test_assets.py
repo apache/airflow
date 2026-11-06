@@ -35,6 +35,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagbundle import DagBundleModel
@@ -707,6 +708,42 @@ class TestGetAssetsUi:
         # The count must be scoped too, so the existence of hidden assets does not leak.
         assert body["total_entries"] == 1
 
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_only_references_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        bundle = DagBundleModel(name="testing")
+        session.add(bundle)
+        asset = AssetModel(name="shared", uri="s3://bucket/shared", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+        for dag_id in ("dag_a", "dag_b"):
+            session.add_all(
+                [
+                    DagModel(dag_id=dag_id, bundle_name="testing"),
+                    DagScheduleAssetReference(dag_id=dag_id, asset=asset),
+                    TaskOutletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_producer", asset=asset),
+                    TaskInletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_consumer", asset=asset),
+                ]
+            )
+        session.commit()
+        mock_get_authorized_dag_ids.return_value = {"dag_a"}
+
+        response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        result = body["assets"][0]
+        assert [ref["dag_id"] for ref in result["scheduled_dags"]] == ["dag_a"]
+        assert [(ref["dag_id"], ref["task_id"]) for ref in result["producing_tasks"]] == [
+            ("dag_a", "dag_a_producer")
+        ]
+        assert [(ref["dag_id"], ref["task_id"]) for ref in result["consuming_tasks"]] == [
+            ("dag_a", "dag_a_consumer")
+        ]
+
     def test_sort_by_last_asset_event_timestamp(self, test_client, session):
         older = AssetModel(name="older", uri="s3://bucket/older", group="asset")
         newer = AssetModel(name="newer", uri="s3://bucket/newer", group="asset")
@@ -1027,8 +1064,9 @@ class TestGetAssetsUi:
             assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        # One of these queries resolves the caller's readable assets so the list can be scoped to them.
-        with assert_queries_count(9):
+        # Two of these queries resolve the caller's readable assets and readable Dags, so the list
+        # and its nested Dag and task references can be scoped to them.
+        with assert_queries_count(10):
             assert test_client.get("/assets").status_code == 200
 
     @conf_vars({("core", "multi_team"): "True"})

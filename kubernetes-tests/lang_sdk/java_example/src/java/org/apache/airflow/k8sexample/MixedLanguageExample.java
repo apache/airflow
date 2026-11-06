@@ -32,13 +32,13 @@ import org.slf4j.LoggerFactory;
 public class MixedLanguageExample {
   private static final Logger logger = LoggerFactory.getLogger(MixedLanguageExample.class);
 
-  @Builder.TaskHandler(dag = "lang_sdk_mixed_language", task = "java_extract")
+  @Airflow.TaskHandler(dag = "lang_sdk_mixed_language", task = "java_extract")
   public long extract(Client client) {
     logger.info("java_extract running");
     return new Date().getTime();
   }
 
-  @Builder.TaskHandler(dag = "lang_sdk_mixed_language", task = "java_transform")
+  @Airflow.TaskHandler(dag = "lang_sdk_mixed_language", task = "java_transform")
   public void transform(Client client) {
     var variable = client.getVariable("my_variable");
     logger.info("java_transform obtained variable {}", variable);

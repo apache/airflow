@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 import pytest
+from pydantic import BaseModel, Field, computed_field
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -25,6 +29,8 @@ if not AIRFLOW_V_3_1_PLUS:
 
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
+
+from pydantic_ai.messages import BinaryContent, UserContent
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.mixins.hitl_review import (
@@ -49,7 +55,7 @@ class FakeAgenticOperator(HITLReviewMixin):
     def __init__(
         self,
         *,
-        prompt: str = "Summarize this",
+        prompt: str | Sequence[UserContent] = "Summarize this",
         task_id: str = "test_task",
         hitl_timeout: timedelta | None = None,
         hitl_poll_interval: float = 0.1,
@@ -108,6 +114,61 @@ def mock_ti(mock_supervisor_comms):
 @pytest.fixture
 def context(mock_ti):
     return {"task_instance": mock_ti}
+
+
+class _SerializationAliased(BaseModel):
+    user_name: str = Field(serialization_alias="userName")
+
+
+class _Computed(BaseModel):
+    a: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def double(self) -> int:
+        return self.a * 2
+
+
+class _NoSchema:
+    def __repr__(self):
+        return "no-schema"
+
+
+@dataclass
+class _UnresolvedForwardReference:
+    value: Missing  # type: ignore[name-defined]  # noqa: F821
+
+    def __repr__(self):
+        return "unresolved"
+
+
+class TestToString:
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            (["tag-a", "tag-b"], '["tag-a","tag-b"]'),
+            ([_SerializationAliased(user_name="kax")], '[{"user_name":"kax"}]'),
+            (_Computed(a=1), '{"a":1,"double":2}'),
+            (_NoSchema(), "no-schema"),
+            ([_NoSchema()], "[no-schema]"),
+            (_UnresolvedForwardReference(value=1), "unresolved"),
+        ],
+        ids=[
+            "list",
+            "serialization-aliased-list",
+            "computed-field-shown",
+            "no-schema-falls-back-to-str",
+            "unserializable-falls-back-to-str",
+            "unresolved-schema-falls-back-to-str",
+        ],
+    )
+    def test_to_string_dumps_json_or_falls_back_to_str(self, output, expected):
+        assert HITLReviewMixin._to_string(output) == expected
+
+    def test_warns_when_it_falls_back_to_str(self, caplog):
+        HITLReviewMixin._to_string(_NoSchema())
+
+        assert any("Cannot serialize a _NoSchema" in message for message in caplog.messages)
 
 
 class TestHITLReviewMixin:
@@ -208,6 +269,40 @@ class TestHITLReviewMixin:
         assert "airflow_hitl_review_agent_output_1" in output_pushes
         assert "airflow_hitl_review_agent_output_2" in output_pushes
         assert output_pushes["airflow_hitl_review_agent_output_2"] == "Revised: Add more detail"
+
+    @patch.object(FakeAgenticOperator, "regenerate_with_feedback")
+    @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
+    def test_session_renders_a_sequence_prompt(
+        self, mock_sleep, mock_regenerate, mock_ti, context, mock_supervisor_comms
+    ):
+        mock_regenerate.return_value = ("Revised", None)
+        mock_supervisor_comms.send.side_effect = [
+            XComResult(
+                key=XCOM_HUMAN_ACTION,
+                value=HumanActionData(
+                    action="changes_requested", feedback="More detail", iteration=1
+                ).model_dump(mode="json"),
+            ),
+            XComResult(
+                key=XCOM_HUMAN_ACTION,
+                value=HumanActionData(
+                    action="changes_requested", feedback="Even more", iteration=2
+                ).model_dump(mode="json"),
+            ),
+        ]
+        prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
+        op = FakeAgenticOperator(prompt=prompt)
+        op.max_hitl_iterations = 2
+
+        with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
+            op.run_hitl_review(context, "Initial")
+
+        prompts = [
+            c[1]["value"]["prompt"]
+            for c in mock_ti.xcom_push.call_args_list
+            if c[1]["key"] == XCOM_AGENT_SESSION
+        ]
+        assert prompts == ["Describe this:\n[image/png, 4 bytes]"] * 3
 
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.monotonic", autospec=True)
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)

@@ -112,7 +112,7 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
                 remote_conn_id,
             )
 
-    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages | None]:
         logs: list[str] = []
         messages = [relative_path]
 

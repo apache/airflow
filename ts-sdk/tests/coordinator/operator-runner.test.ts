@@ -157,13 +157,13 @@ describe("buildOperatorContext", () => {
   it.each([
     [undefined, null],
     [30, "PT30S"],
-  ])("parks with a timeout of %s as %s", (timeoutSeconds, timeout) => {
+  ])("parks with a timeout of %s as %s", (timeout, expected) => {
     const { op } = makeContext();
 
-    expect(op.awaitInput({ timeoutSeconds })).toEqual({
+    expect(op.awaitInput({ timeout })).toEqual({
       type: "AwaitInputTask",
       state: "awaiting_input",
-      timeout,
+      timeout: expected,
       next_method: "execute_complete",
       next_kwargs: {},
     });
@@ -178,7 +178,7 @@ describe("buildOperatorContext", () => {
   it("defers to the trigger, resuming through execute_complete", () => {
     const { op } = makeContext();
 
-    expect(op.defer({ classpath: "pkg.Trigger", kwargs: { a: 1 }, timeoutSeconds: 5 })).toEqual({
+    expect(op.defer({ classpath: "pkg.Trigger", kwargs: { a: 1 }, timeout: 5 })).toEqual({
       type: "DeferTask",
       state: "deferred",
       classpath: "pkg.Trigger",

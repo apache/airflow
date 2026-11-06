@@ -63,6 +63,11 @@ def _capture_content() -> bool:
     return conf.getboolean(SECTION, "capture_content", fallback=False)
 
 
+def _content_capture_enabled() -> bool:
+    """Whether prompts, completions and tool IO go on spans: only when export and capture are both on."""
+    return _otel_export_enabled() and _capture_content()
+
+
 def _live_tracer_provider():
     """
     Return the worker's configured SDK ``TracerProvider``, or ``None``.

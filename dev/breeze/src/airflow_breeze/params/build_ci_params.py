@@ -73,6 +73,8 @@ class BuildCiParams(CommonBuildParams):
         # optional build args
         self._set_common_opt_args()
         self._opt_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
+        if self._can_use_pinned_os_deps_images() and not self._has_custom_dev_apt_dependencies:
+            self._set_os_deps_image_arg("ci", "CI_OS_DEPS_IMAGE")
         # Convert to build args
         build_args = self._to_build_args()
         # Add cache directive

@@ -344,6 +344,16 @@ export const getGanttSegmentTo = ({
     searchParams.set(SearchParamsKeys.REGION_INDEX, item.regionIndex.toString());
   }
 
+  // The coordinate addresses the row; the loop and pass are what the breadcrumb and the filter
+  // read, so a bar carries both and clicking one lands on the pass it was drawn for.
+  if (item.loopIteration !== null && item.loopIteration !== undefined) {
+    searchParams.set(SearchParamsKeys.LOOP_ID, item.loopIteration.loop_id);
+    searchParams.set(SearchParamsKeys.ITERATION, item.loopIteration.iteration.toString());
+  } else {
+    searchParams.delete(SearchParamsKeys.LOOP_ID);
+    searchParams.delete(SearchParamsKeys.ITERATION);
+  }
+
   if (tryNumber !== undefined && tryNumber < (maxTryByKey.get(getGanttTryKey(item)) ?? 1)) {
     searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
   }
@@ -387,16 +397,23 @@ export const buildGanttTimeAxisTicks = (
   const stepMs = getDurationTickStep(spanMs / 1000, denominator) * 1000;
 
   for (let tickIndex = 0; tickIndex < tickCount; tickIndex += 1) {
-    const elapsedMs =
-      tickCount > 1 && tickIndex === lastIndex ? spanMs : Math.min(tickIndex * stepMs, spanMs);
+    // A snapped step overshoots a short span, so stop at the first tick that reaches it rather than
+    // clamping the remaining ones onto the span: identical ticks stack gridlines and labels on top
+    // of each other at the right edge.
+    const isLastTick = tickIndex === lastIndex || (tickIndex > 0 && tickIndex * stepMs >= spanMs);
+    const elapsedMs = tickCount > 1 && isLastTick ? spanMs : tickIndex * stepMs;
     const labelAlign: GanttAxisTickLabelAlign =
-      tickCount === 1 ? "left" : tickIndex === 0 ? "left" : tickIndex === lastIndex ? "right" : "center";
+      tickCount === 1 || tickIndex === 0 ? "left" : isLastTick ? "right" : "center";
 
     ticks.push({
       label: formatElapsedMsForGanttAxis(elapsedMs, locale),
       labelAlign,
       leftPct: (elapsedMs / spanMs) * 100,
     });
+
+    if (isLastTick) {
+      break;
+    }
   }
 
   return ticks;

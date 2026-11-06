@@ -90,6 +90,19 @@ def test_template_marker():
     assert isinstance(t.with_["k2"], TemplateRef)
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("{$f: {$t: '{{ ds }}.sql'}}", id="short"),
+        pytest.param("{$file: {$template: '{{ ds }}.sql'}}", id="long"),
+        pytest.param("{$t: {$f: {$t: '{{ ds }}.sql'}}}", id="inside-template"),
+    ],
+)
+def test_templated_filename_rejected(value):
+    with pytest.raises(YamlDagParseError, match="templated filename"):
+        _task(f"- {{id: t, uses: X, with: {{sql: {value}}}}}")
+
+
 def test_const_is_verbatim_not_recursed():
     t = _task("- {id: t, run: {a: {$const: {$x: not-a-ref}}}}")
     assert isinstance(t.run["a"], ConstRef)
@@ -532,6 +545,14 @@ def test_published_schema_accepts_null_and_empty_bodies(task):
             id="template",
         ),
         pytest.param(
+            "tasks:\n  - {id: t, uses: X, with: {k: {$f: 'reports/daily.sql'}}}",
+            id="file",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: t, uses: X, with: {k: {$t: {$f: 'reports/daily.sql'}}}}",
+            id="template-file",
+        ),
+        pytest.param(
             "templates: {base: {run: {r: 1}}}\ntasks:\n  - {id: t, extends: base}",
             id="extends-bare",
         ),
@@ -564,6 +585,8 @@ def test_valid_shapes_round_trip(body):
         pytest.param("{cfg: {$weird: 1}}", id="dollar-key-nested"),
         pytest.param("{$x: up, $xcom: up}", id="two-marker-keys"),
         pytest.param("{$x: {task: up, nope: 1}}", id="xcom-target-extra-key"),
+        pytest.param("{$f: {$t: 'q-{{ ds }}.sql'}}", id="templated-filename-reserved"),
+        pytest.param("{$t: {$f: {$t: x}}}", id="templated-filename-nested-reserved"),
     ],
 )
 def test_invalid_shapes_rejected_by_both(value):

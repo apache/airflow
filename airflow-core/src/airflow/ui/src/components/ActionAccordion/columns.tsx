@@ -27,6 +27,8 @@ import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
 
+// Keyed by coordinate rather than row id: a retry of the same execution comes back with a new
+// id, and an exclusion the user ticked should survive that.
 export const taskInstanceKey = (ti: TaskInstanceResponse): string =>
   `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}:${ti.region_id}:${ti.region_index}`;
 

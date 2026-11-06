@@ -40,7 +40,7 @@ from lang_sdk_compat_matrix import (
     LANG_SDKS,
     README_MATRIX_FOOTER,
     README_MATRIX_HEADER,
-    CapabilitiesDoc,
+    Capabilities,
     load_capabilities,
     render_markdown_table,
 )
@@ -60,7 +60,7 @@ def read_go_schema_version() -> str | None:
     return None
 
 
-def check_schema_version(doc: CapabilitiesDoc) -> bool:
+def check_schema_version(doc: Capabilities) -> bool:
     """Whether the manifest agrees with the schema version embedded in Go bundle metadata."""
     try:
         go_version = read_go_schema_version()
@@ -75,7 +75,7 @@ def check_schema_version(doc: CapabilitiesDoc) -> bool:
             "Editing go-sdk/capabilities.yaml cannot fix this.[/]"
         )
         return False
-    declared = doc["supervisor_schema_version"]
+    declared = doc.supervisor_schema_version
     if go_version == declared:
         return True
     console.print(

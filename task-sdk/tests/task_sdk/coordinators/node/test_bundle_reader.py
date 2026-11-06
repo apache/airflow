@@ -74,7 +74,7 @@ class TestBundleReader:
         # used by the other tests cannot establish on its own.
         assert read_bundle_source(TYPESCRIPT_V1_FIXTURE, "test_dag") == (
             "/** Handlers for the test Dag. */\n"
-            'import { Bundle, Dag } from "apache-airflow-ts-sdk";\n'
+            'import { Bundle, Dag } from "@apache-airflow/ts-sdk";\n'
             "\n"
             r"const TERMINATOR = /\*\//;"
             "\n"

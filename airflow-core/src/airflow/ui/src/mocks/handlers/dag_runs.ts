@@ -90,7 +90,30 @@ const dagIdTags: Record<string, Array<string>> = {
   test_dag: [],
 };
 
+const buildDagRun = (dagId: string, dagRunId: string) => ({
+  ...dagRunInRange,
+  bundle_version: null,
+  conf: null,
+  dag_display_name: dagId,
+  dag_id: dagId,
+  dag_run_id: dagRunId,
+  last_scheduling_decision: null,
+  note: null,
+  partition_date: null,
+  queued_at: dagRunInRange.start_date,
+  triggered_by: "ui",
+});
+
 export const handlers: Array<HttpHandler> = [
+  http.get("/api/v2/dags/:dagId/dagRuns/:dagRunId", ({ params }) =>
+    HttpResponse.json(buildDagRun(String(params.dagId), String(params.dagRunId))),
+  ),
+  http.get("/api/v2/dags/:dagId/dagRuns/:dagRunId/hitlDetails", () =>
+    HttpResponse.json({ hitl_details: [], total_entries: 0 }),
+  ),
+  http.get("/ui/dags/:dagId/dagRuns/:dagRunId/deadlines", () =>
+    HttpResponse.json({ deadlines: [], total_entries: 0 }),
+  ),
   http.get("/api/v2/dags/:dagId/dagRuns", ({ request }) => {
     const url = new URL(request.url);
     const logicalDateGte = url.searchParams.get("logical_date_gte");

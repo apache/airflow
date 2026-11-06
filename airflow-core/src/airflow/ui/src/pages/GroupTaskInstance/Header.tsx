@@ -31,12 +31,15 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 
+import { useHasGridSelection } from "src/context/gridSelection";
 import { useLoopGroupNode } from "src/queries/useIsLoopGroup";
 import { formatNumber, useDurationFormat } from "src/utils";
 
 import { useLoopOutcomeStats } from "./useLoopOutcomeStats";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
+  // The grid's bulk actions replace these while task instances are selected there.
+  const hasGridSelection = useHasGridSelection();
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
   const { dagId = "", groupId = "", runId = "" } = useParams();
@@ -78,13 +81,22 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
               text={translate("docs.documentation")}
             />
           )}
-          <ClearTaskInstanceButton
-            bg="bg"
-            groupTaskInstance={taskInstance}
-            isHotkeyEnabled
-            variant="outline"
-          />
-          <MarkTaskGroupAsButton bg="bg" groupTaskInstance={taskInstance} isHotkeyEnabled variant="outline" />
+          {hasGridSelection ? undefined : (
+            <>
+              <ClearTaskInstanceButton
+                bg="bg"
+                groupTaskInstance={taskInstance}
+                isHotkeyEnabled
+                variant="outline"
+              />
+              <MarkTaskGroupAsButton
+                bg="bg"
+                groupTaskInstance={taskInstance}
+                isHotkeyEnabled
+                variant="outline"
+              />
+            </>
+          )}
         </>
       }
       icon={<AiOutlineGroup />}

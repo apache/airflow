@@ -105,6 +105,7 @@ const getColumns = ({
         />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -128,7 +129,7 @@ export const TaskStateStore = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useTaskStateStoreServiceListTaskStateStore(
+  const { data, error, isLoading } = useTaskStateStoreServiceListTaskStateStore(
     {
       ...coordinates,
       dagId,
@@ -153,7 +154,6 @@ export const TaskStateStore = () => {
         displayMode="table"
         hideRowCountHeading
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="dag:taskStateStore.entry"
         noRowsMessage={translate("taskStateStore.emptyStore")}

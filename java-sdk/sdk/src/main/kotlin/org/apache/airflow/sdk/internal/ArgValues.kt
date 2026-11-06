@@ -68,7 +68,7 @@ object ArgValues {
    * claims.
    *
    * The single populator behind both authoring APIs — the annotation processor
-   * emits a call to it for a `@Builder.Task` [TaskInput] parameter, and
+   * emits a call to it for an `@Airflow.Task` [TaskInput] parameter, and
    * [org.apache.airflow.sdk.InputTask] calls it before handing the input to a
    * task written against the interface.
    *

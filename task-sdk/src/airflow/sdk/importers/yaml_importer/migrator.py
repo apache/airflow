@@ -44,8 +44,9 @@ if TYPE_CHECKING:
     from cadwyn import VersionBundle
 
 _SCHEMA_URL = "https://airflow.apache.org/schemas/dag/{date}.json"
-# The canonical ``$schema`` URL with the version captured; keep in sync with ``_SCHEMA_URL``.
 _SCHEMA_URL_RE = re.compile(r"https://airflow\.apache\.org/schemas/dag/(\d{4}-\d{2}-\d{2})\.json")
+
+DAG_SCHEMA_PREFIX = _SCHEMA_URL.partition("{date}")[0]
 
 
 def schema_from_version(date: str) -> str:

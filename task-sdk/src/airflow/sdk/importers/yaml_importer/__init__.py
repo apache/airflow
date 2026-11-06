@@ -19,14 +19,15 @@
 
 from __future__ import annotations
 
+from airflow.sdk.importers.yaml_importer.builder import YamlDagBuildError
+from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 from airflow.sdk.importers.yaml_importer.models import DagDocument
-from airflow.sdk.importers.yaml_importer.parser import (
-    YamlDagParseError,
-    parse_documents,
-)
+from airflow.sdk.importers.yaml_importer.parser import YamlDagParseError, parse_documents
 
 __all__ = [
     "DagDocument",
+    "YamlDagBuildError",
+    "YamlDagImporter",
     "YamlDagParseError",
     "parse_documents",
 ]

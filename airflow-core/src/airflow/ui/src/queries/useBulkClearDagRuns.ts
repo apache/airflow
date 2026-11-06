@@ -32,7 +32,7 @@ import type { ClearDagRunsResponse, DAGRunResponse } from "openapi/requests/type
 
 import { toaster } from "src/system-components";
 
-import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+import { dagListQueryKeys, gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useBulkClearDagRunsDryRunKey } from "./useBulkClearDagRunsDryRun";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
@@ -62,6 +62,7 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
       [useTaskInstanceServiceGetMappedTaskInstanceKey],
       [useBulkClearDagRunsDryRunKey],
       ...tiPerAttemptQueryKeys,
+      ...dagListQueryKeys,
       ...[...dagIds].flatMap((dagId) => [...gridQueryKeys(dagId), [useClearDagRunDryRunKey, dagId]]),
       ...clearedRuns.flatMap((dagRun) => [
         UseDagRunServiceGetDagRunKeyFn({ dagId: dagRun.dag_id, dagRunId: dagRun.dag_run_id }),

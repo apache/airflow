@@ -265,7 +265,7 @@ def test_callback_key_is_frozen_and_hashable():
 
     # Frozen: assignment raises
     with pytest.raises(dataclasses.FrozenInstanceError):
-        key.id = "mutated"  # type: ignore[misc]
+        key.id = "mutated"
 
 
 def test_callback_key_str_returns_id():
@@ -287,7 +287,7 @@ def test_state_class_for_key_raises_on_unknown_type():
     """state_class_for_key should raise TypeError for unrecognized key types."""
 
     with pytest.raises(TypeError, match="Unknown workload key type"):
-        state_class_for_key("bare-string-is-not-a-key")  # type: ignore[arg-type]
+        state_class_for_key("bare-string-is-not-a-key")
 
 
 def test_callback_dto_key_returns_callback_key_instance():
@@ -458,6 +458,7 @@ class TestExecuteTaskMakeVersionData:
         ti.dag_version.version_data = ti_dag_version_data
 
         if has_created_dag_version:
+            ti.dag_run.created_dag_version.bundle_version = bundle_version
             ti.dag_run.created_dag_version.version_data = version_data
         else:
             ti.dag_run.created_dag_version = None
@@ -533,6 +534,7 @@ class TestExecuteCallbackMakeVersionData:
         dag_run.dag_model.bundle_name = "test-bundle"
         dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
         if has_created_dag_version:
+            dag_run.created_dag_version.bundle_version = bundle_version
             dag_run.created_dag_version.version_data = version_data
         else:
             dag_run.created_dag_version = None

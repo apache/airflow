@@ -30,7 +30,7 @@ from cadwyn import (
 )
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -40,7 +40,9 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY, require_auth
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -53,6 +55,7 @@ logger = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "InProcessExecutionAPI",
     "create_task_execution_api_app",
+    "create_jwt_generator",
     "lifespan",
     "CorrelationIdMiddleware",
 ]
@@ -74,7 +77,8 @@ def _jwt_validator():
     return validator
 
 
-def _jwt_generator():
+def create_jwt_generator() -> JWTGenerator:
+    """Create a signer using the Execution API's configured key, audience, and lifetime."""
     from airflow.configuration import conf
 
     generator = JWTGenerator(
@@ -96,7 +100,7 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     # record this here
     app.state.svcs_registry = registry
 
-    registry.register_factory(JWTGenerator, _jwt_generator)
+    registry.register_factory(JWTGenerator, create_jwt_generator)
 
     # InProcessExecutionAPI stubs out JWTValidator: don't re-register in that case.
     if JWTValidator not in registry:
@@ -138,25 +142,25 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
+        token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
+        if token:
             try:
-                async with svcs.Container(request.app.state.svcs_registry) as services:
-                    validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
+                claims = token.claims.model_dump()
 
-                    # Workload and callback tokens are long-lived and meant to survive
-                    # queue wait times so avoid refreshing them. If avalidated_claims
-                    # raises for such a token, the outer except handles it.
-                    if claims.get("scope") in ("workload", "callback"):
-                        return response
+                # Only short-lived execution tokens are renewed here. Any other type has a
+                # lifetime set by its issuer (workload and callback tokens outlive queue waits,
+                # the dag_processor_session token is rotated by provisioning, and Job and parsing
+                # tokens are renewed by re-registering and re-exchanging), so a new type must
+                # not become renewable by default. Tokens without a scope are legacy execution tokens.
+                if claims.get("scope", "execution") != "execution":
+                    return response
 
-                    now = int(time.time())
-                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
-                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
-                    valid_left = int(claims.get("exp", 0)) - now
-                    if valid_left <= refresh_when_less_than:
+                now = int(time.time())
+                token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
+                valid_left = int(claims.get("exp", 0)) - now
+                if valid_left <= refresh_when_less_than:
+                    async with svcs.Container(request.app.state.svcs_registry) as services:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
             except Exception as err:
@@ -262,25 +266,30 @@ async def _extract_w3c_trace_context(
             otel_context.detach(token)
 
 
+def _is_trace_context_dep(dependency) -> bool:
+    return getattr(dependency, "dependency", None) is _extract_w3c_trace_context
+
+
 def _inject_trace_context_dep(routes, mode: str) -> None:
-    dep = Depends(_extract_w3c_trace_context)
-    for route in routes:
+    """
+    Add trace-context extraction to the authenticated routes in ``only-authenticated`` mode.
+
+    ``unsafe-always`` mode is handled with an app-level dependency instead, so extraction runs
+    before authentication declared on any enclosing router.
+    """
+    for context in iter_route_contexts(routes):
+        route = context.original_route
         if not isinstance(route, APIRoute):
             continue
         # Idempotent: create_task_execution_api_app() runs more than once per process
         # (cached_app + InProcessExecutionAPI), and execution_api_router is shared
         # module state, so strip any prior injection first.
-        route.dependencies[:] = [
-            d for d in route.dependencies if getattr(d, "dependency", None) is not _extract_w3c_trace_context
-        ]
-        match mode:
-            case "unsafe-always":
-                route.dependencies.insert(0, dep)
-            case "only-authenticated":
-                from airflow.api_fastapi.execution_api.security import require_auth
-
-                if any(getattr(d, "dependency", None) is require_auth for d in route.dependencies):
-                    route.dependencies.append(dep)
+        route.dependencies[:] = [d for d in route.dependencies if not _is_trace_context_dep(d)]
+        if mode != "only-authenticated":
+            continue
+        # context.dependencies also holds those of the enclosing routers and include_router() calls.
+        if any(getattr(d, "dependency", None) is require_auth for d in context.dependencies):
+            route.dependencies.append(Depends(_extract_w3c_trace_context))
 
 
 def create_task_execution_api_app(
@@ -305,6 +314,7 @@ def create_task_execution_api_app(
         return route.name
 
     # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
+    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
     app = CadwynWithOpenAPICustomization(
         title="Airflow Task Execution API",
         description="The private Airflow Task Execution API.",
@@ -313,13 +323,15 @@ def create_task_execution_api_app(
         api_version_parameter_name="Airflow-API-Version",
         api_version_default_value=bundle.versions[0].value,
         versions=bundle,
+        changelog_url=None,
+        dependencies=[Depends(_extract_w3c_trace_context)] if mode == "unsafe-always" else None,
+        telemetry=NATIVE_TELEMETRY_DISABLED,
     )
 
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(JWTReissueMiddleware)
 
-    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
     _inject_trace_context_dep(execution_api_router.routes, mode)
 
     app.generate_and_include_versioned_routers(execution_api_router)

@@ -14,6 +14,32 @@
       "title": "ConstRef",
       "type": "object"
     },
+    "FileRef": {
+      "additionalProperties": false,
+      "description": "A file input.",
+      "oneOf": [
+        {
+          "required": [
+            "$f"
+          ]
+        },
+        {
+          "required": [
+            "$file"
+          ]
+        }
+      ],
+      "properties": {
+        "$f": {
+          "type": "string"
+        },
+        "$file": {
+          "type": "string"
+        }
+      },
+      "title": "FileRef",
+      "type": "object"
+    },
     "Literal": {
       "description": "A literal value.",
       "not": {
@@ -35,6 +61,9 @@
                 "$ref": "#/$defs/TemplateRef"
               },
               {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
                 "$ref": "#/$defs/ConstRef"
               },
               {
@@ -52,6 +81,9 @@
               },
               {
                 "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/FileRef"
               },
               {
                 "$ref": "#/$defs/ConstRef"
@@ -141,6 +173,9 @@
                 "$ref": "#/$defs/TemplateRef"
               },
               {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
                 "$ref": "#/$defs/ConstRef"
               },
               {
@@ -166,6 +201,9 @@
               },
               {
                 "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/FileRef"
               },
               {
                 "$ref": "#/$defs/ConstRef"
@@ -196,7 +234,7 @@
     },
     "TemplateRef": {
       "additionalProperties": false,
-      "description": "A Jinja template.",
+      "description": "A Jinja template, rendered when the task runs. This can be an inline string, or a file reference ($f) to load a template file.",
       "oneOf": [
         {
           "required": [
@@ -211,12 +249,26 @@
       ],
       "properties": {
         "$t": {
-          "title": "$T",
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FileRef"
+            }
+          ],
+          "title": "$T"
         },
         "$template": {
-          "title": "$T",
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FileRef"
+            }
+          ],
+          "title": "$T"
         }
       },
       "title": "TemplateRef",
@@ -361,5 +413,6 @@
   ],
   "title": "Airflow YAML Dag (2026-10-30)",
   "type": "object",
-  "$schema": "https://json-schema.org/draft/2020-12/schema"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "2026-10-30"
 }
