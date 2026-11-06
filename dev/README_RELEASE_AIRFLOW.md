@@ -1523,6 +1523,21 @@ curl -s "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION_
 Agree with the providers' release manager on the decision early in the vote, so the final
 release does not wait on it.
 
+If the provider wave is independent of this release and you deliberately want to ship the final
+against the currently-released providers - for example an accelerated core release that overlaps a
+wave carrying breaking provider majors the release was not tested against - you can override the
+guard. ``start-release`` asks before it resolves the constraints; answer ``n`` to pin the
+currently-released providers and proceed. The standalone workflow takes the same override:
+
+```shell script
+breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable \
+  --fail-on-pending-provider-candidates false
+```
+
+The constraints still never pin a release candidate; the override only lets the run pin the newest
+*final* of each provider instead of stopping. The pending candidates are simply left out, exactly
+as they were before they were cut.
+
 ## Summarize the voting for the Apache Airflow release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:

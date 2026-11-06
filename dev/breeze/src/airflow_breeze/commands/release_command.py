@@ -349,7 +349,20 @@ def regenerate_constraints(version):
     # released version must never point at rc pins. The workflow reads a version without "rcN" and
     # resolves again without them, against the providers now published as finals.
     major, minor = version.split(".")[:2]
-    publish_constraints(version=version, ref=f"v{major}-{minor}-stable")
+    # By default a final fails if any provider's newest PyPI version is a pending rc (an unresolved
+    # provider wave). The release manager can pin the currently-released providers instead, to ship a
+    # final through an overlapping, independent provider wave.
+    fail_on_pending_provider_candidates = None
+    if not confirm_action(
+        "Fail if a provider wave is still in rc (recommended)? Answer 'n' only to pin the "
+        "currently-released providers and proceed through an overlapping provider wave."
+    ):
+        fail_on_pending_provider_candidates = False
+    publish_constraints(
+        version=version,
+        ref=f"v{major}-{minor}-stable",
+        fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
+    )
 
 
 def tag_and_push_latest_constraint(version):

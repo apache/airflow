@@ -36,7 +36,13 @@ RELEASE_CONSTRAINTS_WORKFLOW = "release-constraints.yml"
 APACHE_AIRFLOW_REPO = "apache/airflow"
 
 
-def publish_constraints(*, version: str, ref: str, workflow_branch: str = "main") -> None:
+def publish_constraints(
+    *,
+    version: str,
+    ref: str,
+    workflow_branch: str = "main",
+    fail_on_pending_provider_candidates: bool | None = None,
+) -> None:
     """Resolve, publish and tag the constraints belonging to ``version``.
 
     ``version`` alone decides what happens: a candidate (``3.3.1rc1``) pins the providers at the
@@ -45,6 +51,11 @@ def publish_constraints(*, version: str, ref: str, workflow_branch: str = "main"
     the same candidate replaces that branch and its tag, so a wave can be re-cut. A final
     (``3.3.1``) resolves against the published releases and commits onto ``constraints-X-Y``, which
     is what makes the released constraints the baseline everything downstream reads.
+
+    ``fail_on_pending_provider_candidates`` overrides the workflow's own derivation. Left ``None``
+    the workflow derives it from the version (a final fails when a provider's newest PyPI version is
+    a pending rc); ``False`` pins the currently-released providers and proceeds, for a final that
+    deliberately ships past an overlapping, independent provider wave.
     """
     from packaging.version import Version
 
@@ -60,11 +71,19 @@ def publish_constraints(*, version: str, ref: str, workflow_branch: str = "main"
     ):
         return
     console_print(f"[info]Resolving constraints for {version} from {ref} - this runs on CI runners.")
+    # The workflow input name is hyphenated, so it cannot be a keyword argument; "" lets the
+    # workflow derive the guard from the version, which is the default when no override is given.
+    overrides = {
+        "fail-on-pending-provider-candidates": ""
+        if fail_on_pending_provider_candidates is None
+        else str(fail_on_pending_provider_candidates).lower()
+    }
     trigger_workflow_and_monitor(
         workflow_name=RELEASE_CONSTRAINTS_WORKFLOW,
         repo=APACHE_AIRFLOW_REPO,
         branch=workflow_branch,
         version=version,
         ref=ref,
+        **overrides,
     )
     console_print(f"[success]Constraints for {version} published and tagged 'constraints-{version}'")
