@@ -191,6 +191,10 @@ class ResumableJobMixin(ABC):
         )
 
     def _stats_tags(self, context: Context) -> dict[str, str]:
+        # resumable_job metrics are only emitted on the durable path, so a non-durable run
+        # never reads the task instance.
+        if not self.durable:
+            return {}
         ti = context.get("ti") if context is not None else None
         return {**(ti.stats_tags if ti is not None else {}), "operator": type(self).__name__}
 

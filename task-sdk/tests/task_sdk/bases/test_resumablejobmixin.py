@@ -257,6 +257,40 @@ class TestAbsentContext:
         assert op.submitted_ids == ["job-001"]
 
 
+class _UnreadableStatsTagsTI:
+    """A task instance whose stats_tags must not be read."""
+
+    @property
+    def stats_tags(self):
+        raise AssertionError("stats_tags read on a non-durable run")
+
+
+class TestNonDurableSkipsTaskInstance:
+    """With ``durable=False`` no metric is emitted, so the task instance is never read for tags."""
+
+    @pytest.mark.parametrize(
+        "ti",
+        [
+            pytest.param(_UnreadableStatsTagsTI(), id="stats-tags-raises"),
+            pytest.param(mock.Mock(), id="mock-with-non-mapping-stats-tags"),
+            pytest.param(object(), id="no-stats-tags-attribute"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("call", "expected"),
+        [
+            pytest.param(lambda op, ctx: op.execute_resumable(ctx), "result-of-job-001", id="execute"),
+            pytest.param(
+                lambda op, ctx: op.get_resume_decision(ctx).action, ResumeAction.SUBMIT, id="decision"
+            ),
+        ],
+    )
+    def test_task_instance_not_read(self, ti, call, expected):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+
+        assert call(op, {**make_context(FakeTaskState()), "ti": ti}) == expected
+
+
 class TestExternalIdKey:
     def test_custom_key_used_for_storage_and_retrieval(self):
         class CustomKeyOp(ConcreteResumableOperator):
