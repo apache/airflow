@@ -168,8 +168,10 @@ Pull requests from external contributors can run their CI in the contributor's f
 ``breeze ci audit`` checks, read-only, whether your checkout and fork are set up for that: ``gh``
 installed and authenticated, the ``upstream`` remote pointing at ``apache/airflow`` and ``origin`` at your
 fork, whether you are a committer, collaborator, member of an exempted organisation, pilot participant or
-external contributor, whether the ``Tests (AMD)`` workflow in your fork is enabled (when your pull requests
-use fork CI), how far your fork's ``main`` is behind, and the branch you are on.
+external contributor, whether the ``Tests (AMD)`` workflow in your fork is enabled and GitHub Actions lets it
+run, including whether GitHub has paused GitHub Actions in your fork (when your pull requests use fork CI),
+how far your fork's ``main`` is behind, the branch you are on, and which workflows in your fork only start
+runs that fork CI does not need.
 Each failing check prints the command that fixes it; ``--fix`` runs those commands after asking.
 
 These are all available flags of ``audit`` command:
