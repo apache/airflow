@@ -24,7 +24,7 @@
   "assetEvent_other": "Eventos de Asset",
   "assetEvent_zero": "Nenhum evento de asset",
   "assetInactive": {
-    "tooltip": "O Asset upstream foi desativado; o scheduler está retendo a avaliação da partição até que ele seja reativado."
+    "tooltip": "O Asset upstream foi desativado; o agendador está retendo a avaliação da partição até que ele seja reativado."
   },
   "backfill_many": "Backfills",
   "backfill_one": "Backfill",
