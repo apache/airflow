@@ -489,7 +489,6 @@
     "queue": "큐",
     "queuedWhen": "대기열에 추가된 시간",
     "renderedMapIndex": "렌더링된 맵 인덱스",
-    "retryAt": "TODO: translate: Retry At",
     "scheduledWhen": "예정된 시간",
     "stateReason": "상태 이유",
     "stateReasonSummary": {
