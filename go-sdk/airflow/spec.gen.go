@@ -64,8 +64,7 @@ type DagSpec struct {
 	// Queue is the queue that each task of the Dag runs on, unless the TaskSpec of
 	// the task sets a Queue. The queue_to_coordinator option in the [sdk] section of
 	// the Airflow configuration maps the queue to the coordinator that runs Go code.
-	// A task from TriggerDagRun runs on a Python worker, so it does not take this
-	// queue.
+	// A task from TriggerDagRun takes the queue too, because the Go runtime runs it.
 	Queue string
 
 	// RenderTemplateAsNativeObj corresponds to the JSON schema field

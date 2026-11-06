@@ -198,7 +198,9 @@ Such a main build also publishes the latest "sphinx-airflow-theme" package to Gi
 of documentation can automatically pick it up from there. This means that if you want to make changes to
 `javascript` or `css` that are part of the theme, you need to do it in `airflow-site` repository and
 merge it to `main` branch in order to be able to run the documentation build in `apache-airflow` repository
-and pick up the latest version of the theme.
+and pick up the latest version of the theme. To preview an unreleased theme change, see the
+`--sphinx-airflow-theme-path` option in
+[Building documentation in Breeze](../contributing-docs/11_documentation_building.rst#building-documentation-in-breeze).
 
 The version of sphinx theme is fixed in both repositories:
 
@@ -284,7 +286,7 @@ Note that it is advised to add `--dry-run` if you just want to see what would ha
 the `s3://staging-docs-airflow-apache-org/docs/` bucket to test the publishing using staging site.
 
 ```bash
-breeze build-docs "<package_id1>" "<package_id2>" --docs-only
+breeze build-docs "<package_id1>" "<package_id2>"
 mkdir /tmp/airflow-site
 breeze release-management publish-docs --override-versioned --airflow-site-directory /tmp/airflow-site
 breeze release-management publish-docs-to-s3 --source-dir-path /tmp/airflow-site/docs-archive \
@@ -308,7 +310,7 @@ The process is as follows:
    publish the docs to the checked out `airflow-site-archive` branch.
 
 ```bash
-breeze build-docs "<package_id1>" "<package_id2>" --docs-only
+breeze build-docs "<package_id1>" "<package_id2>"
 breeze release-management publish-docs --override-versioned --airflow-site-directory <PATH_TO_THE_ARCHIVE_REPO>
 ```
 

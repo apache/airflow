@@ -198,7 +198,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
                     return False
         return True
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages | None]:
         logs: list[str] = []
         messages = []
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, relative_path))

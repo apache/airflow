@@ -16,26 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
-import { Alert } from "src/system-components";
+import type { DAGWarningResponse } from "openapi/requests/types.gen";
+
+import { StatusMessage } from "src/components/StatusMessage";
 
 type Props = {
-  readonly warning?: {
-    message: string;
-  };
+  readonly warning?: DAGWarningResponse;
 };
 
 export const WarningAlert = ({ warning }: Props) => {
-  if (!Boolean(warning)) {
+  const { t: translate } = useTranslation("components");
+
+  if (warning === undefined) {
     return undefined;
   }
 
+  // The warning's type is its short form, but it arrives as the backend's own lowercase enum value,
+  // which has no business being a heading in any language. An unmapped one falls back to the word.
   return (
-    <Alert data-testid="warning-alert" status="warning">
-      <Flex align="center" whiteSpace="preserve" wordBreak="break-all">
-        {warning?.message}
-      </Flex>
-    </Alert>
+    <StatusMessage
+      body={warning.message}
+      heading={translate(`dagWarnings.types.${warning.warning_type}`, {
+        defaultValue: translate("dagWarnings.warning", { count: 1 }),
+      })}
+      severity="warning"
+    />
   );
 };

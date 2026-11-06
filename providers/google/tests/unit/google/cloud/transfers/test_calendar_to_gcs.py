@@ -130,60 +130,6 @@ class TestGoogleCalendarToGCSOperator:
     @mock.patch(
         "airflow.providers.google.cloud.transfers.calendar_to_gcs.GoogleCalendarToGCSOperator._upload_data"
     )
-    def test_execute_with_unwrap_single_false(self, mock_upload_data, mock_calendar_hook):
-        context = {}
-        data = [EVENT]
-        expected_dest_file_name = f"{PATH.strip('/')}/{CALENDAR_ID}.json"
-        expected_gcs_uri = f"gs://{BUCKET}/{expected_dest_file_name}"
-        mock_upload_data.return_value = (expected_dest_file_name, expected_gcs_uri)
-        mock_calendar_hook.return_value.get_events.return_value = data
-
-        op = GoogleCalendarToGCSOperator(
-            api_version=API_VERSION,
-            task_id="test_task",
-            calendar_id=CALENDAR_ID,
-            destination_bucket=BUCKET,
-            destination_path=PATH,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            unwrap_single=False,
-            return_gcs_uri=True,
-        )
-        result = op.execute(context)
-
-        mock_calendar_hook.assert_called_once_with(
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-
-        mock_calendar_hook.return_value.get_events.assert_called_once_with(
-            calendar_id=CALENDAR_ID,
-            i_cal_uid=None,
-            max_attendees=None,
-            max_results=None,
-            order_by=None,
-            private_extended_property=None,
-            q=None,
-            shared_extended_property=None,
-            show_deleted=None,
-            show_hidden_invitation=None,
-            single_events=None,
-            sync_token=None,
-            time_max=None,
-            time_min=None,
-            time_zone=None,
-            updated_min=None,
-        )
-
-        mock_upload_data.assert_called_once_with(data)
-        # Assert list of GCS URIs is returned when unwrap_single=False and return_gcs_uri=True
-        assert result == [expected_gcs_uri]
-
-    @mock.patch("airflow.providers.google.cloud.transfers.calendar_to_gcs.GoogleCalendarHook")
-    @mock.patch(
-        "airflow.providers.google.cloud.transfers.calendar_to_gcs.GoogleCalendarToGCSOperator._upload_data"
-    )
     def test_execute_with_return_gcs_uri_true_and_unwrap_single_false(
         self, mock_upload_data, mock_calendar_hook
     ):

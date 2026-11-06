@@ -35,6 +35,90 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+.. note::
+  ``@task.bash`` now renders only the command returned by the decorated function inside
+  ``execute()``. Its other template fields (``env``, ``cwd``, ``op_args``, ``op_kwargs``, ...) are
+  rendered once before ``execute()``, as for ``BashOperator``, and are no longer rendered a
+  second time.
+
+.. warning::
+  The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
+  On Airflow 3.0.x, the bundled ``example_time_delta_sensor_async`` example Dag imports this
+  class, so it fails to import when ``[core] load_examples`` is on. Upgrade to Airflow 3.1 or turn
+  off ``load_examples``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated TimeDeltaSensorAsync (#76131)``
+
+Features
+~~~~~~~~
+
+* ``Add AssetEventSensor to standard provider (#70225)``
+* ``Allow asking for human input from inside a Python task on Airflow 3.4+ (#75358)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Propagate OpenLineage parent and root job types to triggered Dags (#75303)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+1.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``DateTimeSensorAsync support start_from_trigger and templated target_time (#73928)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Close SubprocessHook stdout pipe after command completes (#74780)``
+
+Misc
+~~~~
+
+* ``Support SQLAlchemy 2.1 typing in external task sensor queries (#75075)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up unused mypy suppressions in standard provider tests (#75210)``
+   * ``Pass runtime values to example Dag shell commands through env (#73787)``
+
+1.20.1
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``Clarify DateTimeSensorAsync changelog entry (#73833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove Python 3.10 compatibility shims (#74153)``
+   * ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+   * ``Parse native Lang-SDK Dags in a Dag bag (#74043)``
+   * ``Align standard provider tests with source paths (#73267)``
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Remove the task_map table, folding its length into xcom.mapped_length (#73005)``
+
 1.20.0
 ......
 

@@ -31,6 +31,7 @@ from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+from airflow.providers.edge3.models.types import build_callback_job_filter, is_callback_job
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -49,13 +50,13 @@ log = logging.getLogger(__name__)
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
 
-def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTypeBody:
-    if AIRFLOW_V_3_3_PLUS:
+def parse_command(
+    command: str, dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int
+) -> ExecuteTypeBody:
+    if AIRFLOW_V_3_3_PLUS and is_callback_job(dag_id, task_id, run_id, try_number, map_index):
         from airflow.executors.workloads import ExecuteCallback
-        from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 
-        if dag_id == EXECUTE_CALLBACK_TAG and run_id.startswith(EXECUTE_CALLBACK_TAG):
-            return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
+        return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
 
     return ExecuteTask.model_validate_json(command)
 
@@ -88,13 +89,9 @@ def fetch(
     if not worker:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
 
-    query = (
-        select(EdgeJobModel)
-        .where(
-            EdgeJobModel.state == TaskInstanceState.QUEUED,
-            EdgeJobModel.concurrency_slots <= body.free_concurrency,
-        )
-        .order_by(EdgeJobModel.queued_dttm)
+    query = select(EdgeJobModel).where(
+        EdgeJobModel.state == TaskInstanceState.QUEUED,
+        EdgeJobModel.concurrency_slots <= body.free_concurrency,
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))
@@ -102,7 +99,14 @@ def fetch(
         query = query.where(EdgeJobModel.team_name == worker.team_name)
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
-    job: EdgeJobModel | None = session.scalar(query)
+
+    # Callbacks go first, as in other executors (WORKLOAD_TYPE_PRIORITY). A single query would sort
+    # the whole backlog. dag_id leads the primary key, so the callback query reads only callbacks.
+    job: EdgeJobModel | None = session.scalar(
+        query.where(build_callback_job_filter()).order_by(EdgeJobModel.queued_dttm)
+    )
+    if job is None:
+        job = session.scalar(query.order_by(EdgeJobModel.priority_weight.desc(), EdgeJobModel.queued_dttm))
     if not job:
         return None
     if job.task_instance_id and not body.supports_task_instance_uuid:
@@ -125,7 +129,9 @@ def fetch(
         run_id=job.run_id,
         map_index=job.map_index,
         try_number=job.try_number,
-        command=parse_command(job.command, job.dag_id, job.run_id),
+        command=parse_command(
+            job.command, job.dag_id, job.task_id, job.run_id, job.try_number, job.map_index
+        ),
         concurrency_slots=job.concurrency_slots,
         task_instance_id=UUID(job.task_instance_id) if job.task_instance_id else None,
     )

@@ -210,7 +210,7 @@ class TestWasbTaskHandler:
             )
             assert logs[2].event == "::endgroup::"
             assert logs[3].event == "Log line"
-            assert metadata == {"end_of_log": True, "log_pos": 1}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"

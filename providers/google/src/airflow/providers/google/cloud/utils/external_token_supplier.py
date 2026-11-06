@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import abc
+import json
 import time
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -168,10 +169,7 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
 
         Instances with the same credentials will share tokens.
         """
-        cache_key = (
-            self.oidc_issuer_url
-            + self.client_id
-            + self.client_secret
-            + ",".join(sorted(self.extra_params_kwargs))
+        return json.dumps(
+            [self.oidc_issuer_url, self.client_id, self.client_secret, self.extra_params_kwargs],
+            sort_keys=True,
         )
-        return cache_key

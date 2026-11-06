@@ -696,6 +696,14 @@ vote rather than re-cut in this release.
 > doc preparation and PR creation, so it is easy to forget when the skill
 > hands back to the regular release workflow.
 
+The command only resolves pins an author marked. While classifying, also
+note every PR that starts importing a symbol from another provider (most often
+`common.compat`) and check that the importing provider's floor is at least
+the first release that shipped it, even when the importing provider is not in
+this wave. If it is not, raise the floor in this PR and tell the release
+manager. The recipe is in "Update versions of dependent providers to the next
+version" in `dev/README_RELEASE_PROVIDERS.md`.
+
 **Provider dependency-bump CI guard.** Every `>=` bump this produces (and any
 inter-provider `>=` bump made during the wave, e.g. a `breaking` provider that
 dependents must now require) trips the `check_provider_dependency_bumps`
@@ -796,6 +804,13 @@ provider-by-provider:
   packages and versions from the PR diff (Phase 4b). Reviewers reliably catch
   all of these, so fix them before handing off.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
+- **List every provider in this wave that is an initial release** (no prior
+  release tag — the Phase 1 `note`/`error` case) and remind the release
+  manager that each needs an entry in the `apache/airflow-site` docs index:
+  open that PR before publishing the docs, merge it after.
+  `breeze workflow-run publish-docs --site-env live` fails while a provider is
+  neither in the index nor added by an open PR. Follow
+  [Update airflow-site index for new providers](../../../dev/README_RELEASE_PROVIDERS.md#update-airflow-site-index-for-new-providers).
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in

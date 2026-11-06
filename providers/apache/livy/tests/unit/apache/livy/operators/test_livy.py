@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -27,9 +26,7 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.operators.livy import (
-    _DURABLE_UNSET,
     LivyOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 
@@ -742,18 +739,3 @@ class TestLivyOperatorResumable:
         operator.poll_until_complete(55, {})
 
         assert operator._batch_id == 55
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False

@@ -12,10 +12,10 @@
   "requiredAction_many": "Wymaganych akcji",
   "requiredAction_one": "Wymagana akcja",
   "requiredAction_other": "Wymagane akcje",
-  "requiredActionCount_few": "Wymagane akcje ({{count}})",
-  "requiredActionCount_many": "Wymaganych akcji ({{count}})",
-  "requiredActionCount_one": "Wymagana akcja ({{count}})",
-  "requiredActionCount_other": "Wymagane akcje ({{count}})",
+  "requiredActionCount_few": "Wymagane akcje ({{count, number}})",
+  "requiredActionCount_many": "Wymaganych akcji ({{count, number}})",
+  "requiredActionCount_one": "Wymagana akcja ({{count, number}})",
+  "requiredActionCount_other": "Wymagane akcje ({{count, number}})",
   "requiredActionState": "Stan wymaganej akcji",
   "response": {
     "created": "Utworzono o ",
@@ -33,10 +33,10 @@
       "selectRequiredAction": "Wybierz wymaganą akcję, aby zobaczyć szczegóły"
     },
     "list": {
-      "completedRequiredActions": "Zakończone wymagane akcje ({{count}})",
+      "completedRequiredActions": "Zakończone wymagane akcje ({{count, number}})",
       "loadError": "Nie udało się załadować wymaganych akcji",
       "loadingActions": "Ładowanie wymaganych akcji...",
-      "pendingRequiredActions": "Oczekujące wymagane akcje ({{count}})"
+      "pendingRequiredActions": "Oczekujące wymagane akcje ({{count, number}})"
     },
     "openReviewDrawer": "Otwórz panel recenzji",
     "pageLimitHint": "Wyświetlono tutaj tylko kilka pierwszych akcji. Użyj \"$t(review.viewAll)\", aby zobaczyć wszystkie.",
