@@ -2862,26 +2862,34 @@
                     },
                     "examples": [
                         {
-                            "name": "data-volume-1",
-                            "storageClassName": "storage-class-1",
-                            "accessModes": [
-                                "ReadWriteOnce"
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "storage": "10Gi"
+                            "metadata": {
+                                "name": "data-volume-1"
+                            },
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": [
+                                    "ReadWriteOnce"
+                                ],
+                                "resources": {
+                                    "requests": {
+                                        "storage": "10Gi"
+                                    }
                                 }
                             }
                         },
                         {
-                            "name": "data-volume-2",
-                            "storageClassName": "storage-class-2",
-                            "accessModes": [
-                                "ReadWriteOnce"
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "storage": "20Gi"
+                            "metadata": {
+                                "name": "data-volume-2"
+                            },
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": [
+                                    "ReadWriteOnce"
+                                ],
+                                "resources": {
+                                    "requests": {
+                                        "storage": "20Gi"
+                                    }
                                 }
                             }
                         }
@@ -2899,6 +2907,11 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "readonlyKerberosCache": {
+                            "description": "Should the celery kerberos cache be readonly for the workers.",
+                            "type": "boolean",
+                            "default": true
                         },
                         "revisionHistoryLimit": {
                             "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
@@ -4067,26 +4080,34 @@
                             },
                             "examples": [
                                 {
-                                    "name": "data-volume-1",
-                                    "storageClassName": "storage-class-1",
-                                    "accessModes": [
-                                        "ReadWriteOnce"
-                                    ],
-                                    "resources": {
-                                        "requests": {
-                                            "storage": "10Gi"
+                                    "metadata": {
+                                        "name": "data-volume-1"
+                                    },
+                                    "spec": {
+                                        "storageClassName": "storage-class-1",
+                                        "accessModes": [
+                                            "ReadWriteOnce"
+                                        ],
+                                        "resources": {
+                                            "requests": {
+                                                "storage": "10Gi"
+                                            }
                                         }
                                     }
                                 },
                                 {
-                                    "name": "data-volume-2",
-                                    "storageClassName": "storage-class-2",
-                                    "accessModes": [
-                                        "ReadWriteOnce"
-                                    ],
-                                    "resources": {
-                                        "requests": {
-                                            "storage": "20Gi"
+                                    "metadata": {
+                                        "name": "data-volume-2"
+                                    },
+                                    "spec": {
+                                        "storageClassName": "storage-class-2",
+                                        "accessModes": [
+                                            "ReadWriteOnce"
+                                        ],
+                                        "resources": {
+                                            "requests": {
+                                                "storage": "20Gi"
+                                            }
                                         }
                                     }
                                 }
@@ -4429,6 +4450,11 @@
                                     }
                                 }
                             }
+                        },
+                        "readonlyKerberosCache": {
+                            "description": "Should the kubernetes kerberos cache be readonly for the workers.",
+                            "type": "boolean",
+                            "default": true
                         },
                         "resources": {
                             "description": "Resource configuration for pods created with pod-template-file.",
@@ -6135,6 +6161,28 @@
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
                     "type": "boolean",
                     "default": true
+                },
+                "hostAliases": {
+                    "description": "HostAliases for the dag processor pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into dag processor (templated).",
@@ -7861,12 +7909,10 @@
                     "type": "array",
                     "default": [],
                     "examples": [
-                        [
-                            {
-                                "name": "FORWARDED_ALLOW_IPS",
-                                "value": "*"
-                            }
-                        ]
+                        {
+                            "name": "FORWARDED_ALLOW_IPS",
+                            "value": "*"
+                        }
                     ],
                     "items": {
                         "type": "object",
@@ -11020,7 +11066,7 @@
                             "user": "...",
                             "pass": "...",
                             "host": "...",
-                            "port": "..."
+                            "port": 9200
                         }
                     ]
                 }
@@ -11083,7 +11129,7 @@
                             "user": "...",
                             "pass": "...",
                             "host": "...",
-                            "port": "..."
+                            "port": 9200
                         }
                     ]
                 }

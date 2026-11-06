@@ -80,6 +80,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Airflow CTL integration tests (true/false)"
         required: true
         type: string
+      run-generic-prod-image-tests:
+        description: >-
+          Whether to run the tests of the PROD image itself (true/false): not on the release branch of a
+          single component, which builds the image only for that component's tests
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -96,7 +102,9 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.default-branch == 'main' && inputs.canary-run == 'true'
+    if: >-
+      inputs.default-branch == 'main' && inputs.canary-run == 'true' &&
+      inputs.run-generic-prod-image-tests == 'true'
 
   prod-image-extra-checks-release-branch:
     name: PROD image extra checks (release)
@@ -111,11 +119,14 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.default-branch != 'main' && inputs.canary-run == 'true'
+    if: >-
+      inputs.default-branch != 'main' && inputs.canary-run == 'true' &&
+      inputs.run-generic-prod-image-tests == 'true'
 
   test-examples-of-prod-image-building:
     timeout-minutes: 60
     name: "Test examples of PROD image building"
+    if: inputs.run-generic-prod-image-tests == 'true'
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -153,6 +164,7 @@ jobs:
   test-docker-compose-quick-start:
     timeout-minutes: 60
     name: "Docker Compose quick start with PROD image verifying"
+    if: inputs.run-generic-prod-image-tests == 'true'
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -215,6 +227,7 @@ jobs:
 
   test-e2e-integration-tests-basic:
     name: "Test e2e integration tests with PROD image"
+    if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "Regular e2e test"
@@ -233,7 +246,9 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log"
-    if: inputs.canary-run == 'true' || inputs.run-remote-logging-s3-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-remote-logging-s3-e2e-tests == 'true'
 
   test-e2e-integration-tests-remote-log-elasticsearch:
     name: "Elasticsearch remote logging tests with PROD image"
@@ -245,10 +260,13 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log_elasticsearch"
-    if: inputs.canary-run == 'true' || inputs.run-remote-logging-elasticsearch-e2e-tests == 'true'
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-remote-logging-elasticsearch-e2e-tests == 'true'
 
   test-e2e-integration-tests-xcom-object-storage:
     name: "XCom object storage backend tests with PROD image"
+    if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       workflow-name: "XCom object storage backend e2e test"
