@@ -1,0 +1,3 @@
+Browse → Audit Log opens on the last 7 days
+
+The Browse → Audit Log page now lists events from the last 7 days, newest first, and says so at the top of the page. **Show all**, or clearing the When filter, lists the full history. Dag, Dag run, and task audit tabs are unchanged, as is ``GET /eventLogs`` when ``after`` is omitted.
