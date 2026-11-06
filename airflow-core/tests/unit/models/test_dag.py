@@ -2675,6 +2675,53 @@ my_postgres_conn:
 
     @pytest.mark.db_test
     @pytest.mark.need_serialized_dag
+    def test_dagrun_deadlines_apply_each_alert_run_type_filter(self, testing_dag_bundle, session):
+        dag = DAG(
+            dag_id="test_mixed_deadline_filters",
+            schedule=datetime.timedelta(days=1),
+            deadline=[
+                DeadlineAlert(
+                    name=name,
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=1),
+                    run_type_filter=run_type_filter,
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for name, run_type_filter in (
+                    ("scheduled_only", {"scheduled"}),
+                    ("manual_only", {"manual"}),
+                    ("all_types", None),
+                )
+            ],
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        alert_ids_by_name = dict(
+            session.execute(
+                select(DeadlineAlertModel.name, DeadlineAlertModel.id)
+                .join(SerializedDagModel)
+                .where(SerializedDagModel.dag_id == dag.dag_id)
+            ).all()
+        )
+
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_mixed_deadline_filters",
+            run_type=DagRunType.MANUAL,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert len(dr.deadlines) == 2
+        assert {deadline.deadline_alert_id for deadline in dr.deadlines} == {
+            alert_ids_by_name["manual_only"],
+            alert_ids_by_name["all_types"],
+        }
+
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
     @mock.patch("airflow.serialization.definitions.dag.resolve_deadline_alert_interval", autospec=True)
     def test_excluded_deadline_does_not_resolve_variable_interval(
         self, resolve_interval, testing_dag_bundle, session
