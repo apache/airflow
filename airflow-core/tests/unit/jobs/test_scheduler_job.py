@@ -39,7 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import delete, event as sa_event, func, insert, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -105,7 +105,7 @@ from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
@@ -1337,6 +1337,66 @@ class TestSchedulerJob:
             session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
         )
         assert live_states == [State.SUCCESS, State.UP_FOR_RETRY]
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("source", ["executor", "heartbeat", "missing_loop_gate"])
+    @pytest.mark.parametrize("database_error", [False, True], ids=["application-error", "database-error"])
+    def test_task_failure_handling_isolates_errors(
+        self, dag_maker, session, caplog, mocker, source, database_error
+    ):
+        with dag_maker(session=session):
+            EmptyOperator(task_id="first")
+            EmptyOperator(task_id="second")
+        dag_run = dag_maker.create_dagrun()
+        executor = MockExecutor(do_update=False)
+        job = Job()
+        session.add(job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job, executors=[executor])
+        task_instances = list(dag_run.task_instances)
+        for ti in task_instances:
+            ti.state = TaskInstanceState.RUNNING
+            ti.try_number = 1
+            ti.max_tries = 0
+            ti.queued_by_job_id = job.id
+            if source == "missing_loop_gate":
+                ti.operator = LOOP_GATE_OPERATOR
+                executor.event_buffer[TaskInstanceUuid(ti.id)] = TaskInstanceState.SUCCESS, None
+            elif source == "executor":
+                executor.event_buffer[TaskInstanceUuid(ti.id)] = TaskInstanceState.FAILED, None
+        if source == "missing_loop_gate":
+            mocker.patch.object(
+                self.job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None
+            )
+        session.flush()
+        transaction = session.get_transaction()
+        handle_failure = TaskInstance.handle_failure
+        failed_keys = []
+
+        def fail_first(ti, *, error, session):
+            if failed_keys:
+                return handle_failure(ti, error=error, session=session)
+            failed_keys.append(ti.key)
+            ti.external_executor_id = "partial failure update"
+            session.flush()
+            if database_error:
+                session.execute(insert(Log).values(event=None))
+            raise RuntimeError("Task failure handling broke")
+
+        with mock.patch.object(TaskInstance, "handle_failure", autospec=True, side_effect=fail_first):
+            if source == "heartbeat":
+                self.job_runner._purge_task_instances_without_heartbeats(task_instances, session=session)
+            else:
+                self.job_runner._process_executor_events(executor=executor, session=session)
+
+        assert session.get_transaction() is transaction
+        session.expire_all()
+        assert [ti.state for ti in task_instances] == [TaskInstanceState.FAILED] * 2
+        assert all(ti.external_executor_id is None for ti in task_instances)
+        assert {
+            "event": "Could not handle task instance failure",
+            "task_instance_key": failed_keys[0],
+        } in caplog
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     def test_process_executor_events_callback_for_removed_mapped_task(

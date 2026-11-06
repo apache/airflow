@@ -2844,7 +2844,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.updated_at = timezone.utcnow()
         session.merge(ti)
         session.flush()
-        session.commit()
 
     @provide_session
     def handle_failure(

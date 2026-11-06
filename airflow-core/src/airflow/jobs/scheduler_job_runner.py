@@ -1500,6 +1500,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.incr("scheduler.executor_events.processed", num_events)
 
     @classmethod
+    def _handle_task_failure(cls, ti: TI, *, error: str, session: Session) -> None:
+        task_instance_key = ti.key
+        # begin_nested flushes pending batch changes before opening the savepoint.
+        savepoint = session.begin_nested()
+        try:
+            with savepoint:
+                ti.handle_failure(error=error, session=session)
+        except Exception as exc:
+            if not session.is_active or (isinstance(exc, DBAPIError) and exc.connection_invalidated):
+                raise
+            cls.logger().exception(
+                "Could not handle task instance failure", task_instance_key=task_instance_key
+            )
+            ti.set_state(TaskInstanceState.FAILED, session=session)
+
+    @classmethod
     def process_executor_events(
         cls,
         executor: BaseExecutor,
@@ -1771,7 +1787,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if state == TaskInstanceState.SUCCESS and ti.operator == LOOP_GATE_OPERATOR:
                         cls.logger().exception("Failing loop gate %s: %s", ti, msg)
                         ti.task = None
-                        ti.handle_failure(error=msg, session=session)
+                        cls._handle_task_failure(ti, error=msg, session=session)
                         continue
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state, session=session)
@@ -1842,7 +1858,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.send_callback(email_request)
 
                 # Update task state - emails are handled by DAG processor now
-                ti.handle_failure(error=msg, session=session)
+                cls._handle_task_failure(ti, error=msg, session=session)
 
         unprocessed_keys = [key for key in tis_with_right_state if key in event_buffer]
         if unprocessed_keys:
@@ -4222,7 +4238,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.notify_failure(error=msg)
                 ti.complete_restart(session=session)
             else:
-                ti.handle_failure(error=msg, session=session)
+                self._handle_task_failure(ti, error=msg, session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )
