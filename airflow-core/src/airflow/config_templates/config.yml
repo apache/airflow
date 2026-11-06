@@ -3189,7 +3189,7 @@ triggerer:
       type: integer
       example: ~
       default: "30"
-    watcher_logs_to_stdout:
+    watcher_log_to_stdout:
       description: |
         Also write an asset watcher's lines to the triggerer's standard output, in addition to the watcher's
         own log file. Platform log shippers that read the triggerer's output rely on this. A deferred task's
@@ -3198,7 +3198,7 @@ triggerer:
       type: boolean
       example: ~
       default: "True"
-    trigger_log_max_open_files:
+    watcher_log_max_open_files:
       description: |
         Maximum number of asset watcher log files a triggerer keeps open at once. When another watcher logs,
         the least recently written file is closed, and it is reopened, appending, when its watcher logs
@@ -3208,7 +3208,7 @@ triggerer:
       type: integer
       example: ~
       default: "256"
-    trigger_log_max_bytes:
+    watcher_log_max_bytes:
       description: |
         Maximum size in bytes of an asset watcher's local log file. When it is reached the older lines are
         moved to a ``rotated`` directory next to it, replacing the previous rotated file, so a watcher uses at

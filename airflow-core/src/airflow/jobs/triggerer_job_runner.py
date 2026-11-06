@@ -1050,11 +1050,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     @staticmethod
     def get_watcher_log_max_open_files() -> int:
         """
-        Return ``[triggerer] trigger_log_max_open_files`` (0: no limit), at most a quarter of ``ulimit -n``.
+        Return ``[triggerer] watcher_log_max_open_files`` (0: no limit), at most a quarter of ``ulimit -n``.
 
         The task and callback trigger logs, the database and the sockets need descriptors too.
         """
-        setting = conf.getint("triggerer", "trigger_log_max_open_files")
+        setting = conf.getint("triggerer", "watcher_log_max_open_files")
         try:
             import resource  # Unix only
 
@@ -1608,8 +1608,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     self.logger_cache[trigger.id] = WatcherLoggingFactory(
                         log_path=log_path,
                         trigger_id=trigger.id,
-                        max_bytes=conf.getint("triggerer", "trigger_log_max_bytes"),
-                        to_stdout=conf.getboolean("triggerer", "watcher_logs_to_stdout"),
+                        max_bytes=conf.getint("triggerer", "watcher_log_max_bytes"),
+                        to_stdout=conf.getboolean("triggerer", "watcher_log_to_stdout"),
                         on_write=self._note_watcher_log_write,
                         on_error=self._warn_trigger_log_error,
                         may_rotate=functools.partial(self._rotated_upload_done, trigger.id),

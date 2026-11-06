@@ -1576,7 +1576,7 @@ class TestWatcherLogFile:
             trigger=trigger, dag_bag=mocker.Mock(), render_log_fname=mocker.Mock(), session=mocker.Mock()
         )
 
-    @conf_vars({("triggerer", "trigger_log_max_bytes"): "1234"})
+    @conf_vars({("triggerer", "watcher_log_max_bytes"): "1234"})
     def test_one_file_per_assignment_and_triggerer(self, jobless_supervisor, mocker):
         trigger = self._watcher_trigger(mocker, 42)
 
@@ -1768,7 +1768,7 @@ class TestWatcherLogFile:
 
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=mocker.Mock(upload=upload))
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "200"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "200"}
         ):
             self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
             factory = jobless_supervisor.logger_cache.pop(42)
@@ -1855,7 +1855,7 @@ class TestWatcherLogFile:
         """Log ``numbers`` (or until the first rotation) on a new watcher file, and release it."""
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
         ):
             self._create(supervisor, self._watcher_trigger(mocker, trigger_id), mocker)
             if numbers is None:
@@ -1911,7 +1911,7 @@ class TestWatcherLogFile:
         store = getattr(self, store_class)(tmp_path)
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
         ):
             self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
             self._log(jobless_supervisor, 42, range(200))
@@ -1926,7 +1926,7 @@ class TestWatcherLogFile:
         store.down = True
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
         ):
             self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
             self._log(jobless_supervisor, 42, range(200))
@@ -1973,7 +1973,7 @@ class TestWatcherLogFile:
         store = self.HdfsRemoteLogIO(tmp_path)
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
         ):
             self._create(dead, self._watcher_trigger(mocker, 42), mocker)
             self._log(dead, 42, range(100))
@@ -1991,7 +1991,7 @@ class TestWatcherLogFile:
         handler = mocker.Mock(processors=(object(),))
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=handler)
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
         ):
             self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
             self._log_until_rotated(jobless_supervisor, lambda: handler.upload.call_count)
@@ -2036,7 +2036,7 @@ class TestWatcherLogFile:
 
         mocker.patch("airflow.sdk.log.load_remote_log_handler", side_effect=load_remote_log_handler)
         with conf_vars(
-            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
         ):
             self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
             self._log(jobless_supervisor, 42, range(100))
@@ -2310,7 +2310,7 @@ class TestWatcherLogFile:
     )
     def test_open_files_stay_below_the_processs_limit(self, mocker, setting, soft_limit, expected):
         mocker.patch("resource.getrlimit", return_value=(soft_limit, soft_limit))
-        with conf_vars({("triggerer", "trigger_log_max_open_files"): str(setting)}):
+        with conf_vars({("triggerer", "watcher_log_max_open_files"): str(setting)}):
             assert TriggerRunnerSupervisor.get_watcher_log_max_open_files() == expected
 
     def test_without_remote_logging_only_the_newest_files_of_dead_triggerers_are_kept(
@@ -2636,9 +2636,9 @@ class TestWatcherLogFile:
             factory.close.assert_called_once()
 
     def test_defaults(self):
-        assert conf.getint("triggerer", "trigger_log_max_bytes") == 2 * 1024 * 1024
-        assert conf.getint("triggerer", "trigger_log_max_open_files") == 256
-        assert conf.getboolean("triggerer", "watcher_logs_to_stdout") is True
+        assert conf.getint("triggerer", "watcher_log_max_bytes") == 2 * 1024 * 1024
+        assert conf.getint("triggerer", "watcher_log_max_open_files") == 256
+        assert conf.getboolean("triggerer", "watcher_log_to_stdout") is True
 
 
 class TestTriggerRunner:
