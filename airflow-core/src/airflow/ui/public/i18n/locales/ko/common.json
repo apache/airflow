@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag 번들",
   "dagDetails": {
     "activeRuns": "활성 실행 수",
+    "bundleVersion": "번들 버전",
     "catchup": "캐치업",
     "dagRunTimeout": "Dag 실행 제한 시간",
     "defaultArgs": "기본 인자",

@@ -22,7 +22,7 @@
 
 Package ``apache-airflow-providers-celery``
 
-Release: ``3.26.0``
+Release: ``4.0.0``
 
 
 `Celery <https://docs.celeryq.dev/en/stable/>`__
@@ -35,7 +35,7 @@ This is a provider package for ``celery`` provider. All classes for this provide
 are in ``airflow.providers.celery`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.26.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/4.0.0/>`_.
 
 Installation
 ------------
@@ -87,4 +87,4 @@ Extra                Dependencies
 ===================  ===================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.26.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/4.0.0/changelog.html>`_.

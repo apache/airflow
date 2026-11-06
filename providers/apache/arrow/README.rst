@@ -22,7 +22,7 @@
 
 Package ``apache-airflow-providers-apache-arrow``
 
-Release: ``0.1.1``
+Release: ``0.2.0``
 
 
 `Apache Arrow <https://arrow.apache.org/>`__ provider for Airflow. Offers ``AdbcHook``,
@@ -39,7 +39,7 @@ This is a provider package for ``apache.arrow`` provider. All classes for this p
 are in ``airflow.providers.apache.arrow`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/0.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/0.2.0/>`_.
 
 Installation
 ------------
@@ -79,4 +79,4 @@ Extra           Dependencies
 ==============  =====================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/0.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-arrow/0.2.0/changelog.html>`_.

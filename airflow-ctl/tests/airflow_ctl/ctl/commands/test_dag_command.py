@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import Mock, call, create_autospec
@@ -280,21 +281,75 @@ class TestDagCommands:
                 api_client=api_client,
             )
 
-    def test_next_execution(self, api_client_maker):
+    @pytest.mark.parametrize(
+        ("operation", "response_attr"),
+        [
+            ("pause", "dag_response_paused"),
+            ("unpause", "dag_response_unpaused"),
+            ("drain", "dag_response_draining"),
+        ],
+    )
+    def test_update_dag_state_json_output_is_parseable(
+        self, operation, response_attr, api_client_maker, capsys
+    ):
+        response_json = getattr(self, response_attr).model_dump(mode="json")
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=response_json,
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        getattr(dag_command, operation)(
+            self.parser.parse_args(["dags", operation, self.dag_id, "--output", "json"]),
+            api_client=api_client,
+        )
+        captured = capsys.readouterr()
+        output = json.loads(captured.out)[0]
+        assert output["dag_id"] == self.dag_id
+        assert output["scheduling_state"] == response_json["scheduling_state"]
+        assert output["last_parsed_time"] == response_json["last_parsed_time"]
+        assert _normalize_rich_output(captured.err) == (
+            f"Dag {operation} successful {self.dag_id} Further Dag details:"
+        )
+
+    @pytest.mark.parametrize("operation", ["pause", "unpause", "drain"])
+    def test_update_dag_state_error_goes_to_stderr(self, operation, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            getattr(dag_command, operation)(
+                self.parser.parse_args(["dags", operation, self.dag_id, "--output", "json"]),
+                api_client=api_client,
+            )
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        error_message = f"Error while trying to {operation} Dag {self.dag_id}"
+        assert error_message in _normalize_rich_output(captured.err)
+        assert error_message not in _normalize_rich_output(captured.out)
+
+    def test_next_execution(self, api_client_maker, capsys):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}",
             response_json=self.dag_response_paused.model_dump(mode="json"),
             expected_http_status_code=200,
             kind=ClientKind.CLI,
         )
-        result = dag_command.next_execution(
-            self.parser.parse_args(["dags", "next-execution", self.dag_id]),
+        dag_command.next_execution(
+            self.parser.parse_args(["dags", "next-execution", self.dag_id, "--output", "json"]),
             api_client=api_client,
         )
-        assert result["next_dagrun_logical_date"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
-        assert result["next_dagrun_data_interval_start"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
-        assert result["next_dagrun_data_interval_end"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
-        assert result["next_dagrun_run_after"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
+        assert json.loads(capsys.readouterr().out) == [
+            {
+                "next_dagrun_logical_date": "2025-01-01T00:00:00",
+                "next_dagrun_data_interval_start": "2025-01-01T00:00:00",
+                "next_dagrun_data_interval_end": "2025-01-01T00:00:00",
+                "next_dagrun_run_after": "2025-01-01T00:00:00",
+            }
+        ]
 
     def test_next_execution_no_schedule(self, api_client_maker):
         api_client = api_client_maker(

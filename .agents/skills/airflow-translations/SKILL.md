@@ -146,6 +146,13 @@ and 100% coverage:
 breeze ui check-translation-completeness --language <locale>
 ```
 
+For machine-readable validation, add `--json` and check the language's totals
+instead — stdout carries only the JSON document:
+
+```bash
+breeze ui check-translation-completeness --language <locale> --json
+```
+
 Run pre-commit hooks to fix formatting, licenses, and linting issues:
 
 ```bash
@@ -245,6 +252,7 @@ from a global rule in this document, follow the locale-specific guideline.
 | `nl`        | Dutch                   | [locales/nl.md](locales/nl.md)  |
 | `pl`        | Polish                  | [locales/pl.md](locales/pl.md)  |
 | `pt`        | Portuguese              | [locales/pt.md](locales/pt.md)  |
+| `ru`        | Russian                 | [locales/ru.md](locales/ru.md)  |
 | `th`        | Thai                    | [locales/th.md](locales/th.md)  |
 | `tr`        | Turkish                 | [locales/tr.md](locales/tr.md)  |
 | `zh-CN`     | Simplified Chinese      | [locales/zh-CN.md](locales/zh-CN.md) |

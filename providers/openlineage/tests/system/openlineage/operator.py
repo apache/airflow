@@ -25,12 +25,15 @@ import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Collection
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import urlparse
 
 from dateutil.parser import parse
 from jinja2 import Environment, TemplateError
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.providers.common.compat.sdk import BaseOperator, Variable
 
 try:
@@ -38,18 +41,42 @@ try:
 except (ImportError, ModuleNotFoundError, AttributeError):
     NoVariableError = KeyError  # type: ignore[misc, assignment]  # AF2
 
+# Not imported from the system tests' expected_events: operator.py imports nothing else of the system tests, so it can
+# be copied as is next to Dags whose `system.` imports are rewritten
+AIRFLOW_VERSION = Version(airflow_version)
+
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 log = logging.getLogger(__name__)
 
-# Marks every log line describing why event validation failed. The OpenLineage e2e tests (task_logs.py) print
-# only these lines of a failed check, keep the tag in sync with them.
+# Marks every log line describing why event validation failed, so whatever reads the logs of a failed check can
+# report just these lines. Every problem of a failed check is logged with it, keep the tag stable.
 VALIDATION_ERROR_TAG = "[OL_VALIDATION_ERROR]"
+
+# The key of the events being checked, which prefixes the validation errors logged meanwhile
+_validated_key: ContextVar[str | None] = ContextVar("_validated_key", default=None)
 
 
 def log_validation_error(msg: str, *args: Any) -> None:
-    log.error("%s %s", VALIDATION_ERROR_TAG, msg % args if args else msg)
+    text = msg % args if args else msg
+    if (key := _validated_key.get()) is not None:
+        text = f"[{key}] {text}"
+    log.error("%s %s", VALIDATION_ERROR_TAG, text)
+
+
+def check_values(checks: dict[str, tuple[Any, Any]]) -> None:
+    """
+    Check values a task computes itself, given as ``{name: (actual, expected)}``, e.g. what a macro returns.
+
+    Every mismatch is logged as a validation error before failing the task.
+    """
+    mismatches = [name for name, (actual, expected) in checks.items() if actual != expected]
+    for name in mismatches:
+        actual, expected = checks[name]
+        log_validation_error("`%s`: expected `%r` but got `%r`", name, expected, actual)
+    if mismatches:
+        raise ValueError(f"Unexpected values of {mismatches}")
 
 
 def any(result: Any) -> Any:
@@ -307,7 +334,10 @@ def _get_job_type(event: dict) -> str | None:
 
 
 def check_run_id_integrity(
-    events_by_key: dict[str, list[dict]], repeated_start_keys: Collection[str] = ()
+    events_by_key: dict[str, list[dict]],
+    repeated_start_keys: Collection[str] = (),
+    corrected_terminal_keys: Collection[str] = (),
+    unstarted_terminal_keys: Collection[str] = (),
 ) -> list[str]:
     """
     Check that ``run.runId`` identifies exactly one attempt of exactly one job, and return the problems found.
@@ -325,7 +355,11 @@ def check_run_id_integrity(
          ``repeated_start_keys`` (deferral re-emits START on every resume), and exactly one COMPLETE or FAIL;
        * Dag run: one START and at most one COMPLETE or FAIL. The Dag run that contains the checking task is
          still running when the check happens, so its COMPLETE/FAIL is missing, while Dag runs triggered by it
-         can already have finished.
+         can already have finished;
+       * one more COMPLETE or FAIL is allowed when one of them has its key in ``corrected_terminal_keys``: a user
+         marking a finished task or Dag run with another state emits a second one for the same run;
+       * no START is needed when the key of its COMPLETE or FAIL is in ``unstarted_terminal_keys``: a task that
+         fails before it runs, e.g. on rendering its templates, or that a user marks before it started.
 
     Across groups:
 
@@ -371,12 +405,15 @@ def check_run_id_integrity(
             continue
         event_types = [event.get("eventType") for _, event in members]
         start_keys = {key for key, event in members if event.get("eventType") == "START"}
+        terminal_keys = {key for key, event in members if event.get("eventType") in ("COMPLETE", "FAIL")}
         terminals = [event_type for event_type in event_types if event_type in ("COMPLETE", "FAIL")]
         starts = event_types.count("START")
         repeated_starts_allowed = job_type != "DAG" and bool(start_keys & set(repeated_start_keys))
         too_many_starts = starts > 1 and not repeated_starts_allowed
-        too_many_terminals = len(terminals) > 1 or (job_type != "DAG" and not terminals)
-        if starts < 1 or too_many_starts or too_many_terminals:
+        max_terminals = 2 if terminal_keys & set(corrected_terminal_keys) else 1
+        too_many_terminals = len(terminals) > max_terminals or (job_type != "DAG" and not terminals)
+        missing_start = starts < 1 and not terminal_keys & set(unstarted_terminal_keys)
+        if missing_start or too_many_starts or too_many_terminals:
             expected = (
                 "one START (several only if the Dag expects repeated STARTs, see event_count_assertions) "
                 "and one COMPLETE/FAIL"
@@ -422,13 +459,19 @@ def _check_loop_runs(groups: dict[str, list[tuple[str, dict]]]) -> list[str]:
     return problems
 
 
-def sort_by_execution(event: dict) -> tuple[int, int, int]:
-    """Order the events of a task's executions by loop iteration, map index and try, as ``event_sort_fn``."""
-    # Dag run events have no airflow facet
-    task_instance = event["run"]["facets"].get("airflow", {}).get("taskInstance", {})
+def sort_by_execution(event: dict) -> tuple[int, int, int, int, int]:
+    """Order the events of executions by Dag run clear, loop run and iteration, map index and try, as ``event_sort_fn``."""
+    facets = event["run"]["facets"]
+    # Dag run events carry their Dag run in airflowDagRun and have no task instance
+    dag_run = (facets.get("airflow") or facets.get("airflowDagRun") or {}).get("dagRun", {})
+    task_instance = facets.get("airflow", {}).get("taskInstance", {})
+    loop = task_instance.get("loop") or {}
+    map_index = task_instance.get("map_index")
     return (
-        task_instance.get("loop", {}).get("index", -1),
-        task_instance.get("map_index") if task_instance.get("map_index") is not None else -1,
+        dag_run.get("clear_number", 0),
+        loop.get("trajectory", 0),
+        loop.get("index", -1),
+        map_index if map_index is not None else -1,
         task_instance.get("try_number", -1),
     )
 
@@ -457,7 +500,9 @@ class OpenLineageTestOperator(BaseOperator):
         included in the error if events are unexpectedly found.
     :param file_path: alternatively, a path to a JSON file containing an array of event templates.
         Multiple events sharing the same ``job.name`` + ``eventType`` key are accumulated into a list.
-        An event with ``"$absent": "<reason>"`` asserts the variable must not exist.
+        An event with ``"$absent": "<reason>"`` asserts the variable must not exist. An event with
+        ``"$since": "<version>"`` is checked only from that Airflow version on, e.g. when older versions don't
+        emit it.
     :param env: jinja environment used to render event templates.
     :param event_count_assertions: dict mapping a regex pattern (matched against variable keys) to a
         count expression. Supported expressions: ``"N"``, ``"==N"``, ``">=N"``, ``"<=N"``.
@@ -471,6 +516,12 @@ class OpenLineageTestOperator(BaseOperator):
         ascending before comparison. Useful for mapped tasks whose events arrive in non-deterministic
         order. When the template for a key is a list, sorting is required for pairwise comparison to
         be meaningful.
+    :param corrected_terminal_keys: keys of COMPLETE/FAIL events emitted when a user marks a finished task or
+        Dag run with another state. The run they belong to may then have one COMPLETE/FAIL more in the
+        ``check_run_id_integrity`` check: the one of its original outcome, and the one of the correction.
+    :param unstarted_terminal_keys: keys of COMPLETE/FAIL events of runs that have no START, as the task never ran:
+        it failed before it started or a user marked it before it started. The ``check_run_id_integrity`` check
+        then doesn't require a START for their runs.
     :param check_run_ids: if True (default), additionally check the collected events with
         ``check_run_id_integrity``: START and COMPLETE/FAIL of one attempt share a ``runId``, while another
         try, map index or loop iteration gets its own. Set to False only for a Dag whose expected events
@@ -503,6 +554,8 @@ class OpenLineageTestOperator(BaseOperator):
         fail_fast: bool = False,
         event_sort_fn: Callable[[dict], Any] | None = None,
         check_run_ids: bool = True,
+        corrected_terminal_keys: Collection[str] = (),
+        unstarted_terminal_keys: Collection[str] = (),
         **kwargs,
     ):
         # Never from the Dag's default_args: a retry would hide the mismatch the first try failed on, as that try
@@ -516,6 +569,8 @@ class OpenLineageTestOperator(BaseOperator):
         self.clear_variables = clear_variables
         self.fail_fast = fail_fast
         self.check_run_ids = check_run_ids
+        self.corrected_terminal_keys = corrected_terminal_keys
+        self.unstarted_terminal_keys = unstarted_terminal_keys
         self.event_sort_fn = event_sort_fn
         if event_templates is None and file_path is None:
             raise ValueError("Either event_templates or file_path must be provided")
@@ -523,35 +578,51 @@ class OpenLineageTestOperator(BaseOperator):
             raise ValueError("Can't pass both event_templates and file_path")
 
     def execute(self, context: Context) -> None:
-        time.sleep(10)  # Wait for all variables to update properly
+        # Events emitted around the end of the upstream tasks may still be on their way to the Variables
+        time.sleep(int(os.getenv("SYSTEM_TESTS_OL_CHECK_EVENTS_DELAY_SECONDS", "10")))
         if self.file_path is not None:
             self.event_templates = {}
             self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
-            with open(self.file_path) as f:
-                events = json.load(f)
-            for event in events:
-                key = event["job"]["name"] + ".event." + event["eventType"].lower()
-                if isinstance(event.get("$absent"), str):
-                    self.event_templates[key] = {"$absent": event["$absent"]}
-                else:
-                    existing = self.event_templates.get(key)
-                    if existing is None:
-                        self.event_templates[key] = event
-                    elif isinstance(existing, list):
-                        existing.append(event)
+            try:
+                with open(self.file_path) as f:
+                    events = json.load(f)
+                for event in events:
+                    # "$since" only drops events older versions do not emit, keeping one file. Events that differ
+                    # between versions need a version-suffixed file (see get_expected_event_file_path).
+                    if (since := event.pop("$since", None)) and Version(since) > AIRFLOW_VERSION:
+                        continue
+                    key = event["job"]["name"] + ".event." + event["eventType"].lower()
+                    if isinstance(event.get("$absent"), str):
+                        self.event_templates[key] = {"$absent": event["$absent"]}
                     else:
-                        self.event_templates[key] = [existing, event]
+                        existing = self.event_templates.get(key)
+                        if existing is None:
+                            self.event_templates[key] = event
+                        elif isinstance(existing, list):
+                            existing.append(event)
+                        else:
+                            self.event_templates[key] = [existing, event]
+            except Exception as e:
+                log_validation_error(
+                    "Can't read the expected events from `%s`: %s: %s", self.file_path, type(e).__name__, e
+                )
+                raise
         errors: dict[str, str] = {}
         events_by_key: dict[str, list[dict]] = {}
         try:
             for key, template in self.event_templates.items():  # type: ignore[union-attr]
                 log.info("Checking key: `%s`", key)
+                token = _validated_key.set(key)
                 try:
                     events_by_key[key] = self._check_key(key, template)
-                except ValueError as e:
+                except Exception as e:
+                    # Not only a mismatch (ValueError): a malformed event or template must not hide the other keys
+                    log_validation_error("%s", e if type(e) is ValueError else f"{type(e).__name__}: {e}")
                     if self.fail_fast:
                         raise
-                    errors[key] = str(e)
+                    errors[key] = str(e) if type(e) is ValueError else f"{type(e).__name__}: {e}"
+                finally:
+                    _validated_key.reset(token)
             if self.check_run_ids and errors:
                 # A key that failed its template is missing from events_by_key, so its runIds would look incomplete
                 log.info("Skipping the runId integrity check until the event templates match")
@@ -559,7 +630,11 @@ class OpenLineageTestOperator(BaseOperator):
                 if problems := check_run_id_integrity(
                     events_by_key,
                     repeated_start_keys={key for key in events_by_key if self._expects_repeated_events(key)},
+                    corrected_terminal_keys=self.corrected_terminal_keys,
+                    unstarted_terminal_keys=self.unstarted_terminal_keys,
                 ):
+                    for problem in problems:
+                        log_validation_error("%s", problem)
                     message = "\n".join(f"    {problem}" for problem in problems)
                     if self.fail_fast:
                         raise ValueError(f"runId integrity check failed:\n{message}")

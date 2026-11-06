@@ -23,7 +23,7 @@ import asyncio
 import pytest
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
@@ -34,6 +34,7 @@ from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToo
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import BaseHook
 
+from unit.common.ai.tool_parts import is_tool_result
 from unit.common.ai.toolsets.test_datafusion import _make_mock_datasource_config
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
@@ -79,7 +80,7 @@ class TestSQLToolsetInAnAgent:
         toolset._hook = hook
 
         def model_fn(messages, info):
-            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+            if any(is_tool_result(p) for m in messages for p in m.parts):
                 return ModelResponse(parts=[TextPart(content="done")])
             call = ToolCallPart(tool_name="query", args={"sql": "SELECT 1"}, tool_call_id=f"c{len(messages)}")
             return ModelResponse(parts=[call])

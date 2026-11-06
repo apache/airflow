@@ -25,11 +25,14 @@ from __future__ import annotations
 
 import time
 import warnings
-from collections import defaultdict, deque
-from collections.abc import Sequence
+from collections import deque
+from collections.abc import Callable, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
+from functools import partial
 from typing import TYPE_CHECKING, TypeAlias
 
+from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -83,6 +86,10 @@ INVALID_CREDENTIALS_EXCEPTIONS = [
     "InvalidClientTokenId",
     "UnrecognizedClientException",
 ]
+THROTTLING_EXCEPTIONS = ["ThrottlingException"]
+# Retries on top of botocore's own. Past this number, a throttled RunTask call uses one of the workload's
+# ``max_run_task_attempts``, so a workload cannot stay pending for as long as the throttling lasts.
+MAX_THROTTLED_RUN_TASK_RETRIES = 5
 
 
 class AwsEcsExecutor(BaseExecutor):
@@ -142,6 +149,28 @@ class AwsEcsExecutor(BaseExecutor):
         self.cluster = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER)
         self.container_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
         self.attempts_since_last_successful_connection = 0
+
+        # ``ExecutorConf`` has no ``getint`` before Airflow 3.2.
+        self.run_task_concurrency = int(
+            self.conf.get(
+                CONFIG_GROUP_NAME,
+                AllEcsConfigKeys.RUN_TASK_CONCURRENCY,
+                fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.RUN_TASK_CONCURRENCY],
+            )
+        )
+        if self.run_task_concurrency < 1:
+            raise ValueError(
+                f"{AllEcsConfigKeys.RUN_TASK_CONCURRENCY} must be 1 or more, got {self.run_task_concurrency}"
+            )
+        # With a concurrency of 1, RunTask calls are made one by one in the scheduler loop.
+        self._run_task_threads = 0
+        self._run_task_pool: ThreadPoolExecutor | None = None
+        if self.run_task_concurrency > 1:
+            self._run_task_threads = self.run_task_concurrency
+            self._run_task_pool = ThreadPoolExecutor(
+                max_workers=self._run_task_threads, thread_name_prefix="ecs-run-task"
+            )
+        self._run_task_futures: dict[Future, EcsQueuedTask] = {}
 
         self.load_ecs_connection(check_connection=False)
         self.IS_BOTO_CONNECTION_HEALTHY = False
@@ -271,7 +300,15 @@ class AwsEcsExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
         region_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
-        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        hook = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        # Each RunTask thread, and the scheduler thread, needs a connection of its own: past the client's pool
+        # size (10 by default), the extra connections are closed with a warning when a burst of calls is over,
+        # and the next burst opens them again.
+        config = hook.config
+        connections = self._run_task_threads + 1
+        if config.max_pool_connections < connections:
+            config = config.merge(Config(max_pool_connections=connections))
+        self.ecs = hook.get_client_type(region_name=hook.region_name, config=config)
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
 
@@ -424,83 +461,120 @@ class AwsEcsExecutor(BaseExecutor):
             called again in the next heart-beat.
 
         If the launch type is FARGATE, this will run the tasks on new AWS Fargate instances.
+
+        With ``run_task_concurrency`` above 1, the RunTask calls are made in background threads, at most
+        that many at a time, and the scheduler loop does not wait for them: each call is handled by the
+        first sync that finds it finished.
         """
-        queue_len = len(self.pending_workloads)
-        failure_reasons = defaultdict(int)
-        for _ in range(queue_len):
+        for _ in range(len(self.pending_workloads)):
             ecs_task = self.pending_workloads.popleft()
-            task_key = ecs_task.key
-            cmd = ecs_task.command
-            queue = ecs_task.queue
-            exec_config = ecs_task.executor_config
-            attempt_number = ecs_task.attempt_number
-            failure_reasons = []
             if timezone.utcnow() < ecs_task.next_attempt_time:
                 self.pending_workloads.append(ecs_task)
                 continue
+            run_task = partial(
+                self._run_task, ecs_task.key, ecs_task.command, ecs_task.queue, ecs_task.executor_config
+            )
+            if self._run_task_pool is None:
+                self._handle_run_task_response(ecs_task, run_task)
+            else:
+                self._run_task_futures[self._run_task_pool.submit(run_task)] = ecs_task
+        # All the calls made with expired credentials fail together: raising on the first one would leave
+        # the others to fail one sync at a time, each forcing its own reconnection.
+        credentials_error: ClientError | NoCredentialsError | None = None
+        for future in [future for future in self._run_task_futures if future.done()]:
             try:
-                run_task_response = self._run_task(task_key, cmd, queue, exec_config)
-            except NoCredentialsError:
+                self._handle_run_task_response(self._run_task_futures.pop(future), future.result)
+            except (ClientError, NoCredentialsError) as error:
+                credentials_error = credentials_error or error
+        if credentials_error is not None:
+            raise credentials_error
+
+    def _handle_run_task_response(self, ecs_task: EcsQueuedTask, get_response: Callable[[], dict]) -> None:
+        """Get the RunTask response for ``ecs_task``, then track the ECS task, or retry or fail the workload."""
+        task_key = ecs_task.key
+        cmd = ecs_task.command
+        queue = ecs_task.queue
+        exec_config = ecs_task.executor_config
+        attempt_number = ecs_task.attempt_number
+        failure_reasons = []
+        try:
+            run_task_response = get_response()
+        except NoCredentialsError:
+            self.pending_workloads.append(ecs_task)
+            raise
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.pending_workloads.append(ecs_task)
                 raise
-            except ClientError as e:
-                error_code = e.response["Error"]["Code"]
-                if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
-                    self.pending_workloads.append(ecs_task)
-                    raise
-                failure_reasons.append(str(e))
-            except Exception as e:
-                # Failed to even get a response back from the Boto3 API or something else went
-                # wrong.  For any possible failure we want to add the exception reasons to the
-                # failure list so that it is logged to the user and most importantly the task is
-                # added back to the pending list to be retried later.
-                failure_reasons.append(str(e))
-            else:
-                # We got a response back, check if there were failures. If so, add them to the
-                # failures list so that it is logged to the user and most importantly the task
-                # is added back to the pending list to be retried later.
-                if run_task_response["failures"]:
-                    failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
+            if (
+                error_code in THROTTLING_EXCEPTIONS
+                and ecs_task.throttled_attempts < MAX_THROTTLED_RUN_TASK_RETRIES
+            ):
+                # ECS is asking to slow down; that says nothing about the workload, so keep its attempts.
+                ecs_task.throttled_attempts += 1
+                delay = calculate_next_attempt_delay(ecs_task.throttled_attempts, exponent_base=2)
+                self.log.info(
+                    "ECS throttled the RunTask call for %s, retrying in %s (retry %s of %s)",
+                    task_key,
+                    delay,
+                    ecs_task.throttled_attempts,
+                    MAX_THROTTLED_RUN_TASK_RETRIES,
+                )
+                ecs_task.next_attempt_time = timezone.utcnow() + delay
+                self.pending_workloads.append(ecs_task)
+                return
+            failure_reasons.append(str(e))
+        except Exception as e:
+            # Failed to even get a response back from the Boto3 API or something else went
+            # wrong.  For any possible failure we want to add the exception reasons to the
+            # failure list so that it is logged to the user and most importantly the task is
+            # added back to the pending list to be retried later.
+            failure_reasons.append(str(e))
+        else:
+            # We got a response back, check if there were failures. If so, add them to the
+            # failures list so that it is logged to the user and most importantly the task
+            # is added back to the pending list to be retried later.
+            if run_task_response["failures"]:
+                failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
 
-            if failure_reasons:
-                # Make sure the number of attempts does not exceed max_run_task_attempts
-                if int(attempt_number) < int(self.max_run_task_attempts):
-                    ecs_task.attempt_number += 1
-                    ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
-                        attempt_number
-                    )
-                    self.pending_workloads.append(ecs_task)
-                else:
-                    reasons_str = ", ".join(failure_reasons)
-                    self.log.error(
-                        "ECS workload %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
-                        task_key,
-                        attempt_number,
-                        reasons_str,
-                    )
-                    self.log_task_event(
-                        event="ecs task submit failure",
-                        ti_key=task_key,
-                        extra=(
-                            f"Task could not be queued after {attempt_number} attempts. "
-                            f"Marking as failed. Reasons: {reasons_str}"
-                        ),
-                    )
-                    self.fail(task_key)
-            elif not run_task_response["tasks"]:
-                self.log.error("ECS RunTask Response: %s", run_task_response)
+        if failure_reasons:
+            # Make sure the number of attempts does not exceed max_run_task_attempts
+            if int(attempt_number) < int(self.max_run_task_attempts):
+                ecs_task.attempt_number += 1
+                ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(attempt_number)
+                self.pending_workloads.append(ecs_task)
+            else:
+                reasons_str = ", ".join(failure_reasons)
+                self.log.error(
+                    "ECS workload %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
+                    task_key,
+                    attempt_number,
+                    reasons_str,
+                )
                 self.log_task_event(
                     event="ecs task submit failure",
-                    extra=f"ECS RunTask Response: {run_task_response}",
                     ti_key=task_key,
+                    extra=(
+                        f"Task could not be queued after {attempt_number} attempts. "
+                        f"Marking as failed. Reasons: {reasons_str}"
+                    ),
                 )
-                raise EcsExecutorException(
-                    "No failures and no ECS tasks provided in response. This should never happen."
-                )
-            else:
-                task = run_task_response["tasks"][0]
-                self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-                self.running_state(task_key, task.task_arn)
+                self.fail(task_key)
+        elif not run_task_response["tasks"]:
+            self.log.error("ECS RunTask Response: %s", run_task_response)
+            self.log_task_event(
+                event="ecs task submit failure",
+                extra=f"ECS RunTask Response: {run_task_response}",
+                ti_key=task_key,
+            )
+            raise EcsExecutorException(
+                "No failures and no ECS tasks provided in response. This should never happen."
+            )
+        else:
+            task = run_task_response["tasks"][0]
+            self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
+            self.running_state(task_key, task.task_arn)
 
     def _run_task(
         self,
@@ -517,7 +591,8 @@ class AwsEcsExecutor(BaseExecutor):
         section of the JSON request before calling Boto3's "run_task" function.
         """
         run_task_kwargs = self._run_task_kwargs(task_id, cmd, queue, exec_config)
-        boto_run_task = self.ecs.run_task(**run_task_kwargs)
+        with Stats.timer("ecs_executor.run_task.duration", tags=prune_dict({"team_name": self.team_name})):
+            boto_run_task = self.ecs.run_task(**run_task_kwargs)
         run_task_response = BotoRunTaskSchema().load(boto_run_task)
         return run_task_response
 
@@ -570,17 +645,34 @@ class AwsEcsExecutor(BaseExecutor):
         try:
             while True:
                 self.sync()
-                if not self.active_workers:
+                if not self.active_workers and not self._run_task_futures:
                     break
                 time.sleep(heartbeat_interval)
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
             # up and kill the scheduler process.
             self.log.exception("Failed to end %s", self.__class__.__name__)
+        if self._run_task_pool is not None:
+            self._run_task_pool.shutdown(wait=False, cancel_futures=True)
 
     def terminate(self):
         """Kill all ECS processes by calling Boto3's StopTask API."""
         try:
+            if self._run_task_pool is not None:
+                # A RunTask call still in flight may start an ECS task after the StopTask calls below:
+                # wait for the calls already started, and drop the ones not started yet.
+                self._run_task_pool.shutdown(wait=True, cancel_futures=True)
+                # The pool no longer takes calls: ``end()`` below makes them in the scheduler loop.
+                self._run_task_pool = None
+                for future, ecs_task in list(self._run_task_futures.items()):
+                    del self._run_task_futures[future]
+                    if future.cancelled():
+                        continue
+                    # One failure must not keep the other ECS tasks from being tracked, then stopped.
+                    try:
+                        self._handle_run_task_response(ecs_task, future.result)
+                    except Exception:
+                        self.log.exception("Failed to handle the RunTask response for %s", ecs_task.key)
             for arn in self.active_workers.get_all_arns():
                 self.ecs.stop_task(
                     cluster=self.cluster, task=arn, reason="Airflow Executor received a SIGTERM"

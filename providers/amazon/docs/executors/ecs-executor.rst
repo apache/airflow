@@ -111,6 +111,10 @@ Optional config options:
    fails to start (i.e. ECS API failures, container failures etc.)
 -  CHECK_HEALTH_ON_STARTUP - Whether or not to check the ECS Executor
    health on startup
+-  RUN_TASK_CONCURRENCY - The maximum number of ECS ``run_task`` calls
+   the ECS Executor makes in parallel, in background threads. Defaults
+   to 1: tasks are launched one at a time, and the scheduler loop waits
+   for each call.
 
 For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon
@@ -335,9 +339,9 @@ Create Task Definition
   :end-before: .. END SQL_ALCHEMY_CONN
 
 
-- ``AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
+- ``AIRFLOW__AWS_ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
 
-- ``AIRFLOW__ECS_EXECUTOR__SUBNETS``, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
+- ``AIRFLOW__AWS_ECS_EXECUTOR__SUBNETS``, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
 
 1. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the ECS executor (see :ref:`here <config-options>`) or for remote logging (see :ref:`here <logging>`). Note that any configuration changes should be made across the entire Airflow environment to keep configuration consistent.
 
