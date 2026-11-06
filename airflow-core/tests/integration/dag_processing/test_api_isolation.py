@@ -28,6 +28,7 @@ To run them locally::
 from __future__ import annotations
 
 import json
+import re
 import secrets
 import shutil
 import socket
@@ -92,6 +93,15 @@ def run_docker(*args, input=None, check=True, timeout=30):
     )
 
 
+def find_current_container_id():
+    # The kerberos integration sets this container's hostname, so the hostname does not always name
+    # the container. Docker mounts /etc/hostname from the container's own directory.
+    match = re.search(r"/containers/([0-9a-f]{64})/hostname ", Path("/proc/self/mountinfo").read_text())
+    if not match:
+        pytest.fail("No Docker container ID in /proc/self/mountinfo")
+    return match.group(1)
+
+
 @pytest.mark.parametrize("shutdown", ["signal", "api_restart"])
 def test_processor_without_database_network_or_server_credentials(
     api_url,
@@ -105,7 +115,7 @@ def test_processor_without_database_network_or_server_credentials(
         pytest.skip("Requires PostgreSQL or MySQL in Breeze")
     database_ip = socket.gethostbyname(database.host)
     database_port = database.port or (5432 if database.drivername.startswith("postgres") else 3306)
-    current = json.loads(run_docker("inspect", socket.gethostname()).stdout)[0]
+    current = json.loads(run_docker("inspect", find_current_container_id()).stdout)[0]
     mounts = {mount["Destination"]: mount["Source"] for mount in current["Mounts"]}
     suffix = uuid7().hex
     network = f"processor-isolation-{suffix}"
