@@ -121,6 +121,23 @@ To pull messages from XCom use the :class:`~airflow.providers.standard.operators
     :end-before: [END howto_operator_gcp_pubsub_pull_messages_result]
 
 
+.. _howto/sensor:PubSubSubscriptionDeliveredSensor:
+
+Waiting until PubSub messages are delivered
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :class:`~airflow.providers.google.cloud.sensors.pubsub.PubSubSubscriptionDeliveredSensor` sensor waits
+until every message published before ``published_before`` has been acknowledged by the subscription's
+consumer, for example a BigQuery subscription or a Dataflow job. It reads the ``oldest_unacked_message_age``
+metric from Cloud Monitoring and does not pull or acknowledge messages itself. PubSub reports the metric
+with a delay of a few minutes, and the connection needs the ``monitoring.timeSeries.list`` permission.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/pubsub/example_pubsub.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_gcp_pubsub_subscription_delivered]
+    :end-before: [END howto_sensor_gcp_pubsub_subscription_delivered]
+
 .. _howto/operator:PubSubDeleteSubscriptionOperator:
 
 Deleting a PubSub subscription

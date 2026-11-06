@@ -43,6 +43,8 @@ from google.cloud.bigquery import (
     ExtractJob,
     LoadJob,
     QueryJob,
+    QueryJobConfig,
+    ScalarQueryParameter,
     SchemaField,
     UnknownJob,
 )
@@ -474,6 +476,44 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             return partition_id in self.get_client(project_id=project_id).list_partitions(table_reference)
         except NotFound:
             return False
+
+    def is_partition_ready(
+        self, dataset_id: str, table_id: str, partition_id: str, project_id: str, settle_period_seconds: float
+    ) -> bool:
+        """
+        Check that a partition has rows and has not been written to for ``settle_period_seconds``.
+
+        :param project_id: The Google Cloud project of the table.
+        :param dataset_id: The dataset of the table.
+        :param table_id: The table that contains the partition.
+        :param partition_id: The partition ID, for example ``2026110210`` for an hourly partition.
+        :param settle_period_seconds: How long the partition must go without new rows.
+        """
+        query = (
+            "SELECT total_rows, "
+            "TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), last_modified_time, SECOND) AS idle_seconds "
+            f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS` "
+            "WHERE table_name = @table_id AND partition_id = @partition_id"
+        )
+        job_config = QueryJobConfig(
+            query_parameters=[
+                ScalarQueryParameter("table_id", "STRING", table_id),
+                ScalarQueryParameter("partition_id", "STRING", partition_id),
+            ]
+        )
+        rows = list(self.get_client(project_id=project_id).query(query, job_config=job_config).result())
+        if not rows:
+            self.log.info("Partition %s of table %s does not exist yet", partition_id, table_id)
+            return False
+        total_rows, idle_seconds = rows[0]["total_rows"] or 0, rows[0]["idle_seconds"]
+        self.log.info(
+            "Partition %s of table %s has %s rows, last write %s seconds ago",
+            partition_id,
+            table_id,
+            total_rows,
+            idle_seconds,
+        )
+        return total_rows > 0 and idle_seconds >= settle_period_seconds
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_table(
@@ -2424,6 +2464,19 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             }
             job_query_resp = await job_client.query(query_request, cast("Session", session))
             return job_query_resp["jobReference"]["jobId"]
+
+    async def is_partition_ready(
+        self, dataset_id: str, table_id: str, partition_id: str, project_id: str, settle_period_seconds: float
+    ) -> bool:
+        """Async version of :meth:`BigQueryHook.is_partition_ready`."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.is_partition_ready)(
+            dataset_id=dataset_id,
+            table_id=table_id,
+            partition_id=partition_id,
+            project_id=project_id,
+            settle_period_seconds=settle_period_seconds,
+        )
 
     async def cancel_job(self, job_id: str, project_id: str | None, location: str | None) -> None:
         """

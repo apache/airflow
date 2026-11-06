@@ -22,7 +22,7 @@ Example Airflow DAG for Google BigQuery Sensors.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
+    BigQueryTablePartitionReadySensor,
 )
 
 try:
@@ -149,6 +150,18 @@ with DAG(
     )
     # [END howto_sensor_bigquery_table_partition_async]
 
+    # [START howto_sensor_bigquery_table_partition_ready]
+    check_table_partition_ready = BigQueryTablePartitionReadySensor(
+        task_id="check_table_partition_ready",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        partition_id=PARTITION_NAME,
+        settle_period=timedelta(minutes=1),
+        deferrable=True,
+    )
+    # [END howto_sensor_bigquery_table_partition_ready]
+
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
@@ -165,6 +178,7 @@ with DAG(
             check_table_partition_exists,
             check_table_partition_exists_async,
             check_table_partition_exists_def,
+            check_table_partition_ready,
         ]
         >> delete_dataset
     )

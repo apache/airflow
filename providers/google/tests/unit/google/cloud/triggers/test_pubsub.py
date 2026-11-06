@@ -24,7 +24,10 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.providers.google.cloud.triggers.pubsub import (
+    PubsubPullTrigger,
+    PubSubSubscriptionDeliveredTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 TEST_POLL_INTERVAL = 10
@@ -238,3 +241,53 @@ class TestPubsubPullTrigger:
                 impersonation_chain=None,
                 return_immediately=return_immediately,
             )
+
+
+def _make_delivered_trigger():
+    return PubSubSubscriptionDeliveredTrigger(
+        project_id=PROJECT_ID,
+        subscription="subscription",
+        published_before="2026-11-02T10:00:00+00:00",
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        poll_interval=TEST_POLL_INTERVAL,
+    )
+
+
+class TestPubSubSubscriptionDeliveredTrigger:
+    def test_serialization(self):
+        classpath, kwargs = _make_delivered_trigger().serialize()
+
+        assert (
+            classpath == "airflow.providers.google.cloud.triggers.pubsub.PubSubSubscriptionDeliveredTrigger"
+        )
+        assert kwargs == {
+            "project_id": PROJECT_ID,
+            "subscription": "subscription",
+            "published_before": "2026-11-02T10:00:00+00:00",
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "poll_interval": TEST_POLL_INTERVAL,
+            "impersonation_chain": None,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.pubsub.asyncio.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.are_messages_delivered")
+    async def test_run_waits_until_delivered(self, mock_is_delivered, mock_sleep):
+        mock_is_delivered.side_effect = [False, True]
+
+        events = [event async for event in _make_delivered_trigger().run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "success"
+        mock_sleep.assert_called_once_with(TEST_POLL_INTERVAL)
+        assert (
+            mock_is_delivered.call_args.kwargs["published_before"].isoformat() == "2026-11-02T10:00:00+00:00"
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.are_messages_delivered")
+    async def test_run_raises_errors(self, mock_is_delivered):
+        mock_is_delivered.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await _make_delivered_trigger().run().__anext__()

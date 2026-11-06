@@ -2482,3 +2482,50 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
         )
 
         mock_send_lineage.assert_called_once_with(context=self.hook, job=mock_job_instance)
+
+
+@pytest.mark.db_test
+class TestPartitionReady(_BigQueryBaseTestClass):
+    @pytest.mark.parametrize(
+        ("rows", "expected"),
+        [
+            pytest.param([], False, id="missing-partition"),
+            pytest.param([{"total_rows": None, "idle_seconds": 1000}], False, id="no-rows"),
+            pytest.param([{"total_rows": 5, "idle_seconds": 599}], False, id="still-receiving-rows"),
+            pytest.param([{"total_rows": 5, "idle_seconds": 600}], True, id="ready"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_is_partition_ready(self, mock_get_client, rows, expected):
+        mock_get_client.return_value.query.return_value.result.return_value = rows
+
+        result = self.hook.is_partition_ready(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            partition_id=PARTITION_ID,
+            project_id=PROJECT_ID,
+            settle_period_seconds=600,
+        )
+
+        assert result is expected
+        query_call = mock_get_client.return_value.query.call_args
+        assert f"`{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`" in query_call.args[0]
+        parameters = {p.name: p.value for p in query_call.kwargs["job_config"].query_parameters}
+        assert parameters == {"table_id": TABLE_ID, "partition_id": PARTITION_ID}
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.sync_to_async")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
+    async def test_async_is_partition_ready(self, mock_get_sync_hook, mock_sync_to_async):
+        mock_sync_to_async.return_value = mock.AsyncMock(return_value=True)
+        kwargs = {
+            "dataset_id": DATASET_ID,
+            "table_id": TABLE_ID,
+            "partition_id": PARTITION_ID,
+            "project_id": PROJECT_ID,
+            "settle_period_seconds": 600,
+        }
+
+        assert await BigQueryAsyncHook().is_partition_ready(**kwargs) is True
+        mock_sync_to_async.assert_called_once_with(mock_get_sync_hook.return_value.is_partition_ready)
+        mock_sync_to_async.return_value.assert_awaited_once_with(**kwargs)

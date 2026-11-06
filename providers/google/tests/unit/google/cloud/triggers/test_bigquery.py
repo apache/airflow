@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
+    BigQueryTablePartitionReadyTrigger,
     BigQueryValueCheckTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -1388,3 +1389,68 @@ class TestBigQueryStreamingBufferEmptyTrigger:
                     dataset_id=TEST_DATASET_ID,
                     table_id=TEST_TABLE_ID,
                 )
+
+
+def _make_ready_trigger():
+    return BigQueryTablePartitionReadyTrigger(
+        project_id=TEST_GCP_PROJECT_ID,
+        dataset_id=TEST_DATASET_ID,
+        table_id=TEST_TABLE_ID,
+        partition_id=TEST_PARTITION_ID,
+        settle_period_seconds=600.0,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+    )
+
+
+class TestBigQueryTablePartitionReadyTrigger:
+    def test_serialization(self):
+        classpath, kwargs = _make_ready_trigger().serialize()
+
+        assert (
+            classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionReadyTrigger"
+        )
+        assert kwargs == {
+            "project_id": TEST_GCP_PROJECT_ID,
+            "dataset_id": TEST_DATASET_ID,
+            "table_id": TEST_TABLE_ID,
+            "partition_id": TEST_PARTITION_ID,
+            "settle_period_seconds": 600.0,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "poll_interval": POLLING_PERIOD_SECONDS,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.asyncio.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.is_partition_ready")
+    async def test_run_waits_until_ready(self, mock_is_ready, mock_sleep):
+        mock_is_ready.side_effect = [False, True]
+
+        events = [event async for event in _make_ready_trigger().run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": f"Partition {TEST_PARTITION_ID} of {TEST_TABLE_ID} is ready",
+                }
+            )
+        ]
+        mock_sleep.assert_called_once_with(POLLING_PERIOD_SECONDS)
+        mock_is_ready.assert_called_with(
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            partition_id=TEST_PARTITION_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            settle_period_seconds=600.0,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.is_partition_ready")
+    async def test_run_raises_errors(self, mock_is_ready):
+        mock_is_ready.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await _make_ready_trigger().run().__anext__()
