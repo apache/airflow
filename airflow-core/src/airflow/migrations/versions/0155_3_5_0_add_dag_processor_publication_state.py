@@ -19,7 +19,7 @@
 Add Dag processor publication receipts and source revisions.
 
 Revision ID: 687eb253de24
-Revises: 16d7301f124b
+Revises: a8b48633fa60
 Create Date: 2026-10-05 13:00:00.000000
 """
 
@@ -32,7 +32,7 @@ from airflow.migrations.utils import disable_sqlite_fkeys
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "687eb253de24"
-down_revision = "16d7301f124b"
+down_revision = "a8b48633fa60"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"
