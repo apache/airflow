@@ -222,10 +222,6 @@
     "write": "작성"
   },
   "overallStatus": "전체 상태",
-  "pagination": {
-    "nextPage": "TODO: translate: Next page",
-    "previousPage": "TODO: translate: Previous page"
-  },
   "partition_one": "파티션",
   "partition_other": "파티션",
   "partitionedDagRun_one": "파티션된 Dag 실행",
