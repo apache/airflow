@@ -25,7 +25,7 @@ artifacts and to build the OpenAPI document for the registry API.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -146,6 +146,11 @@ class ModuleContract(BaseModel):
     provider_name: str | None = None
     supports_durable_execution: bool = False
     supports_deferrable: bool = False
+    durable_mechanism: Literal["marker", "resumable_mixin"] | None = None
+    durable_gating_provider: str | None = None
+    durable_gating_class: str | None = None
+    durable_since_version: str | None = None
+    durable_default: bool | None = None
     # Only set for classes and task decorators (e.g. ``@task.agent``) that a how-to
     # guide documents in a section of their own.
     guide_url: str | None = None
