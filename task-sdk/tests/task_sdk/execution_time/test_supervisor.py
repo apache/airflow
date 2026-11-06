@@ -68,6 +68,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    HITLUser,
     LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
@@ -128,6 +129,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     HITLDetailRequestResult,
+    HITLDetailResponseResult,
     InactiveAssetsResult,
     MaskSecret,
     OKResponse,
@@ -3819,6 +3821,29 @@ REQUEST_TEST_CASES = [
         test_id="create_hitl_detail_payload",
     ),
     RequestTestCase(
+        message=GetHITLDetailResponse(ti_id=TI_ID),
+        expected_body={
+            "response_received": True,
+            "responded_by_user": {"id": "alice", "name": "Alice"},
+            "responded_at": timezone.parse("2024-10-31T12:00:00Z"),
+            "chosen_options": ["Approve"],
+            "params_input": {"reason": "ship it"},
+            "type": "HITLDetailResponseResult",
+        },
+        client_mock=ClientMock(
+            method_path="hitl.get_detail_response",
+            kwargs={"ti_id": TI_ID},
+            response=HITLDetailResponseResult(
+                response_received=True,
+                responded_by_user=HITLUser(id="alice", name="Alice"),
+                responded_at=timezone.parse("2024-10-31T12:00:00Z"),
+                chosen_options=["Approve"],
+                params_input={"reason": "ship it"},
+            ),
+        ),
+        test_id="get_hitl_detail_response",
+    ),
+    RequestTestCase(
         message=MaskSecret(value=["iter1", "iter2", {"key": "value"}], name="test_secret"),
         mask_secret_args=(["iter1", "iter2", {"key": "value"}], "test_secret"),
         test_id="mask_secret_list",
@@ -4403,16 +4428,11 @@ class TestHandleRequest:
             )
 
     @patch.object(ActivitySubprocess, "send_msg", autospec=True)
-    @pytest.mark.parametrize(
-        "message",
-        [
-            GetHITLDetailResponse(ti_id=TI_ID),
-            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]),
-        ],
-    )
-    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess, message):
+    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess):
         process, _ = watched_subprocess
-        process._handle_request(message, structlog.get_logger(), req_id=42)
+        process._handle_request(
+            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]), structlog.get_logger(), req_id=42
+        )
 
         send_msg.assert_called_once_with(
             process,
@@ -4536,7 +4556,7 @@ class TestHandleRequest:
             assert decoder.validate_python(frame.body) == client_mock.response
 
     def test_registered_message_types(self):
-        expected = set(get_args(get_args(ToSupervisor)[0])) - {GetHITLDetailResponse, UpdateHITLDetail}
+        expected = set(get_args(get_args(ToSupervisor)[0])) - {UpdateHITLDetail}
         assert set(ActivitySubprocess._request_handlers) == expected
         assert {type(case.message) for case in REQUEST_TEST_CASES} == expected
 

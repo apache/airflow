@@ -28,6 +28,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.pool import NullPool
@@ -295,8 +296,9 @@ class TestMetadataEngineHooks:
 
         assert mock_create_engine.call_args[1]["connect_args"] == {"prepare_threshold": None}
 
+    @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.create_async_metadata_engine")
-    def test_configure_async_session_forwards_the_psycopg3_default(self, mock_create_async_engine):
+    def test_configure_async_session_forwards_the_psycopg3_default(self, mock_create_async_engine, _):
         """The docs promise the default on both engines, so assert the async one separately."""
         from airflow import settings
 
@@ -307,9 +309,10 @@ class TestMetadataEngineHooks:
 
         assert mock_create_async_engine.call_args[1]["connect_args"] == {"prepare_threshold": None}
 
+    @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.create_async_metadata_engine")
     def test_configure_async_session_delegates_to_create_async_metadata_engine(
-        self, mock_create_async_engine
+        self, mock_create_async_engine, mock_setup_event_handlers
     ):
         """_configure_async_session() must call create_async_metadata_engine with no pool args for sqlite."""
         from airflow import settings
@@ -330,9 +333,11 @@ class TestMetadataEngineHooks:
         assert "connect_args" in call_kwargs[1]
         # sqlite doesn't support pool size args
         assert call_kwargs[1]["engine_args"] == {}
+        mock_setup_event_handlers.assert_called_once_with(mock_create_async_engine.return_value.sync_engine)
 
+    @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.create_async_metadata_engine")
-    def test_configure_async_session_passes_pool_args_for_non_sqlite(self, mock_create_async_engine):
+    def test_configure_async_session_passes_pool_args_for_non_sqlite(self, mock_create_async_engine, _):
         """_configure_async_session() must pass pool configuration for non-sqlite backends."""
         from airflow import settings
 
@@ -357,8 +362,9 @@ class TestMetadataEngineHooks:
         assert engine_args["pool_pre_ping"] is True
         assert engine_args["max_overflow"] == 5
 
+    @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.create_async_metadata_engine")
-    def test_configure_async_session_uses_nullpool_when_pool_disabled(self, mock_create_async_engine):
+    def test_configure_async_session_uses_nullpool_when_pool_disabled(self, mock_create_async_engine, _):
         """_configure_async_session() must use NullPool when SQL_ALCHEMY_POOL_ENABLED is False."""
         from airflow import settings
 
@@ -766,6 +772,36 @@ def test_async_pool_is_closed_before_process_shutdown(driver):
         "was never awaited",
     ):
         assert diagnostic not in output, output
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("driver", "query", "expected"),
+    [
+        pytest.param(
+            "mysql+aiomysql", "SELECT @@session.time_zone", "+00:00", marks=pytest.mark.backend("mysql")
+        ),
+        pytest.param(
+            "mysql+asyncmy", "SELECT @@session.time_zone", "+00:00", marks=pytest.mark.backend("mysql")
+        ),
+        pytest.param("sqlite+aiosqlite", "PRAGMA foreign_keys", 1, marks=pytest.mark.backend("sqlite")),
+    ],
+)
+def test_async_engine_connections_get_the_sync_engine_setup(monkeypatch, driver, query, expected):
+    url = make_url(settings.SQL_ALCHEMY_CONN_ASYNC).set(drivername=driver)
+    monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN_ASYNC", url.render_as_string(hide_password=False))
+    monkeypatch.setattr(settings, "async_engine", settings.async_engine)
+    monkeypatch.setattr(settings, "AsyncSession", settings.AsyncSession)
+    settings._configure_async_session()
+
+    async def run():
+        try:
+            async with settings.AsyncSession() as session:
+                return (await session.execute(text(query))).scalar_one()
+        finally:
+            await settings.dispose_async_engine()
+
+    assert asyncio.run(run()) == expected
 
 
 @pytest.mark.parametrize(
