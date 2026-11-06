@@ -62,19 +62,21 @@ class _S3DagBundleBase(BaseDagBundle):
         self.bucket_name = bucket_name
         # Local path where S3 Dags are downloaded
         self.s3_dags_dir: Path = self.base_dir
-
-        log = structlog.get_logger(__name__)
-        self._log = log.bind(
-            bundle_name=self.name,
-            version=self.version,
-            bucket_name=self.bucket_name,
-            aws_conn_id=self.aws_conn_id,
-            **self._log_fields(),
-        )
+        self._log = self._get_logger()
         self._s3_hook: S3Hook | None = None
 
-    def _log_fields(self) -> dict[str, str]:
-        return {}
+    def _log_bindings(self) -> dict[str, str | None]:
+        """Return log context shared by every S3 Dag bundle."""
+        return {
+            "bundle_name": self.name,
+            "version": self.version,
+            "bucket_name": self.bucket_name,
+            "aws_conn_id": self.aws_conn_id,
+        }
+
+    def _get_logger(self):
+        """Return a logger bound with the context common to every S3 Dag bundle."""
+        return structlog.get_logger(__name__).bind(**self._log_bindings())
 
     def _view_url_key(self) -> str:
         return ""
@@ -179,8 +181,9 @@ class S3DagBundle(_S3DagBundleBase):
         self.prefix = prefix
         super().__init__(aws_conn_id=aws_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _log_fields(self) -> dict[str, str]:
-        return {"prefix": self.prefix}
+    def _get_logger(self):
+        """Return a logger bound with this prefix bundle's context."""
+        return structlog.get_logger(__name__).bind(**self._log_bindings(), prefix=self.prefix)
 
     def _view_url_key(self) -> str:
         return self.prefix
@@ -249,8 +252,9 @@ class S3ArchiveDagBundle(_S3DagBundleBase):
         self.archive_key = archive_key
         super().__init__(aws_conn_id=aws_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _log_fields(self) -> dict[str, str]:
-        return {"archive_key": self.archive_key}
+    def _get_logger(self):
+        """Return a logger bound with this archive bundle's context."""
+        return structlog.get_logger(__name__).bind(**self._log_bindings(), archive_key=self.archive_key)
 
     def _view_url_key(self) -> str:
         return self.archive_key
