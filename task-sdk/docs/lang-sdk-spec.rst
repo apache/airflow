@@ -105,11 +105,11 @@ Per-SDK spelling
      - an ``async`` function
    * - ``TaskHandler``
      - ``airflow.TaskHandler(dagId, taskId, fn)``
-     - ``@Builder.TaskHandler(dagId, taskId)``
+     - ``@Airflow.TaskHandler(dagId, taskId)``
      - ``new TaskHandler(dagId, taskId, fn)``
    * - ``Dag``
      - ``airflow.Dag(spec)``
-     - ``@Builder.Dag(id, ...)``, or ``new Dag(id)``
+     - ``@Airflow.Dag(id, ...)``, or ``new Dag(id)``
      - ``new Dag(id)``
    * - ``dag``
      - ``*airflow.DagRef``
@@ -117,7 +117,7 @@ Per-SDK spelling
      - ``Dag``
    * - ``dag.Task``
      - ``dag.Task(fn, opts...)``
-     - ``@Builder.Task(id)``, or ``dag.task(id, cls)``
+     - ``@Airflow.Task(id)``, or ``dag.task(id, cls)``
      - ``dag.task(id, fn)``
    * - data edge
      - ``airflow.Inputs(refs...)``

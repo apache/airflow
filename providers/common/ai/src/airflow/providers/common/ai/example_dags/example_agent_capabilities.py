@@ -37,7 +37,7 @@ except Exception:
 try:
     from pydantic_ai_shields import InputGuard
 except ImportError:
-    InputGuard = None  # type: ignore[assignment,misc]
+    InputGuard = None
 # ---------------------------------------------------------------------------
 # 1. Thinking capability: enable model reasoning at a configurable effort level
 # ---------------------------------------------------------------------------

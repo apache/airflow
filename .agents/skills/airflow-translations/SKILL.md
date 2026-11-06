@@ -146,6 +146,13 @@ and 100% coverage:
 breeze ui check-translation-completeness --language <locale>
 ```
 
+For machine-readable validation, add `--json` and check the language's totals
+instead — stdout carries only the JSON document:
+
+```bash
+breeze ui check-translation-completeness --language <locale> --json
+```
+
 Run pre-commit hooks to fix formatting, licenses, and linting issues:
 
 ```bash
@@ -183,6 +190,10 @@ Translation strings use `{{variable}}` interpolation (i18next format).
 Never translate or remove variable names inside `{{…}}`. Placeholders may be
 reordered as needed for natural word order, but the exact variable casing must
 be preserved (e.g., `{{dagDisplayName}}`).
+
+Counters use the i18next `number` formatter so they get the locale's digit
+grouping (e.g., `{{count, number}}`, `{{total, number}}`). Keep the `, number`
+suffix exactly as it appears in the English string.
 
 ### Plural Forms
 

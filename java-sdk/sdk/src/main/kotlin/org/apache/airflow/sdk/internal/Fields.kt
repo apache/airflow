@@ -25,7 +25,7 @@ import java.time.OffsetDateTime
 
 /**
  * Value shape of one Dag serialization schema key. Public so that the
- * annotation processor can lower `@Builder.Dag` / `@Builder.Task` attributes;
+ * annotation processor can lower `@Airflow.Dag` / `@Airflow.Task` attributes;
  * not user-facing API.
  */
 enum class FieldType {
@@ -36,11 +36,20 @@ enum class FieldType {
   STRING_ARRAY,
   TIMEDELTA,
   DATETIME,
+
+  /** A list of Dag run states, as `allowed_states` takes. */
+  DAG_RUN_STATES,
+
+  /** A map with string keys, as `conf` takes. */
+  JSON_OBJECT,
 }
+
+/** A Dag run state, as a `DAG_RUN_STATES` field names one. */
+private val DAG_RUN_STATE_NAMES = listOf("queued", "running", "success", "failed")
 
 /**
  * One configuration key from the Dag serialization schema. Public so that the
- * annotation processor can lower `@Builder.Dag` / `@Builder.Task` attributes;
+ * annotation processor can lower `@Airflow.Dag` / `@Airflow.Task` attributes;
  * not user-facing API.
  *
  * @property key Schema property name, e.g. `retry_delay`.
@@ -48,13 +57,28 @@ enum class FieldType {
  * @property type Accepted value shape.
  * @property defaultJson Schema default as raw JSON, or `null` when the schema
  *    declares no default.
+ * @property notBlank Whether a value for this key must not be blank.
  */
 class Field(
   val key: String,
   val attribute: String,
   val type: FieldType,
   val defaultJson: String?,
-)
+  val notBlank: Boolean = false,
+) {
+  /**
+   * Enforces the constraints this key carries on a string value. [describe]
+   * names the value, so each caller keeps its own wording.
+   *
+   * @throws IllegalArgumentException if [text] breaks a constraint.
+   */
+  fun checkString(
+    text: String,
+    describe: () -> String,
+  ) {
+    require(!notBlank || text.isNotBlank()) { "${describe()} must not be blank" }
+  }
+}
 
 /**
  * Validates one `config(key, value)` call against a schema field table and
@@ -82,7 +106,10 @@ internal fun checkConfigValue(
       "Value for $scope config key '$key' must be $expected, got: ${value.javaClass.name}",
     )
   return when (field.type) {
-    FieldType.STRING -> value as? String ?: mismatch("a String")
+    FieldType.STRING ->
+      (value as? String ?: mismatch("a String")).also { text ->
+        field.checkString(text) { "Value for $scope config key '$key'" }
+      }
     FieldType.BOOLEAN -> value as? Boolean ?: mismatch("a Boolean")
     FieldType.NUMBER -> value as? Number ?: mismatch("a Number")
     FieldType.INTEGER ->
@@ -103,5 +130,29 @@ internal fun checkConfigValue(
         value is Array<*> && value.all { it is String } -> value.map { it as String }
         else -> mismatch("an Iterable of String")
       }
+    FieldType.DAG_RUN_STATES -> {
+      val states =
+        when (value) {
+          is Iterable<*> -> value.toList()
+          is Array<*> -> value.toList()
+          else -> mismatch("an Iterable of Dag run states")
+        }
+      states.map { state ->
+        require(state is String && state in DAG_RUN_STATE_NAMES) {
+          "Value for $scope config key '$key' holds $state, which is not a Dag run state; use one " +
+            "of ${DAG_RUN_STATE_NAMES.joinToString()}"
+        }
+        state as String
+      }
+    }
+    FieldType.JSON_OBJECT -> {
+      val map = value as? Map<*, *> ?: mismatch("a Map")
+      map.entries.associate { (mapKey, entry) ->
+        require(mapKey is String) {
+          "Value for $scope config key '$key' must have String keys, got: ${mapKey?.javaClass?.name}"
+        }
+        mapKey to entry
+      }
+    }
   }
 }

@@ -853,13 +853,9 @@ class TestHiveServer2Hook:
         ],
     )
     def test_get_conn_with_wrong_connection_parameters(self, host, port, schema, message):
-        connection = Connection(
-            conn_id="test",
-            conn_type="hive",
-            host=host,
-            port=port,
-            schema=schema,
-        )
+        # Newer core Connection rejects invalid ports on assignment; a spec'd mock lets the hook's own
+        # check, which still guards older Airflow versions, see them.
+        connection = mock.Mock(spec=Connection, conn_id="test", host=host, port=port, schema=schema)
         hook = HiveCliHook()
         if message:
             with pytest.raises(Exception, match=message):

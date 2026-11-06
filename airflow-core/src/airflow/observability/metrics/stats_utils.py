@@ -23,6 +23,16 @@ from airflow._shared.observability.metrics.base_stats_logger import NoStatsLogge
 from airflow.configuration import conf
 
 
+def is_metrics_enabled() -> bool:
+    return any(
+        (
+            conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
+            conf.getboolean("metrics", "statsd_on", fallback=False),
+            conf.getboolean("metrics", "otel_on", fallback=False),
+        )
+    )
+
+
 def get_stats_factory() -> Callable:
     if conf.getboolean("metrics", "statsd_datadog_enabled"):
         from airflow.observability.metrics import datadog_logger

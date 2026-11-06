@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.ai.exceptions import LLMBatchStateReadError
 
 if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk import ObjectStoragePath
 
 _STATE_DIR = "_airflow_batch_state"
@@ -55,19 +56,51 @@ _STATE_DIR = "_airflow_batch_state"
 SCHEMA_VERSION = 1
 
 
-def compute_identity_key(*, dag_id: str, task_id: str, run_id: str, map_index: int) -> str:
+def compute_identity_key(
+    *,
+    dag_id: str,
+    task_id: str,
+    run_id: str,
+    map_index: int,
+    loop_region_id: str | None = None,
+    loop_index: int | None = None,
+) -> str:
     r"""
     Return the run-stable identity key for one task instance (excluding ``try_number``).
 
     Uses ``\x00`` rather than ``_`` to join the components -- a plain
     ``_``-joined string collides (Dag ``etl`` + task ``load_data`` and Dag
     ``etl_load`` + task ``data`` both yield ``etl_load_data``), which would
-    let one task instance read or overwrite another's batch state. Mirrors
-    ``durable/storage.py``'s ``DurableStorage`` identity hash verbatim, for
-    the same reason.
+    let one task instance read or overwrite another's batch state. Outside a
+    task loop the key matches ``durable/storage.py``'s ``DurableStorage``
+    identity hash, which joins the same four fields for the same reason.
+    ``DurableStorage`` does not need the loop fields: task loops need Airflow
+    3.4, where the durable journal uses the task state store instead.
+
+    Inside a task loop, every iteration of a task has the same Dag, task and run ids and
+    ``map_index``, so ``loop_region_id`` (the loop's trajectory) and ``loop_index`` (the
+    iteration) keep iterations apart, while retries of one iteration still share a key.
+    Outside a loop they are ``None`` and the key is unchanged.
     """
-    identity = "\x00".join([dag_id, task_id, run_id, str(map_index)])
+    components = [dag_id, task_id, run_id, str(map_index)]
+    if loop_region_id is not None:
+        components += [str(loop_region_id), str(loop_index)]
+    identity = "\x00".join(components)
     return hashlib.sha256(identity.encode()).hexdigest()
+
+
+def compute_identity_key_for_context(context: Context) -> str:
+    """Return :func:`compute_identity_key` for the task instance ``context`` belongs to."""
+    ti = context["ti"]
+    loop = context.get("loop")
+    return compute_identity_key(
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index if ti.map_index is not None else -1,
+        loop_region_id=str(loop.region_id) if loop is not None else None,
+        loop_index=loop.index if loop is not None else None,
+    )
 
 
 def key16(key: str) -> str:

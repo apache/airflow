@@ -35,6 +35,8 @@ class TestDataSourceConfig:
             ("s3://bucket/path", StorageType.S3),
             ("gs://bucket/path", StorageType.GCS),
             ("az://container/path", StorageType.AZURE),
+            ("abfs://container@account.dfs.core.windows.net/path", StorageType.AZURE),
+            ("abfss://container@account.dfs.core.windows.net/path", StorageType.AZURE),
             ("file:///path/to/file", StorageType.LOCAL),
         ],
     )

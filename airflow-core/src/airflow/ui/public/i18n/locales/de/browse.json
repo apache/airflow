@@ -28,12 +28,13 @@
         "lastParsed": "Zuletzt geparst",
         "parseDuration": "Parsezeit"
       },
-      "file_one": "Datei",
-      "file_other": "Dateien",
       "importErrorGone": "Der Importfehler ist nicht mehr aufgetreten. Vermutlich durch ein Wiedereinlesen behoben.",
       "neverParsed": "Nie",
-      "showImportError_one": "{{count}} Importfehler ansehen",
-      "showImportError_other": "{{count}} Importfehler ansehen"
+      "parsedFile_one": "Geparste Datei",
+      "parsedFile_other": "Geparste Dateien",
+      "parsedFilesNote": "Es werden nur Dateien aufgeführt, die einen Dag definieren oder deren Import fehlgeschlagen ist.",
+      "showImportError_one": "{{count, number}} Importfehler ansehen",
+      "showImportError_other": "{{count, number}} Importfehler ansehen"
     },
     "inactive": "Inaktiv",
     "neverRefreshed": "Nie",
@@ -69,6 +70,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Name",
+      "timestamp": "Zeit",
       "value": "Wert"
     },
     "delete": {

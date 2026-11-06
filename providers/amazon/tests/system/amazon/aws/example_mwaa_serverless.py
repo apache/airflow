@@ -166,6 +166,18 @@ with DAG(
     )
     # [END howto_operator_mwaa_serverless_stop_workflow_run]
 
+    # StopWorkflowRun returns once the run enters STOPPING; DeleteWorkflow is rejected
+    # until the run is fully STOPPED. Wait here so teardown does not race the drain.
+    wait_for_stop = MwaaServerlessWorkflowRunSensor(
+        task_id="wait_for_stop",
+        workflow_arn=workflow_arn,
+        run_id=start_workflow_2.output,
+        success_states={"STOPPED"},
+        failure_states={"FAILED", "TIMEOUT"},
+        poke_interval=10,
+        timeout=300,
+    )
+
     # [START howto_operator_mwaa_serverless_delete_workflow]
     delete_workflow = MwaaServerlessDeleteWorkflowOperator(
         task_id="delete_workflow",
@@ -194,6 +206,7 @@ with DAG(
         update_workflow,
         start_workflow_2,
         stop_workflow_run,
+        wait_for_stop,
         # TEST TEARDOWN
         delete_workflow,
         delete_bucket,

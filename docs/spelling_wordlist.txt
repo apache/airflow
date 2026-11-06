@@ -1,5 +1,6 @@
 aarch
 abc
+ABI
 AbstractCapability
 AbstractFileSystem
 AbstractToolset
@@ -26,9 +27,11 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+Agans
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -79,6 +82,7 @@ apikey
 apis
 AppBuilder
 appbuilder
+appender
 Appflow
 appflow
 approle
@@ -199,6 +203,8 @@ bitmask
 Bitnami
 bitshift
 bitwise
+Boat
+boat
 booktabs
 Bool
 bool
@@ -213,6 +219,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn
@@ -233,6 +240,7 @@ ccache
 cdc
 celltags
 centric
+Cerebras
 cfg
 cgi
 cgitb
@@ -279,15 +287,18 @@ cmdlet
 cmds
 cncf
 cnf
+CNI
 cnt
 codebase
 codec
 codecov
 codepoints
+colima
 Colour
 colour
 colours
 ColumnLineageDatasetFacet
+CombinedCapability
 CommandType
 comparator
 compat
@@ -326,6 +337,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
@@ -334,6 +346,7 @@ cosmosdb
 cp
 cpu
 cpus
+CPython
 CRD
 crd
 CreateQueryOperator
@@ -364,6 +377,7 @@ Cypher
 cypher
 daemonize
 daemonized
+daemonizing
 dagbag
 DagCallbackRequest
 dagfile
@@ -544,6 +558,7 @@ Drillbit
 driverless
 dropdown
 druidHook
+dryrun
 ds
 dsl
 dsn
@@ -678,7 +693,9 @@ Filesystem
 filesystem
 filesystems
 filetype
+FilteredToolset
 finalStatus
+findutils
 fips
 firebase
 Firehose
@@ -903,6 +920,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio
@@ -1009,6 +1027,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+Landlock
 langchain
 Langfuse
 LanguageServiceClient
@@ -1022,6 +1041,7 @@ leq
 LevelDB
 leveldb
 lexicographically
+libpq
 libs
 libz
 Lifecycle
@@ -1044,6 +1064,7 @@ LocalObjectReference
 localstack
 Lockbox
 lodash
+Logback
 logfile
 logformat
 loglevel
@@ -1155,6 +1176,7 @@ NCUs
 nd
 ndjson
 nearText
+Nebius
 neighbours
 neo
 Neo4j
@@ -1197,7 +1219,10 @@ oauth
 objectORfile
 objectstorage
 observability
+Obtainability
+obtainability
 od
+OData
 odbc
 odps
 OIDC
@@ -1224,6 +1249,8 @@ openlineage
 opensandbox
 OpenSearch
 opensearch
+OpenShell
+openshell
 OpenTelemetry
 oper
 OperatorLineage
@@ -1288,6 +1315,7 @@ pinecone
 Pinot
 pinot
 PipelineRun
+PKI
 pkill
 plaintext
 pluggable
@@ -1295,6 +1323,7 @@ pluggy
 plyvel
 png
 PoC
+Podman
 PodManager
 PodSpec
 podSpec
@@ -1332,6 +1361,7 @@ preflight
 prek
 Preload
 preload
+PreparedToolset
 prepend
 prepended
 prepends
@@ -1471,6 +1501,7 @@ requeues
 requeuing
 rerank
 reranking
+rescanning
 reserialize
 Reserializing
 resetdb
@@ -1495,6 +1526,7 @@ rollup
 rom
 romeoandjuliet
 rootcss
+routable
 rowid
 rpc
 rsa
@@ -1504,6 +1536,7 @@ rtype
 ru
 ruleset
 runAsUser
+runbook
 RunContext
 runnable
 RunQueryOperator
@@ -1541,6 +1574,7 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+seccomp
 secretmanager
 SecretManagerClient
 SecretManagerServiceClient
@@ -1588,6 +1622,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1668,6 +1703,8 @@ stderr
 stdin
 stdlib
 stdout
+stockout
+stockouts
 StorageClass
 storages
 StoredInfoType
@@ -1829,7 +1866,9 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
+TrustedRouter
 truthy
 tsql
 tsv
@@ -1878,6 +1917,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unreferenced
 unsanitized
 unscoped
 untestable
@@ -1925,6 +1965,7 @@ Vectorizers
 vendored
 venv
 venvs
+Vercel
 Vertica
 vertica
 Vespa
@@ -1963,6 +2004,7 @@ webservers
 webViewLink
 Werkzeug
 werkzeug
+Wheeler
 whitespace
 whl
 wildcarded
@@ -1970,12 +2012,14 @@ winrm
 WIT
 workgroup
 workspaces
+WrapperToolset
 writeable
 wsman
 WTF
 wtf
 wtforms
 www
+xAI
 XCom
 Xcom
 xcom

@@ -87,7 +87,7 @@ tasks. The steps to create and register ``@task.foo`` are:
     Please note that the ``name`` must be a valid python identifier.
 
 (Optional) Adding IDE auto-completion support
-=============================================
+---------------------------------------------
 
 .. note::
 

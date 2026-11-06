@@ -122,7 +122,7 @@ export const DagBundles = () => {
 
   const refetchInterval = useDagBundleRefetchInterval();
 
-  const { data, error, isFetching, isLoading } = useDagBundleServiceGetDagBundles(
+  const { data, error, isLoading } = useDagBundleServiceGetDagBundles(
     {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
@@ -143,7 +143,6 @@ export const DagBundles = () => {
         data={data?.dag_bundles ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:dagBundle"
         onStateChange={setTableURLState}

@@ -100,6 +100,7 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.RetryPolicy`
 - :class:`airflow.sdk.RetryRule`
 - :class:`airflow.sdk.TaskGroup`
+- :class:`airflow.sdk.LoopDecision`
 - :class:`airflow.sdk.TaskInstanceState`
 - :class:`airflow.sdk.DagRunState`
 - :class:`airflow.sdk.WeightRule`
@@ -179,6 +180,7 @@ For the full public API reference, see the :doc:`api` page.
   resumable-job-mixin
   api
   concepts
+  task-handler
   lang-sdk
   executable-bundle-spec
   ts-bundle-spec

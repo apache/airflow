@@ -153,7 +153,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return self._build_legacy_url(blob_name)
 
-    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
         logs = []
         # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"

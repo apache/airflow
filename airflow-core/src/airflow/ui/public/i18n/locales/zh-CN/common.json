@@ -40,6 +40,8 @@
   "createdAssetEvent_other": "已创建资源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活跃执行数",
     "catchup": "自动回填",
@@ -90,7 +92,6 @@
   "dagRun_other": "Dag 执行",
   "dagRunId": "Dag 执行 ID",
   "dagRunState": "Dag 执行状态",
-  "dagWarnings": "Dag 警告 / 错误",
   "delete": "删除",
   "diff": "差异对比",
   "diffCompareWith": "比较对象",
@@ -166,6 +167,11 @@
   "generateToken": "生成令牌",
   "includedIn": "包含于",
   "key": "键",
+  "logLevel": {
+    "hide": "隐藏日志级别",
+    "hotkey": "l",
+    "show": "显示日志级别"
+  },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
@@ -213,7 +219,7 @@
   },
   "pause": "暂停",
   "pendingDagRun_one": "1 个待执行 Dag 执行",
-  "pendingDagRun_other": "{{count}} 个待执行 Dag 执行",
+  "pendingDagRun_other": "{{count, number}} 个待执行 Dag 执行",
   "presetFilters": {
     "deleteTitle": "删除预设筛选条件",
     "deleteWarning": "预设筛选条件仅保存在此浏览器中。",
@@ -264,6 +270,10 @@
   "selected": "已选择",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "清除任务实例时默认保留任务存储条目，而不是将其丢弃。",
+        "label": "清除时保留任务存储"
+      },
       "preventRunningTask": {
         "helper": "清除任务实例时跳过正在执行的任务。",
         "label": "防止清除正在执行的任务"
@@ -294,6 +304,10 @@
       "defaultDirection": {
         "helper": "未单独设置布局方向的 Dag 和资源图表所使用的方向。",
         "label": "默认图表方向"
+      },
+      "taskGroupsExpanded": {
+        "helper": "在您尚未保存分组选择的 Dag 中展开任务分组，已有选择保持不变。",
+        "label": "默认展开任务分组"
       },
       "title": "图表"
     },
@@ -346,6 +360,7 @@
       "toggleExpand": "展开或收起所有分组",
       "toggleFullscreen": "切换全屏",
       "toggleGraphGrid": "切换图形与网格视图",
+      "toggleLogLevel": "切换日志级别显示",
       "toggleSource": "切换来源显示",
       "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
       "toggleTimestamp": "切换时间戳显示",
@@ -442,6 +457,11 @@
     "queuedWhen": "开始排队时间",
     "renderedMapIndex": "已渲染映射索引",
     "scheduledWhen": "开始调度时间",
+    "stateReason": "状态原因",
+    "stateReasonSummary": {
+      "failed": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后停止",
+      "upForRetry": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后重试"
+    },
     "trigger": "触发器",
     "triggerer": {
       "assigned": "指派的触发器",
@@ -458,7 +478,7 @@
   "taskInstance_other": "任务实例",
   "teams": {
     "more_one": "及其他 1 个团队",
-    "more_other": "及其他 {{count}} 个团队",
+    "more_other": "及其他 {{count, number}} 个团队",
     "none": "无团队",
     "title": "团队"
   },
@@ -484,21 +504,21 @@
     "bulkClear": {
       "error": "批量清除 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功清除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功清除 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量清除 {{resourceName}} 请求"
       }
     },
     "bulkDelete": {
       "error": "批量删除 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功删除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功删除 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量删除 {{resourceName}} 请求"
       }
     },
     "bulkUpdate": {
       "error": "批量更新 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功更新 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功更新 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量更新 {{resourceName}} 请求"
       }
     },
@@ -519,7 +539,7 @@
     "import": {
       "error": "导入 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功导入 {{count}} 个 {{resourceName}}。",
+        "description": "已成功导入 {{count, number}} 个 {{resourceName}}。",
         "title": "已提交导入 {{resourceName}} 请求"
       }
     },

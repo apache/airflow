@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.serialized_objects import SerializedOperator
 
 
 def client_supports_arg_bindings() -> bool:
@@ -44,18 +45,35 @@ def client_supports_arg_bindings() -> bool:
     return AddArgBindingsToTIRunContext.is_applied
 
 
-def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | None:
+def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOperator | None:
+    """Return the task of *ti* from its Dag version, or ``None`` if it cannot be found."""
+    if ti.dag_version_id is None:
+        return None
+    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
+        return None
+    return dag.task_dict.get(ti.task_id)
+
+
+def get_arg_bindings(task: SerializedOperator) -> list | None:
     """
-    Extract the stub task's TaskFlow arg spec from its Dag version.
+    Return the TaskFlow arg spec of *task* if it is a stub task.
 
     Mapped (``.expand()``) stubs never capture a parse-time spec, so they resolve to
     ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
     lands in a follow-up.
     """
-    if ti.dag_version_id is None:
-        return None
-    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
-        return None
-    if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
+    if not task.is_stub:
         return None
     return task.arg_bindings
+
+
+def get_execution_timeout(task: SerializedOperator) -> float | None:
+    """
+    Return the ``execution_timeout`` of *task* in seconds, or ``None`` if it sets none.
+
+    The value is sent as it is, so a runtime handles it the way the Python task runner does: zero
+    means no timeout, and a negative one has already elapsed.
+    """
+    if task.execution_timeout is None:
+        return None
+    return task.execution_timeout.total_seconds()

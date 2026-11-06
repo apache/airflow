@@ -56,24 +56,41 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
     AddDagRunNoteUpdateEndpoint,
+    AddExpandedTICountToTIRunContext,
+    AddFirstTaskRescheduleStartDateField,
+    AddLoopContext,
+    AddLoopDecisionField,
     AddMultiTeamToTIRunContext,
+    AddPreviousIterationToXComFilterParams,
     AddStoppedTaskReport,
+    AddTaskInstanceRegionCoordinates,
     AddTerminalStateRetryReasonField,
     IdentifyArchivedTaskStateUpdates,
     ReturnNotFoundForMissingDagRun,
 )
+from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
+    AddDagProcessorJobEndpoints,
+    AddExecutionTimeoutToTIRunContext,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2027-02-28", AddDagProcessorJobEndpoints, AddExecutionTimeoutToTIRunContext),
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,
         AddCallbackRunEndpoint,
         AddDagRunNoteUpdateEndpoint,
+        AddExpandedTICountToTIRunContext,
+        AddLoopContext,
+        AddLoopDecisionField,
         AddTerminalStateRetryReasonField,
         AddMultiTeamToTIRunContext,
+        AddPreviousIterationToXComFilterParams,
         AddStoppedTaskReport,
+        AddTaskInstanceRegionCoordinates,
         IdentifyArchivedTaskStateUpdates,
+        AddFirstTaskRescheduleStartDateField,
         ReturnNotFoundForMissingDagRun,
     ),
     Version(

@@ -17,7 +17,7 @@
 """
 Give Airflow tools to a `Strands Agents <https://strandsagents.com/>`__ agent.
 
-.. note:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+.. note:: Experimental; see :ref:`howto/stability`.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.tools import ToolProvider
 
 __all__ = ["AirflowTools"]
+
+_MCP_HINT = "Connect Strands' MCPClient to the server instead."
 
 # Strands refuses two plugins with the same name on one agent, so each instance gets its own.
 _instance_numbers = itertools.count(1)
@@ -87,7 +89,8 @@ class AirflowTools(Plugin):
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as a Strands result
     with ``status="error"``, counted against the tool's retry limit once per model turn
-    and afresh on every run of the agent. A tool that is still failing once the limit is
+    and afresh each time the agent is given a new prompt; resuming from a checkpoint
+    keeps the count. A tool that is still failing once the limit is
     used up, or a failure the model cannot fix, such as a hook raising, fails the agent
     run, so the task fails and Airflow retries it. Strands on its own would hand that
     failure to the model and carry on. Tools a toolset marks sequential, such as the
@@ -101,7 +104,7 @@ class AirflowTools(Plugin):
         self._name = f"airflow-tools-{next(_instance_numbers)}"
         self._run = object()
         self._airflow_tools: list[AgentTool] = [
-            _to_strands_tool(tool, lambda: self._run) for tool in collect_tools(sources)
+            _to_strands_tool(tool, lambda: self._run) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
         ]
         super().__init__()
 
@@ -110,14 +113,17 @@ class AirflowTools(Plugin):
         return self._name
 
     @property
-    def tools(self) -> list[AgentTool]:  # type: ignore[override]
+    def tools(self) -> list[AgentTool]:
         # Plugin types this as its decorated tools; the registry takes any AgentTool.
         return self._airflow_tools
 
     @hook
     def _start_a_run(self, event: BeforeInvocationEvent) -> None:
-        # Each call on the agent is a run of its own, with a fresh retry budget per tool.
-        self._run = object()
+        # Each call on the agent with a new prompt is a run of its own, with a fresh retry
+        # budget per tool. A call that brings no new messages carries on the run before it:
+        # resuming from a checkpoint or an interrupt, or calling the agent with no prompt.
+        if event.messages != []:
+            self._run = object()
 
     @hook
     def _fail_the_run_on_tool_call_error(self, event: AfterToolCallEvent) -> None:

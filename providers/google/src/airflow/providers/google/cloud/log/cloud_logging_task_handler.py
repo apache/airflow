@@ -23,6 +23,7 @@ import copy
 import inspect
 import logging
 import os
+import re
 import shutil
 import sys
 import warnings
@@ -30,7 +31,7 @@ from collections.abc import Collection
 from datetime import datetime
 from functools import cached_property
 from logging import getLogRecordFactory
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlsplit
 
@@ -83,6 +84,9 @@ LABEL_DAG_ID = "dag_id"
 LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 LABEL_TRY_NUMBER = "try_number"
 LABEL_TI_ID = "ti_id"
+LABEL_RUN_ID = "run_id"
+LABEL_MAP_INDEX = "map_index"
+LABEL_LOG_PATH = "log_path"
 
 
 @attrs.define(kw_only=True)
@@ -167,7 +171,15 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
         import structlog.stdlib
 
-        from airflow.sdk.log import relative_path_from_logger
+        from airflow.sdk.log import relative_path_from_logger as _relative_path_from_logger
+
+        def relative_path_from_logger(logger) -> Path | None:
+            try:
+                return _relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory
+                # configured elsewhere, as ``upload_to_remote`` does.
+                return None
 
         log_record_factory = getLogRecordFactory()
         _transport = self.transport
@@ -177,7 +189,7 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             method_name: str,
             event: structlog.typing.EventDict,
         ):
-            if not logger or not relative_path_from_logger(logger):
+            if not logger or not (log_path := relative_path_from_logger(logger)):
                 return event
 
             name = event.get("logger_name") or event.get("logger", "")
@@ -217,12 +229,13 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
                 if task_id := event.get("task_id"):
                     labels[LABEL_TASK_ID] = str(task_id)
                 if run_id := event.get("run_id"):
-                    labels["run_id"] = str(run_id)
+                    labels[LABEL_RUN_ID] = str(run_id)
                 if try_number := event.get("try_number"):
                     labels[LABEL_TRY_NUMBER] = str(try_number)
-                if map_index := event.get("map_index"):
-                    labels["map_index"] = str(map_index)
+                if (map_index := event.get("map_index")) is not None:
+                    labels[LABEL_MAP_INDEX] = str(map_index)
 
+            labels[LABEL_LOG_PATH] = str(log_path)
             _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
 
@@ -248,20 +261,28 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             if parent.exists():
                 shutil.rmtree(parent, ignore_errors=True)
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         """Read logs from Cloud Logging using task instance labels."""
+        if ti is None:
+            # Entries are found by task instance labels, so logs without a task instance can't be read.
+            return [], None
         ti_labels = _task_instance_to_labels(ti)
-        log_filter = self.prepare_log_filter(ti_labels)
+        # The writer's path went through ``pathlib``, which drops empty and ``.`` segments.
+        log_filter = self.prepare_log_filter(ti_labels, log_path=PurePosixPath(relative_path).as_posix())
         messages, end_of_log, _ = self.read_logs(log_filter, next_page_token=None, all_pages=True)
         return [f"Reading remote log from Cloud Logging for {relative_path}"], [messages] if messages else []
 
-    def prepare_log_filter(self, ti_labels: dict[str, str]) -> str:
+    def prepare_log_filter(self, ti_labels: dict[str, str], log_path: str | None = None) -> str:
         def escape_label_key(key: str) -> str:
             return f'"{key}"' if "." in key else key
 
         def escape_label_value(value: str) -> str:
             escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
             return f'"{escaped_value}"'
+
+        def build_regex_value(pattern: str) -> str:
+            # Cloud Logging passes a regex string's backslashes to RE2 unchanged, so only quotes are escaped.
+            return pattern.replace('"', '\\"')
 
         _, project = self.credentials_and_project
         log_filters = [
@@ -276,14 +297,39 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             key: f"labels.{escape_label_key(key)}={escape_label_value(value)}"
             for key, value in ti_labels.items()
         }
+        if LABEL_RUN_ID in ti_labels:
+            # ``=`` ignores letter case, which would mix the lines of runs whose ids differ only in case.
+            run_id_regex = build_regex_value(f"^{re.escape(ti_labels[LABEL_RUN_ID])}$")
+            label_conditions[LABEL_RUN_ID] = f'labels.{LABEL_RUN_ID}=~"{run_id_regex}"'
+        if ti_labels.get(LABEL_MAP_INDEX) == "0":
+            # Earlier provider releases wrote no ``map_index`` label for map index 0.
+            label_conditions[LABEL_MAP_INDEX] = (
+                f"({label_conditions[LABEL_MAP_INDEX]} OR NOT labels.{LABEL_MAP_INDEX}:*)"
+            )
         ti_id_condition = label_conditions.pop(LABEL_TI_ID, None)
         # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
-        if ti_id_condition and AIRFLOW_V_3_4_PLUS:
+        match_ti_id = bool(ti_id_condition) and AIRFLOW_V_3_4_PLUS
+        if match_ti_id:
             # Entries written before the ``ti_id`` label existed are matched by the other labels.
             legacy_conditions = [*label_conditions.values(), f"NOT labels.{LABEL_TI_ID}:*"]
-            log_filters.append(f"({ti_id_condition} OR ({' AND '.join(legacy_conditions)}))")
+            task_filters = [f"({ti_id_condition} OR ({' AND '.join(legacy_conditions)}))"]
         else:
-            log_filters.extend(label_conditions.values())
+            task_filters = list(label_conditions.values())
+        if log_path:
+            # Workers before 3.4 ship a task's stdout and the supervisor's own lines without task context.
+            # The path is matched only for such lines, so other tries that wrote to the same path stay out.
+            # Before 3.2.2 the triggerer binds no task context and writes to ``<task path>.trigger.<job id>.log``.
+            path_regex = build_regex_value(f"^{re.escape(log_path)}(\\.trigger\\.[0-9]+\\.log)?$")
+            path_conditions = [
+                f'labels.{LABEL_LOG_PATH}=~"{path_regex}"',
+                f"NOT labels.{LABEL_TASK_ID}:*",
+            ]
+            if match_ti_id:
+                path_conditions.append(f"NOT labels.{LABEL_TI_ID}:*")
+            # Cloud Logging binds OR tighter than AND, so each side of the OR must be grouped.
+            task_filter = task_filters[0] if len(task_filters) == 1 else f"({' AND '.join(task_filters)})"
+            task_filters = [f"({task_filter} OR ({' AND '.join(path_conditions)}))"]
+        log_filters.extend(task_filters)
         return "\n".join(log_filters)
 
     def read_logs(
@@ -330,14 +376,14 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
 
 def _task_instance_to_labels(ti) -> dict[str, str]:
     """Convert a task instance to Cloud Logging labels."""
-    labels = {
-        LABEL_TASK_ID: ti.task_id,
-        LABEL_DAG_ID: ti.dag_id,
-        LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
-        if AIRFLOW_V_3_0_PLUS
-        else str(ti.execution_date.isoformat()),
-        LABEL_TRY_NUMBER: str(ti.try_number),
-    }
+    labels = {LABEL_TASK_ID: ti.task_id, LABEL_DAG_ID: ti.dag_id}
+    if AIRFLOW_V_3_0_PLUS:
+        # Match the labels CloudLoggingRemoteLogIO.processors stamps; a run may have no logical date.
+        labels[LABEL_RUN_ID] = str(ti.run_id)
+        labels[LABEL_MAP_INDEX] = str(ti.map_index)
+    else:
+        labels[LABEL_LOGICAL_DATE] = str(ti.execution_date.isoformat())
+    labels[LABEL_TRY_NUMBER] = str(ti.try_number)
     # Before 3.4 a try can reuse the previous try's id, so only the other labels identify it.
     if AIRFLOW_V_3_4_PLUS and (ti_id := getattr(ti, "id", None)):
         labels[LABEL_TI_ID] = str(ti_id)
@@ -575,7 +621,13 @@ class CloudLoggingTaskHandler(logging.Handler):
         # from ``Handler.close()`` gracefully). Print to stderr as last resort since
         # logging itself may be shutting down.
         try:
-            self.io.transport.flush()
+            # Read the attrs (>=23.2) cached_property slot directly so close() never builds a
+            # transport (and starts its worker thread) during logging.shutdown.
+            try:
+                transport = object.__getattribute__(self.io, "transport")
+            except AttributeError:
+                return
+            transport.flush()
         except Exception as exc:
             print(
                 f"CloudLoggingTaskHandler.close: transport flush failed: {type(exc).__name__}: {exc}",
