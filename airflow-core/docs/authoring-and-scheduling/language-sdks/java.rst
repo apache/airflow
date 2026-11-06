@@ -20,6 +20,8 @@
 Java SDK
 ========
 
+|experimental|
+
 The Java SDK lets you write Airflow Dags and tasks in Java, Kotlin, Scala or any other JVM language. There are
 two ways to use it:
 
