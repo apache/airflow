@@ -33,9 +33,10 @@ from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
+from airflow.crypto import get_fernet
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
-from airflow.models.crypto import FernetFieldsMixin, get_fernet
+from airflow.models.crypto import FernetFieldsMixin
 
 # AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
 # airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),

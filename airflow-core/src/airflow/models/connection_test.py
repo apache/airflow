@@ -38,9 +38,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from airflow._shared.timezones import timezone
+from airflow.crypto import get_fernet
 from airflow.models.base import Base
 from airflow.models.connection import Connection
-from airflow.models.crypto import FernetFieldsMixin, get_fernet
+from airflow.models.crypto import FernetFieldsMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:

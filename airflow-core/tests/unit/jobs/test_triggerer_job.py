@@ -2246,7 +2246,7 @@ class TestTriggerRunner:
     ):
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
         SerializedKwargsTrigger.constructed.clear()
