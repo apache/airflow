@@ -1785,13 +1785,16 @@ class TestWatcherLogFile:
         """
         A remote handler that stores files: by default as S3, GCS and WASB do (appending downloads the object and
         uploads all of it again, then the local file is emptied), with ``replace`` as HDFS does (the object is
-        replaced, the local file kept).
+        replaced, the local file kept), with ``keep`` as OSS does (appended to, the local file kept).
         """
 
         processors = ()
 
-        def __init__(self, base, *, replace=False):
-            self.base, self.replace, self.down, self.attempts = base, replace, False, 0
+        def __init__(self, base, *, replace=False, keep=False):
+            self.base, self.replace, self.keep, self.down, self.attempts = base, replace, keep, False, 0
+            self.quiet_failures = (
+                0  # uploads that leave the file as it was, as S3, GCS and WASB on a failed write
+            )
             self.objects: dict[str, str] = {}
             self.uploads: list[tuple[str, int, int]] = []  # path, bytes of the file, bytes downloaded
             self.replaced: list[str] = []  # objects whose content was replaced by other content
@@ -1800,6 +1803,9 @@ class TestWatcherLogFile:
             self.attempts += 1
             if self.down:
                 raise OSError("store unreachable")
+            if self.quiet_failures:
+                self.quiet_failures -= 1
+                return
             local = self.base / path
             if not local.is_file():
                 return
@@ -1812,7 +1818,8 @@ class TestWatcherLogFile:
                 self.objects[path] = new
             else:
                 self.objects[path] = old + new
-                local.write_text("")
+                if not self.keep:
+                    local.write_text("")
 
         def lines(self):
             return [
@@ -1820,6 +1827,14 @@ class TestWatcherLogFile:
                 for key in sorted(self.objects)
                 for line in self.objects[key].splitlines()
             ]
+
+    class HdfsRemoteLogIO(_Store):
+        def __init__(self, base):
+            super().__init__(base, replace=True)
+
+    class OSSRemoteLogIO(_Store):
+        def __init__(self, base):
+            super().__init__(base, keep=True)
 
     def _log(self, supervisor, trigger_id, numbers):
         logger = supervisor.logger_cache[trigger_id](self._processors())
@@ -1869,11 +1884,56 @@ class TestWatcherLogFile:
 
     def test_a_replacing_store_loses_no_lines(self, jobless_supervisor, mocker, tmp_path):
         # HDFS replaces the object: to one object, each rotation would replace the one before it.
-        store = self._Store(tmp_path, replace=True)
+        store = self.HdfsRemoteLogIO(tmp_path)
         self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
 
         assert store.replaced == []
         assert store.lines() == list(range(200))
+
+    def test_a_rotated_file_whose_upload_failed_is_sent_again_before_it_is_replaced(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        store = self._Store(tmp_path)
+        store.quiet_failures = 1
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
+
+        parts = [path for path, _, _ in store.uploads if "/rotated/" in path]
+        assert store.attempts == len(store.uploads) + 1  # the failed one sent once more, no other
+        assert len(parts) == len(set(parts))
+        assert store.lines() == list(range(200))
+
+    @pytest.mark.parametrize("store_class", ["HdfsRemoteLogIO", "OSSRemoteLogIO"])
+    def test_a_store_that_keeps_the_file_gets_each_part_once(
+        self, jobless_supervisor, mocker, tmp_path, store_class
+    ):
+        # HDFS and OSS never empty a file they stored: its lines are no sign of a failed upload. OSS appends, so
+        # sending it again would store it twice.
+        store = getattr(self, store_class)(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with conf_vars(
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+        ):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(200))
+
+        parts = [path for path, _, _ in store.uploads]
+        assert len(parts) >= 8
+        assert len(parts) == len(set(parts))
+        assert len(store.lines()) == len(set(store.lines()))
+
+    def test_a_store_that_stays_down_keeps_one_rotated_file(self, jobless_supervisor, mocker, tmp_path):
+        store = self._Store(tmp_path)
+        store.down = True
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with conf_vars(
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+        ):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(200))
+
+        rotated = list((tmp_path / f"triggers/42/{jobless_supervisor.id}/rotated").iterdir())
+        assert len(rotated) == 1
+        assert rotated[0].stat().st_size < 400 + 100
 
     def test_empty_files_are_not_uploaded_to_a_store(self, jobless_supervisor, mocker, tmp_path):
         # Released right after a rotation: the rotated file was emptied by its upload, the live file is empty.
@@ -1888,7 +1948,7 @@ class TestWatcherLogFile:
         self, jobless_supervisor, mocker, tmp_path
     ):
         # Its new file starts empty, and the parts it uploaded are gone from the disk, as delete_local_logs does.
-        store = self._Store(tmp_path, replace=True)
+        store = self.HdfsRemoteLogIO(tmp_path)
         self._run(jobless_supervisor, store, mocker, tmp_path, range(100))
         first = {path for path, _, _ in store.uploads if "/rotated/" in path}
         shutil.rmtree(tmp_path / "triggers/42")
@@ -1910,7 +1970,7 @@ class TestWatcherLogFile:
         session.add(dead_job)
         session.flush()
         dead = supervisor_builder(job=dead_job)
-        store = self._Store(tmp_path, replace=True)
+        store = self.HdfsRemoteLogIO(tmp_path)
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
         with conf_vars(
             {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
@@ -2414,6 +2474,41 @@ class TestWatcherLogFile:
 
         assert sorted(c.args[0] for c in handler.upload.call_args_list) == sorted(paths)
         assert [p for p in paths if (tmp_path / p).exists()] == paths
+
+    def test_uploaded_files_of_dead_triggerers_leave_no_directories(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # Without delete_local_logs, S3, GCS and WASB empty the file they uploaded and leave its directory.
+        now = timezone.utcnow()
+        own = supervisor_builder()
+        alive = Job(job_type="TriggererJob", state="running", latest_heartbeat=now)
+        dead = Job(
+            job_type="TriggererJob", state="running", latest_heartbeat=now - datetime.timedelta(hours=1)
+        )
+        session.add_all([alive, dead])
+        session.flush()
+        for path in (
+            f"triggers/1/{dead.id}/rotated/trigger.000003.log",
+            f"triggers/1/{dead.id}/trigger.log",
+            f"triggers/2/{dead.id}/trigger.log",
+            f"triggers/2/{alive.id}/trigger.log",
+            f"triggers/3/{own.job.id}/trigger.log",
+        ):
+            (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / path).write_text('{"n": 0}\n')
+        (tmp_path / f"triggers/4/{dead.id}").mkdir(parents=True)  # emptied by an earlier start
+        (tmp_path / f"triggers/4/{dead.id}/trigger.log").touch()
+        store = self._Store(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            own.handle_orphaned_trigger_logs()
+
+        assert len(store.lines()) == 3
+        assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.glob("triggers/*/*")) == sorted(
+            [f"triggers/2/{alive.id}", f"triggers/3/{own.job.id}"]
+        )
+        assert sorted(p.name for p in tmp_path.glob("triggers/*")) == ["2", "3"]
 
     def test_files_another_triggerer_is_uploading_are_skipped(
         self, supervisor_builder, session, mocker, tmp_path

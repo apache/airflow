@@ -744,6 +744,15 @@ _ORPHAN_UPLOAD_CLAIM_MAX_AGE = 600.0
 _TRIGGER_ID_QUERY_CHUNK_SIZE = 500
 # Remote log handlers that take only task logs: a watcher's file is left as it was however often it is sent.
 _TASK_LOGS_ONLY_HANDLERS = frozenset({"ElasticsearchRemoteLogIO", "OpensearchRemoteLogIO"})
+# Remote log handlers that never empty a file they stored: its lines after an upload are no sign of a failed one.
+_KEEPS_STORED_FILE_HANDLERS = frozenset({"HdfsRemoteLogIO", "OSSRemoteLogIO"})
+
+
+def _has_lines(path: Path) -> bool:
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False
 
 
 def _handler_keeps_no_copy(handler) -> bool:
@@ -757,6 +766,11 @@ def _handler_keeps_no_copy(handler) -> bool:
     if getattr(handler, "processors", None):
         return True
     return any(cls.__name__ in _TASK_LOGS_ONLY_HANDLERS for cls in type(handler).__mro__)
+
+
+def _handler_keeps_stored_file(handler) -> bool:
+    """Whether the handler leaves a file it stored as it was (HDFS, OSS; by class name, as for the above)."""
+    return any(cls.__name__ in _KEEPS_STORED_FILE_HANDLERS for cls in type(handler).__mro__)
 
 
 @attrs.define(kw_only=True)
@@ -818,6 +832,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     _pending_rotated_uploads: dict[int, Future] = attrs.field(factory=dict, init=False)
     # The last number given to each watcher's rotated files here (see _upload_rotated)
     _rotated_parts: dict[int, int] = attrs.field(factory=dict, init=False)
+    # Each watcher's last rotated file whose upload the handler did not confirm, sent again before it is replaced
+    _rotated_unconfirmed: dict[int, str] = attrs.field(factory=dict, init=False)
     # When each trigger's log file last failed, to warn at most once a minute
     _trigger_log_errors_at: dict[int, float] = attrs.field(factory=dict, init=False)
 
@@ -1083,7 +1099,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def _rotated_upload_done(self, trigger_id: int) -> bool:
         upload = self._pending_rotated_uploads.get(trigger_id)
-        return upload is None or upload.done()
+        if upload is not None and not upload.done():
+            return False
+        if self._rotated_pool is not None and (path := self._rotated_unconfirmed.pop(trigger_id, None)):
+            # Now, while it is the only file in its directory: with delete_local_logs, a handler deletes the
+            # directory of the file it uploaded. Replaced by the next rotation whether it goes through or not.
+            self._pending_rotated_uploads[trigger_id] = self._rotated_pool.submit(
+                self._upload_rotated_again, trigger_id, path
+            )
+            return False
+        return True
+
+    @staticmethod
+    def _upload_rotated_again(trigger_id: int, path: str) -> None:
+        from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
+
+        try:
+            if (handler := load_remote_log_handler()) is not None:
+                handler.upload(path, None)
+        except Exception:
+            log.exception("Failed to upload a rotated trigger log", trigger_id=trigger_id, path=path)
 
     def _upload_rotated(self, trigger_id: int, log_path: str) -> None:
         # Called by the line that rotated the file: the rest runs in the pool, not to hold up the runner's logs.
@@ -1097,6 +1132,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
 
             path = rotated
+            base = Path(conf.get("logging", "base_log_folder"))
             try:
                 if (handler := load_remote_log_handler()) is None:
                     return
@@ -1105,17 +1141,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     # trigger_log_part_path), numbered by this triggerer, the only one writing to the directory.
                     # Counted, not read from the disk: a watcher that comes back gets a new file, and the parts
                     # it uploaded before are gone locally.
-                    base = Path(conf.get("logging", "base_log_folder"))
                     for done in (base / rotated).parent.glob("*.log"):
                         if done.name != TRIGGER_LOG_FILE_NAME:
                             with suppress(OSError):
-                                done.unlink()  # the previous one, its upload done: one rotated file at a time
+                                done.unlink()  # the previous one, uploaded or tried twice: one at a time
                     path = trigger_log_part_path(log_path, part)
                     # Named only now: until then the triggerer's log server serves it as the rotated file.
                     os.replace(base / rotated, base / path)
                 handler.upload(path, None)
             except Exception:
                 log.exception("Failed to upload a rotated trigger log", trigger_id=trigger_id, path=path)
+            if path != rotated and not _handler_keeps_stored_file(handler) and _has_lines(base / path):
+                # S3, GCS and WASB empty or delete a file they stored, and report a failed write only in their log.
+                # Not HDFS and OSS, which keep it: OSS appends, so sending it again would store it twice (#76640).
+                self._rotated_unconfirmed[trigger_id] = path
 
         self._pending_rotated_uploads[trigger_id] = self._rotated_pool.submit(upload)
         self._rotated_parts[trigger_id] = part
@@ -1123,6 +1162,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def _upload_and_close(self, trigger_id: int, factory: TriggerLoggingFactory) -> None:
         if (rotated_upload := self._pending_rotated_uploads.pop(trigger_id, None)) is not None:
             rotated_upload.result()  # else the rotated file could be read again before it is emptied
+        self._rotated_unconfirmed.pop(trigger_id, None)  # sent again below, with the live file
         try:
             factory.upload_to_remote()
         except Exception:
@@ -1148,11 +1188,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """
         Upload, or remove, the asset watcher files left on this disk by triggerers that are no longer alive.
 
-        A killed triggerer uploads nothing, so its files are uploaded now. Files remote logging doesn't take
-        (it is off, or the handler keeps no copy, like Elasticsearch) are removed instead: all but the most
-        recently written for each watcher, and all for triggers that no longer exist. Files of live
-        triggerers, this one included, of triggerers without a job (no job id directory), and those a failed
-        upload left stay.
+        A killed triggerer uploads nothing, so its files are uploaded now, then their directories removed.
+        Files remote logging doesn't take (it is off, or the handler keeps no copy, like Elasticsearch) are
+        removed instead: all but the most recently written for each watcher, and all for triggers that no
+        longer exist. Files of live triggerers, this one included, of triggerers without a job (no job id
+        directory), and those a failed upload left stay.
         """
         from airflow.jobs.job import Job
         from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
@@ -1201,7 +1241,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             os.close(os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
         except OSError:
             return False
-        kept = False
+        kept = left = False
         try:
             # The rotated files first: remote handlers append in upload order.
             for path in trigger_log_files(producer_dir):
@@ -1213,17 +1253,24 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     handler.upload(relative_path, None)
                 except Exception:
                     log.exception("Failed to upload an orphaned trigger log", path=relative_path)
+                    left = True
                     continue
                 if path.is_file() and path.stat().st_size:
                     # Neither emptied nor deleted: a handler that keeps no copy of it, or a failed upload, whose
                     # files stay for a later start.
                     kept = kept or _handler_keeps_no_copy(handler)
+                    left = True
                 else:
                     log.info(
                         "Uploaded a trigger log left behind by a triggerer that is not alive",
                         path=relative_path,
                         triggerer_job_id=job_id,
                     )
+            if not left:
+                # All uploaded: without delete_local_logs, handlers empty the files and leave the directories.
+                shutil.rmtree(producer_dir, ignore_errors=True)
+                with suppress(OSError):
+                    producer_dir.parent.rmdir()  # not while another triggerer still has a directory in it
         finally:
             claim.unlink(missing_ok=True)
         return kept
