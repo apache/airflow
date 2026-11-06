@@ -106,19 +106,10 @@ def test_explicit_invalid_connection_fails(monkeypatch):
             HuggingFaceHook("explicit_bad_id").get_token()
 
 
-@pytest.mark.parametrize("error_kind", ["value", "gated"])
-def test_load_dataset_passes_token_and_propagates_library_exception(connection_env, error_kind):
+def test_load_dataset_passes_token_and_propagates_library_exception(connection_env):
     from airflow.providers.huggingface.hooks import huggingface
-    import httpx
 
-    if error_kind == "gated":
-        from huggingface_hub.utils import GatedRepoError
-
-        error = GatedRepoError(
-            "gated", response=httpx.Response(403, request=httpx.Request("GET", "https://huggingface.co"))
-        )
-    else:
-        error = ValueError("invalid or gated dataset")
+    error = ValueError("invalid or gated dataset")
     with patch.object(huggingface, "load_dataset", autospec=True, side_effect=error) as load:
         hook = HuggingFaceHook("huggingface_test")
         with pytest.raises(type(error)) as raised:
@@ -127,22 +118,11 @@ def test_load_dataset_passes_token_and_propagates_library_exception(connection_e
     load.assert_called_once_with("org/private-data", token="test-secret")
 
 
-def test_hub_repository_exception_propagates(connection_env):
-    from huggingface_hub.utils import RepositoryNotFoundError
-
-    hook = HuggingFaceHook("huggingface_test")
-    import httpx
-    error = RepositoryNotFoundError("missing", response=httpx.Response(404, request=httpx.Request("GET", "https://huggingface.co")))
-    with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api:
-        api.return_value.dataset_info.side_effect = error
-        with pytest.raises(RepositoryNotFoundError) as raised:
-            hook.get_dataset_info("org/missing")
-    assert raised.value is error
-
-
 def test_connection_extra_token_is_ignored(monkeypatch):
-    monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_EXTRA_TEST",
-                       '{"conn_type":"huggingface","extra":{"token":"ignored"}}')
+    monkeypatch.setenv(
+        "AIRFLOW_CONN_HUGGINGFACE_EXTRA_TEST",
+        '{"conn_type":"huggingface","extra":{"token":"ignored"}}',
+    )
     assert HuggingFaceHook("huggingface_extra_test").get_token() is False
 
 

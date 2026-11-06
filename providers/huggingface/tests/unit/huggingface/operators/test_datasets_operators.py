@@ -527,15 +527,19 @@ def test_existing_local_path_is_not_treated_as_hub_repo(tmp_path):
     assert result["repository_id"] is None
 
 
-def test_object_storage_memory_scheme_handoff(monkeypatch):
-    """Exercise non-local ObjectStoragePath open semantics without cloud credentials."""
+@pytest.fixture
+def attached_memory_filesystem(monkeypatch):
+    from airflow.sdk.io import attach
+    from airflow.sdk.io.store import _STORE_CACHE
     from fsspec.implementations.memory import MemoryFileSystem
-    from airflow.sdk.io import fs as airflow_fs
 
-    monkeypatch.setattr(airflow_fs, "_register_filesystems", lambda: {
-        "file": lambda conn_id, options: __import__("fsspec").implementations.local.LocalFileSystem(**options),
-        "memory": lambda conn_id, options: MemoryFileSystem(**options),
-    })
+    monkeypatch.delitem(_STORE_CACHE, "memory", raising=False)
+    return attach("memory", fs=MemoryFileSystem())
+
+
+def test_object_storage_memory_scheme_handoff(attached_memory_filesystem):
+    """Exercise non-local ObjectStoragePath open semantics without cloud credentials."""
+    assert attached_memory_filesystem.fs is not None
     uri = "memory://hf-provider-tests/round-trip.json"
     reference = _save(Dataset.from_dict({"value": [3]}), uri)
     restored = _load_artifact(reference)
