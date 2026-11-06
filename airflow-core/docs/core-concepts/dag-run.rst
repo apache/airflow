@@ -348,8 +348,8 @@ Example of a parameterized Dag:
 
 .. note::
 
-   ``dag_run.conf`` is meant for small metadata, such as a path, a table name or an ID. The whole value is stored in
-   the metadata database and sent to every task when it starts, so avoid putting large payloads in it. Pass a
+   ``dag_run.conf`` is meant for small metadata, such as a path, a table name, or an identifier. The entire value is stored in
+   the metadata database and sent to every task worker process on startup. Avoid putting large payloads in it. Use a
    reference instead, and have the task read the actual data from external storage.
 
 Wait for a Dag Run
