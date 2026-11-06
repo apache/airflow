@@ -497,8 +497,6 @@ def workflow_run_release_constraints(
         sys.exit(1)
     stage = "candidate" if "rc" in version else "final"
     console_print(f"[blue]Triggering constraints generation for the {stage} {version} from {ref}[/blue]")
-    # The workflow input name is hyphenated, so it cannot be a keyword argument; "" lets the
-    # workflow derive the guard from the version.
     overrides = {"fail-on-pending-provider-candidates": fail_on_pending_provider_candidates or ""}
     trigger_workflow_and_monitor(
         workflow_name=WORKFLOW_NAME_MAPS["release-constraints"],

@@ -544,7 +544,6 @@ def test_regenerate_constraints_resolves_from_the_stable_branch(monkeypatch, rel
     """The final release resolves from the branch it is cut from, not from main."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
-    monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
 
     release_cmd.regenerate_constraints("3.3.0")
 
@@ -559,7 +558,6 @@ def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd)
     """No rc suffix reaches the workflow, which is what makes it refuse pre-releases."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
-    monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
 
     release_cmd.regenerate_constraints("3.0.5")
 
@@ -567,10 +565,17 @@ def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd)
     assert calls["ref"] == "v3-0-stable"
 
 
-def test_regenerate_constraints_does_not_prompt_without_pending_candidates(monkeypatch, release_cmd):
-    """With no provider wave in rc, the override is never offered and the guard stays on."""
+@pytest.mark.parametrize("override", [None, False])
+def test_regenerate_constraints_passes_the_override_through(monkeypatch, release_cmd, override):
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+
+    release_cmd.regenerate_constraints("3.3.0", override)
+
+    assert calls["fail_on_pending_provider_candidates"] is override
+
+
+def test_decide_override_does_not_prompt_without_pending_candidates(monkeypatch, release_cmd):
     monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
 
     def fail_if_called(*a, **k):
@@ -578,31 +583,10 @@ def test_regenerate_constraints_does_not_prompt_without_pending_candidates(monke
 
     monkeypatch.setattr(release_cmd, "confirm_action", fail_if_called)
 
-    release_cmd.regenerate_constraints("3.3.0")
-
-    assert calls["fail_on_pending_provider_candidates"] is None
+    assert release_cmd.decide_pending_candidates_override() is None
 
 
-def test_regenerate_constraints_keeps_the_guard_when_override_declined(monkeypatch, release_cmd):
-    """Declining the prompt leaves the pending-candidate guard on (the workflow derives it)."""
-    calls: dict[str, object] = {}
-    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
-    monkeypatch.setattr(
-        release_cmd,
-        "find_pending_provider_candidates",
-        lambda: [("apache-airflow-providers-standard", "2.0.0rc1")],
-    )
-    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
-
-    release_cmd.regenerate_constraints("3.3.0")
-
-    assert calls["fail_on_pending_provider_candidates"] is None
-
-
-def test_regenerate_constraints_override_pins_released_providers(monkeypatch, release_cmd):
-    """Accepting the prompt pins the currently-released providers through an overlapping wave."""
-    calls: dict[str, object] = {}
-    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+def test_decide_override_pins_released_providers_when_accepted(monkeypatch, release_cmd):
     monkeypatch.setattr(
         release_cmd,
         "find_pending_provider_candidates",
@@ -610,6 +594,43 @@ def test_regenerate_constraints_override_pins_released_providers(monkeypatch, re
     )
     monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: True)
 
-    release_cmd.regenerate_constraints("3.3.0")
+    assert release_cmd.decide_pending_candidates_override() is False
 
-    assert calls["fail_on_pending_provider_candidates"] is False
+
+def test_decide_override_stops_the_release_when_declined(monkeypatch, release_cmd):
+    """Keeping the guard on would only fail after the PyPI upload, so declining stops here."""
+    monkeypatch.setattr(
+        release_cmd,
+        "find_pending_provider_candidates",
+        lambda: [("apache-airflow-providers-standard", "2.0.0rc1")],
+    )
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
+
+    with pytest.raises(SystemExit):
+        release_cmd.decide_pending_candidates_override()
+
+
+class _StopRelease(Exception):
+    pass
+
+
+def test_airflow_release_decides_override_before_touching_svn(monkeypatch, release_cmd):
+    """The override is settled before the first irreversible step, not after the PyPI upload."""
+    calls: list[str] = []
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **kw: True)
+    monkeypatch.setattr(release_cmd, "run_command", lambda *a, **kw: None)
+    monkeypatch.setattr(release_cmd.os, "chdir", lambda *a: None)
+    monkeypatch.setattr(
+        release_cmd, "decide_pending_candidates_override", lambda: calls.append("override") or None
+    )
+
+    def stop_at_clone(*a, **kw):
+        calls.append("clone")
+        raise _StopRelease
+
+    monkeypatch.setattr(release_cmd, "clone_asf_repo", stop_at_clone)
+
+    with pytest.raises(_StopRelease):
+        release_cmd.airflow_release.callback("3.4.0", None)
+
+    assert calls == ["override", "clone"]

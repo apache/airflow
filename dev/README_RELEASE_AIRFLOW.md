@@ -1526,8 +1526,9 @@ release does not wait on it.
 If the provider wave is independent of this release and you deliberately want to ship the final
 against the currently-released providers - for example an accelerated core release that overlaps a
 wave carrying breaking provider majors the release was not tested against - you can override the
-guard. ``start-release`` asks before it resolves the constraints; answer ``n`` to pin the
-currently-released providers and proceed. The standalone workflow takes the same override:
+guard. ``start-release`` checks for pending provider candidates before anything is uploaded and
+asks whether to proceed; answer ``y`` to pin the currently-released providers, or ``n`` to stop the
+release until the candidates are released or yanked. The standalone workflow takes the same override:
 
 ```shell script
 breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable \

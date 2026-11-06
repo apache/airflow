@@ -40,7 +40,7 @@ PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
 PYPI_LOOKUP_PARALLELISM = 16
 
 
-def find_newest_published_version(distribution: str) -> str | None:
+def _find_newest_published_version(distribution: str) -> str | None:
     """Newest non-yanked version of ``distribution`` on PyPI, candidates included."""
     import requests
     from packaging.version import InvalidVersion, Version
@@ -74,7 +74,7 @@ def find_pending_provider_candidates() -> list[tuple[str, str]]:
         if metadata["state"] == "ready"
     ]
     with ThreadPoolExecutor(max_workers=PYPI_LOOKUP_PARALLELISM) as executor:
-        newest_versions = list(executor.map(find_newest_published_version, distributions))
+        newest_versions = list(executor.map(_find_newest_published_version, distributions))
     return [
         (distribution, version)
         for distribution, version in zip(distributions, newest_versions)
