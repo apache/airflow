@@ -20,10 +20,23 @@ from __future__ import annotations
 from unittest.mock import create_autospec
 
 import pytest
+from pydantic import ValidationError
 
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
-from airflow.triggers.base import BaseEventTrigger, BaseTrigger, StartTriggerArgs, TriggerEvent
+from airflow.triggers.base import (
+    AssetTriggerEvent,
+    BaseEventTrigger,
+    BaseTrigger,
+    StartTriggerArgs,
+    TriggerEvent,
+)
+
+
+@pytest.mark.parametrize("partition_key", ["", " \t\n", "x" * 251, 42])
+def test_asset_trigger_event_rejects_invalid_partition_key(partition_key):
+    with pytest.raises(ValidationError, match="partition_key"):
+        AssetTriggerEvent({"changed": True}, partition_key=partition_key)
 
 
 class DummyOperator(BaseOperator):

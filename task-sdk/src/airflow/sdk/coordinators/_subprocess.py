@@ -46,12 +46,12 @@ import attrs
 import psutil
 import structlog
 
-from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
-from airflow.sdk.execution_time.bundles import initialize_ti_bundle
+from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
 from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
@@ -451,7 +451,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         subprocess_schema_version: str | None = None,
         subprocess_logs_to_stdout: bool = False,
         startup_timeout: float = 10.0,
-        cwd: pathlib.Path | None = None,
         **kwargs,
     ) -> Self:
         process_log = logger or structlog.get_logger(logger_name="task").bind()
@@ -473,7 +472,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     stdout=stdout_w.fileno(),
                     stderr=stderr_w.fileno(),
                     env=_build_runtime_env(),
-                    cwd=cwd,
                     # Own process group, so the supervisor can signal everything the runtime
                     # spawned with os.killpg, as the Python task runner has done since #65505.
                     # Popen returns after exec, so the group exists before kill().
@@ -608,29 +606,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         return super()._handle_set_task_state_store(msg, log, req_id)
 
 
-def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
-    """
-    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
-
-    A bundle resolved without a version points at the bundle's shared, mutable
-    checkout: another task refreshing the same bundle resets it underneath a running
-    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
-    lock is a no-op. Re-resolving at the version current now yields a private
-    ``versions/<version>`` tree that the lock does cover.
-
-    Bundles that do not track versions have nothing to pin and keep their single path.
-    """
-    bundle = initialize_ti_bundle(target)
-    if bundle.version is not None:
-        return bundle
-
-    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-    if version is None:
-        return bundle
-    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
-    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
-
-
 def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
     """
     Materialize the Dag bundle of *bundle_info*, pinned to a concrete version.
@@ -641,7 +616,7 @@ def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> Ba
     """
     cannot_read = f"Dag bundle {bundle_info.name!r} cannot be read"
     try:
-        bundle = _initialize_pinned_bundle(bundle_info, logger)
+        bundle = initialize_pinned_bundle(bundle_info, logger)
     except Exception as e:
         raise TaskLaunchError(f"{cannot_read}: {e}") from e
     try:
@@ -738,14 +713,6 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         return self._active_scan_roots
 
-    def _get_working_directory(self) -> pathlib.Path | None:
-        """
-        Return the directory the runtime starts in, or ``None`` to keep the current one.
-
-        It is resolved after the command, while :meth:`_get_scan_roots` still answers.
-        """
-        return None
-
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
@@ -811,7 +778,6 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         with self._set_scan_roots([bundle_path]):
             command, schema_version = self._build_parse_dag_command(path=path)
-            cwd = self._get_working_directory()
         if schema_version is not None:
             get_schema_version_migrator().resolve_version(schema_version)
         argv = [
@@ -826,8 +792,6 @@ class SubprocessCoordinator(BaseCoordinator):
             if (sig := getattr(signal, name, None)) is not None:
                 signal.signal(sig, signal.SIG_DFL)
         _set_close_on_exec_above_stderr()
-        if cwd is not None:
-            os.chdir(cwd)
         os.execvpe(argv[0], argv, _build_runtime_env())
 
     @contextlib.contextmanager
@@ -949,7 +913,6 @@ class SubprocessCoordinator(BaseCoordinator):
                     )
                 else:
                     command, subprocess_schema_version = self._build_execute_task_command(what=what)
-                cwd = self._get_working_directory()
                 if subprocess_schema_version is not None:
                     _require_supported_schema_version(subprocess_schema_version)
             process = _PopenActivitySubprocess.start(
@@ -963,7 +926,6 @@ class SubprocessCoordinator(BaseCoordinator):
                 command=command,
                 subprocess_schema_version=subprocess_schema_version,
                 startup_timeout=self.task_startup_timeout,
-                cwd=cwd,
             )
             exit_code = process.wait()
             return self.ExecutionResult(exit_code, process.final_state)

@@ -54,11 +54,6 @@ with DAG(
     def add_one(x: int):
         return x + 1
 
-    @task
-    def sum_it(values):
-        total = sum(values)
-        print(f"Total was {total}")
-
     added_values = add_one.expand(x=[1, 2])
 
     check_events = OpenLineageTestOperator(
@@ -70,7 +65,7 @@ with DAG(
         },
     )
 
-    sum_it(added_values) >> check_events
+    added_values >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

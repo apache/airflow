@@ -61,13 +61,12 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddLoopContext,
     AddLoopDecisionField,
     AddMultiTeamToTIRunContext,
+    AddPreviousIterationToXComFilterParams,
     AddStoppedTaskReport,
     AddTaskInstanceRegionCoordinates,
     AddTerminalStateRetryReasonField,
     IdentifyArchivedTaskStateUpdates,
-)
-from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
-    AddPreviousIterationToXComFilterParams,
+    ReturnNotFoundForMissingDagRun,
 )
 from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddDagProcessorJobEndpoints,
@@ -92,6 +91,7 @@ bundle = VersionBundle(
         AddTaskInstanceRegionCoordinates,
         IdentifyArchivedTaskStateUpdates,
         AddFirstTaskRescheduleStartDateField,
+        ReturnNotFoundForMissingDagRun,
     ),
     Version(
         "2026-06-30",

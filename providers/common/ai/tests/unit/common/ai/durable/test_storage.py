@@ -127,11 +127,16 @@ class TestDeleteSteps:
 
 
 class TestMissingConfig:
-    def test_a_missing_cache_path_names_the_option(self):
+    def test_a_missing_cache_path_names_the_option_without_naming_durable_true(self):
+        """run_durably() callers reach this too, and they never pass durable=True."""
         storage_module._get_base_path.cache_clear()
         try:
             with conf_vars({("common.ai", "durable_cache_path"): ""}):
-                with pytest.raises(ValueError, match=r"\[common.ai\] durable_cache_path"):
+                with pytest.raises(
+                    ValueError, match=r"^Durable execution .* needs \[common.ai\] durable_cache_path"
+                ) as exc_info:
                     DurableStorage(dag_id="d", task_id="t", run_id="r").load_step("k")
+
+            assert "durable=True" not in str(exc_info.value)
         finally:
             storage_module._get_base_path.cache_clear()
