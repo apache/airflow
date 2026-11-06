@@ -598,6 +598,58 @@ def test_handle_requests_sends_the_trigger_ti_id_header_only_for_the_frames_own_
     assert seen == {"with-trigger": expected, "from-thread": None, "without-trigger": None}
 
 
+@pytest.mark.parametrize(
+    ("triggerer_config", "expected"),
+    [
+        pytest.param(
+            {
+                ("triggerer", "execution_api_retries"): "2",
+                ("triggerer", "execution_api_retry_wait_min"): "3.0",
+                ("triggerer", "execution_api_retry_wait_max"): "5.0",
+            },
+            (2, 3.0, 5.0),
+            id="component-values",
+        ),
+        pytest.param(
+            {
+                ("triggerer", "execution_api_retries"): None,
+                ("triggerer", "execution_api_retry_wait_min"): None,
+                ("triggerer", "execution_api_retry_wait_max"): None,
+            },
+            (4, 0.25, 2.5),
+            id="worker-fallbacks",
+        ),
+        pytest.param(
+            {
+                ("triggerer", "execution_api_retries"): None,
+                ("triggerer", "execution_api_retry_wait_min"): "0.5",
+                ("triggerer", "execution_api_retry_wait_max"): None,
+            },
+            (4, 0.5, 2.5),
+            id="partial-component-values",
+        ),
+    ],
+)
+def test_make_client_uses_triggerer_retry_configuration(
+    supervisor_builder, mocker, triggerer_config, expected
+):
+    worker_config = {
+        ("workers", "execution_api_retries"): "4",
+        ("workers", "execution_api_retry_wait_min"): "0.25",
+        ("workers", "execution_api_retry_wait_max"): "2.5",
+    }
+    with conf_vars(worker_config | triggerer_config):
+        supervisor = supervisor_builder()
+        client_class = mocker.patch("airflow.sdk.api.client.Client", autospec=True)
+        mocker.patch("airflow.jobs.triggerer_job_runner.InProcessExecutionAPI", autospec=True)
+
+        supervisor.make_client()
+
+    assert client_class.call_args.kwargs["retries"] == expected[0]
+    assert client_class.call_args.kwargs["retry_wait_min"] == expected[1]
+    assert client_class.call_args.kwargs["retry_wait_max"] == expected[2]
+
+
 def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
     """Breaking out of the loop on a dead subprocess still unwinds run_context."""
     from contextlib import contextmanager

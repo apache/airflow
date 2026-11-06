@@ -26,7 +26,6 @@ import jwt
 import pytest
 import uvicorn
 from sqlalchemy import select, update
-from tenacity import wait_none
 from uuid6 import uuid7
 
 from airflow.api_fastapi.app import create_app
@@ -41,7 +40,6 @@ from airflow.dag_processing.api_client import (
 from airflow.jobs.job import Job
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.variable import Variable
-from airflow.sdk.api.client import Client
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -232,13 +230,17 @@ class LostAcknowledgmentTransport(httpx2.BaseTransport):
         self.transport.close()
 
 
-def test_lost_registration_and_completion_responses_over_http(api_url, provision_token, session, monkeypatch):
-    monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
+def test_lost_registration_and_completion_responses_over_http(api_url, provision_token, session):
     transport = LostAcknowledgmentTransport()
     session.merge(DagBundleModel(name="bundle-a"))
     session.commit()
     with DagProcessorAPIClient(
-        base_url=api_url, token_file=provision_token(), hostname="processor-1", transport=transport
+        base_url=api_url,
+        token_file=provision_token(),
+        hostname="processor-1",
+        transport=transport,
+        retry_wait_min=0,
+        retry_wait_max=0,
     ) as processor:
         job_id = processor.register_job()
         assert session.scalars(select(Job.id)).all() == [job_id]
@@ -320,13 +322,17 @@ class CompletionFailureTransport(httpx2.HTTPTransport):
 @pytest.mark.parametrize("outcome", ["unaccepted", "accepted", "replaced"])
 @mock.patch("airflow.dag_processing.api_client.monotonic", autospec=True, return_value=0)
 def test_completion_recovery_after_token_expiry(
-    clock, api_url, provision_token, session, time_machine, monkeypatch, outcome
+    clock, api_url, provision_token, session, time_machine, outcome
 ):
-    monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
     token_file = provision_token()
     transport = CompletionFailureTransport(commit=outcome != "unaccepted")
     with DagProcessorAPIClient(
-        base_url=api_url, token_file=token_file, hostname="processor-1", transport=transport
+        base_url=api_url,
+        token_file=token_file,
+        hostname="processor-1",
+        transport=transport,
+        retry_wait_min=0,
+        retry_wait_max=0,
     ) as processor:
         job_id = processor.register_job()
         with pytest.raises(httpx2.ReadError):
