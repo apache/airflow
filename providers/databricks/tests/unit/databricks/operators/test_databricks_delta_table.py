@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -175,11 +174,43 @@ def timed_event(i: int, extra: dict[str, Any]) -> SimpleNamespace:
     )
 
 
+class _EventsByAssetUri:
+    """
+    Map Asset keys by URI.
+
+    Real ``inlet_events`` / ``outlet_events`` accessors resolve Assets to a hashable unique
+    key. Older Airflow versions ship an Asset that is not usable as a plain ``dict`` key
+    (unhashable Asset on 3.0; hashing fails on the mutable ``extra`` dict on 3.1), so the
+    test stand-in must not rely on ``Asset.__hash__``.
+    """
+
+    def __init__(self, initial: dict[str, Any] | None = None, *, default_factory=None):
+        self._by_uri: dict[str, Any] = dict(initial or {})
+        self._default_factory = default_factory
+
+    @staticmethod
+    def _uri(key: Any) -> str:
+        return key if isinstance(key, str) else key.uri
+
+    def __getitem__(self, key: Any) -> Any:
+        uri = self._uri(key)
+        if uri not in self._by_uri:
+            if self._default_factory is None:
+                raise KeyError(key)
+            self._by_uri[uri] = self._default_factory()
+        return self._by_uri[uri]
+
+    def items(self):
+        return ((SimpleNamespace(uri=uri), value) for uri, value in self._by_uri.items())
+
+
 def make_context(events=None, accessor=None) -> Any:
     """Return a minimal stand-in for the task ``Context`` with only the asset event accessors."""
-    outlet_events: defaultdict = defaultdict(lambda: SimpleNamespace(extra={}))
     inlet = accessor if accessor is not None else list(events or [])
-    return {"inlet_events": {TABLE.to_asset(): inlet}, "outlet_events": outlet_events}
+    return {
+        "inlet_events": _EventsByAssetUri({URI: inlet}),
+        "outlet_events": _EventsByAssetUri(default_factory=lambda: SimpleNamespace(extra={})),
+    }
 
 
 def published(context) -> dict[str, Any] | None:
