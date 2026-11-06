@@ -226,7 +226,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.note = note
         self.deferrable = deferrable
         self.durable = durable
-        logical_date = _validate_datetime_param("logical_date", logical_date)
         run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
         self.run_after = run_after
