@@ -38,6 +38,7 @@ from airflow.exceptions import (
     DagNotPartitionedError,
     DagRunRolledBackError,
     DagVersionNotFound,
+    DeserializationError,
     InvalidPartitionKeyError,
     NodeNotFound,
     TaskNotFound,
@@ -51,9 +52,14 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.tasklog import LogTemplate
-from airflow.serialization.decoders import decode_deadline_alert, resolve_deadline_alert_interval
+from airflow.serialization.decoders import (
+    decode_deadline_alert,
+    decode_timetable,
+    resolve_deadline_alert_interval,
+)
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -143,7 +149,9 @@ class SerializedDAG:
     # These are set dynamically during deserialization.
     task_dict: dict[str, SerializedOperator] = attrs.field(init=False)
     task_group: SerializedTaskGroup = attrs.field(init=False)
-    timetable: Timetable = attrs.field(init=False)
+    _timetable: Timetable = attrs.field(init=False)
+    # Decoded on first access, so loading a Dag does not need the timetable's plugin.
+    _encoded_timetable: dict[str, Any] | None = attrs.field(init=False, default=None)
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
 
     # Only on serialized dag.
@@ -160,6 +168,23 @@ class SerializedDAG:
 
     def __repr__(self) -> str:
         return f"<SerializedDAG: {self.dag_id}>"
+
+    @property
+    def timetable(self) -> Timetable:
+        if (encoded := self._encoded_timetable) is not None:
+            try:
+                self._timetable = decode_timetable(encoded)
+                self._encoded_timetable = None
+            except TimetableNotRegistered:
+                raise
+            except Exception as err:
+                raise DeserializationError(self.dag_id) from err
+        return self._timetable
+
+    @timetable.setter
+    def timetable(self, value: Timetable) -> None:
+        self._timetable = value
+        self._encoded_timetable = None
 
     @classmethod
     def get_serialized_fields(cls) -> frozenset[str]:

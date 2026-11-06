@@ -36,8 +36,10 @@
   "backfill_other": "إعادات ملء",
   "backfill_two": "إعادتا ملء",
   "backfill_zero": "لا يوجد أي إعادة ملء",
+  "breadcrumb": "مسار التنقل",
   "browse": {
     "auditLog": "سجل المراجعة",
+    "dagBundles": "حزم Dag",
     "deadlines": "المواعيد النهائية",
     "jobs": "الوظائف",
     "requiredActions": "إجراءات مطلوبة",
@@ -58,7 +60,15 @@
   "dag_other": "Dags",
   "dag_two": "2 Dags",
   "dag_zero": "لا يوجد أي Dag",
+  "dagBundle_few": "حزم Dag",
+  "dagBundle_many": "حزم Dag",
+  "dagBundle_one": "حزمة Dag",
+  "dagBundle_other": "حزم Dag",
+  "dagBundle_two": "حزمتا Dag",
+  "dagBundle_zero": "لا يوجد أي حزمة Dag",
   "dagDetails": {
+    "activeRuns": "التشغيلات النشطة",
+    "bundleVersion": "إصدار الحزمة",
     "catchup": "إلحاق",
     "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
@@ -111,8 +121,6 @@
   "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
   "dagRunId": "معرف تشغيل الDag",
   "dagRunState": "حالة تشغيل Dag",
-  "defaultToGraphView": "عرض الرسم البياني تلقائياً",
-  "defaultToGridView": "عرض الشبكة تلقائياً",
   "delete": "حذف",
   "diff": "الفرق",
   "diffCompareWith": "قارن مع",
@@ -146,6 +154,12 @@
       "title": "تم رفض الوصول"
     }
   },
+  "event_few": "أحداث",
+  "event_many": "أحداث",
+  "event_one": "حدث",
+  "event_other": "أحداث",
+  "event_two": "حدثان",
+  "event_zero": "لا يوجد أي حدث",
   "expand": {
     "collapse": "طي",
     "expand": "توسيع",
@@ -157,26 +171,49 @@
     "all": "الكل",
     "and": "و",
     "any": "أي",
+    "hiddenAsset": "أصل مخفي",
     "or": "أو"
   },
   "filter": "فلتر",
   "filters": {
+    "addFilter": "إضافة فلتر",
+    "allIterations": "الكل",
+    "completedAt": "اكتمل في",
+    "date": "التاريخ",
     "durationFrom": "المدة من",
     "durationTo": "المدة إلى",
     "endTime": "وقت الانتهاء",
+    "iteration": "التكرار",
     "logicalDateFrom": "من التاريخ المنطقي",
     "logicalDateTo": "إلى التاريخ المنطقي",
+    "loop": "الحلقة",
+    "loopAllIterations": "{{loop}} الكل",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "اختر حلقة",
+    "maxActiveRunsFrom": "الحد الأقصى للتشغيلات النشطة من",
+    "maxActiveRunsTo": "الحد الأقصى للتشغيلات النشطة إلى",
+    "removeFilter": "إزالة الفلتر",
     "runAfterFrom": "من تشغيل بعد",
     "runAfterTo": "إلى تشغيل بعد",
     "searchAsset": "بحث عن أصل",
     "selectDateRange": "اختر نطاق التاريخ",
-    "startTime": "وقت البدء"
+    "selectDateTime": "اختر التاريخ والوقت",
+    "startTime": "وقت البدء",
+    "switchIteration": "تبديل التكرار",
+    "time": "الوقت"
   },
   "fullscreen": {
     "tooltip": "اضغط {{hotkey}} لملء الشاشة"
   },
   "generateToken": "توليد رمز",
+  "includedIn": "مُضمَّن في",
   "key": "المفتاح",
+  "loading": "جارٍ التحميل…",
+  "logLevel": {
+    "hide": "إخفاء مستويات السجل",
+    "hotkey": "l",
+    "show": "إظهار مستويات السجل"
+  },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
@@ -196,12 +233,14 @@
     "assets": "أصول",
     "browse": "تصفح",
     "dags": "Dags",
+    "dashboard": "لوحة التحكم",
     "docs": "وثائق",
     "home": "الصفحة الرئيسية",
     "legacyFabViews": "عروض قديمة",
     "plugins": "إضافات",
     "security": "الأمان"
   },
+  "no": "لا",
   "noItemsFound": "لم يتم العثور على {{modelName}}",
   "note": {
     "add": "إضافة",
@@ -214,6 +253,12 @@
     "write": "كتابة"
   },
   "overallStatus": "الحالة العامة",
+  "partition_few": "تقسيمات",
+  "partition_many": "تقسيمات",
+  "partition_one": "تقسيم",
+  "partition_other": "تقسيمات",
+  "partition_two": "تقسيمان",
+  "partition_zero": "لا يوجد أي تقسيم",
   "partitionedDagRun_few": "تشغيلات Dag مُجزأة",
   "partitionedDagRun_many": "تشغيل Dag مُجزأ",
   "partitionedDagRun_one": "تشغيل Dag مُجزأ",
@@ -223,6 +268,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "أحداث الأصول المستلمة"
   },
+  "pause": "إيقاف مؤقت",
   "pendingDagRun_few": "{{count, number}} تشغيلات Dag مُعلّقة",
   "pendingDagRun_many": "{{count, number}} تشغيل Dag مُعلّق",
   "pendingDagRun_one": "تشغيل Dag مُعلّق واحد",
@@ -279,6 +325,10 @@
   "selected": "محدد",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "الاحتفاظ بإدخالات مخزن حالة المهمة افتراضياً عند مسح مثيلات المهام بدلاً من تجاهلها.",
+        "label": "الاحتفاظ بحالة المهمة عند المسح"
+      },
       "preventRunningTask": {
         "helper": "تخطي المهام الجارية حالياً عند مسح مثيلات المهام.",
         "label": "منع مسح المهام الجارية"
@@ -293,11 +343,33 @@
       },
       "title": "المسح"
     },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "عرض حالات المهام الأخيرة لكل Dag في قائمة Dags. أوقف هذا الخيار لتخطي تحميلها، مما قد يساعد في البيئات التي تحتوي على عدد كبير من Dags.",
+        "label": "عرض المهام الأخيرة"
+      },
+      "title": "قائمة Dags"
+    },
     "description": "يتم حفظ هذه التفضيلات في هذا المتصفح فقط وتُطبَّق على التطبيق بأكمله.",
+    "general": {
+      "landingPage": {
+        "helper": "الصفحة المعروضة عند فتح Airflow.",
+        "label": "الصفحة الافتتاحية",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "لوحة التحكم"
+        }
+      },
+      "title": "عام"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "اتجاه التخطيط لرسوم Dag والأصول البيانية التي لم تُحدَّد بشكل فردي.",
         "label": "اتجاه الرسم البياني الافتراضي"
+      },
+      "taskGroupsExpanded": {
+        "helper": "توسيع مجموعات المهام في Dags التي لم تحفظ فيها اختياراً للمجموعات. يتم الاحتفاظ بالاختيارات الحالية.",
+        "label": "توسيع مجموعات المهام افتراضياً"
       },
       "title": "الرسم البياني"
     },
@@ -307,6 +379,20 @@
         "label": "التحديد الافتراضي عند التمييز"
       },
       "title": "التمييز"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) تظل الأولوية لاختيارات كل شريط بحث وللروابط المشتركة.",
+        "label": "المطابقة في أي موضع افتراضياً"
+      },
+      "title": "البحث"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "علامة التبويب المعروضة أولاً عند فتح مثيل مهمة. الروابط إلى علامة تبويب محددة تفتح تلك العلامة.",
+        "label": "علامة التبويب الافتراضية لمثيل المهمة"
+      },
+      "title": "مثيل المهمة"
     },
     "title": "الإعدادات"
   },
@@ -343,6 +429,7 @@
       "toggleExpand": "توسيع أو طي جميع المجموعات",
       "toggleFullscreen": "تبديل ملء الشاشة",
       "toggleGraphGrid": "التبديل بين عرض الرسم البياني والشبكة",
+      "toggleLogLevel": "تبديل مستويات السجل",
       "toggleSource": "تبديل المصدر",
       "toggleTaskGroup": "توسيع أو طي $t(taskGroup_one)",
       "toggleTimestamp": "تبديل الأختام الزمنية",
@@ -380,6 +467,7 @@
     "no_status": "بلا حالة",
     "none": "لا شيء",
     "open": "مفتوح",
+    "pending": "قيد الانتظار",
     "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",
@@ -392,6 +480,9 @@
     "up_for_retry": "جاهز للمحاولة مرة أخرى",
     "upstream_failed": "فشِل في المهام السابقة"
   },
+  "switchDag": "تبديل $t(dag_one)",
+  "switchDagRun": "تبديل $t(dagRun_one)",
+  "switchMapIndex": "تبديل $t(mapIndex)",
   "table": {
     "completedAt": "اكتمل في",
     "createdAt": "تم الإنشاء في",
@@ -405,8 +496,10 @@
     "filterReset_zero": "لا يوجد أي فلتر لمسحه",
     "from": "من",
     "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
+    "noResultsFound": "لم يتم العثور على نتائج",
     "noTagsFound": "لم يتم العثور على وسوم",
     "noTeamsFound": "لم يتم العثور على فرق",
+    "ownerPlaceholder": "تصفية حسب المالك",
     "tagMode": {
       "all": "الكل",
       "any": "اي شيء"
@@ -447,6 +540,9 @@
     "executorConfig": "تكوين المنفذ",
     "hostname": "اسم المضيف",
     "id": "المعرف",
+    "iteration": "التكرار",
+    "loopDecision": "القرار",
+    "loopIterations": "التكرارات المنفذة",
     "maxTries": "الحد الأقصى للمحاولات",
     "pid": "معرف العملية",
     "pool": "مجموعة الموارد",
@@ -456,6 +552,11 @@
     "queuedWhen": "في الطابور في",
     "renderedMapIndex": "فهرس الخريطة المعروض",
     "scheduledWhen": "مجدول في",
+    "stateReason": "سبب الحالة",
+    "stateReasonSummary": {
+      "failed": "توقف عند المحاولة {{tryNumber}} من {{totalTries}}",
+      "upForRetry": "إعادة المحاولة بعد المحاولة {{tryNumber}} من {{totalTries}}"
+    },
     "trigger": "المُحفِّز",
     "triggerer": {
       "assigned": "مُطلِق مُخصص",
@@ -474,10 +575,25 @@
   "taskInstance_other": "مثيلات المهمة",
   "taskInstance_two": "مثيلا المهمة",
   "taskInstance_zero": "لا يوجد أي مثيل للمهمة",
+  "teams": {
+    "more_few": "و{{count, number}} فرق أخرى",
+    "more_many": "و{{count, number}} فريقاً آخر",
+    "more_one": "و{{count, number}} فريق آخر",
+    "more_other": "و{{count, number}} فريق آخر",
+    "more_two": "وفريقان آخران",
+    "more_zero": "و{{count, number}} آخر",
+    "none": "لا يوجد فريق",
+    "title": "الفرق"
+  },
   "timeRange": {
+    "anyTime": "أي وقت",
+    "in": "في",
+    "last7Days": "آخر 7 أيام",
     "last12Hours": "آخر 12 ساعة",
     "last24Hours": "آخر 24 ساعة",
+    "last30Days": "آخر 30 يوماً",
     "lastHour": "الساعة الماضية",
+    "latestRun": "آخر تشغيل",
     "pastWeek": "الأسبوع الماضي"
   },
   "timestamp": {
@@ -558,6 +674,7 @@
   "total": "إجمالي {{state}}",
   "triggered": "مُشغل",
   "tryNumber": "محاولة رقم",
+  "unpause": "استئناف",
   "user": "المستخدم",
   "validation": {
     "mustBeAtLeast": "يجب أن يكون على الأقل {{min}}.",
@@ -569,5 +686,6 @@
     "tooltip": "اضغط {{hotkey}} لتبديل الالتفاف",
     "unwrap": "إلغاء التفاف",
     "wrap": "التفاف"
-  }
+  },
+  "yes": "نعم"
 }

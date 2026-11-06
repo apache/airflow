@@ -35,6 +35,42 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+.. note::
+  ``@task.bash`` now renders only the command returned by the decorated function inside
+  ``execute()``. Its other template fields (``env``, ``cwd``, ``op_args``, ``op_kwargs``, ...) are
+  rendered once before ``execute()``, as for ``BashOperator``, and are no longer rendered a
+  second time.
+
+.. warning::
+  The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
+  On Airflow 3.0.x, the bundled ``example_time_delta_sensor_async`` example Dag imports this
+  class, so it fails to import when ``[core] load_examples`` is on. Upgrade to Airflow 3.1 or turn
+  off ``load_examples``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated TimeDeltaSensorAsync (#76131)``
+
+Features
+~~~~~~~~
+
+* ``Add AssetEventSensor to standard provider (#70225)``
+* ``Allow asking for human input from inside a Python task on Airflow 3.4+ (#75358)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Propagate OpenLineage parent and root job types to triggered Dags (#75303)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 1.21.0
 ......
 

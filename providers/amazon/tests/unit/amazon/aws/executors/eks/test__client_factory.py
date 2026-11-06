@@ -63,7 +63,7 @@ def ca_dir(tmp_path, monkeypatch):
 def mock_aws():
     with (
         conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME}),
-        mock.patch.object(_client_factory, "EksHook") as eks_hook_cls,
+        mock.patch.object(_client_factory, "_EksExecutorHook") as eks_hook_cls,
         mock.patch.object(_client_factory, "StsHook") as sts_hook_cls,
         mock.patch.object(_client_factory, "fetch_access_token_for_cluster", autospec=True) as fetch_token,
     ):
@@ -220,6 +220,36 @@ async def test_builds_client_for_the_teams_cluster(_, mock_aws, monkeypatch, fac
     mock_aws["eks_hook_cls"].assert_called_once_with(aws_conn_id="aws_team_a", region_name="eu-west-1")
     mock_aws["eks_hook"].conn.describe_cluster.assert_called_once_with(name="team-a-cluster")
     assert mock_aws["fetch_token"].call_args.args[0] == "team-a-cluster"
+    if inspect.iscoroutinefunction(core_v1.api_client.close):
+        await core_v1.api_client.close()
+
+
+@pytest.mark.parametrize("factory", [_get_eks_kube_client, _get_eks_async_kube_client], ids=["sync", "async"])
+@pytest.mark.asyncio
+@mock.patch.object(_client_factory, "_write_cluster_ca_file", autospec=True, return_value=None)
+@mock.patch.object(_client_factory, "fetch_access_token_for_cluster", autospec=True, return_value="token")
+@mock.patch.object(_client_factory, "StsHook", autospec=True)
+@mock.patch("botocore.client.BaseClient._make_api_call", autospec=True)
+async def test_describe_cluster_user_agent_names_the_executor(
+    mock_api_call, mock_sts_hook, _fetch_token, _write_ca_file, monkeypatch, factory
+):
+    monkeypatch.setenv("AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME", CLUSTER_NAME)
+    monkeypatch.setenv("AIRFLOW__AWS_EKS_EXECUTOR__REGION_NAME", "us-east-1")
+    monkeypatch.setenv("AIRFLOW_CONN_AWS_DEFAULT", "aws://")
+    mock_api_call.return_value = {
+        "cluster": {
+            "status": "ACTIVE",
+            "endpoint": CLUSTER_ENDPOINT,
+            "certificateAuthority": {"data": b64encode(CA_PEM).decode()},
+        }
+    }
+    mock_sts_hook.return_value.conn_client_meta.endpoint_url = "https://sts.us-east-1.amazonaws.com"
+
+    core_v1 = factory()
+
+    eks_client, operation_name = mock_api_call.call_args.args[:2]
+    assert operation_name == "DescribeCluster"
+    assert "Caller/AwsEksExecutor" in eks_client.meta.config.user_agent_extra.split(" ")
     if inspect.iscoroutinefunction(core_v1.api_client.close):
         await core_v1.api_client.close()
 

@@ -51,7 +51,8 @@ public class TestBundleBuilder implements BundleBuilder {
 
   /**
    * Stores this run's id where the E2E test can read it back through the REST API, then writes
-   * and deletes a scratch variable to exercise the delete path.
+   * and deletes a scratch variable to exercise the delete path, and reads it back to check that a
+   * missing variable reads as null.
    */
   public static class WriteAndDeleteVariable implements Task {
     public void execute(@NotNull Context context, Client client) {
@@ -59,6 +60,9 @@ public class TestBundleBuilder implements BundleBuilder {
           "java_e2e_variable", context.dagRun.runId, "written by the Java SDK e2e test");
       client.setVariable("java_e2e_scratch", "scratch");
       client.deleteVariable("java_e2e_scratch");
+      if (client.getVariable("java_e2e_scratch") != null) {
+        throw new IllegalStateException("java_e2e_scratch survived its delete");
+      }
     }
   }
 

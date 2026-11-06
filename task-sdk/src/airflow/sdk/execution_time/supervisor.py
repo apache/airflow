@@ -105,6 +105,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -130,12 +131,12 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
-    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -155,6 +156,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_prev_successful_dag_run,
     handle_get_previous_dag_run,
     handle_get_previous_ti,
@@ -783,6 +785,27 @@ class PsutilTracker(ProcessTracker):
         return self._impl.wait(timeout)
 
 
+def signal_process_tree(pid: int, sig: signal.Signals, *, fallback: Callable[[signal.Signals], None]) -> None:
+    """
+    Deliver ``sig`` to *pid*'s process group, so every process it spawned is reached too.
+
+    Calls *fallback* instead when the group cannot be resolved or signalled, and -- critically --
+    when *pid* is still in the caller's own process group, because ``killpg`` on our own group
+    would signal the caller itself and its siblings.
+    """
+    try:
+        pgid = os.getpgid(pid)
+    except (ProcessLookupError, PermissionError):
+        pgid = None
+    if pgid is not None and pgid != os.getpgid(0):
+        try:
+            os.killpg(pgid, sig)
+            return
+        except (ProcessLookupError, PermissionError):
+            pass
+    fallback(sig)
+
+
 def _validate_schema_version(instance, _, value) -> str | None:
     if value is None:
         return None
@@ -806,6 +829,7 @@ class WatchedSubprocess:
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetHITLDetailResponse, handle_get_hitl_detail_response),
             _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
             _register_client_handler(GetPreviousTI, handle_get_previous_ti),
             _register_client_handler(GetTaskStates, handle_get_task_states),
@@ -1069,12 +1093,21 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
+    @staticmethod
+    def _default_target_loggers(
+        process_log: FilteringBoundLogger, subprocess_logs_to_stdout: bool
+    ) -> tuple[FilteringBoundLogger, ...]:
+        """
+        Return the loggers child process output is forwarded to, before any subclass has its say.
+
+        Call this only where there is no instance yet. Everything else goes through
+        :meth:`_get_target_loggers`, which a subclass can override.
+        """
+        return (process_log, log) if subprocess_logs_to_stdout else (process_log,)
+
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         """Return the loggers that child process output should be forwarded to."""
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
-        return target_loggers
+        return self._default_target_loggers(self.process_log, self.subprocess_logs_to_stdout)
 
     def _create_log_forwarder(
         self,
@@ -1264,25 +1297,13 @@ class WatchedSubprocess:
         """
         Deliver ``sig`` to the child process, or to its whole process group when it has its own.
 
-        When ``new_process_group`` was set at ``start()`` time, the signal is sent with
-        ``os.killpg`` so subprocesses spawned by the child (venv children, bash shells, etc.)
-        are reached too (see issue #65505). Falls back to signalling the child PID alone when
-        the group cannot be resolved or signalled -- and, critically, when the child still
-        shares the supervisor's own process group (``setpgid`` failed), because ``killpg`` on
-        our own group would signal the supervisor itself and its siblings.
+        When ``new_process_group`` was set at ``start()`` time, the signal reaches the subprocesses
+        the child spawned too (venv children, bash shells, etc.); see issue #65505.
         """
         if self._new_process_group:
-            try:
-                pgid = os.getpgid(self._process.pid)
-            except (ProcessLookupError, PermissionError):
-                pgid = None
-            if pgid is not None and pgid != os.getpgid(0):
-                try:
-                    os.killpg(pgid, sig)
-                    return
-                except (ProcessLookupError, PermissionError):
-                    pass
-        self._process.send_signal(sig)
+            signal_process_tree(self._process.pid, sig, fallback=self._process.send_signal)
+        else:
+            self._process.send_signal(sig)
 
     def cleanup_sockets_after_kill(self) -> None:
         """Drain log-bearing sockets, then close every remaining socket after a forced kill."""
@@ -1726,7 +1747,6 @@ class ActivitySubprocess(WatchedSubprocess):
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
-            self._execution_timeout_seconds = ti_context.execution_timeout
             self._last_successful_heartbeat = time.monotonic()
         except Exception as e:
             # On any error kill that subprocess!
@@ -2002,10 +2022,10 @@ class ActivitySubprocess(WatchedSubprocess):
         can still run Python signal handlers; one that has not reported a terminal state within the grace
         period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        For a Python task, ``StartExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
-        loading and Dag parsing are not covered; Dag parsing has its own ``dagbag_import_timeout``. For a
-        task a language SDK runs, it is armed once the runtime has been sent ``StartupDetails``. Either
-        way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
+        ``SetExecutionTimeout`` arms the deadline right before ``execute()`` with the timeout the task
+        process enforces itself, so both use the same value; bundle loading and Dag parsing are not covered,
+        as Dag parsing has its own ``dagbag_import_timeout``. The process is sent SIGTERM
+        ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
@@ -2149,17 +2169,20 @@ class ActivitySubprocess(WatchedSubprocess):
         self.client.task_instances.skip_downstream_tasks(self.id, msg)
         return None, {}
 
-    def _handle_start_execution_timeout(
-        self, msg: StartExecutionTimeout, log: FilteringBoundLogger, req_id: int
+    def _handle_set_execution_timeout(
+        self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
+        self._execution_timeout_seconds = msg.timeout_seconds
         self._arm_execution_timeout()
         return None, {}
 
     def _arm_execution_timeout(self) -> None:
-        if self._execution_timeout_seconds is None:
+        # Zero means no timeout, as a zero timedelta does for a Python task.
+        if not self._execution_timeout_seconds:
             return
+        # A negative timeout has already elapsed, so the task gets only the grace period.
         self._execution_timeout_enforce_at = (
-            time.monotonic() + self._execution_timeout_seconds + KILLED_TASK_CLEANUP_TIME
+            time.monotonic() + max(self._execution_timeout_seconds, 0.0) + KILLED_TASK_CLEANUP_TIME
         )
 
     def _handle_set_rendered_fields(
@@ -2411,6 +2434,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetConnection,
             GetDRCount,
             GetDagRunState,
+            GetHITLDetailResponse,
             GetPrevSuccessfulDagRun,
             GetPreviousDagRun,
             GetPreviousTI,
@@ -2460,7 +2484,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(SetRenderedMapIndex, _handle_set_rendered_map_index),
                 register_request_method(SetTaskStateStore, _handle_set_task_state_store),
                 register_request_method(SkipDownstreamTasks, _handle_skip_downstream_tasks),
-                register_request_method(StartExecutionTimeout, _handle_start_execution_timeout),
+                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),
@@ -3117,6 +3141,7 @@ def supervise_task(
     _make_process_nondumpable()
 
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 
     if not client:
         if dry_run and server:
@@ -3154,7 +3179,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
     except:
         log.exception(
             "Failed to initialize coordinator for task",

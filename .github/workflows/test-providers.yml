@@ -72,7 +72,7 @@ jobs:
   prepare-install-verify-provider-distributions:
     timeout-minutes: 80
     name: "Providers ${{ matrix.package-format }} tests"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       matrix:
@@ -105,6 +105,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Set current date as RELEASE_DATE variable"
@@ -178,7 +180,7 @@ jobs:
     timeout-minutes: 80
     # yamllint disable rule:line-length
     name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.test-types.description }}
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       matrix:
@@ -214,6 +216,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider distributions: wheel"

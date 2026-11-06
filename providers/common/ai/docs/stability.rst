@@ -197,9 +197,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - Output review: ``require_approval``, ``enable_hitl_review`` and the review plugin
      - With ``require_approval=True``, the task defers after generating output and returns
        it only once a person approves it on the Required Actions page. A rejection, or a
-       timeout under the default ``on_approval_timeout="fail"``, fails the task, except on
-       ``@task.llm_branch``, where it skips the downstream tasks unless
-       ``fail_on_reject=True``.
+       timeout under the default ``on_approval_timeout="fail"``, fails the task. With
+       ``fail_on_reject=False``, the default on ``@task.llm_branch``, a rejection skips the
+       downstream tasks instead.
 
 Experimental features
 ---------------------
@@ -272,6 +272,9 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`frameworks/openai_agents`)
      - Written against OpenAI Agents SDK 0.20 and 0.23. The SDK is pre-1.0 and changes
        its tool and runner APIs between minor releases.
+   * - The Claude Agent SDK adapter (:doc:`frameworks/claude_agent_sdk`)
+     - New; the SDK is pre-1.0, and its in-process MCP server turns a handler's exception
+       into an error result the adapter has to work around.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)

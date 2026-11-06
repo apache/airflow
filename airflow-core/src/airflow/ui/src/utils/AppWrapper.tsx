@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { RouterProvider, createMemoryRouter } from "react-router-dom";
+import { RouterProvider, createMemoryRouter, matchRoutes, type RouteObject } from "react-router-dom";
 
 import { TimezoneProvider } from "src/context/timezone";
 import { routerConfig } from "src/router";
@@ -24,6 +24,20 @@ import { BaseWrapper } from "src/utils/Wrapper";
 
 type Props = {
   readonly initialEntries: Array<string>;
+};
+
+export const preloadAppRoutes = async (initialEntries: Array<string>) => {
+  const routeLoaders = new Set<() => Promise<unknown>>();
+
+  for (const entry of initialEntries) {
+    for (const { route } of matchRoutes(routerConfig as Array<RouteObject>, entry) ?? []) {
+      if (typeof route.lazy === "function") {
+        routeLoaders.add(route.lazy);
+      }
+    }
+  }
+
+  await Promise.all([...routeLoaders].map((loadRoute) => loadRoute()));
 };
 
 export const AppWrapper = ({ initialEntries }: Props) => {

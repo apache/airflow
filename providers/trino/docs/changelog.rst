@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+.. warning::
+  The deprecated ``TrinoHook.get_pandas_df`` method has been removed. Use ``get_df(..., df_type="pandas")`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated get_pandas_df methods from SQL hooks (#76130)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 6.7.1
 .....
 

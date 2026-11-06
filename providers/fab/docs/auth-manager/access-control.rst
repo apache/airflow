@@ -284,6 +284,10 @@ Stable API Permissions
      - PUT
      - Assets.can_edit
      - Op
+   * - ``/api/v2/auth/cli/metadata``
+     - GET
+     - None
+     - Public
    * - ``/api/v2/auth/login``
      - GET
      - None
@@ -374,16 +378,16 @@ Stable API Permissions
      - Op
    * - ``/api/v2/dagBundles``
      - GET
-     - DAGs.can_read
-     - Viewer
+     - Dag Bundles.can_read
+     - Op
    * - ``/api/v2/dagBundles/{bundle_name}``
      - GET
-     - DAGs.can_read
-     - Viewer
+     - Dag Bundles.can_read
+     - Op
    * - ``/api/v2/dagBundles/{bundle_name}/files``
      - GET
-     - DAGs.can_read
-     - Viewer
+     - Dag Bundles.can_read
+     - Op
    * - ``/api/v2/dagSources/{dag_id}``
      - GET
      - DAGs.can_read, DAG Code.can_read
@@ -756,6 +760,18 @@ Stable API Permissions
      - GET
      - Providers.can_read
      - Op
+   * - ``/api/v2/providers/{provider_name}``
+     - GET
+     - Providers.can_read
+     - Op
+   * - ``/api/v2/triggers``
+     - GET
+     - DAGs.can_read and DAG Runs.can_read and Task Instances.can_read, or DAGs.can_read and DAG Runs.can_read, or Assets.can_read
+     - Viewer
+   * - ``/api/v2/triggers/{trigger_id}``
+     - GET
+     - DAGs.can_read and DAG Runs.can_read and Task Instances.can_read, or DAGs.can_read and DAG Runs.can_read, or Assets.can_read
+     - Viewer
    * - ``/api/v2/variables``
      - GET
      - Variables.can_read

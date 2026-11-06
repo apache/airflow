@@ -34,7 +34,6 @@ from airflow_shared.secrets_masker.secrets_masker import (
     RedactedIO,
     SecretsMasker,
     mask_secret,
-    merge,
     redact,
     reset_secrets_masker,
 )
@@ -637,6 +636,17 @@ class TestSecretsMasker:
             filt.add_mask(val)
 
         assert filt.redact(value, name) == expected
+
+    def test_redact_masks_whole_secret_when_another_secret_is_its_prefix(self):
+        secret = "hunter2-production-key"
+        filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
+        # ``patterns`` is a set, so every prefix is registered to make the result independent of its
+        # iteration order.
+        for length in range(5, len(secret) + 1):
+            filt.add_mask(secret[:length])
+
+        assert filt.redact(f"token={secret};") == "token=***;"
 
     @pytest.mark.parametrize(
         ("name", "value", "expected"),
@@ -1245,13 +1255,77 @@ class TestDirectMethodCalls:
         result = secrets_masker._redact_all(test_data, depth=0, replacement="***")
 
         assert result["string"] == "***"
-        assert result["number"] == 12345
-        assert result["boolean"] is True
+        # Non-string scalars are redacted too -- _redact_all is the fail-closed
+        # path taken once a key name is judged sensitive.
+        assert result["number"] == "***"
+        assert result["boolean"] == "***"
         assert all(val == "***" for val in result["list"])
         assert all(val == "***" for val in result["dict"].values())
         assert all(val == "***" for val in result["nested"]["tuple"])
         assert isinstance(result["nested"]["set"], tuple)
         assert all(val == "***" for val in result["nested"]["set"])
+
+
+class TestNonStringRedactionForSensitiveKeys:
+    """A sensitive key name must redact its value whatever the value's type."""
+
+    @pytest.fixture
+    def masker(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        return secrets_masker
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(1234, id="int"),
+            pytest.param(1234.5, id="float"),
+            pytest.param(True, id="bool-true"),
+            pytest.param(False, id="bool-false"),
+            pytest.param(0, id="int-zero"),
+            pytest.param(None, id="none"),
+            pytest.param(b"binary-secret", id="bytes"),
+            pytest.param("12ab", id="str"),
+        ],
+    )
+    def test_scalar_redacted_for_sensitive_key(self, masker, value):
+        """Values of any type are masked once the key name is sensitive."""
+        assert masker.redact(value, "test-password-a") == "***"
+
+    def test_non_sensitive_key_leaves_scalars_alone(self, masker):
+        """The fix must not start masking values under harmless key names."""
+        assert masker.redact(1234, "some-count") == 1234
+        assert masker.redact(True, "some-flag") is True
+        assert masker.redact(None, "some-optional") is None
+
+    def test_nested_non_string_values_are_redacted(self, masker):
+        """Containers under a sensitive key are walked and every leaf replaced."""
+        result = masker.redact({"pin": 1234, "nested": {"attempts": 3, "ok": False}}, "my_token")
+
+        assert result == {"pin": "***", "nested": {"attempts": "***", "ok": "***"}}
+
+    def test_non_string_under_nested_sensitive_key(self, masker):
+        """A sensitive key nested inside a non-sensitive structure is still caught."""
+        result = masker.redact({"conn": {"password": 12345, "port": 5432}})
+
+        assert result == {"conn": {"password": "***", "port": 5432}}
+
+    def test_merge_restores_original_non_string_value(self, masker):
+        """
+        Redacting non-strings must not break the merge() round trip.
+
+        merge() restores the original whenever the redacted value is still the
+        replacement sentinel, so an untouched numeric secret survives a
+        read-modify-write cycle unchanged.
+        """
+        original = 1234
+        redacted = masker.redact(original, "test-password-b")
+        assert redacted == "***"
+        assert masker.merge(redacted, original, "test-password-b") == original
+
+    def test_merge_keeps_edited_non_string_value(self, masker):
+        """A genuinely updated value still wins over the original."""
+        assert masker.merge(5678, 1234, "test-password-b") == 5678
 
 
 class TestMixedDataScenarios:
@@ -1541,15 +1615,28 @@ class TestSecretsMaskerMerge:
         result = self.masker.merge(new_data, old_data)
         assert result == expected
 
-    def test_merge_max_depth(self):
+    def test_merge_ignores_max_depth_when_walking(self):
+        """redact() finds sensitive keys at any depth, so merge() has to restore them at any depth."""
         old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
         new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
 
-        result = merge(new_data, old_data, max_depth=1)
-        assert result == new_data
+        assert self.masker.merge(new_data, old_data, max_depth=1) == old_data
+        assert self.masker.merge(new_data, old_data, max_depth=10) == old_data
 
-        result = self.masker.merge(new_data, old_data, max_depth=10)
-        assert result["level1"]["level2"]["level3"]["password"] == "original_password"
+    @pytest.mark.parametrize(
+        "original",
+        [
+            {"clusters": [{"nodes": [{"conn": {"auth": {"password": "s"}}}]}]},
+            {"a": {"b": {"c": {"d": {"e": {"f": {"token": "s"}}}}}}},
+            {"a": {"b": {"c": {"d": {"password": {"e": {"f": {"g": "s", "h": ["t"]}}}}}}}},
+        ],
+        ids=["lists-of-dicts", "deeper-than-max-depth", "sensitive-subtree-cut-off-by-redact-all"],
+    )
+    def test_merge_round_trip_deeply_nested(self, original):
+        redacted = self.masker.redact(original)
+        assert redacted != original
+
+        assert self.masker.merge(redacted, original) == original
 
     def test_merge_enum_values(self):
         old_enum = MyEnum.testname
