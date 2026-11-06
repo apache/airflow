@@ -25,8 +25,8 @@ of a distributed cluster.
 
 DuckDB is not an AWS service, so the generic hook, operator and ``duckdb`` connection type live in the
 :doc:`DuckDB provider <apache-airflow-providers-duckdb:index>`. What this provider adds is the AWS
-auth. Using an Airflow AWS connection to create the DuckDB secret that grants access to S3.
-This means there is no credential wiring needed in the Dag.
+auth: the hook creates the DuckDB secret that grants access to S3, so there is no credential wiring
+needed in the Dag.
 
 You run :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` and point it
 at a ``duckdb_aws`` connection when the SQL should reach S3.
@@ -66,8 +66,10 @@ Run a DuckDB query against Amazon S3
 
 Two connections are involved: a :ref:`DuckDB on AWS connection <howto/connection:duckdb_aws>` that
 says which DuckDB database to open and with what settings, and an
-:ref:`AWS connection <howto/connection:aws>` that says which AWS identity to use. The DuckDB on AWS
-connection can be empty, though it must exist.
+:ref:`AWS connection <howto/connection:aws>` that gives the region and endpoint. The AWS connection's
+credentials are used only when ``credential_strategy`` is ``config``; by default DuckDB takes
+credentials from the worker's environment, see :ref:`howto/operator:duckdb_aws:credentials`. The
+DuckDB on AWS connection can be empty, though it must exist.
 
 Given that connection, the hook loads the ``httpfs`` and ``aws`` extensions and creates the S3 secret,
 so the task supplies only SQL:

@@ -30,12 +30,17 @@ Two connections are involved:
   Its id is what you pass to
   :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` as ``conn_id``, and its
   type is also what selects :class:`~airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook`.
-* An **AWS** (``aws``) connection says *which AWS identity*, i.e.: keys or role, region, endpoint, etc. The DuckDB
-  connection points at it through ``aws_conn_id``, which defaults to ``aws_default``.
+* An :ref:`AWS connection <howto/connection:aws>` gives the region and endpoint, and also the credentials
+  (keys or role) when ``credential_strategy`` is ``config``. The DuckDB connection points at it through
+  ``aws_conn_id``, which defaults to ``aws_default``.
 
-Credentials stay in the usual :ref:`AWS connection <howto/connection:aws>`. The ``duckdb_aws`` connection can be empty
-(though it must exist) and often will be with DuckDB's ability to use in-memory databases. Create it, name it whatever
-you like, and leave every field blank to get an in-memory database.
+With the default ``credential_strategy`` of ``credential_chain``, DuckDB takes credentials from the
+worker's environment, such as environment variables or the worker's role, rather than from the AWS
+connection. See :ref:`howto/operator:duckdb_aws:credentials`.
+
+The ``duckdb_aws`` connection can be empty (though it must exist) and often will be with DuckDB's
+ability to use in-memory databases. Create it, name it whatever you like, and leave every field blank
+to get an in-memory database.
 
 Configuring the Connection
 --------------------------
@@ -48,7 +53,8 @@ Extra (optional)
     A JSON object. Every parameter of ``AwsDuckDBHook`` can be set here, and ``hook_params`` on the
     operator overrides it per task. The AWS keys are:
 
-    * ``aws_conn_id``: the AWS connection to take credentials from. Defaults to ``aws_default``. Set
+    * ``aws_conn_id``: the AWS connection the secret's region and endpoint come from, and its
+      credentials too when ``credential_strategy`` is ``config``. Defaults to ``aws_default``. Set
       it to ``null`` to use no Airflow connection and let the AWS SDK find credentials in the
       environment.
     * ``region_name``: region for the S3 secret. Defaults to the region of the AWS connection.
@@ -68,7 +74,8 @@ Extra (optional)
 Examples
 --------
 
-An in-memory database with explicit resource limits, using ``aws_default``:
+An in-memory database with explicit resource limits. The region comes from ``aws_default`` and the
+credentials from the worker's environment:
 
 .. code-block:: json
 
@@ -84,5 +91,5 @@ A database file, with credentials from a specific AWS connection:
     export AIRFLOW_CONN_DUCKDB_AWS_DEFAULT='{
         "conn_type": "duckdb_aws",
         "host": "/tmp/analytics.duckdb",
-        "extra": {"aws_conn_id": "aws_analytics", "region_name": "eu-west-1"}
+        "extra": {"aws_conn_id": "aws_analytics", "credential_strategy": "config", "region_name": "eu-west-1"}
     }'

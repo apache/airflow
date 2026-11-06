@@ -48,11 +48,12 @@ DEFAULT_AWS_CONN_ID = "aws_default"
 
 class AwsDuckDBHook(DuckDBHook):
     """
-    Interact with DuckDB using AWS credentials brokered by Airflow.
+    Interact with DuckDB with access to Amazon S3.
 
-    Extends :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook` with an S3 secret built from
-    an Airflow AWS connection, so ``read_parquet('s3://...')`` and ``COPY ... TO 's3://...'`` work
-    with no credential wiring in the Dag.
+    Extends :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook` with a DuckDB S3 secret, so
+    ``read_parquet('s3://...')`` and ``COPY ... TO 's3://...'`` work with no credential wiring in the
+    Dag. The secret takes its region and endpoint from an Airflow AWS connection, and its credentials
+    too with the ``config`` strategy.
 
     Two credential strategies are supported:
 
@@ -85,7 +86,8 @@ class AwsDuckDBHook(DuckDBHook):
     ``autoinstall_extensions=False`` to forbid the download, in which case the extensions have to be
     present already, either in an ``extension_directory`` or baked into the image.
 
-    :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` used to reach S3. Defaults to
+    :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` the S3 secret's region and
+        endpoint come from, and its credentials too with the ``config`` strategy. Defaults to
         ``aws_default``. Set to ``None`` to use no Airflow connection and let the AWS SDK resolve
         credentials from the environment instead.
     :param region_name: region for the S3 secret. Defaults to the region from ``aws_conn_id``.
