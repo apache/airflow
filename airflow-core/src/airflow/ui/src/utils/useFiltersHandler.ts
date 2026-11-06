@@ -126,7 +126,14 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
 
-export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsKeys>) => {
+export const useFiltersHandler = (
+  searchParamKeys: Array<FilterableSearchParamsKeys>,
+  options?: {
+    // Runs inside the same params update as the filter write, so a follow-up flag
+    // (the audit log opt-out) cannot lose a race with a second navigation.
+    readonly adjustParams?: (params: URLSearchParams, filters: Record<string, FilterValue>) => void;
+  },
+) => {
   const { getFilterConfig } = useFilterConfigs();
 
   const filterConfigs = searchParamKeys.map((key) => getFilterConfig(key));
@@ -227,6 +234,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
       newParams.delete(SearchParamsKeys.OFFSET);
       newParams.delete(SearchParamsKeys.CURSOR);
+      options?.adjustParams?.(newParams, filters);
 
       return newParams;
     });

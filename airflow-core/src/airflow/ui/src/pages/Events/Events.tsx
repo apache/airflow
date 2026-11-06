@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Code, useDisclosure } from "@chakra-ui/react";
+import { useEffect, useRef } from "react";
+
+import { Button, Code, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
@@ -24,6 +26,8 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
+
+import { Alert } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
@@ -172,16 +176,42 @@ const eventsColumn = (
 
 const {
   AFTER: AFTER_PARAM,
+  ALL_EVENTS: ALL_EVENTS_PARAM,
   BEFORE: BEFORE_PARAM,
   DAG_ID: DAG_ID_PARAM,
   EVENT_TYPE: EVENT_TYPE_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
+  OFFSET: OFFSET_PARAM,
   RUN_ID: RUN_ID_PARAM,
+  SORT: SORT_PARAM,
   TASK_ID: TASK_ID_PARAM,
   TEAMS: TEAMS_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
   USER: USER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
+
+const AUDIT_LOG_DEFAULT_WINDOW_DAYS = 7;
+const DEFAULT_WHEN_SORT = { desc: true, id: "when" } as const;
+const DEFAULT_AFTER_STORAGE_KEY = "audit-log-default-after";
+
+const isIsoDateParam = (value: string | null): value is string =>
+  value !== null && value !== "" && dayjs(value).isValid();
+
+// The instant is captured once per tab. A new mount (a refresh, or React strict mode) must
+// recognize the `after` already written into the URL as that same default, not a custom range.
+const getOrCreateDefaultAfter = (): string => {
+  const stored = sessionStorage.getItem(DEFAULT_AFTER_STORAGE_KEY);
+
+  if (isIsoDateParam(stored)) {
+    return stored;
+  }
+
+  const created = dayjs().subtract(AUDIT_LOG_DEFAULT_WINDOW_DAYS, "day").toISOString();
+
+  sessionStorage.setItem(DEFAULT_AFTER_STORAGE_KEY, created);
+
+  return created;
+};
 
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
@@ -193,14 +223,24 @@ export const Events = () => {
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:browse.auditLog") : undefined);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
+  const isBrowsePage = dagId === undefined;
+  // Missing `after` is also the state before the URL is seeded. `all_events` records a clear,
+  // so the default week is not applied again.
+  const showAllEvents = searchParams.get(ALL_EVENTS_PARAM) === "1";
   const afterFilter = searchParams.get(AFTER_PARAM);
   const beforeFilter = searchParams.get(BEFORE_PARAM);
+  const hasAfter = isIsoDateParam(afterFilter);
+  const hasBefore = isIsoDateParam(beforeFilter);
+  const defaultAfterRef = useRef(getOrCreateDefaultAfter());
+  const defaultAfter = defaultAfterRef.current;
+  const applyDefaultWindow = isBrowsePage && !showAllEvents && !hasAfter && !hasBefore;
+  const showingDefaultWindow =
+    isBrowsePage && !showAllEvents && !hasBefore && (applyDefaultWindow || afterFilter === defaultAfter);
   const dagIdFilter = searchParams.get(DAG_ID_PARAM);
   const eventTypeFilter = searchParams.get(EVENT_TYPE_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
@@ -210,13 +250,64 @@ export const Events = () => {
   const userFilter = searchParams.get(USER_PARAM);
   const teams = searchParams.getAll(TEAMS_PARAM);
 
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
+  // An empty sort is When descending. The header follows that, including when nothing is saved yet.
+  const effectiveSorting = sorting.length > 0 ? sorting : [DEFAULT_WHEN_SORT];
+  const sort = effectiveSorting[0] ?? DEFAULT_WHEN_SORT;
+  const orderBy = [`${sort.desc ? "-" : ""}${sort.id}`];
   // Convert string filters to appropriate types for API
   const mapIndexNumber = mapIndexFilter === null ? undefined : parseInt(mapIndexFilter, 10);
   const tryNumberNumber = tryNumberFilter === null ? undefined : parseInt(tryNumberFilter, 10);
-  // Handle date conversion - ensure valid ISO strings
-  const afterDate = afterFilter !== null && dayjs(afterFilter).isValid() ? afterFilter : undefined;
-  const beforeDate = beforeFilter !== null && dayjs(beforeFilter).isValid() ? beforeFilter : undefined;
+  // The browse page applies the default week on the first request, before the URL catch-up
+  // below, so the unfiltered count never runs.
+  const afterDate = isIsoDateParam(afterFilter) ? afterFilter : applyDefaultWindow ? defaultAfter : undefined;
+  const beforeDate = isIsoDateParam(beforeFilter) ? beforeFilter : undefined;
+
+  useEffect(() => {
+    if (!isBrowsePage) {
+      return;
+    }
+
+    const needsAfter = applyDefaultWindow;
+    const needsSort = sorting.length === 0 && !searchParams.has(SORT_PARAM);
+
+    if (!needsAfter && !needsSort) {
+      return;
+    }
+
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        const optedOut = next.get(ALL_EVENTS_PARAM) === "1";
+        let changed = false;
+
+        if (!optedOut && !isIsoDateParam(next.get(AFTER_PARAM)) && !isIsoDateParam(next.get(BEFORE_PARAM))) {
+          next.set(AFTER_PARAM, defaultAfter);
+          changed = true;
+        }
+
+        if (sorting.length === 0 && !next.has(SORT_PARAM)) {
+          next.append(SORT_PARAM, "-when");
+          changed = true;
+        }
+
+        return changed ? next : previous;
+      },
+      { replace: true },
+    );
+  }, [applyDefaultWindow, defaultAfter, isBrowsePage, searchParams, setSearchParams, sorting.length]);
+
+  const clearDefaultWindow = () => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+
+      next.delete(AFTER_PARAM);
+      next.delete(BEFORE_PARAM);
+      next.delete(OFFSET_PARAM);
+      next.set(ALL_EVENTS_PARAM, "1");
+
+      return next;
+    });
+  };
 
   const dagIdArg = useAdvancedSearchArg({
     patternApiKey: "dagIdPattern",
@@ -282,12 +373,24 @@ export const Events = () => {
   return (
     <>
       <ErrorAlert error={error} />
+      {showingDefaultWindow ? (
+        <Alert
+          endElement={
+            <Button onClick={clearDefaultWindow} size="sm" variant="outline">
+              {translate("auditLog.showAll")}
+            </Button>
+          }
+          mb={2}
+          status="info"
+          title={translate("auditLog.defaultWindow")}
+        />
+      ) : undefined}
       <DataTable
         columns={columns}
         data={eventLogs}
         displayMode="table"
         filterActions={<EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />}
-        initialState={tableURLState}
+        initialState={{ ...tableURLState, sorting: effectiveSorting }}
         isLoading={isLoading}
         modelName="common:event"
         onStateChange={setTableURLState}

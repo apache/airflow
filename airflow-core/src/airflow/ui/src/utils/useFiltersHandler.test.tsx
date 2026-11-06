@@ -22,6 +22,7 @@ import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { FilterValue } from "src/components/FilterBar";
 import { isValidFilterValue } from "src/components/FilterBar/utils";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -203,5 +204,37 @@ describe("useFiltersHandler boolean filters", () => {
 
     act(() => result.current.handleFiltersChange({}));
     expect(result.current.searchParams.get(SearchParamsKeys.NEEDS_REVIEW)).toBeNull();
+  });
+});
+
+describe("useFiltersHandler adjustParams", () => {
+  it("records an opt-out in the same update that clears a date range", () => {
+    const { result } = renderHook(
+      () =>
+        useFiltersHandler([SearchParamsKeys.EVENT_DATE_RANGE], {
+          adjustParams: (params: URLSearchParams, filters: Record<string, FilterValue>) => {
+            const range = filters[SearchParamsKeys.EVENT_DATE_RANGE];
+            const hasRange =
+              range !== null &&
+              range !== undefined &&
+              typeof range === "object" &&
+              !Array.isArray(range) &&
+              ("startDate" in range || "endDate" in range);
+
+            if (hasRange) {
+              params.delete(SearchParamsKeys.ALL_EVENTS);
+            } else {
+              params.set(SearchParamsKeys.ALL_EVENTS, "1");
+            }
+          },
+        }),
+      { wrapper: createWrapper(["/events?after=2026-10-30T00:00:00.000Z&sort=-when"]) },
+    );
+
+    act(() => result.current.handleFiltersChange({}));
+
+    expect(result.current.searchParams.get(SearchParamsKeys.AFTER)).toBeNull();
+    expect(result.current.searchParams.get(SearchParamsKeys.ALL_EVENTS)).toBe("1");
+    expect(result.current.searchParams.get(SearchParamsKeys.SORT)).toBe("-when");
   });
 });
