@@ -15,7 +15,7 @@ If the default connection is absent, no token is passed explicitly and
 ``huggingface_hub`` can use ``HF_TOKEN`` or a cached worker login. If an
 explicit non-default connection ID is provided but cannot be resolved, the
 hook raises Airflow's connection-not-found exception. An existing connection
-with no password also defers to the SDK fallback.
+with no password disables SDK authentication fallback by passing ``token=False``.
 
 Public dataset loads can use anonymous access. Private or gated reads need a
 token with read permission. Publishing needs write permission to the target

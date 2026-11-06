@@ -10,7 +10,8 @@ the provider does not log token values or copy tokens into artifact manifests,
 XCom results, asset event metadata, or commit markers. Keep tokens out of DAG
 source, task arguments, and transform code. When the default connection is
 absent, ``huggingface_hub`` may use ``HF_TOKEN`` or a cached login on the worker.
-An explicitly named but missing connection is an error.
+An existing connection with an empty password disables that fallback. An
+explicitly named but missing connection is an error.
 
 Use separate read and write tokens where possible. Grant read access for load
 only workflows and write access only to the repositories that publication

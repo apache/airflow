@@ -45,7 +45,7 @@ class HuggingFaceHook(BaseHook):
         self._allow_ambient_fallback = huggingface_conn_id in (None, self.default_conn_name)
         self._client: HfApi | None = None
 
-    def get_token(self) -> str | None:
+    def get_token(self) -> str | bool | None:
         if not self.huggingface_conn_id:
             return None
         try:
@@ -54,7 +54,7 @@ class HuggingFaceHook(BaseHook):
             if self._allow_ambient_fallback:
                 return None
             raise
-        return connection.password or None
+        return connection.password or False
 
     def get_conn(self) -> HfApi:
         if self._client is None:
@@ -70,7 +70,7 @@ class HuggingFaceHook(BaseHook):
 
     def load_dataset(self, path: str, **kwargs: Any) -> Any:
         token = self.get_token()
-        if token and "token" not in kwargs:
+        if token is not None and "token" not in kwargs:
             kwargs["token"] = token
         return load_dataset(path, **kwargs)
 
@@ -134,6 +134,6 @@ class HuggingFaceHook(BaseHook):
 
     def push_to_hub(self, dataset: Any, repo_id: str, **kwargs: Any) -> Any:
         token = self.get_token()
-        if token and "token" not in kwargs:
+        if token is not None and "token" not in kwargs:
             kwargs["token"] = token
         return dataset.push_to_hub(repo_id, **kwargs)

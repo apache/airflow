@@ -17,7 +17,7 @@
 """Connection-backed authentication tests for HuggingFaceHook."""
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from airflow.exceptions import AirflowNotFoundException
@@ -58,6 +58,23 @@ def test_get_conn_caches_autospecced_hf_api(connection_env):
         first = hook.get_conn()
         assert hook.get_conn() is first
         api.assert_called_once_with(token="test-secret")
+
+
+def test_empty_named_connection_disables_ambient_token_fallback(monkeypatch):
+    monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_PUBLIC", '{"conn_type":"huggingface"}')
+    monkeypatch.setenv("HF_TOKEN", "worker-write-token")
+    with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api:
+        hook = HuggingFaceHook("huggingface_public")
+        hook.get_conn()
+        api.assert_called_once_with(token=False)
+
+        with patch("airflow.providers.huggingface.hooks.huggingface.load_dataset", autospec=True) as load:
+            hook.load_dataset("org/public")
+        load.assert_called_once_with("org/public", token=False)
+
+        dataset = Mock(spec=["push_to_hub"])
+        hook.push_to_hub(dataset, "org/public")
+        dataset.push_to_hub.assert_called_once_with("org/public", token=False)
 
 
 def test_connection_test_success_and_failure(connection_env):
@@ -126,7 +143,7 @@ def test_hub_repository_exception_propagates(connection_env):
 def test_connection_extra_token_is_ignored(monkeypatch):
     monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_EXTRA_TEST",
                        '{"conn_type":"huggingface","extra":{"token":"ignored"}}')
-    assert HuggingFaceHook("huggingface_extra_test").get_token() is None
+    assert HuggingFaceHook("huggingface_extra_test").get_token() is False
 
 
 def test_find_commit_by_marker_matches_title_and_only_returns_final_upload_part():
