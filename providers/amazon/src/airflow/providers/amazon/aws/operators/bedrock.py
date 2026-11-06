@@ -1393,6 +1393,9 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     :param tags: Tags to attach to the guardrail.
     :param if_exists: Behavior when a guardrail with the same name already exists.
         ``"fail"`` raises an error, ``"skip"`` returns the existing guardrail ID.
+    :param wait_for_completion: Whether to wait for the guardrail to reach READY status. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 5)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness. (default: 24)
     """
 
     aws_hook_class = BedrockHook
@@ -1424,6 +1427,9 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         kms_key_id: str | None = None,
         tags: list[dict[str, str]] | None = None,
         if_exists: Literal["fail", "skip"] = "skip",
+        wait_for_completion: bool = True,
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 24,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1439,6 +1445,9 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         self.kms_key_id = kms_key_id
         self.tags = tags
         self.if_exists = if_exists
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         kwargs: dict[str, Any] = prune_dict(
@@ -1468,6 +1477,15 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
             else:
                 raise
         self.log.info("Guardrail %s: %s", self.guardrail_name, guardrail_id)
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for guardrail %s to be ready.", guardrail_id)
+            self.hook.get_waiter("guardrail_ready").wait(
+                guardrailIdentifier=guardrail_id,
+                guardrailVersion="DRAFT",
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
         return guardrail_id
 
 
@@ -1522,6 +1540,9 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
 
     :param guardrail_identifier: The ID or ARN of the guardrail to version. (templated)
     :param description: Optional description for this version. (templated)
+    :param wait_for_completion: Whether to wait for the guardrail to return to READY status. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 5)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness. (default: 24)
     """
 
     aws_hook_class = BedrockHook
@@ -1532,11 +1553,17 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
         *,
         guardrail_identifier: str,
         description: str | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 24,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.guardrail_identifier = guardrail_identifier
         self.description = description
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Creating version for guardrail %s", self.guardrail_identifier)
@@ -1547,8 +1574,18 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
             }
         )
         response = self.hook.conn.create_guardrail_version(**kwargs)
+        guardrail_id = response["guardrailId"]
         version = response["version"]
-        self.log.info("Guardrail %s version %s created.", response["guardrailId"], version)
+        self.log.info("Guardrail %s version %s created.", guardrail_id, version)
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for guardrail %s to be ready.", guardrail_id)
+            self.hook.get_waiter("guardrail_ready").wait(
+                guardrailIdentifier=guardrail_id,
+                guardrailVersion="DRAFT",
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
         return version
 
 
@@ -1569,6 +1606,9 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     :param content_policy_config: Optional content filter policy configuration dict.
     :param word_policy_config: Optional word filter policy configuration dict.
     :param sensitive_information_policy_config: Optional sensitive information policy dict.
+    :param wait_for_completion: Whether to wait for the guardrail to return to READY status. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 5)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness. (default: 24)
     """
 
     aws_hook_class = BedrockHook
@@ -1588,6 +1628,9 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         content_policy_config: dict[str, Any] | None = None,
         word_policy_config: dict[str, Any] | None = None,
         sensitive_information_policy_config: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 24,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1600,6 +1643,9 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         self.content_policy_config = content_policy_config
         self.word_policy_config = word_policy_config
         self.sensitive_information_policy_config = sensitive_information_policy_config
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Updating guardrail %s", self.guardrail_identifier)
@@ -1617,8 +1663,18 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
             }
         )
         response = self.hook.conn.update_guardrail(**kwargs)
-        self.log.info("Updated guardrail %s version %s", response["guardrailId"], response["version"])
-        return response["guardrailId"]
+        guardrail_id = response["guardrailId"]
+        self.log.info("Updated guardrail %s version %s", guardrail_id, response["version"])
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for guardrail %s to be ready.", guardrail_id)
+            self.hook.get_waiter("guardrail_ready").wait(
+                guardrailIdentifier=guardrail_id,
+                guardrailVersion="DRAFT",
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return guardrail_id
 
 
 class BedrockCreateEvaluationJobOperator(AwsBaseOperator[BedrockHook]):
