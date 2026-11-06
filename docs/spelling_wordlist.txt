@@ -27,6 +27,7 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+Agans
 agentcore
 AgentDetails
 agentic
@@ -1041,6 +1042,7 @@ leq
 LevelDB
 leveldb
 lexicographically
+libpq
 libs
 libz
 Lifecycle
@@ -2004,6 +2006,7 @@ webservers
 webViewLink
 Werkzeug
 werkzeug
+Wheeler
 whitespace
 whl
 wildcarded

@@ -51,6 +51,7 @@ from opentelemetry.trace import SpanKind, StatusCode
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.function import FunctionToolset
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import (
@@ -60,6 +61,7 @@ from airflow.providers.common.ai.tools.openai_agents import (
     _mask_content,
 )
 from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
 from tests_common.test_utils.config import conf_vars
@@ -188,6 +190,10 @@ class TestAirflowTools:
         tool.params_json_schema["properties"]["key"]["description"] = "changed"
 
         assert source.parameters == before
+
+    def test_an_mcp_toolset_points_to_the_sdks_mcp_servers(self):
+        with pytest.raises(MCPToolsetNotSupportedError, match="mcp_servers .* MCPServerStreamableHttp"):
+            AirflowTools(MCPToolset("mcp_default"))
 
 
 class TestAgentRun:

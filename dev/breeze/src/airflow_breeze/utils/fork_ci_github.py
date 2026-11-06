@@ -45,6 +45,11 @@ SERVER_ERROR = re.compile(r"\bHTTP 5\d\d\b|connection reset by peer|unexpected E
 # Network failures before the request reached GitHub, so repeating it is safe for any call.
 CONNECTION_ERROR = re.compile(r"TLS handshake timeout|dial tcp")
 SERVER_ERROR_WAIT_SECONDS = 10
+# GitHub answers HTTP 502 on every attempt when it lists 100 jobs per page of some runs with a few
+# hundred jobs, re-run more than once, while it lists smaller pages of the same run. A smaller size is
+# tried once the previous one keeps failing with server errors.
+JOB_PAGE_SIZES = (100, 30, 15, 5)
+JOB_PAGE_SIZE_SERVER_ERROR_ATTEMPTS = 2
 # A hung `gh` would otherwise hold the job until its timeout-minutes.
 GH_TIMEOUT_SECONDS = 120
 
@@ -69,6 +74,7 @@ class GitHubClient:
         *,
         allow_error_output: bool = False,
         retry_server_errors: bool = True,
+        max_server_error_attempts: int = MAX_ATTEMPTS,
     ) -> Any:
         """
         :param allow_error_output: return the JSON output of a failed call when it has any. ``gh api
@@ -77,6 +83,8 @@ class GitHubClient:
         :param retry_server_errors: repeat a call that failed with a server error. Off for a call that
             may have taken effect anyway and must not be repeated, such as creating a comment. A call
             that failed to connect is repeated either way.
+        :param max_server_error_attempts: how many times the call is made before giving up on server
+            errors; rate limits and connection errors are retried up to ``MAX_ATTEMPTS`` times either way.
         """
         payload = json.dumps(body) if body is not None else None
         rate_limited = False
@@ -98,12 +106,10 @@ class GitHubClient:
             rate_limited = any(marker in result.stderr.lower() for marker in RATE_LIMIT_MARKERS)
             self.rate_limited += rate_limited
             connection_error = bool(CONNECTION_ERROR.search(result.stderr))
-            if (
-                rate_limited
-                or connection_error
-                or (retry_server_errors and SERVER_ERROR.search(result.stderr))
-            ):
-                if attempt == MAX_ATTEMPTS - 1:
+            server_error = not rate_limited and not connection_error and SERVER_ERROR.search(result.stderr)
+            if rate_limited or connection_error or (retry_server_errors and server_error):
+                last_attempt = max_server_error_attempts if server_error else MAX_ATTEMPTS
+                if attempt >= last_attempt - 1:
                     break
                 reason = (
                     "rate limit"
@@ -123,9 +129,9 @@ class GitHubClient:
                     pass
             raise GitHubError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
         if rate_limited:
-            raise GitHubError(f"gh {' '.join(args)} still rate limited after {MAX_ATTEMPTS} attempts")
+            raise GitHubError(f"gh {' '.join(args)} still rate limited after {attempt + 1} attempts")
         raise GitHubError(
-            f"gh {' '.join(args)} still failing after {MAX_ATTEMPTS} attempts: {result.stderr.strip()}"
+            f"gh {' '.join(args)} still failing after {attempt + 1} attempts: {result.stderr.strip()}"
         )
 
     def graphql(
@@ -149,19 +155,52 @@ class GitHubClient:
             console_print(f"[warning]Partial GraphQL result: {response['errors']}[/]")
         return response["data"]
 
-    def rest_get(self, path: str, *, paginate: bool = False, items_key: str | None = None) -> Any:
+    def rest_get(
+        self,
+        path: str,
+        *,
+        paginate: bool = False,
+        items_key: str | None = None,
+        max_server_error_attempts: int = MAX_ATTEMPTS,
+    ) -> Any:
         """
         GET a REST path.
 
         :param paginate: follow every page and return the concatenated items.
         :param items_key: for endpoints whose pages are objects, the key holding the items
             (``workflow_runs``, ``jobs``, ``files``); pages are plain lists otherwise.
+        :param max_server_error_attempts: how many times the call is made before giving up on server
+            errors.
         """
         args = ["api", path, *(["--paginate", "--slurp"] if paginate else [])]
-        result = self._gh(args, None, "rest")
+        result = self._gh(args, None, "rest", max_server_error_attempts=max_server_error_attempts)
         if paginate:
             return [item for page in result for item in (page[items_key] if items_key else page)]
         return result
+
+    def get_run_jobs(self, repo: str, run_id: int) -> list[dict[str, Any]]:
+        """The jobs of a workflow run's latest attempt, in smaller pages while GitHub fails to list them."""
+
+        def get_jobs(page_size: int, max_server_error_attempts: int) -> list[dict[str, Any]]:
+            return self.rest_get(
+                f"repos/{repo}/actions/runs/{run_id}/jobs?filter=latest&per_page={page_size}",
+                paginate=True,
+                items_key="jobs",
+                max_server_error_attempts=max_server_error_attempts,
+            )
+
+        *larger, smallest = JOB_PAGE_SIZES
+        for page_size in larger:
+            try:
+                return get_jobs(page_size, JOB_PAGE_SIZE_SERVER_ERROR_ATTEMPTS)
+            except GitHubError as e:
+                if not SERVER_ERROR.search(str(e)):
+                    raise
+                console_print(
+                    f"[warning]Listing the jobs of {repo} run {run_id} {page_size} per page keeps "
+                    "failing, trying smaller pages[/]"
+                )
+        return get_jobs(smallest, MAX_ATTEMPTS)
 
     def rest_get_pages(self, path: str) -> list[Any]:
         """GET every page of a paginated REST path, keeping page-level fields such as ``total_count``."""

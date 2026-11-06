@@ -102,8 +102,9 @@ record captures the decisions that shape it and the alternatives rejected.
    ``.github/workflows/``, and legitimate workflow edits that keep the gate intact, are never
    closed. A pull request that is gated again after legitimate project CI runs and also edits
    workflows can still be closed while those runs are in the tampering window. A green fork run is trusted only when the pull request does not
-   change what fork CI runs (``.github/``, ``dev/breeze/``, ``scripts/ci/`` and the like);
-   otherwise it stays a draft until a maintainer runs project CI. A trusted green fork run also
+   change the ``build-info`` outputs that decide which jobs run and where (``.github/``, the
+   breeze sources, the breeze installation and ``scripts/ci/prek/``); otherwise it is labelled ``needs project ci``
+   and cannot merge until a maintainer runs project CI. A trusted green fork run also
    gets a ``CI passed`` commit status, the check the merge ruleset requires, because a gated
    pull request never runs project CI to report it; it is only ever posted as success, and
    overwritten when the head commit is no longer green. Commit statuses were chosen over check
