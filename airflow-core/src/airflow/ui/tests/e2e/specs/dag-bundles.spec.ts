@@ -47,8 +47,6 @@ test.describe("Dag Bundles Page", () => {
       .toHaveText(/^([\da-f]{7}|not versioned|not refreshed yet)$/i);
     // Either a relative time or the "Never" fallback, but never blank.
     await expect.soft(dagBundlesPage.lastRefreshedCellAt(0)).not.toBeEmpty();
-    // A number when the caller may read import errors, "-" when they may not. Admin runs these,
-    // so a count is expected -- but never a blank cell either way.
-    await expect.soft(dagBundlesPage.importErrorsCellAt(0)).toHaveText(/^(\d+|-)$/);
+    await expect.soft(dagBundlesPage.importErrorsCellAt(0)).toHaveText(/^\d+$/);
   });
 });

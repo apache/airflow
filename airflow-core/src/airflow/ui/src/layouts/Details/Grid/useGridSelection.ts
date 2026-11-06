@@ -38,28 +38,22 @@ export type SelectableGroups = ReadonlyMap<string, Array<string>>;
 
 export const getCellKey = (runId: string, taskId: string) => JSON.stringify([runId, taskId]);
 
-// A selected group cell acts on everything inside it. A loop group, a group that contains a loop
-// or one inside a loop is left out, for the same reason as a looped task.
+// A selected group cell acts on everything inside it, every pass of a loop included.
 export const buildSelectableGroups = (nodes: Array<GridNodeResponse> | undefined): SelectableGroups => {
   const groups = new Map<string, Array<string>>();
-  const visit = (node: GridNodeResponse, inLoop: boolean): { hasLoop: boolean; memberIds: Array<string> } => {
+  const visit = (node: GridNodeResponse): Array<string> => {
     if (!node.children) {
-      return { hasLoop: false, memberIds: [] };
+      return [];
     }
 
-    const isLoop = node.is_loop === true;
-    const children = node.children.map((child) => ({ id: child.id, ...visit(child, inLoop || isLoop) }));
-    const hasLoop = isLoop || children.some((child) => child.hasLoop);
-    const memberIds = children.flatMap((child) => [child.id, ...child.memberIds]);
+    const memberIds = node.children.flatMap((child) => [child.id, ...visit(child)]);
 
-    if (!inLoop && !hasLoop) {
-      groups.set(node.id, memberIds);
-    }
+    groups.set(node.id, memberIds);
 
-    return { hasLoop, memberIds };
+    return memberIds;
   };
 
-  nodes?.forEach((node) => visit(node, false));
+  nodes?.forEach(visit);
 
   return groups;
 };
@@ -78,22 +72,13 @@ export const getCoveredCellKeys = (selection: GridSelection, selectableGroups: S
     ),
   );
 
-// A looped task's cell aggregates every pass while its link opens only the newest one, so a bulk
-// action on it would be ambiguous. Cells without a task instance have nothing to act on.
-export const isSelectableCell = (
-  node: GridTask,
-  taskInstance: LightGridTaskInstanceSummary | undefined,
-  selectableGroups: SelectableGroups,
-) =>
-  (node.isGroup !== true || selectableGroups.has(node.id)) &&
-  taskInstance?.dag_version_number !== null &&
-  taskInstance?.dag_version_number !== undefined &&
-  (taskInstance.latest_region_id === null || taskInstance.latest_region_id === undefined);
+// Cells without a task instance have nothing to act on.
+export const isSelectableCell = (taskInstance: LightGridTaskInstanceSummary | undefined) =>
+  taskInstance?.dag_version_number !== null && taskInstance?.dag_version_number !== undefined;
 
 type GridData = {
   readonly flatNodes: Array<GridTask>;
   readonly runIds: Array<string>;
-  readonly selectableGroups: SelectableGroups;
   readonly summariesByRunId: ReadonlyMap<string, GridTISummaries>;
 };
 
@@ -113,7 +98,7 @@ export const buildRangeSelection = (data: GridData, from: GridCell, to: GridCell
 
   for (const node of data.flatNodes.slice(Math.min(...rows), Math.max(...rows) + 1)) {
     for (const runId of data.runIds.slice(Math.min(...columns), Math.max(...columns) + 1)) {
-      if (isSelectableCell(node, findTaskInstance(data, runId, node.id), data.selectableGroups)) {
+      if (isSelectableCell(findTaskInstance(data, runId, node.id))) {
         selection.set(getCellKey(runId, node.id), { runId, taskId: node.id });
       }
     }
@@ -189,18 +174,9 @@ export const useGridSelection = (data: GridData) => {
   // Returns whether the click changed the selection, in which case it must not navigate.
   const handleSelectionClick = useCallback(
     (event: MouseEvent, cell: GridCell): boolean => {
-      const isSelectable = ({ runId, taskId }: GridCell) => {
-        const node = dataRef.current.flatNodes.find((flatNode) => flatNode.id === taskId);
-
-        return (
-          node !== undefined &&
-          isSelectableCell(
-            node,
-            findTaskInstance(dataRef.current, runId, taskId),
-            dataRef.current.selectableGroups,
-          )
-        );
-      };
+      const isSelectable = ({ runId, taskId }: GridCell) =>
+        dataRef.current.flatNodes.some((flatNode) => flatNode.id === taskId) &&
+        isSelectableCell(findTaskInstance(dataRef.current, runId, taskId));
       const openedId = openedTaskId ?? openedGroupId;
       const openedCell =
         openedRunId !== undefined && openedId !== undefined

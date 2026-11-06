@@ -432,6 +432,11 @@ function reinstall_shared_distributions() {
 # contributing-docs/12_provider_distributions.rst.
 PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
 
+# Extras check_force_lowest_dependencies leaves out of a provider's sync, as
+# "<provider id>:<extra>", because the root pyproject.toml declares them as conflicting with
+# another extra of the same provider ([tool.uv] conflicts), and uv rejects syncing both.
+LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS=("common.ai:llamaindex")
+
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"
     local registered_provider
@@ -479,6 +484,17 @@ function check_force_lowest_dependencies() {
         fi
         cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
         run_pre_extras_install_if_registered "${provider_id}"
+        # Every extra of the provider is named instead of passing --all-extras: uv rejects
+        # --all-extras whenever a [tool.uv] conflicts group is reachable, even through another
+        # workspace provider (amazon -> common.ai), and --no-extra only accepts the provider's
+        # own extras. Both install the same packages.
+        local -a extra_flags=()
+        local extra
+        while IFS= read -r extra; do
+            if [[ -n "${extra}" && " ${LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS[*]} " != *" ${provider_id}:${extra} "* ]]; then
+                extra_flags+=(--extra "${extra}")
+            fi
+        done < <(python -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["project"].get("optional-dependencies", {})))')
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -487,8 +503,8 @@ function check_force_lowest_dependencies() {
         for attempt in 1 2 3; do
             echo "Attempt ${attempt} of syncing to lowest dependencies"
             set -x
-            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-                --no-python-downloads --no-managed-python; then
+            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec \
+                "${extra_flags[@]}" --no-python-downloads --no-managed-python; then
                 set +x
                 sync_successful="true"
                 break

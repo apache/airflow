@@ -197,9 +197,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - Output review: ``require_approval``, ``enable_hitl_review`` and the review plugin
      - With ``require_approval=True``, the task defers after generating output and returns
        it only once a person approves it on the Required Actions page. A rejection, or a
-       timeout under the default ``on_approval_timeout="fail"``, fails the task, except on
-       ``@task.llm_branch``, where it skips the downstream tasks unless
-       ``fail_on_reject=True``.
+       timeout under the default ``on_approval_timeout="fail"``, fails the task. With
+       ``fail_on_reject=False``, the default on ``@task.llm_branch``, a rejection skips the
+       downstream tasks instead.
 
 Experimental features
 ---------------------
