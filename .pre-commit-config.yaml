@@ -1794,11 +1794,17 @@ repos:
           PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         files: \.rst$
+        # The cli-and-env-variables-ref.rst files start with a ``:tocdepth:`` field list, which only
+        # counts as document metadata while it is the first element, so the header cannot go above it.
+        # The provider README.rst files are generated and published as the PyPI description, where
+        # the indented header renders as an empty block quote.
         exclude:
           (?x)
           ^\.github/.*$|
           newsfragments/.*\.rst$|
-          ^scripts/ci/license-templates/
+          ^scripts/ci/license-templates/|
+          ^(airflow-core|airflow-ctl)/docs/cli-and-env-variables-ref\.rst$|
+          ^providers/.*/README\.rst$
         entry: ./scripts/ci/prek/check_rst_license_header.py
         pass_filenames: true
       - id: check-newsfragments-are-valid

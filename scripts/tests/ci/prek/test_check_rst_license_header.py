@@ -101,11 +101,3 @@ class TestMain:
 
         assert main([str(path)]) == 1
         assert f"{path}: the license header must be at the top" in capsys.readouterr().out
-
-    def test_skips_files_that_must_keep_their_field_list_first(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        path = tmp_path / "airflow-core/docs/cli-and-env-variables-ref.rst"
-        path.parent.mkdir(parents=True)
-        path.write_text("\n".join([":tocdepth: 4", "", *CANONICAL, *BODY]))
-
-        assert main(["airflow-core/docs/cli-and-env-variables-ref.rst"]) == 0

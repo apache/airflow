@@ -163,6 +163,13 @@ space. This is the shape the ``insert-license`` hook writes for a new file, and 
 fails so that you can stage the change. ``scripts/ci/license-templates/LICENSE.rst`` holds the text without the
 indentation, which the hooks add. Files under ``newsfragments/`` carry no header.
 
+Two groups of files are excluded from the hook:
+
+- The ``cli-and-env-variables-ref.rst`` files of ``airflow-core`` and ``airflow-ctl`` start with a ``:tocdepth:``
+  field list, which only counts as document metadata while it is the first element.
+- The ``providers/*/README.rst`` files are generated and published as the PyPI description, where the indented
+  header renders as an empty block quote.
+
 Using prek
 ----------
 

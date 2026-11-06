@@ -35,15 +35,6 @@ from pathlib import Path
 
 LICENSE_TEMPLATE = Path(__file__).resolve().parents[1] / "license-templates" / "LICENSE.rst"
 
-# A leading ``:tocdepth:`` field list only counts as document metadata while it is the first
-# element, and an indented header ahead of it turns the field list into plain text.
-KEEP_FIELD_LIST_FIRST = frozenset(
-    {
-        "airflow-core/docs/cli-and-env-variables-ref.rst",
-        "airflow-ctl/docs/cli-and-env-variables-ref.rst",
-    }
-)
-
 
 def get_canonical_header() -> list[str]:
     template = LICENSE_TEMPLATE.read_text().splitlines()
@@ -79,8 +70,6 @@ def main(argv: list[str]) -> int:
     canonical = get_canonical_header()
     failed = False
     for name in argv:
-        if Path(name).as_posix() in KEEP_FIELD_LIST_FIRST:
-            continue
         try:
             if fix_file(Path(name), canonical):
                 print(f"Fixed the license header shape of {name}")
