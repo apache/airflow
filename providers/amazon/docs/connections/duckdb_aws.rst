@@ -37,12 +37,6 @@ Credentials stay in the usual :ref:`AWS connection <howto/connection:aws>`. The 
 (though it must exist) and often will be with DuckDB's ability to use in-memory databases. Create it, name it whatever
 you like, and leave every field blank to get an in-memory database.
 
-Default Connection ID
----------------------
-
-``AwsDuckDBHook`` defaults to ``duckdb_aws_default``. ``DuckDBExecuteQueryOperator`` defaults to
-``duckdb_default``, a plain DuckDB connection with no S3 access, so pass ``conn_id`` explicitly.
-
 Configuring the Connection
 --------------------------
 
