@@ -35,7 +35,7 @@
     "degraded": "Degradado",
     "degradedHint": {
       "dagProcessor": "Alguns pacotes de Dag configurados não têm um processador de Dag fazendo o parse deles.",
-      "triggerer": "Algumas equipes não têm um triggerer executando tarefas deferidas para elas."
+      "triggerer": "Algumas equipes não têm um disparador executando tarefas deferidas para elas."
     },
     "down": "Indisponível",
     "health": "Saúde",
