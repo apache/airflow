@@ -42,7 +42,7 @@
     "callback_other": "Callbacks",
     "callback_zero": "Nenhum Callback",
     "columns": {
-      "alertName": "Alerta de prazo",
+      "alertName": "Nome do alerta",
       "callback": "Callback",
       "deadlineTime": "Hora do prazo",
       "missedBy": "Atraso",
