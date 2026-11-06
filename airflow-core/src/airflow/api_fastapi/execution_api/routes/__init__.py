@@ -47,7 +47,7 @@ execution_api_router = APIRouter()
 execution_api_router.include_router(health.router, tags=["Health"])
 
 # _Every_ single endpoint under here must be authenticated. Some do further checks on top of these
-authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])  # type: ignore[list-item]
+authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])

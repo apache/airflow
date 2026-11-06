@@ -47,7 +47,9 @@ export const paramPlaceholder: ParamSpec = {
 const isStale = (param: ParamSpec, paramsDict: ParamsSpec, defaults: ParamsSpec) =>
   param.schema.depends_on !== undefined &&
   param.value !== null &&
-  !(getParamOptions(param, paramsDict, defaults) ?? []).some((option) => String(option) === String(param.value));
+  !(getParamOptions(param, paramsDict, defaults) ?? []).some(
+    (option) => String(option) === String(param.value),
+  );
 
 // A parent change can leave a child outside its new options. Repeat until nothing changes, so a
 // cleared child also clears its own children.
@@ -69,7 +71,11 @@ const clearStaleValues = (paramsDict: ParamsSpec, defaults: ParamsSpec): ParamsS
 };
 
 const buildConf = (paramsDict: ParamsSpec) =>
-  JSON.stringify(Object.fromEntries(Object.entries(paramsDict).map(([key, { value }]) => [key, value])), undefined, 2);
+  JSON.stringify(
+    Object.fromEntries(Object.entries(paramsDict).map(([key, { value }]) => [key, value])),
+    undefined,
+    2,
+  );
 
 type FormStore = {
   conf: string;

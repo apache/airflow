@@ -124,7 +124,7 @@ class TestDiscordCommonHandler:
                 id="fail-on-fields",
             ),
             pytest.param(
-                {"title": "This is a title", "author": {"name": "t" * 2049}},
+                {"title": "This is a title", "author": {"name": "t" * 257}},
                 pytest.raises(ValueError, match="Discord embed author name must be 256 or fewer characters"),
                 id="fail-on-author-name",
             ),

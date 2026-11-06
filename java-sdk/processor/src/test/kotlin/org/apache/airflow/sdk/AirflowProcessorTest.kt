@@ -403,7 +403,7 @@ class AirflowProcessorTest {
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Airflow;
-        @Airflow.Dag(id = "cfg", schedule = "@daily", tags = {"a", "b"}, catchup = true,
+        @Airflow.Dag(id = "cfg", schedule = "@daily", queue = "java", tags = {"a", "b"}, catchup = true,
             startDate = "2026-01-01T00:00:00Z")
         public class TestExample {
           @Airflow.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
@@ -442,6 +442,7 @@ class AirflowProcessorTest {
            public static DagDef build() {
              var dag = DagSource.declaredBy(new DagDef("cfg"), TestExample.class);
              dag.config("schedule", "@daily");
+             dag.config("queue", "java");
              dag.config("tags", List.of("a", "b"));
              dag.config("catchup", true);
              dag.config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"));
@@ -1380,6 +1381,85 @@ class AirflowProcessorTest {
   }
 
   @Test
+  @DisplayName("let a wiring class label an edge with Label.of(...).on(...)")
+  fun compileWiringThatLabelsAnEdge() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Label;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void extract() {}
+          @Airflow.Task public void load() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Label.of("rows").on(load())); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("fail to compile a label passed to before without on")
+  fun failOnLabelWithoutOn() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Label;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void extract() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Label.of("rows")); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "org.apache.airflow.sdk.Label cannot be converted to org.apache.airflow.sdk.Deps.Flow",
+    )
+  }
+
+  @Test
+  @DisplayName("fail to compile Label.on called with no task")
+  fun failOnLabelOnWithoutTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Label;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void extract() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Label.of("rows").on()); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "method on in class org.apache.airflow.sdk.Label cannot be applied to given types",
+    )
+  }
+
+  @Test
   @DisplayName("reject a task group ID that is not a plain identifier")
   fun rejectInvalidTaskGroupId() {
     val compilation =
@@ -1699,6 +1779,129 @@ class AirflowProcessorTest {
   }
 
   @Test
+  @DisplayName("reject a task in a task group that takes the id of one of the group's join nodes")
+  fun rejectTaskTakingJoinNodeIdOfItsGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.TaskGroup
+          static class Transform {
+            @Airflow.Task(id = "upstream_join_id") public void clean() {}
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task 'Transform.upstream_join_id' has the ID of a join node of task group 'Transform'; rename the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a top-level task that takes the id of a task group's join node")
+  fun rejectTopLevelTaskTakingJoinNodeId() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task(id = "Transform.downstream_join_id") public void publish() {}
+
+          @Airflow.TaskGroup
+          static class Transform {
+            @Airflow.Task public void clean() {}
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task 'Transform.downstream_join_id' has the ID of a join node of task group 'Transform'; rename the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task in a nested task group that takes the id of one of that group's join nodes")
+  fun rejectTaskTakingJoinNodeIdOfNestedGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.TaskGroup
+          static class Transform {
+            @Airflow.TaskGroup
+            static class Checks {
+              @Airflow.Task(id = "downstream_join_id") public void nulls() {}
+            }
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task 'Transform.Checks.downstream_join_id' has the ID of a join node of task group 'Transform.Checks'; " +
+        "rename the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a nested task group that takes the id of a join node of the group holding it")
+  fun rejectNestedTaskGroupTakingJoinNodeId() {
+    listOf("upstream_join_id", "downstream_join_id").forEach { id ->
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag
+          public class TestExample {
+            @Airflow.TaskGroup
+            static class Transform {
+              @Airflow.TaskGroup(id = "$id")
+              static class Inner {
+                @Airflow.Task public void clean() {}
+              }
+            }
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() {}
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining(
+        "Task group 'Transform.$id' has the ID of a join node of task group 'Transform'; rename the nested group",
+      )
+    }
+  }
+
+  @Test
   @DisplayName("reject two task methods whose generated classes would collide")
   fun rejectCollidingGeneratedTaskClasses() {
     val compilation =
@@ -1870,6 +2073,56 @@ class AirflowProcessorTest {
     assertThat(compilation).hadErrorContaining(
       "Annotation attribute 'retryDelay' is not valid ISO-8601: '5 minutes'",
     )
+  }
+
+  @Test
+  @DisplayName("reject a blank Dag-level queue")
+  fun rejectBlankDagQueue() {
+    for (queue in listOf("", " ")) {
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag(queue = "$queue")
+          public class TestExample {
+            @Airflow.Task public void t() {}
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() { t(); }
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' must not be blank")
+    }
+  }
+
+  @Test
+  @DisplayName("reject a blank task-level queue")
+  fun rejectBlankTaskQueue() {
+    for (queue in listOf("", " ")) {
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag
+          public class TestExample {
+            @Airflow.Task(queue = "$queue") public void t() {}
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() { t(); }
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' must not be blank")
+    }
   }
 
   @Test

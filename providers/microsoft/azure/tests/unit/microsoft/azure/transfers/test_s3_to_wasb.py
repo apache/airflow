@@ -84,7 +84,7 @@ class TestS3ToAzureBlobStorageOperator:
         assert operator.blob_name is None
         assert not operator.create_container  # Should be false (match default value in constructor)
         assert operator.replace
-        assert not operator.s3_verify  # Should be false (match default value in constructor)
+        assert operator.s3_verify is None  # Defer to the connection / botocore default
         assert operator.s3_extra_args == {}
         assert operator.wasb_extra_args == {}
 
@@ -115,7 +115,7 @@ class TestS3ToAzureBlobStorageOperator:
         assert sorted(uploaded_files) == sorted(MOCK_FILES)
 
         # Using the default connection ID, along with the default value of verify (for the S3 hook)
-        s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", verify=False)
+        s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", verify=None)
         wasb_mock_hook.assert_called_once_with(wasb_conn_id="wasb_default")
 
     # There are a number of very similar tests that use the same mocking, and for the most part, the same

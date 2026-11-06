@@ -22,11 +22,9 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import prestodb
-from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
@@ -269,14 +267,6 @@ class PrestoHook(DbApiHook):
         else:
             df = pl.DataFrame(**kwargs)
         return df
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def insert_rows(
         self,

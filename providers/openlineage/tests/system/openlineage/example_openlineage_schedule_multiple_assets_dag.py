@@ -46,7 +46,7 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="sleep 10;")
+    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="echo")
 
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)

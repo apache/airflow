@@ -67,12 +67,14 @@ from airflow.dag_processing.processor import (
     _parse_file,
     _parse_file_entrypoint,
     _pre_import_airflow_modules,
+    _serialize_dags,
 )
 from airflow.models import DagRun
 from airflow.models.dagwarning import DagWarning
-from airflow.sdk import DAG, BaseOperator
+from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
@@ -95,6 +97,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -565,6 +568,24 @@ def disable_capturing():
     sys.stderr = sys.__stderr__
     yield
     sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
+
+
+def test_serialize_dags_reports_loop_dag_with_legacy_xcom_backend_as_import_error(monkeypatch):
+    @task_group
+    def body():
+        BaseOperator(task_id="work")
+
+    with DAG("loop_dag", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+    dag.relative_fileloc = "loop_dag.py"
+    bag = MagicMock(spec=DagBag)
+    bag.dags = {dag.dag_id: dag}
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", SerializeValueOnlyXCom)
+
+    serialized_dags, import_errors = _serialize_dags(bag, structlog.get_logger())
+
+    assert serialized_dags == []
+    assert "uses a loop" in import_errors["loop_dag.py"]
 
 
 @pytest.mark.usefixtures("testing_dag_bundle")
@@ -1057,6 +1078,9 @@ class TestExecuteDagCallbacks:
         # Check that we have template context variables from RuntimeTaskInstance
         assert "ts" in context_received
         assert "params" in context_received
+        from airflow.sdk.definitions.context import CallbackSource
+
+        assert context_received["callback"].source is CallbackSource.DAG
 
     def test_execute_dag_callbacks_missing_last_ti_task_falls_back_to_minimal_context(self, spy_agency):
         """A removed last_ti task must not drop the callback; it runs with the minimal context."""
@@ -1168,6 +1192,9 @@ class TestExecuteDagCallbacks:
         # Should not have template context variables
         assert "ts" not in context_received
         assert "params" not in context_received
+        from airflow.sdk.definitions.context import CallbackSource
+
+        assert context_received["callback"].source is CallbackSource.DAG
 
     def test_execute_dag_callbacks_success_callback(self, spy_agency):
         """Test _execute_dag_callbacks executes success callback with context_from_server"""
@@ -1605,6 +1632,9 @@ class TestExecuteTaskCallbacks:
         assert context_received is not None
         assert context_received["dag"] == dag
         assert "ti" in context_received
+        from airflow.sdk.definitions.context import CallbackSource
+
+        assert context_received["callback"].source is CallbackSource.TASK
 
     def test_execute_task_callbacks_retry_callback(self, spy_agency):
         """Test _execute_task_callbacks executes retry callbacks"""
@@ -2384,6 +2414,7 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            "HITLDetailResponseResult",
             # AIP-103 task/asset store results — worker-only responses to the above messages.
             "TaskStateStoreResult",
             "AssetStateStoreResult",

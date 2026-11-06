@@ -223,6 +223,8 @@ type BundleInfo struct {
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
+type ChosenOptions []string
+
 type ClearAssetStateStoreByName struct {
 	// Name corresponds to the JSON schema field "name".
 	Name string `msgpack:"name"`
@@ -1261,6 +1263,27 @@ type HITLDetailRequestResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Response to GetHITLDetailResponse request.
+type HITLDetailResponseResult struct {
+	// ChosenOptions corresponds to the JSON schema field "chosen_options".
+	ChosenOptions *ChosenOptions `msgpack:"chosen_options"`
+
+	// ParamsInput corresponds to the JSON schema field "params_input".
+	ParamsInput *ParamsInput `msgpack:"params_input,omitempty"`
+
+	// RespondedAt corresponds to the JSON schema field "responded_at".
+	RespondedAt interface{} `msgpack:"responded_at"`
+
+	// RespondedByUser corresponds to the JSON schema field "responded_by_user".
+	RespondedByUser *HITLUser `msgpack:"responded_by_user,omitempty"`
+
+	// ResponseReceived corresponds to the JSON schema field "response_received".
+	ResponseReceived bool `msgpack:"response_received"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Schema for a Human-in-the-loop users.
 type HITLUser struct {
 	// ID corresponds to the JSON schema field "id".
@@ -1320,6 +1343,10 @@ type LogicalDates []time.Time
 
 // Pinned loop definition and enclosing iteration for a task execution.
 type LoopContext struct {
+	// ForkedFromRegionID corresponds to the JSON schema field
+	// "forked_from_region_id".
+	ForkedFromRegionID *string `msgpack:"forked_from_region_id,omitempty"`
+
 	// Index corresponds to the JSON schema field "index".
 	Index int `msgpack:"index"`
 
@@ -1329,11 +1356,20 @@ type LoopContext struct {
 	// NodeID corresponds to the JSON schema field "node_id".
 	NodeID string `msgpack:"node_id"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID string `msgpack:"region_id"`
+
+	// ResumesFromIndex corresponds to the JSON schema field "resumes_from_index".
+	ResumesFromIndex *int `msgpack:"resumes_from_index,omitempty"`
+
 	// TerminalIsMapped corresponds to the JSON schema field "terminal_is_mapped".
 	TerminalIsMapped bool `msgpack:"terminal_is_mapped"`
 
 	// TerminalTaskID corresponds to the JSON schema field "terminal_task_id".
 	TerminalTaskID string `msgpack:"terminal_task_id"`
+
+	// Trajectory corresponds to the JSON schema field "trajectory".
+	Trajectory int `msgpack:"trajectory"`
 }
 
 // A loop gate's evaluation of its “until“ callable.
@@ -1696,6 +1732,15 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
+	// The execution_timeout in seconds set on a task a language SDK runs, from its
+	// serialized Dag. Unset when the task sets none. Zero means no timeout and a
+	// negative value has already elapsed, as for a Python task. A Python task runs
+	// its own timer in the task runner instead, and gets no value here.
+	ExecutionTimeout interface{} `msgpack:"execution_timeout,omitempty"`
+
+	// ExpandedTICount corresponds to the JSON schema field "expanded_ti_count".
+	ExpandedTICount *int `msgpack:"expanded_ti_count,omitempty"`
+
 	// FirstTaskRescheduleStartDate corresponds to the JSON schema field
 	// "first_task_reschedule_start_date".
 	FirstTaskRescheduleStartDate interface{} `msgpack:"first_task_reschedule_start_date,omitempty"`
@@ -1734,20 +1779,52 @@ type TIRunContext struct {
 
 type TaskArgBinding interface{}
 
-type TriggerKwargs map[string]interface{}
+type TaskBreadcrumbsResult struct {
+	// Breadcrumbs corresponds to the JSON schema field "breadcrumbs".
+	Breadcrumbs []TaskBreadcrumbsResultBreadcrumbsElem `msgpack:"breadcrumbs"`
 
-type Warnings []interface{}
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
+type TaskBreadcrumbsResultBreadcrumbsElem map[string]interface{}
+
+// Task callback status information.
+//
+// A Class with information about the success/failure TI callback to be executed.
+// Currently, only failure
+// callbacks when tasks are externally killed or experience heartbeat timeouts are
+// run via DagFileProcessorProcess.
+type TaskCallbackRequest struct {
+	// BundleName corresponds to the JSON schema field "bundle_name".
+	BundleName string `msgpack:"bundle_name"`
+
+	// BundleVersion corresponds to the JSON schema field "bundle_version".
+	BundleVersion interface{} `msgpack:"bundle_version"`
+
+	// ContextFromServer corresponds to the JSON schema field "context_from_server".
+	ContextFromServer *TIRunContext `msgpack:"context_from_server,omitempty"`
+
+	// Filepath corresponds to the JSON schema field "filepath".
+	Filepath string `msgpack:"filepath"`
+
+	// Msg corresponds to the JSON schema field "msg".
+	Msg interface{} `msgpack:"msg,omitempty"`
+
+	// TaskCallbackType corresponds to the JSON schema field "task_callback_type".
+	TaskCallbackType interface{} `msgpack:"task_callback_type,omitempty"`
+
+	// TI corresponds to the JSON schema field "ti".
+	TI TaskInstance `msgpack:"ti"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
+}
 
 type TaskIds []string
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
 
 // Schema for TaskInstance model with minimal required fields needed for Runtime.
 type TaskInstance struct {
@@ -1788,6 +1865,14 @@ type TaskInstance struct {
 	TryNumber int `msgpack:"try_number"`
 }
 
+type Warnings []interface{}
+
+type TriggerKwargs map[string]interface{}
+
+type TaskInstanceState string
+
+type VersionData map[string]interface{}
+
 const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
 const TaskInstanceStateDeferred TaskInstanceState = "deferred"
 const TaskInstanceStateSkipped TaskInstanceState = "skipped"
@@ -1795,61 +1880,24 @@ const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
 const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
 const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
 const TaskInstanceStateFailed TaskInstanceState = "failed"
+
 const TaskInstanceStateRestarting TaskInstanceState = "restarting"
 const TaskInstanceStateSuccess TaskInstanceState = "success"
 const TaskInstanceStateRunning TaskInstanceState = "running"
 const TaskInstanceStateQueued TaskInstanceState = "queued"
 
+type TaskOutlets []AssetProfile
+
 const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
 const TaskInstanceStateRemoved TaskInstanceState = "removed"
 
-type TaskInstanceState string
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
 
-type TaskOutlets []AssetProfile
-
-type TaskBreadcrumbsResultBreadcrumbsElem map[string]interface{}
-
-type TaskBreadcrumbsResult struct {
-	// Breadcrumbs corresponds to the JSON schema field "breadcrumbs".
-	Breadcrumbs []TaskBreadcrumbsResultBreadcrumbsElem `msgpack:"breadcrumbs"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
-// Task callback status information.
-//
-// A Class with information about the success/failure TI callback to be executed.
-// Currently, only failure
-// callbacks when tasks are externally killed or experience heartbeat timeouts are
-// run via DagFileProcessorProcess.
-type TaskCallbackRequest struct {
-	// BundleName corresponds to the JSON schema field "bundle_name".
-	BundleName string `msgpack:"bundle_name"`
-
-	// BundleVersion corresponds to the JSON schema field "bundle_version".
-	BundleVersion interface{} `msgpack:"bundle_version"`
-
-	// ContextFromServer corresponds to the JSON schema field "context_from_server".
-	ContextFromServer *TIRunContext `msgpack:"context_from_server,omitempty"`
-
-	// Filepath corresponds to the JSON schema field "filepath".
-	Filepath string `msgpack:"filepath"`
-
-	// Msg corresponds to the JSON schema field "msg".
-	Msg interface{} `msgpack:"msg,omitempty"`
-
-	// TaskCallbackType corresponds to the JSON schema field "task_callback_type".
-	TaskCallbackType interface{} `msgpack:"task_callback_type,omitempty"`
-
-	// TI corresponds to the JSON schema field "ti".
-	TI TaskInstance `msgpack:"ti"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-
-	// VersionData corresponds to the JSON schema field "version_data".
-	VersionData *VersionData `msgpack:"version_data,omitempty"`
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
 }
 
 // Response containing the first reschedule date for a task instance.
@@ -1952,8 +2000,6 @@ type UpdateDagRunNote struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {

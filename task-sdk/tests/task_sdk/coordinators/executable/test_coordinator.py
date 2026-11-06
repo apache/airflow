@@ -714,7 +714,7 @@ class TestExecuteTaskNativeBundle:
         try:
             with (
                 conf_vars(coordinators),
-                patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True) as init,
+                patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True) as init,
                 patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True),
                 patch.object(_PopenActivitySubprocess, "start", autospec=True) as mock_start,
                 patch.object(

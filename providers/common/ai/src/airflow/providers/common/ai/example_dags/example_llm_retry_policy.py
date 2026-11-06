@@ -36,7 +36,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import timedelta
 
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, dag, task
 
 try:
     from airflow.providers.common.ai.policies.retry import (
@@ -102,7 +102,8 @@ try:
     # demands more certainty than the rest. Under a bar the answer is discarded and the
     # fallback rules, then the task's own retry settings, decide instead. The bars come from
     # a calibration run on jev-1.13.0: correct picks landed at 0.89 and above, wrong ones
-    # at 0.47 to 0.69, with one wrong ``permanent`` at 0.90 that no sensible bar catches.
+    # at 0.47 to 0.69, with one wrong ``permanent`` at 0.90 that no bar catches here without
+    # also discarding correct picks.
     snowflake_policy = ClassifierRetryPolicy(
         llm_conn_id="decision_default",
         min_confidence=0.8,
@@ -136,11 +137,17 @@ try:
     # [START howto_retry_policy_escalation]
     # The three layers chained. The decision model answers the clear cases cheaply. When it is
     # unsure or unreachable, a text model reasons about the failure and decides retry and delay
-    # itself. When that model is unreachable too, the rules decide.
+    # itself. When that model is unreachable too, the rules decide. With a text model to ask, a
+    # wrong ``permanent`` costs more than an escalation, so its bar goes up to 0.95. That catches
+    # the wrong ``permanent`` at 0.90 from the calibration run, and a correct pick under 0.95
+    # costs one text-model call rather than the task.
     escalating_policy = ClassifierRetryPolicy(
         llm_conn_id="decision_default",
         min_confidence=0.8,
-        categories=snowflake_policy.categories,
+        categories={
+            **snowflake_policy.categories,
+            "permanent": replace(snowflake_policy.categories["permanent"], min_confidence=0.95),
+        },
         fallback_policy=LLMRetryPolicy(llm_conn_id="pydanticai_default", timeout=30.0),
         fallback_rules=[
             RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=30)),
@@ -162,7 +169,11 @@ try:
 
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=escalating_policy)
         def task_ambiguous():
-            """Reads as more than one category; under the bar the text model decides, then the rules."""
+            """
+            Names no symptom, so the classifier is unsure and the text model decides.
+
+            jev-1.13.0 picks ``permanent`` for it at about 0.8 to 0.9, under that category's 0.95 bar here.
+            """
             raise RuntimeError("Query failed: an unexpected error occurred while processing the request.")
 
         task_warehouse_suspended()
@@ -170,6 +181,7 @@ try:
         task_ambiguous()
 
     example_llm_retry_policy_classifier()
-except ImportError:
-    # RetryPolicy requires Airflow 3.3+; example DAG is skipped on older versions.
+except (ImportError, AirflowOptionalProviderFeatureException):
+    # RetryPolicy requires Airflow 3.3+; policies/retry.py raises AirflowOptionalProviderFeatureException
+    # (not an ImportError) on older versions, so the example Dag is skipped there.
     pass

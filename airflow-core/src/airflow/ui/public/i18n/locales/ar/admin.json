@@ -9,7 +9,13 @@
   "config": {
     "columns": {
       "section": "القسم"
-    }
+    },
+    "config_few": "تكوينات",
+    "config_many": "تكوينات",
+    "config_one": "تكوين",
+    "config_other": "تكوينات",
+    "config_two": "تكوينان",
+    "config_zero": "لا يوجد أي تكوين"
   },
   "connections": {
     "add": "إضافة موَّصل",
@@ -40,13 +46,16 @@
       "firstConfirmMessage_zero": "لا يوجد أي موصل للحذف",
       "title": "حذف الموَّصل"
     },
+    "duplicate": "تكرار $t(connections.connection_one)",
     "edit": "تعديل الموَّصل",
     "form": {
       "connectionIdRequired": "مطلوب معرِّف الموَّصل",
       "connectionIdRequirement": "لا يمكن أن يحتوي معرِّف الموَّصل على مسافات فقط",
+      "connectionTypeFields": "حقول {{connectionType}}",
       "connectionTypeRequired": "مطلوب نوع الموَّصل",
       "extraFieldsJson": "JSON حقول إضافية بصيغة",
       "helperText": "نوع الموَّصل مفقود؟ تأكد من تثبيت حزمة Airflow المناسبة.",
+      "helperTextForDuplicatedRedactedFields": "لا يتم نسخ الحقول المحجوبة ('***'). املأها للموَّصل الجديد.",
       "helperTextForRedactedFields": "لن تتغير الحقول المحجوبة ('***') إذا لم يتم تعديلها.",
       "selectConnectionType": "اختر نوع الموَّصل",
       "standardFields": "حقول قياسية"
@@ -106,7 +115,13 @@
       "dagProcessorJob": "وظيفة معالج Dag",
       "schedulerJob": "وظيفة المُجَدْوِل",
       "triggererJob": "وظيفة المُطلِق"
-    }
+    },
+    "job_few": "وظائف",
+    "job_many": "وظائف",
+    "job_one": "وظيفة",
+    "job_other": "وظائف",
+    "job_two": "وظيفتان",
+    "job_zero": "لا يوجد أي وظيفة"
   },
   "plugins": {
     "columns": {
@@ -118,6 +133,12 @@
     "importError_other": "أخطاء في استيراد المكوّن الإضافي",
     "importError_two": "خطأان في استيراد المكوّن الإضافي",
     "importError_zero": "لا يوجد أي خطأ في استيراد المكوّن الإضافي",
+    "plugin_few": "إضافات",
+    "plugin_many": "إضافات",
+    "plugin_one": "إضافة",
+    "plugin_other": "إضافات",
+    "plugin_two": "إضافتان",
+    "plugin_zero": "لا يوجد أي إضافة",
     "searchPlaceholder": "البحث عن الملفات"
   },
   "pools": {
@@ -155,7 +176,13 @@
     "columns": {
       "packageName": "اسم الحزمة",
       "version": "الإصدار"
-    }
+    },
+    "provider_few": "حُزم",
+    "provider_many": "حُزم",
+    "provider_one": "حُزمة",
+    "provider_other": "حُزم",
+    "provider_two": "حُزمتان",
+    "provider_zero": "لا يوجد أي حُزمة"
   },
   "variables": {
     "add": "إضافة متغير",

@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
+import yaml
 
+import airflow.api_fastapi.core_api.openapi as openapi_package
 from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -195,6 +198,67 @@ class TestGetPlugins:
                 href="https://example.com/",
                 applies_to={"state": "failed"},
             )
+
+    def test_ui_actions_schema_stays_discriminated_on_action_type(self):
+        """The UI and the generated ctl client both dispatch on ``action_type``.
+
+        Losing the discriminator in a refactor would still serialize, so nothing else fails.
+        """
+        spec_path = Path(openapi_package.__file__).parent / "v2-rest-api-generated.yaml"
+        spec = yaml.safe_load(spec_path.read_text())
+
+        actions = spec["components"]["schemas"]["PluginResponse"]["properties"]["ui_actions"]
+        variants = actions["items"]
+
+        assert variants["discriminator"]["propertyName"] == "action_type"
+        assert set(variants["discriminator"]["mapping"]) == {"link", "react"}
+        assert len(variants.get("oneOf") or variants.get("anyOf") or []) == 2
+
+    def test_ui_actions_are_served_and_one_bad_action_does_not_drop_the_plugin(self, test_client):
+        """A rejected action must cost the plugin that action and nothing else."""
+
+        class ActionsPlugin(AirflowPlugin):
+            name = "ui_actions_route_plugin"
+            ui_actions = [
+                {
+                    "action_type": "link",
+                    "name": "Runbook",
+                    "destination": "dag",
+                    "href": "https://example.com/{DAG_ID}",
+                    "applies_to": {"dag.tags.name": ["production"]},
+                },
+                {
+                    "action_type": "react",
+                    "name": "Inspect payload",
+                    "destination": "task_instance",
+                    "bundle_url": "https://example.com/inspect.js",
+                },
+                # Unknown key: rejected at load time, and the reason the plugin used to be
+                # dropped wholesale at serialization time.
+                {
+                    "action_type": "link",
+                    "name": "Typo",
+                    "destination": "dag",
+                    "href": "https://example.com",
+                    "url_route": "copied-from-a-react-app",
+                },
+            ]
+
+        with mock_plugin_manager(plugins=[ActionsPlugin()]):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        plugin = next(
+            entry for entry in response.json()["plugins"] if entry["name"] == "ui_actions_route_plugin"
+        )
+
+        assert [action["name"] for action in plugin["ui_actions"]] == ["Runbook", "Inspect payload"]
+        link, react = plugin["ui_actions"]
+        assert link["action_type"] == "link"
+        assert link["href"] == "https://example.com/{DAG_ID}"
+        assert link["applies_to"] == {"dag.tags.name": ["production"]}
+        assert react["action_type"] == "react"
+        assert react["bundle_url"] == "https://example.com/inspect.js"
 
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
         caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")

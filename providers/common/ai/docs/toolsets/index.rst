@@ -94,6 +94,7 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
     LangChain tools <langchain>
     Tool call logging <logging>
     Progressive tool disclosure <progressive_disclosure>
+    Writing your own toolset <custom>
 
 Importing toolsets
 ------------------
@@ -104,7 +105,6 @@ Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package 
         AgentSkillsToolset,
         DataFusionToolset,
         HookToolset,
-        LoggingToolset,
         ManagedAgentToolset,
         MCPToolset,
         ObjectStorageToolset,
@@ -112,16 +112,18 @@ Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package 
         SQLToolset,
     )
 
-``SQLToolset`` and ``DataFusionToolset`` depend on optional extras. If the extra is not
-installed, the first access to the name raises ``AirflowOptionalProviderFeatureException``.
-``MCPToolset`` imports without its extra; the missing dependency raises ``ImportError``
-when the toolset first connects to the MCP server.
+``SQLToolset``, ``DataFusionToolset`` and ``MCPToolset`` depend on optional extras. If the
+extra is not installed, they raise ``AirflowOptionalProviderFeatureException``. For
+``SQLToolset`` and ``DataFusionToolset`` this happens on the first access to the name.
+``MCPToolset`` imports without its extra; it raises only when the toolset first connects
+to the MCP server.
 
 Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any
 pydantic-ai ``Agent``. ``AgentOperator`` accepts any ``AbstractToolset`` too, such as
 pydantic-ai's own ``MCPToolset`` or a third-party toolset; those miss the connection
-handling the toolsets on this page add.
+handling the toolsets on this page add. To write a toolset of your own on the same base
+class, see :doc:`custom`.
 
 Choosing a toolset
 ------------------
@@ -297,16 +299,16 @@ used to allow exactly one correction whatever ``retries`` said, so an agent that
 query, and a large integer ``retries`` meant for output validation also lets a failing
 database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
 behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK, Anthropic
-tool runner and OpenAI Agents SDK bridges) there is no agent budget, so each tool gets one correction unless its
+tool runner, OpenAI Agents SDK and Claude Agent SDK bridges) there is no agent budget, so each tool gets one correction unless its
 toolset sets ``max_retries``.
 
 Layering
 --------
 
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is not an
-alternative to anything above. It is a wrapper: it takes a toolset and returns a
-toolset that logs each call. Choose a route first, then decide whether to wrap
-it. The same applies to
+:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` is not an
+alternative to anything above. It is a capability: it wraps the agent's assembled
+function toolset so that each call is logged. Choose a route first, then decide
+whether to log it. The same applies to
 :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`,
 which converts a chosen toolset for a different agent framework rather than
 offering another way to reach a system; :doc:`logging` and :doc:`langchain` cover

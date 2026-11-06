@@ -101,6 +101,7 @@ public class InterfaceExample {
         new DagDef("java_native_interface_example")
             .config("description", "Pure-Java Dag authored with the interface API")
             .config("schedule", "@daily")
+            .config("queue", "java")
             .config("catchup", false)
             .config("tags", List.of("example", "java-sdk"));
 
@@ -123,8 +124,12 @@ public class InterfaceExample {
     transform.after(extract);
     // With no task id given, a decider takes one from its class: "hasRows" and
     // "pickReport".
-    dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
+    var hasRows = dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
     dag.Switch(PickReport.class).after(transform).Case(reportLong).Case(reportShort);
+    // The Airflow UI shows these labels on the edges from hasRows. Then and
+    // Else already declared both of those edges. Declaring the edges again
+    // here only adds the labels.
+    hasRows.before(Label.of("rows found").on(load), Label.of("no rows").on(loadEmpty));
     load.before(trigger);
     return dag;
   }

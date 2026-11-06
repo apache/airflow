@@ -659,7 +659,7 @@ class XComOperations:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "XCom not found",
                     dag_id=dag_id,
                     run_id=run_id,
@@ -740,7 +740,7 @@ class XComOperations:
             )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "XCom not found",
                     dag_id=dag_id,
                     run_id=run_id,
@@ -1119,6 +1119,9 @@ class HITLOperations:
         resp = self.client.post(
             f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
+            # One key per request, reused by the client's retries, so a retried POST cannot replace
+            # the request (and discard an answer) after the first attempt was stored.
+            headers={"content-type": "application/json", "Idempotency-Key": str(uuid.uuid4())},
         )
         return HITLDetailRequest.model_validate_json(resp.read())
 
@@ -1419,6 +1422,14 @@ class Client(httpx2.Client):
         return DagsOperations(self)
 
 
+def _has_json_body(response: httpx2.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Kept in sync with airflowctl.api.operations._has_json_body.
+    # Media types are case-insensitive and may carry parameters (RFC 9110).
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
 # This is only used for parsing. ServerResponseError is raised instead
 class _ErrorBody(BaseModel):
     detail: list[RemoteValidationError] | dict[str, Any] | str
@@ -1446,7 +1457,7 @@ class ServerResponseError(httpx2.HTTPStatusError):
         if not (400 <= response.status_code < 600):
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         detail: list[RemoteValidationError] | dict[str, Any] | None = None

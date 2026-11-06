@@ -31,6 +31,13 @@ import { getLogLineText, parseLogs } from "./useLogs";
 
 const translate = ((key: string) => key) as unknown as TFunction;
 
+const msg = (event: string) =>
+  ({ event, level: "info", timestamp: "2026-01-01T00:00:00Z" }) as StructuredLogMessage;
+const headers = (data: Array<StructuredLogMessage>) =>
+  (parseLogs({ data, translate, tryNumber: 1 }).parsedLogs ?? [])
+    .filter((entry) => entry.group?.type === "header")
+    .map((entry) => entry.element);
+
 describe("getLogLineText", () => {
   it("renders a structured line with timestamp and level, stripping ANSI codes", () => {
     const logMessage = {
@@ -106,5 +113,36 @@ describe("parseLogs line links", () => {
     render(createElement(Fragment, undefined, parsedLogs?.[0]?.element), { wrapper: Wrapper });
 
     expect(screen.getByRole("link", { name: "0" })).toHaveAttribute("href", href);
+  });
+});
+
+describe("parseLogs log groups", () => {
+  it("drops a closed group with no entries", () => {
+    expect(
+      headers([
+        msg("::group::Pre Execute"),
+        msg("starting"),
+        msg("::endgroup::"),
+        msg("Done."),
+        msg("::group::Post Execute"),
+        msg("::endgroup::"),
+      ]),
+    ).toEqual(["Pre Execute"]);
+  });
+
+  it("keeps a closed group that has entries", () => {
+    expect(headers([msg("::group::Post Execute"), msg("post hook ran"), msg("::endgroup::")])).toEqual([
+      "Post Execute",
+    ]);
+  });
+
+  it("drops a parent group that only contains empty groups", () => {
+    expect(
+      headers([msg("::group::Outer"), msg("::group::Inner"), msg("::endgroup::"), msg("::endgroup::")]),
+    ).toEqual([]);
+  });
+
+  it("keeps an unclosed empty group so a running task still shows its current section", () => {
+    expect(headers([msg("::group::Post Execute")])).toEqual(["Post Execute"]);
   });
 });

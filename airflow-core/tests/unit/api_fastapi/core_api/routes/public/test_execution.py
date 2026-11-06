@@ -72,6 +72,7 @@ def test_execution_lists_live_work_and_selects_archived_tries(test_client, dag_m
         assert reader.return_value.log_handler.get_external_log_url.call_args.args[0].id == archived_id
 
 
+@pytest.mark.usefixtures("async_engine_without_pool")
 @pytest.mark.parametrize("retain_later", [False, True])
 def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
     test_client, dag_maker, session, retain_later
@@ -128,7 +129,7 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
     initial = live_executions()
     prepared = next(ti for ti in initial if ti["task_id"] == "prepare")
     archived_ids = set()
-    for index, keep_future in [(1, retain_later), (0, False)]:
+    for index, keep_future in [(2, retain_later), (1, False)]:
         before = live_executions()
         selected = next(
             ti for ti in before if ti["task_id"] == "body.work" and ti.get("region_index") == index
@@ -163,7 +164,7 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
                 params={"region_id": ti["region_id"], "region_index": ti["region_index"]},
             )
             assert value.status_code == 200, value.text
-            assert value.json()["value"] == ti["region_index"] + 1
+            assert value.json()["value"] == ti["region_index"]
 
     archived = session.scalars(
         select(TaskInstance)
