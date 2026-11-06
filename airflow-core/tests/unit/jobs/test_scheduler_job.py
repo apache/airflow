@@ -10464,6 +10464,37 @@ class TestSchedulerJob:
         assert {"event": "Failed creating DagRun", "dag_id": "testdag1"} in caplog
         assert dm1.next_dagrun == next_dagrun
 
+    @pytest.mark.need_serialized_dag
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    def test_asset_triggered_dag_run_rolled_back_by_deadline_alert_keeps_queued_records(
+        self, mock_create, session, dag_maker, caplog
+    ):
+        mock_create.side_effect = DagRunRolledBackError("rolled back")
+        asset = Asset(uri="test://asset-rolled-back", name="asset-rolled-back")
+        with dag_maker(dag_id="asset-consumer-rolled-back", schedule=[asset], session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+        session.add(event)
+        session.flush()
+        session.add(
+            AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, asset_event_id=event.id)
+        )
+        session.flush()
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+
+        assert {"event": "Failed creating DagRun", "dag_id": dag_model.dag_id} in caplog
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none() is None
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+            ).one_or_none()
+            is not None
+        )
+
     def test_activate_referenced_assets_no_in_check_inside_query(self, session, testing_dag_bundle):
         dag_id1 = "test_asset_dag1"
         asset1_name = "asset1"
@@ -13914,6 +13945,39 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
     assert {apdr.created_dag_run_id for apdr in apdrs} == {run.id for run in dag_runs}
     assert [len(run.consumed_asset_events) for run in dag_runs] == [2 // expected_count] * expected_count
     assert len({event.id for run in dag_runs for event in run.consumed_asset_events}) == 2
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rolled_back_by_deadline_alert_keeps_apdr_pending(
+    dag_maker: DagMaker, session: Session, caplog
+):
+    asset = Asset(name="partitioned-rolled-back-asset")
+    dag_id = "partitioned-rolled-back-consumer"
+    with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), session=session):
+        EmptyOperator(task_id="task")
+    session.commit()
+    apdr = _produce_and_register_asset_event(
+        dag_id="partitioned-rolled-back-producer",
+        asset=asset,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    # Patched only here: producing the asset event above also goes through create_dagrun.
+    with patch(
+        "airflow.serialization.serialized_objects.SerializedDAG.create_dagrun",
+        side_effect=DagRunRolledBackError("rolled back"),
+    ):
+        assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
+
+    assert {"event": "Failed creating DagRun", "dag_id": dag_id} in caplog
+    assert apdr.created_dag_run_id is None
+    assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).one_or_none() is None
 
 
 @pytest.mark.need_serialized_dag
