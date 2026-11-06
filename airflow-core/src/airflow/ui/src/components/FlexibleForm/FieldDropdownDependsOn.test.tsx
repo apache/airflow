@@ -71,12 +71,8 @@ describe("FieldDropdown with depends_on", () => {
       city: param("berlin", { depends_on: "country", options_map: cityMap, type: ["null", "string"] }),
       country: param("de", { enum: ["de", "fr"], type: "string" }),
     });
-    const onUpdate = vi.fn();
-
-    render(<FieldDropdown name="city" namespace="reset" onUpdate={onUpdate} />, { wrapper: Wrapper });
 
     expect(store.current.paramsDict.city?.value).toBe("berlin");
-    expect(onUpdate).not.toHaveBeenCalled();
 
     act(() =>
       store.current.setParamsDict({
@@ -86,7 +82,19 @@ describe("FieldDropdown with depends_on", () => {
     );
 
     expect(store.current.paramsDict.city?.value).toBeNull();
-    expect(onUpdate).toHaveBeenCalledWith("");
+    expect(JSON.parse(store.current.conf)).toEqual({ city: null, country: "fr" });
+  });
+
+  it("clears the value when the JSON config changes the parent", () => {
+    const store = setUp("conf", {
+      city: param("berlin", { depends_on: "country", options_map: cityMap, type: ["null", "string"] }),
+      country: param("de", { enum: ["de", "fr"], type: "string" }),
+    });
+
+    act(() => store.current.setConf('{"city": "berlin", "country": "fr"}'));
+
+    expect(store.current.paramsDict.city?.value).toBeNull();
+    expect(JSON.parse(store.current.conf)).toEqual({ city: null, country: "fr" });
   });
 
   it("clears a chain of dependent params", () => {
@@ -99,14 +107,6 @@ describe("FieldDropdown with depends_on", () => {
         type: ["null", "string"],
       }),
     });
-
-    render(
-      <>
-        <FieldDropdown name="city" namespace="chain" onUpdate={vi.fn()} />
-        <FieldDropdown name="district" namespace="chain" onUpdate={vi.fn()} />
-      </>,
-      { wrapper: Wrapper },
-    );
 
     act(() =>
       store.current.setParamsDict({
@@ -124,15 +124,23 @@ describe("FieldDropdown with depends_on", () => {
       city: param("berlin", { depends_on: "country", options_map: cityMap, type: ["null", "string"] }),
       country: param("de", { enum: ["de", "fr"], type: "string" }),
     });
-    const onUpdate = vi.fn();
-
-    render(<FieldDropdown name="city" namespace="omitted" onUpdate={onUpdate} />, { wrapper: Wrapper });
 
     act(() => store.current.setConf('{"city": "berlin"}'));
 
     expect(store.current.paramsDict.country).toBeUndefined();
     expect(store.current.paramsDict.city?.value).toBe("berlin");
-    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("asks for the parent when the parent has no value", () => {
+    setUp("message", {
+      city: param(null, { depends_on: "country", options_map: cityMap, type: ["null", "string"] }),
+      country: param(null, { enum: ["de", "fr"], title: "Country", type: ["null", "string"] }),
+    });
+
+    render(<FieldDropdown name="city" namespace="message" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+    openMenu("city");
+
+    expect(screen.getByText("flexibleForm.selectParentFirst")).toBeDefined();
   });
 
   it("matches non-string parent values as Python str() keys", () => {

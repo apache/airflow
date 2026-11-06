@@ -19,6 +19,7 @@
 import { create } from "zustand";
 
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
+import { getParamOptions } from "src/utils/paramOptions";
 
 export const paramPlaceholder: ParamSpec = {
   description: null,
@@ -42,6 +43,33 @@ export const paramPlaceholder: ParamSpec = {
   },
   value: "",
 };
+
+const isStale = (param: ParamSpec, paramsDict: ParamsSpec, defaults: ParamsSpec) =>
+  param.schema.depends_on !== undefined &&
+  param.value !== null &&
+  !(getParamOptions(param, paramsDict, defaults) ?? []).some((option) => String(option) === String(param.value));
+
+// A parent change can leave a child outside its new options. Repeat until nothing changes, so a
+// cleared child also clears its own children.
+const clearStaleValues = (paramsDict: ParamsSpec, defaults: ParamsSpec): ParamsSpec => {
+  let result = paramsDict;
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (const [key, param] of Object.entries(result)) {
+      if (isStale(param, result, defaults)) {
+        result = { ...result, [key]: { ...param, value: null } };
+        changed = true;
+      }
+    }
+  }
+
+  return result;
+};
+
+const buildConf = (paramsDict: ParamsSpec) =>
+  JSON.stringify(Object.fromEntries(Object.entries(paramsDict).map(([key, { value }]) => [key, value])), undefined, 2);
 
 type FormStore = {
   conf: string;
@@ -105,9 +133,13 @@ const createParamStore = () =>
           }
         }
 
-        const updatedParamsDict: ParamsSpec = Object.fromEntries(updatedParamsDictEntries);
+        const parsedParamsDict: ParamsSpec = Object.fromEntries(updatedParamsDictEntries);
+        const updatedParamsDict = clearStaleValues(parsedParamsDict, state.initialParamDict);
 
-        return { conf: confString, paramsDict: updatedParamsDict };
+        return {
+          conf: updatedParamsDict === parsedParamsDict ? confString : buildConf(updatedParamsDict),
+          paramsDict: updatedParamsDict,
+        };
       }),
 
     setDisabled: (disabled: boolean) => set(() => ({ disabled })),
@@ -116,15 +148,12 @@ const createParamStore = () =>
 
     setParamsDict: (newParamsDict: ParamsSpec) =>
       set((state) => {
-        const newConf = JSON.stringify(
-          Object.fromEntries(Object.entries(newParamsDict).map(([key, { value }]) => [key, value])),
-          undefined,
-          2,
-        );
+        const paramsDict = clearStaleValues(newParamsDict, state.initialParamDict);
+        const newConf = buildConf(paramsDict);
 
-        return state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)
+        return state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(paramsDict)
           ? {}
-          : { conf: newConf, paramsDict: newParamsDict };
+          : { conf: newConf, paramsDict };
       }),
   }));
 

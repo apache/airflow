@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect } from "react";
-
 import { type SingleValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+import { getParamOptions } from "src/utils/paramOptions";
 
 import type { FlexibleFormElementProps } from ".";
 
@@ -42,30 +41,12 @@ const labelLookup = (
 
 const enumTypes = ["string", "number", "integer"];
 
-// Python str() of a string, integer, boolean or null parent value, because the serialized Dag
-// stores the keys of options_map with str()
-const getOptionKey = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return "None";
-  }
-  if (typeof value === "boolean") {
-    return value ? "True" : "False";
-  }
-
-  return typeof value === "number" || typeof value === "string" ? String(value) : JSON.stringify(value);
-};
-
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, initialParamDict, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
-  const { depends_on: dependsOn, options_map: optionsMap } = param.schema;
-  // A JSON config can omit the parent, and the backend then validates against its default
-  const parentValue =
-    dependsOn === undefined ? undefined : (paramsDict[dependsOn] ?? initialParamDict[dependsOn])?.value;
-  const enumValues =
-    dependsOn === undefined ? param.schema.enum : (optionsMap?.[getOptionKey(parentValue)] ?? []);
+  const enumValues = getParamOptions(param, paramsDict, initialParamDict);
 
   const options =
     enumValues?.map((value) => ({
@@ -80,17 +61,18 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
         ? (options.find((opt) => opt.value === String(param.value)) ?? null)
         : null;
 
-  // A parent change can leave the value outside the new options, so clear it
-  const isStale = dependsOn !== undefined && param.value !== null && currentValue === null;
-
-  useEffect(() => {
-    const current = paramsDict[name];
-
-    if (isStale && current) {
-      setParamsDict({ ...paramsDict, [name]: { ...current, value: null } });
-      onUpdate("");
-    }
-  }, [isStale, name, onUpdate, paramsDict, setParamsDict]);
+  const { depends_on: dependsOn } = param.schema;
+  const parent = dependsOn === undefined ? undefined : (paramsDict[dependsOn] ?? initialParamDict[dependsOn]);
+  const noOptionsMessage =
+    parent === undefined
+      ? undefined
+      : () =>
+          translate(
+            parent.value === null || parent.value === undefined
+              ? "flexibleForm.selectParentFirst"
+              : "flexibleForm.noOptionsForParent",
+            { parent: parent.schema.title ?? dependsOn },
+          );
 
   const handleChange = (
     selected: SingleValue<{
@@ -123,6 +105,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       isDisabled={disabled}
       menuPosition="fixed"
       name={`element_${name}`}
+      noOptionsMessage={noOptionsMessage}
       onChange={handleChange}
       options={options}
       placeholder={translate("flexibleForm.placeholder")}
