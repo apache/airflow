@@ -45,6 +45,7 @@ from airflow.dag_processing.bundles.artifact_store import (
     ArtifactStore,
     BundleManifestNotFoundError,
     BundleManifestRefDurabilityError,
+    PublishedSnapshot,
 )
 from airflow.dag_processing.bundles.manifest import (
     MANIFEST_FILE_NAME,
@@ -96,6 +97,8 @@ class FilesystemArtifactStore(ArtifactStore):
         largest bundle on the slowest shared filesystem.
     """
 
+    backend_type = "local"
+
     def __init__(
         self,
         *,
@@ -113,6 +116,11 @@ class FilesystemArtifactStore(ArtifactStore):
     @property
     def root(self) -> str:
         return str(self._root)
+
+    @property
+    def published_root(self) -> Path:
+        """The ``published_root`` directory, for filesystem checks that the opaque ``root`` cannot serve."""
+        return self._root
 
     @property
     def ref_path(self) -> str:
@@ -245,7 +253,7 @@ class FilesystemArtifactStore(ArtifactStore):
         manifest: dict[str, Any],
         source_root: Path,
         validate_existing: Callable[[Path], None],
-    ) -> bool:
+    ) -> PublishedSnapshot:
         version_path = self._snapshots_root / manifest["version"]
         with _raise_storage_error(f"publish snapshot {version_path}"):
             version_mode = get_path_mode(version_path)
@@ -262,11 +270,18 @@ class FilesystemArtifactStore(ArtifactStore):
                 )
             else:
                 created = False
+            committed_manifest = manifest
             if not created:
                 validate_existing(version_path)
+                manifest_file = version_path / MANIFEST_FILE_NAME
+                committed_manifest = read_json_file(
+                    manifest_file,
+                    missing_message=f"Bundle snapshot {version_path} has no manifest",
+                    invalid_message=f"Bundle snapshot manifest {manifest_file} is not a JSON object",
+                )
             # An earlier attempt may have committed the snapshot and failed before this sync.
             fsync_directory(self._snapshots_root)
-            return created
+            return PublishedSnapshot(manifest=committed_manifest, created=created)
 
     def _remove_publish_leftovers(self) -> None:
         remove_orphaned_temp_snapshots(self._snapshots_root)

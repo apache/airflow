@@ -38,8 +38,10 @@ from airflow.dag_processing.bundles import (
 )
 from airflow.dag_processing.bundles._filesystem import read_json_file
 from airflow.dag_processing.bundles.artifact_store import (
+    ArtifactStore,
     BundleManifestNotFoundError,
     BundleManifestRefDurabilityError,
+    PublishedSnapshot,
 )
 from airflow.dag_processing.bundles.filesystem_artifact_store import FilesystemArtifactStore
 from airflow.dag_processing.bundles.manifest import (
@@ -133,12 +135,12 @@ def _write_source(root: Path) -> Path:
 def _publish(store, source: Path):
     result = build_bundle_version_manifest(bundle_name=BUNDLE_NAME, root=source, backend_type="local")
     store.prepare_publish_areas()
-    created = store.publish_snapshot(
+    publication = store.publish_snapshot(
         manifest=result.manifest,
         source_root=source,
         validate_existing=lambda tree: None,
     )
-    return result, created
+    return result, publication
 
 
 def _acquire_guard_after_contention(store: FilesystemArtifactStore, status: Connection) -> None:
@@ -168,6 +170,16 @@ def test_not_found_error_is_also_a_file_not_found_error():
     assert isinstance(error, FileNotFoundError)
 
 
+def test_store_without_backend_type_cannot_be_instantiated():
+    methods = {
+        name: lambda *args, **kwargs: None for name in ArtifactStore.__abstractmethods__ - {"backend_type"}
+    }
+    store_class = type("StoreWithoutBackendType", (ArtifactStore,), methods)
+
+    with pytest.raises(TypeError, match="backend_type"):
+        store_class()
+
+
 class TestFilesystemDocuments:
     def test_read_ref_missing_raises_not_found(self, store):
         with pytest.raises(
@@ -192,9 +204,9 @@ class TestFilesystemDocuments:
 class TestFilesystemSnapshots:
     def test_publish_then_exists_then_fetch(self, store, tmp_path):
         source = _write_source(tmp_path / "source")
-        result, created = _publish(store, source)
+        result, publication = _publish(store, source)
 
-        assert created is True
+        assert publication == PublishedSnapshot(manifest=result.manifest, created=True)
         assert store.snapshot_exists(result.version)
 
         seen_trees: list[Path] = []
@@ -232,17 +244,40 @@ class TestFilesystemSnapshots:
 
     def test_publish_is_idempotent_and_validates_existing(self, store, tmp_path):
         source = _write_source(tmp_path / "source")
-        result, created = _publish(store, source)
-        assert created is True
+        result, publication = _publish(store, source)
+        assert publication.created is True
 
         validated: list[Path] = []
-        created_again = store.publish_snapshot(
+        republication = store.publish_snapshot(
             manifest=result.manifest,
             source_root=source,
             validate_existing=validated.append,
         )
-        assert created_again is False
+        assert republication == PublishedSnapshot(manifest=result.manifest, created=False)
         assert validated == [Path(store.snapshot_path(result.version))]
+
+    def test_republish_keeps_the_existing_snapshot_and_returns_its_manifest(self, store, tmp_path):
+        source = _write_source(tmp_path / "source")
+        first, _ = _publish(store, source)
+        # Object version ids are bookkeeping outside the version: same version, different bytes.
+        republished = build_bundle_version_manifest(
+            bundle_name=BUNDLE_NAME,
+            root=source,
+            backend_type="local",
+            file_version_ids={"dags/example.py": "object-version-2"},
+        )
+        assert republished.version == first.version
+        manifest_file = Path(store.snapshot_path(first.version)) / MANIFEST_FILE_NAME
+        committed_bytes = manifest_file.read_bytes()
+        validate_existing = mock.create_autospec(_validate_tree)
+
+        publication = store.publish_snapshot(
+            manifest=republished.manifest, source_root=source, validate_existing=validate_existing
+        )
+
+        assert publication == PublishedSnapshot(manifest=first.manifest, created=False)
+        validate_existing.assert_called_once_with(Path(store.snapshot_path(first.version)))
+        assert manifest_file.read_bytes() == committed_bytes
 
     def test_fetch_unpublished_version_raises_not_found(self, store, tmp_path):
         destination = tmp_path / "dest"
@@ -332,6 +367,7 @@ class TestFilesystemCoordination:
         version = "sha256-" + "a" * 64
         published_root = tmp_path / "published"
         assert store.root == str(published_root)
+        assert store.published_root == published_root
         assert store.ref_path == str(published_root / "refs" / BUNDLE_NAME / "latest.json")
         assert store.snapshots_root == str(published_root / "versions" / BUNDLE_NAME)
         assert store.snapshot_path(version) == str(published_root / "versions" / BUNDLE_NAME / version)
@@ -705,11 +741,11 @@ class TestFilesystemPublication:
         with mock.patch.object(
             store_module, "fsync_tree_directories", autospec=True, side_effect=commit_rival_first
         ):
-            created = store.publish_snapshot(
+            publication = store.publish_snapshot(
                 manifest=result.manifest, source_root=source, validate_existing=validate_existing
             )
 
-        assert created is False
+        assert publication.created is False
         validate_existing.assert_called_once_with(Path(store.snapshot_path(result.version)))
         assert list(Path(store.snapshots_root).iterdir()) == [Path(store.snapshot_path(result.version))]
 
@@ -726,11 +762,11 @@ class TestFilesystemPublication:
         mock_fsync.reset_mock()
         validate_existing = mock.create_autospec(_validate_tree)
 
-        created = store.publish_snapshot(
+        publication = store.publish_snapshot(
             manifest=result.manifest, source_root=source, validate_existing=validate_existing
         )
 
-        assert created is False
+        assert publication.created is False
         mock_replace.assert_called_once()
         mock_fsync.assert_called_once_with(Path(store.snapshots_root))
         validate_existing.assert_called_once_with(Path(store.snapshot_path(result.version)))
@@ -795,11 +831,11 @@ class TestFilesystemPublication:
         mock_fsync.reset_mock()
         validate_existing = mock.create_autospec(_validate_tree)
 
-        created = store.publish_snapshot(
+        publication = store.publish_snapshot(
             manifest=result.manifest, source_root=source, validate_existing=validate_existing
         )
 
-        assert created is False
+        assert publication.created is False
         validate_existing.assert_called_once_with(Path(store.snapshot_path(result.version)))
         mock_fsync.assert_called_once_with(Path(store.snapshots_root))
 
@@ -834,12 +870,12 @@ class TestFilesystemPublication:
 
             mock_chmod.side_effect = real_chmod
             with store.publication_guard():
-                result, created = _publish(store, source)
+                result, publication = _publish(store, source)
                 store.write_ref(result.ref_payload)
         finally:
             os.umask(previous_umask)
 
-        assert created is True
+        assert publication.created is True
         assert store.read_ref() == result.ref_payload
         assert stat.S_IMODE(failed_directory.stat().st_mode) == 0o755
 
