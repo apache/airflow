@@ -552,16 +552,16 @@ class TestEmailerSmtp:
         assert mock_smtp.call_count == 5 + 1
 
     @mock.patch("smtplib.SMTP")
+    @conf_vars(
+        {
+            ("smtp", "smtp_host"): "smtp.example.com",
+            ("smtp", "smtp_port"): "2525",
+            ("smtp", "smtp_mail_from"): "sender@example.com",
+        }
+    )
     def test_send_without_core_smtp_section_uses_configured_values(
         self, mock_smtp, core_without_smtp_section
     ):
-        with conf_vars(
-            {
-                ("smtp", "smtp_host"): "smtp.example.com",
-                ("smtp", "smtp_port"): "2525",
-                ("smtp", "smtp_mail_from"): "sender@example.com",
-            }
-        ):
-            emailer.send_email_smtp("to", "subject", "content")
+        emailer.send_email_smtp("to", "subject", "content")
         mock_smtp.assert_called_once_with(host="smtp.example.com", port=2525, timeout=30)
         assert mock_smtp.return_value.sendmail.call_args.args[0] == "sender@example.com"

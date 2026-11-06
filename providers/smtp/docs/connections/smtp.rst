@@ -233,7 +233,7 @@ connection via **CLI**:
      }'
 
 .. note::
-   The ``[smtp]`` section in ``airflow.cfg`` is used only by the email backend in
+   Within this provider, the ``[smtp]`` section is used only by the email backend in
    :mod:`airflow.providers.smtp.utils.emailer` (see :doc:`/email-backend`).
    :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook` and the SMTP notifier never read it;
    they take all settings from the Connection.
