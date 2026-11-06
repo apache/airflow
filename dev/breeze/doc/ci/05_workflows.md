@@ -107,10 +107,12 @@ them, for the contributors the repository's approval setting covers. The
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
   branches' own workflows and always wait for a maintainer
-- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`,
-  `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`, a top-level `Dockerfile*`, a
-  `.pre-commit-config.yaml` in any directory),
-  which define the workflows, what their jobs run and the runners they use
+- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/src/`,
+  `dev/breeze/pyproject.toml`, `dev/breeze/uv.lock`, `scripts/ci/install_breeze.sh` and
+  `scripts/ci/prek/`), which decide which jobs run and on which runners. Changes to the other files
+  CI uses (the rest of `dev/breeze/` and `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`,
+  `Dockerfile*`, `.pre-commit-config.yaml`) are not held, but get a one-time
+  `<!-- workflow-approval: ci-modification -->` note comment on the PR for the reviewer
 - the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
   `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
   run from `main`'s tree and do not know it)
@@ -393,7 +395,6 @@ Before running expensive tests, we validate basic functionality:
 - Breeze development environment tests
 - React UI component tests
 - Code formatting and style checks
-- Dependency upgrade monitoring
 
 These quick checks catch obvious problems early.
 
@@ -458,6 +459,7 @@ Here's what each workflow group does and when it runs:
 | **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
 | **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
 | **Agent Framework Tests**          | Tests Common AI's adapters for other agent frameworks (4)   | Yes     | Yes     | No        |
+| **Dependency Upgrade Summary**     | Checks how far constraints lag new releases (AMD only)      | Yes (5) | Yes (5) | Yes (5)   |
 | **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
 
 #### AMD-Only Workflows
@@ -533,6 +535,12 @@ Both install the newest framework releases older than the repository's uv `exclu
 release that breaks an adapter fails this job about that long after it ships. The job is not a
 dependency of **Finalize Tests**, so such a release does not stop the image cache from being pushed.
 
+**`(5)` Dependency Upgrade Summary**
+
+The summary runs only when the run upgrades to newer dependencies: on scheduled and manually
+dispatched runs, when a `pyproject.toml` file changes, or on a PR with the
+`upgrade to newer dependencies` label. It needs the CI image, so it never runs without one.
+
 ## Runners
 
 Two kinds of GitHub-hosted runner are used, and which one a job gets depends on what
@@ -566,14 +574,16 @@ When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, 
 ### Dependency upgrade diagnostics
 
 Scheduled and manually dispatched AMD canaries on `main` keep the dependency freshness
-summary in `finalize-tests.yml`, but run it with `--no-explain-why`. Tests, constraint
+summary in `dependency-upgrade-summary.yml`, but run it with `--no-explain-why`. It starts
+once the CI images are built, so it runs beside the tests instead of after them. Tests, constraint
 generation and validation, and image publication still run in the canary. Release-branch
 and other run types retain their existing explanation behavior. The summary saves the
 constraints it checked, and the constraints-branch commit they came from, with
 `--save-constraints-to`; a failure to save them only warns and never fails the canary.
 
 After the canary completes, `dependency-upgrade-report.yml` runs the detailed explanations
-independently, from the inputs the canary saved; a canary with failed jobs saves none. It checks out
+independently, from the inputs the canary saved. The summary does not wait for the tests, so a
+canary whose tests failed still saves its inputs and is explained too. The report checks out
 the original source SHA and downloads the original image and saved constraints by artifact
 ID from that run. It never substitutes the latest branch image or constraints: an entry whose
 saved constraints or image are missing or expired is skipped with a warning and listed in the
@@ -663,7 +673,7 @@ Each composite workflow is stored in a separate file under `.github/workflows/`.
 
 #### Basic Validation
 
-- `basic-tests.yml` - Handles Breeze tests, UI validation, static analysis, and upgrade monitoring
+- `basic-tests.yml` - Handles Breeze tests, UI validation, and static analysis
 
 #### Image Management
 
@@ -688,6 +698,10 @@ Each composite workflow is stored in a separate file under `.github/workflows/`.
 - `helm-tests.yml` - Tests Kubernetes deployment via Helm charts
 - `k8s-tests.yml` - Tests direct Kubernetes integration
 - `airflow-distributions-tests.yml` - Validates package distributions
+
+#### Dependency Monitoring
+
+- `dependency-upgrade-summary.yml` - Checks how far the constraints are behind the newest releases
 
 #### Finalization
 

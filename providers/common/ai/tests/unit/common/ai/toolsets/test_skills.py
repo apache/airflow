@@ -23,6 +23,7 @@ pytest-asyncio mode.
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import types
 from unittest.mock import MagicMock, patch
@@ -33,8 +34,9 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
-from airflow.providers.common.ai.skills import GitSkills
-from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
+from airflow.providers.common.ai.skills import GitSkills, _SkillsLocation
+from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset, _describe_skill_source
+from airflow.providers.common.ai.utils.logging import SKILLS_XCOM_KEY
 
 pytest.importorskip("pydantic_ai_skills")
 
@@ -56,12 +58,13 @@ class _FakeInner:
         return None
 
 
-def _write_skill(directory):
-    skill_dir = directory / "demo-skill"
+def _write_skill(directory, name="demo-skill"):
+    skill_dir = directory / name
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(
-        "---\nname: demo-skill\ndescription: A demo skill for tests.\n---\n\n# Demo\n"
+        f"---\nname: {name}\ndescription: A {name} skill for tests.\n---\n\n# Demo\n"
     )
+    return skill_dir
 
 
 class TestConstruction:
@@ -104,7 +107,7 @@ class TestLifecycle:
         toolset = AgentSkillsToolset(sources=["/x"], exclude_tools={"run_skill_script"})
         with patch(
             "airflow.providers.common.ai.toolsets.skills._materialize_skills",
-            return_value=(["/x"], lambda: None),
+            return_value=([_SkillsLocation("/x")], lambda: None),
         ):
             with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):
                 asyncio.run(_enter_exit(toolset))
@@ -123,7 +126,7 @@ class TestLifecycle:
         with patch(
             "airflow.providers.common.ai.toolsets.skills._materialize_skills",
             autospec=True,
-            return_value=(["/x"], lambda: None),
+            return_value=([_SkillsLocation("/x")], lambda: None),
         ):
             with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
                 asyncio.run(_enter_exit(toolset))
@@ -143,7 +146,7 @@ class TestLifecycle:
         with patch(
             "airflow.providers.common.ai.toolsets.skills._materialize_skills",
             autospec=True,
-            return_value=(["/x"], lambda: None),
+            return_value=([_SkillsLocation("/x")], lambda: None),
         ):
             with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
                 asyncio.run(_enter_exit(toolset))
@@ -214,7 +217,7 @@ class TestCleanup:
         toolset = AgentSkillsToolset(sources=["/x"])
         with patch(
             "airflow.providers.common.ai.toolsets.skills._materialize_skills",
-            return_value=(["/x"], cleanup),
+            return_value=([_SkillsLocation("/x")], cleanup),
         ):
             with patch("pydantic_ai_skills.SkillsToolset", boom):
                 with pytest.raises(RuntimeError, match="inner build failed"):
@@ -250,3 +253,195 @@ class TestMissingExtra:
 async def _enter_exit(toolset):
     await toolset.__aenter__()
     await toolset.__aexit__(None, None, None)
+
+
+def _calling(*tool_calls):
+    """A model that makes each (tool, args) call in turn, then answers "done"."""
+    calls = iter(tool_calls)
+
+    def model(messages, info):
+        if (call := next(calls, None)) is None:
+            return ModelResponse(parts=[TextPart("done")])
+        return ModelResponse(parts=[ToolCallPart(*call)])
+
+    return FunctionModel(model)
+
+
+_GET_CONTEXT = "airflow.providers.common.ai.toolsets.skills.get_current_context"
+
+
+class _FakeTaskInstance:
+    """Keeps what is pushed, so a later pull in the same task instance reads it back."""
+
+    task_id = "agent"
+    map_index = -1
+
+    def __init__(self, stored=None):
+        self.task = types.SimpleNamespace(do_xcom_push=True)
+        self.xcoms = {} if stored is None else {SKILLS_XCOM_KEY: stored}
+
+    def xcom_pull(self, key, task_ids, map_indexes):
+        assert (task_ids, map_indexes) == (self.task_id, self.map_index)
+        return self.xcoms.get(key)
+
+    def xcom_push(self, key, value):
+        self.xcoms[key] = value
+
+
+def _skill_entry(name, path, calls):
+    return {
+        "name": name,
+        "description": f"A {name} skill for tests.",
+        "source": {"path": os.path.realpath(path)},
+        "calls": calls,
+    }
+
+
+class TestSkillsXCom:
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_pushes_available_skills_and_the_calls_made_for_each(self, mock_get_context, tmp_path):
+        alpha = _write_skill(tmp_path, "alpha")
+        (alpha / "notes.md").write_text("notes")
+        beta = _write_skill(tmp_path, "beta")
+        ti = _FakeTaskInstance()
+        mock_get_context.return_value = {"ti": ti}
+        model = _calling(
+            ("load_skill", {"skill_name": "alpha"}),
+            ("read_skill_resource", {"skill_name": "alpha", "resource_name": "notes.md"}),
+            # Not a skill: the failed lookup is not counted against any skill.
+            ("load_skill", {"skill_name": "missing"}),
+        )
+
+        Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go")
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [
+            _skill_entry("alpha", alpha, {"load_skill": 1, "read_skill_resource": 1}),
+            _skill_entry("beta", beta, {}),
+        ]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_counts_calls_from_the_message_history(self, mock_get_context, tmp_path):
+        # A run resumed after an approval pause or replayed on a durable retry starts in a new
+        # process, with its earlier calls given back as history rather than run again.
+        alpha = _write_skill(tmp_path, "alpha")
+        ti = _FakeTaskInstance()
+        mock_get_context.return_value = {"ti": ti}
+        earlier = Agent(
+            _calling(("load_skill", {"skill_name": "alpha"})),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
+        ).run_sync("go")
+
+        Agent(
+            _calling(("load_skill", {"skill_name": "alpha"})),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
+        ).run_sync("go on", message_history=earlier.all_messages())
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"load_skill": 2})]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_replaces_its_own_stored_skills_and_keeps_the_others(self, mock_get_context, tmp_path):
+        alpha = _write_skill(tmp_path, "alpha")
+        other = _skill_entry("other", tmp_path / "elsewhere", {"load_skill": 3})
+        ti = _FakeTaskInstance(stored=[_skill_entry("alpha", alpha, {"load_skill": 1}), other])
+        mock_get_context.return_value = {"ti": ti}
+
+        Agent(_calling(), toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go")
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {}), other]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_two_prefixed_toolsets_each_count_their_own_skills(self, mock_get_context, tmp_path):
+        alpha = _write_skill(tmp_path / "one", "alpha")
+        beta = _write_skill(tmp_path / "two", "beta")
+        ti = _FakeTaskInstance()
+        mock_get_context.return_value = {"ti": ti}
+        toolsets = [
+            AgentSkillsToolset(sources=[str(tmp_path / "one")]).prefixed("one"),
+            AgentSkillsToolset(sources=[str(tmp_path / "two")]).prefixed("two"),
+        ]
+        model = _calling(
+            ("one_load_skill", {"skill_name": "alpha"}),
+            ("two_load_skill", {"skill_name": "beta"}),
+        )
+
+        Agent(model, toolsets=toolsets).run_sync("go")
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [
+            _skill_entry("alpha", alpha, {"load_skill": 1}),
+            _skill_entry("beta", beta, {"load_skill": 1}),
+        ]
+
+    @pytest.mark.parametrize(
+        "context",
+        [
+            pytest.param(RuntimeError("no task"), id="outside_a_task"),
+            pytest.param({"ti": MagicMock(**{"task.do_xcom_push": False})}, id="do_xcom_push_off"),
+        ],
+    )
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_nothing_pushed_without_a_task_that_pushes_xcom(self, mock_get_context, tmp_path, context):
+        _write_skill(tmp_path, "alpha")
+        if isinstance(context, Exception):
+            mock_get_context.side_effect = context
+        else:
+            mock_get_context.return_value = context
+        model = _calling(("load_skill", {"skill_name": "alpha"}))
+
+        assert (
+            Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go").output
+            == "done"
+        )
+        if not isinstance(context, Exception):
+            context["ti"].xcom_push.assert_not_called()
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_failed_push_does_not_fail_the_run_or_skip_cleanup(self, mock_get_context, tmp_path):
+        _write_skill(tmp_path, "alpha")
+        ti = MagicMock()
+        ti.task.do_xcom_push = True
+        ti.xcom_pull.return_value = None
+        ti.xcom_push.side_effect = RuntimeError("xcom backend down")
+        mock_get_context.return_value = {"ti": ti}
+        cleanup = MagicMock()
+        toolset = AgentSkillsToolset(sources=[str(tmp_path)])
+
+        with patch(
+            "airflow.providers.common.ai.toolsets.skills._materialize_skills",
+            return_value=([_SkillsLocation(str(tmp_path))], cleanup),
+        ):
+            result = Agent(_calling(), toolsets=[toolset]).run_sync("go")
+
+        assert result.output == "done"
+        cleanup.assert_called_once()
+
+
+class TestDescribeSkillSource:
+    @pytest.mark.parametrize(
+        ("repo_path", "expected_path"),
+        [
+            pytest.param("skills", "skills/alpha", id="sub_path"),
+            pytest.param("", "alpha", id="repo_root"),
+        ],
+    )
+    def test_git_skill_names_repository_path_and_commit(self, tmp_path, repo_path, expected_path):
+        skills_dir = tmp_path / "clone" / repo_path
+        skill_dir = _write_skill(skills_dir, "alpha")
+        source = GitSkills(repo_url="https://github.com/org/repo", path=repo_path, branch="main")
+        locations = [_SkillsLocation(str(skills_dir), git=source, commit="0123abc")]
+
+        assert _describe_skill_source(str(skill_dir), locations) == {
+            "repo_url": "https://github.com/org/repo",
+            "path": expected_path,
+            "branch": "main",
+            "commit": "0123abc",
+        }
+
+    def test_nested_source_wins_over_the_one_containing_it(self, tmp_path):
+        skill_dir = _write_skill(tmp_path / "clone", "alpha")
+        source = GitSkills(repo_url="https://github.com/org/repo")
+        locations = [
+            _SkillsLocation(str(tmp_path)),
+            _SkillsLocation(str(tmp_path / "clone"), git=source, commit="0123abc"),
+        ]
+
+        assert _describe_skill_source(str(skill_dir), locations)["repo_url"] == "https://github.com/org/repo"

@@ -198,6 +198,10 @@ def _read_api_url(path: str) -> str:
     return api_url
 
 
+def _is_token_in_keyring(path: str) -> bool:
+    return _read_cli_config(path).get("token_in_keyring") is not False
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -239,20 +243,27 @@ class Credentials:
         """
         Save the credentials to keyring and URL to disk as a file.
 
-        Skip saving the token to keyring if skip_keyring is True, in this case,
-        only the config file with the API URL is created.
+        Skip saving the token to keyring if skip_keyring is True.
+
+        The debug credentials file of an earlier login is removed first, and the
+        config file records that the token is not in keyring until
+        keyring.set_password succeeds. So a later command never reads a token
+        that this login did not store.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
+        debug_mode = os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
+        debug_path = _safe_path_under_airflow_home(
+            default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+        )
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(debug_path)
         with open(config_path, "w") as f:
-            json.dump({"api_url": self.api_url}, f)
+            json.dump({"api_url": self.api_url, "token_in_keyring": False}, f)
 
         try:
-            if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
-                debug_path = _safe_path_under_airflow_home(
-                    default_config_dir, f"debug_creds_{self.input_cli_config_file}"
-                )
+            if debug_mode:
                 with open(debug_path, "w") as f:
                     json.dump({self.token_key_for_environment(self.api_environment): self.api_token}, f)
             else:
@@ -274,6 +285,8 @@ class Credentials:
                     self.token_key_for_environment(self.api_environment),
                     self.api_token,
                 )
+                with open(config_path, "w") as f:
+                    json.dump({"api_url": self.api_url}, f)
         except (NoKeyringError, NotImplementedError) as e:
             log.error(e)
             raise AirflowCtlKeyringException(
@@ -310,7 +323,7 @@ class Credentials:
                             "Set AIRFLOW_CLI_DEBUG_MODE=false or log in with debug mode enabled first."
                         ) from e
                     self.api_token = None
-            else:
+            elif _is_token_in_keyring(config_path):
                 try:
                     self.api_token = keyring.get_password(
                         "airflowctl", self.token_key_for_environment(self.api_environment)

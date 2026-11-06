@@ -189,7 +189,6 @@ export const Grid = ({
   const { clearSelection, deselectCells, handleSelectionClick, selection } = useGridSelection({
     flatNodes,
     runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
-    selectableGroups,
     summariesByRunId,
   });
 
