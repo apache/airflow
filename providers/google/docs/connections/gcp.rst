@@ -33,7 +33,7 @@ There are three ways to connect to Google Cloud using Airflow:
 2. Using a `service account
    <https://cloud.google.com/docs/authentication/#service_accounts>`_ by specifying a key file in JSON format.
    Key can be specified as a path to the key file (``Keyfile Path``), as a key payload (``Keyfile JSON``)
-   or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
+   or as a secret in Secret Manager (``Keyfile Secret Name``). Only one way of defining the key can be used at a time.
    If you need to manage multiple keys then you should configure multiple connections.
 3. Using a `credential configuration file <https://googleapis.dev/python/google-auth/2.9.0/user-guide.html#external-credentials-workload-identity-federation>`_,
    by specifying the path to or the content of a valid credential configuration file.
@@ -129,13 +129,25 @@ IdP Extra Request Parameters
 Anonymous credentials (ignores all other settings)
     Use anonymous credentials for APIs that do not require authentication, such as reading public
     Cloud Storage objects. Cannot be combined with ``Keyfile Path``, ``Keyfile JSON``,
-    ``Credential Configuration File`` or ``Secret name which holds Keyfile JSON``.
+    ``Credential Configuration File`` or ``Keyfile Secret Name``.
 
-Secret name which holds Keyfile JSON
-    Name of the secret in Secret Manager which contains a `service account
-    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
+Keyfile Secret Name (in GCP Secret Manager)
+    Secret ID in Secret Manager containing a `service account
+    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key in JSON format.
+    Specify the secret ID, not a full resource name. Airflow reads the ``latest`` version of the secret
+    using Application Default Credentials (ADC), then creates service account credentials from the key.
+    The ADC identity needs the ``secretmanager.versions.access`` permission on the secret.
 
-    Not required if using application default credentials.
+    Connection-level impersonation is applied after the key is retrieved; it does not authenticate
+    the initial Secret Manager request.
+
+Keyfile Secret Project Id (in GCP Secret Manager)
+    Optional ID of the project containing ``Keyfile Secret Name``. Used only when a secret name is set.
+    If omitted, Airflow uses the project ID returned by ``google.auth.default()``.
+    Set this field explicitly if the secret is in a different project or ADC cannot resolve a project ID.
+
+    This selects where Airflow reads the secret; it does not set the connection's default resource
+    project (``Project Id``) or quota and billing project (``Quota Project ID``).
 
 Scopes (comma separated)
     A list of comma-separated `Google Cloud scopes
@@ -155,10 +167,12 @@ Quota Project ID (optional)
     .. warning:: Ensure the service account has permission to use the specified quota project; an invalid or unauthorized project ID will result in an API error.
 
 Number of Retries
-    Integer, number of times to retry with randomized
-    exponential backoff. If all retries fail, the :class:`googleapiclient.errors.HttpError`
-    represents the last request. If zero (default), we attempt the
-    request only once.
+    Number of retries for API requests that use this connection setting, with randomized
+    exponential backoff. The default is 5. Set to 0 to disable these retries and attempt
+    the request only once.
+
+    This setting does not configure Airflow task retries or replace retry policies exposed
+    separately by Google Cloud client-library hooks.
 
 Impersonation Chain
     Optional service account to impersonate using short-term
@@ -183,8 +197,8 @@ Impersonation Chain
         * ``key_path`` - Keyfile Path
         * ``keyfile_dict`` - Keyfile JSON
         * ``credential_config_file`` - Credential Configuration File
-        * ``key_secret_name`` - Secret name which holds Keyfile JSON
-        * ``key_secret_project_id`` - Project Id which holds Keyfile JSON
+        * ``key_secret_name`` - Keyfile Secret Name (in GCP Secret Manager)
+        * ``key_secret_project_id`` - Keyfile Secret Project Id (in GCP Secret Manager)
         * ``scope`` - Scopes
         * ``num_retries`` - Number of Retries
         * ``impersonation_chain`` - Impersonation Chain
