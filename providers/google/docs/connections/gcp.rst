@@ -131,23 +131,17 @@ Anonymous credentials (ignores all other settings)
     Cloud Storage objects. Cannot be combined with ``Keyfile Path``, ``Keyfile JSON``,
     ``Credential Configuration File`` or ``Secret name which holds Keyfile JSON``.
 
-Keyfile Secret Name (in GCP Secret Manager)
-    Secret ID in Secret Manager containing a `service account
-    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key in JSON format.
-    Specify the secret ID, not a full resource name. Airflow reads the ``latest`` version of the secret
-    using Application Default Credentials (ADC), then creates service account credentials from the key.
-    The ADC identity needs the ``secretmanager.versions.access`` permission on the secret.
+Secret name which holds Keyfile JSON
+    Name of the secret in Secret Manager which contains a `service account
+    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
 
-    Connection-level impersonation is applied after the key is retrieved; it does not authenticate
-    the initial Secret Manager request.
+    Not required if using application default credentials.
 
 Keyfile Secret Project Id (in GCP Secret Manager)
-    Optional ID of the project containing ``Keyfile Secret Name``. Used only when a secret name is set.
+    Project ID containing the secret specified by ``key_secret_name``. Used only when a secret name is set.
     If omitted, Airflow uses the project ID returned by ``google.auth.default()``.
-    Set this field explicitly if the secret is in a different project or ADC cannot resolve a project ID.
-
-    This selects where Airflow reads the secret; it does not set the connection's default resource
-    project (``Project Id``) or quota and billing project (``Quota Project ID``).
+    Set ``key_secret_project_id`` if the secret is in a different project or ADC cannot resolve a project ID.
+    The connection's ``Project Id`` setting is not used to locate the secret.
 
 Scopes (comma separated)
     A list of comma-separated `Google Cloud scopes
@@ -167,12 +161,10 @@ Quota Project ID (optional)
     .. warning:: Ensure the service account has permission to use the specified quota project; an invalid or unauthorized project ID will result in an API error.
 
 Number of Retries
-    Number of retries for API requests that use this connection setting, with randomized
-    exponential backoff. The default is 5. Set to 0 to disable these retries and attempt
-    the request only once.
-
-    This setting does not configure Airflow task retries or replace retry policies exposed
-    separately by Google Cloud client-library hooks.
+    Integer, number of times to retry with randomized
+    exponential backoff. If all retries fail, the :class:`googleapiclient.errors.HttpError`
+    represents the last request. The default is 5. If zero, we attempt the
+    request only once.
 
 Impersonation Chain
     Optional service account to impersonate using short-term
@@ -197,8 +189,8 @@ Impersonation Chain
         * ``key_path`` - Keyfile Path
         * ``keyfile_dict`` - Keyfile JSON
         * ``credential_config_file`` - Credential Configuration File
-        * ``key_secret_name`` - Keyfile Secret Name (in GCP Secret Manager)
-        * ``key_secret_project_id`` - Keyfile Secret Project Id (in GCP Secret Manager)
+        * ``key_secret_name`` - Secret name which holds Keyfile JSON
+        * ``key_secret_project_id`` - Project Id which holds Keyfile JSON
         * ``scope`` - Scopes
         * ``num_retries`` - Number of Retries
         * ``impersonation_chain`` - Impersonation Chain
