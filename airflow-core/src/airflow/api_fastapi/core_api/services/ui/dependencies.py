@@ -22,12 +22,16 @@ from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import select
+from sqlalchemy.orm import contains_eager, defer
 
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetModel, AssetWatcherModel
 from airflow.models.dag import DagModel
+from airflow.models.trigger import Trigger
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.api_fastapi.core_api.security import PermittedTriggerFilter
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -199,7 +203,7 @@ def hide_unreadable_assets(
     graph: dict[str, list[dict]], readable_asset_ids: set[int]
 ) -> dict[str, list[dict]]:
     """
-    Drop asset nodes the caller may not read, and every edge touching them, from a graph.
+    Drop asset nodes the caller may not read, their watcher nodes, and every edge touching them, from a graph.
 
     Alias and ref nodes carry no asset id to authorize on, so they are left in place. An asset node
     without a numeric id, from an asset_expression the Dag processor has not re-enriched yet, cannot
@@ -212,6 +216,11 @@ def hide_unreadable_assets(
     }
     if not hidden:
         return graph
+    hidden |= {
+        edge["source_id"]
+        for edge in graph["edges"]
+        if edge["target_id"] in hidden and edge["source_id"].startswith("asset-watcher:")
+    }
     return {
         "nodes": [node for node in graph["nodes"] if node["id"] not in hidden],
         "edges": [
@@ -220,6 +229,49 @@ def hide_unreadable_assets(
             if edge["source_id"] not in hidden and edge["target_id"] not in hidden
         ],
     }
+
+
+def add_asset_watcher_nodes(
+    graph: dict[str, list[dict]], *, readable_triggers: PermittedTriggerFilter, session: Session
+) -> dict[str, list[dict]]:
+    """
+    Add a node for each watcher of the graph's assets, upstream of its asset, with its trigger's status.
+
+    A watcher is shown on the assets GET /triggers would show its trigger for. A trigger shared by
+    watchers on several assets gets a node per watcher, so it does not join their graphs.
+    """
+    asset_ids = {
+        int(node["id"].removeprefix("asset:"))
+        for node in graph["nodes"]
+        if node["type"] == "asset" and _is_readable_asset_node(node["id"], readable_triggers.asset_ids)
+    }
+    if not asset_ids:
+        return graph
+    watchers = session.execute(
+        readable_triggers.to_orm(
+            select(AssetWatcherModel.asset_id, AssetWatcherModel.name, Trigger)
+            .join(AssetWatcherModel.trigger)
+            .outerjoin(Trigger.triggerer_job)
+            .where(AssetWatcherModel.asset_id.in_(asset_ids))
+            .options(defer(Trigger.encrypted_kwargs), contains_eager(Trigger.triggerer_job))
+            .order_by(AssetWatcherModel.asset_id, AssetWatcherModel.name, Trigger.id)
+        )
+    )
+    nodes = list(graph["nodes"])
+    edges = list(graph["edges"])
+    for asset_id, name, trigger in watchers:
+        node_id = f"asset-watcher:{asset_id}:{trigger.id}"
+        nodes.append(
+            {
+                "id": node_id,
+                "label": name,
+                "type": "asset-watcher",
+                "trigger_id": trigger.id,
+                "trigger_status": trigger.status(),
+            }
+        )
+        edges.append({"source_id": node_id, "target_id": f"asset:{asset_id}"})
+    return {"nodes": nodes, "edges": edges}
 
 
 def get_scheduling_dependencies(

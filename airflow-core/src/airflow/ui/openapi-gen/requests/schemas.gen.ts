@@ -11709,7 +11709,7 @@ export const $BaseNodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -11734,6 +11734,27 @@ export const $BaseNodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
@@ -14210,7 +14231,7 @@ export const $NodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -14235,6 +14256,27 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         children: {
             anyOf: [

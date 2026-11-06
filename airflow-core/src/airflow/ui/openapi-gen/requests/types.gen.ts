@@ -2990,12 +2990,14 @@ export type BaseGraphResponse = {
 export type BaseNodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
 };
 
-export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
 
 /**
  * Response model for calendar deadline aggregation results.
@@ -3623,9 +3625,11 @@ export type NextRunAssetsResponse = {
 export type NodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     is_loop?: boolean | null;
