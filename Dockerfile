@@ -48,7 +48,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.3.2"
+ARG AIRFLOW_VERSION="3.4.0"
 
 # BASE_IMAGE: the Docker Hardened Image that Python comes from. Both the build stage and the final
 # image are based on it, so Python is never compiled during the build.
