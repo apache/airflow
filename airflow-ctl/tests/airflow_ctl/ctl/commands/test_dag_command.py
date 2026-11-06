@@ -24,7 +24,7 @@ import httpx
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import DAGResponse
+from airflowctl.api.datamodels.generated import DAGResponse, DagRunType
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
@@ -47,6 +47,7 @@ class TestDagCommands:
     dag_response_paused = DAGResponse(
         dag_id=dag_id,
         dag_display_name=dag_display_name,
+        allowed_run_types=[DagRunType.MANUAL],
         is_paused=False,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -77,6 +78,7 @@ class TestDagCommands:
     dag_response_unpaused = DAGResponse(
         dag_id=dag_id,
         dag_display_name=dag_display_name,
+        allowed_run_types=[DagRunType.MANUAL],
         is_paused=True,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -212,7 +214,7 @@ class TestDagCommands:
         captured = capsys.readouterr()
         output = json.loads(captured.out)[0]
         assert output["dag_id"] == self.dag_id
-        assert output["scheduling_state"] == response_json["scheduling_state"]
+        assert output["allowed_run_types"] == response_json["allowed_run_types"] == ["manual"]
         assert output["last_parsed_time"] == response_json["last_parsed_time"]
         assert _normalize_rich_output(captured.err) == (
             f"Dag {operation} successful {self.dag_id} Further Dag details:"
