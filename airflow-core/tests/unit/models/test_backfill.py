@@ -50,7 +50,7 @@ from airflow.models.backfill import (
     _handle_clear_run,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
+from airflow.sdk import Asset, CronPartitionTimetable, Param, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
@@ -736,7 +736,6 @@ def test_backfill_empty_conf_overrides_existing_dag_run(dag_maker, session):
 
 def test_backfill_rejects_invalid_conf(dag_maker, session):
     """Backfill with invalid conf should fail validation before creating any runs."""
-    from airflow.sdk import Param
 
     with dag_maker(
         schedule="@daily",
@@ -761,7 +760,6 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
 
 def test_backfill_without_conf_rejects_invalid_stored_default(dag_maker, session):
     """A stored invalid default must fail validation even when no conf is given, before any row is written."""
-    from airflow.sdk import Param
 
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
@@ -784,7 +782,6 @@ def test_backfill_without_conf_rejects_invalid_stored_default(dag_maker, session
 
 def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
     """Dry run with invalid conf should fail validation."""
-    from airflow.sdk import Param
 
     with dag_maker(
         schedule="@daily",

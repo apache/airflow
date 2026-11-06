@@ -248,7 +248,10 @@ The following features are supported in the Trigger UI Form:
               | time-picker with calendar pop-up. Values should be
               | RFC 3339 strings with a timezone offset, e.g.
               | ``2024-01-01T00:00:00+00:00``. Other ISO 8601
-              | date-times are deprecated and trigger a warning.
+              | date-times are deprecated. Only the Task SDK
+              | warns about them, when it validates the value in
+              | Dag parsing or at task start. The API server and
+              | the scheduler accept them without a warning.
               | Anything else is rejected.
             * ``format="time"``: Generate a time-picker
             * | ``format="duration"``: Generate a duration

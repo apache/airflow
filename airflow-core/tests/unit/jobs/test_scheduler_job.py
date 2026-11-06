@@ -14925,7 +14925,7 @@ def test_partitioned_asset_dag_run_is_not_created_after_a_drain_completes(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_dag_with_invalid_params_does_not_block_others(dag_maker: DagMaker, session: Session):
+def test_partitioned_dag_with_invalid_params_keeps_its_apdr_pending(dag_maker: DagMaker, session: Session):
     asset = Asset(name="partitioned-invalid-params-asset")
     bad_dag_id = "partitioned-invalid-params-consumer"
     for dag_id in (bad_dag_id, "partitioned-healthy-consumer"):

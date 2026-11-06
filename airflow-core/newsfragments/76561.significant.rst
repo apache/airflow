@@ -10,8 +10,10 @@ A value is in one of three tiers:
 - Valid: an RFC 3339 string with a timezone offset, for example ``2024-01-01T00:00:00+00:00`` or
   ``2024-01-01T00:00:00Z``.
 - Deprecated: an ISO 8601 date-time that is not RFC 3339, for example ``2024-01-01T00:00:00``,
-  ``2024-01-01 00:00:00+00:00`` or ``2024-01-01T00:00Z``. Airflow accepts the value unchanged and raises
-  ``RemovedInAirflow4Warning``. A future major release plans to reject these values.
+  ``2024-01-01 00:00:00+00:00`` or ``2024-01-01T00:00Z``. Airflow accepts the value unchanged. Only the Task SDK
+  raises ``RemovedInAirflow4Warning``, when it validates the value in Dag parsing or at task start. The API
+  server and the scheduler accept the value without a warning. A future major release plans to reject these
+  values.
 - Not valid: any other value, for example ``2024-01-01``, ``{{ ds }}``, ``""`` or ``garbage``.
 
 A value that is not valid now has these effects:

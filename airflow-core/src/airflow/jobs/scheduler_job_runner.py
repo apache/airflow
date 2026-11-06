@@ -2451,12 +2451,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
 
-        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
-        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
-        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
-        gets two Dag runs for the same tick when it appears in more than one creation path. We
-        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
-        use is membership lookup, and a heavier return type would just be discarded.
+        Returns the set of ``dag_id`` strings with a satisfied partition in this tick, whether or not
+        creating the Dag run succeeded. The caller (:meth:`_create_dagruns_for_dags`) uses this set to
+        exclude the same Dags from the standard schedule-driven and asset-triggered creation paths so a
+        single Dag never gets two Dag runs for the same tick when it appears in more than one creation
+        path. We return ``dag_id`` strings rather than full Dag/DagRun objects because the only
+        downstream use is membership lookup, and a heavier return type would just be discarded.
 
         Asset deactivation freezes pending APDRs: when an asset becomes inactive
         (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
@@ -2485,9 +2485,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
         # FIFO is intentional: the oldest pending APDR fires first. A persistently
         # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
+        # never arrive, a stored Dag whose Param default fails validation until a
+        # re-parse marks the Dag stale) blocks newer ones until an operator removes
+        # it or fixes the underlying mapper. We surface the stuck state rather than
+        # silently rotating past it.
         # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
         # in HA two schedulers can otherwise both grab the same satisfied APDR
         # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
