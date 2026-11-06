@@ -481,18 +481,30 @@ def check_providers_are_in_site_index(doc_packages: tuple[str, ...], exclude_doc
     default="main",
     show_default=True,
 )
-def workflow_run_release_constraints(version: str, ref: str, workflow_branch: str):
+@click.option(
+    "--fail-on-pending-provider-candidates",
+    type=click.Choice(["true", "false"]),
+    default=None,
+    help="Override the final-release guard. Unset derives it from the version (a final fails when a "
+    "provider's newest PyPI version is a pending rc). Set 'false' to pin the currently-released "
+    "providers and proceed through an overlapping provider wave.",
+)
+def workflow_run_release_constraints(
+    version: str, ref: str, workflow_branch: str, fail_on_pending_provider_candidates: str | None
+):
     if not RELEASE_VERSION_PATTERN.match(version):
         console_print(f"[red]Error: '{version}' is not a release version - expected X.Y.Z or X.Y.ZrcN.[/red]")
         sys.exit(1)
     stage = "candidate" if "rc" in version else "final"
     console_print(f"[blue]Triggering constraints generation for the {stage} {version} from {ref}[/blue]")
+    overrides = {"fail-on-pending-provider-candidates": fail_on_pending_provider_candidates or ""}
     trigger_workflow_and_monitor(
         workflow_name=WORKFLOW_NAME_MAPS["release-constraints"],
         repo=APACHE_AIRFLOW_REPO,
         branch=workflow_branch,
         version=version,
         ref=ref,
+        **overrides,
     )
 
 
