@@ -131,9 +131,9 @@
     },
     "noPoolsFound": "Пулы не найдены",
     "pool_few": "Пула",
-    "pool_many": "Пул",
+    "pool_many": "Пулов",
     "pool_one": "Пул",
-    "pool_other": "Пул",
+    "pool_other": "Пулов",
     "searchPlaceholder": "Поиск пулов",
     "sort": {
       "asc": "Имя (A-Z)",
