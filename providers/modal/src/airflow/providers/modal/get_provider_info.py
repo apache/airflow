@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-modal",
         "name": "Modal",
-        "description": "`Modal <https://modal.com/>`__ provider for Apache Airflow.\nOwns the ``modal`` connection type and a hook that turns it into an authenticated\nModal client, so operators, toolsets and executors share one credential path.\n",
+        "description": "`Modal <https://modal.com/>`__ provider for Apache Airflow.\nOwns the ``modal`` connection type and a hook that turns it into an authenticated\nModal client, so operators, toolsets and executors share one credential path, and\n``@task.modal``, which runs a Python function in a Modal sandbox.\n",
         "integrations": [
             {
                 "integration-name": "Modal",
@@ -35,6 +35,12 @@ def get_provider_info():
             }
         ],
         "hooks": [{"integration-name": "Modal", "python-modules": ["airflow.providers.modal.hooks.modal"]}],
+        "triggers": [
+            {"integration-name": "Modal", "python-modules": ["airflow.providers.modal.triggers.modal"]}
+        ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.modal.decorators.modal.modal_task", "name": "modal"}
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.modal.hooks.modal.ModalHook",

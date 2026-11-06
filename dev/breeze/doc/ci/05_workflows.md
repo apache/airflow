@@ -107,10 +107,12 @@ them, for the contributors the repository's approval setting covers. The
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
   branches' own workflows and always wait for a maintainer
-- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`,
-  `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`, a top-level `Dockerfile*`, a
-  `.pre-commit-config.yaml` in any directory),
-  which define the workflows, what their jobs run and the runners they use
+- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/src/`,
+  `dev/breeze/pyproject.toml`, `dev/breeze/uv.lock`, `scripts/ci/install_breeze.sh` and
+  `scripts/ci/prek/`), which decide which jobs run and on which runners. Changes to the other files
+  CI uses (the rest of `dev/breeze/` and `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`,
+  `Dockerfile*`, `.pre-commit-config.yaml`) are not held, but get a one-time
+  `<!-- workflow-approval: ci-modification -->` note comment on the PR for the reviewer
 - the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
   `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
   run from `main`'s tree and do not know it)
@@ -124,8 +126,8 @@ them, for the contributors the repository's approval setting covers. The
 A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
 project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
 gate: its runs are approved whatever its size, cost or dependency changes, unless it changes one of
-those CI-defining files. Such a PR gets the `need workflow approval` label and one comment telling
-the author that the CI change needs a maintainer; see
+those CI-defining files. Such a PR gets one comment instead of the `need workflow approval` label,
+telling the author that the CI change needs a maintainer; see
 [Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
 
 The runs of PRs whose head repository belongs to a trusted stakeholder (`astronomer/airflow` for
@@ -150,10 +152,26 @@ maintainer, since it still runs the selection it started with; the next push is 
 For a PR whose CI runs in the fork neither the selection nor the labels a run started with matter:
 the gate reads the current labels when the run starts and fails when it cannot, so a run started
 before `use fork ci` or `use project ci` was added or removed is approved too. Other PRs get the
-`need workflow approval` label and wait for a maintainer. When processing a PR fails (for example on
-a GitHub API error), the workflow tries to add the label to it and the workflow run fails, so the
-failure stays visible even if the label could not be added. The label is removed when a later commit
-of the PR is approved automatically.
+`need workflow approval` label and wait for a maintainer. Their head commit also gets a pending
+`Workflow approval` commit status whose description gives the reason (cut to GitHub's 140
+characters), so the author sees why in the PR's checks without a notifying comment. The status is
+not a required check and does not block merging. When processing a PR fails (for example on a
+GitHub API error), the workflow tries to add the label and a pending status with a generic reason,
+and the workflow run fails, so the failure stays visible even if the label could not be added.
+
+The label is removed when a later commit of the PR is approved automatically. GitHub has no event
+for approving runs, but a run waiting for approval never starts, so the `mark-workflow-runs-approved.yml`
+workflow follows the `Tests (AMD)` runs of fork PRs instead: when one reaches `in_progress`, a
+`ubuntu-slim` job makes a few `gh api` calls that turn the commit's pending status green and remove
+the label of the open PRs whose head is that commit. This covers runs a maintainer approves by hand
+as well as automatic approvals, without listing the waiting runs. A PR pushed again after the run
+started keeps its label, because its newer runs may wait. The job checks out nothing, and the
+contributor-chosen head branch reaches its script only through the environment. A maintainer can
+approve the runs after the approval workflow listed them and before it writes the label and status,
+so after writing either it checks the runs again and clears both if none still waits. Only a
+started `Tests (AMD)` run clears them, so a PR that removes or renames that workflow keeps its
+label and pending status after its other runs are approved; such a PR changes CI definition files
+and is reviewed by a maintainer anyway, and the status does not block merging.
 
 The workflow uses only `main`'s code. It reads the PR's metadata and fetches its merge commit as git
 objects to list the changed files; it never checks out or runs the PR's code. The merge commit must
@@ -377,7 +395,6 @@ Before running expensive tests, we validate basic functionality:
 - Breeze development environment tests
 - React UI component tests
 - Code formatting and style checks
-- Dependency upgrade monitoring
 
 These quick checks catch obvious problems early.
 
@@ -442,6 +459,7 @@ Here's what each workflow group does and when it runs:
 | **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
 | **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
 | **Agent Framework Tests**          | Tests Common AI's adapters for other agent frameworks (4)   | Yes     | Yes     | No        |
+| **Dependency Upgrade Summary**     | Checks how far constraints lag new releases (AMD only)      | Yes (5) | Yes (5) | Yes (5)   |
 | **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
 
 #### AMD-Only Workflows
@@ -517,6 +535,12 @@ Both install the newest framework releases older than the repository's uv `exclu
 release that breaks an adapter fails this job about that long after it ships. The job is not a
 dependency of **Finalize Tests**, so such a release does not stop the image cache from being pushed.
 
+**`(5)` Dependency Upgrade Summary**
+
+The summary runs only when the run upgrades to newer dependencies: on scheduled and manually
+dispatched runs, when a `pyproject.toml` file changes, or on a PR with the
+`upgrade to newer dependencies` label. It needs the CI image, so it never runs without one.
+
 ## Runners
 
 Two kinds of GitHub-hosted runner are used, and which one a job gets depends on what
@@ -546,6 +570,53 @@ unprivileged, which constrains what can go on it:
 
 When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
 `ubuntu-22.04` otherwise.
+
+### Dependency upgrade diagnostics
+
+Scheduled and manually dispatched AMD canaries on `main` keep the dependency freshness
+summary in `dependency-upgrade-summary.yml`, but run it with `--no-explain-why`. It starts
+once the CI images are built, so it runs beside the tests instead of after them. Tests, constraint
+generation and validation, and image publication still run in the canary. Release-branch
+and other run types retain their existing explanation behavior. The summary saves the
+constraints it checked, and the constraints-branch commit they came from, with
+`--save-constraints-to`; a failure to save them only warns and never fails the canary.
+
+After the canary completes, `dependency-upgrade-report.yml` runs the detailed explanations
+independently, from the inputs the canary saved. The summary does not wait for the tests, so a
+canary whose tests failed still saves its inputs and is explained too. The report checks out
+the original source SHA and downloads the original image and saved constraints by artifact
+ID from that run. It never substitutes the latest branch image or constraints: an entry whose
+saved constraints or image are missing or expired is skipped with a warning and listed in the
+summary, and the others are still explained. The image comes from the CI image stash, which
+keeps only the newest image per Python version and branch, so a later build on `main` can
+replace it within hours. A canary on RunsOn keeps the image in RunsOn's S3 cache and stashes
+only its digest; the report job then runs on a RunsOn runner and downloads exactly that tarball
+by its digest. Re-running the canary triggers the workflow again; inputs that an earlier attempt
+already saved are not explained again.
+
+The saved constraints are the constraints branch as the summary saw it, not constraints
+generated from the source SHA, so dependency bounds that changed between the two can appear
+as conflicts or as stale constraints. The report summary shows both commits. PyPI release
+metadata is fetched when the report executes, so the available upgrade targets can change
+between the summary and the explanations.
+
+The workflow has read-only repository permissions. It runs on `workflow_run`, in the context
+of the default branch, so it could write that branch's GitHub Actions cache: what keeps the
+cache untouched is that no step saves one. Do not add caching (for example `actions/cache` or
+the cache option of a `setup-*` action) to this workflow. Reports use the saved image artifact.
+
+The report runs at most three jobs concurrently. Each job has a 150-minute limit and saves
+its output, including partial output on failure. A failed or timed-out report is incomplete;
+it does not invalidate the canary's test result. Find diagnostics in the **Dependency
+upgrade report** workflow, whose summary links to the source canary. To repeat diagnostics,
+use **Re-run jobs** on that report before its two-day input retention expires (or run
+`gh run rerun REPORT_RUN_ID`). Reruns keep the original source canary ID and attempt. A rerun
+fails when inputs were saved but none can be explained any more, rather than using a newer
+image or constraints; a report whose canary saved no inputs posts the same notice every time.
+
+`breeze release-management constraints-version-check --constraints-file PATH` can also
+analyze a saved constraints file locally. Detailed explanations reuse one baseline resolution
+and skip the pinned resolution when that baseline already selects the target version.
 
 ### Spot interruptions of self-hosted runners
 
@@ -602,7 +673,7 @@ Each composite workflow is stored in a separate file under `.github/workflows/`.
 
 #### Basic Validation
 
-- `basic-tests.yml` - Handles Breeze tests, UI validation, static analysis, and upgrade monitoring
+- `basic-tests.yml` - Handles Breeze tests, UI validation, and static analysis
 
 #### Image Management
 
@@ -627,6 +698,10 @@ Each composite workflow is stored in a separate file under `.github/workflows/`.
 - `helm-tests.yml` - Tests Kubernetes deployment via Helm charts
 - `k8s-tests.yml` - Tests direct Kubernetes integration
 - `airflow-distributions-tests.yml` - Validates package distributions
+
+#### Dependency Monitoring
+
+- `dependency-upgrade-summary.yml` - Checks how far the constraints are behind the newest releases
 
 #### Finalization
 

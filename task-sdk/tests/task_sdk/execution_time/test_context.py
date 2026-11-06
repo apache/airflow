@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -45,7 +46,6 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.connection import Connection
-from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
@@ -109,8 +109,8 @@ from airflow.sdk.execution_time.context import (
     _async_get_variable,
     _async_get_variable_keys,
     _async_set_variable,
-    _convert_variable_result_to_variable,
     _get_connection,
+    _json_size_exceeds,
     _process_connection_result_conn,
     _wrap_external_ref,
     context_to_airflow_vars,
@@ -148,31 +148,6 @@ def test_convert_connection_result_conn():
         password="password",
         port=1234,
         extra='{"extra_key": "extra_value"}',
-    )
-
-
-def test_convert_variable_result_to_variable():
-    """Test that the VariableResult is converted to a Variable object."""
-    var = VariableResult(
-        key="test_key",
-        value="test_value",
-    )
-    var = _convert_variable_result_to_variable(var, deserialize_json=False)
-    assert var == Variable(
-        key="test_key",
-        value="test_value",
-    )
-
-
-def test_convert_variable_result_to_variable_with_deserialize_json():
-    """Test that the VariableResult is converted to a Variable object with deserialize_json set to True."""
-    var = VariableResult(
-        key="test_key",
-        value='{\r\n  "key1": "value1",\r\n  "key2": "value2",\r\n  "enabled": true,\r\n  "threshold": 42\r\n}',
-    )
-    var = _convert_variable_result_to_variable(var, deserialize_json=True)
-    assert var == Variable(
-        key="test_key", value={"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42}
     )
 
 
@@ -1083,6 +1058,47 @@ class TestInletEventAccessor:
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
         )
 
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param("2024-01-01T00:00:00Z", id="str"),
+            pytest.param(datetime(2024, 1, 1, tzinfo=UTC), id="datetime"),
+        ],
+    )
+    def test__get_item__with_bounds(self, sample_inlet_evnets_accessor, mock_supervisor_comms, bound):
+        mock_supervisor_comms.send.side_effect = [AssetEventsResult(asset_events=[])]
+        expected = datetime(2024, 1, 1, tzinfo=UTC)
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET].after(bound).before(bound))
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(
+                name="test_uri",
+                uri="test://test/",
+                after=expected,
+                before=expected,
+                limit=None,
+                ascending=True,
+            )
+        )
+
+    @pytest.mark.parametrize("method", ["after", "before"])
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param(datetime(2024, 1, 1), id="naive-datetime"),
+            pytest.param("2024-01-01T00:00:00", id="naive-str"),
+            pytest.param("not a timestamp", id="malformed-str"),
+        ],
+    )
+    def test_invalid_bound_raises_on_call(
+        self, sample_inlet_evnets_accessor, mock_supervisor_comms, method, bound
+    ):
+        accessor = sample_inlet_evnets_accessor[TEST_ASSET]
+        with pytest.raises(ValidationError):
+            getattr(accessor, method)(bound)
+        mock_supervisor_comms.send.assert_not_called()
+
     def test__get_item__with_extra_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
         asset_event_resp = AssetEventResult(
             id=1,
@@ -1765,6 +1781,38 @@ class TestSecretsBackend:
                 _get_connection("nonexistent_conn")
 
 
+# ``json.dumps`` of each value is 100 characters; JSON escapes each non-ASCII character to six.
+SIZE_LIMIT_CASES = [
+    pytest.param("x" * 98, 100, False, id="ascii-at-limit"),
+    pytest.param("x" * 98, 99, True, id="ascii-over-limit"),
+    pytest.param("é" * 16 + "xx", 100, False, id="non-ascii-at-limit"),
+    pytest.param("é" * 16 + "xx", 99, True, id="non-ascii-over-limit"),
+]
+
+
+class TestJsonSizeExceeds:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"a": [1, 2.5, None, True], "b": {"c": "d"}}, id="nested"),
+            pytest.param([0.1, 1e300, -0.0, float("nan"), float("inf")], id="floats"),
+            pytest.param({"ключ": "значение ✓"}, id="non-ascii"),
+            pytest.param("", id="empty-string"),
+        ],
+    )
+    def test_matches_json_dumps_length(self, value):
+        size = len(json.dumps(value))
+
+        assert _json_size_exceeds(value, size) is False
+        assert _json_size_exceeds(value, size - 1) is True
+
+    def test_stops_encoding_once_limit_is_exceeded(self):
+        # The second item cannot be JSON-encoded, so reaching it would raise TypeError.
+        value = ["x" * 20, object()]
+
+        assert _json_size_exceeds(value, 10) is True
+
+
 class TestTaskStateStoreAccessor:
     TI_ID = UUID("01900000-0000-0000-0000-000000000001")
     SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
@@ -1886,15 +1934,16 @@ class TestTaskStateStoreAccessor:
             with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
                 TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
-    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
-        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+    @pytest.mark.parametrize(("value", "limit", "warns"), SIZE_LIMIT_CASES)
+    def test_set_warns_only_when_serialized_value_exceeds_limit(
+        self, mock_supervisor_comms, cap_structlog, value, limit, warns
+    ):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        big = "x" * 110
-        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
-            with patch("airflow.sdk.execution_time.context.log") as mock_log:
-                TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", big)
-                mock_log.warning.assert_called_once()
-                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        with conf_vars({("state_store", "max_value_storage_bytes"): str(limit)}):
+            TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", value)
+
+        warning = {"log_level": "warning", "event": re.compile(".*max_value_storage_bytes")}
+        assert (warning in cap_structlog) is warns
         mock_supervisor_comms.send.assert_called_once()
 
     def test_delete_operation(self, mock_supervisor_comms):
@@ -2272,15 +2321,16 @@ class TestAssetStateStoreAccessor:
             "s3://bucket/assets/orders/watermark"
         )
 
-    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
-        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+    @pytest.mark.parametrize(("value", "limit", "warns"), SIZE_LIMIT_CASES)
+    def test_set_warns_only_when_serialized_value_exceeds_limit(
+        self, mock_supervisor_comms, cap_structlog, value, limit, warns
+    ):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        big = "x" * 110
-        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
-            with patch("airflow.sdk.execution_time.context.log") as mock_log:
-                AssetStateStoreAccessor(name=self.ASSET_NAME).set("watermark", big)
-                mock_log.warning.assert_called_once()
-                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        with conf_vars({("state_store", "max_value_storage_bytes"): str(limit)}):
+            AssetStateStoreAccessor(name=self.ASSET_NAME).set("watermark", value)
+
+        warning = {"log_level": "warning", "event": re.compile(".*max_value_storage_bytes")}
+        assert (warning in cap_structlog) is warns
         mock_supervisor_comms.send.assert_called_once()
 
     @pytest.mark.parametrize("lookup_by", ["name", "uri"])

@@ -387,7 +387,7 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
 ``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
-``openlineage``, ...); the mode selects a docker-compose overlay and the matching test package under
+``openlineage``, ``yaml_dag``, ...); the mode selects a docker-compose overlay and the matching test package under
 ``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
 deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
 emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
