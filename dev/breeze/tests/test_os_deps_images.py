@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from subprocess import CompletedProcess
 from unittest import mock
 
@@ -657,6 +659,30 @@ def test_marker_covers_the_database_clients():
     assert all(f"/{name}" in marker_block for name in ("common.sh", *CLIENT_SCRIPTS))
     assert "/keys/*" in marker_block
     assert all(re.search(rf"\b{variable}\b", marker_block) for variable in CLIENT_VARIABLES)
+
+
+def test_hardened_flavor_explains_a_base_image_without_python(tmp_path):
+    for tool in ("cat", "cut", "dirname"):
+        (tmp_path / tool).symlink_to(shutil.which(tool))
+    # The marker hash the script computes first is irrelevant here, and macOS may not have sha256sum.
+    sha256sum = tmp_path / "sha256sum"
+    sha256sum.write_text('#!/bin/sh\ncat "$@" >/dev/null\n')
+    sha256sum.chmod(0o755)
+
+    result = subprocess.run(
+        [
+            shutil.which("bash"),
+            AIRFLOW_ROOT_PATH / "scripts" / "docker" / "install_os_dependencies.sh",
+            "dev",
+        ],
+        env={"PATH": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "AIRFLOW_IMAGE_FLAVOR to 'legacy'" in result.stdout
 
 
 def test_marker_files_match_the_image_tag_inputs_and_the_ci_file_group():
