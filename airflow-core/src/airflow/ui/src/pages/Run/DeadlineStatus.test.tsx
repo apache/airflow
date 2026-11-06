@@ -60,13 +60,21 @@ describe("DeadlineStatus", () => {
     i18n.addResourceBundle("en", "dag", dagLocale, true, true);
   });
 
-  it.each([null, undefined])(
-    "shows only applicable alert rules, including an unrestricted filter of %s",
-    async (unrestrictedFilter) => {
+  it.each([
+    { runTypeFilter: ["manual"], unrestrictedFilter: null },
+    { runTypeFilter: ["manual"], unrestrictedFilter: undefined },
+    { runTypeFilter: ["backfill", "manual"], unrestrictedFilter: null },
+    { runTypeFilter: ["backfill", "manual"], unrestrictedFilter: undefined },
+  ] satisfies Array<{
+    runTypeFilter: DeadlineAlertResponse["run_type_filter"];
+    unrestrictedFilter: null | undefined;
+  }>)(
+    "shows only applicable alert rules for $runTypeFilter with unrestricted filter $unrestrictedFilter",
+    async ({ runTypeFilter, unrestrictedFilter }) => {
       vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
         data: {
           deadline_alerts: [
-            buildAlert("manual", ["manual"], 30),
+            buildAlert("manual", runTypeFilter, 30),
             buildAlert("scheduled", ["scheduled"], 3600),
             buildAlert("unrestricted", unrestrictedFilter, 120),
           ],
