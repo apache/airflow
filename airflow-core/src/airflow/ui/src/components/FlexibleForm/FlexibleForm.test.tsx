@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
@@ -52,5 +52,31 @@ describe("FlexibleForm — params bounded by another param", () => {
 
     expect(await screen.findByText("flexibleForm.validationErrorAfter")).toBeInTheDocument();
     expect(setError).toHaveBeenLastCalledWith(true);
+  });
+
+  it("clears the error and unflags the form once the start moves before the end", async () => {
+    const setError = vi.fn();
+
+    render(
+      <FlexibleForm
+        flexibleFormDefaultSection="Params"
+        initialParamsDict={{ paramsDict: intervalParams("2026-10-02", "2026-10-01") }}
+        namespace="bounded-cleared"
+        noAccordion
+        setError={setError}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(await screen.findByText("flexibleForm.validationErrorAfter")).toBeInTheDocument();
+
+    fireEvent.change(document.querySelector("#element_start") as HTMLInputElement, {
+      target: { value: "2026-09-30" },
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByText("flexibleForm.validationErrorAfter")).not.toBeInTheDocument(),
+    );
+    expect(setError).toHaveBeenLastCalledWith(false);
   });
 });
