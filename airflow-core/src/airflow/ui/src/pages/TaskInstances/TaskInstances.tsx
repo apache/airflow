@@ -49,6 +49,10 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 
+import {
+  mergePersistentSearchParams,
+  usePersistentSearchParamKeys,
+} from "src/constants/persistentSearchParams";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { usePluginActions } from "src/hooks/usePluginActions";
@@ -96,6 +100,7 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly getLink: (ti: TaskInstanceResponse) => string;
   readonly hasLoopIteration: boolean;
   readonly runId?: string;
   readonly taskId?: string;
@@ -104,6 +109,7 @@ type ColumnProps = {
 
 const taskInstanceColumns = ({
   dagId,
+  getLink,
   hasLoopIteration,
   multiTeam,
   runId,
@@ -141,7 +147,7 @@ const taskInstanceColumns = ({
           accessorKey: "run_after",
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
-              <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+              <RouterLink fontWeight="bold" to={getLink(original)}>
                 <Time datetime={original.run_after} />
               </RouterLink>
             ) : (
@@ -166,7 +172,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+            <RouterLink fontWeight="bold" to={getLink(original)}>
               <TruncatedText text={original.task_display_name} />
             </RouterLink>
           ),
@@ -179,7 +185,7 @@ const taskInstanceColumns = ({
     // Map index remains visible before a mapped task instance starts.
     cell: ({ row: { original } }) =>
       original.map_index >= 0 ? (
-        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+        <RouterLink fontWeight="bold" to={getLink(original)}>
           {original.rendered_map_index ?? original.map_index}
         </RouterLink>
       ) : (
@@ -235,7 +241,7 @@ const taskInstanceColumns = ({
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
       Boolean(taskId) && Boolean(runId) ? (
-        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+        <RouterLink fontWeight="bold" to={getLink(original)}>
           <Time datetime={original.start_date} />
         </RouterLink>
       ) : (
@@ -473,8 +479,24 @@ export const TaskInstances = () => {
 
   const pluginActions = usePluginActions("task_instance");
 
+  const persistentKeys = usePersistentSearchParamKeys();
+  // Inside a Dag the grid and the log panel stay on screen, so a row link keeps their filters
+  // the way a tab link does.
+  const getLink = (ti: TaskInstanceResponse) => {
+    const link = getTaskInstanceLink(ti);
+
+    if (dagId === undefined) {
+      return link;
+    }
+    const [pathname = "", linkSearch] = link.split("?");
+    const query = mergePersistentSearchParams(searchParams.toString(), linkSearch, persistentKeys);
+
+    return query === "" ? pathname : `${pathname}?${query}`;
+  };
+
   const columns = taskInstanceColumns({
     dagId,
+    getLink,
     hasLoopIteration: (data?.task_instances ?? []).some(
       (ti) => ti.loop_iteration !== null && ti.loop_iteration !== undefined,
     ),

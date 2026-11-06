@@ -82,3 +82,26 @@ export const usePersistentSearchParamKeys = (): ReadonlyArray<string> => {
 
   return [...gridKeys, ...GRAPH_FILTER_KEYS, ...Object.values(TASK_STREAM_SEARCH_PARAMS), ...LOG_FILTER_KEYS];
 };
+
+/**
+ * The query for a link that leaves one place on the page for another: `targetSearch` plus every
+ * persistent key in `currentSearch`. A key the target sets itself (e.g. `try_number`) wins.
+ */
+export const mergePersistentSearchParams = (
+  currentSearch: string,
+  targetSearch: string | undefined,
+  persistentKeys: ReadonlyArray<string>,
+) => {
+  const current = new URLSearchParams(currentSearch);
+  const target = new URLSearchParams(targetSearch);
+
+  for (const key of persistentKeys) {
+    if (!target.has(key)) {
+      for (const value of current.getAll(key)) {
+        target.append(key, value);
+      }
+    }
+  }
+
+  return target.toString();
+};

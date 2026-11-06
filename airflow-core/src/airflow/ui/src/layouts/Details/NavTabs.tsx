@@ -21,6 +21,7 @@ import { useRef, type ReactNode } from "react";
 import { Center, Flex } from "@chakra-ui/react";
 import { NavLink, useLocation, useResolvedPath } from "react-router-dom";
 
+import { mergePersistentSearchParams } from "src/constants/persistentSearchParams";
 import { useContainerWidth } from "src/utils";
 
 export type NavTab = {
@@ -43,26 +44,6 @@ const NO_KEYS: ReadonlyArray<string> = [];
 
 const trimTrailingSlash = (path: string) => path.replace(/\/$/u, "");
 
-// A tab link replaces the query string rather than adding to it, so only the persistent keys carry over.
-const buildTabSearch = (
-  currentSearch: string,
-  tabSearch: string | undefined,
-  persistentKeys: ReadonlyArray<string>,
-) => {
-  const current = new URLSearchParams(currentSearch);
-  const tabParams = new URLSearchParams(tabSearch);
-
-  for (const key of persistentKeys) {
-    if (!tabParams.has(key)) {
-      for (const value of current.getAll(key)) {
-        tabParams.append(key, value);
-      }
-    }
-  }
-
-  return tabParams.toString();
-};
-
 const NavTabLink = ({
   containerWidth,
   icon,
@@ -73,7 +54,7 @@ const NavTabLink = ({
   value,
 }: { readonly containerWidth: number; readonly persistentKeys: ReadonlyArray<string> } & NavTab) => {
   const { pathname, search: currentSearch } = useLocation();
-  const to = { pathname: value, search: buildTabSearch(currentSearch, search, persistentKeys) };
+  const to = { pathname: value, search: mergePersistentSearchParams(currentSearch, search, persistentKeys) };
   const resolved = useResolvedPath(to);
   // NavLink compares the raw location against its resolved target, and a run id carries ":" and
   // "+". Landing on a link where those arrived percent-encoded leaves the two spellings of the

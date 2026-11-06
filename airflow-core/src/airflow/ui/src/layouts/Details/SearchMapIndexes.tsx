@@ -32,6 +32,10 @@ import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen"
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
+import {
+  mergePersistentSearchParams,
+  usePersistentSearchParamKeys,
+} from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 import type { MapIndexSearchOption } from "src/utils/option";
@@ -72,6 +76,7 @@ export const SearchMapIndexes = ({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
+  const persistentKeys = usePersistentSearchParamKeys();
 
   const onSelect = (selected: SingleValue<MapIndexSearchOption>) => {
     if (!selected) {
@@ -105,11 +110,15 @@ export const SearchMapIndexes = ({
     // which instance was picked.
     const coordinate =
       selected.regionId === undefined
-        ? ""
-        : `?${new URLSearchParams({ region_id: selected.regionId, region_index: String(selected.regionIndex) })}`;
+        ? undefined
+        : new URLSearchParams({
+            region_id: selected.regionId,
+            region_index: String(selected.regionIndex),
+          }).toString();
+    const instanceQuery = mergePersistentSearchParams(searchParams.toString(), coordinate, persistentKeys);
 
     onClose();
-    void Promise.resolve(navigate(`${path}${coordinate}`));
+    void Promise.resolve(navigate(`${path}${instanceQuery === "" ? "" : `?${instanceQuery}`}`));
   };
 
   const search = useDebouncedCallback((value: string) => {
