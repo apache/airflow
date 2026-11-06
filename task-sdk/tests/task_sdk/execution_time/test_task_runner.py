@@ -3699,6 +3699,7 @@ class TestRuntimeTaskInstance:
                 task_id=runtime_ti.task_id,
                 run_id=runtime_ti.run_id,
                 map_index=runtime_ti.map_index,
+                task_instance_id=runtime_ti.id,
             )
 
     def test_task_failed_with_operator_extra_links(
@@ -3740,6 +3741,7 @@ class TestRuntimeTaskInstance:
                     task_id=runtime_ti.task_id,
                     run_id=runtime_ti.run_id,
                     map_index=runtime_ti.map_index,
+                    task_instance_id=runtime_ti.id,
                 )
             ]
 
@@ -3785,6 +3787,7 @@ class TestRuntimeTaskInstance:
                     task_id=runtime_ti.task_id,
                     run_id=runtime_ti.run_id,
                     map_index=runtime_ti.map_index,
+                    task_instance_id=runtime_ti.id,
                 )
             ]
 
@@ -6239,6 +6242,7 @@ class TestTriggerDagRunOperator:
                     task_id="test_task",
                     run_id="test_run",
                     map_index=-1,
+                    task_instance_id=ti.id,
                 ),
             ),
         ]
@@ -6470,6 +6474,7 @@ class TestTriggerDagRunOperator:
                     task_id="test_task",
                     run_id="test_run",
                     map_index=-1,
+                    task_instance_id=ti.id,
                 ),
             ),
             mock.call.send(
@@ -6487,6 +6492,7 @@ class TestTriggerDagRunOperator:
                     task_id="test_task",
                     run_id="test_run",
                     map_index=-1,
+                    task_instance_id=ti.id,
                 ),
             ),
             mock.call.send(
@@ -7049,6 +7055,7 @@ def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
             task_id="t",
             map_index=-1,
             dag_result=True,
+            task_instance_id=ti.id,
         )
     )
 
