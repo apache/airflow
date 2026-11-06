@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache the dialect on MsSqlHook (#75656)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 4.7.2
 .....
 
