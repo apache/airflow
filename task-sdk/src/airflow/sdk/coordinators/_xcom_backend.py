@@ -18,13 +18,9 @@
 """
 The XCom backend for the tasks of a language SDK runtime.
 
-A language SDK runtime sends its XCom requests to the supervisor, which runs the configured XCom backend
-on them before it forwards them to the API server. The backend runs in a helper process, started per task
-the way the supervisor starts a Python task process, so the long-lived supervisor process keeps none of
-the backend's state, such as a cached filesystem that a task process forked from it later could not use.
-
-The supervisor services the helper process from the selector of the task it serves, so a backend call
-never blocks that task's request loop, which goes on heartbeating and enforcing ``execution_timeout``.
+The supervisor runs the configured XCom backend on a runtime's XCom requests, in a helper process per task,
+so the long-lived supervisor process keeps none of the backend's state. It services the helper from the
+task's selector, so a backend call never blocks the task's request loop.
 """
 
 from __future__ import annotations
@@ -154,9 +150,7 @@ class XComBackendProcess(WatchedSubprocess):
     The helper process that runs XCom backend calls for the task of a language SDK runtime.
 
     The process asks for a call, runs it, and answers with its result, which is also how it asks for the
-    next call. Each call carries the callback that takes its result, so a caller never has to match an
-    answer to its own call. Connection and Variable lookups of the backend reach the API server through
-    ``client``.
+    next call. Connection and Variable lookups of the backend reach the API server through ``client``.
     """
 
     client: Client
@@ -207,7 +201,7 @@ class XComBackendProcess(WatchedSubprocess):
             return
         if self._stopping:
             request_id, self._call_request_id = self._call_request_id, None
-            # The process may be dead already, such as when the task it serves was killed.
+            # The process may be dead already.
             with contextlib.suppress(OSError):
                 self.send_msg(XComBackendCall(hook="exit"), request_id=request_id)
             return
@@ -218,8 +212,7 @@ class XComBackendProcess(WatchedSubprocess):
         try:
             self.send_msg(call, request_id=request_id)
         except OSError as e:
-            # The process has died and the close of its stdin has not been handled yet, so the call
-            # fails here rather than leaving the runtime waiting for an answer.
+            # The process has died before the close of its stdin was handled.
             self._fail_waiting_calls(f"The XCom backend process could not be sent a call: {e}")
 
     def _fail_waiting_calls(self, error: str) -> None:
@@ -239,15 +232,13 @@ class XComBackendProcess(WatchedSubprocess):
     def stop(self) -> None:
         """Let the helper process exit, and kill it if it does not exit in time."""
         self._stopping = True
-        # A queued call must not run for a task that is already over. The running call can still be
-        # answered, and the process is sent exit once it is.
+        # A queued call must not run after its task is over.
         self._fail_queued_calls("The XCom backend process was stopped")
         deadline = time.monotonic() + _EXIT_TIMEOUT
         if self.can_run_a_call:
             if self._exit_code is None:
                 self._send_next_call()
-            # Servicing the selector also dispatches the requests of the task it is shared with, which
-            # can start another helper, so a process already known to be gone is reaped without it.
+            # The selector is shared with the task, so it is serviced only while this process is alive.
             while self._open_sockets and (now := time.monotonic()) < deadline:
                 self._service_subprocess(max_wait_time=deadline - now)
         if self._exit_code is None:
@@ -255,17 +246,16 @@ class XComBackendProcess(WatchedSubprocess):
                 self._exit_code = self._process.wait(timeout=max(0.0, deadline - time.monotonic()))
         if self._exit_code is None:
             self.kill(signal.SIGTERM, force=True)
-        # Only this process's own sockets, since the selector belongs to the task it serves.
+        # The selector belongs to the task.
         for sock in list(self._open_sockets):
             self._on_socket_closed(sock)
             sock.close()
-        # Nothing answers what is left, so the callers fail rather than wait for an answer forever.
         self._fail_waiting_calls("The XCom backend process was stopped")
 
     def _on_socket_closed(self, sock: socket) -> None:
         super()._on_socket_closed(sock)
         if sock is self.stdin:
-            # The process has exited, or is exiting, so it answers none of the calls it was still to run.
+            # The process has exited, or is exiting.
             self._fail_waiting_calls("The XCom backend process exited before it answered")
 
     def _handle_await_call(
@@ -331,8 +321,7 @@ class _HookRunner:
 
         if call.coordinate is None:
             raise ValueError("A store call needs the coordinate of the XCom")
-        # A value the backend cannot be given fails the push. Keeping it in the XCom row instead would
-        # put the payload in the database, which is what the backend is configured to avoid.
+        # No fallback to the XCom row, which would put the payload in the database.
         value = deserialize(call.value)  # type: ignore[type-var]
         coordinate = XComCoordinate(**call.coordinate.model_dump())
         return XComBackendResult(value=self.xcom._store(coordinate, call.map_index, call.key, value))
@@ -352,6 +341,5 @@ class _HookRunner:
         """Return what the runtime receives for ``row``: what the default backend would keep in the row."""
         from airflow.sdk.serde import serialize
 
-        # A row the backend cannot load, or a value this process cannot encode, fails the read rather
-        # than reaching the runtime as the raw row, which would hide the backend being unusable.
+        # No fallback to the raw row, which would hide that the backend is unusable.
         return serialize(self.xcom._load(XComResult(key=key, value=row)))  # type: ignore[return-value]

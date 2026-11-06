@@ -602,10 +602,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
 
-        Like ``XCom.delete``, this method reads each XCom, deletes it, then purges it from the XCom
-        backend. A failure in any of the three fails this try and the task does not run, which is what
-        a Python task does: ``XCom.delete`` guards none of the three, and the task runner clears its
-        XComs inside the block that fails the task.
+        Like ``XCom.delete``, this reads, deletes, then purges each XCom. A failure fails this try, as it
+        does for a Python task.
         """
         self._execution_timeout_seconds = ti_context.execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
@@ -670,7 +668,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     ) -> None:
         """Send ``call`` to the XCom backend process, which starts on the first call it handles."""
         if self._xcom_backend is not None and not self._xcom_backend.can_run_a_call:
-            # The process has exited, so a call sent to it would wait for an answer that never comes.
+            # The process has exited.
             self._stop_xcom_backend()
         if self._xcom_backend is None:
             self._xcom_backend = XComBackendProcess.start(
@@ -696,16 +694,14 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         """
         Answer request ``req_id`` with ``then(result)`` once the XCom backend has run ``call``.
 
-        The request loop goes on servicing the task and the backend process while the call runs, so it
-        keeps heartbeating and stops the task when it reaches its ``execution_timeout``. A call that
-        fails fails the request, so the runtime fails the task.
+        The request loop keeps servicing the task while the call runs. A call that fails fails the request.
         """
 
         def answer(resp: BaseModel | None, error: ErrorResponse | None, **dump_opts: bool) -> None:
             try:
                 self.send_msg(resp, request_id=req_id, error=error, **dump_opts)
             except OSError:
-                # The runtime can exit while the call runs, such as when its task is killed.
+                # The runtime has exited.
                 self.process_log.warning(
                     "The runtime exited before its XCom request was answered", request_id=req_id
                 )
@@ -733,11 +729,11 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         answer: list[XComBackendResult] = []
         self._start_xcom_backend_call(call, answer.append)
         deadline = time.monotonic() + _XCOM_BACKEND_CALL_TIMEOUT
-        # The task process has not been told to start, so servicing it here reads no request of its own.
+        # The task has not started, so it has no requests to read.
         while not answer and (now := time.monotonic()) < deadline:
             self._service_subprocess(max_wait_time=deadline - now)
         if not answer:
-            # The process is still running the call, and what it does next is unknown, so it is replaced.
+            # The process is still running the call.
             self._stop_xcom_backend()
             raise XComBackendError("The XCom backend did not answer in time")
         if (error := answer[0].error) is not None:
@@ -754,9 +750,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             coordinate = build_own_coordinate(ti)
         else:
             coordinate = XComCoordinate(msg.dag_id, msg.run_id, msg.task_id)
-        # A loop iteration has map index -1, unlike a mapped task. A mapped task inside a loop is not
-        # caught here because the supervisor does not parse the Dag, while Python rejects such a Dag
-        # when it is parsed.
+        # A loop iteration has map index -1. A mapped task in a loop is not caught here, since the
+        # supervisor does not parse the Dag.
         if coordinate.region_id is not None and msg.resolved_map_index == -1 and is_legacy_xcom_backend(xcom):
             error = _build_request_error(build_loop_error(xcom, f"Task {msg.task_id!r}"))
             self.send_msg(None, request_id=req_id, error=error)
@@ -812,16 +807,15 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         result, purge = self._delete_xcom(msg)
         if purge is None:
             return result
-        # A failed purge fails the request, as it fails a Python task that calls XCom.delete.
+        # A failed purge fails the request, as XCom.delete does.
         return self._call_xcom_backend(purge, lambda _: result, req_id)
 
     def _delete_xcom(self, msg: DeleteXCom) -> tuple[RequestResult, XComBackendCall | None]:
         """
         Delete an XCom, and return the call that purges it from the XCom backend as ``XCom.delete`` does.
 
-        The read is not guarded, for the same reason ``XCom.delete`` does not guard it: a row the
-        supervisor cannot read is a row it cannot purge, and silently skipping the purge would leave
-        the stored data behind without anything saying so.
+        The read is not guarded, as in ``XCom.delete``, since skipping the purge would silently leave the
+        stored data behind.
         """
         if not runs_in_helper(_get_xcom_backend()):
             return handle_delete_xcom(self.client, msg), None
