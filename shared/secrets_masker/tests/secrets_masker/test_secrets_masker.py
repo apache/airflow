@@ -21,7 +21,6 @@ import inspect
 import logging
 import logging.config
 import os
-import pprint
 import sys
 import textwrap
 from enum import Enum
@@ -1238,20 +1237,32 @@ class TestEdgeCases:
         assert redacted.startswith("Contains ")
         assert " and " in redacted
 
-    def test_multiline_secret_masked_when_wrapped_by_pprint(self):
+    def test_multiline_secret_masked_when_split_into_adjacent_literals(self):
         secret = "-----BEGIN KEY-----\nabcDEF123\nxyz789\n-----END KEY-----"
         secrets_masker = SecretsMasker()
         configure_secrets_masker_for_test(secrets_masker)
         secrets_masker.add_mask(secret)
 
-        pod_like = {"spec": {"containers": [{"env": [{"name": "MULTI", "value": secret}]}]}}
-        formatted = pprint.pformat(pod_like)
-        assert "'-----BEGIN KEY-----\\n'\n" in formatted
+        formatted = textwrap.dedent(
+            r"""
+            {'name': 'MULTI',
+             'value': '-----BEGIN KEY-----\n'
+                      'abcDEF123\n'
+                      'xyz789\n'
+                      '-----END KEY-----'}
+            """
+        )
+        expected = textwrap.dedent(
+            r"""
+            {'name': 'MULTI',
+             'value': '***\n'
+                      '***\n'
+                      '***\n'
+                      '***'}
+            """
+        )
 
-        redacted = secrets_masker.redact(formatted)
-
-        for line in secret.splitlines():
-            assert line not in redacted
+        assert secrets_masker.redact(formatted) == expected
 
     @pytest.mark.parametrize("newline", ["\n", "\r\n"])
     def test_multiline_secret_registers_stripped_lines(self, newline):
@@ -1260,13 +1271,13 @@ class TestEdgeCases:
         configure_secrets_masker_for_test(secrets_masker)
         secrets_masker.add_mask(secret)
 
-        assert {"first\\-line\\-1", "second\\-line\\-2"} <= secrets_masker.patterns
+        assert {r"first\-line\-1", r"second\-line\-2"} <= secrets_masker.patterns
         assert secrets_masker.redact(f"x {secret} y") == "x *** y"
 
         single_line_masker = SecretsMasker()
         configure_secrets_masker_for_test(single_line_masker)
         single_line_masker.add_mask("  error  ")
-        assert single_line_masker.patterns == {"\\ \\ error\\ \\ "}
+        assert single_line_masker.patterns == {r"\ \ error\ \ "}
 
 
 class TestDirectMethodCalls:
