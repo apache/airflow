@@ -588,10 +588,9 @@ class PushToHubOperator(BaseOperator):
         hook = HuggingFaceHook(self.huggingface_conn_id)
         commit = None
         if self.durable:
-            commit = hook.find_publication_commit(
+            commit = hook.find_commit_by_marker(
                 self.repo_id,
-                fingerprint,
-                marker=marker,
+                marker,
                 revision=target_revision,
                 include_pull_requests=create_pr,
             )
@@ -603,10 +602,9 @@ class PushToHubOperator(BaseOperator):
             kwargs["commit_message"] = f"{message} [{marker}]"
             commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)
             if commit is None and self.durable:
-                commit = hook.find_publication_commit(
+                commit = hook.find_commit_by_marker(
                     self.repo_id,
-                    fingerprint,
-                    marker=marker,
+                    marker,
                     revision=target_revision,
                     include_pull_requests=create_pr,
                 )

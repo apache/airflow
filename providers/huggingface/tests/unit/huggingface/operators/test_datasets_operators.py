@@ -390,7 +390,7 @@ def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_
     commits = [commit_info(oid=f"{index:040x}") for index in range(1, 4)]
     with patch("airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True) as hook_type:
         hook = hook_type.return_value
-        hook.find_publication_commit.return_value = None
+        hook.find_commit_by_marker.return_value = None
         hook.push_to_hub.side_effect = commits
         configs = [
             ("config-a", {"revision": "branch-a"}),
@@ -408,9 +408,9 @@ def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_
             )
             operator.execute({})
 
-    markers = [call.kwargs["marker"] for call in hook.find_publication_commit.call_args_list]
+    markers = [call.args[1] for call in hook.find_commit_by_marker.call_args_list]
     assert len(set(markers)) == 3
-    assert hook.find_publication_commit.call_args_list[2].kwargs["include_pull_requests"] is True
+    assert hook.find_commit_by_marker.call_args_list[2].kwargs["include_pull_requests"] is True
 
 
 def test_load_retry_reuses_resolved_revision_from_task_state_store(tmp_path, monkeypatch):

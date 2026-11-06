@@ -77,23 +77,6 @@ class HuggingFaceHook(BaseHook):
     def get_dataset_info(self, repo_id: str, revision: str | None = None) -> Any:
         return self.get_conn().dataset_info(repo_id, revision=revision)
 
-    def find_publication_commit(
-        self,
-        repo_id: str,
-        fingerprint: str,
-        *,
-        marker: str,
-        revision: str | None = None,
-        include_pull_requests: bool = False,
-    ) -> Any | None:
-        """Find a completed artifact publication after a worker crash."""
-        return self.find_commit_by_marker(
-            repo_id,
-            marker,
-            revision=revision,
-            include_pull_requests=include_pull_requests,
-        )
-
     @staticmethod
     def _commit_is_complete(commit: Any) -> bool:
         """Reject intermediate commits from a Hub upload split into parts."""
