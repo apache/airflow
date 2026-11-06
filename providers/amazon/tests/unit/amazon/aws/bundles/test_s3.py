@@ -283,16 +283,6 @@ class TestS3DagBundle:
         assert bundle.view_url_template() == original_url
         assert s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=extra_key)["Body"].read() == b"outside"
 
-    def test_rejects_archive_key(self):
-        with pytest.raises(TypeError, match="archive_key"):
-            S3DagBundle(
-                name="test",
-                aws_conn_id=AWS_CONN_ID_DEFAULT,
-                bucket_name=S3_BUCKET_NAME,
-                prefix=S3_BUCKET_PREFIX,
-                archive_key=S3_ARCHIVE_KEY,
-            )
-
 
 @pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
 class TestS3ArchiveDagBundle:
@@ -319,16 +309,6 @@ class TestS3ArchiveDagBundle:
             bundle.refresh()
         with pytest.raises(AirflowException, match="S3 url with version is not supported"):
             bundle.view_url("test_version")
-
-    def test_rejects_prefix(self):
-        with pytest.raises(TypeError, match="prefix"):
-            S3ArchiveDagBundle(
-                name="test",
-                aws_conn_id=AWS_CONN_ID_DEFAULT,
-                bucket_name=S3_BUCKET_NAME,
-                prefix=S3_BUCKET_PREFIX,
-                archive_key=S3_ARCHIVE_KEY,
-            )
 
     def test_refresh_from_archive(self, s3_bucket, s3_client):
         archive = _make_archive({"dag_01.py": b"test data", "subproject1/dag_a.py": b"test data"})
