@@ -96,7 +96,7 @@ def set_task_state_store(
     scope = _get_task_scope_for_ti(task_instance_id, session)
     try:
         get_state_backend().set(
-            scope=scope, key=key, value=json.dumps(body.value), expires_at=body.expires_at, session=session
+            scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session
         )
     except DagRunNotFound as e:
         if not ReturnNotFoundForMissingDagRun.is_applied:

@@ -446,6 +446,19 @@ class TestPatchTaskState(TestTaskStateEndpoint):
             assert response.status_code == 404
             assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
 
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    def test_unrelated_backend_value_error_is_not_not_found(self, test_client, method):
+        _create_task_state_store_row(self._session, "job_id", "initial", self.dag_run)
+        self._session.commit()
+
+        with patch(
+            "airflow.state.metastore.MetastoreBackend.set",
+            autospec=True,
+            side_effect=ValueError("Invalid backend configuration"),
+        ):
+            with pytest.raises(ValueError, match="Invalid backend configuration"):
+                getattr(test_client, method)(f"{BASE_URL}/job_id", json={"value": "v2"})
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.patch(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
 

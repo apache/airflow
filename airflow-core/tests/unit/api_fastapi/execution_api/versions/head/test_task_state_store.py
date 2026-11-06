@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING
-from unittest import mock
 from uuid import uuid4
 
 import pendulum
@@ -311,16 +310,6 @@ class TestPutTaskState:
             "reason": "not_found",
             "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
         }
-
-    @mock.patch("airflow.api_fastapi.execution_api.routes.task_state_store.get_state_backend", autospec=True)
-    def test_put_unrelated_backend_value_error_is_not_not_found(
-        self, mock_get_backend, client: TestClient, create_task_instance: CreateTaskInstance
-    ):
-        ti = create_task_instance()
-        mock_get_backend.return_value.set.side_effect = ValueError("Invalid backend configuration")
-
-        with pytest.raises(ValueError, match="Invalid backend configuration"):
-            client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})
 
     def test_put_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()
