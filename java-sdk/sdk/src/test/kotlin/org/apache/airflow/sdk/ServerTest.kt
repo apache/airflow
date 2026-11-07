@@ -23,6 +23,7 @@ import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -52,6 +53,8 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.io.InputStream
+import java.io.OutputStream
+import java.io.PrintStream
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -338,6 +341,19 @@ object QueuedLogsProbe {
   }
 }
 
+/**
+ * [ServerTest.exitsOnSigtermWhileNothingReadsTheLogs] starts a JVM with this object as its main class. The main method
+ * of this object first sets [logFlushTimeout], which limits how long the SDK's shutdown hook waits, to 2 seconds. Then
+ * the method does what [QueuedLogsProbe] does.
+ */
+object UnreadLogsProbe {
+  @JvmStatic
+  fun main(args: Array<String>) {
+    logFlushTimeout = Duration.ofSeconds(2)
+    QueuedLogsProbe.main(args)
+  }
+}
+
 /** Logs 32 MiB of messages, and then makes the JVM exit with code 3. */
 class ExitingTask : Task {
   override fun execute(
@@ -518,6 +534,83 @@ class ServerTest {
       Assertions.assertEquals(0, process.exitValue())
       Assertions.assertEquals(QUEUED_LINES, queued, "every queued message should be written before the log connection closes")
     }
+
+  @Test
+  @DisplayName("Should let the JVM exit on SIGTERM while nothing reads the queued logs, and say why lines were lost")
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun exitsOnSigtermWhileNothingReadsTheLogs() {
+    val output = File.createTempFile("probe", ".out").apply { deleteOnExit() }
+    withProbeJvm(UnreadLogsProbe::class.java, output) { comm, logs, process ->
+      // The first line shows that the SDK has handed the queued messages to the sender thread. The SDK adds its
+      // shutdown hook right after it hands those messages over, on the same thread that later runs the task.
+      // So the hook is in place before the task starts.
+      logs.getInputStream().bufferedReader().readLine()
+      DataOutputStream(comm.getOutputStream()).writeFrame(hexToBytes(STARTUP_HEX))
+      Assertions.assertInstanceOf(GetVariable::class.java, DataInputStream(comm.getInputStream()).readFrame().body)
+
+      // The test reads no more logs and never answers the task's request.
+      val signalled = System.nanoTime()
+      process.destroy()
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit although the queued logs cannot be written")
+      val elapsed = Duration.ofNanos(System.nanoTime() - signalled)
+      Assertions.assertTrue(elapsed < Duration.ofSeconds(10)) { "the JVM took $elapsed to exit" }
+      Assertions.assertEquals(143, process.exitValue(), "the JVM should exit with the exit code that it uses on SIGTERM")
+      val reports = output.readLines().filter { it.contains("Cannot send a log line to the supervisor") }
+      Assertions.assertTrue(reports.any { it.contains("no log line was written for 2000 ms") }) { "reports: $reports" }
+    }
+  }
+
+  @Test
+  @DisplayName("Should wait at most the log flush timeout for the log socket to close")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun stopsWaitingForLogSocketToClose() {
+    val saved = logFlushTimeout
+    logFlushTimeout = Duration.ofSeconds(1)
+    try {
+      LogSender.reset()
+      var closeCalled = false
+      val started = System.nanoTime()
+      // The job never completes. Closing a socket that nothing reads also never completes, because the socket cannot
+      // send the rest of its buffer.
+      sendQueuedLogs({ closeCalled = true }, Job())
+      val elapsed = Duration.ofNanos(System.nanoTime() - started)
+
+      Assertions.assertTrue(closeCalled, "the hook should close the socket")
+      Assertions.assertTrue(elapsed >= Duration.ofSeconds(1) && elapsed < Duration.ofSeconds(5)) { "the hook took $elapsed" }
+    } finally {
+      logFlushTimeout = saved
+    }
+  }
+
+  @Test
+  @DisplayName("Should not wait for the log socket to close once the shutdown hook has stopped waiting for the queued lines")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun skipsSocketWaitAfterGivingUpOnQueuedLines() {
+    val saved = logFlushTimeout
+    val savedErrors = LogSender.errors
+    logFlushTimeout = Duration.ofSeconds(2)
+    LogSender.errors = PrintStream(OutputStream.nullOutputStream())
+    val channel = ByteChannel(autoFlush = true)
+    try {
+      LogSender.messages.clear()
+      LogSender.configure(channel)
+      // Nothing reads the channel, so the sender thread cannot finish this line.
+      LogSender.send(LogMessage("x".repeat(2 * 1024 * 1024), emptyMap(), "test", Level.INFO))
+      var closeCalled = false
+      val started = System.nanoTime()
+      sendQueuedLogs({ closeCalled = true }, Job())
+      val elapsed = Duration.ofNanos(System.nanoTime() - started)
+
+      Assertions.assertTrue(closeCalled, "the hook should still close the socket")
+      // The hook gives up on the line after 2 seconds. Waiting for the socket to close would take 2 more seconds.
+      Assertions.assertTrue(elapsed < Duration.ofMillis(3500)) { "the hook took $elapsed" }
+    } finally {
+      channel.cancel(null)
+      LogSender.flush(Duration.ofSeconds(10))
+      LogSender.errors = savedErrors
+      logFlushTimeout = saved
+    }
+  }
 
   @Test
   @DisplayName("Should write the queued logs before the JVM exits when the task calls System.exit")
