@@ -258,8 +258,10 @@ class BaseSensorOperator(BaseOperator):
                 return super().resume_execution(next_method, next_kwargs, context)
             except TaskDeferralTimeout as e:
                 raise AirflowSensorTimeout(*e.args) from e
-        except (AirflowException, TaskDeferralError) as e:
-            if self.soft_fail:
+        except (AirflowException, TaskDeferralError, AirflowTaskTimeout) as e:
+            if self.soft_fail and isinstance(
+                e, (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException)
+            ):
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
             if self.never_fail:
                 raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
