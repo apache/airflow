@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 ---
 package-name: apache-airflow-providers-databricks
 name: Databricks
@@ -134,6 +133,7 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/sql_statements.rst
       - /docs/apache-airflow-providers-databricks/operators/warehouse.rst
       - /docs/apache-airflow-providers-databricks/operators/copy_into.rst
+      - /docs/apache-airflow-providers-databricks/operators/delta_table_sensor.rst
     tags: [service]
   - integration-name: Databricks Repos
     external-doc-url: https://docs.databricks.com/repos/index.html
