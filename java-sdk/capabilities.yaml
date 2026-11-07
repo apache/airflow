@@ -93,8 +93,10 @@ capabilities:
     sdk_version: "1.0.0"
     note: "Client.getTaskStateStore() get/set/delete/clear"
   asset-state-store:
-    supported: false
-    note: "no task-facing asset state-store API yet"
+    supported: true
+    since: "3.4.0"
+    sdk_version: "1.0.0"
+    note: "Client.getAssetStateStore(), by asset name or URI"
   asset-event-emit:
     supported: false
     note: "runtime does not emit asset events yet"
