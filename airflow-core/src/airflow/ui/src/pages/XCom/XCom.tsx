@@ -200,7 +200,9 @@ export const XCom = () => {
   const filteredKey = searchParams.get(KEY_PATTERN_PARAM);
   const filteredDagDisplayName = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
   const filteredMapIndex = searchParams.get(MAP_INDEX_PARAM);
-  const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
+  // XComFilters only offers a run id filter when no run is in the route. Applying one anyway lets a
+  // pattern carried over from the grid empty this table with no filter chip there to clear it.
+  const filteredRunId = runId === "~" ? searchParams.get(RUN_ID_PATTERN_PARAM) : null;
   const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
   const teams = searchParams.getAll(TEAMS_PARAM);
 

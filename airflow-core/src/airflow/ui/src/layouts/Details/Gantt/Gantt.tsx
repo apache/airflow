@@ -32,6 +32,7 @@ import {
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 
+import { TASK_STREAM_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGroups } from "src/context/groups";
 import { useTimezone } from "src/context/timezone";
@@ -79,10 +80,10 @@ export const Gantt = ({
   const { openGroupIds, toggleGroupId } = useGroups();
   const { selectedTimezone } = useTimezone();
 
-  const filterRoot = searchParams.get("root") ?? undefined;
-  const includeUpstream = searchParams.get("upstream") === "true";
-  const includeDownstream = searchParams.get("downstream") === "true";
-  const depthParam = searchParams.get("depth");
+  const filterRoot = searchParams.get(TASK_STREAM_SEARCH_PARAMS.root) ?? undefined;
+  const includeUpstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.upstream) === "true";
+  const includeDownstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.downstream) === "true";
+  const depthParam = searchParams.get(TASK_STREAM_SEARCH_PARAMS.depth);
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   // Task-level time window, written by the Start/End Date pills in GridFilters.
