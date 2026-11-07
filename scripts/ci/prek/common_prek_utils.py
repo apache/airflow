@@ -30,7 +30,7 @@ import time
 from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
-from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from tempfile import NamedTemporaryFile, TemporaryDirectory, _TemporaryFileWrapper
 from typing import Any
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
@@ -949,6 +949,48 @@ def get_remote_for_main() -> str:
                 origin_remote = name
 
     return apache_remote or origin_remote or "origin"
+
+
+def get_target_branch() -> str:
+    return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
+
+
+def get_changed_files(filenames: list[str]) -> list[str]:
+    if filenames:
+        return filenames
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [f for f in result.stdout.strip().splitlines() if f]
+
+
+@contextmanager
+def temporary_target_branch_worktree() -> Generator[Path, None, None]:
+    target_branch = get_target_branch()
+    remote = get_remote_for_main()
+    ref = f"{remote}/{target_branch}"
+    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
+    git_env = git_env_without_repo_overrides()
+    with TemporaryDirectory() as temp_dir:
+        worktree_path = Path(temp_dir) / "airflow-main"
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), ref],
+            capture_output=True,
+            check=True,
+            env=git_env,
+        )
+        try:
+            yield worktree_path
+        finally:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(worktree_path)],
+                capture_output=True,
+                check=False,
+                env=git_env,
+            )
 
 
 def env_without_github_tokens(env: dict[str, str] | None = None) -> dict[str, str]:
