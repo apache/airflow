@@ -99,6 +99,7 @@ from airflow.models.dynamic_region import (
 )
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1521,7 +1522,8 @@ class DagRun(Base, LoggingMixin):
                 "DagRun Finished: dag_id=%s, logical_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
                 "state=%s, run_type=%s, "
-                "data_interval_start=%s, data_interval_end=%s,"
+                "data_interval_start=%s, data_interval_end=%s, "
+                "partition_key=%s,"
             )
             self.log.info(
                 msg,
@@ -1539,6 +1541,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
+                self.partition_key,
             )
             session.flush()
             try:
@@ -1823,6 +1826,7 @@ class DagRun(Base, LoggingMixin):
             }
 
         context["reason"] = reason
+        context["callback"] = CallbackMeta(source=CallbackSource.DAG)
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:
@@ -2376,13 +2380,10 @@ class DagRun(Base, LoggingMixin):
                         producer_contexts=coordinates.producer_contexts(ti),
                     )
                 except NotFullyPopulated:
-                    # Not all upstreams finished, so we can't tell what should be here. Remove everything.
-                    if ti.region_index >= 0:
-                        self.log.debug(
-                            "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
-                        )
-                        ti.state = TaskInstanceState.REMOVED
-                        continue
+                    # Not all upstreams finished, so the count isn't known yet. Keep the expanded
+                    # instances and restore removed ones below; _revise_map_indexes_if_mapped trims
+                    # or extends them once the upstreams finish, but never restores a removed index.
+                    pass
                 else:
                     # Upstreams finished, check there aren't any extras
                     if ti.region_index >= total_length:

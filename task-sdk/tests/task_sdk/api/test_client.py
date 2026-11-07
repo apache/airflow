@@ -1163,6 +1163,56 @@ class TestXCOMOperations:
                     key="key",
                 )
 
+    def test_xcom_get_404_returns_none_value(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
+
+        assert result == XComResponse(key="key", value=None)
+
+    def test_xcom_get_sequence_item_404_returns_not_found_error(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key/item/2":
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        result = client.xcoms.get_sequence_item(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            offset=2,
+        )
+
+        assert result == ErrorResponse(
+            error=ErrorType.XCOM_NOT_FOUND,
+            detail={
+                "dag_id": "dag_id",
+                "run_id": "run_id",
+                "task_id": "task_id",
+                "key": "key",
+                "offset": 2,
+            },
+        )
+
     @pytest.mark.parametrize(
         "values",
         [
@@ -1960,6 +2010,27 @@ class TestHITLOperations:
         assert result.params is None
         assert result.multiple is False
         assert result.assigned_users is None
+
+    def test_add_response_retries_with_the_same_idempotency_key(self) -> None:
+        ti_id = uuid7()
+        keys: list[str] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            keys.append(request.headers["Idempotency-Key"])
+            if len(keys) == 1:
+                return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
+            return httpx2.Response(
+                status_code=201, json={"ti_id": str(ti_id), "options": ["Approve"], "subject": "Ship it?"}
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+
+        first_attempt, retry, next_request = keys
+        assert retry == first_attempt
+        assert next_request != first_attempt
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))

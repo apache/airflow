@@ -88,11 +88,4 @@ public class InterfaceExampleBuilder {
       }
     }
   }
-
-  public static DagDef build() {
-    return new DagDef("java_interface_example")
-        .addTask("extract", Extract.class)
-        .addTask("transform", Transform.class)
-        .addTask("summarize", Summarize.class);
-  }
 }

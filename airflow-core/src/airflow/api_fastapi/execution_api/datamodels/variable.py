@@ -26,13 +26,13 @@ class VariableResponse(StrictBaseModel):
     """Variable schema for responses with fields that are needed for Runtime."""
 
     key: str
-    val: str | None = Field(alias="value")
+    val: str = Field(alias="value")
 
 
 class VariablePostBody(StrictBaseModel):
     """Request body schema for creating variables."""
 
-    value: str | None = Field(alias="val")
+    value: str = Field(alias="val")
     description: str | None = Field(default=None)
 
 

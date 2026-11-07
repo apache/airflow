@@ -298,7 +298,7 @@ As explained before, you cannot run DB tests in parallel using the ``pytest-xdis
      - "- **Run core or provider non-db tests suite in parallel:** `breeze testing <test_group> --skip-db-tests --use-xdist` (test groups: `core-tests`, `providers-tests`)"
      - "- **Run single provider complete test suite:** `breeze testing providers-tests --test-type \"Providers[PROVIDERS_LIST]\"` (e.g., `Providers[google]` or `Providers[amazon]` or \"Providers[amazon,google]\")"
      - "- **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`"
-     - "- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`"
+     - "- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version <version>` (bare version, e.g. `1.35.8`, unlike the `v`-prefixed `breeze k8s` versions; allowed versions in `breeze testing helm-tests --help`)"
      - "- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)"
      - "- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)"
      - "- **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`"

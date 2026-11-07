@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 from packaging.version import Version
 
@@ -260,6 +262,22 @@ def test_airflowctl_commands_skip_keyring(
         },
         skip_login=True,
     )
+
+
+def test_backfill_create_dry_run_lists_the_runs_it_would_create(api_token, run_command, tmp_path):
+    # 2024 stays clear of the runs triggered above, which a dry run would leave out.
+    output = run_command(
+        command="backfill create-dry-run --dag-id example_bash_operator "
+        "--from-date 2024-01-01T00:00:00+00:00 --to-date 2024-01-03T00:00:00+00:00 -o json",
+        env_vars={"AIRFLOW_HOME": str(tmp_path), "AIRFLOW_CLI_TOKEN": api_token},
+        skip_login=True,
+    )
+    # A server older than 3.2 omits the partition fields, and that warning precedes the JSON.
+    assert [row["logical_date"] for row in json.loads(output.splitlines()[-1])] == [
+        "2024-01-01T00:00:00Z",
+        "2024-01-02T00:00:00Z",
+        "2024-01-03T00:00:00Z",
+    ]
 
 
 @pytest.mark.parametrize("command", NO_AUTH_TEST_COMMANDS)

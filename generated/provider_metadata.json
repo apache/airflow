@@ -5005,6 +5005,10 @@
         "1.0.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-10-19T11:09:33Z"
+        },
+        "1.1.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-11-01T20:42:39Z"
         }
     },
     "common.compat": {
