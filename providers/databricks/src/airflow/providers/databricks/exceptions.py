@@ -54,3 +54,7 @@ class DatabricksApiError(AirflowException):
     def __init__(self, message: str, *, http_status_code: int | None = None) -> None:
         super().__init__(message)
         self.http_status_code = http_status_code
+
+
+class DatabricksDeltaTableConfigurationError(AirflowException):
+    """Raised when Delta table sensor configuration is invalid."""
