@@ -567,7 +567,13 @@ class TestSecurityContext:
                 "spec.template.spec.securityContext",
             ),
             (
-                {"createUserJob": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                {
+                    "createUserJob": {
+                        "enabled": True,
+                        "defaultUser": {"username": "admin", "password": "admin"},
+                        "securityContexts": {"pod": {"runAsUser": 8000}},
+                    }
+                },
                 "templates/jobs/create-user-job.yaml",
                 "spec.template.spec.securityContext",
             ),
