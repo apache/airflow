@@ -45,6 +45,9 @@ JOB_NAME_MAX_LENGTH = 100
 CI_PASSED_CONTEXT = "CI passed"
 CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# fork-ci-project-ci-label.yml posts the first one with the same text when `use project ci` is added.
+CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION = "Waiting for project CI (use project ci)"
+CI_PASSED_PROJECT_DESCRIPTION = "Project CI passed for this commit"
 # Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
 # request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
 # request once the fork has a run for the head commit, for any other once project CI has one.

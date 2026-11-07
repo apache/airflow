@@ -1,0 +1,107 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# AIP-120: when a maintainer adds `use project ci` to a pull request whose fork CI passed, or a
+# pull request carrying it gets a new head commit or is reopened, the `CI passed` commit status
+# posted from a fork run must stop satisfying the merge ruleset at once, not at the Fork CI
+# monitor's next 15-minute run, and again once the monitor runs under way have finished. Revoking
+# it is the only thing this workflow does; project CI's result is reported by the monitor. It never
+# checks out or runs pull request code and reads nothing from the pull request but its head commit
+# SHA. See dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+#
+# Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+# this file is closed by the Fork CI monitor ("Gate protection" in the document above).
+name: "Fork CI project CI label"
+on:  # yamllint disable-line rule:truthy
+  pull_request_target:  # zizmor: ignore[dangerous-triggers]
+    types: [labeled, synchronize, reopened]
+permissions: {}
+
+jobs:
+  revoke-fork-ci-passed:
+    name: "Revoke the fork CI result of a pull request moved to project CI"
+    if: >
+      github.repository == 'apache/airflow' && (
+        (github.event.action == 'labeled' && github.event.label.name == 'use project ci') ||
+        (github.event.action != 'labeled' &&
+          contains(github.event.pull_request.labels.*.name, 'use project ci'))
+      )
+    permissions:
+      # Reading and writing the `CI passed` commit status of the head commit.
+      statuses: write
+      # Listing the runs of the Fork CI monitor.
+      actions: read
+    runs-on: ubuntu-slim
+    # GitHub ends single-CPU runner jobs after 15 minutes, whatever timeout-minutes says.
+    timeout-minutes: 14
+    steps:
+      - name: "Replace a fork CI success with pending"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # The text of CI_PASSED_PROJECT_DESCRIPTION in fork_ci_messages.py, which the monitor
+          # posts once project CI has passed; any other success came from a fork run.
+          project_description="Project CI passed for this commit"
+          revoke() {
+            current=$(gh api --paginate \
+              "repos/${REPOSITORY}/commits/${HEAD_SHA}/status?per_page=100" \
+              --jq '.statuses[] | select(.context == "CI passed") | "\(.state)\t\(.description)"') ||
+              return 1
+            success=$'success\t'
+            if [[ "${current}" != "${success}"* ||
+                  "${current}" == "${success}${project_description}" ]]; then
+              echo "CI passed is not a fork CI success on ${HEAD_SHA}; nothing to revoke."
+              return
+            fi
+            gh api -X POST "repos/${REPOSITORY}/statuses/${HEAD_SHA}" \
+              -f state=pending \
+              -f context="CI passed" \
+              -f description="Waiting for project CI (use project ci)" \
+              -f target_url="https://github.com/${REPOSITORY}/pull/${PR_NUMBER}/checks"
+          }
+          revoke_with_retries() {
+            for _ in 1 2 3; do
+              revoke && return
+              sleep 10
+            done
+            return 1
+          }
+          revoke_with_retries || echo "::warning::First revoke failed; retrying later"
+          # A monitor run that read the pull request before it was labelled can still post a fork
+          # success after the revoke above. Once the runs under way have finished, revoke again.
+          # A monitor run takes about 2 minutes. An older one that is still queued or in progress is
+          # stuck, and GitHub can leave such runs behind for good, so it is not waited for.
+          since=$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          deadline=$((SECONDS + 720))
+          while ((SECONDS < deadline)); do
+            active=0
+            for run_status in queued in_progress; do
+              runs_url="repos/${REPOSITORY}/actions/workflows/fork-ci-monitor.yml/runs"
+              count=$(gh api -X GET "${runs_url}" -f status="${run_status}" -f created=">=${since}" \
+                -f per_page=1 --jq '.total_count') || count=1
+              [[ "${count}" =~ ^[0-9]+$ ]] || count=1
+              active=$((active + count))
+            done
+            ((active == 0)) && break
+            sleep 30
+          done
+          revoke_with_retries
