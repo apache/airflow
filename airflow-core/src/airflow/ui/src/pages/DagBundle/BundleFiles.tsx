@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { Box, Button, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,8 @@ import { LuFileWarning } from "react-icons/lu";
 
 import { useDagBundleServiceGetDagBundleFiles } from "openapi/queries";
 import type { DagBundleFileResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
@@ -83,9 +85,9 @@ const createColumns = (
     cell: ({ row: { original } }: FileRow) =>
       // Only worth clicking when there is an error behind the count. A bare badge reads as a
       // status rather than a control, so the clickable form carries an icon and its own label.
-      original.import_error_count === null || original.import_error_count === 0 ? (
+      original.import_error_count === 0 ? (
         <ImportErrorCount count={original.import_error_count} />
-      ) : (
+      ) : original.can_read_import_error ? (
         <Button
           colorPalette="failed"
           onClick={() => {
@@ -99,6 +101,13 @@ const createColumns = (
             count: original.import_error_count,
           })}
         </Button>
+      ) : (
+        <Tooltip content={translate("browse:dagBundles.files.importErrorForbidden")}>
+          <Badge colorPalette="failed" h={8} variant="subtle">
+            <LuFileWarning />
+            {formatNumber(original.import_error_count, locale)}
+          </Badge>
+        </Tooltip>
       ),
     enableSorting: false,
     header: translate("browse:dagBundles.columns.importErrors"),
@@ -113,7 +122,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
   const { pagination } = tableURLState;
   const [errorFileloc, setErrorFileloc] = useState<string | undefined>(undefined);
 
-  const { data, error, isLoading } = useDagBundleServiceGetDagBundleFiles(
+  const { data, error, isLoading, refetch } = useDagBundleServiceGetDagBundleFiles(
     {
       bundleName,
       limit: pagination.pageSize,
@@ -127,18 +136,28 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
     <Box pt={2}>
       <FileImportError
         bundleName={bundleName}
+        hasImportError={
+          (data?.dag_bundle_files.find((file) => file.relative_fileloc === errorFileloc)
+            ?.import_error_count ?? 0) > 0
+        }
         onClose={() => {
           setErrorFileloc(undefined);
         }}
+        recheckImportError={refetch}
         relativeFileloc={errorFileloc}
       />
       <DataTable
         columns={createColumns(translate, i18n.language, setErrorFileloc)}
         data={data?.dag_bundle_files ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        headingExtra={
+          <Text color="fg.muted" fontSize="sm">
+            {translate("browse:dagBundles.files.parsedFilesNote")}
+          </Text>
+        }
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName="browse:dagBundles.files.file"
+        modelName="browse:dagBundles.files.parsedFile"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

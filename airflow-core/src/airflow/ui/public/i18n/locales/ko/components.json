@@ -5,6 +5,7 @@
     "affectedNone": "선택한 조건과 일치하는 실행이 없습니다.",
     "allRuns": "모든 실행",
     "backwards": "거꾸로 실행",
+    "completed": "완료",
     "dateRange": "날짜 범위",
     "errorStartDateBeforeEndDate": "시작일은 종료일보다 빨라야 합니다.",
     "exceptionReason": {

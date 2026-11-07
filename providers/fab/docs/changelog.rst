@@ -20,6 +20,53 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+.. note::
+    Airflow 3.4.1 gives Dag bundles their own ``Dag Bundles`` resource, which only ``Op`` and
+    ``Admin`` get by default, so ``Viewer`` and ``User`` lose the Dag bundle pages and API they
+    reached through Dag read access. Upgrade this provider together with Airflow 3.4.1: older
+    releases deny the Dag bundle pages and API to every role, including ``Admin``, while still
+    showing the Browse menu entry. Custom roles need ``can read`` and ``menu access`` on
+    ``Dag Bundles`` added by hand.
+
+    ``POST /auth/token`` and ``POST /auth/token/cli`` now check a username and password only against
+    the configured ``AUTH_TYPE``: with ``AUTH_LDAP`` they no longer fall back to database passwords, and
+    with other authentication types (OAuth, remote user) they no longer issue tokens for a username and
+    password; use that type's own login flow instead. Passwords made only of NUL bytes are rejected.
+
+Features
+~~~~~~~~
+
+* ``Give Dag bundles their own read permission, on Airflow 3.4.1+ (#76329)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep the Dag bundles menu entry on Dag access on Airflow 3.4.0 (#76474)``
+* ``Use only the configured auth type when creating tokens in the FAB auth manager (#76231)``
+* ``Honor next when an authenticated user reaches the FAB login page (#75665)``
+
+Misc
+~~~~
+
+* ``Bump @babel/core to 8.0.9 and webpack to 5.112.2 in the FAB UI (#75807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the permissions for GET /api/v2/triggers (#76260)``
+* ``Document the public GET /api/v2/auth/cli/metadata endpoint (#75672)``
+* ``Document the permission for GET /api/v2/providers/{provider_name} (#68854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Add unit tests for auth manager login datamodels (#72265) (#75544)``
+   * ``Remove unused FAB test log assertion helpers (#75876)``
+
 3.10.2
 ......
 
