@@ -140,7 +140,7 @@ def parse_sql(
 
     try:
         statements = sqlglot.parse(sql, dialect=dialect, error_level=ErrorLevel.RAISE)
-    except sqlglot.errors.ParseError as e:
+    except sqlglot.errors.SqlglotError as e:
         raise SQLSafetyError(f"SQL parse error: {e}") from e
 
     # sqlglot.parse can return [None] for empty input
@@ -177,6 +177,17 @@ class TableScan(NamedTuple):
 
 
 _DML_TYPES: tuple[type[exp.Expr], ...] = (exp.Insert, exp.Update, exp.Delete, exp.Merge)
+
+# Sources under LATERAL / APPLY that can be checked: a subquery (its tables are scanned) and
+# column generators (UNNEST, EXPLODE/FLATTEN, INLINE, OPENJSON) that only expand their
+# arguments, which the scans still walk.
+_CHECKABLE_LATERAL_SOURCES: tuple[type[exp.Expr], ...] = (
+    exp.Subquery,
+    exp.Unnest,
+    exp.Explode,
+    exp.Inline,
+    exp.OpenJSON,
+)
 
 
 def _same_identifier(a: exp.Identifier, b: exp.Identifier) -> bool:
@@ -277,7 +288,8 @@ def collect_table_references(
     - **Catalog-qualified references are reported with their catalog**, so the caller
       rejects ``otherdb.public.orders`` instead of matching it to ``public.orders``.
     - **Unverifiable constructs are listed, not silently dropped:** nameless
-      table-valued functions (``dblink``), ``TABLE('name')`` row sources
+      table-valued functions (``dblink``), including one under ``LATERAL``,
+      ``TABLE('name')`` row sources
       (``exp.TableFromRows``), ``SHOW``, dynamic SQL (``EXEC``/``Command``), the
       ``TABLE <name>`` shorthand (which sqlglot parses incorrectly, leaking the
       ``TABLE`` keyword as a column), a **quoted identifier** (case-sensitive on the engine but
@@ -373,6 +385,14 @@ def collect_table_references(
             unverifiable.append("a TABLE(...) row source")
             continue
 
+        # A function under LATERAL (DuckDB `LATERAL read_parquet('...')`, Postgres
+        # `LATERAL generate_series(...)`) has no exp.Table node, so the table-valued
+        # function check below never sees it. Anything not in _CHECKABLE_LATERAL_SOURCES --
+        # including an allow-listed or schema-qualified function -- is refused.
+        for lateral in stmt.find_all(exp.Lateral):
+            if not isinstance(lateral.this, _CHECKABLE_LATERAL_SOURCES):
+                unverifiable.append(f"table-valued function ({lateral.this.sql()})")
+
         # `TABLE <name>` (Postgres/MySQL shorthand for SELECT * FROM <name>) is not
         # modelled by sqlglot; it parses incorrectly, leaking the reserved word TABLE as an
         # unquoted column identifier. No real query has an unquoted column named TABLE.
@@ -421,7 +441,7 @@ TableKey = tuple[str | None, str | None, str]
 
 def canonical_table_key(catalog: str | None, schema: str | None, table: str) -> TableKey:
     """
-    Normalise a ``(catalog, schema, table)`` reference to its case-folded comparison key.
+    Normalize a ``(catalog, schema, table)`` reference to its case-folded comparison key.
 
     Identifiers are case-folded because databases reflect them in their own case (Snowflake
     stores unquoted names uppercase but reflects them lowercased), so a byte-exact match

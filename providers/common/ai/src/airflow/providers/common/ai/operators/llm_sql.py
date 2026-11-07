@@ -36,7 +36,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -48,6 +48,16 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
+
+
+def _last_sql_refusal(error: BaseException) -> SQLSafetyError | None:
+    """Return the ``SQLSafetyError`` behind pydantic-ai giving up on output retries, if any."""
+    cause = error.__cause__
+    while cause is not None:
+        if isinstance(cause, SQLSafetyError):
+            return cause
+        cause = cause.__cause__
+    return None
 
 
 class LLMSQLQueryOperator(LLMOperator):
@@ -208,7 +218,15 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self._create_agent(output_type=str, instructions=full_system_prompt)
         if self.allowed_tables is not None:
             agent.output_validator(self._retry_unsafe_sql)
-        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
+        try:
+            result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
+        except UnexpectedModelBehavior as e:
+            # Once output_retries run out, pydantic-ai reports its own error with the last
+            # refusal only in the cause chain; surface the documented SQLSafetyError instead.
+            refusal = _last_sql_refusal(e)
+            if refusal is None:
+                raise
+            raise SQLSafetyError(str(refusal)) from e
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
