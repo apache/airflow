@@ -207,3 +207,32 @@ class TestBuildSphinxDocsSpelling:
         _, spelling_errors = builder.build_sphinx_docs(verbose=False)
 
         assert spelling_errors == []
+
+    @pytest.mark.parametrize("theme_mounted", [True, False])
+    def test_autobuild_watches_mounted_sphinx_airflow_theme(self, builder, monkeypatch, theme_mounted):
+        builder.is_autobuild = True
+        seen_cmd: list[str] = []
+
+        def fake_run_sphinx(self, build_cmd, *, log_file, verbose):
+            seen_cmd.extend(build_cmd)
+            return 2
+
+        monkeypatch.setattr(AirflowDocsBuilder, "_run_sphinx", fake_run_sphinx)
+        orig_is_dir = Path.is_dir
+        monkeypatch.setattr(
+            Path,
+            "is_dir",
+            lambda p: (
+                theme_mounted
+                if p == Path("/opt/sphinx_airflow_theme/sphinx_airflow_theme")
+                else orig_is_dir(p)
+            ),
+        )
+
+        builder.build_sphinx_docs(verbose=False)
+
+        if theme_mounted:
+            watch_index = seen_cmd.index("--watch")
+            assert seen_cmd[watch_index + 1] == "/opt/sphinx_airflow_theme/sphinx_airflow_theme"
+        else:
+            assert "--watch" not in seen_cmd
