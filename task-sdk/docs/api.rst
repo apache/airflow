@@ -214,7 +214,7 @@ Assets
 
 .. autoapiclass:: airflow.sdk.Metadata
 
-.. autoapifunction:: airflow.sdk.emit_asset_event
+.. autofunction:: airflow.sdk.emit_asset_event
 
 Timetables
 ----------
