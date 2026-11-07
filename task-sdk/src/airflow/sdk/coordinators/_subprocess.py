@@ -493,6 +493,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     not lost.
     """
 
+    supports_large_ints: ClassVar[bool] = False
     _comm_server: socket.socket
     _logs_server: socket.socket
 

@@ -822,7 +822,7 @@ class WatchedSubprocess:
     socket handling, process monitoring, and request handling.
     """
 
-    _supports_large_ints: ClassVar[bool] = True
+    supports_large_ints: ClassVar[bool] = True
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[Any]] | None] = None
     _shared_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[_ClientSubprocess]]] = dict(
         [
@@ -1166,7 +1166,7 @@ class WatchedSubprocess:
             frame = _ResponseFrame(id=request_id, error=err_resp)
         self.stdin.sendall(
             frame.as_bytes(
-                allow_large_ints=self._supports_large_ints and self._subprocess_schema_version is None
+                allow_large_ints=self.supports_large_ints and self._subprocess_schema_version is None
             )
         )
 
