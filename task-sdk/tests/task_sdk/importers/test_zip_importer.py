@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import py_compile
+import textwrap
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -180,6 +181,37 @@ class TestZipImporter:
         assert dags[0].dag_id == "zip_dag_a"
         assert dags[0].bundle_name == "test_bundle"
         assert len(errors) == 0
+
+    def test_imported_dag_resolves_template_file_from_archive(self, mock_bundle):
+        zip_path = mock_bundle.path / "templated.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr(
+                "pkg/templated_dag.py",
+                textwrap.dedent(
+                    """\
+                    from airflow.sdk import DAG, BaseOperator
+
+                    class SqlOperator(BaseOperator):
+                        template_fields = ("sql",)
+                        template_ext = (".sql",)
+
+                        def __init__(self, sql, **kwargs):
+                            super().__init__(**kwargs)
+                            self.sql = sql
+
+                    with DAG("zip_templated_dag"):
+                        SqlOperator(task_id="t", sql="sql/query.sql")
+                    """
+                ),
+            )
+            z.writestr("pkg/sql/query.sql", "SELECT 1")
+
+        dags, errors = _import_all(ZipImporter(), mock_bundle)
+        assert errors == []
+        (dag,) = dags
+        dag.resolve_template_files()
+
+        assert dag.get_task("t").sql == "SELECT 1"
 
     def test_import_zip_archive_with_pyc_dag(self, mock_bundle, tmp_path):
         source_file = tmp_path / "compiled_dag.py"
