@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import logging
 from datetime import UTC, datetime, timedelta
 from json.decoder import JSONDecodeError
@@ -1019,6 +1020,36 @@ class TestPodManager:
             )
 
     @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch("time.time", side_effect=itertools.count(0, 100_000))
+    @mock.patch("time.monotonic", side_effect=itertools.count(0, 1))
+    async def test_start_pod_timeouts_unaffected_by_wall_clock_jump(
+        self, mock_monotonic, mock_time, mock_sleep
+    ):
+        """A wall-clock step (e.g. an NTP correction) must not trip the schedule/startup timeouts."""
+        condition_scheduled = mock.MagicMock()
+        condition_scheduled.type = "PodScheduled"
+        condition_scheduled.status = "True"
+
+        pod_pending = mock.MagicMock(**{"status.phase": PodPhase.PENDING, "status.conditions": None})
+        pod_pending_scheduled = mock.MagicMock(
+            **{"status.phase": PodPhase.PENDING, "status.conditions": [condition_scheduled]}
+        )
+        pod_running = mock.MagicMock(**{"status.phase": PodPhase.RUNNING})
+        self.mock_kube_client.read_namespaced_pod.side_effect = [
+            pod_pending,
+            pod_pending_scheduled,
+            pod_running,
+        ]
+        mock_pod = MagicMock()
+
+        await self.pod_manager.await_pod_start(
+            pod=mock_pod,
+            schedule_timeout=3600,
+            startup_timeout=3600,
+        )
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("fail_reason", ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"])
     async def test_start_pod_raises_fast_error_on_image_error(self, fail_reason):
         pod_response = mock.MagicMock()
@@ -1401,6 +1432,23 @@ class TestPodManager:
 
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
         mock_container_is_terminated.assert_any_call(mock_pod, "airflow-xcom-sidecar")
+
+    @mock.patch("time.sleep")
+    @mock.patch("time.time", side_effect=itertools.count(0, 100_000))
+    @mock.patch("time.monotonic", side_effect=itertools.count(0, 1))
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated",
+        return_value=False,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    def test_await_xcom_sidecar_container_timeout_unaffected_by_wall_clock_jump(
+        self, mock_container_is_running, mock_container_is_terminated, mock_monotonic, mock_time, mock_sleep
+    ):
+        """A wall-clock step (e.g. an NTP correction) must not trip the sidecar startup timeout."""
+        mock_pod = MagicMock()
+        mock_container_is_running.side_effect = [False, True]
+
+        self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=3600, log_interval=5)
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_await_xcom_sidecar_container_starts(self, mock_container_is_running):
