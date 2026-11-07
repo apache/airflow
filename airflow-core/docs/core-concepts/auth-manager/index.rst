@@ -112,6 +112,12 @@ Authentication related methods
   It should contain all the information needed to identify the user and make an authorization request.
 * ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
   This is the same dict returned by ``serialize_user``.
+* ``deserialize_user_async``: Optional asynchronous variant used when resolving a validated JWT.
+  By default it calls ``deserialize_user`` in the current thread, preserving existing auth managers.
+  Managers that perform blocking I/O during deserialization should override this method to use an
+  asynchronous client or await ``starlette.concurrency.run_in_threadpool(self.deserialize_user, token)``.
+  When using a worker thread, protect shared mutable state and create and close database sessions in
+  that thread. Synchronous callers can continue to use ``deserialize_user``.
 
 .. _auth-manager-cli-login:
 
