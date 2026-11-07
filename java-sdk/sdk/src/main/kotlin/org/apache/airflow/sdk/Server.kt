@@ -30,9 +30,12 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
@@ -42,8 +45,38 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.parseDags
 import org.apache.airflow.sdk.execution.runTask
 import java.io.File
+import java.time.Duration
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
+
+// The shutdown hook stops waiting for the queued log lines once none has gone out for this long. When the lines did
+// go out, the hook also waits at most this long for the socket to close. The supervisor can stop reading the logs
+// for several seconds, for example while it waits for a slow request to the API server. The hook should not lose the
+// last lines during such a pause. Tests set a shorter timeout.
+internal var logFlushTimeout: Duration = Duration.ofSeconds(30)
+
+/**
+ * Writes the queued log lines, and waits until the socket has sent them and closed. Closing the socket starts
+ * sending what is left in its buffer, so without the wait, the JVM can exit before the last lines reach the
+ * supervisor. The JVM cannot exit until this shutdown hook returns. So the hook stops waiting for the queued lines
+ * once none has gone out for [logFlushTimeout]. When the lines did go out, the hook then waits at most that long for
+ * the socket to close.
+ *
+ * @param close Closes the socket.
+ * @param closed Completes when the socket has closed.
+ */
+internal fun sendQueuedLogs(
+  close: () -> Unit,
+  closed: Job,
+) {
+  val written = LogSender.detachAndFlush(logFlushTimeout)
+  close()
+  // If detachAndFlush gave up, nothing read the logs, or something read them far too slowly, and detachAndFlush has
+  // cancelled the channel of the log socket. Waiting for the socket to close would then only delay the JVM's exit.
+  // While nothing reads the socket, ktor keeps trying to write the socket's buffer without a pause, so cancelling the
+  // channel does not end a wait for the socket to close.
+  if (written) runBlocking { withTimeoutOrNull(logFlushTimeout.toMillis()) { closed.join() } }
+}
 
 private class Args(
   parser: ArgParser,
@@ -210,7 +243,14 @@ class CoordinatorServer(
           aSocket(selector).tcp().connect(logs).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
-            deferral.await()
+            Runtime.getRuntime().addShutdownHook(Thread({ sendQueuedLogs(socket::close, socket.socketContext) }, "Airflow log flush"))
+            try {
+              deferral.await()
+            } finally {
+              // The socket closes when the enclosing use block ends, even when serving fails, so write the
+              // queued lines while the socket is still open.
+              LogSender.detachAndFlush()
+            }
           }
         }
       }
@@ -235,8 +275,19 @@ class CoordinatorServer(
     startup: StartupDetails,
     coordinator: CoordinatorComm,
   ) {
-    val result = runTask(bundle, startup, coordinator)
-    coordinator.communicate<Unit>(result)
+    // For a StoppableTask, the signal trap stays open until the SDK reports the task's result. If the
+    // first signal arrives during the report, it therefore cannot stop the JVM before the result is sent.
+    Cancellation().use { cancellation ->
+      val result = runTask(bundle, startup, coordinator, cancellation)
+      cancellation.finish()
+      // The task or its onKill can leave this thread interrupted. runBlocking in serve would then throw
+      // InterruptedException, and the JVM would exit with code 1 before the supervisor acknowledges the
+      // task's result.
+      if (Thread.interrupted()) {
+        logger.info("Cleared the interrupt flag that the task left on its thread, so the SDK can report the result")
+      }
+      coordinator.communicate<Unit>(result)
+    }
   }
 
   private suspend fun parseDagsAndReport(

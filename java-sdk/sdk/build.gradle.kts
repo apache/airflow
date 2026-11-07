@@ -700,6 +700,52 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  )
             |
             |  /**
+            |   * Marks the method that stops a task when Airflow asks the task to stop.
+            |   *
+            |   * The class the annotation processor generates for the task then
+            |   * implements [StoppableTask]. The documentation of its `onKill` method
+            |   * explains when the SDK calls this method. This method is called on the
+            |   * object that runs the task method, so the two methods can share a
+            |   * `volatile` field:
+            |   *
+            |   * ```java
+            |   * private volatile String jobId;
+            |   *
+            |   * @Airflow.Task(id = "build_report", retries = 2)
+            |   * public void buildReport(Context context) throws Exception {
+            |   *   jobId = service.submit();
+            |   *   if (context.isCancelled()) {
+            |   *     service.cancel(jobId);
+            |   *     throw new IllegalStateException("Airflow asked the task to stop");
+            |   *   }
+            |   *   service.waitFor(jobId); // Throws if the job fails or is cancelled.
+            |   * }
+            |   *
+            |   * @Airflow.OnKill(task = "build_report")
+            |   * public void stopReport() throws Exception {
+            |   *   if (jobId != null) service.cancel(jobId);
+            |   * }
+            |   * ```
+            |   *
+            |   * The method can take a [Context] parameter. It cannot take any other
+            |   * parameter, and it cannot be private, static or abstract. If a task
+            |   * method only checks [Context.isCancelled] in a loop, this method can be
+            |   * empty. The generated class checks for a stop request just before it
+            |   * calls the task method, and fails the task if it finds a request.
+            |   *
+            |   * @param task ID of the task. The class that declares this method must
+            |   *    also declare the task with [Task], [If], [Switch] or [TaskHandler].
+            |   *    In a [TaskGroup] class, leave out the group's prefix. A task that
+            |   *    triggers a Dag run has no body to stop, so it cannot have a method
+            |   *    with this annotation.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class OnKill(
+            |    val task: String,
+            |  )
+            |
+            |  /**
             |   * Marks the nested class that declares this Dag's task graph.
             |   *
             |   * Declare it as a `static` nested class that implements the generated
