@@ -18,8 +18,8 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { afterEach, beforeAll, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { brokenDag, dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
@@ -296,7 +296,9 @@ describe("Persisting filters across navigation", () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
-    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+    // The unfiltered list also contains the failed Dag, so the list can render before the restored
+    // filter takes effect; wait for the success Dag to be gone rather than checking once.
+    await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
     expect(screen.getByTestId("timetable_type-pill")).toHaveTextContent("CronTriggerTimetable");
   });
 
