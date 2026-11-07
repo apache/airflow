@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 import { useSearchParams } from "react-router-dom";
 
@@ -29,23 +29,26 @@ import { useConfig } from "src/queries/useConfig";
  *
  * Seeds once per page load. Removing the pill is how you ask to see paused Dags, so re-seeding
  * whenever the param goes missing would put it straight back and leave them unreachable.
+ *
+ * Returns true until the default is in the URL, so callers can query with it from the first render.
+ * ``hasSeeded`` flips only once the URL carries a filter: flipping it when the write is issued would
+ * leave a render with neither the param nor the pending flag, and fire an unfiltered request.
  */
 export const usePausedDefault = () => {
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const [searchParams, setSearchParams] = useSearchParams();
-  const hasSeeded = useRef(false);
+  const [hasSeeded, setHasSeeded] = useState(false);
 
   useEffect(() => {
-    if (
-      hasSeeded.current ||
-      !hidePausedDagsByDefault ||
-      searchParams.has(SearchParamsKeys.PAUSED) ||
-      searchParams.has(SearchParamsKeys.SCHEDULING_STATE)
-    ) {
+    if (hasSeeded || !hidePausedDagsByDefault) {
       return;
     }
 
-    hasSeeded.current = true;
+    if (searchParams.has(SearchParamsKeys.PAUSED) || searchParams.has(SearchParamsKeys.SCHEDULING_STATE)) {
+      setHasSeeded(true);
+
+      return;
+    }
 
     // Functional form is required: PresetFiltersMenu restores a default preset from a
     // deeper effect that commits first, so an object write would clobber it with stale params.
@@ -59,5 +62,12 @@ export const usePausedDefault = () => {
       },
       { replace: true },
     );
-  }, [hidePausedDagsByDefault, searchParams, setSearchParams]);
+  }, [hasSeeded, hidePausedDagsByDefault, searchParams, setSearchParams]);
+
+  return (
+    hidePausedDagsByDefault &&
+    !hasSeeded &&
+    !searchParams.has(SearchParamsKeys.PAUSED) &&
+    !searchParams.has(SearchParamsKeys.SCHEDULING_STATE)
+  );
 };
