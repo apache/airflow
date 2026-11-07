@@ -141,7 +141,9 @@ _CALLBACK_TYPES = ("execute", "failure", "success", "retry", "skipped")
 _OPERATOR_CALLBACK_FIELDS = frozenset(f"on_{x}_callback" for x in _CALLBACK_TYPES)
 _HAS_CALLBACK_FIELDS = frozenset(f"has_on_{x}_callback" for x in _CALLBACK_TYPES)
 _DAG_CALLBACK_FIELDS = frozenset({"has_on_success_callback", "has_on_failure_callback"})
-_OPERATOR_TIMEDELTA_FIELDS = frozenset({"retry_delay", "execution_timeout", "max_retry_delay"})
+_OPERATOR_TIMEDELTA_FIELDS = frozenset(
+    {"retry_delay", "execution_timeout", "max_retry_delay", "retry_timeout"}
+)
 # Fields whose value must never be serialized: the object has no serializer, so it would
 # fall back to str(obj) and leak a non-deterministic memory address (a new DagVersion every
 # parse). Only a boolean ``has_<field>`` flag is stored; the live object is recovered by

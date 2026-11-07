@@ -149,6 +149,12 @@ In addition, sensors have a ``timeout`` parameter. This only matters for sensors
 time allowed for the sensor to succeed. If ``timeout`` is breached, ``AirflowSensorTimeout`` will be raised and the sensor fails immediately
 without retrying.
 
+Tasks can also set ``retry_timeout`` to limit the time available for retries, measured from the first failed attempt.
+For example, ``retry_timeout=timedelta(hours=1)`` allows retries to be scheduled for one hour after the first failure.
+If the window expires while the task is waiting for a retry, Airflow marks it failed without starting another attempt.
+An attempt that is already running is not stopped when the window expires. The default, ``None``, does not limit retries.
+Clearing a task resets the retry window.
+
 The following ``SFTPSensor`` example illustrates this. The ``sensor`` is in ``reschedule`` mode, meaning it
 is periodically executed and rescheduled until it succeeds.
 

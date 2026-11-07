@@ -573,6 +573,7 @@ def clear_task_instances(
             ti.retry_reason = None
             ti.retry_delay_override = None
             ti.retry_at = None
+            ti.retry_timeout_deadline = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
@@ -1209,6 +1210,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # When an UP_FOR_RETRY attempt becomes due; written by the scheduler on its first pass after the
     # attempt is created.
     retry_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    retry_timeout_deadline: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1783,6 +1785,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             retry_at = self._compute_retry_deadline(
                 failed_try_number=self.try_number, failed_end_date=self.end_date
             )
+        if (
+            successor_state == TaskInstanceState.UP_FOR_RETRY
+            and self.retry_timeout_deadline is None
+            and self.task is not None
+            and self.task.retry_timeout is not None
+        ):
+            self.retry_timeout_deadline = (self.end_date or timezone.utcnow()) + self.task.retry_timeout
         self.archive(reason="retry", session=session)
         values = {
             attribute.columns[0].name: getattr(self, attribute.key)
@@ -1839,6 +1848,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Keep the terminated attempt's version; the successor follows the run's current code.
         if dag_version_id := DBDagBag._version_from_dag_run(self.dag_run, session=session):
             successor.dag_version_id = dag_version_id
+        successor.retry_timeout_deadline = None
         if self.task is not None:
             successor.max_tries = self.try_number + self.task.retries
         else:
@@ -2279,6 +2289,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.refresh_from_db(session=session, lock_for_update=True)
         ti.hostname = hostname
         ti.pid = None
+
+        if (
+            ti.start_date is None
+            and ti.retry_timeout_deadline is not None
+            and ti.retry_timeout_deadline <= timezone.utcnow()
+        ):
+            ti.set_state(TaskInstanceState.FAILED, session=session)
+            return False
 
         if not ignore_all_deps and not ignore_ti_state and ti.state == TaskInstanceState.SUCCESS:
             stats.incr("previously_succeeded", tags=ti.stats_tags)
@@ -2821,6 +2839,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
+            if task and task.retry_timeout is not None and ti.retry_timeout_deadline is None:
+                ti.retry_timeout_deadline = ti.end_date + task.retry_timeout
             ti.state = State.UP_FOR_RETRY
 
         ti.notify_failure(error)

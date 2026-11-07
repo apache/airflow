@@ -1653,6 +1653,7 @@ class TestStringifiedDAGs:
             "email_on_failure": True,
             "email_on_retry": True,
             "execution_timeout": None,
+            "retry_timeout": None,
             "executor": None,
             "executor_config": {},
             "has_on_execute_callback": False,
@@ -5160,6 +5161,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
             BashOperator.partial(
                 task_id="mapped_task",
                 retry_delay=timedelta(seconds=600),  # Non-default value
+                retry_timeout=1200.0,
                 owner="custom_owner",  # Non-default value
                 # retries not specified, should potentially get from client_defaults
             ).expand(bash_command=["echo 1", "echo 2"])
@@ -5171,12 +5173,14 @@ class TestMappedOperatorSerializationAndClientDefaults:
 
         # Verify the task has correct values after round-trip
         assert deserialized_task.retry_delay == timedelta(seconds=600)
+        assert deserialized_task.retry_timeout == timedelta(seconds=1200)
         assert deserialized_task.owner == "custom_owner"
 
         # Verify partial_kwargs were deserialized correctly
         assert "retry_delay" in deserialized_task.partial_kwargs
         assert "owner" in deserialized_task.partial_kwargs
         assert deserialized_task.partial_kwargs["retry_delay"] == timedelta(seconds=600)
+        assert deserialized_task.partial_kwargs["retry_timeout"] == timedelta(seconds=1200)
         assert deserialized_task.partial_kwargs["owner"] == "custom_owner"
 
 

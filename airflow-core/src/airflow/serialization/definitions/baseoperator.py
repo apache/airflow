@@ -105,6 +105,7 @@ class SerializedBaseOperator(DAGNode):
     max_active_tis_per_dagrun: int | None = None
     max_retry_delay: datetime.timedelta | None = None
     multiple_outputs: bool = False
+    retry_timeout: datetime.timedelta | None = None
 
     # Boolean flags for callback existence
     has_on_execute_callback: bool = False
@@ -223,6 +224,7 @@ class SerializedBaseOperator(DAGNode):
                 "retries",
                 "retry_delay",
                 "retry_exponential_backoff",
+                "retry_timeout",
                 "run_as_user",
                 "start_date",
                 "start_from_trigger",

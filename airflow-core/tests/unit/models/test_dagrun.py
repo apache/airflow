@@ -6906,3 +6906,89 @@ def test_task_instance_scheduling_decisions_skips_retry_not_yet_due(mock_deps_me
     assert decision.schedulable_tis == []
     mock_deps_met.assert_not_called()
     assert successor.retry_at == ti.end_date + datetime.timedelta(minutes=10)
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_expires_retry_from_first_failed_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 1
+    failed_at = timezone.utcnow() - datetime.timedelta(minutes=6)
+    ti.end_date = failed_at
+    ti.task = None
+    successor = ti.prepare_db_for_next_try(session)
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert successor.state == TaskInstanceState.FAILED
+    assert successor.retry_timeout_deadline == failed_at + datetime.timedelta(minutes=5)
+    assert successor not in decision.schedulable_tis
+
+
+@pytest.mark.parametrize("state", [TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED])
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_expires_before_scheduled_retry_starts(dag_maker, session, state):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = state
+    ti.try_number = 2
+    ti.retry_timeout_deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert ti.state == TaskInstanceState.FAILED
+    assert ti not in decision.schedulable_tis
+    assert decision.changed_tis
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_does_not_start_before_first_failure(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.SCHEDULED
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+
+    assert ti.retry_timeout_deadline is None
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_does_not_stop_running_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.RUNNING
+    ti.try_number = 2
+    ti.retry_timeout_deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+
+    assert ti.state == TaskInstanceState.RUNNING
