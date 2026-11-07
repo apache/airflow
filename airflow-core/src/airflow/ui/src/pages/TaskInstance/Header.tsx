@@ -35,6 +35,7 @@ import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
 import { PluginActions } from "src/components/PluginActions";
 import ReactMarkdown from "src/components/ReactMarkdown";
+import { SmoothOperatorButton } from "src/components/SmoothOperator/SmoothOperator";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
@@ -191,6 +192,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               buttonProps={{ bg: "bg", variant: "outline" }}
               entity={{ destination: "task_instance", taskInstance }}
             />
+            <SmoothOperatorButton operatorName={taskInstance.operator_name} taskId={taskInstance.task_id} />
           </>
         }
         icon={<MdOutlineTask />}
