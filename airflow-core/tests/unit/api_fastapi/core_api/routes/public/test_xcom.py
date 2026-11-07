@@ -23,9 +23,10 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import delete, event, select, update
 from sqlalchemy.orm import Session
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models.dag import DagModel
@@ -33,9 +34,9 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import DynamicRegion
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.team import Team
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task_group
 from airflow.sdk.bases.xcom import BaseXCom
@@ -554,6 +555,75 @@ class TestGetXComEntries(TestXComEndpoint):
             "total_entries": 2,
         }
         assert response_data == expected_response
+
+    @pytest.mark.parametrize("store", ["current", "legacy", "mixed"])
+    def test_metadata_listing_does_not_fetch_values(self, test_client, session, store):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == TEST_DAG_ID,
+                TaskInstance.task_id == TEST_TASK_ID,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index == -1,
+            )
+        )
+        current_rows = session.scalars(select(XComModelV2).where(XComModelV2.task_instance_id == ti.id)).all()
+        expected_timestamps = {row.key: row.timestamp for row in current_rows}
+        if store != "current":
+            session.add(
+                LegacyTaskDataOwner(
+                    dag_id=TEST_DAG_ID,
+                    task_id=TEST_TASK_ID,
+                    run_id=run_id,
+                    map_index=-1,
+                    task_instance_id=ti.id,
+                )
+            )
+            session.flush()
+            dag_run_id = session.scalar(
+                select(DagRun.id).where(DagRun.dag_id == TEST_DAG_ID, DagRun.run_id == run_id)
+            )
+            for row in current_rows:
+                session.add(
+                    XComModelV1(
+                        dag_run_id=dag_run_id,
+                        dag_id=TEST_DAG_ID,
+                        task_id=TEST_TASK_ID,
+                        run_id=run_id,
+                        map_index=-1,
+                        key=row.key,
+                        value={"legacy": "value"},
+                        timestamp=logical_date_parsed,
+                    )
+                )
+                if store == "legacy" or row.key.endswith("-1"):
+                    session.execute(delete(XComModelV2).where(XComModelV2.id == row.id))
+                    expected_timestamps[row.key] = logical_date_parsed
+            session.commit()
+
+        projected_columns = []
+
+        def capture_columns(connection, cursor, statement, parameters, context, executemany):
+            columns = {column[0] for column in cursor.description or ()}
+            if {"task_instance_id", "key", "timestamp"} <= columns:
+                projected_columns.append(columns)
+
+        event.listen(settings.engine, "after_cursor_execute", capture_columns)
+        try:
+            with assert_queries_count(4):
+                response = test_client.get(
+                    f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
+                )
+        finally:
+            event.remove(settings.engine, "after_cursor_execute", capture_columns)
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 2
+        assert {
+            entry["key"]: timezone.parse(entry["timestamp"]) for entry in response.json()["xcom_entries"]
+        } == expected_timestamps
+        assert len(projected_columns) == 1
+        assert "value" not in projected_columns[0]
 
     @pytest.mark.parametrize(
         ("method", "path", "body", "expected_status", "expected"),
