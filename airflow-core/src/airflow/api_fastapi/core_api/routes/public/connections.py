@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from typing import TYPE_CHECKING, Annotated
 
@@ -389,16 +390,34 @@ def test_connection(
                 existing_conn = None
 
         if existing_conn is not None:
-            # Stored credentials are only reused to test the connection's own
-            # host/port; testing a different destination must supply its own.
+            # Stored credentials are only reused to test the stored connection itself;
+            # testing a different one must supply its own. Besides host and port, the
+            # connection type, schema, login and extra also decide where and how a hook
+            # connects (e.g. a URL in schema, or proxies and endpoints in extra).
             fields_set = test_body.model_fields_set
             host_changed = "host" in fields_set and not _same_endpoint(test_body.host, existing_conn.host)
             port_changed = "port" in fields_set and not _same_endpoint(test_body.port, existing_conn.port)
-            if host_changed or port_changed:
+            conn_type_changed = test_body.conn_type != existing_conn.conn_type
+            schema_changed = "schema_" in fields_set and not _same_endpoint(
+                test_body.schema_, existing_conn.schema
+            )
+            login_changed = "login" in fields_set and not _same_endpoint(test_body.login, existing_conn.login)
+            # Compare with the stored extra as the API shows it, with its secrets masked.
+            extra_changed = "extra" in fields_set and json.loads(test_body.extra or "{}") != json.loads(
+                ConnectionResponse.model_validate(existing_conn).extra or "{}"
+            )
+            if (
+                host_changed
+                or port_changed
+                or conn_type_changed
+                or schema_changed
+                or login_changed
+                or extra_changed
+            ):
                 if not _supplies_own_credentials(test_body):
                     raise HTTPException(
                         status.HTTP_400_BAD_REQUEST,
-                        "The host or port to test differs from the stored connection. "
+                        "The connection to test differs from the stored connection. "
                         "Include the credentials to test in the request body.",
                     )
                 existing_conn = None
