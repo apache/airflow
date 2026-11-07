@@ -25,7 +25,7 @@
     "connection_other": "连接",
     "delete": {
       "deleteConnection_one": "删除 1 个连接",
-      "deleteConnection_other": "删除 {{count}} 个连接",
+      "deleteConnection_other": "删除 {{count, number}} 个连接",
       "firstConfirmMessage_one": "您即将删除以下连接：",
       "firstConfirmMessage_other": "您即将删除以下连接：",
       "title": "删除连接"
@@ -153,7 +153,7 @@
     },
     "delete": {
       "deleteVariable_one": "删除 1 个变量",
-      "deleteVariable_other": "删除 {{count}} 个变量",
+      "deleteVariable_other": "删除 {{count, number}} 个变量",
       "firstConfirmMessage_one": "您即将删除以下变量：",
       "firstConfirmMessage_other": "您即将删除以下变量：",
       "title": "删除变量",

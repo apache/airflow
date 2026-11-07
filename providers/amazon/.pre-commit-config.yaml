@@ -26,6 +26,8 @@ repos:
     hooks:
       - id: check-http-exception-import-from-fastapi
         name: Check HTTPException is imported from fastapi
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../../scripts/ci/prek/check_http_exception_import_from_fastapi.py
         language: python
         pass_filenames: true

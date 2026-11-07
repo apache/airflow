@@ -30,10 +30,13 @@ import { SearchBar } from "src/components/SearchBar";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const AssetEvents = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const regional = coordinates.regionId !== undefined;
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [searchParams, setSearchParams] = useSearchParams();
   const { t: translate } = useTranslation(["assets"]);
@@ -45,6 +48,7 @@ export const AssetEvents = () => {
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       mapIndex: parsedMapIndex,
@@ -96,12 +100,14 @@ export const AssetEvents = () => {
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       sourceDagId: dagId,
-      sourceMapIndex: parseInt(mapIndex, 10),
+      sourceMapIndex: regional ? undefined : parseInt(mapIndex, 10),
       sourceRunId: runId,
       sourceTaskId: taskId,
+      sourceTaskInstanceId: regional ? taskInstance?.id : undefined,
     },
     undefined,
     {
+      enabled: !regional || taskInstance !== undefined,
       refetchInterval: () => isStatePending(taskInstance?.state) && refetchInterval,
     },
   );

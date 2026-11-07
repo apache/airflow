@@ -26,7 +26,19 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
+
+type handlersOnly []bundle.TaskHandlerInfo
+
+func (h handlersOnly) ListTaskHandlers() []bundle.TaskHandlerInfo { return h }
+
+type handlersAndSources struct {
+	handlersOnly
+	files map[string]string
+}
+
+func (h handlersAndSources) ListDagSourceFiles() map[string]string { return h.files }
 
 func sampleManifest() airflowmetadata.Manifest {
 	return airflowmetadata.Manifest{
@@ -116,4 +128,28 @@ func TestEncodeManifest_YAML(t *testing.T) {
 func TestEncodeManifest_UnsupportedFormat(t *testing.T) {
 	_, err := encodeManifest(sampleManifest(), MetadataFormat("xml"))
 	require.Error(t, err)
+}
+
+func TestCollectManifest_DagSourceFiles(t *testing.T) {
+	handlers := handlersOnly{{DagID: "d", TaskID: "t"}}
+
+	t.Run("bundle without a lister", func(t *testing.T) {
+		meta := collectManifest(handlers)
+		assert.Nil(t, meta.DagSourceFiles)
+		data, err := encodeManifest(meta, MetadataFormatYAML)
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "dag_source_files")
+	})
+
+	t.Run("lister with files", func(t *testing.T) {
+		files := map[string]string{"native": "/src/native.go"}
+		meta := collectManifest(handlersAndSources{handlers, files})
+		assert.Equal(t, files, meta.DagSourceFiles)
+		assert.Equal(t, []string{"t"}, meta.Dags["d"].Tasks)
+	})
+
+	t.Run("lister without files", func(t *testing.T) {
+		meta := collectManifest(handlersAndSources{handlers, nil})
+		assert.Nil(t, meta.DagSourceFiles)
+	})
 }

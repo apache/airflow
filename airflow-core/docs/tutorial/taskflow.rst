@@ -209,6 +209,11 @@ directly in the task decorator:
 
 This helps ensure that transient failures do not lead to task failure.
 
+Each retry runs the function again from the start. If the task works through a long list of items, such as copying
+files, make it a :ref:`resumable task <concepts-resumable-tasks-resumable>` that records its progress in the
+:doc:`task state store </core-concepts/task-state-store>` after each item, so a retry picks up where it left off
+instead of starting over.
+
 Task Parameterization
 ---------------------
 

@@ -26,10 +26,12 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import { TaskLink } from "./TaskLink";
 
 describe("TaskLink", () => {
-  it("removes the selected try when linking to another task", () => {
+  it("removes execution-specific selectors when linking to another aggregate task", () => {
     render(
       <MemoryRouter
-        initialEntries={["/dags/test_dag/runs/test_run/tasks/three_tries?try_number=2&log_level=error"]}
+        initialEntries={[
+          "/dags/test_dag/runs/test_run/tasks/three_tries?try_number=2&log_level=error&region_id=11111111-1111-4111-8111-111111111111&region_index=3",
+        ]}
       >
         <Routes>
           <Route

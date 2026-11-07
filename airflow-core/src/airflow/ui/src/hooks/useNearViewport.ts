@@ -123,14 +123,33 @@ const observeNearViewport = (element: Element, listener: () => void) => {
   };
 };
 
-export const useNearViewport = <TElement extends Element>(): {
+export const useNearViewport = <TElement extends Element>({
+  revealedKeys,
+  revealKey,
+}: {
+  /**
+   * Keys already revealed, owned by whatever outlives the elements themselves. A list that
+   * remounts its rows — on pagination, a filter or a sort change — would otherwise re-latch from
+   * scratch and blank content that was already on screen until the observer fires again.
+   */
+  readonly revealedKeys?: Set<string>;
+  /** Identifies this element within `revealedKeys`. */
+  readonly revealKey?: string;
+} = {}): {
   readonly isNearViewport: boolean;
   readonly ref: RefObject<TElement | null>;
   readonly showContent: () => void;
 } => {
   const ref = useRef<TElement>(null);
-  const [isNearViewport, setIsNearViewport] = useState(false);
-  const showContent = useCallback(() => setIsNearViewport(true), []);
+  const [isNearViewport, setIsNearViewport] = useState(
+    () => revealKey !== undefined && revealedKeys?.has(revealKey) === true,
+  );
+  const showContent = useCallback(() => {
+    if (revealKey !== undefined) {
+      revealedKeys?.add(revealKey);
+    }
+    setIsNearViewport(true);
+  }, [revealKey, revealedKeys]);
 
   useEffect(() => {
     const element = ref.current;

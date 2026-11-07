@@ -122,6 +122,17 @@ internal class ArgValuesTest {
   }
 
   @Test
+  @DisplayName("Should bind the Dag's wired input over the runtime bindings")
+  fun shouldPreferWiredInputOverRuntimeBindings() {
+    val (client, _) = clientWith(listOf(literal("threshold", 9.0)))
+    val context = contextWiredWith(listOf(Arg.lit(mapOf("threshold" to 0.5))))
+
+    val input = ArgValues.bindInput(context, client, ThresholdInput::class.java)
+
+    assertEquals(0.5, input.threshold)
+  }
+
+  @Test
   @DisplayName("Should match a camelCase field to a snake_case argument through the fold")
   fun shouldFoldSnakeCaseArgument() {
     val input = bind(FoldedInput::class.java, listOf(literal("region_code", "emea")))

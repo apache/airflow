@@ -81,7 +81,6 @@ function getColumnIndex(columnMap: Map<string, number>, name: string): number {
 const DETAIL_COLUMNS = ["From", "To", "Reprocess Behavior", "Created at", "Completed at"];
 
 export class BackfillPage extends BasePage {
-  public readonly backfillDateError: Locator;
   public readonly backfillFromTrigger: Locator;
   public readonly backfillModeRadio: Locator;
   public readonly backfillRunButton: Locator;
@@ -107,7 +106,6 @@ export class BackfillPage extends BasePage {
     this.backfillToTrigger = page.getByTestId("datetime-input").nth(1);
     this.backfillRunButton = page.getByRole("button", { name: "Run Backfill" });
     this.backfillsTable = page.getByTestId("table-list");
-    this.backfillDateError = page.getByText("Start Date must be before the End Date");
     this.cancelButton = page.getByRole("button", { name: "Cancel backfill" });
     this.pauseButton = page.getByRole("button", { name: "Pause backfill" });
     this.unpauseButton = page.getByRole("button", { name: "Unpause backfill" });
@@ -366,14 +364,6 @@ export class BackfillPage extends BasePage {
     };
   }
 
-  public getColumnHeader(columnName: string): Locator {
-    return this.backfillsTable.getByRole("columnheader", { name: columnName });
-  }
-
-  public getFilterButton(): Locator {
-    return this.page.getByRole("button", { name: /filter table columns/i });
-  }
-
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await expect(async () => {
       await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
@@ -392,22 +382,6 @@ export class BackfillPage extends BasePage {
     await this.triggerButton.click({ timeout: 15_000 });
     await this.backfillModeRadio.click();
     await expect(this.backfillFromTrigger).toBeVisible();
-  }
-
-  public async openFilterMenu(): Promise<void> {
-    // After Escape the menu content stays mounted and visible with data-state="closed" until its exit
-    // animation ends, which a loaded WebKit can delay for many seconds. Focus returns to the trigger
-    // meanwhile, so its tooltip opens over the stale first item. Only an open menu counts, so the loop
-    // re-clicks the trigger (which also closes the tooltip) instead of probing the stale content.
-    const openMenu = this.page.locator('[role="menu"][data-state="open"]');
-
-    await expect(async () => {
-      if (!(await openMenu.isVisible())) {
-        await this.getFilterButton().click();
-      }
-      await expect(openMenu).toBeVisible({ timeout: 3000 });
-      await openMenu.getByRole("menuitem").first().click({ timeout: 3000, trial: true });
-    }).toPass({ intervals: [1000], timeout: 15_000 });
   }
 
   public async pauseBackfillViaApi(backfillId: number): Promise<boolean> {
@@ -479,10 +453,6 @@ export class BackfillPage extends BasePage {
       }
       await expect(dateInput).toHaveCount(0, { timeout: 800 });
     }).toPass({ intervals: [300, 700, 1500], timeout: 15_000 });
-  }
-
-  public async toggleColumn(columnName: string): Promise<void> {
-    await this.page.getByRole("menuitem", { name: columnName }).click();
   }
 
   public async togglePauseState(): Promise<void> {

@@ -31,9 +31,10 @@ from sqlalchemy import func, select, update
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    _get_configured_bundle_team_names,
     _guess_best_bundle_for_fileloc,
     _load_bundle_config_snapshot,
+    get_configured_bundle_names,
+    get_configured_bundle_team_names,
 )
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
@@ -170,15 +171,29 @@ def test_get_configured_bundle_team_names(load_examples):
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert _get_configured_bundle_team_names() == {
+        assert get_configured_bundle_team_names() == {
             "team-bundle": "team-a",
             "unscoped-bundle": None,
         }
 
 
+@conf_vars(
+    {
+        ("core", "load_examples"): "False",
+        ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
+    }
+)
+def test_get_configured_bundle_names():
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        assert get_configured_bundle_names() == {"team-bundle", "unscoped-bundle"}
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
+
+
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
 def test_get_configured_bundle_team_names_without_config():
-    assert _get_configured_bundle_team_names() == {}
+    assert get_configured_bundle_team_names() == {}
 
 
 def test_get_bundle():
@@ -260,6 +275,42 @@ def clear_db():
     clear_db_dag_bundles()
     yield
     clear_db_dag_bundles()
+
+
+@pytest.mark.parametrize("operation", ["get", "list", "sync"])
+@pytest.mark.db_test
+@conf_vars({("core", "load_examples"): "False"})
+def test_bundle_construction_and_url_resolution_use_the_bundle_context(clear_db, operation):
+    active = []
+    seen = []
+
+    @contextlib.contextmanager
+    def bundle_context(name):
+        active.append(name)
+        try:
+            yield
+        finally:
+            active.pop()
+
+    def read_secret(*args, **kwargs):
+        seen.append(active[-1])
+
+    config = [*BASIC_BUNDLE_CONFIG, {"name": "excluded", "classpath": "missing.Bundle", "kwargs": {}}]
+    with (
+        conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}),
+        patch.object(BasicBundle, "__init__", autospec=True, side_effect=read_secret),
+        patch.object(BasicBundle, "view_url_template", autospec=True, side_effect=read_secret),
+    ):
+        manager = DagBundlesManager(bundle_names=["my-test-bundle"], bundle_context=bundle_context)
+        if operation == "get":
+            manager.get_bundle("my-test-bundle")
+        elif operation == "list":
+            list(manager.get_all_dag_bundles())
+        else:
+            manager.sync_bundles_to_db(deactivate_missing=False)
+    assert seen
+    assert set(seen) == {"my-test-bundle"}
+    assert active == []
 
 
 @pytest.mark.db_test
@@ -1765,7 +1816,7 @@ class TestSkippedRowLifecycle:
 
     A legacy 2.x row with an unconfigured bundle and a fileloc outside every
     configured bundle is intentionally left untouched by the repair. The
-    inactive-bundle branch of ``deactivate_stale_dags`` then marks it stale,
+    scheduler's ``cleanup_processor_metadata`` then marks it stale,
     and a later successful parse from a now-configured bundle must restore it
     end-to-end. Each unit-level test exercises one stage of this lifecycle;
     this test pins the whole sequence so a future refactor can't silently
@@ -1776,7 +1827,7 @@ class TestSkippedRowLifecycle:
         self, clear_dags_and_bundles, session, tmp_path
     ) -> None:
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-        from airflow.dag_processing.manager import DagFileProcessorManager
+        from airflow.dag_processing.maintenance import cleanup_processor_metadata
         from airflow.sdk import DAG
         from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
@@ -1831,10 +1882,8 @@ class TestSkippedRowLifecycle:
             assert refreshed.relative_fileloc is None
             assert refreshed.is_stale is False
 
-            # Stale-Dag scan deactivates the row via the inactive-bundle
-            # branch, which runs before the NULL relative_fileloc guard.
-            dfp_manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
-            dfp_manager.deactivate_stale_dags(last_parsed={})
+            # Scheduler maintenance deactivates the row because its bundle is inactive.
+            cleanup_processor_metadata()
             session.expire_all()
             stale_row = session.get(DagModel, "legacy_dag")
             assert stale_row.is_stale is True
@@ -1853,7 +1902,7 @@ class TestSkippedRowLifecycle:
                 {},
                 None,
                 set(),
-                session,
+                session=session,
             )
             session.commit()
 

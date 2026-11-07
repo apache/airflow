@@ -20,11 +20,6 @@
 Batch processing: ``LLMBatchOperator``
 ======================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Use :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator` to run many
 prompts through a provider's **batch API** instead of one synchronous call per prompt:
 roughly half the per-token cost of :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
@@ -164,6 +159,12 @@ it means Anthropic Messages keys (``temperature``, ``top_k``, ``metadata``, ``th
 The operator does not validate these; an unknown key surfaces as a per-request ``error`` row
 from the provider, or as a failed batch when the provider rejects the whole input file.
 
+``request_params`` is templated: every string inside the dict is rendered, so a value can come
+from a Variable, a param or an upstream XCom. Jinja hands back a string, so a numeric parameter
+written as a template needs ``render_template_as_native_obj=True`` on the Dag. The rendered values
+feed the re-attach fingerprint, so the same rule as ``result_path`` applies: a value that changes
+between attempts of one task instance makes a retry pay for a new batch.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
     :language: python
     :start-after: [START howto_operator_llm_batch_provider_params]
@@ -197,7 +198,8 @@ Per-request overrides
 
 A request dict may carry ``system_prompt``, ``max_tokens``, ``params`` (extra body parameters
 for that request only, layered over ``request_params``) and ``model``. ``model`` is written the
-same way ``model_id`` is, ``"<provider>:<model>"``, and must name the same provider as the batch.
+same way ``model_id`` is, ``"<provider>:<model>"`` or a bare name the connection's Default
+Provider qualifies, and must select the same adapter as the batch.
 Anthropic allows a different model per request; OpenAI requires every request in a batch to
 resolve to the same model and the operator rejects a mixed batch before submitting it.
 
@@ -215,8 +217,9 @@ Retries re-attach instead of re-submitting
 --------------------------------------------
 
 A retry (or a manual **clear**) of this task computes the same identity key as the attempt
-before it, based on the Dag, task, run and map index and never the try number, and looks for a
-recorded batch under ``{result_path}/_airflow_batch_state/``. If the input (prompts, model,
+before it, based on the Dag, task, run and map index (plus the loop's trajectory and iteration
+when the task runs inside a task loop, so each iteration submits its own batch) and never the
+try number, and looks for a recorded batch under ``{result_path}/_airflow_batch_state/``. If the input (prompts, model,
 ``output_type`` schema, connection) still matches, the task re-attaches to the existing batch
 instead of submitting a new one. This is what makes ``retries`` safe to use here, whereas the
 Anthropic provider's ``AnthropicBatchOperator`` recommends ``retries=0``.
@@ -297,7 +300,10 @@ Reaching the batch API through a gateway
 The OpenAI adapter reads ``base_url`` from the connection's host, so a ``pydanticai`` connection
 pointed at an OpenAI-compatible gateway that exposes ``/v1/files`` and ``/v1/batches`` (LiteLLM
 does, and routes to Azure OpenAI, Vertex and Bedrock batch behind it) runs the whole batch
-through that gateway with ``model_id="openai:<gateway-model-name>"``. That is the path to take
+through that gateway with ``model_id="openai:<gateway-model-name>"``. ``openai-chat:`` selects
+the same adapter, and a connection whose Default Model Provider is set (see
+:ref:`conn-example-openai-compatible-gateway`) takes the gateway's bare model names, both in
+``model_id`` and in a request's ``model``. That is the path to take
 today for a provider ``@task.llm_batch`` has no adapter for yet; the error message for a
 ``pydanticai_azure``, ``pydanticai_bedrock`` or ``pydanticai_vertex`` connection says so.
 
@@ -314,6 +320,12 @@ storage with a reconciled manifest.
 
 Adding an adapter
 ------------------
+
+.. note::
+
+    Experimental: the adapter contract can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
 
 Another provider package can add a batch engine without changes here: subclass
 :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`, set its ``name`` to the model

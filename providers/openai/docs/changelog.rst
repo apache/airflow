@@ -20,6 +20,25 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add async aget_conn and acreate_embeddings to OpenAIHook (#74149)``
+
+Misc
+~~~~
+
+* ``Require common.compat 1.21.0 for asynchronous OpenAI hook helpers (#74933)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.0
+.....
+
 .. warning::
     A deferred ``OpenAITriggerBatchOperator`` that times out now raises ``OpenAIBatchTimeout``
     instead of ``OpenAIBatchJobException``, which is what 1.8.2 and earlier raised for the same
@@ -38,6 +57,30 @@ Changelog
     task and left the batch running (and billing) on OpenAI's side. Cancellation on OpenAI's
     side is asynchronous, so the batch reports ``cancelling`` for a while before it settles as
     ``cancelled``.
+
+Features
+~~~~~~~~
+
+* ``Support Pydantic structured outputs in 'OpenAIResponseOperator' (#69812)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Distinguish OpenAI batch timeout and cancellation in deferrable tasks (#72149)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
 
 2.0.0
 .....

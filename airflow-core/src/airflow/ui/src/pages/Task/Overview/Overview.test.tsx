@@ -20,7 +20,7 @@ import type { PropsWithChildren } from "react";
 
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReactAppResponse } from "openapi/requests/types.gen";
@@ -29,7 +29,8 @@ import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { Overview } from "./Overview";
 
-const { mockUseTaskInstanceServiceGetTaskInstances } = vi.hoisted(() => ({
+const { mockUseGridServiceGetDagStructure, mockUseTaskInstanceServiceGetTaskInstances } = vi.hoisted(() => ({
+  mockUseGridServiceGetDagStructure: vi.fn((): { data: Array<unknown> | undefined } => ({ data: undefined })),
   mockUseTaskInstanceServiceGetTaskInstances: vi.fn(() => ({
     data: { task_instances: [], total_entries: 0 },
     isLoading: false,
@@ -47,6 +48,8 @@ const wrapperWithSearch = (search: string) => {
 };
 
 vi.mock("openapi/queries", () => ({
+  useGridServiceGetDagStructure: mockUseGridServiceGetDagStructure,
+  useGridServiceGetLoopHistory: () => ({ data: undefined }),
   usePluginServiceGetPlugins: () => ({
     data: {
       plugins: [
@@ -68,6 +71,7 @@ vi.mock("openapi/queries", () => ({
   useTaskInstanceServiceGetTaskInstances: mockUseTaskInstanceServiceGetTaskInstances,
 }));
 
+vi.mock("./LoopHistoryChart", () => ({ LoopHistoryChart: () => <div>loop history chart</div> }));
 vi.mock("src/components/DurationChart", () => ({ DurationChart: () => null }));
 vi.mock("src/components/NeedsReviewButton", () => ({ NeedsReviewButton: () => null }));
 vi.mock("src/components/TimeRangeSelector", () => ({ default: () => null }));
@@ -121,5 +125,40 @@ describe("Task overview duration chart limit", () => {
       undefined,
       expect.anything(),
     );
+  });
+});
+
+const renderGroupOverview = () =>
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/dags/my_dag/tasks/group/body"]}>
+        <Routes>
+          <Route element={<Overview />} path="/dags/:dagId/tasks/group/:groupId" />
+        </Routes>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+describe("Task overview loop history", () => {
+  beforeEach(() => {
+    mockUseGridServiceGetDagStructure.mockReset();
+  });
+
+  it("renders the loop history for a loop group", () => {
+    mockUseGridServiceGetDagStructure.mockReturnValue({
+      data: [{ children: [], id: "body", is_loop: true, is_mapped: false, label: "body" }],
+    });
+    renderGroupOverview();
+
+    expect(screen.getByText("loop history chart")).toBeInTheDocument();
+  });
+
+  it("omits the loop history for a group that is not a loop", () => {
+    mockUseGridServiceGetDagStructure.mockReturnValue({
+      data: [{ children: [], id: "body", is_loop: false, is_mapped: false, label: "body" }],
+    });
+    renderGroupOverview();
+
+    expect(screen.queryByText("loop history chart")).not.toBeInTheDocument();
   });
 });
