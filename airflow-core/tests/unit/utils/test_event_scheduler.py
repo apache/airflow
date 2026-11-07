@@ -71,3 +71,33 @@ class TestEventScheduler:
         # The next cycle was still scheduled despite the exception.
         assert len(timers.queue) == 2
         assert timers.queue[0].time < timers.queue[1].time
+
+    def test_call_regular_interval_expedites_next_run_on_numeric_return(self):
+        """An action returning a non-negative delay reschedules the next run at that delay."""
+        action = mock.MagicMock(return_value=0)
+
+        timers = EventScheduler()
+        timers.call_regular_interval(30, action)
+        regular_time = timers.queue[0].time
+
+        # Fake a run; the action asks for an expedited rerun by returning 0.
+        timers.queue[0].action()
+
+        assert len(timers.queue) == 2
+        action.assert_called_once()
+        # The expedited rerun is scheduled well before the regular +30s interval.
+        assert min(event.time for event in timers.queue) < regular_time
+
+    @pytest.mark.parametrize("return_value", [True, False, None, "later"])
+    def test_call_regular_interval_keeps_interval_for_non_numeric_return(self, return_value):
+        """A non-numeric return (bool included) does not re-time the timer; the interval is kept."""
+        action = mock.MagicMock(return_value=return_value)
+
+        timers = EventScheduler()
+        timers.call_regular_interval(30, action)
+        regular_time = timers.queue[0].time
+
+        timers.queue[0].action()
+
+        # No expedited rerun: every queued event is at or beyond the regular interval.
+        assert all(event.time >= regular_time for event in timers.queue)
