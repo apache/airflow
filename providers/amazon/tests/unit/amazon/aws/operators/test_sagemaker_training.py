@@ -116,6 +116,68 @@ class TestSageMakerTrainingOperator:
         a = []
         a.sort()
 
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    def test_on_kill_does_nothing_by_default(self, mock_stop):
+        self.sagemaker._training_job_name = "job_name"
+
+        self.sagemaker.on_kill()
+
+        mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    def test_on_kill_does_nothing_before_the_job_is_submitted(self, mock_stop):
+        self.sagemaker.stop_training_job_on_kill = True
+
+        self.sagemaker.on_kill()
+
+        mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_on_kill_stops_a_job_killed_during_submit(self, _, mock_training, mock_desc, mock_stop):
+        # A kill landing while create_training_job is in flight must still find a name to stop, which
+        # only holds while the name is recorded before the submit call.
+        sagemaker_op = SageMakerTrainingOperator(
+            task_id="test_sagemaker_operator",
+            config=CREATE_TRAINING_PARAMS.copy(),
+            wait_for_completion=True,
+            check_interval=5,
+            check_if_job_exists=False,
+            print_log=False,
+            stop_training_job_on_kill=True,
+        )
+        mock_training.side_effect = lambda *args, **kwargs: (
+            sagemaker_op.on_kill(),
+            {"TrainingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        )[1]
+
+        sagemaker_op.execute(None)
+
+        mock_stop.assert_called_once_with("job_name")
+
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_on_kill_stops_the_renamed_job(self, _, mock_training, mock_desc, mock_stop):
+        # The job name is rewritten with a timestamp suffix when one already exists; on_kill has to
+        # stop the name that was actually submitted.
+        mock_desc.side_effect = [None, ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.stop_training_job_on_kill = True
+
+        self.sagemaker.execute(None)
+        self.sagemaker.on_kill()
+
+        submitted_name = self.sagemaker.config["TrainingJobName"]
+        assert submitted_name != "job_name"
+        mock_stop.assert_called_once_with(submitted_name)
+
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     def test_execute_with_failure(self, mock_training, mock_desc):
@@ -245,6 +307,31 @@ class TestSageMakerTrainingOperator:
         assert exc.value.trigger.region_name == REGION_NAME
         assert exc.value.trigger.verify == VERIFY
         assert exc.value.trigger.botocore_config == BOTOCORE_CONFIG
+
+    @pytest.mark.parametrize("stop_training_job_on_kill", [True, False])
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    def test_deferred_trigger_receives_stop_on_kill(
+        self, mock_training, mock_describe_training_job, stop_training_job_on_kill
+    ):
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_describe_training_job.return_value = {"TrainingJobStatus": "InProgress"}
+        sagemaker = SageMakerTrainingOperator(
+            task_id="test_sagemaker_operator",
+            config=CREATE_TRAINING_PARAMS.copy(),
+            check_if_job_exists=False,
+            print_log=False,
+            deferrable=True,
+            stop_training_job_on_kill=stop_training_job_on_kill,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sagemaker.execute(context=None)
+
+        assert exc.value.trigger.cancel_on_kill is stop_training_job_on_kill
 
     @mock.patch.object(
         SageMakerHook,

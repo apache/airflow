@@ -36,6 +36,7 @@ import weakref
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, nullcontext, suppress
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -105,6 +106,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -155,6 +157,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_prev_successful_dag_run,
     handle_get_previous_dag_run,
     handle_get_previous_ti,
@@ -827,6 +830,7 @@ class WatchedSubprocess:
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetHITLDetailResponse, handle_get_hitl_detail_response),
             _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
             _register_client_handler(GetPreviousTI, handle_get_previous_ti),
             _register_client_handler(GetTaskStates, handle_get_task_states),
@@ -2431,6 +2435,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetConnection,
             GetDRCount,
             GetDagRunState,
+            GetHITLDetailResponse,
             GetPrevSuccessfulDagRun,
             GetPreviousDagRun,
             GetPreviousTI,
@@ -2524,26 +2529,44 @@ def in_process_api_server():
     return api
 
 
+_IN_PROCESS_RESPONSE_SINK: ContextVar[deque[BaseModel | None] | None] = ContextVar(
+    "in_process_response_sink", default=None
+)
+"""Where :meth:`InProcessTestSupervisor.send_msg` must deliver the response it is about to send.
+
+Only :meth:`InProcessSupervisorComms.send` sets it, and it gets a fresh sink per call, so a response
+can never reach a caller other than the one that is waiting for it. When no sink is set, the request
+came over the socket from a child process (read by the thread started in
+``_setup_subprocess_socket``) and is answered on the socket instead.
+
+Whether a sink is set depends on the call, not the thread, so the sink must not be replaced with a
+thread-identity check: handling a child's ``GetVariable``/``GetConnection`` on the socket thread calls
+``mask_secret``, which re-enters :meth:`InProcessSupervisorComms.send` on that same thread. The nested
+``MaskSecret`` response lands in the nested sink, which is reset before the outer response is written
+to the socket.
+"""
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
-    """In-process communication handler that uses deques instead of sockets."""
+    """In-process communication handler that returns each response directly to its caller."""
 
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
-    messages: deque[BaseModel | None] = attrs.field(factory=deque)
 
-    def _get_response(self) -> BaseModel | None:
-        """Get a message from the supervisor. Blocks until a message is available."""
-        return self.messages.popleft()
-
-    def send(self, msg: BaseModel):
-        """Send a request to the supervisor."""
+    def send(self, msg: BaseModel) -> BaseModel | None:
+        """Send a request to the supervisor and return its response."""
         self.log.debug("Sending request", msg=msg)
 
-        with set_supervisor_comms(None):
-            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        responses: deque[BaseModel | None] = deque()
+        token = _IN_PROCESS_RESPONSE_SINK.set(responses)
+        try:
+            with set_supervisor_comms(None):
+                self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        finally:
+            _IN_PROCESS_RESPONSE_SINK.reset(token)
 
-        return self._get_response()
+        return responses.popleft() if responses else None
 
 
 @attrs.define
@@ -2718,8 +2741,15 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def send_msg(
         self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
-        """Override to use in-process comms."""
-        self.comms.messages.append(msg)
+        """Deliver the response in-process, or over the socket when the request came from there."""
+        sink = _IN_PROCESS_RESPONSE_SINK.get()
+        if sink is None:
+            # A real child process (a virtualenv operator's, say) sent this request over the socket
+            # set up by `_setup_subprocess_socket`. It is blocked reading a response frame, so
+            # anything queued in-process would never reach it.
+            super().send_msg(msg, request_id, error=error, **dump_opts)
+            return
+        sink.append(msg)
 
     @classmethod
     def run_trigger_in_process(cls, *, trigger, ti):
@@ -3137,6 +3167,7 @@ def supervise_task(
     _make_process_nondumpable()
 
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 
     if not client:
         if dry_run and server:
@@ -3174,7 +3205,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
     except:
         log.exception(
             "Failed to initialize coordinator for task",
