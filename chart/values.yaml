@@ -376,6 +376,8 @@ priorityClasses: []
 #    preemptionPolicy: PreemptLowerPriority
 #    value: 10000
 #  - name: class2
+#    annotations:
+#      class2.annotation.key: class2_annotation_value
 #    preemptionPolicy: Never
 #    value: 100000
 
@@ -2886,6 +2888,9 @@ pgbouncer:
 
   # Launch additional containers into PgBouncer pod.
   extraContainers: []
+
+  # Add additional init containers into PgBouncer pod (templated).
+  extraInitContainers: []
 
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
