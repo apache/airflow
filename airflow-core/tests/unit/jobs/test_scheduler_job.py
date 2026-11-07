@@ -143,6 +143,7 @@ from airflow.sdk import (
     HourWindow,
     IdentityMapper,
     MinimumCount,
+    Param,
     RollupMapper,
     SegmentWindow,
     StartOfDayMapper,
@@ -14776,6 +14777,45 @@ def test_asset_runs_share_creation_budget(dag_maker, session, batch_first_dag):
 
 
 @pytest.mark.need_serialized_dag
+def test_asset_triggered_dag_with_invalid_params_does_not_block_others(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="invalid-params-asset")
+    dag_ids = ["invalid-params-consumer", "healthy-consumer"]
+    for dag_id in dag_ids:
+        with dag_maker(dag_id=dag_id, schedule=asset, session=session):
+            EmptyOperator(task_id="task")
+            if dag_id == "invalid-params-consumer":
+                # Bypass the parse-time check: simulates a Dag serialized before the stricter validation.
+                dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+    session.commit()
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow() + timedelta(seconds=1))
+    session.add(event)
+    session.flush()
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_id, asset_event_id=event.id)
+        for dag_id in dag_ids
+    )
+    session.flush()
+    dag_models = session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids))).all()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dag_runs_asset_triggered(dag_models=dag_models, session=session)
+    session.flush()
+
+    def count_runs(dag_id):
+        return session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+
+    assert count_runs("healthy-consumer") == 1
+    assert count_runs("invalid-params-consumer") == 0
+    queued = session.scalars(
+        select(AssetDagRunQueue.target_dag_id).where(AssetDagRunQueue.target_dag_id.in_(dag_ids))
+    ).all()
+    assert queued == ["invalid-params-consumer"]
+
+
+@pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 @pytest.mark.parametrize(
     "scheduling_state",
@@ -14881,6 +14921,45 @@ def test_partitioned_asset_dag_run_is_not_created_after_a_drain_completes(
 
     assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
     assert apdr.created_dag_run_id is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_with_invalid_params_keeps_its_apdr_pending(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="partitioned-invalid-params-asset")
+    bad_dag_id = "partitioned-invalid-params-consumer"
+    for dag_id in (bad_dag_id, "partitioned-healthy-consumer"):
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), session=session):
+            EmptyOperator(task_id="task")
+            if dag_id == bad_dag_id:
+                dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+    session.commit()
+    _produce_and_register_asset_event(
+        dag_id="partitioned-invalid-params-producer",
+        asset=asset,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {
+        bad_dag_id,
+        "partitioned-healthy-consumer",
+    }
+
+    def count_runs(dag_id):
+        return session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+
+    assert count_runs("partitioned-healthy-consumer") == 1
+    assert count_runs(bad_dag_id) == 0
+    bad_apdr = session.scalar(
+        select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == bad_dag_id)
+    )
+    assert bad_apdr is not None
+    assert bad_apdr.created_dag_run_id is None
 
 
 @pytest.mark.need_serialized_dag

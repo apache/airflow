@@ -18,11 +18,13 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from typing import Literal
+from unittest import mock
 
 import pytest
+from jsonschema import FormatChecker
 
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.sdk.exceptions import ParamValidationError
+from airflow.sdk.exceptions import ParamValidationError, RemovedInAirflow4Warning
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -98,6 +100,19 @@ class TestParam:
         """Test invalid iso8601 and rfc3339 datetime format."""
         with pytest.raises(ParamValidationError, match="is not a 'date-time'"):
             Param(dt, type="string", format="date-time").resolve()
+
+    @mock.patch.dict(FormatChecker.checkers)
+    def test_string_datetime_validated_without_rfc3339_validator(self):
+        """A default install has no rfc3339-validator, so jsonschema registers no date-time checker."""
+        FormatChecker.checkers.pop("date-time", None)
+        with pytest.raises(ParamValidationError, match="is not a 'date-time'"):
+            Param("garbage", type="string", format="date-time").resolve()
+        assert Param("2024-01-01t00:00:00z", type="string", format="date-time").resolve()
+
+    @pytest.mark.parametrize("value", ["2024-01-01T00:00:00", "2024-01-01 00:00:00+00:00"])
+    def test_string_iso8601_datetime_warns_and_is_accepted_unchanged(self, value):
+        with pytest.warns(RemovedInAirflow4Warning, match="is deprecated"):
+            assert Param(value, type="string", format="date-time").resolve() == value
 
     def test_string_time_format(self):
         """Test string time format."""

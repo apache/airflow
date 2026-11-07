@@ -22,11 +22,16 @@ import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any, Literal
 
+from airflow._shared.timezones.rfc3339 import is_iso8601_datetime, is_rfc3339_datetime
 from airflow.exceptions import ParamValidationError
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
+
+
+def _check_date_time(value: Any) -> bool:
+    return is_rfc3339_datetime(value) or is_iso8601_datetime(value)
 
 
 class SerializedParam:
@@ -58,13 +63,15 @@ class SerializedParam:
         """
         from jsonschema import FormatChecker, validate
 
+        format_checker = FormatChecker()
+        format_checker.checks("date-time")(_check_date_time)
         try:
             if not is_arg_set(value := self.value):
                 raise ValueError("No value passed")
             validate(
                 value,
                 self.schema,
-                format_checker=FormatChecker(),
+                format_checker=format_checker,
             )
         except Exception:
             if not raises:
