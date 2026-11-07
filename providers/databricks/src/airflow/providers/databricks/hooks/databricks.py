@@ -852,12 +852,9 @@ class DatabricksHook(BaseDatabricksHook):
         See the `SQL Warehouses edit API
         <https://docs.databricks.com/api/warehouses/v1/edit-warehouse>`_.
 
-        :param warehouse_id: Required ID of the SQL warehouse, passed as the API's path parameter ``id``.
-            Has no default.
-        :param json: Required request body for the SQL Warehouses edit API. Has no default.
-            Fields are forwarded as provided; the hook does not supply configuration defaults.
-        :return: ``None`` after the edit request succeeds. The API's empty response object is discarded.
-            This method does not wait for compute changes to finish applying.
+        :param warehouse_id: ID of the SQL warehouse.
+        :param json: Request body for the SQL Warehouses edit API, forwarded as provided.
+        :return: ``None`` when the request succeeds, without waiting for configuration changes to finish.
         """
         self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/edit"), json)
 
