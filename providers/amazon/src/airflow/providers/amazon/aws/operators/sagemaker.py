@@ -272,6 +272,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 {"output_name": "evaluation", "file_name": "metrics.json", "result_name": "EvaluationReport"}
             ]
             # Downstream: ti.xcom_pull("this_task")["OutputFiles"]["EvaluationReport"]["mse"]
+    :param stop_processing_job_on_kill: If True, the processing job is stopped when the task is killed.
+        Without it the job keeps running, and billing, after the task is gone. A deferred task is
+        stopped from the Triggerer, which needs Airflow 3.3 or later; below that the flag only
+        applies while the task holds a worker slot.
     :return: Dict with a ``Processing`` key (the job description) and, when ``output_files_to_xcom``
         is configured, an ``OutputFiles`` key containing the parsed JSON contents of the configured
         output files (keyed by their ``result_name``).
@@ -291,6 +295,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         action_if_job_exists: str = "timestamp",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         output_files_to_xcom: list[dict] | None = None,
+        stop_processing_job_on_kill: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -307,7 +312,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.deferrable = deferrable
+        self.stop_processing_job_on_kill = stop_processing_job_on_kill
         self.serialized_job: dict
+        self._processing_job_name: str | None = None
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -337,6 +344,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.action_if_job_exists == "fail",
             self.hook.describe_processing_job,
         )
+
+        # Recorded before the submit call so a kill in that window still has a name to stop.
+        self._processing_job_name = self.config["ProcessingJobName"]
 
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
@@ -383,6 +393,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                     region_name=self.region_name,
                     verify=self.verify,
                     botocore_config=self.botocore_config,
+                    cancel_on_kill=self.stop_processing_job_on_kill,
                 ),
                 method_name="execute_complete",
             )
@@ -404,6 +415,12 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         result = {"Processing": self.serialized_job}
         result.update(self._read_output_files())
         return result
+
+    def on_kill(self) -> None:
+        """Stop the SageMaker processing job if ``stop_processing_job_on_kill`` is set."""
+        if self.stop_processing_job_on_kill and self._processing_job_name:
+            self.log.info("Stopping SageMaker processing job %s.", self._processing_job_name)
+            self.hook.stop_processing_job(self._processing_job_name)
 
     def _read_output_files(self) -> dict:
         """Read configured output files from S3 after job completion and return them for XCom."""

@@ -22,7 +22,7 @@ import warnings
 from collections import Counter
 from collections.abc import AsyncIterator
 from enum import IntEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from asgiref.sync import sync_to_async
 from botocore.exceptions import WaiterError
@@ -54,9 +54,10 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
     :param region_name: The AWS region where the job is running. Used to build the hook.
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
-    :param cancel_on_kill: If True, stop the training job when the user marks the deferred task failed,
-        clears it, or marks it succeeded. Only applies when ``job_type`` is ``Training``. Requires
-        ``apache-airflow`` with ``BaseTrigger.on_kill()`` support (3.3 and later); below that it is inert.
+    :param cancel_on_kill: If True, stop the job when the user marks the deferred task failed,
+        clears it, or marks it succeeded. Only applies to the job types in ``STOP_METHODS_BY_JOB_TYPE``.
+        Requires ``apache-airflow`` with ``BaseTrigger.on_kill()`` support (3.3 and later); below that
+        it is inert.
     :param poke_interval: (deprecated) use ``waiter_delay`` instead.
     :param max_attempts: (deprecated) use ``waiter_max_attempts`` instead.
     """
@@ -123,17 +124,27 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             config=self.botocore_config,
         )
 
+    STOP_METHODS_BY_JOB_TYPE: ClassVar[dict[str, str]] = {
+        "training": "stop_training_job",
+        "processing": "stop_processing_job",
+    }
+
     async def on_kill(self) -> None:
-        """Stop the training job when the user acts on the deferred task."""
-        if not self.cancel_on_kill or self.job_type.lower() != "training":
+        """Stop the job when the user acts on the deferred task."""
+        if not self.cancel_on_kill:
             return
-        self.log.info("Stopping SageMaker training job %s.", self.job_name)
+        # Absent job types are a no-op, not a call against another type's stop API.
+        stop_method = self.STOP_METHODS_BY_JOB_TYPE.get(self.job_type.lower())
+        if stop_method is None:
+            return
+        self.log.info("Stopping SageMaker %s job %s.", self.job_type, self.job_name)
         hook: SageMakerHook = self.hook()  # type: ignore[assignment]
         try:
-            await sync_to_async(hook.stop_training_job)(self.job_name)
+            await sync_to_async(getattr(hook, stop_method))(self.job_name)
         except Exception:
             self.log.exception(
-                "Failed to stop SageMaker training job %s. The job may still be running.",
+                "Failed to stop SageMaker %s job %s. The job may still be running.",
+                self.job_type,
                 self.job_name,
             )
 

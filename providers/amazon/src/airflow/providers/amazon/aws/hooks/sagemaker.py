@@ -581,6 +581,23 @@ class SageMakerHook(AwsBaseHook):
                 return
             raise
 
+    def stop_processing_job(self, processing_job_name: str) -> None:
+        """
+        Stop a running SageMaker processing job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SageMaker.Client.stop_processing_job`
+
+        :param processing_job_name: name of the processing job to stop.
+        """
+        try:
+            self.conn.stop_processing_job(ProcessingJobName=processing_job_name)
+        except ClientError as ce:
+            if ce.response["Error"]["Code"] == "ValidationException":
+                self.log.warning("Could not stop processing job %s: %s", processing_job_name, ce)
+                return
+            raise
+
     def describe_training_job(self, name: str):
         """
         Get the training job info associated with the name.
