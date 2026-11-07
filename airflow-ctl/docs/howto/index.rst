@@ -113,6 +113,7 @@ This parameter is useful when you want to manage multiple Airflow environments.
 **--skip-keyring**: This parameter is optional.
 Useful when there's no keyring available in the system where airflowctl is running.
 Set ``AIRFLOW_CLI_TOKEN`` or use the ``--api-token`` flag for next commands.
+Later commands do not read a token from the keyring for this environment, so a token from an earlier login is not used.
 
 More Usage and Help Pictures
 ''''''''''''''''''''''''''''

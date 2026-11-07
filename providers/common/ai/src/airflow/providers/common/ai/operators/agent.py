@@ -783,8 +783,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             rendered = copy.copy(toolset)
             self._do_render_template_fields(rendered, fields, context, jinja_env, seen_oids)
             # The rendered connection is recorded nowhere else, so this line is the audit trail
-            # of which connection this task instance's agent was given. @task.agent renders a
-            # second time, when the id no longer changes, so this logs once per task instance.
+            # of which connection this task instance's agent was given.
             if rendered.id != toolset.id:
                 self.log.info("Rendered toolset %s", rendered.id)
             return rendered
@@ -1030,14 +1029,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise
 
     def execute(self, context: Context) -> Any:
-        if self.enable_hitl_review and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: enable_hitl_review=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The HITL session model requires a string prompt. Return a str "
-                f"prompt, or disable enable_hitl_review."
-            )
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 

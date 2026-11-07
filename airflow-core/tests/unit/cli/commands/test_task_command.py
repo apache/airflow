@@ -828,6 +828,24 @@ class TestCliTasks:
         (dags,) = mock_clear_dags.call_args.args
         assert set(dags[0].task_ids) == expected_task_ids
 
+    @pytest.mark.parametrize(
+        ("extra_args", "clear_dags_result", "expected_stdout"),
+        [
+            pytest.param(["--yes"], 0, "Nothing to clear.\n", id="yes-nothing-cleared"),
+            pytest.param(["--yes"], 3, "", id="yes-tasks-cleared"),
+            pytest.param([], [], "Nothing to clear.\n", id="prompt-nothing-to-clear"),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.task_command.SerializedDAG.clear_dags", autospec=True)
+    def test_task_clear_reports_nothing_to_clear(
+        self, mock_clear_dags, capsys, extra_args, clear_dags_result, expected_stdout
+    ):
+        mock_clear_dags.return_value = clear_dags_result
+        args = self.parser.parse_args(["tasks", "clear", "example_bash_operator", *extra_args])
+        task_command.task_clear(args)
+
+        assert capsys.readouterr().out == expected_stdout
+
     def test_task_clear_task_regex_invalid_pattern_reported_before_dag_lookup(self):
         args = self.parser.parse_args(["tasks", "clear", "no_such_dag", "--task-regex", "runme_[", "--yes"])
         with pytest.raises(SystemExit, match=r"Invalid --task-regex 'runme_\['"):

@@ -161,6 +161,51 @@ def test_upsert_hitl_detail(
     assert hitl_detail.response_received is False
 
 
+@pytest.mark.parametrize(
+    ("same_key", "expected_chosen_options"),
+    [
+        pytest.param(True, ["Approve"], id="retry-of-the-stored-request"),
+        pytest.param(False, None, id="new-request"),
+    ],
+)
+def test_upsert_hitl_detail_keeps_the_answer_to_a_retried_request(
+    client: TestClient,
+    create_task_instance: CreateTaskInstance,
+    session: Session,
+    same_key: bool,
+    expected_chosen_options: list[str] | None,
+) -> None:
+    ti = create_task_instance()
+    session.commit()
+    request_json = {"ti_id": str(ti.id), "subject": "Ship it?", "options": ["Approve", "Reject"]}
+    first_key = uuid7()
+    first = client.post(
+        f"/execution/hitlDetails/{ti.id}", json=request_json, headers={"Idempotency-Key": str(first_key)}
+    )
+    assert first.status_code == 201
+    # A reviewer answers the running task before the client's retry arrives.
+    stored = session.scalars(select(HITLDetail).where(HITLDetail.ti_id == ti.id)).one()
+    first_created_at = stored.created_at
+    stored.chosen_options = ["Approve"]
+    stored.responded_at = convert_to_utc(datetime(2025, 7, 3, 0, 0, 0))
+    stored.responded_by = {"id": "1", "name": "reviewer"}
+    session.commit()
+    second_key = first_key if same_key else uuid7()
+
+    second = client.post(
+        f"/execution/hitlDetails/{ti.id}", json=request_json, headers={"Idempotency-Key": str(second_key)}
+    )
+
+    assert second.status_code == 201
+    session.expire_all()
+    hitl_detail = session.scalars(select(HITLDetail).where(HITLDetail.ti_id == ti.id)).one()
+    assert hitl_detail.chosen_options == expected_chosen_options
+    assert hitl_detail.response_received is same_key
+    assert hitl_detail.idempotency_key == second_key
+    # created_at decides whether a resumed run is waiting, so a retry must not move it.
+    assert (hitl_detail.created_at == first_created_at) is same_key
+
+
 def test_upsert_hitl_detail_with_empty_option(
     client: TestClient,
     create_task_instance: CreateTaskInstance,

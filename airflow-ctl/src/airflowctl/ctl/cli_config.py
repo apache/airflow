@@ -95,30 +95,35 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         function(args)
     except AirflowCtlException as e:
         # The base class, so a new AirflowCtl error never regresses to a raw traceback.
-        rich.print(f"command failed due to {e}")
+        rich.print(f"command failed due to {escape(str(e))}", file=sys.stderr)
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as e:
-        rich.print(f"[red]Remote protocol error: {e}[/red]")
+        rich.print(f"[red]Remote protocol error: {escape(str(e))}[/red]", file=sys.stderr)
         if "Server disconnected without sending a response." in str(e):
             rich.print(
-                f"[red]Server response error: {e}. "
-                "Please check if the server is running and the API URL is correct.[/red]"
+                f"[red]Server response error: {escape(str(e))}. "
+                "Please check if the server is running and the API URL is correct.[/red]",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.TimeoutException as e:
-        rich.print(f"[red]Request timeout error: {e}[/red]")
+        rich.print(f"[red]Request timeout error: {escape(str(e))}[/red]", file=sys.stderr)
         if "timed out" in str(e):
-            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+            rich.print(
+                "[red]Please check if the server is running and the API ready to accept calls.[/red]",
+                file=sys.stderr,
+            )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
-        rich.print(f"Server response error: {e}")
+        rich.print(f"Server response error: {escape(str(e))}", file=sys.stderr)
         if "Client error message:" in str(e):
             rich.print(
                 "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
-                "If you need help, run the command with --help."
+                "If you need help, run the command with --help.",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
@@ -126,11 +131,12 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
     # as the bare httpx error.
     except httpx.HTTPStatusError as e:
-        rich.print(f"[red]Server response error: {e}[/red]")
+        rich.print(f"[red]Server response error: {escape(str(e))}[/red]", file=sys.stderr)
         if e.response.is_redirect:
             rich.print(
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
-                "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
@@ -152,7 +158,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"Response did not match the airflowctl model {detail}. "
                 "If the server is newer than this client, try upgrading airflowctl."
             )
-        rich.print(f"[red]{message}[/red]")
+        rich.print(f"[red]{message}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
@@ -413,6 +419,20 @@ ARG_MAP_INDEX = Arg(
     type=int,
     default=-1,
     help="Mapped task index",
+)
+
+# Task logs command args. Required primitive parameters stay positional per the
+# airflowctl parameter style consensus (#66768).
+ARG_TASKS_LOGS_DAG_RUN_ID = Arg(
+    flags=("dag_run_id",),
+    type=str,
+    help="The run ID of the Dag run",
+)
+ARG_TRY_NUMBER = Arg(
+    flags=("--try-number",),
+    type=int,
+    required=True,
+    help="The try number of the task instance logs to fetch",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -1073,6 +1093,11 @@ class CommandFactory:
                 ),
                 output=args.output,
             )
+            if (
+                isinstance(method_output, generated_datamodels.ConnectionTestResponse)
+                and not method_output.status
+            ):
+                raise SystemExit(1)
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
@@ -1428,6 +1453,19 @@ TASK_COMMANDS = (
             ARG_RUN_ID,
             ARG_LOGICAL_DATE,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="logs",
+        help="Get the logs of a task instance",
+        description="Get the logs of a task instance for a given try number.",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.logs"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASKS_LOGS_DAG_RUN_ID,
+            ARG_TASK_ID,
+            ARG_MAP_INDEX,
+            ARG_TRY_NUMBER,
         ),
     ),
 )

@@ -303,20 +303,58 @@ STREAM_ERROR = subprocess.CalledProcessError(
 
 
 @pytest.mark.parametrize(
-    ("error", "expected_ok"), [(SERVER_ERROR, True), (STREAM_ERROR, True), (NOT_FOUND_ERROR, False)]
+    ("error", "run_deleted", "expected_ok", "expected_out", "expected_err"),
+    [
+        pytest.param(SERVER_ERROR, None, True, "::warning::Skipped run", "", id="server-error"),
+        pytest.param(STREAM_ERROR, None, True, "::warning::Skipped run", "", id="dropped-connection"),
+        pytest.param(
+            NOT_FOUND_ERROR, True, True, f"Skipped run {RUN_URL}: it was deleted", "", id="deleted-run"
+        ),
+        pytest.param(
+            NOT_FOUND_ERROR,
+            False,
+            False,
+            "",
+            f"Could not handle run {RUN_URL}",
+            id="not-found-in-existing-run",
+        ),
+    ],
 )
-def test_run_pr_comments_carries_on_past_a_failing_run(spot, capsys, error, expected_ok):
+def test_run_pr_comments_carries_on_past_a_failing_run(
+    spot, capsys, error, run_deleted, expected_ok, expected_out, expected_err
+):
     runs = [_run(branch="a"), _run(branch="b")]
 
     with (
         mock.patch.object(spot, "list_pull_request_runs", autospec=True, return_value=runs),
         mock.patch.object(spot, "update_notice", autospec=True, side_effect=[error, None]) as mock_update,
+        mock.patch.object(spot, "is_run_deleted", autospec=True, return_value=run_deleted) as mock_deleted,
     ):
         ok = spot.run_pr_comments("apache/airflow", datetime(2026, 10, 25, tzinfo=UTC))
 
     assert ok is expected_ok
     assert mock_update.call_count == 2
-    assert capsys.readouterr().out.startswith("::warning::") is expected_ok
+    captured = capsys.readouterr()
+    assert captured.out.startswith(expected_out) if expected_out else captured.out == ""
+    assert captured.err.startswith(expected_err) if expected_err else captured.err == ""
+    if run_deleted is None:
+        mock_deleted.assert_not_called()
+    else:
+        mock_deleted.assert_called_once_with("apache/airflow", 7)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        pytest.param(None, False, id="run-exists"),
+        pytest.param(NOT_FOUND_ERROR, True, id="run-deleted"),
+        pytest.param(SERVER_ERROR, False, id="unknown"),
+    ],
+)
+def test_is_run_deleted(spot, error, expected):
+    with mock.patch.object(spot, "gh_api", autospec=True, side_effect=error, return_value="7") as mock_gh:
+        assert spot.is_run_deleted("apache/airflow", 7) is expected
+    mock_gh.assert_called_once_with("repos/apache/airflow/actions/runs/7", "--jq", ".id")
 
 
 @pytest.mark.parametrize(("error", "expected_ok"), [(SERVER_ERROR, True), (NOT_FOUND_ERROR, None)])

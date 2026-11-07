@@ -2729,6 +2729,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 classpath=start_trigger_args.trigger_cls,
                 kwargs=trigger_kwargs,
                 team_name=team_name,
+                dag_id=self.dag_id,
+                owner_ref={"ti_id": str(self.id)},
             )
 
             # First, make the trigger entry
