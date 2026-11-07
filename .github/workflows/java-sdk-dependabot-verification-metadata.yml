@@ -31,9 +31,9 @@
 # The work is split so no job holds both a write token and dependency code:
 # `regenerate` runs Gradle (dependency code, verification off) with a read-only
 # token and hands only the file onward. `publish` has the write token and
-# validates that file, using the script and baseline from this workflow's own commit
-# (same header as there, only generated checksum entries, no changed
-# hash for a coordinate that is kept) before committing it. If validation fails,
+# validates that file, using the script and baseline from the PR's base (same header
+# as there, only generated checksum entries, no changed hash for a coordinate that
+# is kept) before committing it. If validation fails,
 # a human regenerates the file with the prek hook and reviews why.
 #
 # The bot's push uses GITHUB_TOKEN, so CI for that commit waits for approval. That
@@ -142,8 +142,8 @@ jobs:
     name: Commit verification-metadata.xml
     needs: [resolve, regenerate]
     runs-on: ubuntu-latest
-    # Runs no PR code: the validator and its baseline come from the workflow's own
-    # commit. head_ref/head_sha come from `resolve` only.
+    # Runs no PR code: the validator and its baseline come from the PR's base (the
+    # dispatched ref on a manual run). head_ref/head_sha come from `resolve` only.
     permissions:
       contents: write
     steps:
@@ -153,12 +153,13 @@ jobs:
           ref: ${{ needs.resolve.outputs.head_sha }}
           fetch-depth: 1
           persist-credentials: false
-      # The script ships with this workflow at github.sha, while the PR head's copy could
-      # predate `--validate`, which it would ignore and run Gradle.
-      - name: Checkout the workflow's commit
+      # The PR head's script could predate `--validate`, which it would ignore and run
+      # Gradle. The merge commit is no baseline either: it includes earlier bot commits,
+      # so an entry removed by one could return with another hash as if it were new.
+      - name: Checkout the validator and its baseline
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           path: trusted
           fetch-depth: 1
           persist-credentials: false
