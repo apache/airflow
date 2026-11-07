@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.cohere.hooks.cohere import (
     CohereHook,
@@ -28,6 +31,19 @@ class TestCohereHook:
     """
     Test for CohereHook
     """
+
+    @pytest.mark.parametrize(
+        ("request_options", "expected"),
+        [
+            pytest.param(None, {"max_retries": 0}, id="no_request_options"),
+            pytest.param({"timeout_in_seconds": 5}, {"timeout_in_seconds": 5, "max_retries": 0}, id="merged"),
+        ],
+    )
+    def test_max_retries_zero_reaches_request_options(self, request_options, expected):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            hook = CohereHook(max_retries=0, request_options=request_options)
+
+        assert hook.request_options == expected
 
     def test__get_api_key(self):
         api_key = "test"
