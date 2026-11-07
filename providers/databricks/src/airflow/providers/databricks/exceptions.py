@@ -54,3 +54,7 @@ class DatabricksApiError(AirflowException):
     def __init__(self, message: str, *, http_status_code: int | None = None) -> None:
         super().__init__(message)
         self.http_status_code = http_status_code
+
+
+class DatabricksDeltaTableError(AirflowException):
+    """Raised when a Delta table cannot be read or its version cannot be determined."""
