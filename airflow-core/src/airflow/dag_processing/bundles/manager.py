@@ -25,6 +25,7 @@ import time
 import warnings
 from collections import defaultdict
 from configparser import ConfigParser
+from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -46,7 +47,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Collection, Iterable
+    from contextlib import AbstractContextManager
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -422,8 +424,16 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        bundle_names: Collection[str] | None = None,
+        bundle_context: Callable[[str], AbstractContextManager] | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        self._bundle_names = bundle_names
+        self._bundle_context = bundle_context or (lambda _: nullcontext())
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
         # Keep misses local so new task managers can discover bundles immediately.
         self._failed_bundle_lookups: dict[str, float] = {}
@@ -440,7 +450,10 @@ class DagBundlesManager(LoggingMixin):
         :meta private:
         """
         snapshot = self._snapshot
-        if self._bundle_config.keys() == snapshot.names:
+        selected_names = snapshot.names
+        if self._bundle_names is not None:
+            selected_names = selected_names.intersection(self._bundle_names)
+        if self._bundle_config.keys() == selected_names:
             return
 
         self._bundle_config = {}
@@ -449,6 +462,8 @@ class DagBundlesManager(LoggingMixin):
             return
 
         for bundle_config in bundle_config_list:
+            if self._bundle_names is not None and bundle_config.name not in self._bundle_names:
+                continue
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
                 raise AirflowConfigException(
                     "Section `dag_processor` key `dag_bundle_config_list` "
@@ -537,9 +552,10 @@ class DagBundlesManager(LoggingMixin):
             if update_template:
                 bundle_instance = template_instances.get(name)
                 try:
-                    if bundle_instance is None:
-                        bundle_instance = self.get_bundle(name)
-                    new_template, new_params = _extract_and_sign_template(name, bundle_instance)
+                    with self._bundle_context(name):
+                        if bundle_instance is None:
+                            bundle_instance = self.get_bundle(name)
+                        new_template, new_params = _extract_and_sign_template(name, bundle_instance)
                 except Exception as e:
                     self.log.exception("Error creating bundle '%s': %s", name, e)
                     pending_templates[name] = bundle_instance
@@ -844,7 +860,7 @@ class DagBundlesManager(LoggingMixin):
         :return: The DAG bundle.
         """
         bundle_config = self._bundle_config
-        if name not in bundle_config:
+        if name not in bundle_config and (self._bundle_names is None or name in self._bundle_names):
             snapshot = _get_cached_bundle_config_snapshot()
             if name not in snapshot.names and is_bundle_config_reload_enabled():
                 now = time.monotonic()
@@ -864,9 +880,10 @@ class DagBundlesManager(LoggingMixin):
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
         self._failed_bundle_lookups.pop(name, None)
-        return cfg_bundle.bundle_class(
-            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
-        )
+        with self._bundle_context(name):
+            return cfg_bundle.bundle_class(
+                name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+            )
 
     @classmethod
     def is_bundle_configured(cls, name: str) -> bool:
@@ -887,7 +904,9 @@ class DagBundlesManager(LoggingMixin):
         self._refresh_config()
         for name, cfg in self._bundle_config.items():
             try:
-                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                with self._bundle_context(name):
+                    bundle = cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                yield bundle
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
                 # Skip this bundle and continue with others

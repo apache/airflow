@@ -1,0 +1,82 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""
+Supervisor schema version 2027-02-28.
+
+New bodies in this version:
+
+- ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
+  Human-in-the-loop response.
+"""
+
+from __future__ import annotations
+
+from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for, schema
+
+from airflow.dag_processing.processor import DagFileParseRequest  # noqa: SDK002
+from airflow.sdk.api.datamodels._generated import TIRunContext, VariableResponse
+from airflow.sdk.execution_time.comms import PutVariable
+
+
+class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
+    """
+    Add the ``execution_timeout`` field carrying the task's timeout, which the supervisor enforces.
+
+    The supervisor-schema mirror of the execution API's ``AddExecutionTimeoutToTIRunContext``,
+    named apart so the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+
+class MakeSupervisorVariableValueNonNullable(VersionChange):
+    """
+    Make the Variable value non-nullable in ``VariableResult`` and ``PutVariable``.
+
+    The supervisor-schema mirror of the execution API's ``MakeVariableValueNonNullable``,
+    named apart so the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        # VariableResult (and TIRunContext.variables) inherit the field from the generated
+        # VariableResponse, and Cadwyn only changes a field on the class that declares it.
+        schema(VariableResponse).field("value").had(type=str | None),
+        schema(PutVariable).field("value").had(type=str | None),
+    )
+
+    @convert_request_to_next_version_for(PutVariable)  # type: ignore[arg-type]
+    def store_null_value_as_none_string(request: RequestInfo) -> None:
+        """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
+        if "value" in request.body and request.body["value"] is None:
+            request.body["value"] = "None"
+
+
+class AddBundleConfigToDagFileParseRequest(VersionChange):
+    """Carry accepted importer settings and team ownership to the parsing process."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParseRequest).field("bundle_config").didnt_exist,
+    )

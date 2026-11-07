@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -800,6 +801,27 @@ def test_validate_test_branch_exists(monkeypatch, rc_cmd, remote_branches, shoul
             rc_cmd.validate_test_branch_exists("3-4", "origin")
     else:
         rc_cmd.validate_test_branch_exists("3-4", "origin")
+
+
+@pytest.mark.parametrize(
+    ("remote_url", "should_exit"),
+    [
+        pytest.param("git@github-personal:apache/airflow.git", False, id="accepts-ssh-host-alias"),
+        pytest.param("https://github.com/apache/airflow-site.git", True, id="rejects-airflow-site"),
+    ],
+)
+def test_validate_remote_tracks_apache_airflow(monkeypatch, rc_cmd, remote_url, should_exit):
+    monkeypatch.setattr(
+        rc_cmd, "run_command", lambda *a, **k: SimpleNamespace(returncode=0, stdout=f"{remote_url}\n")
+    )
+    monkeypatch.setattr(rc_cmd, "console_print", lambda *a, **k: None)
+    monkeypatch.setattr(rc_cmd, "confirm_action", lambda *a, **k: False)
+
+    if should_exit:
+        with pytest.raises(SystemExit):
+            rc_cmd.validate_remote_tracks_apache_airflow("upstream")
+    else:
+        rc_cmd.validate_remote_tracks_apache_airflow("upstream")
 
 
 def test_checkout_test_branch_tip_resets_to_remote_tip(monkeypatch, rc_cmd):

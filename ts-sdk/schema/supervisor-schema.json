@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-10-30",
+  "api_version": "2027-02-28",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -3169,6 +3169,78 @@
       "title": "HITLDetailRequestResult",
       "type": "object"
     },
+    "HITLDetailResponseResult": {
+      "description": "Response to GetHITLDetailResponse request.",
+      "properties": {
+        "response_received": {
+          "title": "Response Received",
+          "type": "boolean"
+        },
+        "responded_by_user": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HITLUser"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "chosen_options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chosen Options"
+        },
+        "params_input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params Input"
+        },
+        "type": {
+          "const": "HITLDetailResponseResult",
+          "default": "HITLDetailResponseResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "response_received",
+        "responded_at",
+        "chosen_options"
+      ],
+      "title": "HITLDetailResponseResult",
+      "type": "object"
+    },
     "HITLUser": {
       "description": "Schema for a Human-in-the-loop users.",
       "properties": {
@@ -3580,15 +3652,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "description": {
           "anyOf": [
@@ -3804,6 +3869,27 @@
       "title": "SetAssetStateStoreByUri",
       "type": "object"
     },
+    "SetExecutionTimeout": {
+      "description": "Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.",
+      "properties": {
+        "timeout_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Timeout Seconds",
+          "type": "number"
+        },
+        "type": {
+          "const": "SetExecutionTimeout",
+          "default": "SetExecutionTimeout",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "timeout_seconds"
+      ],
+      "title": "SetExecutionTimeout",
+      "type": "object"
+    },
     "SetRenderedFields": {
       "description": "Payload for setting RTIF for a task instance.",
       "properties": {
@@ -3995,19 +4081,6 @@
         "tasks"
       ],
       "title": "SkipDownstreamTasks",
-      "type": "object"
-    },
-    "StartExecutionTimeout": {
-      "description": "Tell the supervisor to start enforcing the run context's ``execution_timeout`` from outside the task process.",
-      "properties": {
-        "type": {
-          "const": "StartExecutionTimeout",
-          "default": "StartExecutionTimeout",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "title": "StartExecutionTimeout",
       "type": "object"
     },
     "StartupDetails": {
@@ -4664,15 +4737,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -4690,15 +4756,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "type": {
           "const": "VariableResult",
@@ -5414,6 +5473,7 @@
             }
           ],
           "default": null,
+          "description": "The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.",
           "title": "Execution Timeout"
         },
         "multi_team": {

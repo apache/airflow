@@ -26,7 +26,7 @@ from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
@@ -146,6 +146,10 @@ class Callback(Base, BaseWorkload):
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
+    processor_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    processor_claim_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     # Return value of the callback if successful, otherwise exception details
     output: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -159,6 +163,15 @@ class Callback(Base, BaseWorkload):
     # Used for callbacks of type CallbackType.TRIGGERER
     trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
+
+    __table_args__ = (
+        Index(
+            "idx_callback_trigger_id",
+            trigger_id,
+            postgresql_where=trigger_id.is_not(None),
+            sqlite_where=trigger_id.is_not(None),
+        ),
+    )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
         """

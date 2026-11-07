@@ -225,6 +225,8 @@ type BundleInfo struct {
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
+type ChosenOptions []string
+
 type ClearAssetStateStoreByName struct {
 	// Name corresponds to the JSON schema field "name".
 	Name string `msgpack:"name"`
@@ -1266,6 +1268,27 @@ type HITLDetailRequestResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Response to GetHITLDetailResponse request.
+type HITLDetailResponseResult struct {
+	// ChosenOptions corresponds to the JSON schema field "chosen_options".
+	ChosenOptions *ChosenOptions `msgpack:"chosen_options"`
+
+	// ParamsInput corresponds to the JSON schema field "params_input".
+	ParamsInput *ParamsInput `msgpack:"params_input,omitempty"`
+
+	// RespondedAt corresponds to the JSON schema field "responded_at".
+	RespondedAt interface{} `msgpack:"responded_at"`
+
+	// RespondedByUser corresponds to the JSON schema field "responded_by_user".
+	RespondedByUser *HITLUser `msgpack:"responded_by_user,omitempty"`
+
+	// ResponseReceived corresponds to the JSON schema field "response_received".
+	ResponseReceived bool `msgpack:"response_received"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Schema for a Human-in-the-loop users.
 type HITLUser struct {
 	// ID corresponds to the JSON schema field "id".
@@ -1476,7 +1499,7 @@ type PutVariable struct {
 	Type string `msgpack:"type,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 type RenderedFields map[string]JsonValue
@@ -1560,6 +1583,16 @@ type SetAssetStateStoreByURI struct {
 	Value JsonValue `msgpack:"value"`
 }
 
+// Tell the supervisor the task's “execution_timeout“ so it can enforce it from
+// outside the task process.
+type SetExecutionTimeout struct {
+	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
+	TimeoutSeconds float64 `msgpack:"timeout_seconds"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Payload for setting RTIF for a task instance.
 type SetRenderedFields struct {
 	// RenderedFields corresponds to the JSON schema field "rendered_fields".
@@ -1634,13 +1667,6 @@ type SkipDownstreamTasks struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-// Tell the supervisor to start enforcing the run context's “execution_timeout“
-// from outside the task process.
-type StartExecutionTimeout struct {
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
 type StartupDetails struct {
 	// BundleInfo corresponds to the JSON schema field "bundle_info".
 	BundleInfo BundleInfo `msgpack:"bundle_info"`
@@ -1711,7 +1737,10 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
-	// ExecutionTimeout corresponds to the JSON schema field "execution_timeout".
+	// The execution_timeout in seconds set on a task a language SDK runs, from its
+	// serialized Dag. Unset when the task sets none. Zero means no timeout and a
+	// negative value has already elapsed, as for a Python task. A Python task runs
+	// its own timer in the task runner instead, and gets no value here.
 	ExecutionTimeout interface{} `msgpack:"execution_timeout,omitempty"`
 
 	// ExpandedTICount corresponds to the JSON schema field "expanded_ti_count".
@@ -1920,6 +1949,21 @@ type TaskStatesResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type Warnings []interface{}
+
+type TriggerKwargs map[string]interface{}
+
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value string `msgpack:"value"`
+}
+
 type TriggerDagRun struct {
 	// Conf corresponds to the JSON schema field "conf".
 	Conf *Conf `msgpack:"conf,omitempty"`
@@ -1949,19 +1993,6 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type TriggerKwargs map[string]interface{}
-
-type Warnings []interface{}
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note"`
@@ -1972,8 +2003,6 @@ type UpdateDagRunNote struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
@@ -2017,7 +2046,7 @@ type VariableResult struct {
 	Type string `msgpack:"type,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 // One positional stub-task argument pulled from an upstream task's XCom.

@@ -137,6 +137,12 @@ Secret name which holds Keyfile JSON
 
     Not required if using application default credentials.
 
+Keyfile Secret Project Id (in GCP Secret Manager)
+    Project ID containing the secret specified by ``key_secret_name``. Used only when a secret name is set.
+    If omitted, Airflow uses the project ID returned by ``google.auth.default()``.
+    Set ``key_secret_project_id`` if the secret is in a different project or ADC cannot resolve a project ID.
+    The connection's ``Project Id`` setting is not used to locate the secret.
+
 Scopes (comma separated)
     A list of comma-separated `Google Cloud scopes
     <https://developers.google.com/identity/protocols/googlescopes>`_ to
@@ -157,7 +163,7 @@ Quota Project ID (optional)
 Number of Retries
     Integer, number of times to retry with randomized
     exponential backoff. If all retries fail, the :class:`googleapiclient.errors.HttpError`
-    represents the last request. If zero (default), we attempt the
+    represents the last request. The default is 5. If zero, we attempt the
     request only once.
 
 Impersonation Chain
