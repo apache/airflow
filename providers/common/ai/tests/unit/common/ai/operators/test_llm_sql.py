@@ -25,7 +25,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic_ai import Agent
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import UsageLimits
@@ -772,6 +772,20 @@ class TestLLMSQLQueryOperatorAllowedTables:
         )
         return op.execute(context=MagicMock())
 
+    @staticmethod
+    def _execute_with_model(mock_hook_cls, respond):
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+        op = LLMSQLQueryOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            schema_context="Table: orders",
+            allowed_tables=["orders"],
+        )
+        return op.execute(context=MagicMock())
+
     @pytest.mark.parametrize(
         ("sql", "allowed_tables"),
         [
@@ -855,9 +869,43 @@ class TestLLMSQLQueryOperatorAllowedTables:
                 follow_ups.append(" ".join(str(part.content) for part in messages[-1].parts))
             return ModelResponse(parts=[TextPart(content=next(answers))])
 
-        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
-            FunctionModel(respond), **kw
-        )
+        assert self._execute_with_model(mock_hook_cls, respond) == "SELECT * FROM orders"
+        assert len(follow_ups) == 1
+        assert "not in allowed_tables: salaries. Allowed tables: orders." in follow_ups[0]
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_fenced_allowed_answer_is_accepted_on_first_call(self, mock_hook_cls):
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="```sql\nSELECT * FROM orders\n```")])
+
+        assert self._execute_with_model(mock_hook_cls, respond) == "SELECT * FROM orders"
+        assert len(calls) == 1
+
+    @pytest.mark.parametrize(
+        ("answer", "match"),
+        [
+            pytest.param("SELECT * FROM salaries", "not in allowed_tables: salaries\\.", id="table"),
+            pytest.param("DROP TABLE orders", "Statement type 'Drop' is not allowed", id="statement-type"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_model_that_never_complies_raises_sql_safety_error(self, mock_hook_cls, answer, match):
+        def respond(messages, info):
+            return ModelResponse(parts=[TextPart(content=answer)])
+
+        with pytest.raises(SQLSafetyError, match=match) as error:
+            self._execute_with_model(mock_hook_cls, respond)
+
+        assert isinstance(error.value.__cause__, UnexpectedModelBehavior)
+
+    @patch.object(
+        LLMSQLQueryOperator, "_run_llm", side_effect=UnexpectedModelBehavior("Empty model response")
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_unrelated_model_failure_is_raised_unchanged(self, mock_hook_cls, mock_run_llm):
         op = LLMSQLQueryOperator(
             task_id="t",
             prompt="p",
@@ -866,9 +914,8 @@ class TestLLMSQLQueryOperatorAllowedTables:
             allowed_tables=["orders"],
         )
 
-        assert op.execute(context=MagicMock()) == "SELECT * FROM orders"
-        assert len(follow_ups) == 1
-        assert "not in allowed_tables: salaries. Allowed tables: orders." in follow_ups[0]
+        with pytest.raises(UnexpectedModelBehavior, match="Empty model response"):
+            op.execute(context=MagicMock())
 
     def test_system_prompt_lists_allowed_tables_and_rules(self):
         op = LLMSQLQueryOperator(
