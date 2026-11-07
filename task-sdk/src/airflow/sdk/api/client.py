@@ -250,18 +250,19 @@ def _log_and_trace_retry(retry_state) -> None:
         )
 
 
-def _path(prefix: str, *identifiers: str | uuid.UUID) -> str:
+def _path(prefix: str, *identifiers: str | uuid.UUID, tail: str | None = None) -> str:
     """
     Build a request path, quoting each identifier so it stays a single segment.
 
-    ``prefix`` is the fixed, trusted portion of the path. Each identifier is quoted
-    with ``safe=""`` because a value containing ``/`` or ``..`` would otherwise be
-    collapsed by httpx dot-segment normalization and escape onto another endpoint.
-    Keys that the server matches with a ``:path`` converter still resolve, since the
-    encoded ``%2F`` is decoded back to ``/`` before routing.
+    ``prefix`` is the fixed, trusted portion of the path. The server decodes ``%2F`` before
+    routing, so a ``/`` in a positional identifier would shift it onto another route and is
+    rejected. ``tail`` is the last segment (a ``:path`` key or a final id) and may contain ``/``.
     """
+    if any("/" in str(identifier) for identifier in identifiers):
+        raise ValueError(f"Path identifier must not contain '/': {identifiers!r}")
+    segments = [*identifiers] if tail is None else [*identifiers, tail]
+    quoted = (quote(str(segment), safe="") for segment in segments)
     # quote() leaves a bare "." or ".." as is, and httpx would still collapse it as a dot segment.
-    quoted = (quote(str(i), safe="") for i in identifiers)
     return "/".join([prefix, *("%2E" * len(q) if q in (".", "..") else q for q in quoted)])
 
 
@@ -530,7 +531,7 @@ class ConnectionOperations:
     def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
         try:
-            resp = self.client.get(_path("connections", conn_id))
+            resp = self.client.get(_path("connections", tail=conn_id))
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -568,7 +569,7 @@ class VariableOperations:
     def get(self, key: str) -> VariableResponse | ErrorResponse:
         """Get a variable from the API server."""
         try:
-            resp = self.client.get(_path("variables", key))
+            resp = self.client.get(_path("variables", tail=key))
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -597,7 +598,7 @@ class VariableOperations:
     def set(self, key: str, value: str, description: str | None = None) -> OKResponse:
         """Set an Airflow Variable via the API server."""
         body = VariablePostBody(val=value, description=description)
-        self.client.put(_path("variables", key), content=body.model_dump_json())
+        self.client.put(_path("variables", tail=key), content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
@@ -608,7 +609,7 @@ class VariableOperations:
         key: str,
     ) -> OKResponse:
         """Delete a variable with given key via the API server."""
-        self.client.delete(_path("variables", key))
+        self.client.delete(_path("variables", tail=key))
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
@@ -642,7 +643,7 @@ class XComOperations:
         params: dict[str, str | int] = {}
         if previous_iteration:
             params["previous_iteration"] = True
-        resp = self.client.head(_path("xcoms", dag_id, run_id, task_id, key), params=params)
+        resp = self.client.head(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params)
 
         # content_range: str | None
         if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
@@ -671,7 +672,7 @@ class XComOperations:
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
         try:
-            resp = self.client.get(_path("xcoms", dag_id, run_id, task_id, key), params=params)
+            resp = self.client.get(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -711,7 +712,7 @@ class XComOperations:
             params["map_index"] = map_index
         if mapped_length is not None and mapped_length >= 0:
             params["mapped_length"] = mapped_length
-        self.client.post(_path("xcoms", dag_id, run_id, task_id, key), params=params, json=value)
+        self.client.post(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
@@ -729,7 +730,7 @@ class XComOperations:
         params: dict[str, str | int] = {}
         if map_index is not None and map_index >= 0:
             params["map_index"] = map_index
-        self.client.delete(_path("xcoms", dag_id, run_id, task_id, key), params=params)
+        self.client.delete(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
@@ -750,7 +751,7 @@ class XComOperations:
             params["previous_iteration"] = True
         try:
             resp = self.client.get(
-                f"{_path('xcoms', dag_id, run_id, task_id, key)}/item/{offset}",
+                f"{_path('xcoms', dag_id, run_id, task_id, tail=key)}/item/{offset}",
                 params=params,
             )
         except ServerResponseError as e:
@@ -802,7 +803,7 @@ class XComOperations:
             params["step"] = step
         if include_prior_dates:
             params["include_prior_dates"] = include_prior_dates
-        resp = self.client.get(f"{_path('xcoms', dag_id, run_id, task_id, key)}/slice", params=params)
+        resp = self.client.get(f"{_path('xcoms', dag_id, run_id, task_id, tail=key)}/slice", params=params)
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
@@ -815,7 +816,7 @@ class TaskStateStoreOperations:
     def get(self, ti_id: uuid.UUID, key: str) -> TaskStateStoreResponse | ErrorResponse:
         """Get a task store value from the API server."""
         try:
-            resp = self.client.get(_path("store/ti", ti_id, key))
+            resp = self.client.get(_path("store/ti", ti_id, tail=key))
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug("Task store key not found", ti_id=ti_id, key=key)
@@ -826,12 +827,12 @@ class TaskStateStoreOperations:
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
         """Set a task store value via the API server."""
         body = TaskStateStorePutBody(value=value, expires_at=expires_at)
-        self.client.put(_path("store/ti", ti_id, key), content=body.model_dump_json())
+        self.client.put(_path("store/ti", ti_id, tail=key), content=body.model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
         """Delete a single task store key via the API server."""
-        self.client.delete(_path("store/ti", ti_id, key))
+        self.client.delete(_path("store/ti", ti_id, tail=key))
         return OKResponse(ok=True)
 
     def clear(self, ti_id: uuid.UUID) -> OKResponse:
@@ -1093,7 +1094,7 @@ class DagsOperations:
 
     def get(self, dag_id: str) -> DagResponse:
         """Get a DAG via the API server."""
-        resp = self.client.get(_path("dags", dag_id))
+        resp = self.client.get(_path("dags", tail=dag_id))
         return DagResponse.model_validate_json(resp.read())
 
 

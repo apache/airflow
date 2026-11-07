@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import pickle
 from datetime import UTC, datetime
@@ -381,6 +382,119 @@ class TestClient:
 
         with pytest.raises(ValueError, match="Both client_ssl_cert and client_ssl_key must be set"):
             make_client(httpx2.MockTransport(handle_request))
+
+    @pytest.mark.parametrize(
+        ("call", "expected_path"),
+        [
+            pytest.param(
+                lambda c: c.variables.get("../connections/aws_default"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-get",
+            ),
+            pytest.param(
+                lambda c: c.variables.set("../connections/aws_default", "v"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-set",
+            ),
+            pytest.param(
+                lambda c: c.variables.delete("../connections/aws_default"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-delete",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.head("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-head",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-get",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.set("d", "r", "t", "x/../../variables/k", "v"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-set",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.delete("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-delete",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get_sequence_item("d", "r", "t", "x/../../variables/k", 0),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk/item/0",
+                id="xcoms-item",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get_sequence_slice("d", "r", "t", "x/../../variables/k", None, None, None),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk/slice",
+                id="xcoms-slice",
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.trigger("..", "r"), b"/dag-runs/%2E%2E/r", id="dag-runs-trigger"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.clear("d", ".."), b"/dag-runs/d/%2E%2E/clear", id="dag-runs-clear"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.get_detail("..", "r"), b"/dag-runs/%2E%2E/r", id="dag-runs-detail"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.get_state("d", ".."), b"/dag-runs/d/%2E%2E/state", id="dag-runs-state"
+            ),
+            pytest.param(
+                lambda c: c.task_instances.get_previous("..", "t"),
+                b"/task-instances/previous/%2E%2E/t",
+                id="get-previous",
+            ),
+            pytest.param(lambda c: c.connections.get(".."), b"/connections/%2E%2E", id="connection-dotdot"),
+            pytest.param(lambda c: c.connections.get("."), b"/connections/%2E", id="connection-dot"),
+            pytest.param(
+                lambda c: c.xcoms.get("..", "..", "variables", "secret"),
+                b"/xcoms/%2E%2E/%2E%2E/variables/secret",
+                id="xcoms-dots",
+            ),
+        ],
+    )
+    def test_path_identifiers_stay_in_their_segment(self, call, expected_path):
+        """Caller-supplied identifiers cannot reach another endpoint, whatever they contain."""
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(
+                status_code=200, content=b"null", headers={"Content-Range": "map_indexes 1"}
+            )
+
+        with contextlib.suppress(Exception):  # the stub body need not parse; only the URL matters
+            call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen[0].url.raw_path.split(b"?")[0] == expected_path
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(lambda c: c.dag_runs.trigger("d", "x/clear"), id="trigger-run-id"),
+            pytest.param(lambda c: c.dag_runs.trigger("a/b", "r"), id="trigger-dag-id"),
+            pytest.param(lambda c: c.xcoms.get("a/b", "r", "t", "k"), id="xcoms-dag-id"),
+            pytest.param(lambda c: c.xcoms.get("d", "a/b", "t", "k"), id="xcoms-run-id"),
+            pytest.param(lambda c: c.xcoms.get("d", "r", "a/b", "k"), id="xcoms-task-id"),
+            pytest.param(lambda c: c.task_instances.get_previous("a/b", "t"), id="previous-dag-id"),
+            pytest.param(lambda c: c.task_instances.get_previous("d", "a/b"), id="previous-task-id"),
+        ],
+    )
+    def test_path_rejects_slash_in_positional_identifier(self, call):
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(status_code=200, content=b"null")
+
+        with pytest.raises(ValueError, match="must not contain '/'"):
+            call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen == []
 
 
 class TestTaskInstanceOperations:
@@ -914,24 +1028,6 @@ class TestTaskInstanceOperations:
         assert isinstance(result, PreviousTIResult)
         assert result.task_instance is None
 
-    def test_get_previous_quotes_dag_id_and_task_id_as_single_path_segments(self):
-        """A dag_id / task_id cannot escape the task-instances/previous API path."""
-        requests_seen = []
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            return httpx2.Response(status_code=200, content="null")
-
-        client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.task_instances.get_previous(dag_id="x/../../variables/secret_key", task_id="t")
-
-        assert (
-            requests_seen[0].url.raw_path.split(b"?")[0]
-            == b"/task-instances/previous/x%2F..%2F..%2Fvariables%2Fsecret_key/t"
-        )
-        assert requests_seen[0].url.path != "/variables/secret_key"
-        assert isinstance(result, PreviousTIResult)
-
 
 class TestVariableOperations:
     """
@@ -1059,30 +1155,6 @@ class TestVariableOperations:
 
         result = client.variables.delete(key="test_key")
         assert result == OKResponse(ok=True)
-
-    def test_get_quotes_key_as_single_path_segment(self):
-        """A variable key cannot escape the variables API path onto another endpoint."""
-        requests_seen = []
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            if request.url.path == "/connections/aws_default":
-                return httpx2.Response(
-                    status_code=200,
-                    json={"conn_id": "aws_default", "conn_type": "aws", "password": "super-secret"},
-                )
-            return httpx2.Response(
-                status_code=404,
-                json={"detail": {"reason": "not_found", "message": "Variable not found"}},
-            )
-
-        client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.variables.get(key="../connections/aws_default")
-
-        assert requests_seen[0].url.raw_path == b"/variables/..%2Fconnections%2Faws_default"
-        assert requests_seen[0].url.path != "/connections/aws_default"
-        assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.VARIABLE_NOT_FOUND
 
 
 class TestXCOMOperations:
@@ -1337,33 +1409,6 @@ class TestXCOMOperations:
         )
         assert result == OKResponse(ok=True)
 
-    def test_get_quotes_identifiers_as_single_path_segments(self):
-        """A dag_id / run_id / task_id cannot escape the xcoms API path."""
-        requests_seen = []
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            return httpx2.Response(
-                status_code=404,
-                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
-            )
-
-        client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.xcoms.get(
-            dag_id="x/../../variables/secret_key",
-            run_id="run_id",
-            task_id="task_id",
-            key="key",
-        )
-
-        assert (
-            requests_seen[0].url.raw_path.split(b"?")[0]
-            == b"/xcoms/x%2F..%2F..%2Fvariables%2Fsecret_key/run_id/task_id/key"
-        )
-        assert requests_seen[0].url.path != "/variables/secret_key"
-        assert isinstance(result, XComResponse)
-        assert result.value is None
-
 
 class TestConnectionOperations:
     """
@@ -1454,55 +1499,6 @@ class TestConnectionOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.PERMISSION_DENIED
         assert result.detail == {"conn_id": "denied_conn", "status_code": status_code}
-
-    def test_get_quotes_conn_id_as_single_path_segment(self):
-        """A connection id cannot escape the connections API path."""
-        requests_seen = []
-        crafted_conn_id = "x/../../variables/secret_key"
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            if request.url.path == "/variables/secret_key":
-                return httpx2.Response(
-                    status_code=200,
-                    json={"key": "secret_key", "value": "super-secret-value"},
-                )
-            return httpx2.Response(
-                status_code=404,
-                json={"reason": "not_found", "message": "Connection not found"},
-            )
-
-        client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.connections.get(conn_id=crafted_conn_id)
-
-        assert requests_seen[0].url.raw_path == b"/connections/x%2F..%2F..%2Fvariables%2Fsecret_key"
-        assert requests_seen[0].url.path != "/variables/secret_key"
-        assert isinstance(result, ErrorResponse)
-        assert "super-secret-value" not in str(result.detail)
-
-    @pytest.mark.parametrize(
-        ("call", "expected_path"),
-        [
-            pytest.param(lambda c: c.connections.get(conn_id=".."), b"/connections/%2E%2E", id="dotdot"),
-            pytest.param(lambda c: c.connections.get(conn_id="."), b"/connections/%2E", id="dot"),
-            pytest.param(
-                lambda c: c.xcoms.get(dag_id="..", run_id="..", task_id="variables", key="secret"),
-                b"/xcoms/%2E%2E/%2E%2E/variables/secret",
-                id="xcoms",
-            ),
-        ],
-    )
-    def test_get_encodes_bare_dot_segments(self, call, expected_path):
-        """An identifier that is only dots cannot be collapsed by dot-segment normalization."""
-        requests_seen = []
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            return httpx2.Response(status_code=404, json={"reason": "not_found", "message": "nope"})
-
-        call(make_client(transport=httpx2.MockTransport(handle_request)))
-
-        assert requests_seen[0].url.raw_path.split(b"?")[0] == expected_path
 
 
 class TestAssetEventOperations:
@@ -1839,20 +1835,6 @@ class TestDagRunOperations:
         )
 
         assert result == OKResponse(ok=True)
-
-    def test_trigger_quotes_dag_id_and_run_id_as_single_path_segments(self):
-        """A dag_id / run_id cannot escape the dag-runs API path."""
-        requests_seen = []
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            return httpx2.Response(status_code=204)
-
-        client = make_client(transport=httpx2.MockTransport(handle_request))
-        client.dag_runs.trigger(dag_id="x/../../variables", run_id="secret_key")
-
-        assert requests_seen[0].url.raw_path == b"/dag-runs/x%2F..%2F..%2Fvariables/secret_key"
-        assert requests_seen[0].url.path != "/variables/secret_key"
 
     def test_trigger_conflict(self):
         """Test that if the dag run already exists, the client returns an error when default reset_dag_run=False"""
@@ -2501,28 +2483,6 @@ class TestTaskStateOperations:
         client = make_client(transport=httpx2.MockTransport(handle_request))
         result = client.task_state_store.clear(ti_id=self.TI_ID)
         assert result == OKResponse(ok=True)
-
-    def test_get_quotes_key_as_single_path_segment(self):
-        """A task store key cannot escape the store/ti API path."""
-        requests_seen = []
-
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            requests_seen.append(request)
-            return httpx2.Response(
-                status_code=404,
-                json={"detail": {"reason": "not_found", "message": "not found"}},
-            )
-
-        client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.task_state_store.get(ti_id=self.TI_ID, key="../../variables/secret_key")
-
-        assert (
-            requests_seen[0].url.raw_path
-            == f"/store/ti/{self.TI_ID}/..%2F..%2Fvariables%2Fsecret_key".encode()
-        )
-        assert requests_seen[0].url.path != "/store/variables/secret_key"
-        assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.TASK_STORE_NOT_FOUND
 
 
 class TestAssetStateOperations:
