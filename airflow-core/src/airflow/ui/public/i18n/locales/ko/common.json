@@ -222,6 +222,10 @@
     "write": "작성"
   },
   "overallStatus": "전체 상태",
+  "pagination": {
+    "nextPage": "다음 페이지",
+    "previousPage": "이전 페이지"
+  },
   "partition_one": "파티션",
   "partition_other": "파티션",
   "partitionedDagRun_one": "파티션된 Dag 실행",
@@ -268,7 +272,8 @@
   "search": {
     "advanced": {
       "description": "값의 어느 위치에서든 일치하는 항목을 찾습니다(부분 문자열 검색). 기본 B-트리 인덱스를 사용할 수 없어 대규모 배포 환경에서는 속도가 느릴 수 있습니다. 자세한 내용은 문서의 커스텀 메타데이터 인덱스 섹션을 참고하세요.",
-      "title": "부분 일치"
+      "title": "부분 일치",
+      "toggleLabel": "부분 일치 검색 토글"
     }
   },
   "security": {
@@ -382,10 +387,12 @@
       "scrollBottom": "맨 아래로 스크롤",
       "scrollTop": "맨 위로 스크롤",
       "searchDags": "$t(dag_other) 검색",
+      "selectGridCellRange": "$t(taskInstance_other) 또는 $t(taskGroup_other)의 범위를 선택",
       "showHelp": "$t(shortcuts.title) 보기",
       "toggleExpand": "모든 그룹 펼치기/접기",
       "toggleFullscreen": "전체 화면 전환",
       "toggleGraphGrid": "그래프 / 그리드 뷰 전환",
+      "toggleGridCellSelection": "선택 항목에 $t(taskInstance_one) 또는 $t(taskGroup_one) 추가/제거",
       "toggleLogLevel": "로그 레벨 보기/숨기기",
       "toggleSource": "소스 보기/숨기기",
       "toggleTaskGroup": "$t(taskGroup_one) 펼치기/접기",
@@ -488,6 +495,7 @@
     "queue": "큐",
     "queuedWhen": "대기열에 추가된 시간",
     "renderedMapIndex": "렌더링된 맵 인덱스",
+    "retryAt": "재시도 예정 시간",
     "scheduledWhen": "예정된 시간",
     "stateReason": "상태 이유",
     "stateReasonSummary": {
