@@ -45,14 +45,22 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run breeze integration tests (true/false)"
         required: true
         type: string
+      run-translation-check:
+        description: "Whether to check the completeness of the UI translations (true/false)"
+        required: true
+        type: string
+      run-shared-distributions-tests:
+        description: "Whether to run the shared distributions tests (true/false)"
+        required: true
+        type: string
       run-scripts-tests:
         description: "Whether to run scripts tests (true/false)"
         required: true
         type: string
       run-generic-basic-tests:
         description: >-
-          Whether to run the standalone Airflow and shared distributions tests (true/false): not on the
-          release branch of a single component
+          Whether to run the standalone Airflow test (true/false): not on the release branch of a single
+          component
         required: true
         type: string
       basic-checks-only:
@@ -143,7 +151,7 @@ jobs:
   tests-shared-distributions:
     timeout-minutes: 10
     name: Shared distributions tests
-    if: inputs.run-generic-basic-tests == 'true'
+    if: inputs.run-shared-distributions-tests == 'true'
     env:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
       UV_PYTHON: "${{ inputs.default-python-version }}"
@@ -256,6 +264,7 @@ jobs:
     timeout-minutes: 15
     name: "Check translation completeness"
     runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
+    if: inputs.run-translation-check == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

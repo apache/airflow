@@ -201,6 +201,10 @@ class FileGroupForCi(Enum):
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
+    IMAGE_BUILD_FILES = auto()
+    DOCS_PUBLISH_FILES = auto()
+    SHARED_DISTRIBUTION_FILES = auto()
+    UI_I18N_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -236,6 +240,14 @@ LANG_SDK_CONFORMANCE_SHARED_FILES = (
     r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
     r"^airflow-core/src/airflow/serialization/schema\.json$",
     r"^scripts/ci/lang_sdk_serialization/.*",
+)
+
+# Where Breeze reads the version of each distribution: its tests and the published-docs version check.
+VERSION_FILES = (
+    r"^airflow-core/src/airflow/__init__\.py$",
+    r"^task-sdk/src/airflow/sdk/__init__\.py$",
+    r"^airflow-ctl/src/airflowctl/__init__\.py$",
+    r"^chart/Chart\.yaml$",
 )
 
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
@@ -669,6 +681,47 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # Core executor sources - redis is celery's broker/result backend, so the
             # core "redis" integration is exercised when the executor framework changes.
             r"^airflow-core/src/airflow/executors/.*",
+        ],
+        # The CI image is built from these before the sources are copied in; any other change reuses the
+        # cached layers, so the build-time check has nothing new to measure. Breeze's FILES_FOR_REBUILD_CHECK
+        # are these or ENVIRONMENT_FILES. The build first regenerates the provider dependencies with the
+        # prek script, which is not an ENVIRONMENT_FILES match.
+        FileGroupForCi.IMAGE_BUILD_FILES: [
+            r"^scripts/ci/prek/(common_prek_utils|update_providers_dependencies)\.py$",
+            r"^Dockerfile",
+            r"^\.dockerignore$",
+            r"^scripts/docker/",
+            r".*hatch_build\.py$",
+            r"^generated/",
+            r"^uv\.lock$",
+            r".*pyproject\.toml$",
+        ],
+        # What publishing the built docs and validating their versions depends on. A docstring change
+        # rebuilds the docs but cannot change what is published.
+        FileGroupForCi.DOCS_PUBLISH_FILES: [
+            r"^docs/",
+            r"^.*/docs/",
+            r"^providers-summary-docs/",
+            r"^docker-stack-docs/",
+            r".*/provider\.yaml$",
+            r".*/changelog\.rst$",
+            r"^RELEASE_NOTES\.rst$",
+            r"^chart/RELEASE_NOTES\.rst$",
+            r".*pyproject\.toml$",
+            r"^devel-common/src/sphinx_exts/",
+            *VERSION_FILES,
+        ],
+        # The shared distributions' tests install devel-common as their test dependency, and with it the
+        # local apache-airflow-mypy distribution in dev/mypy.
+        FileGroupForCi.SHARED_DISTRIBUTION_FILES: [
+            r"^shared/",
+            r"^devel-common/",
+            r"^dev/mypy/",
+            r"^pyproject\.toml$",
+            r"^uv\.lock$",
+        ],
+        FileGroupForCi.UI_I18N_FILES: [
+            r"^airflow-core/src/airflow/ui/public/i18n/",
         ],
     }
 )
@@ -1693,9 +1746,26 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_generic_basic_tests(self) -> bool:
-        """The basic tests of Airflow itself that run for every change: the standalone Airflow and the
-        shared distributions."""
+        """The standalone Airflow test, which runs for every change."""
         return True
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_shared_distributions_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.SHARED_DISTRIBUTION_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_translation_check(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_I18N_FILES)
+
+    @cached_property
+    def run_image_build_time_check(self) -> bool:
+        return self.ci_image_build and self._should_be_run(FileGroupForCi.IMAGE_BUILD_FILES)
+
+    @cached_property
+    def run_docs_publish(self) -> bool:
+        return self.docs_build and self._should_be_run(FileGroupForCi.DOCS_PUBLISH_FILES)
 
     @cached_property
     @_scoped_to_component_branch
