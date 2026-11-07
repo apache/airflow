@@ -22,16 +22,18 @@ import logging
 import multiprocessing
 import operator
 import os
+import random
 import signal
 import sys
 import time
+from bisect import bisect_right, insort
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -170,10 +172,30 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
-# aren't starved; remaining APDRs drain across subsequent ticks.
+# aren't starved; remaining APDRs are evaluated in subsequent ticks, in rotation.
 # Internal constant rather than a user setting — this is a performance
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
+
+MAX_PARTITION_CLAIM_REFILLS_PER_LOOP = 3
+"""
+Max extra lock queries per tick when picked AssetPartitionDagRun rows are held by HA peers or no longer pending.
+
+:meta private:
+"""
+
+# Seconds between full reads of the pending AssetPartitionDagRun ids on PostgreSQL and MySQL. Between
+# them each tick reads only the rows inserted since the previous read, so a row whose transaction
+# commits after a higher id was read is found up to this long, plus one tick, later, and is then
+# claimed like any other new row.
+_PARTITION_SNAPSHOT_REFRESH_SECONDS = 30.0
+
+# Max number of Dag ids per eligibility query; SQLite before 3.32 allows only 999 bind parameters.
+_PARTITION_ELIGIBILITY_CHUNK_SIZE = 500
+
+# A pass over the pending AssetPartitionDagRun rows takes several ticks for as long as a backlog
+# lasts, which can be days for rollups; log that at most this often.
+_PARTITION_PASS_LOG_INTERVAL_SECONDS = 600.0
 
 # Max number of ADRQ rows deleted per statement, to keep the bind parameter count bounded.
 _ADRQ_DELETE_CHUNK_SIZE = 500
@@ -341,6 +363,264 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+class _PartitionPass(NamedTuple):
+    """A completed pass of a :class:`_PartitionRing` over the pending rows of eligible Dags."""
+
+    loops: int
+    seconds: float
+    oldest_created_at: datetime | None
+
+
+class _RingProgress(NamedTuple):
+    """The part of a :class:`_PartitionRing` that a rolled-back tick must undo."""
+
+    cursor: int | None
+    fresh: list[int]
+    gone: set[int]
+    pass_started_at: float | None
+    pass_loops: int
+    pass_oldest: datetime | None
+
+
+class _PartitionRing:
+    """
+    Order in which one scheduler visits pending :class:`AssetPartitionDagRun` rows: a rotation by id.
+
+    Pending rows that stay unsatisfied for long are normal (a rollup waiting for its window, an AND
+    condition missing an input). Taking the oldest rows up to the per-tick cap would re-evaluate the
+    same unsatisfied rows on every tick and never reach newer ones, in any Dag. The ring visits every
+    pending row of an eligible Dag once per pass instead. Rows it has not seen before, up to a limit
+    the caller sets, are claimed ahead of the rotation in the tick that finds them.
+
+    The pending ids are read in full every ``refresh_interval`` seconds and, in between, only the rows
+    inserted since the last read. The state is in memory only. Progress made in a tick is kept by
+    :meth:`commit` and undone by :meth:`rewind`, so a tick retried after a database error skips no row
+    that the rolled-back attempt claimed.
+    """
+
+    def __init__(self, rng: random.Random | None = None) -> None:
+        self._rng = rng or random.Random()
+        # Set on the first claim, from the database dialect.
+        self.refresh_interval: float | None = None
+        self._refreshed_at: float | None = None
+        # Highest id of the table read so far; the tail read returns the rows above it.
+        self.max_seen = 0
+        self._dag_by_id: dict[int, str] = {}
+        self._ids_by_dag: dict[str, list[int]] = {}
+        self._ring: list[int] = []
+        # The Dags whose rows _ring holds; None after a full read, so that pick() rebuilds it.
+        self._ring_dags: frozenset[str] | None = None
+        self._last_pick: tuple[list[int], list[int], int | None] = ([], [], None)
+        self._fresh_added: list[int] = []
+        self._ended: _PartitionPass | None = None
+        # Progress, saved by commit() and restored by rewind().
+        # Rows with a greater id come next; None until the rotation starts.
+        self.cursor: int | None = None
+        # Pending rows not seen before, claimed ahead of the rotation.
+        self.fresh: list[int] = []
+        # Rows fired or deleted since the last full read.
+        self.gone: set[int] = set()
+        # None while the pass in progress is partial: the first one of this process, or one interrupted
+        # by a tick with nothing to rotate over.
+        self._pass_started_at: float | None = None
+        self._pass_loops = 0
+        self._pass_oldest: datetime | None = None
+        self._committed = self._capture_progress()
+
+    def _capture_progress(self) -> _RingProgress:
+        return _RingProgress(
+            self.cursor,
+            list(self.fresh),
+            set(self.gone),
+            self._pass_started_at,
+            self._pass_loops,
+            self._pass_oldest,
+        )
+
+    def commit(self) -> _PartitionPass | None:
+        """
+        Keep the progress made since the last commit, once its transaction is committed.
+
+        :return: the pass that ended in the committed tick, unless it is partial.
+        """
+        ended, self._ended = self._ended, None
+        self._committed = self._capture_progress()
+        self._fresh_added = []
+        return ended
+
+    def rewind(self) -> None:
+        """Undo the progress made since the last commit, so a retried tick skips no row."""
+        self.cursor, fresh, gone, self._pass_started_at, self._pass_loops, self._pass_oldest = self._committed
+        # Reading new rows is not undone by a rollback, so they stay new.
+        self.fresh = sorted(
+            apdr_id for apdr_id in set(fresh).union(self._fresh_added) if apdr_id in self._dag_by_id
+        )
+        self.gone = set(gone)
+        self._ended = None
+
+    def needs_refresh(self, now: float) -> bool:
+        return self._refreshed_at is None or now - self._refreshed_at >= (self.refresh_interval or 0.0)
+
+    def refresh(self, rows: Iterable[tuple[int, str]], *, max_id: int | None, now: float) -> None:
+        """
+        Replace the pending ids with a full read of *rows*.
+
+        :param max_id: the highest id in the table, read before *rows*, so that the rows committed in
+            between are returned by both reads rather than by neither.
+        """
+        # One string per Dag rather than one per row.
+        shared: dict[str, str] = {}
+        dag_by_id: dict[int, str] = {}
+        ids_by_dag: dict[str, list[int]] = {}
+        for apdr_id, dag_id in rows:
+            shared_dag_id = shared.setdefault(dag_id, dag_id)
+            dag_by_id[apdr_id] = shared_dag_id
+            ids_by_dag.setdefault(shared_dag_id, []).append(apdr_id)
+        for ids in ids_by_dag.values():
+            ids.sort()
+        # Swapped in once every row is read: the rows are streamed, and a read that fails part way must
+        # leave the previous full read, or the retry would take every row it had not read as new.
+        known, self._dag_by_id, self._ids_by_dag = self._dag_by_id, dag_by_id, ids_by_dag
+        new = [] if self._refreshed_at is None else sorted(self._dag_by_id.keys() - known.keys())
+        self.fresh = sorted(set(self.fresh).intersection(self._dag_by_id).union(new))
+        self._fresh_added.extend(new)
+        self.gone = set()
+        self.max_seen = max_id or 0
+        self._refreshed_at = now
+        self._ring_dags = None
+
+    def add_tail(self, rows: Iterable[tuple[int, str, int | None]]) -> None:
+        """Add the pending rows among *rows*, the rows inserted since the last read."""
+        ring_dags = self._ring_dags or frozenset()
+        for apdr_id, dag_id, created_dag_run_id in rows:
+            self.max_seen = max(self.max_seen, apdr_id)
+            if created_dag_run_id is not None or apdr_id in self._dag_by_id:
+                continue
+            self._dag_by_id[apdr_id] = dag_id
+            # Insert in order: a full read can return rows committed after it read max_id, so a row of
+            # the tail read is not always the highest id.
+            insort(self._ids_by_dag.setdefault(dag_id, []), apdr_id)
+            insort(self.fresh, apdr_id)
+            self._fresh_added.append(apdr_id)
+            if dag_id in ring_dags:
+                insort(self._ring, apdr_id)
+
+    def get_dag_ids(self) -> list[str]:
+        return list(self._ids_by_dag)
+
+    def discard(self, apdr_ids: Iterable[int]) -> None:
+        """Skip rows fired or deleted in this tick until the next full read."""
+        self.gone.update(apdr_ids)
+
+    def interrupt(self) -> None:
+        """Make the pass in progress partial: a tick with nothing to rotate over is not part of a pass."""
+        self._pass_started_at = None
+        # A rollback does not undo the read that found nothing to rotate over, so it keeps this too.
+        self._committed = self._committed._replace(pass_started_at=None)
+
+    def pick(self, eligible: Collection[str], *, limit: int, fresh_limit: int) -> list[int]:
+        """
+        Return up to *limit* distinct ids to claim: up to *fresh_limit* rows not seen before, then the rotation.
+
+        Rows of Dags that are not *eligible* are skipped without counting towards *limit*.
+        """
+        dags = frozenset(eligible)
+        if dags != self._ring_dags:
+            self._update_ring(dags)
+        ring = self._ring
+        fresh: list[int] = []
+        kept: list[int] = []
+        for apdr_id in self.fresh:
+            # Rows of an ineligible Dag leave the fresh lane; the rotation reaches them once eligible.
+            if apdr_id in self.gone or self._dag_by_id.get(apdr_id) not in dags:
+                continue
+            kept.append(apdr_id)
+            if len(fresh) < min(fresh_limit, limit):
+                fresh.append(apdr_id)
+        self.fresh = kept
+        if self.cursor is None and ring:
+            # Start at a random row, so HA schedulers do not move in lockstep and a scheduler that
+            # restarts often does not keep re-evaluating the same rows first.
+            self.cursor = ring[self._rng.randrange(len(ring))] - 1
+        picked = list(fresh)
+        taken = set(fresh)
+        rotation: list[int] = []
+        # How many rows of the rotation come before its end, the highest id, if this pick reaches it.
+        end_at: int | None = None
+        position = bisect_right(ring, self.cursor) if self.cursor is not None else 0
+        for _ in range(len(ring)):
+            if position == len(ring):
+                position = 0
+                end_at = len(rotation)
+            if len(picked) == limit:
+                # Rows fired or deleted since the last full read are not visited: if only they come
+                # before the end, this pick reaches it.
+                while end_at is None and position < len(ring) and ring[position] in self.gone:
+                    position += 1
+                break
+            apdr_id = ring[position]
+            position += 1
+            if apdr_id in self.gone or apdr_id in taken:
+                continue
+            picked.append(apdr_id)
+            rotation.append(apdr_id)
+        if end_at is None and position == len(ring):
+            end_at = len(rotation)
+        self._last_pick = (fresh, rotation, end_at)
+        return picked
+
+    def _update_ring(self, dags: frozenset[str]) -> None:
+        if self._ring_dags is not None and dags > self._ring_dags:
+            # Usually the first pending row of a Dag, read by the tail read: merge rather than rebuild.
+            added = itertools.chain.from_iterable(
+                self._ids_by_dag.get(dag_id, ()) for dag_id in dags - self._ring_dags
+            )
+            # Sorting two sorted runs merges them in linear time.
+            self._ring.extend(sorted(added))
+            self._ring.sort()
+        else:
+            self._ring = sorted(
+                itertools.chain.from_iterable(self._ids_by_dag.get(dag_id, ()) for dag_id in dags)
+            )
+        self._ring_dags = dags
+
+    def advance(self, tried: int, claimed: Iterable[AssetPartitionDagRun], *, now: float) -> None:
+        """
+        Move past the first *tried* ids of the last :meth:`pick`, which were locked or found taken.
+
+        A pass ends in the tick whose tried rows reach the end of the rotation; the rows it tries after
+        the end belong to the next pass.
+        """
+        fresh, rotation, end_at = self._last_pick
+        rotation = rotation[: max(0, tried - len(fresh))]
+        if done := set(fresh[:tried]).union(rotation):
+            self.fresh = [apdr_id for apdr_id in self.fresh if apdr_id not in done]
+        if not rotation:
+            # Nothing eligible to rotate over, for instance while every Dag with pending rows is paused.
+            self.interrupt()
+            return
+        next_pass = set(rotation[end_at:]) if end_at is not None and len(rotation) >= end_at else None
+        next_oldest: datetime | None = None
+        for apdr in claimed:
+            if next_pass and apdr.id in next_pass:
+                if next_oldest is None or apdr.created_at < next_oldest:
+                    next_oldest = apdr.created_at
+            elif self._pass_oldest is None or apdr.created_at < self._pass_oldest:
+                self._pass_oldest = apdr.created_at
+        self._pass_loops += 1
+        if next_pass is None:
+            self.cursor = rotation[-1]
+            return
+        if self._pass_started_at is not None:
+            self._ended = _PartitionPass(self._pass_loops, now - self._pass_started_at, self._pass_oldest)
+        # With no row tried after the end, the next tick starts from the lowest id: starting from the
+        # highest would end this pass again.
+        self.cursor = rotation[-1] if next_pass else 0
+        self._pass_started_at = now
+        self._pass_loops = 0
+        self._pass_oldest = next_oldest
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -400,6 +680,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        self._partition_ring = _PartitionRing()
+        self._partition_pass_logged_at: float | None = None
+        # A gauge keeps the value a previous process reported, so report 0 once if nothing is left.
+        self._partition_age_reported = True
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2447,6 +2731,127 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
         return anchors.pop()
 
+    def _claim_pending_partition_dag_runs(self, *, session: Session) -> list[AssetPartitionDagRun]:
+        """
+        Lock the pending :class:`AssetPartitionDagRun` rows this tick evaluates, oldest first.
+
+        The rows come from the scheduler's rotation (:class:`_PartitionRing`), read without locks,
+        and are then locked by primary key with SKIP LOCKED up to the per-tick cap. The lock
+        footprint therefore does not depend on the query plan, and when an HA peer holds some of
+        the rows this scheduler claims the next ones instead of none. Without the lock, two HA
+        schedulers could both fire the same satisfied APDR and race the ``created_dag_run_id``
+        update, orphaning whichever Dag run loses. SQLite is single-writer and drops ``FOR UPDATE``.
+        """
+        ring = self._partition_ring
+        cap = self._max_partition_dag_runs_per_loop
+        limit = cap * (1 + MAX_PARTITION_CLAIM_REFILLS_PER_LOOP)
+        if ring.refresh_interval is None:
+            # SQLite reuses the id of a deleted row, which the tail read below would miss, and at
+            # the scale SQLite is used at a full read costs little.
+            ring.refresh_interval = (
+                0.0 if get_dialect_name(session) == "sqlite" else _PARTITION_SNAPSHOT_REFRESH_SECONDS
+            )
+        now = time.monotonic()
+        if ring.needs_refresh(now):
+            max_id = session.scalar(select(func.max(AssetPartitionDagRun.id)))
+            ring.refresh(
+                session.execute(
+                    select(AssetPartitionDagRun.id, AssetPartitionDagRun.target_dag_id)
+                    .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+                    # Stream the rows rather than buffer all of them before the ring copies them. On
+                    # PostgreSQL a streamed read never gets a parallel plan.
+                    .execution_options(yield_per=10_000)
+                ).tuples(),
+                max_id=max_id,
+                now=now,
+            )
+        else:
+            ring.add_tail(
+                session.execute(
+                    select(
+                        AssetPartitionDagRun.id,
+                        AssetPartitionDagRun.target_dag_id,
+                        AssetPartitionDagRun.created_dag_run_id,
+                    )
+                    .where(AssetPartitionDagRun.id > ring.max_seen)
+                    .order_by(AssetPartitionDagRun.id)
+                    .limit(limit)
+                ).tuples()
+            )
+        if not (dag_ids := ring.get_dag_ids()):
+            ring.interrupt()
+            self._reset_partition_age_gauge()
+            return []
+        eligible: set[str] = set()
+        for batch in chunks(dag_ids, _PARTITION_ELIGIBILITY_CHUNK_SIZE):
+            eligible.update(
+                session.scalars(
+                    select(DagModel.dag_id).where(
+                        DagModel.dag_id.in_(batch),
+                        DagModel.is_paused.is_(False),
+                        DagModel.is_draining.is_(False),
+                        DagModel.is_stale.is_(False),
+                    )
+                )
+            )
+        # New rows take at most half the cap, so that the rotation keeps at least half of each tick.
+        candidates = ring.pick(eligible, limit=limit, fresh_limit=cap // 2)
+        if not candidates:
+            self._reset_partition_age_gauge()
+        claimed: dict[int, AssetPartitionDagRun] = {}
+        tried = 0
+        for _ in range(1 + MAX_PARTITION_CLAIM_REFILLS_PER_LOOP):
+            if not (chunk := candidates[tried : tried + cap - len(claimed)]):
+                break
+            tried += len(chunk)
+            for apdr in session.scalars(
+                with_row_locks(
+                    select(AssetPartitionDagRun).where(
+                        AssetPartitionDagRun.id.in_(chunk),
+                        AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    ),
+                    of=AssetPartitionDagRun,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            ):
+                # Eligibility is decided on the locked row: on SQLite its id may have been reused
+                # by a row of another Dag since the ring read it.
+                if apdr.target_dag_id in eligible:
+                    claimed[apdr.id] = apdr
+        ring.advance(tried, claimed.values(), now=now)
+        return sorted(claimed.values(), key=lambda apdr: (apdr.created_at, apdr.id))
+
+    def _reset_partition_age_gauge(self) -> None:
+        """Report an oldest pending age of 0 once nothing is left to evaluate; gauges keep their last value."""
+        if self._partition_age_reported:
+            stats.gauge("scheduler.asset_partitions.oldest_pending_age", 0)
+            self._partition_age_reported = False
+
+    def _report_partition_pass(self, completed: _PartitionPass) -> None:
+        """Report a pass of the partition rotation, once the tick that ended it is committed."""
+        stats.gauge("scheduler.asset_partitions.pass_loops", completed.loops)
+        stats.timing("scheduler.asset_partitions.pass_duration", timedelta(seconds=completed.seconds))
+        if completed.oldest_created_at is not None:
+            stats.gauge(
+                "scheduler.asset_partitions.oldest_pending_age",
+                (timezone.utcnow() - completed.oldest_created_at).total_seconds(),
+            )
+            self._partition_age_reported = True
+        now = time.monotonic()
+        if completed.loops > 1 and (
+            self._partition_pass_logged_at is None
+            or now - self._partition_pass_logged_at >= _PARTITION_PASS_LOG_INTERVAL_SECONDS
+        ):
+            self._partition_pass_logged_at = now
+            self.log.info(
+                "Evaluating every pending partition-driven Dag run once took several scheduler "
+                "loops, because more are pending than one loop evaluates",
+                loops=completed.loops,
+                per_loop=self._max_partition_dag_runs_per_loop,
+            )
+
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
@@ -2469,7 +2874,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ``is_draining`` half of :meth:`~airflow.models.dag.DagModel.dags_needing_dagruns`.
         ``has_import_errors`` needs no predicate of its own: it is only ever set together
         with ``is_stale`` (``_update_import_errors``) and cleared together with it
-        (``DagModelOperation.update_dags``), so the ``is_stale`` filter above already
+        (``DagModelOperation.update_dags``), so the ``is_stale`` check already
         excludes those Dags. ``exceeds_max_non_backfill`` is the one genuine divergence --
         an APDR for a Dag already at ``max_active_runs`` still creates its run, which then
         waits at the QUEUED->RUNNING gate rather than being held back here.
@@ -2481,37 +2886,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         keys logged before it went inactive, unless the rollup definition changed in the
         meantime, in which case the stale-fingerprint cleanup below drops it instead.
         """
-        # Cap per-tick work so the scheduler transaction stays bounded and other
-        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
-        # FIFO is intentional: the oldest pending APDR fires first. A persistently
-        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
-        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
-        # in HA two schedulers can otherwise both grab the same satisfied APDR
-        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
-        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
-        # two APDRs share a `created_at` under bulk asset-event ingestion.
-        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
-        pending_apdrs = session.scalars(
-            with_row_locks(
-                select(AssetPartitionDagRun)
-                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(
-                    AssetPartitionDagRun.created_dag_run_id.is_(None),
-                    DagModel.is_paused.is_(False),
-                    DagModel.is_draining.is_(False),
-                    DagModel.is_stale.is_(False),
-                )
-                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-                .limit(self._max_partition_dag_runs_per_loop),
-                of=AssetPartitionDagRun,
-                skip_locked=True,
-                key_share=False,
-                session=session,
-            )
-        ).all()
+        pending_apdrs = self._claim_pending_partition_dag_runs(session=session)
         if not pending_apdrs:
             return set()
 
@@ -2575,6 +2950,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
             session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(stale_apdr_ids)))
+            self._partition_ring.discard(stale_apdr_ids)
             stale_apdr_id_set = set(stale_apdr_ids)
             pending_apdrs = [apdr for apdr in pending_apdrs if apdr.id not in stale_apdr_id_set]
             if not pending_apdrs:
@@ -2681,12 +3057,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
+            self._partition_ring.discard((apdr.id,))
 
         return partition_dag_ids
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
+        self._partition_ring.rewind()
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
 
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
@@ -2708,6 +3086,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
+        if completed := self._partition_ring.commit():
+            self._report_partition_pass(completed)
         # END: create dagruns
 
     @provide_session

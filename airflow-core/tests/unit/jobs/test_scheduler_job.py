@@ -20,7 +20,9 @@ from __future__ import annotations
 import contextlib
 import datetime
 import logging
+import math
 import os
+import random
 import re
 import time
 from collections import Counter, deque
@@ -39,11 +41,13 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import Delete, delete, event as sa_event, false, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.logging.types import Logger
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
@@ -70,9 +74,13 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
+    _PARTITION_PASS_LOG_INTERVAL_SECONDS,
+    _PARTITION_SNAPSHOT_REFRESH_SECONDS,
+    MAX_PARTITION_CLAIM_REFILLS_PER_LOOP,
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
+    _PartitionRing,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -166,7 +174,7 @@ from airflow.timetables.simple import (
 from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
+from airflow.utils.sqlalchemy import CommitProhibitorGuard, get_dialect_name, prohibit_commit, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -15817,23 +15825,42 @@ def test_partitioned_dag_run_rollup_survives_scheduler_restart_partial_arrival(
     assert partition_dags == {"rollup-consumer"}
 
 
+def _add_pending_apdrs(*, dag_id: str, count: int, session: Session) -> list[int]:
+    """Insert *count* pending APDRs for *dag_id*, with no key logs, and return their ids."""
+    apdrs = [AssetPartitionDagRun(target_dag_id=dag_id, partition_key=f"key-{i}") for i in range(count)]
+    session.add_all(apdrs)
+    session.commit()
+    return [apdr.id for apdr in apdrs]
+
+
+def _make_rng_starting_at(index: int) -> random.Random:
+    """Return a random generator that starts a :class:`_PartitionRing` at its *index*-th row."""
+    rng = mock.create_autospec(random.Random, instance=True)
+    rng.randrange.return_value = index
+    return rng
+
+
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
+def test_pending_apdr_claim_locks_rows_with_skip_locked(dag_maker: DagMaker, session: Session):
     """
-    The pending-APDR select must wrap the query in ``with_row_locks(skip_locked=True)``
+    The pending-APDR claim must lock with ``with_row_locks(skip_locked=True)``
     so HA scheduler replicas don't both grab the same satisfied APDR and race the
     ``created_dag_run_id`` UPDATE (which would orphan whichever DagRun loses the race).
+
+    A first chunk that is claimed in full needs no refill.
     """
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
-    )
+    with dag_maker(dag_id="claim-lock-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    ids = _add_pending_apdrs(dag_id="claim-lock-consumer", count=3, session=session)
+    runner = _make_runner()
 
     with mock.patch(
         "airflow.jobs.scheduler_job_runner.with_row_locks",
-        wraps=with_row_locks,
+        autospec=True,
+        side_effect=with_row_locks,
     ) as wrapped:
-        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        claimed = runner._claim_pending_partition_dag_runs(session=session)
 
     apdr_calls = [call for call in wrapped.mock_calls if call.kwargs.get("of") is AssetPartitionDagRun]
     assert len(apdr_calls) == 1, f"Expected exactly one with_row_locks call for APDR, got {apdr_calls}"
@@ -15841,33 +15868,70 @@ def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
     assert call.kwargs["skip_locked"] is True
     assert call.kwargs["key_share"] is False
     assert call.kwargs["session"] is session
+    assert sorted(apdr.id for apdr in claimed) == ids
 
 
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_pending_apdr_select_breaks_tie_on_id(session: Session):
+def test_pending_apdr_claim_checks_the_dag_of_the_locked_row(dag_maker: DagMaker, session: Session):
     """
-    Two APDRs sharing a ``created_at`` (possible under bulk asset-event ingestion)
-    must be ordered by ``id`` ascending so concurrent HA scheduler ticks pick the
-    same LIMIT slice — otherwise replicas can disagree on which APDRs the LIMIT
-    selects even when the row lock would otherwise prevent the duplicate fire.
-    """
-    shared_ts = timezone.utcnow()
-    first_inserted = AssetPartitionDagRun(target_dag_id="d1", partition_key="b", created_at=shared_ts)
-    session.add(first_inserted)
-    session.flush()
-    second_inserted = AssetPartitionDagRun(target_dag_id="d2", partition_key="a", created_at=shared_ts)
-    session.add(second_inserted)
-    session.flush()
+    An id that now belongs to a pending APDR of a paused Dag is not claimed, whatever Dag it belonged to.
 
-    fetched = session.scalars(
-        select(AssetPartitionDagRun)
-        .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+    SQLite reuses the id of a deleted row with the highest id, so the scheduler's rotation can hold
+    an id whose row has changed since it was read.
+    """
+    with dag_maker(dag_id="reuse-active", session=session):
+        EmptyOperator(task_id="hi")
+    with dag_maker(dag_id="reuse-paused", session=session):
+        EmptyOperator(task_id="hi")
+    paused = session.get(DagModel, "reuse-paused")
+    assert paused is not None
+    paused.set_scheduling_state(DagSchedulingState.PAUSED)
+    kept_id, reused_id = _add_pending_apdrs(dag_id="reuse-active", count=2, session=session)
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._claim_pending_partition_dag_runs(session=session)
+    session.rollback()
+    session.expunge_all()
+    session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id == reused_id))
+    session.add(AssetPartitionDagRun(id=reused_id, target_dag_id="reuse-paused", partition_key="reused"))
+    session.commit()
+
+    claimed = runner._claim_pending_partition_dag_runs(session=session)
+
+    assert [apdr.id for apdr in claimed] == [kept_id]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_satisfied_apdrs_fire_oldest_first_within_a_loop(dag_maker: DagMaker, session: Session):
+    """
+    Within a loop, satisfied APDRs fire oldest first, wherever the rotation starts.
+
+    Dag runs created first get the earliest ``run_after``, which orders their start under
+    ``max_active_runs``.
+    """
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="fifo-consumer",
+        asset=Asset(name="fifo-asset"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    base = timezone.utcnow()
+    for apdr, created_at in zip(apdrs, [base, base - timedelta(hours=1), base - timedelta(hours=1)]):
+        apdr.created_at = created_at
+    session.commit()
+    runner = _make_runner()
+    # Start the rotation at the newest row, so that rotation order differs from age order.
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(2))
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    fired = session.scalars(
+        select(DagRun.partition_key).where(DagRun.dag_id == "fifo-consumer").order_by(DagRun.id)
     ).all()
-
-    assert first_inserted.id < second_inserted.id
-    assert [a.id for a in fetched] == [first_inserted.id, second_inserted.id]
+    assert fired == ["k2", "k3", "k1"]
 
 
 @pytest.mark.need_serialized_dag
@@ -16299,7 +16363,7 @@ def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: 
     cap == APDR count: every pending APDR fires in a single tick.
 
     Pairs with :func:`test_partition_cap_at_n_minus_one_leaves_one_pending` to pin
-    the ``LIMIT`` boundary against off-by-one regressions (``>`` vs ``>=``).
+    the cap boundary against off-by-one regressions.
     """
     apdrs = _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-n",
@@ -16326,12 +16390,12 @@ def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: 
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, session: Session):
     """
-    cap == APDR count - 1: oldest cap APDRs fire, the newest remains pending.
+    cap == APDR count - 1: cap APDRs fire, one remains pending and fires on the next tick.
 
-    FIFO ordering means the *last-created* APDR is the one left for the next
-    tick. Together with :func:`test_partition_cap_at_exactly_n_processes_all`
-    this pins the ``LIMIT`` boundary — a ``LIMIT N-1`` regression would still
-    pass the at-cap test, but the older sibling here would fail to fire.
+    Which one is left depends on where the scheduler's rotation starts. Together with
+    :func:`test_partition_cap_at_exactly_n_processes_all` this pins the cap boundary —
+    an off-by-one cap would still pass the at-cap test, but would fire one APDR too
+    few (or all three) here.
     """
     apdrs = _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-n-minus-one",
@@ -16340,27 +16404,19 @@ def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, se
         session=session,
         dag_maker=dag_maker,
     )
-    # Pin created_at so FIFO ordering is stable across fast in-memory runs —
-    # otherwise three APDRs created in the same microsecond tie under
-    # ``ORDER BY created_at`` and "which two fire" becomes nondeterministic.
-    base = timezone.utcnow()
-    for i, apdr in enumerate(apdrs):
-        apdr.created_at = base + timedelta(seconds=i)
-    session.commit()
 
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
     runner._max_partition_dag_runs_per_loop = 2
 
-    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    for expected_fired in (2, 3):
+        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    for apdr in apdrs:
-        session.refresh(apdr)
-    assert apdrs[0].created_dag_run_id is not None
-    assert apdrs[1].created_dag_run_id is not None
-    assert apdrs[2].created_dag_run_id is None
-    assert partition_dags == {"cap-consumer-n-minus-one"}
+        for apdr in apdrs:
+            session.refresh(apdr)
+        assert sum(apdr.created_dag_run_id is not None for apdr in apdrs) == expected_fired
+        assert partition_dags == {"cap-consumer-n-minus-one"}
 
 
 def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:
@@ -16437,6 +16493,1444 @@ def test_partitioned_dag_run_resumes_when_asset_reactivates(dag_maker: DagMaker,
     session.refresh(apdr)
     assert apdr.created_dag_run_id is not None
     assert partition_dags == {"reactivate-asset-consumer"}
+
+
+def _create_dagruns_in_a_loop(runner: SchedulerJobRunner, session: Session) -> None:
+    """Run the Dag run creation step of a scheduler loop, which commits the loop's progress."""
+    with prohibit_commit(session) as guard:
+        runner._create_dagruns_for_dags(guard, session)
+
+
+def _make_blocked_apdrs(
+    *, consumer_dag_id: str, partition_keys: list[str], session: Session, dag_maker: DagMaker
+) -> list[AssetPartitionDagRun]:
+    """Build a consumer Dag on ``a & b`` plus one pending APDR per key that only ``a`` has reached."""
+    asset_a = Asset(name=f"{consumer_dag_id}-a")
+    asset_b = Asset(name=f"{consumer_dag_id}-b")
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+    return [
+        _produce_and_register_asset_event(
+            dag_id=f"{consumer_dag_id}-producer-{i}",
+            asset=asset_a,
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+        for i, key in enumerate(partition_keys)
+    ]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("ready_in_blocked_dag", [True, False], ids=["same-dag", "other-dag"])
+def test_ready_partition_not_starved_by_unsatisfied_apdrs(
+    dag_maker: DagMaker, session: Session, ready_in_blocked_dag: bool
+):
+    """
+    Older pending APDRs that stay unsatisfied must not keep a newer satisfied one from firing.
+
+    More blocked APDRs than the cap were queued first. Taking the oldest APDRs up to the cap
+    re-evaluates the same blocked ones on every loop and never reaches the satisfied one, whether
+    it belongs to the same Dag or to another.
+    """
+    blocked = _make_blocked_apdrs(
+        consumer_dag_id="blocked-consumer",
+        partition_keys=["k1", "k2", "k3", "k4"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    if ready_in_blocked_dag:
+        for name in ("a", "b"):
+            ready = _produce_and_register_asset_event(
+                dag_id=f"ready-producer-{name}",
+                asset=Asset(name=f"blocked-consumer-{name}"),
+                partition_key="ready",
+                session=session,
+                dag_maker=dag_maker,
+            )
+    else:
+        [ready] = _make_n_satisfied_apdrs(
+            consumer_dag_id="ready-consumer",
+            asset=Asset(name="ready-asset"),
+            partition_keys=["ready"],
+            session=session,
+            dag_maker=dag_maker,
+        )
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 2
+    # Start at the lowest id, so the satisfied APDR is the last one the rotation reaches.
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+
+    for _ in range(math.ceil((len(blocked) + 1) / 2) + 1):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(ready)
+    assert ready.created_dag_run_id is not None
+    for apdr in blocked:
+        session.refresh(apdr)
+        assert apdr.created_dag_run_id is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    "refresh_interval", [0.0, _PARTITION_SNAPSHOT_REFRESH_SECONDS], ids=["full-read", "tail-read"]
+)
+def test_partition_apdr_queued_behind_a_backlog_fires_in_the_next_loop(
+    dag_maker: DagMaker, session: Session, refresh_interval: float
+):
+    """
+    A satisfied APDR queued after the scheduler read the pending ones fires in the next loop.
+
+    More unsatisfied APDRs are pending than one loop evaluates, and the rotation is at the oldest
+    ones. The scheduler finds the new APDR among the rows inserted since its last read (PostgreSQL
+    and MySQL) or among the rows its last full read had not seen (SQLite), and evaluates it ahead
+    of the rotation. An unsatisfied APDR that was new in an earlier loop does not take its place.
+    """
+    _make_blocked_apdrs(
+        consumer_dag_id="backlog-consumer",
+        partition_keys=[f"k{i}" for i in range(6)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 2
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+    runner._partition_ring.refresh_interval = refresh_interval
+    _create_dagruns_in_a_loop(runner, session)
+    _produce_and_register_asset_event(
+        dag_id="backlog-late-producer",
+        asset=Asset(name="backlog-consumer-a"),
+        partition_key="late",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _create_dagruns_in_a_loop(runner, session)
+    [ready] = _make_n_satisfied_apdrs(
+        consumer_dag_id="new-consumer",
+        asset=Asset(name="new-asset"),
+        partition_keys=["new"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    _create_dagruns_in_a_loop(runner, session)
+
+    session.refresh(ready)
+    assert ready.created_dag_run_id is not None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_apdr_committed_below_the_highest_id_read_fires_after_the_next_full_read(
+    dag_maker: DagMaker, session: Session
+):
+    """
+    A pending APDR that appears with an id below the highest one read is found by the next full read.
+
+    That is what a producer transaction committing after a higher id was read looks like. The read of
+    the rows inserted since the last read only returns higher ids, so the periodic full read of the
+    pending ids must find it.
+    """
+    [late] = _make_n_satisfied_apdrs(
+        consumer_dag_id="late-consumer",
+        asset=Asset(name="late-asset"),
+        partition_keys=["late"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    other_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id != "late-consumer").limit(1))
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == late.id)
+        .values(created_dag_run_id=other_run_id)
+    )
+    session.commit()
+    runner = _make_runner()
+    ring = runner._partition_ring
+    ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    assert ring.max_seen >= late.id
+    session.execute(
+        update(AssetPartitionDagRun).where(AssetPartitionDagRun.id == late.id).values(created_dag_run_id=None)
+    )
+    session.commit()
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(late)
+    assert late.created_dag_run_id is None
+
+    # Let the refresh interval pass.
+    assert ring._refreshed_at is not None
+    ring._refreshed_at -= _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(late)
+    assert late.created_dag_run_id is not None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_apdr_fired_by_another_scheduler_after_the_full_read_is_not_fired_again(
+    dag_maker: DagMaker, session: Session
+):
+    """
+    An APDR that another scheduler fired after this one read the pending ids gets no second Dag run.
+
+    The rotation still holds its id until the next full read; the claim only locks rows that are
+    still pending.
+    """
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="peer-fired-consumer",
+        asset=Asset(name="peer-fired-asset"),
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    dag_model = session.get(DagModel, "peer-fired-consumer")
+    assert dag_model is not None
+    dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+    session.commit()
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    peer_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id != "peer-fired-consumer").limit(1))
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == apdr.id)
+        .values(created_dag_run_id=peer_run_id)
+    )
+    dag_model.set_scheduling_state(DagSchedulingState.ACTIVE)
+    session.commit()
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalars(select(DagRun.id).where(DagRun.dag_id == "peer-fired-consumer")).all() == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_dag_eligibility_is_checked_on_every_loop_between_full_reads(
+    dag_maker: DagMaker, session: Session
+):
+    """
+    Pausing or unpausing a Dag takes effect on the next loop, not at the next full read of the pending ids.
+
+    The full read keeps the pending APDRs of a paused Dag; each loop checks which Dags may fire.
+    """
+    _make_n_satisfied_apdrs(
+        consumer_dag_id="pause-consumer",
+        asset=Asset(name="pause-asset"),
+        partition_keys=["k1", "k2"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    dag_model = session.get(DagModel, "pause-consumer")
+    assert dag_model is not None
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 1
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+
+    def fired() -> list[str | None]:
+        return list(
+            session.scalars(
+                select(DagRun.partition_key).where(DagRun.dag_id == "pause-consumer").order_by(DagRun.id)
+            )
+        )
+
+    for state, expected in [
+        (DagSchedulingState.PAUSED, []),
+        (DagSchedulingState.ACTIVE, ["k1"]),
+        (DagSchedulingState.PAUSED, ["k1"]),
+    ]:
+        dag_model.set_scheduling_state(state)
+        session.commit()
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        assert fired() == expected, state
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("outcome", ["fired", "stale"])
+def test_partition_apdr_fired_or_deleted_is_not_claimed_again_before_the_next_full_read(
+    dag_maker: DagMaker, session: Session, outcome: str
+):
+    """
+    Until the next full read, the rotation skips the APDRs a loop fired or deleted as stale.
+
+    Otherwise each of them would take a slot of the per-loop cap and a lock statement.
+    """
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="gone-consumer",
+        asset=Asset(name="gone-asset"),
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    if outcome == "stale":
+        apdr.rollup_fingerprint = {"stale": True}
+        session.commit()
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    created_run_ids = session.scalars(select(AssetPartitionDagRun.created_dag_run_id)).all()
+    if outcome == "stale":
+        assert created_run_ids == []
+    else:
+        assert len(created_run_ids) == 1
+        assert created_run_ids[0] is not None
+
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.with_row_locks", autospec=True, side_effect=with_row_locks
+    ) as with_row_locks_spy:
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert with_row_locks_spy.call_count == 0
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_tail_read_moves_past_apdrs_that_are_not_pending(dag_maker: DagMaker, session: Session):
+    """
+    The read of the rows inserted since the last read moves past rows that are no longer pending.
+
+    Otherwise every later loop would read them again.
+    """
+    with dag_maker(dag_id="tail-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    run_id = dag_maker.create_dagrun(session=session).id
+    _add_pending_apdrs(dag_id="tail-consumer", count=1, session=session)
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._claim_pending_partition_dag_runs(session=session)
+    fired = AssetPartitionDagRun(
+        target_dag_id="tail-consumer", partition_key="fired", created_dag_run_id=run_id
+    )
+    session.add(fired)
+    session.commit()
+
+    runner._claim_pending_partition_dag_runs(session=session)
+
+    assert runner._partition_ring.max_seen == fired.id
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_claim_replaces_and_moves_past_apdrs_another_scheduler_fired(
+    dag_maker: DagMaker, session: Session
+):
+    """
+    An APDR that another scheduler fired since the last full read neither costs the loop its slot nor
+    gets tried again: the claim locks the next APDR instead, and the next loop starts after both.
+    """
+    with dag_maker(dag_id="refill-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    peer_run_id = dag_maker.create_dagrun(session=session).id
+    dag_model = session.get(DagModel, "refill-consumer")
+    assert dag_model is not None
+    dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+    taken, first, second = _add_pending_apdrs(dag_id="refill-consumer", count=3, session=session)
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 1
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    assert runner._claim_pending_partition_dag_runs(session=session) == []
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == taken)
+        .values(created_dag_run_id=peer_run_id)
+    )
+    dag_model.set_scheduling_state(DagSchedulingState.ACTIVE)
+    session.commit()
+
+    claims = [
+        [apdr.id for apdr in runner._claim_pending_partition_dag_runs(session=session)] for _ in range(2)
+    ]
+
+    assert claims == [[first], [second]]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_apdrs_with_the_same_created_at_fire_in_id_order(dag_maker: DagMaker, session: Session):
+    """
+    Satisfied APDRs queued at the same time fire in id order, whatever order the claim locked them in.
+
+    Here the lower id is locked by a refill, after the higher one.
+    """
+    low, taken, high = _make_n_satisfied_apdrs(
+        consumer_dag_id="tie-consumer",
+        asset=Asset(name="tie-asset"),
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    low.created_at = high.created_at = timezone.utcnow() - timedelta(hours=1)
+    dag_model = session.get(DagModel, "tie-consumer")
+    assert dag_model is not None
+    dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+    session.commit()
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 2
+    # Start at the middle row: the rotation is taken, high, low.
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(1))
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    peer_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id != "tie-consumer").limit(1))
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == taken.id)
+        .values(created_dag_run_id=peer_run_id)
+    )
+    dag_model.set_scheduling_state(DagSchedulingState.ACTIVE)
+    session.commit()
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    fired = session.scalars(
+        select(DagRun.partition_key).where(DagRun.dag_id == "tie-consumer").order_by(DagRun.id)
+    ).all()
+    assert fired == ["k1", "k3"]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_apdr_reusing_a_deleted_id_fires_in_the_next_loop_on_sqlite(
+    dag_maker: DagMaker, session: Session
+):
+    """
+    On SQLite the scheduler reads the pending ids in full every loop, because SQLite reuses the id of a
+    deleted row and a read of the ids above the highest one seen would miss the new row.
+    """
+    if get_dialect_name(session) != "sqlite":
+        pytest.skip("Only SQLite reuses ids")
+    asset = Asset(name="reuse-asset")
+    [stale] = _make_n_satisfied_apdrs(
+        consumer_dag_id="reuse-consumer",
+        asset=asset,
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    stale_id = stale.id
+    stale.rollup_fingerprint = {"stale": True}
+    session.commit()
+    runner = _make_runner()
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.commit()
+    assert session.get(AssetPartitionDagRun, stale_id) is None
+    new = _produce_and_register_asset_event(
+        dag_id="reuse-producer", asset=asset, partition_key="k2", session=session, dag_maker=dag_maker
+    )
+    assert new.id <= stale_id
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(new)
+    assert new.created_dag_run_id is not None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("state", ["paused", "draining", "stale", "missing"])
+def test_partition_apdrs_of_ineligible_dags_do_not_take_the_cap(
+    dag_maker: DagMaker, session: Session, state: str
+):
+    """
+    Pending APDRs of a paused, draining, stale or missing Dag are passed over without counting towards
+    the per-loop cap, so a satisfied APDR of another Dag fires in the first loop.
+    """
+    if state != "missing":
+        with dag_maker(dag_id="ineligible-consumer", session=session):
+            EmptyOperator(task_id="hi")
+        dag_model = session.get(DagModel, "ineligible-consumer")
+        assert dag_model is not None
+        if state == "stale":
+            dag_model.is_stale = True
+        else:
+            dag_model.set_scheduling_state(DagSchedulingState(state))
+        session.commit()
+    ineligible_ids = _add_pending_apdrs(dag_id="ineligible-consumer", count=10, session=session)
+    [ready] = _make_n_satisfied_apdrs(
+        consumer_dag_id="eligible-consumer",
+        asset=Asset(name="eligible-asset"),
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 2
+    # Start at the lowest id, so the ineligible APDRs come first in id order.
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+
+    claimed = runner._claim_pending_partition_dag_runs(session=session)
+
+    assert [apdr.id for apdr in claimed] == [ready.id]
+    runner._partition_ring.rewind()
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(ready)
+    assert ready.created_dag_run_id is not None
+    assert session.scalar(
+        select(func.count())
+        .select_from(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id.in_(ineligible_ids), AssetPartitionDagRun.created_dag_run_id.is_(None))
+    ) == len(ineligible_ids)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("failing", ["create_dag_runs", "commit"])
+def test_partition_fire_rolled_back_by_a_retried_loop_fires_in_the_retry(
+    dag_maker: DagMaker, session: Session, failing: str
+):
+    """
+    An APDR fired in a loop whose transaction is then retried after a database error fires in the retry.
+
+    The rollback undoes the fire, so the scheduler must not remember the APDR as fired: its progress
+    is kept only once the loop's transaction is committed, whether the error comes before the commit
+    or from the commit itself.
+    """
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="retry-consumer",
+        asset=Asset(name="retry-asset"),
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    calls = 0
+
+    with prohibit_commit(session) as guard:
+        target = runner if failing == "create_dag_runs" else guard
+        attribute = "_create_dag_runs" if failing == "create_dag_runs" else "commit"
+        original = getattr(target, attribute)
+
+        def fail_once(*args) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise OperationalError("COMMIT", {}, Exception("deadlock detected"))
+            original(*args)
+
+        with mock.patch.object(target, attribute, autospec=True, side_effect=fail_once):
+            runner._create_dagruns_for_dags(guard, session)
+
+    assert calls == 2
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert (
+        session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == "retry-consumer")) == 1
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_rotation_reports_each_completed_pass(stats, dag_maker: DagMaker, session: Session):
+    """
+    Each completed pass over the pending APDRs reports how many loops it took, how long it took and
+    the age of the oldest APDR it evaluated. A pass that takes several loops is also logged, at most
+    once per interval.
+
+    The first pass starts at a random point of the rotation, so it is not reported.
+    """
+    blocked = _make_blocked_apdrs(
+        consumer_dag_id="metrics-consumer",
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    now = timezone.utcnow()
+    for apdr, age in zip(blocked, [timedelta(hours=1), timedelta(minutes=1), timedelta(minutes=1)]):
+        apdr.created_at = now - age
+    session.commit()
+    log = mock.create_autospec(Logger, instance=True)
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)], log=log
+    )
+    runner._max_partition_dag_runs_per_loop = 2
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+
+    with time_machine.travel(now, tick=False):
+        # Claimed per loop: k1 k2, k3 k1 (passes the end: the first pass ends), k2 k3 (reaches the
+        # end), k1 k2, k3 k1 (passes the end), k2 k3 (reaches the end), k1 k2, k3 k1 (passes the end).
+        # k1, claimed after the end, counts towards the next pass.
+        for _ in range(8):
+            _create_dagruns_in_a_loop(runner, session)
+
+    def gauge(name: str) -> list:
+        return [call.args[1] for call in stats.gauge.call_args_list if call.args[0] == name]
+
+    durations = [
+        call.args[1]
+        for call in stats.timing.call_args_list
+        if call.args[0] == "scheduler.asset_partitions.pass_duration"
+    ]
+    assert gauge("scheduler.asset_partitions.pass_loops") == [1, 2, 1, 2]
+    assert gauge("scheduler.asset_partitions.oldest_pending_age") == [3600.0] * 4
+    assert len(durations) == 4
+    assert all(isinstance(duration, timedelta) for duration in durations)
+    log.info.assert_called_once_with(mock.ANY, loops=2, per_loop=2)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_rotation_log_skips_one_loop_passes_and_repeats_after_the_interval(
+    dag_maker: DagMaker, session: Session
+):
+    """The log line about passes that take several loops is not logged for one-loop passes, nor more often than its interval."""
+    _make_blocked_apdrs(
+        consumer_dag_id="log-consumer",
+        partition_keys=["k1", "k2", "k3", "k4"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    log = mock.create_autospec(Logger, instance=True)
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)], log=log
+    )
+    runner._max_partition_dag_runs_per_loop = 3
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+
+    # Claimed per loop: k1 k2 k3, k4 k1 k2 (passes the end: the first pass ends), k3 k4 k1 (passes the
+    # end: a one-loop pass), k2 k3 k4 (reaches the end: a one-loop pass).
+    for _ in range(4):
+        _create_dagruns_in_a_loop(runner, session)
+    log.info.assert_not_called()
+    # Then k1 k2 k3, k4 k1 k2 (passes the end: a two-loop pass).
+    for _ in range(2):
+        _create_dagruns_in_a_loop(runner, session)
+    log.info.assert_called_once_with(mock.ANY, loops=2, per_loop=3)
+    assert runner._partition_pass_logged_at is not None
+    runner._partition_pass_logged_at -= _PARTITION_PASS_LOG_INTERVAL_SECONDS
+    # Then two one-loop passes and a two-loop pass, as above.
+    for _ in range(4):
+        _create_dagruns_in_a_loop(runner, session)
+
+    assert log.info.call_count == 2
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_rotation_that_fits_in_one_loop_reports_one_loop_passes(
+    stats, dag_maker: DagMaker, session: Session
+):
+    """Every pass takes one loop while one loop evaluates every pending APDR, also once the APDR at the cursor goes away."""
+    older, _ = _make_blocked_apdrs(
+        consumer_dag_id="one-loop-consumer", partition_keys=["k1", "k2"], session=session, dag_maker=dag_maker
+    )
+    log = mock.create_autospec(Logger, instance=True)
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)], log=log
+    )
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(1))
+    runner._partition_ring.refresh_interval = 0.0
+    # Claimed per loop: k2 k1 (passes the end: the first pass ends), k2 k1; the cursor stays at k1.
+    for _ in range(2):
+        _create_dagruns_in_a_loop(runner, session)
+    session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id == older.id))
+    session.commit()
+
+    for _ in range(2):
+        _create_dagruns_in_a_loop(runner, session)
+
+    pass_loops = [
+        call.args[1]
+        for call in stats.gauge.call_args_list
+        if call.args[0] == "scheduler.asset_partitions.pass_loops"
+    ]
+    assert pass_loops == [1, 1, 1]
+    log.info.assert_not_called()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("how", ["deleted", "paused"])
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_oldest_pending_age_is_reset_once_nothing_is_left_to_evaluate(
+    stats, dag_maker: DagMaker, session: Session, how: str
+):
+    """A gauge keeps its last value, so the oldest pending age is reported as 0 once none can be evaluated."""
+    [apdr] = _make_blocked_apdrs(
+        consumer_dag_id="age-consumer", partition_keys=["k1"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = 0.0
+
+    def get_ages() -> list:
+        return [
+            call.args[1]
+            for call in stats.gauge.call_args_list
+            if call.args[0] == "scheduler.asset_partitions.oldest_pending_age"
+        ]
+
+    for _ in range(3):
+        _create_dagruns_in_a_loop(runner, session)
+    reported = len(get_ages())
+    assert reported > 0
+    assert all(age > 0 for age in get_ages())
+    if how == "deleted":
+        session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id == apdr.id))
+    else:
+        dag_model = session.get(DagModel, "age-consumer")
+        assert dag_model is not None
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+    session.commit()
+
+    for _ in range(2):
+        _create_dagruns_in_a_loop(runner, session)
+
+    assert get_ages()[reported:] == [0]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_oldest_pending_age_is_kept_while_another_scheduler_holds_every_apdr(
+    stats, dag_maker: DagMaker, session: Session
+):
+    """A pass in which another scheduler held every APDR claims none, which does not mean that none is left."""
+    _make_blocked_apdrs(
+        consumer_dag_id="held-consumer", partition_keys=["k1"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_runner()
+    for _ in range(2):
+        _create_dagruns_in_a_loop(runner, session)
+    # SKIP LOCKED returns none of the rows another scheduler holds.
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.with_row_locks",
+        autospec=True,
+        side_effect=lambda query, **kwargs: with_row_locks(query.where(false()), **kwargs),
+    ):
+        _create_dagruns_in_a_loop(runner, session)
+    _create_dagruns_in_a_loop(runner, session)
+
+    ages = [
+        call.args[1]
+        for call in stats.gauge.call_args_list
+        if call.args[0] == "scheduler.asset_partitions.oldest_pending_age"
+    ]
+    assert len(ages) == 2
+    assert all(age > 0 for age in ages)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_pass_ended_by_a_retried_loop_is_reported_once(
+    stats, dag_maker: DagMaker, session: Session
+):
+    """A pass is reported once the loop that ended it is committed, so a loop retried after a database error reports it once."""
+    _make_blocked_apdrs(
+        consumer_dag_id="retried-pass-consumer", partition_keys=["k1"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_runner()
+    _create_dagruns_in_a_loop(runner, session)
+    calls = 0
+
+    with prohibit_commit(session) as guard:
+        original = guard.commit
+
+        def fail_once(*args) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise OperationalError("COMMIT", {}, Exception("deadlock detected"))
+            original(*args)
+
+        with mock.patch.object(guard, "commit", autospec=True, side_effect=fail_once):
+            runner._create_dagruns_for_dags(guard, session)
+
+    assert calls == 2
+    pass_loops = [
+        call.args[1]
+        for call in stats.gauge.call_args_list
+        if call.args[0] == "scheduler.asset_partitions.pass_loops"
+    ]
+    assert pass_loops == [1]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_pass_after_a_time_with_nothing_pending_leaves_out_the_apdrs_of_before(
+    stats, dag_maker: DagMaker, session: Session
+):
+    """A loop with nothing pending makes the pass in progress partial, so it is never reported with the APDRs that left."""
+    start = timezone.utcnow()
+    blocked = _make_blocked_apdrs(
+        consumer_dag_id="lull-consumer",
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    for apdr in blocked:
+        apdr.created_at = start - timedelta(hours=1)
+    session.commit()
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 2
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(2))
+    runner._partition_ring.refresh_interval = 0.0
+    with time_machine.travel(start, tick=False):
+        # Claims k3 k1: k1, claimed after the end, counts towards the next pass.
+        _create_dagruns_in_a_loop(runner, session)
+        session.execute(delete(AssetPartitionDagRun))
+        session.commit()
+        _create_dagruns_in_a_loop(runner, session)
+    with time_machine.travel(start + timedelta(hours=1), tick=False):
+        for i, key in enumerate(["k4", "k5", "k6"]):
+            _produce_and_register_asset_event(
+                dag_id=f"lull-consumer-late-producer-{i}",
+                asset=Asset(name="lull-consumer-a"),
+                partition_key=key,
+                session=session,
+                dag_maker=dag_maker,
+            )
+        for _ in range(3):
+            _create_dagruns_in_a_loop(runner, session)
+
+    ages = [
+        call.args[1]
+        for call in stats.gauge.call_args_list
+        if call.args[0] == "scheduler.asset_partitions.oldest_pending_age"
+    ]
+    # 0 once nothing is pending, then the age of the APDRs added an hour later.
+    assert len(ages) == 2
+    assert ages[0] == 0
+    assert ages[1] < 60
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_oldest_pending_age_is_reset_once_by_a_new_scheduler_with_nothing_pending(
+    stats, session: Session
+):
+    """A gauge keeps the value that a previous scheduler process reported, so a new one reports 0 once."""
+    runner = _make_runner()
+
+    for _ in range(2):
+        runner._claim_pending_partition_dag_runs(session=session)
+
+    ages = [
+        call.args[1]
+        for call in stats.gauge.call_args_list
+        if call.args[0] == "scheduler.asset_partitions.oldest_pending_age"
+    ]
+    assert ages == [0]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_loop_without_changes_writes_nothing(dag_maker: DagMaker, session: Session):
+    """A loop over pending APDRs that nothing changed writes nothing: the rotation lives in memory."""
+    _make_blocked_apdrs(
+        consumer_dag_id="idle-consumer",
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_runner()
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    sa_event.listen(settings.engine, "before_cursor_execute", record)
+    try:
+        assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
+    finally:
+        sa_event.remove(settings.engine, "before_cursor_execute", record)
+
+    assert statements
+    assert [s for s in statements if s.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))] == []
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(("dialect", "second_loop_queries"), [("postgresql", 3), ("mysql", 3), ("sqlite", 4)])
+@mock.patch("airflow.jobs.scheduler_job_runner.get_dialect_name", autospec=True)
+def test_partition_claim_queries_do_not_grow_with_pending_apdrs(
+    get_dialect_name_mock, dag_maker: DagMaker, session: Session, dialect: str, second_loop_queries: int
+):
+    """
+    A loop that reads every pending id issues four queries, and a loop in between issues three.
+
+    The full read is ``max(id)`` and the read of every pending id; a loop in between reads only the
+    ids inserted since. Both then check the eligibility of the Dags, one query per 500 of them, and
+    lock one cap's worth of rows by primary key. SQLite reuses the ids of deleted rows, so it reads
+    in full on every loop.
+    """
+    get_dialect_name_mock.return_value = dialect
+    for dag_id in ("queries-a", "queries-b", "queries-c"):
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="hi")
+        _add_pending_apdrs(dag_id=dag_id, count=5, session=session)
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 4
+
+    with count_queries(session=session) as first_queries:
+        first = runner._claim_pending_partition_dag_runs(session=session)
+    with count_queries(session=session) as second_queries:
+        second = runner._claim_pending_partition_dag_runs(session=session)
+
+    assert sum(first_queries.values()) == 4
+    assert sum(second_queries.values()) == second_loop_queries
+    assert len(first) == len(second) == 4
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_ELIGIBILITY_CHUNK_SIZE", 2)
+def test_partition_dag_eligibility_is_read_in_chunks(dag_maker: DagMaker, session: Session):
+    """The eligibility of the Dags with pending APDRs is read in chunks, which bounds the bind parameters of a query."""
+    for dag_id in ("chunk-a", "chunk-b", "chunk-c"):
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="hi")
+        _add_pending_apdrs(dag_id=dag_id, count=1, session=session)
+    paused = session.get(DagModel, "chunk-b")
+    assert paused is not None
+    paused.set_scheduling_state(DagSchedulingState.PAUSED)
+    session.commit()
+    runner = _make_runner()
+
+    with count_queries(session=session) as queries:
+        claimed = runner._claim_pending_partition_dag_runs(session=session)
+
+    # max(id), the read of every pending id, two eligibility chunks and one lock.
+    assert sum(queries.values()) == 5
+    assert sorted(apdr.target_dag_id for apdr in claimed) == ["chunk-a", "chunk-c"]
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_full_read_streams_the_pending_ids(dag_maker: DagMaker, session: Session):
+    """The full read streams the pending ids rather than buffer every row before the ring copies them."""
+    with dag_maker(dag_id="stream-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    _add_pending_apdrs(dag_id="stream-consumer", count=1, session=session)
+    runner = _make_runner()
+    streamed: list[list[str]] = []
+
+    def record(orm_execute_state) -> None:
+        if orm_execute_state.execution_options.get("yield_per"):
+            streamed.append(list(orm_execute_state.statement.selected_columns.keys()))
+
+    sa_event.listen(session, "do_orm_execute", record)
+    try:
+        runner._claim_pending_partition_dag_runs(session=session)
+    finally:
+        sa_event.remove(session, "do_orm_execute", record)
+
+    assert streamed == [["id", "target_dag_id"]]
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_new_apdrs_take_at_most_half_of_a_loop(dag_maker: DagMaker, session: Session):
+    """APDRs not seen before take at most half the per-loop cap, so that the rotation keeps at least half of each loop."""
+    with dag_maker(dag_id="fresh-split-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    old = _add_pending_apdrs(dag_id="fresh-split-consumer", count=8, session=session)
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 4
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    assert sorted(apdr.id for apdr in runner._claim_pending_partition_dag_runs(session=session)) == old[:4]
+    new = _add_pending_apdrs(dag_id="fresh-split-consumer", count=4, session=session)
+
+    claimed = runner._claim_pending_partition_dag_runs(session=session)
+
+    assert sorted(apdr.id for apdr in claimed) == [*old[4:6], *new[:2]]
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", autospec=True, side_effect=with_row_locks)
+def test_partition_claim_stops_at_the_refill_limit(with_row_locks_spy, dag_maker: DagMaker, session: Session):
+    """
+    A loop locks at most ``1 + MAX_PARTITION_CLAIM_REFILLS_PER_LOOP`` chunks, however many of the
+    APDRs it picked are no longer pending. The next loop goes on after the last APDR it tried.
+    """
+    with dag_maker(dag_id="refill-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    peer_run_id = dag_maker.create_dagrun(session=session).id
+    dag_model = session.get(DagModel, "refill-consumer")
+    assert dag_model is not None
+    dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+    ids = _add_pending_apdrs(dag_id="refill-consumer", count=8, session=session)
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 2
+    runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    # Read every pending APDR while the Dag is paused, so that the rotation starts at the first one.
+    assert runner._claim_pending_partition_dag_runs(session=session) == []
+    # Another scheduler fires the next four.
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id.in_(ids[1:5]))
+        .values(created_dag_run_id=peer_run_id)
+    )
+    dag_model.set_scheduling_state(DagSchedulingState.ACTIVE)
+    session.commit()
+
+    claimed = runner._claim_pending_partition_dag_runs(session=session)
+
+    assert [apdr.id for apdr in claimed] == ids[:1]
+    assert with_row_locks_spy.call_count == 1 + MAX_PARTITION_CLAIM_REFILLS_PER_LOOP
+    assert [apdr.id for apdr in runner._claim_pending_partition_dag_runs(session=session)] == ids[5:7]
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_tail_read_reads_at_most_what_a_loop_can_lock(dag_maker: DagMaker, session: Session):
+    """The read of the rows inserted since the last read stops at what one loop can lock; the next loop reads on."""
+    with dag_maker(dag_id="tail-limit-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 1
+    runner._partition_ring.refresh_interval = _PARTITION_SNAPSHOT_REFRESH_SECONDS
+    runner._claim_pending_partition_dag_runs(session=session)
+    ids = _add_pending_apdrs(dag_id="tail-limit-consumer", count=6, session=session)
+
+    runner._claim_pending_partition_dag_runs(session=session)
+    assert runner._partition_ring.max_seen == ids[3]
+    runner._claim_pending_partition_dag_runs(session=session)
+    assert runner._partition_ring.max_seen == ids[5]
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_claim_locks_only_the_claimed_rows_on_backend(dag_maker: DagMaker, session: Session):
+    """
+    The claim row-locks at most the per-loop cap, not every pending APDR it read.
+
+    Rows are read without locks and then locked by primary key, so the lock footprint does not
+    depend on the query plan. A single locking read over the pending rows locks every row it
+    scans on MySQL.
+    """
+    with dag_maker(dag_id="lock-footprint-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    session.commit()
+    ids = _add_pending_apdrs(dag_id="lock-footprint-consumer", count=12, session=session)
+    runner = _make_runner()
+    runner._max_partition_dag_runs_per_loop = 4
+
+    with create_session(scoped=False) as scheduler_session, create_session(scoped=False) as peer:
+        claimed = {apdr.id for apdr in runner._claim_pending_partition_dag_runs(session=scheduler_session)}
+        lockable = set(
+            peer.scalars(
+                with_row_locks(
+                    select(AssetPartitionDagRun.id).where(AssetPartitionDagRun.id.in_(ids)),
+                    of=AssetPartitionDagRun,
+                    skip_locked=True,
+                    session=peer,
+                )
+            )
+        )
+        peer.rollback()
+        scheduler_session.rollback()
+
+    assert len(claimed) == 4
+    assert lockable == set(ids) - claimed
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_claims_of_two_schedulers_are_disjoint_on_backend(dag_maker: DagMaker, session: Session):
+    """
+    Two schedulers in lockstep claim disjoint APDRs, and the second still claims a full batch.
+
+    Both rotations start at the same row, so the second scheduler's first chunk is exactly the
+    rows the first one holds. SKIP LOCKED passes over them and the refill claims the next rows.
+    """
+    with dag_maker(dag_id="ha-claim-consumer", session=session):
+        EmptyOperator(task_id="hi")
+    session.commit()
+    ids = _add_pending_apdrs(dag_id="ha-claim-consumer", count=12, session=session)
+    runners = [_make_runner(), _make_runner()]
+    for runner in runners:
+        runner._max_partition_dag_runs_per_loop = 4
+        runner._partition_ring = _PartitionRing(rng=_make_rng_starting_at(0))
+
+    with create_session(scoped=False) as first_session, create_session(scoped=False) as second_session:
+        first = [apdr.id for apdr in runners[0]._claim_pending_partition_dag_runs(session=first_session)]
+        second = [apdr.id for apdr in runners[1]._claim_pending_partition_dag_runs(session=second_session)]
+        second_session.rollback()
+        first_session.rollback()
+
+    assert first == ids[:4]
+    assert second == ids[4:8]
+
+
+class TestPartitionRing:
+    """The rotation of pending APDRs, without a database: ids are claimed as :meth:`pick` returns them."""
+
+    @staticmethod
+    def _claim(
+        ring: _PartitionRing, eligible: set[str], *, limit: int = 10, fresh_limit: int = 2, now: float = 0.0
+    ) -> list[int]:
+        picked = ring.pick(eligible, limit=limit, fresh_limit=fresh_limit)
+        ring.advance(len(picked), [], now=now)
+        return picked
+
+    def test_rows_not_seen_before_are_claimed_ahead_of_the_rotation(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=0.0)
+        assert self._claim(ring, {"a"}, limit=2) == [1, 2]
+
+        ring.add_tail([(4, "a", None), (5, "a", 7), (6, "a", None)])
+
+        assert ring.max_seen == 6
+        assert self._claim(ring, {"a"}, limit=3) == [4, 6, 3]
+        # The rotation reaches the new rows too, once it gets to them.
+        assert self._claim(ring, {"a"}, limit=3) == [4, 6, 1]
+
+    def test_refresh_marks_rows_it_had_not_seen_as_new_except_on_the_first_read(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(2, "a"), (5, "a")], max_id=5, now=0.0)
+        assert ring.fresh == []
+        ring.discard([5])
+
+        ring.refresh([(2, "a"), (3, "a"), (5, "a")], max_id=6, now=30.0)
+
+        assert ring.fresh == [3]
+        assert ring.gone == set()
+        assert ring.max_seen == 6
+
+    def test_rows_of_ineligible_dags_are_skipped_without_counting_towards_the_limit(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "paused"), (2, "paused"), (3, "paused"), (4, "a")], max_id=4, now=0.0)
+
+        assert self._claim(ring, {"a"}, limit=1) == [4]
+
+    def test_rows_fired_or_deleted_are_skipped_until_the_next_full_read(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=0.0)
+        ring.discard([2])
+
+        assert self._claim(ring, {"a"}) == [1, 3]
+
+    def test_rows_not_seen_before_take_at_most_the_fresh_limit(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a"), (4, "a")], max_id=4, now=0.0)
+        assert self._claim(ring, {"a"}, limit=2) == [1, 2]
+        ring.add_tail([(apdr_id, "a", None) for apdr_id in range(5, 11)])
+
+        assert self._claim(ring, {"a"}, limit=4, fresh_limit=2) == [5, 6, 3, 4]
+
+    def test_rotation_stays_in_id_order_when_a_lower_id_is_read_after_a_higher_one(self):
+        # Row 3 committed between the read of the table's highest id (1) and the read of the pending
+        # rows, and row 2 after both: the tail read returns row 2 after the full read returned row 3.
+        ring = _PartitionRing(rng=_make_rng_starting_at(1))
+        ring.refresh([(1, "a"), (3, "a")], max_id=1, now=0.0)
+        assert self._claim(ring, {"a"}, limit=1, fresh_limit=0) == [3]
+        ring.add_tail([(2, "a", None), (3, "a", None)])
+
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=0) == [1, 2]
+
+    def test_rewind_undoes_the_progress_since_the_last_commit(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a"), (4, "a")], max_id=4, now=0.0)
+        assert self._claim(ring, {"a"}, limit=2) == [1, 2]
+        ring.commit()
+        ring.add_tail([(5, "a", None)])
+        assert self._claim(ring, {"a"}, limit=3) == [5, 3, 4]
+        ring.discard([3])
+
+        ring.rewind()
+
+        assert ring.gone == set()
+        # The row read since the commit is new again, and the rows claimed since then are claimed again.
+        assert self._claim(ring, {"a"}, limit=3) == [5, 3, 4]
+
+    def test_rows_claimed_in_a_committed_loop_are_not_new_again(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a"), (4, "a")], max_id=4, now=0.0)
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [1, 2]
+        ring.commit()
+        ring.add_tail([(5, "a", None)])
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [5, 3]
+        ring.commit()
+
+        ring.rewind()  # at the start of the next loop
+
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [4, 5]
+
+    def test_rows_a_full_read_found_new_stay_new_after_a_rewind(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=0.0)
+        assert self._claim(ring, {"a"}, limit=1, fresh_limit=1) == [1]
+        ring.commit()
+        ring.refresh([(1, "a"), (2, "a"), (3, "a"), (4, "a")], max_id=4, now=1.0)
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [4, 2]
+
+        ring.rewind()
+
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [4, 2]
+
+    def test_rows_not_seen_before_are_claimed_in_id_order(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a")], max_id=1, now=0.0)
+        self._claim(ring, {"a"}, limit=1, fresh_limit=0)
+        # Row 5 committed after the full read took max(id) = 3, and row 4 after the full read.
+        ring.refresh([(1, "a"), (5, "a")], max_id=3, now=30.0)
+        ring.add_tail([(4, "a", None), (5, "a", None)])
+
+        assert self._claim(ring, {"a"}, limit=1, fresh_limit=1) == [4]
+
+    def test_new_rows_of_an_ineligible_dag_take_no_slot(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a")], max_id=1, now=0.0)
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [1]
+        ring.add_tail([(2, "paused", None), (3, "a", None)])
+
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=1) == [3, 1]
+
+    def test_rows_of_a_dag_that_leaves_the_eligible_set_leave_the_rotation(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "b")], max_id=2, now=0.0)
+        assert self._claim(ring, {"a", "b"}, limit=2, fresh_limit=0) == [1, 2]
+
+        assert self._claim(ring, {"a"}, limit=2, fresh_limit=0) == [1]
+
+    def test_rows_of_a_dag_that_becomes_eligible_join_the_rotation_in_id_order(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        rows = [(apdr_id, "b" if apdr_id % 2 == 0 and apdr_id <= 20 else "a") for apdr_id in range(1, 24)]
+        ring.refresh(rows, max_id=len(rows), now=0.0)
+        assert self._claim(ring, {"a"}, limit=1, fresh_limit=0) == [1]
+
+        claimed = self._claim(ring, {"a", "b"}, limit=len(rows), fresh_limit=0)
+
+        assert claimed == [apdr_id for apdr_id, _ in rows][1:] + [1]
+
+    def test_full_read_while_a_dag_becomes_eligible_rebuilds_the_rotation(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "b")], max_id=3, now=0.0)
+        assert self._claim(ring, {"a"}, limit=1, fresh_limit=0) == [1]
+        # Row 1 fired, and the full read finds row 4.
+        ring.refresh([(2, "a"), (3, "b"), (4, "a")], max_id=4, now=30.0)
+
+        assert self._claim(ring, {"a", "b"}, limit=10, fresh_limit=0) == [2, 3, 4]
+
+    def test_rewind_undoes_the_pass_bookkeeping(self):
+        base = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+        created = {1: base + timedelta(minutes=30), 2: base, 3: base + timedelta(minutes=45)}
+        apdrs = {
+            apdr_id: AssetPartitionDagRun(
+                id=apdr_id, target_dag_id="a", partition_key=f"k{apdr_id}", created_at=created_at
+            )
+            for apdr_id, created_at in created.items()
+        }
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(apdr_id, "a") for apdr_id in created], max_id=3, now=0.0)
+
+        def run_loop(now: float) -> None:
+            ring.rewind()
+            picked = ring.pick({"a"}, limit=2, fresh_limit=0)
+            ring.advance(len(picked), [apdrs[apdr_id] for apdr_id in picked], now=now)
+
+        reported = []
+        for now in (1.0, 2.0, 3.0, 4.0):
+            run_loop(now)
+            reported.append(ring.commit())
+        # A loop that ends a pass is rolled back and retried: the pass is reported once, with the
+        # loops, duration and oldest row it would have had without the retry.
+        run_loop(5.0)
+        run_loop(5.0)
+        reported.append(ring.commit())
+
+        assert reported == [None, None, (1, 1.0, base), None, (2, 2.0, base)]
+
+    def test_rewind_drops_a_pass_that_the_rolled_back_loop_ended(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a")], max_id=2, now=0.0)
+        ring.advance(len(ring.pick({"a"}, limit=2, fresh_limit=0)), [], now=1.0)
+        ring.commit()
+        ring.advance(len(ring.pick({"a"}, limit=2, fresh_limit=0)), [], now=2.0)
+
+        # The loop is rolled back, and the Dag is paused before the retry.
+        ring.rewind()
+        ring.advance(len(ring.pick(set(), limit=2, fresh_limit=0)), [], now=2.0)
+
+        assert ring.commit() is None
+
+    def test_loops_with_nothing_eligible_are_not_counted_in_a_pass(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=0.0)
+        reported = []
+        # The Dag is paused for 50 loops in the middle.
+        for now, eligible in enumerate([{"a"}] * 4 + [set()] * 50 + [{"a"}] * 6):
+            picked = ring.pick(eligible, limit=2, fresh_limit=0)
+            ring.advance(len(picked), [], now=float(now))
+            reported.append(ring.commit())
+
+        # The pass interrupted by the pause is not reported, rather than as a pass that spans the pause.
+        assert [pass_.loops for pass_ in reported if pass_] == [1, 1, 2, 1]
+
+    def test_a_pass_ends_when_the_rotation_reaches_its_end_and_the_first_pass_is_not_reported(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(1))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=0.0)
+        reported = []
+        for now in (1.0, 2.0, 3.0, 4.0, 5.0):
+            ring.pick({"a"}, limit=2, fresh_limit=0)
+            ring.advance(2, [], now=now)
+            reported.append(ring.commit())
+
+        # Claimed: [2, 3] (reaches the end: the first, partial, pass ends), [1, 2], [3, 1] (passes
+        # the end), [2, 3] (reaches the end), [1, 2].
+        assert reported == [None, None, (2, 2.0, None), (1, 1.0, None), None]
+
+    @pytest.mark.parametrize("read", ["tail-read", "full-read"])
+    def test_a_rotation_that_fits_in_one_loop_takes_one_loop_after_the_row_at_the_cursor_leaves(
+        self, read: str
+    ):
+        ring = _PartitionRing(rng=_make_rng_starting_at(1))
+        ring.refresh([(1, "a"), (2, "a")], max_id=2, now=0.0)
+        reported = []
+        for now in (1.0, 2.0, 3.0, 4.0):
+            if now == 3.0:
+                # Row 1, the last one claimed, fires: the loop discards it, or a full read no longer
+                # returns it.
+                if read == "tail-read":
+                    ring.discard([1])
+                else:
+                    ring.refresh([(2, "a")], max_id=2, now=now)
+            ring.advance(len(ring.pick({"a"}, limit=10, fresh_limit=0)), [], now=now)
+            reported.append(ring.commit())
+
+        assert [pass_.loops for pass_ in reported if pass_] == [1, 1, 1]
+
+    def test_a_pick_that_stops_before_rows_fired_since_the_last_full_read_reaches_the_end(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(apdr_id, "a") for apdr_id in range(1, 6)], max_id=5, now=0.0)
+        reported = []
+        for now in range(1, 8):
+            ring.advance(len(ring.pick({"a"}, limit=4, fresh_limit=0)), [], now=float(now))
+            if now == 5:
+                # Row 5, the highest, fires in this loop.
+                ring.discard([5])
+            reported.append(ring.commit())
+
+        # Loop 6 stops at row 4, and only the fired row 5 comes after it: the pass ends there.
+        assert [pass_.loops for pass_ in reported if pass_] == [1, 1, 1, 1, 1]
+
+    def test_a_full_read_that_fails_part_way_leaves_the_previous_one(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=0.0)
+        ring.advance(len(ring.pick({"a"}, limit=2, fresh_limit=0)), [], now=1.0)
+        ring.commit()
+
+        def fail_after_one_row():
+            yield 1, "a"
+            raise OperationalError("FETCH", {}, Exception("server closed the connection"))
+
+        with pytest.raises(OperationalError):
+            ring.refresh(fail_after_one_row(), max_id=3, now=30.0)
+        # The loop is rolled back and retried.
+        ring.rewind()
+        ring.refresh([(1, "a"), (2, "a"), (3, "a")], max_id=3, now=31.0)
+
+        assert ring.fresh == []
+
+    def test_a_pass_interrupted_in_a_rolled_back_loop_stays_interrupted(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(1, "a"), (2, "a")], max_id=2, now=0.0)
+        for now in (1.0, 2.0):
+            ring.advance(len(ring.pick({"a"}, limit=2, fresh_limit=0)), [], now=now)
+            ring.commit()
+        # Every row has left. The loop that finds nothing pending is rolled back, and its retry
+        # finds new rows.
+        ring.refresh([], max_id=2, now=30.0)
+        ring.interrupt()
+        ring.rewind()
+        ring.add_tail([(3, "a", None), (4, "a", None)])
+        ring.advance(len(ring.pick({"a"}, limit=4, fresh_limit=0)), [], now=31.0)
+
+        assert ring.commit() is None
+
+    def test_rows_not_seen_before_stay_new_beyond_the_pick_limit(self):
+        ring = _PartitionRing(rng=_make_rng_starting_at(0))
+        ring.refresh([(apdr_id, "a") for apdr_id in range(1, 21)], max_id=20, now=0.0)
+        ring.add_tail([(apdr_id, "a", None) for apdr_id in range(21, 31)])
+
+        claims = [self._claim(ring, {"a"}, limit=4, fresh_limit=2) for _ in range(3)]
+
+        assert claims == [[21, 22, 1, 2], [23, 24, 3, 4], [25, 26, 5, 6]]
+
+    @pytest.mark.parametrize("seed", range(5))
+    def test_every_satisfiable_row_is_claimed_within_the_bound(self, seed: int):
+        """
+        Random inserts, late commits, fires and rolled-back loops: a row that can fire fires within
+        a pass of the rotation plus one loop. A row that commits below an id already read waits for
+        the next full read too.
+        """
+        rng = random.Random(seed)
+        per_loop, fresh_limit, refresh_every = 4, 2, 5
+        ring = _PartitionRing(rng=random.Random(seed))
+        ring.refresh_interval = refresh_every
+        committed: dict[int, int] = {}  # id -> loop it commits at
+        ready_at: dict[int, int] = {}  # id -> loop it becomes satisfiable at
+        fired: dict[int, int] = {}  # id -> loop it fired at
+        late: set[int] = set()
+        next_id = 1
+        max_pending = 0
+        for loop in range(300):
+            for _ in range(rng.choice([0, 0, 1, 2])):
+                committed[next_id] = loop + rng.choice([0, 0, 0, 1, 3])
+                ready_at[next_id] = loop + rng.choice([0, 2, 10, 40, 10_000])
+                next_id += 1
+            late.update(i for i, at in committed.items() if at == loop and i <= ring.max_seen)
+            visible = {i for i, at in committed.items() if at <= loop and i not in fired}
+            max_pending = max(max_pending, len(visible))
+
+            for attempt in (1, 2):
+                ring.rewind()
+                if ring.needs_refresh(loop):
+                    # The rows committing in this loop commit between the two reads.
+                    max_id = max((i for i, at in committed.items() if at < loop), default=0)
+                    ring.refresh(sorted((i, "dag") for i in visible), max_id=max_id, now=loop)
+                else:
+                    tail = sorted(i for i, at in committed.items() if at <= loop and i > ring.max_seen)
+                    ring.add_tail((i, "dag", 1 if i in fired else None) for i in tail)
+                    assert ring._ring == sorted(ring._ring)
+                candidates = ring.pick({"dag"}, limit=per_loop * 4, fresh_limit=fresh_limit)
+                assert len(candidates) == len(set(candidates))
+                chunk = [i for i in candidates[:per_loop] if i in visible]
+                ring.advance(min(per_loop, len(candidates)), [], now=loop)
+                fire = [i for i in chunk if ready_at[i] <= loop]
+                ring.discard(fire)
+                if attempt == 1 and rng.random() < 0.1:
+                    continue  # the loop's transaction is rolled back and retried
+                fired.update(dict.fromkeys(fire, loop))
+                ring.commit()
+                break
+
+        rotation = math.ceil(max_pending / (per_loop - fresh_limit)) + 1
+
+        def get_bound(apdr_id: int) -> int:
+            return rotation + (refresh_every + 1 if apdr_id in late else 0)
+
+        for apdr_id, at in fired.items():
+            assert at - max(ready_at[apdr_id], committed[apdr_id]) <= get_bound(apdr_id), apdr_id
+        unfired = [
+            apdr_id
+            for apdr_id in committed
+            if apdr_id not in fired and max(ready_at[apdr_id], committed[apdr_id]) + get_bound(apdr_id) < 300
+        ]
+        assert unfired == []
 
 
 # ---------------------------------------------------------------------------
