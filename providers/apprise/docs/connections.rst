@@ -60,6 +60,19 @@ Config (required)
         },
       ]
 
+Storage path (optional)
+    Directory used by Apprise `persistent storage <https://github.com/caronc/apprise/wiki/persistent_storage>`__
+    to cache data between notifications, such as login sessions. This avoids logging in on every
+    notification for services like Matrix, which can otherwise hit server login rate limits.
+    Persistent storage is disabled when this is not set. The directory must be writable by the
+    Airflow workers that send notifications. Can also be passed as ``storage_path`` to ``AppriseHook``,
+    which takes precedence over the connection.
+
+Storage mode (optional)
+    Apprise persistent storage mode: ``auto`` (write to disk on demand), ``flush`` (write to disk
+    always and often) or ``memory`` (do not write to disk). Defaults to ``auto``. Only used when
+    ``Storage path`` is set. Can also be passed as ``storage_mode`` to ``AppriseHook``.
+
 
 Using Environment Variable
 ''''''''''''''''''''''''''
@@ -69,6 +82,12 @@ The configuration can be provided in an environment variable.
 .. code-block:: bash
 
     AIRFLOW_CONN_APPRISE_DEFAULT='{"extra": {"config": {"path": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX", "tags": "alert"}}}'
+
+To enable persistent storage, add ``storage_path`` (and optionally ``storage_mode``) to the extra:
+
+.. code-block:: bash
+
+    AIRFLOW_CONN_APPRISE_DEFAULT='{"extra": {"config": {"path": "matrixs://user:password@matrix.example.com/#room"}, "storage_path": "/tmp/apprise", "storage_mode": "auto"}}'
 
 
 .. seealso::

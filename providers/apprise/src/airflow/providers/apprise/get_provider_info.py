@@ -46,7 +46,21 @@ def get_provider_info():
                         "label": "config",
                         "schema": {"type": ["string", "null"], "format": "password"},
                         "description": 'format example - {"path": "service url", "tag": "alerts"} or\n[{"path": "service url", "tag": "alerts"}, {"path": "service url",\n"tag": "alerts"}]\n',
-                    }
+                    },
+                    "storage_path": {
+                        "label": "Storage path",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Directory for Apprise persistent storage, e.g. to cache logins between notifications. Leave empty to disable persistent storage.",
+                    },
+                    "storage_mode": {
+                        "label": "Storage mode",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "default": "auto",
+                            "enum": ["auto", "flush", "memory"],
+                        },
+                        "description": "Apprise persistent storage mode: auto, flush or memory. Defaults to auto.",
+                    },
                 },
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],

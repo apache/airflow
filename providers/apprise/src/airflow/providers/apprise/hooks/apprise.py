@@ -42,6 +42,12 @@ class AppriseHook(BaseHook):
 
     :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
         that has services configured in the `config` field.
+    :param storage_path: Directory used by Apprise persistent storage to cache data such as
+        login sessions between notifications. Falls back to ``storage_path`` in the connection
+        extra. Persistent storage is not enabled when neither is set.
+    :param storage_mode: Apprise persistent storage mode: ``auto``, ``flush`` or ``memory``.
+        Falls back to ``storage_mode`` in the connection extra, then to Apprise's default.
+        Only used when a storage path is set.
     """
 
     conn_name_attr = "apprise_conn_id"
@@ -49,9 +55,16 @@ class AppriseHook(BaseHook):
     conn_type = "apprise"
     hook_name = "Apprise"
 
-    def __init__(self, apprise_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        apprise_conn_id: str = default_conn_name,
+        storage_path: str | None = None,
+        storage_mode: str | None = None,
+    ) -> None:
         super().__init__()
         self.apprise_conn_id = apprise_conn_id
+        self.storage_path = storage_path
+        self.storage_mode = storage_mode
 
     def get_config_from_conn(self, conn: Connection):
         config = conn.extra_dejson["config"]
@@ -70,6 +83,26 @@ class AppriseHook(BaseHook):
                 f"Only types of dict or list[dict] are expected in Apprise connections,"
                 f" got {type(config_object)}"
             )
+
+    def _get_asset(self, conn: Connection | None = None) -> apprise.AppriseAsset | None:
+        extra = conn.extra_dejson if conn else {}
+        storage_path = self.storage_path or extra.get("storage_path")
+        storage_mode = self.storage_mode or extra.get("storage_mode")
+
+        if not storage_path:
+            return None
+
+        kwargs: dict[str, Any] = {"storage_path": storage_path}
+
+        if storage_mode:
+            valid_modes = sorted(apprise.PERSISTENT_STORE_MODES)
+            if storage_mode not in valid_modes:
+                raise ValueError(
+                    f"Invalid Apprise storage_mode {storage_mode!r}, expected one of {valid_modes}"
+                )
+            kwargs["storage_mode"] = storage_mode
+
+        return apprise.AppriseAsset(**kwargs)
 
     def notify(
         self,
@@ -99,12 +132,13 @@ class AppriseHook(BaseHook):
         """
         title = title or ""
 
-        apprise_obj = apprise.Apprise()
-        if config:
-            apprise_obj.add(config)
-        else:
-            conn = self.get_connection(self.apprise_conn_id)
+        conn = None if config else self.get_connection(self.apprise_conn_id)
+        apprise_obj = apprise.Apprise(asset=self._get_asset(conn))
+        if conn:
             self.set_config_from_conn(conn=conn, apprise_obj=apprise_obj)
+        elif config:
+            apprise_obj.add(config)
+
         apprise_obj.notify(
             body=body,
             title=title,
@@ -143,12 +177,13 @@ class AppriseHook(BaseHook):
         """
         title = title or ""
 
-        apprise_obj = apprise.Apprise()
-        if config:
-            apprise_obj.add(config)
-        else:
-            conn = await get_async_connection(self.apprise_conn_id)
+        conn = None if config else await get_async_connection(self.apprise_conn_id)
+        apprise_obj = apprise.Apprise(asset=self._get_asset(conn))
+        if conn:
             self.set_config_from_conn(conn=conn, apprise_obj=apprise_obj)
+        elif config:
+            apprise_obj.add(config)
+
         await apprise_obj.async_notify(
             body=body,
             title=title,
@@ -165,9 +200,10 @@ class AppriseHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField
+        from wtforms import PasswordField, StringField
+        from wtforms.validators import Optional, any_of
 
         return {
             "config": PasswordField(
@@ -176,6 +212,19 @@ class AppriseHook(BaseHook):
                 description='format example - {"path": "service url", "tag": "alerts"} or '
                 '[{"path": "service url", "tag": "alerts"},'
                 ' {"path": "service url", "tag": "alerts"}]',
+            ),
+            "storage_path": StringField(
+                lazy_gettext("Storage path"),
+                widget=BS3TextFieldWidget(),
+                description="Directory for Apprise persistent storage, e.g. to cache logins between "
+                "notifications. Leave empty to disable persistent storage.",
+            ),
+            "storage_mode": StringField(
+                lazy_gettext("Storage mode"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional(), any_of(["auto", "flush", "memory"])],
+                default="auto",
+                description="Apprise persistent storage mode: auto, flush or memory. Defaults to auto.",
             ),
         }
 
