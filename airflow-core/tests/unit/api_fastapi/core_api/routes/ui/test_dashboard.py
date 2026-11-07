@@ -459,6 +459,67 @@ class TestDagStatsEndpoint:
             "queued_dag_count": 0,
         }
 
+    @pytest.mark.usefixtures("freeze_time_for_dagruns")
+    def test_failed_dag_count_uses_the_latest_run_by_run_after(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_dag_id", serialized=True, session=session):
+            EmptyOperator(task_id="task_1")
+        dag_maker.sync_dagbag_to_db()
+        date = pendulum.DateTime(2023, 2, 1, tzinfo=pendulum.UTC)
+        session.add_all(
+            [
+                DagRun(
+                    dag_id="test_dag_id",
+                    run_id="scheduled",
+                    run_type=DagRunType.SCHEDULED,
+                    logical_date=date,
+                    run_after=date,
+                    state=DagRunState.SUCCESS,
+                ),
+                DagRun(
+                    dag_id="test_dag_id",
+                    run_id="manual",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=None,
+                    run_after=date + timedelta(days=1),
+                    state=DagRunState.FAILED,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/dashboard/dag_stats")
+
+        assert response.status_code == 200
+        assert response.json()["failed_dag_count"] == 1
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns")
+    def test_failed_dag_count_breaks_run_after_ties_by_id(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_dag_id", serialized=True, session=session):
+            EmptyOperator(task_id="task_1")
+        dag_maker.sync_dagbag_to_db()
+        # Ids are set and the higher one is stored first, so only the id tiebreaker picks it.
+        for run_id, run_pk, state in (
+            ("higher_id", 1001, DagRunState.FAILED),
+            ("lower_id", 1000, DagRunState.SUCCESS),
+        ):
+            run = DagRun(
+                dag_id="test_dag_id",
+                run_id=run_id,
+                run_type=DagRunType.MANUAL,
+                logical_date=None,
+                run_after=pendulum.DateTime(2023, 2, 1, tzinfo=pendulum.UTC),
+                state=state,
+            )
+            run.id = run_pk
+            session.add(run)
+            session.flush()
+        session.commit()
+
+        response = test_client.get("/dashboard/dag_stats")
+
+        assert response.status_code == 200
+        assert response.json()["failed_dag_count"] == 1
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dashboard/dag_stats")
         assert response.status_code == 401
