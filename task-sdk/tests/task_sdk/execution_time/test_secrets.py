@@ -20,13 +20,29 @@ from __future__ import annotations
 import subprocess
 import sys
 import textwrap
+from unittest import mock
 
+import httpx2
 import pytest
 
+from airflow.sdk import Connection, SecretCache
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
+from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
 from airflow.sdk.configuration import clear_secrets_backends_cache, ensure_secrets_loaded
-from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowNotFoundException,
+    AirflowRuntimeError,
+    AirflowSecretsBackendAccessDenied,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
+from airflow.sdk.execution_time.context import (
+    _async_get_connection,
+    _async_get_variable,
+    _get_connection,
+    _get_variable,
+)
 from airflow.sdk.execution_time.secrets import (
     _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
     DEFAULT_SECRETS_SEARCH_PATH_WORKERS,
@@ -94,25 +110,19 @@ class TestExecutionAPISecretsBackend:
         assert value is None
         mock_supervisor_comms.send.assert_called_once()
 
-    def test_get_connection_handles_exception(self, mock_supervisor_comms):
-        """Test that exceptions are handled gracefully."""
+    def test_get_connection_preserves_exception(self, mock_supervisor_comms: mock.Mock) -> None:
         mock_supervisor_comms.send.side_effect = RuntimeError("Connection failed")
 
         backend = ExecutionAPISecretsBackend()
-        conn = backend.get_connection("test_conn")
+        with pytest.raises(RuntimeError, match="Connection failed"):
+            backend.get_connection(conn_id="test_conn")
 
-        # Should return None on exception to allow fallback to other backends
-        assert conn is None
-
-    def test_get_variable_handles_exception(self, mock_supervisor_comms):
-        """Test that exceptions are handled gracefully for variables."""
+    def test_get_variable_preserves_exception(self, mock_supervisor_comms: mock.Mock) -> None:
         mock_supervisor_comms.send.side_effect = RuntimeError("Communication failed")
 
         backend = ExecutionAPISecretsBackend()
-        value = backend.get_variable("test_var")
-
-        # Should return None on exception to allow fallback to other backends
-        assert value is None
+        with pytest.raises(RuntimeError, match="Communication failed"):
+            backend.get_variable(key="test_var")
 
     def test_get_conn_value_not_implemented(self):
         """Test that get_conn_value raises NotImplementedError."""
@@ -173,6 +183,125 @@ class TestExecutionAPISecretsBackend:
         backend = ExecutionAPISecretsBackend()
         with pytest.raises(AirflowSecretsBackendAccessDenied, match="variable 'denied_var'"):
             await backend.aget_variable("denied_var")
+
+
+class _AnsweringBackend(BaseSecretsBackend):
+    """Answer every lookup with ``result``, raising it if it is an exception."""
+
+    def __init__(self, result: object) -> None:
+        super().__init__()
+        self.result = result
+        self.calls = 0
+
+    def _answer(self):
+        self.calls += 1
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+    def get_connection(self, conn_id: str, team_name: str | None = None):
+        return self._answer()
+
+    def get_variable(self, key: str, team_name: str | None = None):
+        return self._answer()
+
+
+class TestDispatcherBackendErrors:
+    """An Execution API failure is not an answer about whether the secret exists."""
+
+    @pytest.fixture(autouse=True)
+    def reset_cache(self) -> None:
+        SecretCache.reset()
+
+    @staticmethod
+    async def lookup(kind: str, is_async: bool) -> object:
+        if kind == "connection":
+            return await _async_get_connection("target") if is_async else _get_connection("target")
+        if is_async:
+            return await _async_get_variable("target", deserialize_json=False)
+        return _get_variable("target", deserialize_json=False)
+
+    @staticmethod
+    def use_backends(monkeypatch: pytest.MonkeyPatch, *backends: BaseSecretsBackend) -> None:
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", lambda: list(backends)
+        )
+
+    @pytest.mark.parametrize("kind", ["connection", "variable"])
+    @pytest.mark.parametrize("is_async", [False, True], ids=["sync", "async"])
+    @pytest.mark.parametrize("found_later", [False, True], ids=["missing-later", "found-later"])
+    @pytest.mark.parametrize(
+        ("error_type", "delivery"),
+        [
+            # How the supervisor reports a failed API call: an error frame that comms raises.
+            pytest.param(ErrorType.API_SERVER_ERROR, "frame", id="api-server-error-frame"),
+            pytest.param(ErrorType.GENERIC_ERROR, "frame", id="generic-error-frame"),
+            pytest.param(ErrorType.API_SERVER_ERROR, "response", id="api-server-error-response"),
+            pytest.param(ErrorType.GENERIC_ERROR, "response", id="generic-error-response"),
+            # The in-process supervisor behind dag.test() lets the client's error through unchanged.
+            pytest.param(ErrorType.API_SERVER_ERROR, "in-process", id="in-process-server-error"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_api_failure_is_not_reported_as_missing(
+        self,
+        mock_supervisor_comms: mock.Mock,
+        monkeypatch: pytest.MonkeyPatch,
+        kind: str,
+        is_async: bool,
+        found_later: bool,
+        error_type: ErrorType,
+        delivery: str,
+    ) -> None:
+        response = ErrorResponse(error=error_type, detail={"status_code": 500})
+        for method in (mock_supervisor_comms.send, mock_supervisor_comms.asend):
+            if delivery == "frame":
+                method.side_effect = AirflowRuntimeError(response)
+            elif delivery == "in-process":
+                method.side_effect = ServerResponseError.from_response(
+                    httpx2.Response(
+                        500,
+                        json={"detail": {"reason": "Database error"}},
+                        request=httpx2.Request("GET", "http://in-process.invalid./variables/target"),
+                    )
+                )
+            else:
+                method.return_value = response
+        value = (
+            Connection(conn_id="target", conn_type="http", host="fallback") if kind == "connection" else "v"
+        )
+        later = _AnsweringBackend(value if found_later else None)
+        self.use_backends(monkeypatch, ExecutionAPISecretsBackend(), later)
+
+        if found_later:
+            assert await self.lookup(kind, is_async) == value
+        else:
+            with pytest.raises(AirflowRuntimeError) as error:
+                await self.lookup(kind, is_async)
+            assert error.value.error.error == response.error
+            detail = error.value.error.detail
+            assert detail is not None
+            assert detail["status_code"] == 500
+        # A failing Execution API must not stop a later backend from answering.
+        assert later.calls == 1
+
+    @pytest.mark.parametrize("kind", ["connection", "variable"])
+    @pytest.mark.parametrize("is_async", [False, True], ids=["sync", "async"])
+    @pytest.mark.asyncio
+    async def test_other_backend_errors_still_report_missing(
+        self, monkeypatch: pytest.MonkeyPatch, kind: str, is_async: bool
+    ) -> None:
+        later = _AnsweringBackend(None)
+        self.use_backends(monkeypatch, _AnsweringBackend(RuntimeError("vault unavailable")), later)
+
+        if kind == "connection":
+            with pytest.raises(AirflowNotFoundException):
+                await self.lookup(kind, is_async)
+        else:
+            with pytest.raises(AirflowRuntimeError) as error:
+                await self.lookup(kind, is_async)
+            assert error.value.error.error == ErrorType.VARIABLE_NOT_FOUND
+        assert later.calls == 1
 
 
 class TestDispatcherRefusesFallbackOnDeny:
