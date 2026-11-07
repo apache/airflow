@@ -271,4 +271,5 @@ delete secrets by running ``gcloud beta secrets delete``:
 .. code-block:: bash
 
     gcloud beta secrets delete airflow-connections-first-connection
+    gcloud beta secrets delete airflow-connections-second-connection
     gcloud beta secrets delete airflow-variables-first-variable
