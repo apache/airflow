@@ -376,11 +376,14 @@ def process_params(
 
     dagrun_conf = dagrun_conf or {}
 
+    # Merge deep copies: ParamsDict.update() stores the given Param objects as-is, and
+    # applying dagrun_conf below resolves them in place, which would otherwise leak this
+    # run's conf into the Dag's and task's own params (and so into later runs).
     params = ParamsDict(suppress_exception=suppress_exception)
     with contextlib.suppress(AttributeError):
-        params.update(dag.params)
+        params.update(copy.deepcopy(dag.params))
     if task.params:
-        params.update(task.params)
+        params.update(copy.deepcopy(task.params))
     if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
         params.update(dagrun_conf)
