@@ -154,9 +154,12 @@ decide how much of a deployment can be told apart:
     a metric to the kind of process that produced it.
 
 ``service.instance.id``
-    Which process of that component reported the metric. It is unset by default, so processes
-    running the same component (e.g. 2+ schedulers) are indistinguishable. Set it per process
-    to attribute a metric to one of them.
+    Which process of that component reported the metric. The OTel SDK defaults to generating a random id
+    for every process, so two schedulers produce separate series, but nothing in the id says which
+    scheduler is which. Set it per process to attribute a metric to one of them. A unique id is desired
+    for long-lived processes but not for the short-lived Task SDK processes such as task runners.
+    For the task runners, it's preferred to use delta values and a shared id. For more info,
+    see `Short-lived processes`_.
 
 Airflow reads ``service.name`` from ``OTEL_SERVICE_NAME``, and every other resource attribute from
 ``OTEL_RESOURCE_ATTRIBUTES``:
@@ -183,6 +186,61 @@ deliberately — for example, the lowest number of open slots any scheduler obse
 How the attributes surface depends on the backend. Those implementing the OpenTelemetry
 `Prometheus compatibility <https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/>`_
 spec expose them as the ``job`` and ``instance`` labels.
+
+.. _short-lived-processes:
+
+Short-lived processes
+^^^^^^^^^^^^^^^^^^^^^
+
+A task runs in a process that exits when the attempt ends, so a running total exported by that
+process never grows if the values are cumulative. Task SDK processes therefore are suggested to
+export counters and histograms as **delta** values and share a common ``service.instance.id``,
+so that every attempt adds to the same series. Just for the task runners, these suggestions are
+set as the default behavior if the user doesn't provide any values. But if
+``OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`` and ``OTEL_RESOURCE_ATTRIBUTES`` are set,
+then their values win. In all cases, user configuration overrides the defaults.
+
+If ``OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`` is configured to delta,
+either by the user or the default, then there are two scenarios depending on the backend:
+
+1. for backends that support delta values natively
+
+   * the collector forwards delta values to the backend
+   * the backend handles them natively
+
+2. for backends that only accept cumulative values, e.g. Prometheus
+
+   * the backend can't handle delta values, and it requires cumulative
+   * the collector needs to convert the values back to cumulative before exporting them
+   * the collector needs to keep idle series long enough for the next run of a Dag to add to them
+
+For case (2) the collector's configuration needs to be adjusted.
+The part of maintaining idle series has some caveats depending on the use case.
+``max_stale`` needs to cover the longest gap between two runs of the same task. If the Dag runs
+are weekly, then 1 week makes sense, but if all Dag runs are daily, then 1 day is enough. A longer
+value doesn't cost extra memory for series that run more often than that, because they never go
+idle, so it's a safe choice when the schedules are mixed.
+
+``max_stale`` removes series that haven't been updated for that long. Until then, every distinct
+series is kept in memory, roughly 1 KiB each. Memory doesn't grow with the number of runs,
+but with the number of distinct series. There are cases where this could lead to an Out Of Memory (OOM) error
+and so caution is advised when choosing a value. Such an example is using a dynamic task name or any other
+kind of tag value that keeps changing, such as a date, or overriding ``service.instance.id`` for the task runners
+with a per-pod value. Every new value adds a new series that stays for the whole window.
+
+A configuration example follows:
+
+.. code-block:: yaml
+
+   processors:
+     deltatocumulative:
+       max_stale: 168h  # 1 week
+   service:
+     pipelines:
+       metrics:
+         receivers: [otlp]
+         processors: [deltatocumulative, batch]
+         exporters: [prometheus]
 
 
 Enable Https
@@ -328,6 +386,14 @@ On earlier versions, use the ``Stats`` class instead:
 
     These metrics are silently dropped unless a backend is enabled (see `Setup - StatsD`_
     or `Setup - OpenTelemetry`_).
+
+.. note::
+
+    With OpenTelemetry, a metric emitted from inside a task leaves the task's process as a delta
+    value under a shared ``service.instance.id`` by default. The user has the option to change these
+    defaults but if values are set to cumulative or ``service.instance.id`` is unique per task,
+    custom metrics will no longer function properly. A backend that only accepts cumulative
+    values, such as Prometheus, needs the Collector to convert it back, see `Short-lived processes`_.
 
 .. note::
 
