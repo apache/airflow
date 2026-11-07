@@ -1861,6 +1861,35 @@ class TestWatchedSubprocess:
             "loc": mocker.ANY,
         } in captured_logs
 
+    def test_exit_noticed_when_sockets_close_before_process_exits(self, mocker, client_with_ti_start):
+        # Far longer than the test may take: the exit must not wait for the next heartbeat interval
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 30)
+
+        def subprocess_main():
+            os.closerange(0, 1024)
+            sleep(1)
+            os._exit(0)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=TI_ID,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        started = time.monotonic()
+        proc.wait()
+        assert time.monotonic() - started < 10
+
     @pytest.mark.parametrize(
         ("signal_to_raise", "log_pattern", "level"),
         (
