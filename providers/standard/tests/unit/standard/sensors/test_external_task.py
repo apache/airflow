@@ -2049,6 +2049,42 @@ class TestExternalTaskMarker:
             marker.get_external_clear_target(context={})
 
     @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_external_clear_target_defaults_to_the_runs_logical_date(self):
+        marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+
+        target = marker.get_external_clear_target(context={"logical_date": pendulum.datetime(2026, 10, 1, 5)})
+
+        assert target == ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=pendulum.datetime(2026, 10, 1, 5)
+        )
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_default_marker_renders_and_records_nothing_in_a_run_without_a_logical_date(self):
+        with DAG("marker_without_logical_date"):
+            marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+        context = {"params": {}}
+
+        marker.render_template_fields(context=context)
+
+        assert marker.get_external_clear_target(context=context) is None
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_external_clear_target_uses_a_logical_date_rendered_as_a_datetime(self):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date="{{ logical_date }}",
+        )
+        marker.logical_date = pendulum.datetime(2026, 10, 1)
+
+        target = marker.get_external_clear_target(context={})
+
+        assert target == ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=pendulum.datetime(2026, 10, 1)
+        )
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
     def test_marker_runs_on_a_worker_to_record_its_target(self):
         marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
 

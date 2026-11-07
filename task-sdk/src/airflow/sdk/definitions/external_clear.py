@@ -20,7 +20,8 @@ Cross-Dag clear propagation.
 An operator that defines ``get_external_clear_target(context)`` returning an :class:`ExternalClearTarget`
 asks Airflow to also clear that task, and everything downstream of it, whenever this task is cleared with
 its downstream tasks. The task runner calls the method after a successful run, once templates have rendered,
-and records the result so the API server can follow it without running user code.
+and records the result so the API server can follow it without running user code. Returning ``None``
+records nothing for that run.
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ EXTERNAL_CLEAR_TARGET_XCOM_KEY = "_external_clear_target"
 class SupportsExternalClearTarget(Protocol):
     """An operator that names a task in another Dag to clear along with itself."""
 
-    def get_external_clear_target(self, context: Context) -> ExternalClearTarget: ...
+    def get_external_clear_target(self, context: Context) -> ExternalClearTarget | None: ...
 
 
 @dataclass(frozen=True)
@@ -75,12 +76,3 @@ class ExternalClearTarget:
             "logical_date": self.logical_date.isoformat(),
             "recursion_depth": self.recursion_depth,
         }
-
-    @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> ExternalClearTarget:
-        return cls(
-            dag_id=data["dag_id"],
-            task_id=data["task_id"],
-            logical_date=datetime.fromisoformat(data["logical_date"]),
-            recursion_depth=data["recursion_depth"],
-        )

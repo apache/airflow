@@ -5061,12 +5061,20 @@ class TestExternalClearTarget:
             map_index=runtime_ti.map_index,
         )
 
-    def test_operator_without_target_records_nothing(self, create_runtime_ti, mock_supervisor_comms):
+    @pytest.mark.parametrize("declares_target", [False, True], ids=["no-method", "returns-none"])
+    def test_operator_without_target_records_nothing(
+        self, create_runtime_ti, mock_supervisor_comms, declares_target
+    ):
         class PlainOperator(BaseOperator):
             def execute(self, context):
                 pass
 
-        runtime_ti = create_runtime_ti(task=PlainOperator(task_id="plain"))
+        class NoTargetThisRun(PlainOperator):
+            def get_external_clear_target(self, context):
+                return None
+
+        task_class = NoTargetThisRun if declares_target else PlainOperator
+        runtime_ti = create_runtime_ti(task=task_class(task_id="plain"))
 
         with mock.patch.object(XCom, "_set_xcom_in_db", autospec=True) as mock_set_in_db:
             state, _, _ = run(

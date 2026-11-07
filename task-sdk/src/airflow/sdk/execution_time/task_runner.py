@@ -2530,7 +2530,8 @@ def _record_external_clear_target(context: Context, ti: RuntimeTaskInstance, log
     """Record the task's resolved cross-Dag clear target, so the API server can follow it on clear."""
     if not isinstance(ti.task, SupportsExternalClearTarget):
         return
-    target = ti.task.get_external_clear_target(context)
+    if (target := ti.task.get_external_clear_target(context)) is None:
+        return
     log.debug("Recording external clear target", target=target)
     # Straight to the metadata DB, like operator extra links: the API server reads it there.
     _xcom_push_to_db(ti, key=EXTERNAL_CLEAR_TARGET_XCOM_KEY, value=target.serialize())
