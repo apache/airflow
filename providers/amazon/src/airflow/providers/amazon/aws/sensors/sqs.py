@@ -41,8 +41,9 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
     """
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
 
-    If deletion of messages fails, an AirflowException is thrown. Otherwise, the messages
-    are pushed through XCom with the key ``messages``.
+    If a batch deletion response omits ``Successful``, an ``AirflowException`` is raised.
+    Individual deletion failures are logged, and the received messages are still pushed
+    through XCom with the key ``messages``.
 
     By default,the sensor performs one and only one SQS call per poke, which limits the result to
     a maximum of 10 messages. However, the total number of SQS API calls per poke can be controlled
@@ -217,6 +218,8 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
 
                 if "Successful" not in response:
                     raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
+                if failed_entries := response.get("Failed"):
+                    self.log.warning("SQS batch deletion failed", failed_entries=failed_entries)
         if message_batch:
             context["ti"].xcom_push(key="messages", value=message_batch)
             return True
