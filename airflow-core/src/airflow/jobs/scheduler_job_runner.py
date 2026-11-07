@@ -4334,6 +4334,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _activate_referenced_assets(assets_query: Subquery, *, session: Session) -> None:
+        from airflow.dag_processing.collection import insert_active_assets
+
         active_assets_query = select(AssetActive.name, AssetActive.uri).join(
             assets_query,
             and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
@@ -4362,6 +4364,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
 
+        to_activate: list[dict[str, str]] = []
+
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
@@ -4378,6 +4382,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(
                     ~exists().where(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
                 )
+                # Conflicting assets never activate, so they come back every pass; load their
+                # references in batches instead of three lazy loads per asset.
+                .options(
+                    selectinload(AssetModel.scheduled_dags),
+                    selectinload(AssetModel.producing_tasks),
+                    selectinload(AssetModel.consuming_tasks),
+                )
             )
 
             for asset in session.scalars(inactive_assets_query):
@@ -4391,7 +4402,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
                 incoming_name_to_uri[asset.name] = asset.uri
                 incoming_uri_to_name[asset.uri] = asset.name
-                session.add(AssetActive.for_asset(asset))
+                to_activate.append({"name": asset.name, "uri": asset.uri})
 
         warnings_to_have = {
             dag_id: DagWarning(
@@ -4403,6 +4414,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 sorted(_activate_assets_generate_warnings()), key=operator.itemgetter(0)
             )
         }
+        # Rows can't conflict with each other here, so sort them: concurrent schedulers inserting
+        # the same rows in the same order can't deadlock on each other.
+        insert_active_assets(sorted(to_activate, key=operator.itemgetter("name", "uri")), session=session)
 
         session.execute(
             delete(DagWarning).where(
