@@ -283,7 +283,7 @@ func TestSerializeWritesTheFieldsOfTaskSpec(t *testing.T) {
 	}`, withoutKeys(got, goTaskFields...))
 }
 
-func TestSerializeLeavesOutAFieldAtItsSchemaDefault(t *testing.T) {
+func TestSerializePreservesExplicitTaskFieldsAtTheirSchemaDefaults(t *testing.T) {
 	dag := Dag("etl", DagSpec{Queue: "default"})
 	dag.Task(ping, TaskSpec{
 		DoXComPush:     ptr(true),
@@ -300,7 +300,17 @@ func TestSerializeLeavesOutAFieldAtItsSchemaDefault(t *testing.T) {
 
 	got := serializedDag(t, dag)
 
-	assert.Empty(t, withoutKeys(serializedTask(t, got, "ping"), goTaskFields...))
+	assertJSON(t, `{
+		"do_xcom_push": true,
+		"owner": "airflow",
+		"pool": "default_pool",
+		"pool_slots": 1,
+		"priority_weight": 1,
+		"queue": "default",
+		"retry_delay": 300,
+		"trigger_rule": "all_success",
+		"weight_rule": "downstream"
+	}`, withoutKeys(serializedTask(t, got, "ping"), goTaskFields...))
 	assert.Empty(t, withoutKeys(serializedTask(t, got, "extract"), goTaskFields...))
 }
 

@@ -31,10 +31,10 @@ import (
 // A serialized Dag is the Dag JSON that Airflow stores for a Dag and that its scheduler reads.
 // Airflow core owns the format. airflow-core/src/airflow/serialization/schema.json describes it,
 // and Python's DagSerialization writes it for a Dag authored in Python. The serializer in this file
-// does not write the same bytes as Python. Python picks the fields to leave out with a
-// client_defaults table that a bundle never gets, so Python writes some fields at their schema
-// default, such as retry_delay, that this serializer leaves out. Airflow reads a missing field as
-// its schema default, so it loads the same Dag from either serialization.
+// does not write the same bytes as Python. Python resolves config-backed task defaults from its
+// client_defaults table, which a bundle never gets. This serializer omits unset Go fields, and
+// Airflow fills omitted config-backed fields from its own config when it loads the Dag. Other
+// omitted fields retain the serialization schema's defaults.
 // scripts/ci/lang_sdk_serialization/compare.py checks that for the Dags in test_dags.yaml in the
 // same directory.
 
@@ -189,10 +189,6 @@ func serializeTimetable(schedule string) map[string]any {
 // keyed by the name of the field.
 type schemaField struct {
 	key string
-	// schemaDefault is the default that the schema gives the property, or nil when the schema has
-	// none. writeSpecFields leaves out a value equal to the default, because Airflow reads a missing
-	// property as its schema default.
-	schemaDefault any
 }
 
 // specRules says how the serializer writes the fields of one spec struct. A field that has no entry
@@ -234,10 +230,9 @@ var taskSpecRules = specRules{
 // from the defaults of Python's TaskGroup instead.
 var taskGroupSpecRules = specRules{fields: taskGroupSpecFields}
 
-// writeSpecFields writes into data each field of spec that rules does not skip. It leaves out a
-// field that is unset or that holds its schema default. A field is unset when it holds its zero
-// value. A pointer field is unset only when it is nil, so a pointer field can set the zero value of
-// the type it points to, such as false or 0.
+// writeSpecFields writes into data each field of spec that rules does not skip.
+// A field is unset when it holds its zero value. A pointer field is unset only when nil,
+// so it can explicitly set the zero value of its type, such as false or 0.
 func writeSpecFields(data map[string]any, spec any, rules specRules) {
 	value := reflect.ValueOf(spec)
 	for i := range value.NumField() {
@@ -252,7 +247,7 @@ func writeSpecFields(data map[string]any, spec any, rules specRules) {
 			continue
 		}
 		encoded, set := encodeSpecValue(value.Field(i), rules.set[name])
-		if !set || (field.schemaDefault != nil && isSameJSON(encoded, field.schemaDefault)) {
+		if !set {
 			continue
 		}
 		data[field.key] = encoded
@@ -306,28 +301,6 @@ func encodeSpecValue(value reflect.Value, set bool) (any, bool) {
 	panic(fmt.Sprintf("airflow: the serializer cannot write a spec field of type %s", value.Type()))
 }
 
-// isSameJSON reports whether two encoded values are the same JSON value. Like Python, it takes 1
-// and 1.0 for the same number.
-func isSameJSON(a, b any) bool {
-	if x, ok := jsonNumber(a); ok {
-		y, ok := jsonNumber(b)
-		return ok && x == y
-	}
-	return a == b
-}
-
-func jsonNumber(value any) (float64, bool) {
-	switch v := value.(type) {
-	case int:
-		return float64(v), true
-	case float64:
-		return v, true
-	}
-	return 0, false
-}
-
-// encodeTime returns t as Python's serializer writes a datetime: the seconds since the Unix epoch,
-// to the microsecond. A Python datetime holds nothing finer than a microsecond.
 func encodeTime(t time.Time) float64 { return float64(t.UnixMicro()) / 1e6 }
 
 // pythonStr returns t as Python's str(datetime) writes it in UTC, such as

@@ -163,6 +163,18 @@ internal class SerdeTest {
   }
 
   @Test
+  @DisplayName("Should leave unset task config fields out for Airflow to fill")
+  fun shouldLeaveUnsetTaskConfigFieldsOut() {
+    val task = TaskDef("task", SerdeNoopTask::class.java)
+    val serialized = serializeDag(DagDef("d").addTask(task), "", ".")
+    val data = taskData(serialized, 0)
+
+    for (key in listOf("retries", "queue", "retry_delay", "weight_rule", "execution_timeout")) {
+      assertFalse(key in data, "$key should be omitted when unset")
+    }
+  }
+
+  @Test
   @DisplayName("Should serialize tasks with identity fields, config, and sorted downstream ids")
   fun shouldSerializeTasks() {
     val extractDef =
@@ -175,7 +187,7 @@ internal class SerdeTest {
     val transformDef =
       TaskDef("transform", SerdeNoopTask::class.java)
         .dependsOn(extractDef)
-        // Explicitly at schema defaults: omitted from the serialized form.
+        // Explicitly set at schema defaults: these must override Airflow's config defaults.
         .config("retries", 0)
         .config("queue", "default")
         .config("retry_delay", Duration.ofMinutes(5))
@@ -198,9 +210,9 @@ internal class SerdeTest {
 
     val transform = taskData(serialized, 1)
     assertEquals("transform", transform["task_id"])
-    assertFalse("retries" in transform)
-    assertFalse("queue" in transform)
-    assertFalse("retry_delay" in transform)
+    assertEquals(0, transform["retries"])
+    assertEquals("default", transform["queue"])
+    assertEquals(300.0, transform["retry_delay"])
     assertFalse("downstream_task_ids" in transform)
 
     assertEquals(

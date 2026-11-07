@@ -18,7 +18,7 @@
 
 package airflow
 
-// dagSpecFields holds the key and the schema default of each field of DagSpec.
+// dagSpecFields maps each field of DagSpec to its serialized key.
 var dagSpecFields = map[string]schemaField{
 	"Catchup":                     {key: "catchup"},
 	"DagDisplayName":              {key: "dag_display_name"},
@@ -27,51 +27,51 @@ var dagSpecFields = map[string]schemaField{
 	"DisableBundleVersioning":     {key: "disable_bundle_versioning"},
 	"DocMD":                       {key: "doc_md"},
 	"EndDate":                     {key: "end_date"},
-	"FailFast":                    {key: "fail_fast", schemaDefault: false},
+	"FailFast":                    {key: "fail_fast"},
 	"IsPausedUponCreation":        {key: "is_paused_upon_creation"},
 	"MaxActiveRuns":               {key: "max_active_runs"},
 	"MaxActiveTasks":              {key: "max_active_tasks"},
 	"MaxConsecutiveFailedDagRuns": {key: "max_consecutive_failed_dag_runs"},
 	"Queue":                       {key: "queue"},
-	"RenderTemplateAsNativeObj":   {key: "render_template_as_native_obj", schemaDefault: false},
+	"RenderTemplateAsNativeObj":   {key: "render_template_as_native_obj"},
 	"Schedule":                    {key: "schedule"},
 	"StartDate":                   {key: "start_date"},
 	"Tags":                        {key: "tags"},
 }
 
-// taskSpecFields holds the key and the schema default of each field of TaskSpec.
+// taskSpecFields maps each field of TaskSpec to its serialized key.
 var taskSpecFields = map[string]schemaField{
-	"DependsOnPast":                    {key: "depends_on_past", schemaDefault: false},
-	"DoXComPush":                       {key: "do_xcom_push", schemaDefault: true},
+	"DependsOnPast":                    {key: "depends_on_past"},
+	"DoXComPush":                       {key: "do_xcom_push"},
 	"DocMD":                            {key: "doc_md"},
-	"EmailOnFailure":                   {key: "email_on_failure", schemaDefault: true},
-	"EmailOnRetry":                     {key: "email_on_retry", schemaDefault: true},
+	"EmailOnFailure":                   {key: "email_on_failure"},
+	"EmailOnRetry":                     {key: "email_on_retry"},
 	"EndDate":                          {key: "end_date"},
 	"ExecutionTimeout":                 {key: "execution_timeout"},
 	"Executor":                         {key: "executor"},
-	"IgnoreFirstDependsOnPast":         {key: "ignore_first_depends_on_past", schemaDefault: false},
+	"IgnoreFirstDependsOnPast":         {key: "ignore_first_depends_on_past"},
 	"MapIndexTemplate":                 {key: "map_index_template"},
 	"MaxActiveTisPerDag":               {key: "max_active_tis_per_dag"},
 	"MaxActiveTisPerDagrun":            {key: "max_active_tis_per_dagrun"},
 	"MaxRetryDelay":                    {key: "max_retry_delay"},
-	"Owner":                            {key: "owner", schemaDefault: "airflow"},
-	"Pool":                             {key: "pool", schemaDefault: "default_pool"},
-	"PoolSlots":                        {key: "pool_slots", schemaDefault: 1},
-	"PriorityWeight":                   {key: "priority_weight", schemaDefault: 1},
-	"Queue":                            {key: "queue", schemaDefault: "default"},
-	"Retries":                          {key: "retries", schemaDefault: 0},
-	"RetryDelay":                       {key: "retry_delay", schemaDefault: 300.0},
-	"RetryExponentialBackoff":          {key: "retry_exponential_backoff", schemaDefault: 0},
+	"Owner":                            {key: "owner"},
+	"Pool":                             {key: "pool"},
+	"PoolSlots":                        {key: "pool_slots"},
+	"PriorityWeight":                   {key: "priority_weight"},
+	"Queue":                            {key: "queue"},
+	"Retries":                          {key: "retries"},
+	"RetryDelay":                       {key: "retry_delay"},
+	"RetryExponentialBackoff":          {key: "retry_exponential_backoff"},
 	"StartDate":                        {key: "start_date"},
 	"TaskDisplayName":                  {key: "_task_display_name"},
 	"TaskID":                           {key: "task_id"},
-	"TriggerRule":                      {key: "trigger_rule", schemaDefault: "all_success"},
-	"WaitForDownstream":                {key: "wait_for_downstream", schemaDefault: false},
-	"WaitForPastDependsBeforeSkipping": {key: "wait_for_past_depends_before_skipping", schemaDefault: false},
-	"WeightRule":                       {key: "weight_rule", schemaDefault: "downstream"},
+	"TriggerRule":                      {key: "trigger_rule"},
+	"WaitForDownstream":                {key: "wait_for_downstream"},
+	"WaitForPastDependsBeforeSkipping": {key: "wait_for_past_depends_before_skipping"},
+	"WeightRule":                       {key: "weight_rule"},
 }
 
-// taskGroupSpecFields holds the key and the schema default of each field of TaskGroupSpec.
+// taskGroupSpecFields maps each field of TaskGroupSpec to its serialized key.
 var taskGroupSpecFields = map[string]schemaField{
 	"DocMD":            {key: "doc_md"},
 	"GroupDisplayName": {key: "group_display_name"},
