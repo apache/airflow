@@ -67,7 +67,7 @@ internal class Cancellation : AutoCloseable {
   /**
    * Catches the first stop signal for [task] until [close] is called. The SDK calls this method just before it starts the task.
    *
-   * @throws IllegalStateException if the SDK can catch neither stop signal. If the task ran anyway, it would never
+   * @throws CannotCatchStopSignalsException if the SDK can catch neither stop signal. If the task ran anyway, it would never
    *   see a stop request, and it could start work, such as a job in an external system, that its onKill could not stop.
    */
   fun hold(
@@ -83,11 +83,11 @@ internal class Cancellation : AutoCloseable {
     // A signal can reach onKill before trapStopSignals returns. If onKill then checks for a stop request,
     // that check reads held, so set held before calling trapStopSignals.
     held = true
-    trap =
-      checkNotNull(trapStopSignals(::takeSignal)) {
+    trap = trapStopSignals(::takeSignal)
+      ?: throw CannotCatchStopSignalsException(
         "The SDK cannot catch SIGTERM or SIGINT in this JVM, so the task cannot see a stop request. The JVM might run with -Xrs, " +
-          "or without the jdk.unsupported module"
-      }
+          "or without the jdk.unsupported module",
+      )
   }
 
   /**
@@ -132,7 +132,14 @@ internal class Cancellation : AutoCloseable {
   }
 }
 
-private val logger = Logger(Cancellation::class)
+/** Thrown by [Cancellation.hold] when the SDK can catch neither stop signal in this JVM. */
+internal class CannotCatchStopSignalsException(
+  message: String,
+) : IllegalStateException(message)
+
+// The thread that handles a stop signal uses this logger. If that thread waited for room in LogSender while nothing
+// reads the logs, the task would never see the stop request. A second signal could not reach the JVM either.
+private val logger = Logger(Cancellation::class, waitsForRoom = false)
 
 /**
  * Opens a trap that passes SIGINT and SIGTERM to [onSignal] instead of the JVM. The trap stays open

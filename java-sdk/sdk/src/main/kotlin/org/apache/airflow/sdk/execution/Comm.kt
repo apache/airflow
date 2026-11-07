@@ -111,6 +111,10 @@ class CoordinatorComm(
   internal companion object {
     private val logger = Logger(CoordinatorComm::class)
 
+    // The code that reads the supervisor's replies uses this logger. If that code waited for room in LogSender, a
+    // task that waits for a reply would also wait until the supervisor reads the logs.
+    private val replyLogger = Logger(CoordinatorComm::class, waitsForRoom = false)
+
     // A frame can at most use 1/8 of available memory. This is a magic number.
     private const val MAX_HEAP_FRACTION_PER_FRAME = 8L
 
@@ -251,7 +255,7 @@ class CoordinatorComm(
 
     val declaredLength = Frame.parseLengthPrefix(prefix)
     if (declaredLength.toLong() > MAX_INBOUND_FRAME_SIZE) {
-      logger.error(
+      replyLogger.error(
         "Inbound frame exceeds size limit",
         mapOf("length" to declaredLength, "limit" to MAX_INBOUND_FRAME_SIZE),
       )
@@ -267,13 +271,13 @@ class CoordinatorComm(
       } catch (e: CancellationException) {
         throw e // Let coroutine cancellation propagate so the task coroutine unwinds.
       } catch (e: IOException) {
-        logger.error(
+        replyLogger.error(
           "Failed to read frame",
           mapOf("length" to declaredLength, "exception" to e),
         )
         throw FrameProcessingException("Failed to read frame of $declaredLength bytes", e)
       } catch (e: Exception) {
-        logger.error(
+        replyLogger.error(
           "Failed to decode frame",
           mapOf("length" to declaredLength, "exception" to e),
         )
@@ -281,7 +285,7 @@ class CoordinatorComm(
       }
 
     if (input.remaining != 0L) {
-      logger.error(
+      replyLogger.error(
         "Frame length prefix overran the payload",
         mapOf("length" to declaredLength, "undrained" to input.remaining),
       )
@@ -293,7 +297,7 @@ class CoordinatorComm(
 
   private suspend fun readFrame(): IncomingFrame {
     val raw = readRawFrame()
-    logger.debug("Received", mapOf("id" to raw.id))
+    replyLogger.debug("Received", mapOf("id" to raw.id))
     return IncomingFrame(raw.id, Frame.decodeBody(raw))
   }
 
@@ -310,11 +314,11 @@ class CoordinatorComm(
           failAllWaiters(e)
           return
         }
-      logger.debug("Received", mapOf("id" to raw.id))
+      replyLogger.debug("Received", mapOf("id" to raw.id))
 
       val waiter = pending.remove(raw.id)
       if (waiter == null) {
-        logger.warning("Discarding response with no matching request", mapOf("id" to raw.id))
+        replyLogger.warning("Discarding response with no matching request", mapOf("id" to raw.id))
         continue
       }
 

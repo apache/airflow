@@ -37,8 +37,10 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
 import java.io.PrintStream
+import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /**
@@ -82,23 +84,54 @@ class LogSenderTest {
     }
 
   @Test
-  @DisplayName("Should print a failed write's error to stderr instead of throwing it to the caller")
-  fun reportsFailedWriteOnStderr() {
+  @DisplayName("Should report only the first failed write to a channel instead of throwing its error to the caller")
+  fun reportsFirstFailedWriteOfChannel() {
     val stderr = ByteArrayOutputStream()
-    val originalStderr = System.err
-    System.setErr(PrintStream(stderr, true))
-    try {
+    withErrors(PrintStream(stderr, true)) {
       withChannel { channel ->
-        LogSender.send(largeMessage())
+        repeat(3) { LogSender.send(largeMessage("line $it")) }
         channel.cancel(IOException("closed by the test"))
         LogSender.flush()
       }
-    } finally {
-      System.setErr(originalStderr)
     }
 
-    Assertions.assertTrue(stderr.toString().contains("Cannot send a log line to the supervisor: ")) { "stderr: $stderr" }
+    val reports = stderr.toString().lines().filter { it.startsWith("Cannot send a log line to the supervisor: ") }
+    Assertions.assertEquals(1, reports.size) { "stderr: $stderr" }
   }
+
+  @Test
+  @DisplayName("Should report a failed write while another thread holds the lock of System.err")
+  fun reportsFailedWriteWithoutSystemErr() =
+    withChannel { channel ->
+      LogSender.send(largeMessage())
+      val originalStderr = System.err
+      val stderr = object : PrintStream(OutputStream.nullOutputStream(), true) {}
+      val holding = CountDownLatch(1)
+      val release = CountDownLatch(1)
+      System.setErr(stderr)
+      val holder =
+        thread {
+          // A thread that logs while it holds this lock, for example through a bridge that sends stderr to a logger,
+          // can wait for room in LogSender. Only the sender thread gives that room back. Gradle also takes this lock
+          // when it flushes System.err between tests. If this test timed out, its finally block might never run. So
+          // this thread holds the lock only for a limited time.
+          synchronized(stderr) {
+            holding.countDown()
+            release.await(20, TimeUnit.SECONDS)
+          }
+        }
+      try {
+        holding.await()
+        channel.cancel(IOException("closed by the test"))
+        val flusher = thread { LogSender.flush() }
+        flusher.join(TimeUnit.SECONDS.toMillis(10))
+        Assertions.assertFalse(flusher.isAlive, "the sender thread should report the failed write without using System.err")
+      } finally {
+        release.countDown()
+        holder.join()
+        System.setErr(originalStderr)
+      }
+    }
 
   @Test
   @DisplayName("Should write a message from an interrupted thread and leave the thread interrupted")
@@ -195,13 +228,11 @@ class LogSenderTest {
   @Test
   @DisplayName("Should give back a failed line's room and keep writing when printing the write error throws")
   fun keepsWritingAfterErrorReportThrows() {
-    val originalStderr = System.err
-    System.setErr(
+    val throwing =
       object : PrintStream(OutputStream.nullOutputStream()) {
         override fun println(x: String?): Unit = throw IllegalStateException("stderr is closed")
-      },
-    )
-    try {
+      }
+    withErrors(throwing) {
       val broken = ByteChannel(autoFlush = true)
       LogSender.messages.clear()
       LogSender.configure(broken)
@@ -209,8 +240,6 @@ class LogSenderTest {
       LogSender.send(message("z".repeat(LogSender.PENDING_CHARS)))
       broken.cancel(IOException("closed by the test"))
       LogSender.flush()
-    } finally {
-      System.setErr(originalStderr)
     }
 
     withChannel { channel ->
@@ -233,24 +262,187 @@ class LogSenderTest {
     }
 
   @Test
-  @DisplayName("Should make detachAndFlush also wait for a line that another thread started to send before the call")
-  fun detachAndFlushWaitsForLineBeingSent() =
+  @DisplayName("Should put a message in LogSender.messages, and give back its room, if the message waits for room during detachAndFlush")
+  fun detachAndFlushKeepsWaitingMessageQueued() {
     withChannel { channel ->
-      // The first line holds its room until the test reads that line from the channel, and the fillers take
-      // the rest of the room. So the sender below waits for room while it holds LogSender's lock.
-      LogSender.send(largeMessage("first"))
-      val fillers = List(LogSender.PENDING_CHARS / LARGE_EVENT.length - 2) { "filler $it" }
-      fillers.forEach { LogSender.send(largeMessage(it)) }
-      val sender = thread { LogSender.send(largeMessage("sent")) }
+      val fillers = fillRoom()
+      val sender = thread { LogSender.send(largeMessage("waiting")) }
       awaitWaiting(sender)
       val detacher = thread { LogSender.detachAndFlush() }
+      // The detacher thread waits for the queued lines only after it has stopped queuing new lines. So once
+      // that thread waits, LogSender queues no more lines.
+      awaitWaiting(detacher)
 
       val written = readLines(channel, 1 + fillers.size).map { it.event().removeSuffix(LARGE_EVENT) }
-      detacher.join(TimeUnit.SECONDS.toMillis(1))
-      Assertions.assertTrue(detacher.isAlive, "detachAndFlush should wait for the line that was being sent")
-      Assertions.assertEquals("sent", readLines(channel, 1).single().event().removeSuffix(LARGE_EVENT))
       detacher.join()
+      sender.join()
       Assertions.assertEquals(listOf("first") + fillers, written)
+      Assertions.assertEquals(listOf("waiting"), LogSender.messages.map { it.event.removeSuffix(LARGE_EVENT) })
+      Assertions.assertEquals(0, channel.availableForRead, "nothing else should be written")
+    }
+
+    // The waiting message took room before LogSender put the message in LogSender.messages. If LogSender did not
+    // give that room back, this line could not be queued, because it needs all the room.
+    withChannel { channel ->
+      thread { LogSender.send(message("z".repeat(LogSender.PENDING_CHARS))) }
+      Assertions.assertEquals("zzzzz", readLines(channel, 1).single().event().take(5))
+    }
+  }
+
+  @Test
+  @DisplayName("Should put a message in LogSender.messages without waiting for room once detachAndFlush has stopped queuing")
+  fun keepsMessageAfterDetachWithoutWaitingForRoom() =
+    withChannel { channel ->
+      val fillers = fillRoom()
+      val waiting = thread { LogSender.send(largeMessage("waiting")) }
+      awaitWaiting(waiting)
+      val detacher = thread { LogSender.detachAndFlush() }
+      awaitWaiting(detacher)
+
+      // If this message asked for room, it would wait behind the waiting thread.
+      val late = thread { LogSender.send(message("late")) }
+      late.join(TimeUnit.SECONDS.toMillis(10))
+      Assertions.assertFalse(late.isAlive, "a message that stays in LogSender.messages should not wait for room")
+
+      readLines(channel, 1 + fillers.size)
+      detacher.join()
+      waiting.join()
+      Assertions.assertEquals(listOf("late", "waiting"), LogSender.messages.map { it.event.removeSuffix(LARGE_EVENT) })
+    }
+
+  @Test
+  @DisplayName("Should queue a line from a logger that does not wait for room, even when another thread is waiting for room")
+  fun queuesLineWithoutWaitingForRoom() =
+    withChannel { channel ->
+      val fillers = fillRoom()
+      val waiting = thread { LogSender.send(largeMessage("waiting")) }
+      awaitWaiting(waiting)
+
+      val quick = thread { Logger("test", waitsForRoom = false).error("quick") }
+      quick.join(TimeUnit.SECONDS.toMillis(10))
+      Assertions.assertFalse(quick.isAlive, "the line should be queued without waiting for room")
+
+      val events = readLines(channel, fillers.size + 3).map { it.event().removeSuffix(LARGE_EVENT) }
+      waiting.join()
+      Assertions.assertEquals(listOf("first") + fillers + listOf("quick", "waiting"), events)
+    }
+
+  @Test
+  @DisplayName("Should let the sender thread log while another thread waits for room")
+  fun senderThreadLogsWhileAnotherThreadWaitsForRoom() {
+    val next = ByteChannel(autoFlush = true)
+    var logged = false
+    // When the sender thread reports a failed write, this stream logs a message on the sender thread, as a
+    // logging bridge could.
+    val logging =
+      object : PrintStream(OutputStream.nullOutputStream()) {
+        override fun println(x: String?) {
+          if (!logged) {
+            logged = true
+            LogSender.send(message("logged by the sender thread"))
+          }
+        }
+      }
+    try {
+      withErrors(logging) {
+        withChannel { channel ->
+          fillRoom()
+          // This thread waits for all the room. Once the queued lines fail, this thread gets all the room before any
+          // later caller. So a line that the sender thread logs can go out only if the sender thread does not wait for
+          // room.
+          val waiting = thread { LogSender.send(message("waiting" + "w".repeat(LogSender.PENDING_CHARS))) }
+          awaitWaiting(waiting)
+          // From here on, LogSender queues lines for the next channel. Once the old channel is cancelled, the lines
+          // queued for it fail. The sender thread then logs while it reports the failure.
+          LogSender.configure(next)
+          channel.cancel(IOException("closed by the test"))
+
+          val events = readLines(next, 2).map { it.event().substringBefore("www") }
+          waiting.join()
+          Assertions.assertEquals(setOf("logged by the sender thread", "waiting"), events.toSet())
+        }
+      }
+    } finally {
+      next.cancel(null)
+    }
+  }
+
+  @Test
+  @DisplayName("Should give back the room of a failed line before the sender thread reports the failure")
+  fun givesBackRoomBeforeReportingFailure() {
+    val reporting = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    // This stream blocks each report of a failed write, as a full stderr does while nothing reads it.
+    val blocking =
+      object : PrintStream(OutputStream.nullOutputStream()) {
+        override fun println(x: String?) {
+          reporting.countDown()
+          release.await()
+        }
+      }
+    withErrors(blocking) {
+      try {
+        withChannel { channel ->
+          fillRoom()
+          // This thread needs all the room, so it gets room only after every queued line has failed.
+          val waiting = thread { LogSender.send(message("waiting" + "w".repeat(LogSender.PENDING_CHARS))) }
+          awaitWaiting(waiting)
+          channel.cancel(IOException("closed by the test"))
+
+          waiting.join(TimeUnit.SECONDS.toMillis(10))
+          Assertions.assertFalse(waiting.isAlive, "the waiting thread should get room although the report blocks")
+          Assertions.assertTrue(reporting.await(10, TimeUnit.SECONDS), "the sender thread should still report the failure")
+        }
+      } finally {
+        release.countDown()
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should make flush wait until the sender thread has printed the reports of failed writes")
+  fun flushWaitsForReports() {
+    val printed = AtomicBoolean()
+    val slow =
+      object : PrintStream(OutputStream.nullOutputStream()) {
+        override fun println(x: String?) {
+          Thread.sleep(500)
+          printed.set(true)
+        }
+      }
+    withErrors(slow) {
+      withChannel { channel ->
+        LogSender.send(largeMessage())
+        // Nothing reads the channel, so the sender thread cannot finish writing this line until the test cancels the
+        // channel. The task that flush queues waits behind this line. So the write of this line fails before the
+        // sender thread runs that task. The test cancels the channel only after flush has queued its task. If the
+        // test cancelled the channel earlier, the sender thread could run out of lines and print the report of the
+        // failed write before flush queues its task. In that case, the test would pass even if flush did not wait for
+        // the reports.
+        val flusher = thread { LogSender.flush() }
+        awaitWaiting(flusher)
+        channel.cancel(IOException("closed by the test"))
+
+        flusher.join()
+        Assertions.assertTrue(printed.get(), "flush should return only after the report is printed")
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should make a short line wait for room behind a long line that asked for room first")
+  fun shortLineWaitsBehindLongLine() =
+    withChannel { channel ->
+      // The first line holds its room until the test reads the line, so the long line that the test sends
+      // later has to wait for room.
+      LogSender.send(largeMessage("first"))
+      val long = thread { LogSender.send(message("y".repeat(LogSender.PENDING_CHARS))) }
+      awaitWaiting(long)
+      // Enough room is free for this line, but the long line asked for room first.
+      val short = thread { LogSender.send(message("short")) }
+      awaitWaiting(short)
+
+      Assertions.assertEquals(listOf("first", "yyyyy", "short"), readLines(channel, 3).map { it.event().take(5) })
     }
 
   @Test
@@ -288,6 +480,64 @@ class LogSenderTest {
       flusher.join()
       Assertions.assertTrue(stillInterrupted, "flush should keep the calling thread's interrupt status")
     }
+
+  @Test
+  @DisplayName("Should keep flushing past the idle timeout while the sender thread keeps finishing lines")
+  fun flushWaitsWhileLinesAreWritten() {
+    val names = List(8) { "line $it" }
+    withChannel(queued = names.map { largeMessage(it) }) { channel ->
+      var allWritten = false
+      val flusher = thread { allWritten = LogSender.flush(Duration.ofSeconds(3)) }
+      // The test reads a line every half second, well within the idle timeout. Reading all the lines takes longer
+      // than the idle timeout, so flush has to keep waiting while the sender thread finishes each line.
+      val read =
+        names.indices.map { index ->
+          if (index == names.lastIndex) Assertions.assertTrue(flusher.isAlive, "flush should still wait for the last line")
+          Thread.sleep(500)
+          readLines(channel, 1).single().event().removeSuffix(LARGE_EVENT)
+        }
+      flusher.join()
+      Assertions.assertEquals(names, read)
+      Assertions.assertTrue(allWritten, "flush should report that every line was written")
+    }
+  }
+
+  @Test
+  @DisplayName("Should stop flushing once the sender thread has not finished a line for the whole idle timeout")
+  fun flushStopsWhenNoLineIsWritten() =
+    withChannel { channel ->
+      LogSender.send(largeMessage())
+      // The sender thread finished its last line more than one idle timeout ago, but flush counts the idle time from
+      // the start of the call.
+      Thread.sleep(1500)
+      val started = System.nanoTime()
+      val allWritten = LogSender.flush(Duration.ofSeconds(1))
+      val elapsed = Duration.ofNanos(System.nanoTime() - started)
+
+      Assertions.assertFalse(allWritten, "flush should report that it stopped waiting")
+      Assertions.assertTrue(elapsed >= Duration.ofSeconds(1) && elapsed < Duration.ofSeconds(5)) { "flush took $elapsed" }
+    }
+
+  @Test
+  @DisplayName("Should fail the remaining lines, and say why, once detachAndFlush stops waiting")
+  fun detachAndFlushFailsRemainingLinesWhenItStopsWaiting() {
+    val stderr = ByteArrayOutputStream()
+    withErrors(PrintStream(stderr, true)) {
+      withChannel { _ ->
+        fillRoom()
+        val waiting = thread { LogSender.send(largeMessage("waiting")) }
+        awaitWaiting(waiting)
+        Assertions.assertFalse(LogSender.detachAndFlush(Duration.ofSeconds(1)), "detachAndFlush should report that it stopped waiting")
+
+        // Nothing reads the channel, so the waiting thread gets room back only if the queued lines fail.
+        waiting.join(TimeUnit.SECONDS.toMillis(10))
+        Assertions.assertFalse(waiting.isAlive, "the waiting thread should get room back")
+        Assertions.assertEquals(listOf("waiting"), LogSender.messages.map { it.event.removeSuffix(LARGE_EVENT) })
+      }
+    }
+
+    Assertions.assertTrue(stderr.toString().contains("no log line was written for 1000 ms")) { "stderr: $stderr" }
+  }
 
   @Test
   @DisplayName("Should write the arguments as they were when the message was sent")
@@ -362,18 +612,55 @@ class LogSenderTest {
     block(channel)
   }
 
+  @Test
+  @DisplayName("Should cancel the channel when detachAndFlush stops waiting, even after an earlier call stopped queuing")
+  fun detachAndFlushCancelsChannelAfterEarlierDetach() =
+    withErrors(PrintStream(OutputStream.nullOutputStream())) {
+      withChannel { _ ->
+        LogSender.send(largeMessage())
+        // Nothing reads the channel, so this call waits for the line until the channel is cancelled.
+        val earlier = thread { LogSender.detachAndFlush() }
+        awaitWaiting(earlier)
+
+        Assertions.assertFalse(LogSender.detachAndFlush(Duration.ofSeconds(1)), "the second call should stop waiting")
+        earlier.join(TimeUnit.SECONDS.toMillis(10))
+        Assertions.assertFalse(earlier.isAlive, "cancelling the channel should end the earlier wait")
+      }
+    }
+
+  /**
+   * Sends a large first line and returns the names of the filler lines that it sends next. The first line holds its room until
+   * the test reads that line. The filler lines take so much of the remaining room that the next large message has to wait for room.
+   */
+  private fun fillRoom(): List<String> {
+    LogSender.send(largeMessage("first"))
+    return List(LogSender.PENDING_CHARS / LARGE_EVENT.length - 2) { "filler $it" }.onEach { LogSender.send(largeMessage(it)) }
+  }
+
+  /** Runs [block] while the sender thread reports failed writes to [stream]. */
+  private fun withErrors(
+    stream: PrintStream,
+    block: () -> Unit,
+  ) {
+    // A write that failed in an earlier test can leave a report that the sender thread has not printed yet. This flush
+    // waits until the sender thread has printed that report, so that stream gets only the reports of this test.
+    LogSender.flush(Duration.ofSeconds(10))
+    val original = LogSender.errors
+    LogSender.errors = stream
+    try {
+      block()
+    } finally {
+      // The sender thread may still be reporting a failed write, so wait until the sender thread is done before
+      // restoring LogSender.errors.
+      LogSender.flush(Duration.ofSeconds(10))
+      LogSender.errors = original
+    }
+  }
+
   private fun readLines(
     channel: ByteChannel,
     count: Int,
   ): List<JsonObject> = runBlocking { List(count) { Json.parseToJsonElement(channel.readLine()!!).jsonObject } }
-
-  /** Waits until [thread] parks, and fails if it ends instead. */
-  private fun awaitWaiting(thread: Thread) {
-    while (thread.state != Thread.State.WAITING) {
-      Assertions.assertNotEquals(Thread.State.TERMINATED, thread.state, "the thread should wait instead of returning")
-      Thread.sleep(10)
-    }
-  }
 
   private fun JsonObject.event(): String = this["event"]!!.jsonPrimitive.content
 
@@ -388,4 +675,38 @@ class LogSenderTest {
   private companion object {
     val LARGE_EVENT = "x".repeat(2 * 1024 * 1024)
   }
+}
+
+/** Waits until [thread] parks, and fails if it ends instead. */
+internal fun awaitWaiting(thread: Thread) {
+  while (thread.state != Thread.State.WAITING) {
+    Assertions.assertNotEquals(Thread.State.TERMINATED, thread.state, "the thread should wait instead of returning")
+    Thread.sleep(10)
+  }
+}
+
+/**
+ * Configures [LogSender] with [channel], which nothing reads, so that every later caller that asks for room waits.
+ * A first line keeps its room because it cannot be fully written, and the returned thread waits for all the room.
+ */
+internal fun blockLogRoom(channel: ByteChannel): Thread {
+  LogSender.messages.clear()
+  LogSender.configure(channel)
+  LogSender.send(LogMessage("x".repeat(2 * 1024 * 1024), emptyMap(), "test", Level.INFO))
+  return thread { LogSender.send(LogMessage("y".repeat(LogSender.PENDING_CHARS), emptyMap(), "test", Level.INFO)) }
+    .also { awaitWaiting(it) }
+}
+
+/**
+ * Undoes [blockLogRoom]. This helper closes [channel], so that the queued lines fail and give their room back. Then the
+ * helper waits for [waiting].
+ */
+internal fun releaseLogRoom(
+  channel: ByteChannel,
+  waiting: Thread,
+) {
+  channel.cancel(null)
+  waiting.join()
+  LogSender.flush(Duration.ofSeconds(10))
+  LogSender.messages.clear()
 }

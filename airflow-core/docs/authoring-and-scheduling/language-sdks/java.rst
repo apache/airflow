@@ -847,8 +847,10 @@ signals include a signal that arrives before the SDK starts the task, and a seco
 signal stops a task that does not stop when asked.
 
 If the SDK can catch neither ``SIGTERM`` nor ``SIGINT``, for example because the JVM runs with ``-Xrs``, the SDK
-fails a ``StoppableTask`` before the task starts. If the SDK let the task start anyway, the task could begin work
-that ``onKill`` would never get the chance to stop.
+fails a ``StoppableTask`` before the task starts. Airflow does not retry the task. If the SDK let the task start
+anyway, the task could begin work that ``onKill`` would never get the chance to stop. To run a ``StoppableTask``,
+remove ``-Xrs`` from the JVM options. A runtime image built with ``jlink`` also needs the ``jdk.unsupported``
+module.
 
 A task that can check for a stop request in a loop can leave ``onKill``, or its ``@Airflow.OnKill`` method,
 empty. The task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
