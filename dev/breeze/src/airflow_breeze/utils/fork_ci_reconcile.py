@@ -380,10 +380,9 @@ def compute_projection(state: ForkState, *, author_draft: bool) -> Projection:
         )
     if state in (ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH):
         return Projection(draft=True, ready_for_review=False, needs_project_ci=False)
-    # A running or failed pull request keeps its draft state, so a rebase of an approved one that
-    # hits a flaky test does not draft it and cancel its auto-merge. A closed one is not drafted,
-    # since the draft-state job runs after the close and GitHub refuses to draft a closed pull
-    # request.
+    # A running or failed pull request keeps its draft state, so a flaky test after a rebase does
+    # not draft an approved one. A closed one is not drafted, since the draft-state job runs after
+    # the close and GitHub refuses to draft a closed pull request.
     if state in (
         ForkState.RUNNING,
         ForkState.FAILED,
