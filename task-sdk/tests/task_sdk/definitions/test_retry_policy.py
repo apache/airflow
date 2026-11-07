@@ -309,12 +309,20 @@ class TestExceptionRetryPolicy:
                 RetryRule(
                     exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=30)
                 ),
+                RetryRule(exception=LookupError, action=RetryAction.SKIP, reason="nothing to do"),
             ]
         )
         restored = ExceptionRetryPolicy.deserialize(policy.serialize())
         assert restored.evaluate(ValueError("x"), 1, 3).action == RetryAction.FAIL
         assert restored.evaluate(ConnectionError("x"), 1, 3).action == RetryAction.RETRY
+        assert restored.evaluate(LookupError("x"), 1, 3).action == RetryAction.SKIP
         assert restored.evaluate(TypeError("x"), 1, 3).action == RetryAction.DEFAULT
+
+    def test_skip_decision_helper(self):
+        decision = RetryDecision.skip(reason="nothing to do")
+        assert decision.action == RetryAction.SKIP
+        assert decision.reason == "nothing to do"
+        assert decision.retry_delay is None
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +345,9 @@ class TestChainRetryPolicy:
                 reason="floor",
             )
         ]
+    )
+    SKIP_404 = ExceptionRetryPolicy(
+        rules=[RetryRule(exception=LookupError, action=RetryAction.SKIP, reason="nothing to fetch")]
     )
 
     @staticmethod
@@ -380,6 +391,13 @@ class TestChainRetryPolicy:
                 RetryAction.RETRY,
                 "ExceptionRetryPolicy: floor",
                 id="retry",
+            ),
+            pytest.param(
+                SKIP_404,
+                LookupError("404"),
+                RetryAction.SKIP,
+                "ExceptionRetryPolicy: nothing to fetch",
+                id="skip",
             ),
         ],
     )
@@ -674,6 +692,17 @@ class TestHandleCurrentTaskFailed:
         ti = _make_mock_ti(policy=policy, should_retry=True)
         msg, state = _handle_current_task_failed(ti, PermissionError("denied"), log, {})
         assert state == TaskInstanceState.FAILED
+
+    def test_skip_marks_task_skipped_with_reason(self):
+        """Policy SKIP overrides should_retry=True -- task ends SKIPPED, no retry consumed."""
+        policy = ExceptionRetryPolicy(
+            rules=[RetryRule(exception=LookupError, action=RetryAction.SKIP, reason="nothing to do")]
+        )
+        ti = _make_mock_ti(policy=policy, should_retry=True)
+        msg, state = _handle_current_task_failed(ti, LookupError("404"), log, {})
+        assert state == TaskInstanceState.SKIPPED
+        assert msg.state == TaskInstanceState.SKIPPED
+        assert msg.retry_reason == "nothing to do"
 
     def test_retry_with_delay_and_reason(self):
         policy = ExceptionRetryPolicy(
