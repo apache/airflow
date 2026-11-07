@@ -707,6 +707,47 @@ class TestPatchVariable(TestVariableEndpoint):
         assert Variable.get("deep", deserialize_json=True) == {**stored, "schedule": "0 6 * * *"}
 
     @pytest.mark.enable_redact
+    def test_patch_restores_each_secret_after_removing_a_list_item(self, test_client):
+        stored = {
+            "users": [{"name": "alice", "password": "A-secret"}, {"name": "bob", "password": "B-secret"}]
+        }
+        Variable.set(key="creds", value=stored, serialize_json=True)
+        edited = json.loads(test_client.get("/variables/creds").json()["value"])
+        del edited["users"][0]
+
+        response = test_client.patch(
+            "/variables/creds",
+            json={"key": "creds", "value": json.dumps(edited)},
+            params={"update_mask": ["value"]},
+        )
+
+        assert response.status_code == 200
+        assert Variable.get("creds", deserialize_json=True) == {"users": [stored["users"][1]]}
+
+    @pytest.mark.enable_redact
+    def test_patch_rejects_masked_values_that_cannot_be_placed(self, test_client):
+        stored = {
+            "users": [{"name": "alice", "password": "A-secret"}, {"name": "bob", "password": "B-secret"}]
+        }
+        Variable.set(key="creds", value=stored, serialize_json=True)
+        edited = json.loads(test_client.get("/variables/creds").json()["value"])
+        del edited["users"][0]
+        edited["users"][0]["name"] = "bob2"
+
+        response = test_client.patch(
+            "/variables/creds",
+            json={"key": "creds", "value": json.dumps(edited)},
+            params={"update_mask": ["value"]},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            'Cannot tell which stored item the masked values in "users" belong to after this edit. '
+            "Re-enter those values to save this change."
+        )
+        assert Variable.get("creds", deserialize_json=True) == stored
+
+    @pytest.mark.enable_redact
     def test_patch_with_update_mask_description_only(self, test_client, session):
         """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
         self.create_variables()

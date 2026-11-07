@@ -23,7 +23,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow._shared.secrets_masker import merge
+from airflow._shared.secrets_masker import MaskedValueMergeError, merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -55,6 +55,23 @@ def update_orm_from_pydantic(
     fields_to_update = fields_set - non_update_fields - setter_fields
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
+
+    update_extra = (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
+        update_mask and "extra" in update_mask
+    )
+    extra_merged = False
+    # Merge before setting any field: the bulk update still commits its session when this is rejected.
+    if update_extra and pydantic_conn.extra is not None and orm_conn.extra is not None:
+        try:
+            old_extra = json.loads(orm_conn.extra)
+            merged_extra = merge(json.loads(pydantic_conn.extra), old_extra)
+            extra_merged = True
+        except json.JSONDecodeError:
+            # We can't merge fields in an unstructured `extra`
+            pass
+        except MaskedValueMergeError as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
     conn_data = pydantic_conn.model_dump(by_alias=True)
     for key, val in conn_data.items():
         if key in fields_to_update:
@@ -68,22 +85,13 @@ def update_orm_from_pydantic(
         else:
             merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
             orm_conn.set_password(merged_password)
-    if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
-        update_mask and "extra" in update_mask
-    ):
-        if pydantic_conn.extra is None or orm_conn.extra is None:
-            orm_conn.set_extra(pydantic_conn.extra)
-            return
-        try:
-            old_extra = json.loads(orm_conn.extra)
-            merged_extra = merge(json.loads(pydantic_conn.extra), old_extra)
-            # A secret declared by one provider must not be handed to another type's hook.
-            if orm_conn.conn_type == stored_conn_type:
-                merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra)
-            orm_conn.set_extra(json.dumps(merged_extra))
-        except json.JSONDecodeError:
-            # We can't merge fields in an unstructured `extra`
-            orm_conn.set_extra(pydantic_conn.extra)
+    if extra_merged:
+        # A secret declared by one provider must not be handed to another type's hook.
+        if orm_conn.conn_type == stored_conn_type:
+            merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra)
+        orm_conn.set_extra(json.dumps(merged_extra))
+    elif update_extra:
+        orm_conn.set_extra(pydantic_conn.extra)
 
 
 class BulkConnectionService(BulkService[ConnectionBody]):
