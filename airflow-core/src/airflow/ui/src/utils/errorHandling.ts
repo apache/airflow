@@ -68,9 +68,16 @@ export const getApiErrorDetail = (error: unknown): Array<string> | string | unde
 };
 
 /**
- * Safely extracts the error message from an error object
+ * Safely extracts the error message from an error object. Prefers the API's own detail, such as
+ * why a 409 refused the action, over the bare HTTP status text in `message`.
  */
 const getErrorMessage = (error: unknown): string => {
+  const detail = getApiErrorDetail(error);
+
+  if (detail !== undefined) {
+    return Array.isArray(detail) ? detail.join(", ") : detail;
+  }
+
   if (typeof error !== "object" || error === null) {
     return String(error);
   }
