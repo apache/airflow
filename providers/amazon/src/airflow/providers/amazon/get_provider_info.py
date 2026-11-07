@@ -1329,6 +1329,13 @@ def get_provider_info():
                         "example": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize",
                         "default": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy",
                     },
+                    "cloudwatch_task_handler_create_log_group": {
+                        "description": "Whether the CloudWatch remote log handler checks that the log group exists, with a\n``DescribeLogGroups`` call each time a handler is built, and creates it if it doesn't.\n\nSet to ``False`` when the log group is managed elsewhere, for example by infrastructure as code.\nThe handler then makes neither call, so it doesn't count against the account's\n``DescribeLogGroups`` quota or need permission to create log groups.\n",
+                        "type": "boolean",
+                        "version_added": "9.40.0",
+                        "example": "False",
+                        "default": "True",
+                    },
                     "s3_task_handler_acl_policy": {
                         "description": "The ACL applied to task log objects uploaded to S3 by the S3 remote log handler,\nfor example ``bucket-owner-full-control``.\n\nThis is primarily useful for cross-account remote logging: when Airflow runs under one AWS\naccount but writes logs to a bucket owned by another account, S3 makes the writing account\nthe object owner, so the bucket owner cannot read or manage the log objects. Setting\n``bucket-owner-full-control`` grants the bucket owner full control over the uploaded logs.\n\nWhen unset, no ACL is sent and the bucket's default object ownership applies.\n",
                         "type": "string",

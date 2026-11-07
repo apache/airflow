@@ -92,6 +92,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     log_group_arn: str
     log_stream_name: str = ""
+    create_log_group: bool = True
     log_group: str = attrs.field(init=False, repr=False)
     region_name: str = attrs.field(init=False, repr=False)
     _cached_handler: watchtower.CloudWatchLogHandler | None = attrs.field(
@@ -137,6 +138,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 "remote_base": remote_base_log_folder,
                 "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
                 "log_group_arn": log_group_arn,
+                "create_log_group": conf.getboolean(
+                    "aws", "cloudwatch_task_handler_create_log_group", fallback=True
+                ),
             }
             | io_kwargs,
         )
@@ -156,6 +160,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             use_queues=True,
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
+            create_log_group=self.create_log_group,
         )
 
     @property
@@ -378,6 +383,10 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             base_log_folder=base_log_folder,
             log_group_arn=log_group_arn,
             delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            create_log_group=kwargs.get(
+                "create_log_group",
+                conf.getboolean("aws", "cloudwatch_task_handler_create_log_group", fallback=True),
+            ),
         )
 
     @cached_property
