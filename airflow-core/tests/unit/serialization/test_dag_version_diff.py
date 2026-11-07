@@ -2281,6 +2281,20 @@ def test_build_diff_reports_unkeyed_lists_as_one_stable_change() -> None:
     assert "after_digest" not in change
 
 
+def test_build_diff_treats_v2_and_v3_timedelta_intervals_as_equal() -> None:
+    """A stored version-2 timedelta and a stored version-3 timedelta are the same interval."""
+    interval = {"__classname__": "datetime.timedelta", "__data__": 60.0}
+    base = _build_payload(tasks=[])
+    target = _build_payload(tasks=[])
+    base["dag"]["deadline"] = [{"name": "sla", "interval": {**interval, "__version__": 2}}]
+    target["dag"]["deadline"] = [{"name": "sla", "interval": {**interval, "__version__": 3}}]
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
 def test_build_diff_reports_deadline_lists_as_one_stable_change() -> None:
     base = _build_payload(tasks=[])
     target = _build_payload(tasks=[])
