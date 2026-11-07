@@ -33,6 +33,7 @@ from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
     _guess_best_bundle_for_fileloc,
     _load_bundle_config_snapshot,
+    get_configured_bundle_config,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
 )
@@ -194,6 +195,29 @@ def test_get_configured_bundle_names():
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
 def test_get_configured_bundle_team_names_without_config():
     assert get_configured_bundle_team_names() == {}
+
+
+@conf_vars(
+    {
+        ("dag_processor", "dag_bundle_config_list"): json.dumps(
+            [
+                *TEAM_BUNDLE_CONFIG,
+                {"name": "not-installed", "classpath": "not_installed.Bundle", "kwargs": {}},
+            ]
+        ),
+    }
+)
+def test_get_configured_bundle_config():
+    config = get_configured_bundle_config("team-bundle")
+
+    assert (config.name, config.classpath, config.kwargs, config.team_name) == (
+        "team-bundle",
+        "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        {"refresh_interval": 1},
+        "team-a",
+    )
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured."):
+        get_configured_bundle_config("missing")
 
 
 def test_get_bundle():
