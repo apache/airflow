@@ -1652,6 +1652,7 @@ class TestStringifiedDAGs:
             "email": None,
             "email_on_failure": True,
             "email_on_retry": True,
+            "emits": [],
             "execution_timeout": None,
             "executor": None,
             "executor_config": {},

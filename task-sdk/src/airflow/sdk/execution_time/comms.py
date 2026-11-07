@@ -870,6 +870,7 @@ class DagResult(DagResponse):
 class AssetEventEmissionResult(BaseModel):
     id: int
     timestamp: datetime
+    replayed: bool = False
     type: Literal["AssetEventEmissionResult"] = "AssetEventEmissionResult"
 
 
@@ -1327,11 +1328,11 @@ class GetDag(BaseModel):
 
 
 class EmitAssetEvent(BaseModel):
-    name: str
-    uri: str
+    name: str | None = None
+    uri: str | None = None
     extra: dict[str, JsonValue] = Field(default_factory=dict)
     partition_key: str | None = None
-    partition_date: datetime | None = None
+    idempotency_key: str
     callback_index: int | None = None
     type: Literal["EmitAssetEvent"] = "EmitAssetEvent"
 

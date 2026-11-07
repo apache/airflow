@@ -1204,7 +1204,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
-                or k in ("outlets", "inlets")
+                or k in ("outlets", "inlets", "emits")
             ):
                 v = cls.deserialize(v)
             elif k == "_on_failure_fail_dagrun":

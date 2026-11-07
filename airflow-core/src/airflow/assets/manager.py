@@ -232,6 +232,10 @@ class AssetManager(LoggingMixin):
         api_allow_consumer_teams: list[str] | None = None,
         api_allow_global_consumers: bool = True,
         callback_sink: list[Callable[[], None]] | None = None,
+        origin: str | None = None,
+        idempotency_key: str | None = None,
+        scope_hash: str | None = None,
+        payload_hash: str | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -259,6 +263,11 @@ class AssetManager(LoggingMixin):
             API-triggered event. Only used when source_is_api=True. Defaults to True.
         :param callback_sink: If specified, registration callbacks are added
             into the list instead of executed inline.
+        :param origin: How the event came into Airflow, for example ``outlet`` or ``emission``.
+        :param idempotency_key: The caller's key for an emitted event.
+        :param scope_hash: Hash of the key and its source scope. The unique index on it makes
+            a concurrent repeat of the same emission fail instead of adding a second event.
+        :param payload_hash: Hash of the emitted payload, compared when a request repeats a key.
         """
         from airflow.models.dag import DagModel
 
@@ -289,6 +298,10 @@ class AssetManager(LoggingMixin):
             "asset_id": asset_model.id,
             "extra": extra or {},
             "partition_key": partition_key,
+            "origin": origin,
+            "idempotency_key": idempotency_key,
+            "scope_hash": scope_hash,
+            "payload_hash": payload_hash,
         }
         if task_instance:
             # TaskInstance imports the asset manager.

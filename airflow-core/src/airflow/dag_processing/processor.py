@@ -45,7 +45,7 @@ from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerialize
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import ErrorType, TaskNotFound
 from airflow.sdk.execution_time import supervisor
-from airflow.sdk.execution_time.asset_events import set_asset_emission_callback  # noqa: SDK001
+from airflow.sdk.execution_time.asset_events import set_asset_emission_scope  # noqa: SDK001
 from airflow.sdk.execution_time.comms import (
     AssetEventEmissionResult,
     ConnectionResult,
@@ -376,7 +376,7 @@ def _execute_callbacks(
                 if isinstance(request, TaskCallbackRequest):
                     _execute_task_callbacks(dagbag, request, log)
                 elif isinstance(request, DagCallbackRequest):
-                    with set_asset_emission_callback(callback_index):
+                    with set_asset_emission_scope(callback_index=callback_index):
                         _execute_dag_callbacks(dagbag, request, log)
                 elif isinstance(request, EmailRequest):
                     _execute_email_callbacks(dagbag, request, log)

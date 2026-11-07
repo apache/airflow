@@ -80,6 +80,25 @@ class AirflowRuntimeError(Exception):
         super().__init__(f"{error.error.value}: {error.detail}")
 
 
+class AssetEmissionError(RuntimeError):
+    """
+    An asset event could not be emitted.
+
+    ``reason`` is the server's machine-readable cause, for example ``asset_not_found``,
+    ``asset_inactive``, ``idempotency_conflict``, ``attempt_archived``, ``extra_too_large``
+    or ``emission_limit``.
+    """
+
+    def __init__(self, message: str, *, reason: str | None = None, status_code: int | None = None):
+        super().__init__(message)
+        self.reason = reason
+        self.status_code = status_code
+
+
+class AssetEmissionUnavailableError(AssetEmissionError):
+    """This process or this API server cannot emit asset events."""
+
+
 class AirflowTimetableInvalid(AirflowException):
     """Raise when a DAG has an invalid timetable."""
 

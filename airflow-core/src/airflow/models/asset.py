@@ -863,6 +863,10 @@ class AssetEvent(Base):
     :param source_map_index: the map_index of the TI which updated the asset
     :param timestamp: the time the event was logged
     :param partition_key: the key for the partition associated with event, if applicable
+    :param origin: how the event came into Airflow; only the server sets it
+    :param idempotency_key: the caller's key for an emitted event
+    :param scope_hash: hash of the key and its source scope; unique, so a repeat request cannot add an event
+    :param payload_hash: hash of the emitted payload, compared when a request repeats a key
 
     We use relationships instead of foreign keys so that asset events are not deleted even
     if the foreign key object is.
@@ -878,12 +882,18 @@ class AssetEvent(Base):
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    scope_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     __tablename__ = "asset_event"
     __table_args__ = (
         Index("idx_asset_id_timestamp", asset_id, timestamp),
         Index("idx_asset_event_source_ti", source_task_instance_id),
         Index("idx_asset_event_asset_id_partition_key", asset_id, partition_key),
+        # Rows without a key hold NULL, which every supported database treats as distinct.
+        Index("idx_asset_event_scope_hash", scope_hash, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 

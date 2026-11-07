@@ -27,6 +27,7 @@ __all__ = [
     "AssetAll",
     "AssetAny",
     "AssetAndTimeSchedule",
+    "AssetEventReceipt",
     "AssetOrTimeSchedule",
     "AssetTriggeredTimetable",
     "AssetWatcher",
@@ -113,6 +114,7 @@ __all__ = [
     "cross_downstream",
     "dag",
     "deadline_reference",
+    "emit_asset_event",
     "get_current_context",
     "get_parsing_context",
     "literal",
@@ -153,6 +155,7 @@ if TYPE_CHECKING:
         AssetAlias,
         AssetAll,
         AssetAny,
+        AssetEventReceipt,
         AssetWatcher,
     )
     from airflow.sdk.definitions.asset.decorators import asset
@@ -242,6 +245,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
+    from airflow.sdk.execution_time.asset_events import emit_asset_event
     from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.types import TaskInstance
@@ -258,6 +262,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "AssetAll": (".definitions.asset", "AssetAll"),
     "AssetAndTimeSchedule": (".definitions.timetables.assets", "AssetAndTimeSchedule"),
     "AssetAny": (".definitions.asset", "AssetAny"),
+    "AssetEventReceipt": (".definitions.asset", "AssetEventReceipt"),
     "AssetOrTimeSchedule": (".definitions.timetables.assets", "AssetOrTimeSchedule"),
     "AssetTriggeredTimetable": (".definitions.timetables.assets", "AssetTriggeredTimetable"),
     "AssetWatcher": (".definitions.asset", "AssetWatcher"),
@@ -344,6 +349,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "cross_downstream": (".bases.operator", "cross_downstream"),
     "dag": (".definitions.dag", "dag"),
     "deadline_reference": (".definitions.deadline", "deadline_reference"),
+    "emit_asset_event": (".execution_time.asset_events", "emit_asset_event"),
     "NEVER_EXPIRE": (".execution_time.context", "NEVER_EXPIRE"),
     "get_current_context": (".definitions.context", "get_current_context"),
     "get_parsing_context": (".definitions.context", "get_parsing_context"),

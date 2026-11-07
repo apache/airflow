@@ -2446,7 +2446,9 @@ class TestDagFileProcessorProcess:
     @pytest.mark.parametrize("callback_index", [None, -1, 0])
     def test_emit_requires_callback_from_parent_batch(self, proc, callback_index):
         response, _ = proc._handle_emit_asset_event(
-            comms.EmitAssetEvent(name="asset", uri="example://asset", callback_index=callback_index),
+            comms.EmitAssetEvent(
+                name="asset", uri="example://asset", idempotency_key="k", callback_index=callback_index
+            ),
             structlog.get_logger(),
             req_id=1,
         )
@@ -2457,7 +2459,7 @@ class TestDagFileProcessorProcess:
     def test_emit_rejects_non_dag_callback(self, proc):
         proc._emission_callbacks = [EmailRequest.model_construct()]
         response, _ = proc._handle_emit_asset_event(
-            comms.EmitAssetEvent(name="asset", uri="example://asset", callback_index=0),
+            comms.EmitAssetEvent(name="asset", uri="example://asset", idempotency_key="k", callback_index=0),
             structlog.get_logger(),
             req_id=1,
         )

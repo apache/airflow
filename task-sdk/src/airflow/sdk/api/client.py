@@ -956,8 +956,9 @@ class AssetEventOperations:
     ) -> AssetEventEmissionResult:
         body = msg.model_dump(mode="json", exclude={"type", "callback_index"})
         body.update(source_dag_id=source_dag_id, source_run_id=source_run_id)
-        # A lost acknowledgement may follow a committed event. Do not retry POST.
-        response = self.client.request("POST", "asset-events/emit", json=body, retry=False)
+        # Every request carries an idempotency key, so a retry after a lost response returns the
+        # first receipt instead of writing a second event.
+        response = self.client.post("asset-events/emit", json=body)
         return AssetEventEmissionResult.model_validate_json(response.read())
 
     def get(

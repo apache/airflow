@@ -1104,6 +1104,8 @@ def _get_task_ports(data: dict, inlets: bool, outlets: bool) -> Iterable[str]:
         yield from data.get("inlets") or ()
     if outlets:
         yield from data.get("outlets") or ()
+        # An emission list declares a producer like an outlet does, but success emits nothing for it.
+        yield from data.get("emits") or ()
 
 
 def _get_dag_assets(

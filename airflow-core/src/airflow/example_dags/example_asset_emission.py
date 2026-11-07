@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.sdk import DAG, Asset, PartitionedAssetTimetable, get_current_context, task
+from airflow.sdk import DAG, Asset, PartitionedAssetTimetable, emit_asset_event, get_current_context, task
 
 published = Asset(name="immediate-published-partitions", uri="example://immediate/published")
 failures = Asset(name="immediate-failed-runs", uri="example://immediate/failures")
@@ -28,10 +28,11 @@ failures = Asset(name="immediate-failed-runs", uri="example://immediate/failures
 
 def emit_failed_run(context):
     """Do not require a representative task instance in the Dag callback context."""
-    receipt = failures.emit(
+    receipt = emit_asset_event(
+        failures,
         extra={"reason": "Dag failed", "run_id": context["run_id"]},
         partition_key="2026-10-01",
-        partition_date=pendulum.datetime(2026, 10, 1, tz="UTC"),
+        idempotency_key=f"failed-run-{context['run_id']}",
     )
     print(f"Dag callback persisted event {receipt.id} at {receipt.timestamp}")
 
@@ -44,10 +45,13 @@ with DAG(dag_id="example_immediate_asset_task", schedule=None, catchup=False, ta
         # outlet here would produce an additional success-only event.
         for day in (1, 2):
             date = pendulum.datetime(2026, 10, day, tz="UTC")
-            receipt = published.emit(
+            partition_key = date.format("YYYY-MM-DD")
+            # A stable key: a retry that publishes this partition again gets the first receipt.
+            receipt = emit_asset_event(
+                published,
                 extra={"rows": 100 * day},
-                partition_key=date.format("YYYY-MM-DD"),
-                partition_date=date,
+                partition_key=partition_key,
+                idempotency_key=f"published-{partition_key}",
             )
             print(f"Persisted partition {date.date()}: event {receipt.id}")
         raise ValueError("Deliberate failure after publishing two durable events")

@@ -17,62 +17,134 @@
 
 from __future__ import annotations
 
+import json
+import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
-from airflow.sdk.definitions.asset import AssetEventReceipt
+import attrs
+
+from airflow.sdk.definitions.asset import Asset, AssetEventReceipt, AssetNameRef, AssetUriRef
+from airflow.sdk.exceptions import (
+    AirflowRuntimeError,
+    AssetEmissionError,
+    AssetEmissionUnavailableError,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import AssetEventEmissionResult, EmitAssetEvent
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from datetime import datetime
 
     from pydantic.types import JsonValue
 
-    from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk.definitions.asset import AssetRef
 
-_callback_index: ContextVar[int | None] = ContextVar("asset_emission_callback_index", default=None)
+
+@attrs.frozen
+class _EmissionScope:
+    callback_index: int | None = None
+    """The callback's position in the trusted parent's batch, for a Dag processor callback."""
+
+
+_scope: ContextVar[_EmissionScope | None] = ContextVar("asset_emission_scope", default=None)
 
 
 @contextmanager
-def set_asset_emission_callback(index: int) -> Iterator[None]:
-    """Select a callback from the trusted parent's callback batch."""
-    token = _callback_index.set(index)
+def set_asset_emission_scope(*, callback_index: int | None = None) -> Iterator[None]:
+    """
+    Let the code inside emit asset events.
+
+    The runtime that starts user code sets this: the task runner around a task and its callbacks,
+    the callback supervisor around an executor callback, and the Dag processor around a callback.
+    A Dag file parse has supervisor comms too, but no scope, so it cannot emit.
+    """
+    token = _scope.set(_EmissionScope(callback_index=callback_index))
     try:
         yield
     finally:
-        _callback_index.reset(token)
+        _scope.reset(token)
+
+
+def _raise_emission_error(error: AirflowRuntimeError) -> None:
+    detail = error.error.detail if isinstance(error.error.detail, dict) else {}
+    body = detail.get("detail")
+    server_detail = body.get("detail") if isinstance(body, dict) else None
+    status_code = detail.get("status_code")
+    if error.error.error == ErrorType.PERMISSION_DENIED:
+        raise AssetEmissionUnavailableError(
+            "This context cannot emit asset events", reason="forbidden"
+        ) from error
+    if not isinstance(server_detail, dict):
+        # A server without the endpoint answers with FastAPI's plain "Not Found".
+        if status_code == 404:
+            raise AssetEmissionUnavailableError(
+                "The API server cannot emit asset events", reason="unsupported_server", status_code=404
+            ) from error
+        raise error
+    raise AssetEmissionError(
+        server_detail.get("message", str(error)),
+        reason=server_detail.get("reason"),
+        status_code=status_code,
+    ) from error
 
 
 def emit_asset_event(
-    asset: Asset,
+    asset: Asset | AssetRef,
     *,
-    extra: dict[str, JsonValue] | None,
-    partition_key: str | None,
-    partition_date: datetime | None,
+    extra: dict[str, JsonValue] | None = None,
+    partition_key: str | None = None,
+    idempotency_key: str | None = None,
 ) -> AssetEventReceipt:
-    from airflow.sdk import get_current_context
+    """
+    Write an asset event now, from a running task or from a callback.
 
-    callback_index = _callback_index.get()
-    if callback_index is None:
-        # A parser also has supervisor comms; that alone is not a runtime context.
-        context = get_current_context()
-        if context.get("ti") is None:
-            raise RuntimeError("Asset.emit() requires a running task or a Dag callback")
+    Unlike an outlet, the event does not wait for the task to succeed, and a later failure does not
+    remove it. The asset must already be in the Airflow database. An omitted partition key means no
+    partition; the event does not inherit the partition of the current run.
+
+    Give a stable ``idempotency_key`` when a retry must not write a second event. Without one, the
+    SDK makes a key for this call, so only its own automatic HTTP retries share it.
+    """
+    if isinstance(asset, Asset):
+        name, uri = asset.name, asset.uri
+    elif isinstance(asset, AssetNameRef):
+        name, uri = asset.name, None
+    elif isinstance(asset, AssetUriRef):
+        name, uri = None, asset.uri
+    else:
+        raise TypeError(f"Expected an Asset or an AssetRef, got {type(asset).__name__}")
+
+    try:
+        json.dumps(extra or {}, allow_nan=False)
+    except (TypeError, ValueError) as error:
+        raise AssetEmissionError(
+            f"extra must be strict JSON, without NaN or Infinity: {error}", reason="invalid_json"
+        ) from error
+
+    scope = _scope.get()
+    if scope is None:
+        raise AssetEmissionUnavailableError(
+            "Asset events can be emitted only from a running task or a callback", reason="no_runtime"
+        )
 
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    result = SUPERVISOR_COMMS.send(
-        EmitAssetEvent(
-            name=asset.name,
-            uri=asset.uri,
-            extra=extra or {},
-            partition_key=partition_key,
-            partition_date=partition_date,
-            callback_index=callback_index,
+    try:
+        result = SUPERVISOR_COMMS.send(
+            EmitAssetEvent(
+                name=name,
+                uri=uri,
+                extra=extra or {},
+                partition_key=partition_key,
+                idempotency_key=idempotency_key or str(uuid.uuid4()),
+                callback_index=scope.callback_index,
+            )
         )
-    )
+    except AirflowRuntimeError as error:
+        _raise_emission_error(error)
+        raise
     if not isinstance(result, AssetEventEmissionResult):
         raise RuntimeError(f"Unexpected asset emission response: {type(result).__name__}")
-    return AssetEventReceipt(id=result.id, timestamp=result.timestamp)
+    return AssetEventReceipt(id=result.id, timestamp=result.timestamp, replayed=result.replayed)

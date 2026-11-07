@@ -18,36 +18,32 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic import Field, StringConstraints, model_validator
 from pydantic.types import JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
+from airflow.models.base import ID_LEN
 
 
 class EmitAssetEventBody(StrictBaseModel):
-    """Immediate emission; source identity is supplied only by trusted supervisors."""
+    """Immediate emission; the server derives the source from the caller's credential."""
 
-    name: str
-    uri: str
+    name: str | None = None
+    uri: str | None = None
     extra: dict[str, JsonValue] = Field(default_factory=dict)
-    partition_key: str | None = Field(default=None, max_length=250)
-    partition_date: AwareDatetime | None = None
+    # pattern, not strip_whitespace, so the key stays byte-identical to the REST API's.
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = None
+    idempotency_key: str = Field(min_length=1, max_length=ID_LEN)
     source_dag_id: str | None = None
     source_run_id: str | None = None
 
-    @field_validator("partition_key")
-    @classmethod
-    def validate_partition_key(cls, value: str | None) -> str | None:
-        if value is not None and not value.strip():
-            raise ValueError("partition_key must not be empty or whitespace-only")
-        return value
-
     @model_validator(mode="after")
-    def validate_partition_date(self):
-        if self.partition_date is not None and self.partition_key is None:
-            raise ValueError("partition_date requires partition_key")
+    def validate_asset_reference(self):
+        if self.name is None and self.uri is None:
+            raise ValueError("Give the asset name, the asset URI, or both")
         return self
 
 
@@ -56,6 +52,7 @@ class AssetEventReceipt(StrictBaseModel):
 
     id: int
     timestamp: datetime
+    replayed: bool = False
 
 
 class DagRunAssetReference(StrictBaseModel):

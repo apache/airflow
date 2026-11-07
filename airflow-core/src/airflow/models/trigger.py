@@ -400,6 +400,7 @@ class Trigger(Base):
                 asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
+                origin="asset_watcher",
                 session=session,
             )
         if trigger.callback:

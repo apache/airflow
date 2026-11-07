@@ -34,7 +34,9 @@ from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.asset_events import set_asset_emission_scope
 from airflow.sdk.execution_time.comms import (
+    EmitAssetEvent,
     ErrorResponse,
     GetConnection,
     GetVariable,
@@ -83,7 +85,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 # This is a minimal subset of ToSupervisor: read-only access to Connections,
 # Variables, and XCom values, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
+    EmitAssetEvent | GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -306,14 +308,15 @@ class CallbackSubprocess(WatchedSubprocess):
                     )
 
             _add_xcom_pull_to_context(callback_kwargs)
-            success, error_msg = execute_callback(
-                callback_path=callback_path,
-                callback_kwargs=callback_kwargs,
-                dag_rel_path=dag_rel_path,
-                bundle_path=bundle_path,
-                log=_log,
-                callback_kwargs_encoding=callback_kwargs_encoding,
-            )
+            with set_asset_emission_scope():
+                success, error_msg = execute_callback(
+                    callback_path=callback_path,
+                    callback_kwargs=callback_kwargs,
+                    dag_rel_path=dag_rel_path,
+                    bundle_path=bundle_path,
+                    log=_log,
+                    callback_kwargs_encoding=callback_kwargs_encoding,
+                )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
@@ -431,6 +434,9 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
+        elif isinstance(msg, EmitAssetEvent):
+            # The client holds this callback's own execution token; the server derives the Dag run from it.
+            resp = self.client.asset_events.emit(msg)
         else:
             log.warning("Unhandled request from callback subprocess", msg=msg)
             self.send_msg(

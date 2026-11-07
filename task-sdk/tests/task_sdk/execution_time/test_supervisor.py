@@ -2417,16 +2417,23 @@ class RequestTestCase:
 # Test cases for request handling
 REQUEST_TEST_CASES = [
     RequestTestCase(
-        message=EmitAssetEvent(name="immediate", uri="example://immediate", partition_key="eu"),
+        message=EmitAssetEvent(
+            name="immediate", uri="example://immediate", partition_key="eu", idempotency_key="k"
+        ),
         test_id="emit_asset_event",
         client_mock=ClientMock(
             method_path="asset_events.emit",
-            args=(EmitAssetEvent(name="immediate", uri="example://immediate", partition_key="eu"),),
+            args=(
+                EmitAssetEvent(
+                    name="immediate", uri="example://immediate", partition_key="eu", idempotency_key="k"
+                ),
+            ),
             response=AssetEventEmissionResult(id=12, timestamp=timezone.datetime(2026, 10, 1)),
         ),
         expected_body={
             "id": 12,
             "timestamp": timezone.datetime(2026, 10, 1),
+            "replayed": False,
             "type": "AssetEventEmissionResult",
         },
     ),

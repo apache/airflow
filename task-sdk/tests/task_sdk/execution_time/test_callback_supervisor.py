@@ -23,7 +23,7 @@ import signal
 import socket
 import uuid
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from operator import attrgetter
 from typing import Any
 from unittest.mock import ANY, Mock, patch
@@ -39,8 +39,10 @@ from airflow.sdk.execution_time.callback_supervisor import (
     supervise_callback,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetEventEmissionResult,
     BundleInfo,
     ConnectionResult,
+    EmitAssetEvent,
     GetConnection,
     GetVariable,
     GetVariableKeys,
@@ -359,6 +361,15 @@ class TestCallbackHandleRequest:
             message=MaskSecret(value="super_secret", name="api_key"),
             test_id="mask_secret",
             mask_secret_args=("super_secret", "api_key"),
+        ),
+        RequestCase(
+            message=EmitAssetEvent(name="incident_record", uri="incident://airflow", idempotency_key="k"),
+            test_id="emit_asset_event",
+            client_mock=ClientMock(
+                method_path="asset_events.emit",
+                args=(EmitAssetEvent(name="incident_record", uri="incident://airflow", idempotency_key="k"),),
+                response=AssetEventEmissionResult(id=7, timestamp=datetime(2026, 10, 1, tzinfo=UTC)),
+            ),
         ),
     ]
 

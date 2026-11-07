@@ -29,6 +29,11 @@
           "title": "Timestamp",
           "type": "string"
         },
+        "replayed": {
+          "default": false,
+          "title": "Replayed",
+          "type": "boolean"
+        },
         "type": {
           "const": "AssetEventEmissionResult",
           "default": "AssetEventEmissionResult",
@@ -1887,12 +1892,28 @@
     "EmitAssetEvent": {
       "properties": {
         "name": {
-          "title": "Name",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
         },
         "uri": {
-          "title": "Uri",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
         },
         "extra": {
           "additionalProperties": {
@@ -1913,18 +1934,9 @@
           "default": null,
           "title": "Partition Key"
         },
-        "partition_date": {
-          "anyOf": [
-            {
-              "format": "date-time",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Partition Date"
+        "idempotency_key": {
+          "title": "Idempotency Key",
+          "type": "string"
         },
         "callback_index": {
           "anyOf": [
@@ -1946,8 +1958,7 @@
         }
       },
       "required": [
-        "name",
-        "uri"
+        "idempotency_key"
       ],
       "title": "EmitAssetEvent",
       "type": "object"

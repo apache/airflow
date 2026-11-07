@@ -32,7 +32,12 @@ from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBo
 
 
 class AddImmediateAssetEmission(VersionChange):
-    """Add native immediate asset-event emission."""
+    """
+    Add native immediate asset-event emission.
+
+    A request names the asset by name, URI or both, and carries an idempotency key. A repeat of
+    the same key returns the first receipt, with ``replayed`` set.
+    """
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (endpoint("/asset-events/emit", ["POST"]).didnt_exist,)
