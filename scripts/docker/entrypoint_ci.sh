@@ -239,11 +239,16 @@ SSH_CONFIG
         export PYTHONPATH=${PYTHONPATH=}:/opt/airflow/providers/standard/tests
     fi
 
+    # Provider testing Dags apply to both breeze shell and start-airflow; example Dags only to start-airflow.
+    if [[ -n ${LOAD_PROVIDER_TESTING_DAGS=} ]]; then
+        AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST=$(python -m tests_common.test_utils.testing_dags "${LOAD_PROVIDER_TESTING_DAGS}")
+        export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST
+    fi
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
+        export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
             export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
         fi
-        export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         if [[ ${SKIP_ASSETS_COMPILATION:="false"} == "false" ]]; then
             wait_for_asset_compilation
         fi
