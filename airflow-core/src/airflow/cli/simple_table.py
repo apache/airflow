@@ -82,7 +82,7 @@ class AirflowConsole(Console):
             return
         rows = [d.values() for d in data]
         output = tabulate(rows, tablefmt="plain", headers=list(data[0]))
-        self.print(output, markup=False)
+        self.print(output, markup=False, highlight=False, soft_wrap=True)
 
     def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
         if isinstance(value, (tuple, list)):
