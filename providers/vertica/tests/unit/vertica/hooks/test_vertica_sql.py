@@ -149,10 +149,11 @@ def test_vertica_run_queries(
 ):
     if split_statements:
         mock_cursor.fetchall.side_effect = cursor_results
-        mock_cursor.nextset.side_effect = [True] * (len(cursor_results) - 1) + [False]
     else:
         mock_cursor.fetchall.return_value = cursor_results
-        mock_cursor.nextset.side_effect = lambda: False
+    # Each statement executed separately produces a single result set.
+    mock_cursor.nextset.side_effect = None
+    mock_cursor.nextset.return_value = False
 
     result = vertica_hook.run(
         sql,
@@ -168,8 +169,9 @@ def test_vertica_run_queries(
 
 def test_run_with_multiple_statements(vertica_hook, mock_cursor):
     mock_cursor.fetchall.side_effect = [[(1,)], [(2,)]]
-
-    mock_cursor.nextset.side_effect = [True, False]
+    # Statements are split, so each execute() produces a single result set.
+    mock_cursor.nextset.side_effect = None
+    mock_cursor.nextset.return_value = False
 
     sql = "SELECT 1; SELECT 2;"
 
