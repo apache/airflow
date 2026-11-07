@@ -31,7 +31,8 @@ from collections import abc
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
-from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, Union, cast, overload
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeGuard, Union, cast, overload
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -1348,12 +1349,19 @@ class DAG:
             manager.sync_bundles_to_db(session=session)
             session.commit()
 
-            # Re-sync the bundle that owns ``self`` so sibling DAGs (e.g. targets of
+            # Re-sync ``self`` and the Dags it triggers so sibling DAGs (e.g. targets of
             # TriggerDagRunOperator) are written to the metadata DB on every call,
             # not just the first one (apache/airflow#64884). When we can identify
-            # ``self``'s bundle from a prior sync we walk only that bundle; otherwise
-            # we walk every configured bundle until we find it. ``sync_bag_to_db``
-            # is idempotent at the per-DAG hash level.
+            # ``self``'s bundle from a prior sync we look only at that bundle; otherwise
+            # we walk every configured bundle until we find it.
+            #
+            # Within a bundle, only the files that define ``self`` and its trigger targets
+            # are parsed when those files are known (apache/airflow#72513). The whole
+            # bundle is walked when they are not: ``self`` lives outside the bundle, a
+            # target has never been parsed so its file is unknown, or a target is only
+            # resolvable at runtime. It is also walked when a parsed file no longer defines
+            # the Dag recorded for it, e.g. a target that moved to another file while its old
+            # file stays. ``sync_bag_to_db`` is idempotent at the per-DAG hash level.
             #
             # Note: we deliberately do NOT use ``_airflow_parsing_context_manager``
             # here. Setting ``_AIRFLOW_PARSING_CONTEXT_DAG_ID`` to ``self.dag_id``
@@ -1381,7 +1389,14 @@ class DAG:
                     dag_folder=bundle.path,
                     bundle_path=bundle.path,
                     bundle_name=bundle.name,
+                    collect_dags=False,
                 )
+                to_sync = _dag_test_files_to_sync(self, bundle, session=session)
+                if to_sync is not None:
+                    for file_path in to_sync.paths:
+                        dagbag.collect_dags(dag_folder=file_path)
+                if to_sync is None or not to_sync.dag_ids.issubset(dagbag.dags):
+                    dagbag.collect_dags()
                 sync_bag_to_db(dagbag, bundle.name, bundle.version)
                 if DagVersion.get_version(self.dag_id):
                     break
@@ -1517,6 +1532,84 @@ class DAG:
             if use_executor:
                 executor.end()
         return dr
+
+
+def _static_trigger_targets(dag: DAG) -> set[str] | None:
+    """
+    Return the dag ids that ``dag`` triggers through ``trigger_dag_id`` values known before runtime.
+
+    Any operator with a ``trigger_dag_id`` template field counts, so this does not depend on the
+    standard provider being importable. Returns ``None`` when at least one target cannot be
+    determined statically (a templated value, an XComArg, or a mapped operator expanding over it),
+    which tells the caller to fall back to syncing the whole bundle.
+    """
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    targets: set[str] = set()
+    for task in dag.tasks:
+        if "trigger_dag_id" not in task.template_fields:
+            continue
+        if isinstance(task, MappedOperator):
+            value = task.partial_kwargs.get("trigger_dag_id")
+        else:
+            value = getattr(task, "trigger_dag_id", None)
+        if not isinstance(value, str) or "{{" in value:
+            return None
+        targets.add(value)
+    targets.discard(dag.dag_id)
+    return targets
+
+
+class _DagTestFiles(NamedTuple):
+    """The files ``DAG.test()`` parses in a bundle, and the Dags they are expected to define."""
+
+    paths: list[Path]
+    dag_ids: set[str]
+
+
+def _dag_test_files_to_sync(dag: DAG, bundle, *, session) -> _DagTestFiles | None:
+    """
+    Return the files ``DAG.test()`` has to parse in ``bundle`` for ``dag``.
+
+    That is the file defining ``dag`` plus the files of the Dags it triggers, along with the ids of
+    those Dags. When parsing the files does not yield all of them, the metadata DB is out of date
+    (a target moved to another file, say) and the caller walks the whole bundle. Returns ``None``
+    when the whole bundle has to be walked anyway: ``dag`` is not defined inside the bundle, a
+    trigger target is not resolvable statically, or a target has never been parsed, so the metadata
+    DB does not know which file defines it (apache/airflow#64884).
+    """
+    from airflow.models.dag import DagModel
+
+    bundle_path = Path(bundle.path).resolve()
+    own_file = Path(dag.fileloc).resolve()
+    if not own_file.is_relative_to(bundle_path):
+        return None
+
+    targets = _static_trigger_targets(dag)
+    if targets is None:
+        return None
+
+    files = {own_file}
+    dag_ids = {dag.dag_id}
+    for target_id in sorted(targets):
+        target_model = DagModel.get_current(target_id, session=session)
+        if target_model is None:
+            return None
+        if target_model.bundle_name != bundle.name:
+            # Defined in another bundle; it is already known, and this bundle cannot refresh it.
+            continue
+        if target_model.relative_fileloc:
+            target_file = bundle_path / target_model.relative_fileloc
+        elif target_model.fileloc:
+            target_file = Path(target_model.fileloc)
+        else:
+            return None
+        target_file = target_file.resolve()
+        if not target_file.is_relative_to(bundle_path) or not target_file.is_file():
+            return None
+        files.add(target_file)
+        dag_ids.add(target_id)
+    return _DagTestFiles(paths=sorted(files), dag_ids=dag_ids)
 
 
 def _run_task(
