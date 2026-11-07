@@ -951,6 +951,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
 
+    # Additional fields, declared by subclasses, that should be rendered with
+    # Jinja and treated as ``XComArg`` capable in addition to ``template_fields``.
+    # Use this for string fields that are intentionally not promoted into
+    # ``template_fields`` but still need to receive XCom references (such as
+    # ``some_task.output``) from upstream tasks.
+    template_fields_extra: ClassVar[frozenset[str]] = frozenset()
+
     # Names of constructor fields whose values may contain Pydantic model classes
     # this operator can emit to XCom (e.g. ``("output_type",)``). The worker
     # registers those classes in the deserialization allow-list before running
@@ -1251,6 +1258,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             self.template_fields = [self.template_fields]
+
+        # Merge ``template_fields_extra`` (declared on the operator class) into
+        # ``template_fields`` on this instance. ``XComArg`` dependency
+        # tracking and Jinja rendering both operate on ``template_fields``, so
+        # materialising the union here means downstream code does not have to
+        # know about the secondary list at all. ``template_fields_extra``
+        # itself stays class-scoped so that round-trips through serialization
+        # can recover the override from the class alone.
+        extra = type(self).template_fields_extra
+        if extra:
+            self.template_fields = tuple(dict.fromkeys((*self.template_fields, *extra)))
 
         self.is_setup = False
         self.is_teardown = False
@@ -1583,6 +1601,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "ui_fgcolor",
                     "template_ext",
                     "template_fields",
+                    "template_fields_extra",
                     "template_fields_renderers",
                     "params",
                     "is_setup",
