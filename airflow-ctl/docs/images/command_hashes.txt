@@ -1,5 +1,5 @@
 main:2c358f5fc894541cab11854dcd67658a
-assets:4ec546634ac98b220969450db85b98d1
+assets:70619a2d92bda80930cde2aefcd8e1cd
 auth:5aeefc79ee662adbd7cbfb51e1c1de4b
 backfill:74c8737b0a62a86ed3605fa9e6165874
 config:a3d936cb15fe3b547bf6c82cf93d923f

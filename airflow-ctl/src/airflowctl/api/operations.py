@@ -26,11 +26,6 @@ import httpx
 import structlog
 from pydantic import BaseModel, ValidationError
 
-from airflowctl.api.datamodels.asset_state_store import (
-    AssetStateStoreBody,
-    AssetStateStoreCollectionResponse,
-    AssetStateStoreResponse,
-)
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
@@ -367,42 +362,6 @@ class AssetsOperations(BaseOperations):
         self.client.delete(
             f"dags/{_quote_path_param(dag_id)}/assets/{_quote_path_param(asset_id)}/queuedEvents"
         )
-        return asset_id
-
-    def list_state_store(self, asset_id: str) -> AssetStateStoreCollectionResponse | ServerResponseError:
-        """List all state store entries for an asset."""
-        return super().execute_list(
-            path=f"assets/{_quote_path_param(asset_id)}/state-store",
-            data_model=AssetStateStoreCollectionResponse,
-        )
-
-    def get_state_store(self, asset_id: str, key: str) -> AssetStateStoreResponse | ServerResponseError:
-        """Get a single asset state store entry."""
-        self.response = self.client.get(
-            f"assets/{_quote_path_param(asset_id)}/state-store/{_quote_path_param(key)}"
-        )
-        return AssetStateStoreResponse.model_validate_json(self.response.content)
-
-    def set_state_store(self, asset_id: str, key: str, value: str) -> str | ServerResponseError:
-        """Set an asset state store value. Creates or overwrites the key."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
-        self.client.put(
-            f"assets/{_quote_path_param(asset_id)}/state-store/{_quote_path_param(key)}",
-            json=AssetStateStoreBody(value=parsed_value).model_dump(mode="json"),
-        )
-        return key
-
-    def delete_state_store(self, asset_id: str, key: str) -> str | ServerResponseError:
-        """Delete a single asset state store key."""
-        self.client.delete(f"assets/{_quote_path_param(asset_id)}/state-store/{_quote_path_param(key)}")
-        return key
-
-    def clear_state_store(self, asset_id: str) -> str | ServerResponseError:
-        """Delete all state store keys for an asset."""
-        self.client.delete(f"assets/{_quote_path_param(asset_id)}/state-store")
         return asset_id
 
 
