@@ -1,0 +1,3 @@
+The default PgBouncer ``preStop`` hook has been removed.
+
+The chart no longer sets ``killall -INT pgbouncer && sleep 120`` as the default ``pgbouncer.containerLifecycleHooks.preStop``. PgBouncer now shuts down on SIGTERM, keeping already connected clients served until they disconnect or ``pgbouncer.terminationGracePeriodSeconds`` (default 120) runs out, while the terminating pod is removed from the Service endpoints. If you relied on the old hook, set ``pgbouncer.containerLifecycleHooks`` explicitly.
