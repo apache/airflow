@@ -21,16 +21,26 @@ response on the event loop: each item's attributes are then resolved there, on t
 engine, so a lazy relationship or a ``selectin`` post-load becomes a query that blocks
 the whole API server once the connection pool is busy. ``list[...]`` validates on
 construction, inside the route, and renders to the same ``type: array`` in the OpenAPI
-schema, so there is no reason to declare one of these fields lazily.
+schema, so the two annotations read as interchangeable while only one of them is safe to
+hand a query.
 
 Every pydantic model under ``airflow.api_fastapi`` is checked, not only the collection
 responses: the hazard is the annotation, not the name of the class holding it. A model
 defined inside a function is out of reach, and so is a response model that lives outside
 the package, such as one belonging to a provider's auth manager app.
 
-The fields that predate this test are listed in
-``generated/known_lazy_response_fields.txt`` as strict xfails. The collection ones are
-tracked for migration in #76425.
+Declaring a field ``Iterable[...]`` was a deliberate choice in #57878, to spare the routes
+a ``list()`` or ``.all()`` that SQLA2's typing had made them add. Whether that costs
+anything is decided at the route, not here, so the two lists below split the existing
+fields by what their routes actually pass:
+
+* ``generated/known_lazy_response_fields.txt`` -- something unresolved reaches the loop,
+  either the lazy ``session.scalars(...)`` itself or ORM rows the response then
+  lazy-loads from. Each line is a strict xfail and the list can only shrink; they are
+  tracked for migration in #76683.
+* ``LAZY_FIELDS_WITHOUT_SYNC_QUERY`` -- the items arrive already resolved, so validating
+  them on the loop queries nothing. The annotation still permits the hazard, which no
+  test can see from here; these are exempt, not pending, and the set is closed.
 """
 
 from __future__ import annotations
@@ -87,6 +97,42 @@ def _read_known(path: Path) -> list[str]:
 
 
 KNOWN_LAZY_FIELDS = _read_known(KNOWN_LAZY_FIELDS_FILE)
+
+_CORE_DATAMODELS = "airflow-core/src/airflow/api_fastapi/core_api/datamodels"
+_EXECUTION_DATAMODELS = "airflow-core/src/airflow/api_fastapi/execution_api/datamodels"
+
+# Lazy annotations that nothing unresolved reaches the event loop through. Materializing
+# the container is not enough to earn a place here: pydantic still validates each item
+# during serialization, so an ORM row whose attributes the response reads would be
+# lazy-loaded there anyway. What makes these safe is that every route hands the field
+# items that are already validated responses, or ORM rows with everything the response
+# reads already loaded. Each one was read to confirm it; the grouping below says which.
+#
+# This set is closed. A new field goes in as list[...], not in here.
+LAZY_FIELDS_WITHOUT_SYNC_QUERY = frozenset(
+    {
+        # The route builds the response objects itself, so validation has nothing to
+        # resolve. ``task_coordinate_responses`` and ``serialize_asset_events`` both
+        # return a list of responses, and prefetch what building them needs.
+        f"{_CORE_DATAMODELS}/assets.py::AssetEventCollectionResponse.asset_events",
+        f"{_CORE_DATAMODELS}/dag_bundles.py::DagBundleCollectionResponse.dag_bundles",
+        f"{_CORE_DATAMODELS}/dag_bundles.py::DagBundleFileCollectionResponse.dag_bundle_files",
+        f"{_CORE_DATAMODELS}/event_logs.py::EventLogCollectionResponse.event_logs",
+        f"{_CORE_DATAMODELS}/hitl.py::HITLDetailCollection.hitl_details",
+        f"{_CORE_DATAMODELS}/task_instances.py::ClearTaskInstanceCollectionResponse.task_instances",
+        f"{_CORE_DATAMODELS}/task_instances.py::TaskInstanceCollectionResponse.task_instances",
+        f"{_CORE_DATAMODELS}/xcom.py::XComCollectionResponse.xcom_entries",
+        # ORM rows, but the response reads only their own columns.
+        f"{_CORE_DATAMODELS}/import_error.py::ImportErrorCollectionResponse.import_errors",
+        # ORM rows, and ``joinedload(Job.dag_model)`` covers the one relationship the
+        # response reads, through ``dag_display_name``'s AliasPath.
+        f"{_CORE_DATAMODELS}/job.py::JobCollectionResponse.jobs",
+        # A JSON column's value, already a list by the time the response is built.
+        f"{_EXECUTION_DATAMODELS}/hitl.py::HITLDetailResponse.chosen_options",
+        # A generator, but over a result its route already awaited on the async engine.
+        f"{_EXECUTION_DATAMODELS}/taskinstance.py::TaskBreadcrumbsResponse.breadcrumbs",
+    }
+)
 
 
 def _build_xfail_params(entries: list[str], reason: str) -> list:
@@ -275,16 +321,34 @@ def test_unlisted_response_fields_are_not_lazy():
     # Keeps this from passing vacuously if the package moves or the filter above narrows.
     assert len(models) > 100, f"only {len(models)} models discovered under {airflow.api_fastapi.__name__}"
 
-    offenders = sorted(_find_api_fastapi_lazy_fields() - set(KNOWN_LAZY_FIELDS))
+    accounted_for = set(KNOWN_LAZY_FIELDS) | LAZY_FIELDS_WITHOUT_SYNC_QUERY
+    offenders = sorted(_find_api_fastapi_lazy_fields() - accounted_for)
     if offenders:
         pytest.fail(
             "These response fields are validated lazily, so the items are resolved while FastAPI "
             "serializes the response on the event loop and any query they trigger there blocks the "
-            "whole API server. Declare them as list[...]; the OpenAPI schema is unchanged. "
-            "generated/known_lazy_response_fields.txt holds the fields that predate this test, and "
-            "is not a place to add new ones:\n" + "\n".join(offenders),
+            "whole API server. Declare them as list[...]; the OpenAPI schema is unchanged. Neither "
+            "list in this test takes new entries: generated/known_lazy_response_fields.txt is for "
+            "the fields that predate it, and LAZY_FIELDS_WITHOUT_SYNC_QUERY is closed, because a "
+            "route that resolves its items today is one refactor away from not doing so:\n"
+            + "\n".join(offenders),
             pytrace=False,
         )
+
+
+def test_exempt_fields_are_still_lazy():
+    """A field that is no longer lazy has to leave the exempt set, or it silently rots there."""
+    stale = sorted(LAZY_FIELDS_WITHOUT_SYNC_QUERY - _find_api_fastapi_lazy_fields())
+    assert not stale, (
+        "No longer declared lazily, so the entries are dead: "
+        + ", ".join(stale)
+        + ".\nDelete them from LAZY_FIELDS_WITHOUT_SYNC_QUERY."
+    )
+
+
+def test_the_two_lists_do_not_overlap():
+    """A field is either pending migration or exempt from it, never both."""
+    assert not LAZY_FIELDS_WITHOUT_SYNC_QUERY & set(KNOWN_LAZY_FIELDS)
 
 
 @pytest.mark.parametrize(
