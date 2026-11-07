@@ -229,10 +229,24 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
         :param append: if False, any existing log file is overwritten. If True,
-            the new log is appended to any existing logs.
+            the new log is appended to any existing logs; if the existing log cannot be
+            read, nothing is written and ``False`` is returned.
         """
-        if append and self.wasb_log_exists(remote_log_location):
-            old_log = self.wasb_read(remote_log_location)
+        if append:
+            try:
+                old_log = ""
+                if self.hook.check_for_blob(self.wasb_container, remote_log_location):
+                    old_log = self.hook.read_file(self.wasb_container, remote_log_location)
+            except Exception as e:
+                # Uploading only the new content here would replace the existing blob and lose the
+                # log history already stored in it. Keep the local log and let the next upload retry.
+                self.log.warning(
+                    "Refusing to overwrite remote log %s: could not read existing content (%s). "
+                    "Keeping local logs for later retry.",
+                    remote_log_location,
+                    e,
+                )
+                return False
             if old_log:
                 sep = "" if old_log.endswith("\n") else "\n"
                 log = f"{old_log}{sep}{log}"
