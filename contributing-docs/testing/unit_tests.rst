@@ -139,9 +139,14 @@ test types you want to use in various ``breeze testing`` sub-commands in three w
 The defined test types are:
 
 * ``Always`` - Tests that should always be executed (always sub-folder).
-* ``API`` - Tests for the Airflow API (api, api_internal, api_fastapi sub-folders).
-* ``CLI`` - Tests for the Airflow CLI (cli folder).
-* ``Core`` - Tests for core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders).
+* ``API`` - Tests for the Airflow API (api, api_internal, api_fastapi sub-folders), except the ``PublicAPI`` tests.
+* ``PublicAPI`` - Tests for the public REST API routes (api_fastapi/core_api/routes/public folder).
+* ``CLI`` - Tests for the Airflow CLI (cli folder), except the ``CLITask`` tests.
+* ``CLITask`` - Tests for the ``airflow tasks`` CLI commands (cli/commands/test_task_command.py).
+* ``Core`` - Tests for core Airflow functionality (core, executors, jobs, ti_deps, utils sub-folders).
+* ``Models`` - Tests for the Airflow models (models folder), except the ``ModelsTI`` tests.
+* ``ModelsTI`` - Tests for task instances and mapped operators (test_cleartasks.py, test_mappedoperator.py
+  and test_taskinstance.py in the models folder).
 * ``Operators`` - Tests for operators (operators folder).
 * ``WWW`` - Tests for the Airflow webserver (www folder).
 * ``Providers`` - Tests for all Airflow Providers (providers folder).
