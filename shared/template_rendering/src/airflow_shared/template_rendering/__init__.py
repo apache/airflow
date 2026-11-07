@@ -17,6 +17,10 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import jinja2
 
 log = logging.getLogger(__name__)
 
@@ -78,9 +82,33 @@ def truncate_rendered_value(rendered: str, max_length: int) -> str:
     return result
 
 
+def render_callback_kwargs(kwargs: dict, context: dict, env: jinja2.Environment) -> dict:
+    """
+    Render the string values of callback ``kwargs`` that hold a Jinja template, using ``context``.
+
+    Used by both the triggerer and the executor callback paths, with Airflow's template environment.
+    Other values and the ``context`` key are left as they are. A template that fails to render is
+    passed on unrendered and a warning is logged, so a bad template does not stop the callback.
+    """
+    rendered = dict(kwargs)
+    for key, value in kwargs.items():
+        if key != "context" and isinstance(value, str) and "{{" in value:
+            try:
+                rendered[key] = env.from_string(value).render(context)
+            except Exception as e:
+                log.warning(
+                    "Could not render the template in callback kwarg %r, passing it unrendered: %s: %s",
+                    key,
+                    type(e).__name__,
+                    e,
+                )
+    return rendered
+
+
 __all__ = [
     "TRUNCATE_MIN_CONTENT_LENGTH",
     "TRUNCATE_PREFIX",
     "TRUNCATE_SUFFIX",
+    "render_callback_kwargs",
     "truncate_rendered_value",
 ]
