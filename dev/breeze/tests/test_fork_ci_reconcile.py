@@ -19,10 +19,13 @@ from __future__ import annotations
 import base64
 import dataclasses
 import json
+import subprocess
 from datetime import UTC, datetime, timedelta, timezone
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import fork_ci_reconcile
@@ -3586,10 +3589,18 @@ def _passed_node(number=1, *, state=None, description=None, suites=(), oid=None)
 
 
 def _passed_suite(
-    run_id, *, check="CI passed", conclusion="SUCCESS", created="2026-11-10T10:00:00Z", **kwargs
+    run_id,
+    *,
+    conclusion="SUCCESS",
+    created="2026-11-10T10:00:00Z",
+    cancelled=0,
+    not_run=0,
+    **kwargs,
 ):
     suite = _suite(run_id, created=created, **kwargs)
-    suite["checkRuns"] = {"nodes": [{"name": check, "conclusion": conclusion}]}
+    suite["checkRuns"] = {"nodes": [{"name": "CI passed", "conclusion": conclusion}] if conclusion else []}
+    suite["cancelled"] = {"totalCount": cancelled}
+    suite["notRun"] = {"totalCount": not_run}
     return suite
 
 
@@ -3611,6 +3622,21 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
             id="fork-success-revoked",
         ),
         pytest.param(_passed_node(), None, id="no-status-left-alone"),
+        pytest.param(
+            _passed_node(suites=[_passed_suite(5)]), None, id="no-status-is-not-created-after-project-ci"
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[
+                    _passed_suite(5, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(6, cancelled=1, conclusion=None),
+                ],
+            ),
+            ("success", "https://github.com/apache/airflow/actions/runs/5", CI_PASSED_PROJECT_DESCRIPTION),
+            id="newer-cancelled-run-does-not-hide-an-older-success",
+        ),
         pytest.param(_passed_node(state="PENDING", description="x"), None, id="pending-left-alone"),
         pytest.param(
             _passed_node(
@@ -3623,7 +3649,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
             _passed_node(
                 state="SUCCESS",
                 description=CI_PASSED_DESCRIPTION,
-                suites=[_passed_suite(5, check="CI passed (run cancelled)")],
+                suites=[_passed_suite(5, cancelled=1, conclusion=None)],
             ),
             WAITING,
             id="cancelled-run",
@@ -3632,7 +3658,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
             _passed_node(
                 state="SUCCESS",
                 description=CI_PASSED_DESCRIPTION,
-                suites=[_passed_suite(5, check="CI passed (project CI not run)")],
+                suites=[_passed_suite(5, not_run=1, conclusion=None)],
             ),
             WAITING,
             id="project-ci-not-run",
@@ -3718,22 +3744,49 @@ def test_report_project_ci_passed_keeps_going_after_an_error(client):
     assert attention == [(1, "`CI passed` not updated: GitHubError")]
 
 
+def _rest_for_project_ci_passed(runs, checks):
+    """``rest_get`` of a commit with these workflow runs and (name, conclusion, check suite id) checks."""
+
+    def rest_get(path, **_):
+        if "/actions/runs" in path:
+            assert "per_page=100" in path
+            return {"workflow_runs": runs}
+        assert "per_page=100" in path
+        return {
+            "check_runs": [
+                {"name": name, "conclusion": conclusion, "check_suite": {"id": suite_id}}
+                for name, conclusion, suite_id in checks
+                if f"check_name={quote(name)}&" in path
+            ]
+        }
+
+    return rest_get
+
+
 @pytest.mark.parametrize(
-    ("check_suite_id", "conclusion", "expected"),
+    ("checks", "expected"),
     [
-        pytest.param(7, "success", PROJECT_PASSED_URL, id="passed"),
-        pytest.param(7, "failure", None, id="failed"),
-        pytest.param(8, "success", None, id="check-of-another-run"),
+        pytest.param(
+            [("CI passed", "success", 8)], "https://github.com/apache/airflow/actions/runs/6", id="passed"
+        ),
+        pytest.param([("CI passed", "failure", 8)], None, id="failed"),
+        pytest.param([("CI passed", "success", 9)], None, id="check-of-another-run"),
+        pytest.param(
+            [("CI passed", "success", 7), ("CI passed (run cancelled)", "success", 8)],
+            PROJECT_PASSED_URL,
+            id="newer-cancelled-run-does-not-hide-an-older-success",
+        ),
+        pytest.param(
+            [("CI passed", "success", 8), ("CI passed (project CI not run)", "success", 8)],
+            None,
+            id="not-run",
+        ),
     ],
 )
-def test_read_project_ci_passed_url(client, check_suite_id, conclusion, expected):
-    run = {**_run_json(5), "check_suite_id": 7, "html_url": PROJECT_PASSED_URL}
-    check = {"name": "CI passed", "conclusion": conclusion, "check_suite": {"id": check_suite_id}}
-    client.rest_get.side_effect = lambda path, **_: (
-        {"workflow_runs": [run, {**_run_json(4), "check_suite_id": 8}]}
-        if "/actions/runs" in path
-        else {"check_runs": [check]}
-    )
+def test_read_project_ci_passed_url(client, checks, expected):
+    older = {**_run_json(5), "check_suite_id": 7, "html_url": PROJECT_PASSED_URL}
+    newer = {**_run_json(6), "check_suite_id": 8}
+    client.rest_get.side_effect = _rest_for_project_ci_passed([newer, older], checks)
 
     assert read_project_ci_passed_url(client, REPO, "sha1") == expected
 
@@ -3947,10 +4000,7 @@ def test_find_project_ci_passed_url_accepts_the_workflow_files_of_release_branch
 
 def test_read_project_ci_passed_url_accepts_the_workflow_files_of_release_branches(client):
     run = {**_run_json(5, "ci.yml"), "check_suite_id": 7}
-    check = {"name": "CI passed", "conclusion": "success", "check_suite": {"id": 7}}
-    client.rest_get.side_effect = lambda path, **_: (
-        {"workflow_runs": [run]} if "/actions/runs" in path else {"check_runs": [check]}
-    )
+    client.rest_get.side_effect = _rest_for_project_ci_passed([run], [("CI passed", "success", 7)])
 
     assert read_project_ci_passed_url(client, REPO, "sha1") == PROJECT_PASSED_URL
 
@@ -3992,3 +4042,65 @@ def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_
     assert (
         "reporting `CI passed` for `use project ci` failed: GitHubError" in (tmp_path / "s.json").read_text()
     )
+
+
+def test_report_project_ci_passed_counts_only_the_successes_that_were_written(client):
+    client.graphql.return_value = _search_result(
+        *(_passed_node(n, state="PENDING", description="x", suites=[_passed_suite(5)]) for n in (1, 2, 3))
+    )
+    client.set_status.side_effect = [GitHubError("HTTP 502"), None, None]
+
+    assert report_project_ci_passed(client, repo=REPO, attention=[], budget=1) == [2]
+
+
+LABEL_WORKFLOW = AIRFLOW_ROOT_PATH / ".github" / "workflows" / "fork-ci-project-ci-label.yml"
+
+FAKE_GH = """#!/bin/bash
+echo "$*" >> "$GH_LOG"
+case "$*" in
+  *"-X POST"*) printf 'pending\\tWaiting' > "$STATUS_FILE" ;;
+  *"/status?"*) cat "$STATUS_FILE" ;;
+  *"fork-ci-monitor.yml"*) echo 0 ;;
+esac
+"""
+
+
+@pytest.mark.parametrize(
+    ("status", "posts"),
+    [
+        pytest.param("success\tFork CI passed for this commit", 1, id="fork-success-is-revoked-once"),
+        pytest.param("success\tProject CI passed for this commit", 0, id="project-success-is-kept"),
+        pytest.param("pending\tWaiting for project CI (use project ci)", 0, id="pending-is-kept"),
+        pytest.param("", 0, id="no-status-is-not-created"),
+    ],
+)
+def test_label_workflow_script_revokes_only_a_fork_success(tmp_path, status, posts):
+    steps = yaml.safe_load(LABEL_WORKFLOW.read_text())["jobs"]["revoke-fork-ci-passed"]["steps"]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "gh").write_text(FAKE_GH)
+    (bin_dir / "sleep").write_text("#!/bin/bash\n")
+    for tool in bin_dir.iterdir():
+        tool.chmod(0o755)
+    status_file = tmp_path / "status"
+    status_file.write_text(status)
+    log = tmp_path / "gh.log"
+
+    subprocess.run(
+        ["bash", "-c", steps[0]["run"]],
+        env={
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "GH_LOG": str(log),
+            "STATUS_FILE": str(status_file),
+            "REPOSITORY": REPO,
+            "HEAD_SHA": "abc",
+            "PR_NUMBER": "1",
+        },
+        check=True,
+    )
+
+    posted = [line for line in log.read_text().splitlines() if "-X POST" in line]
+    assert len(posted) == posts
+    if posts:
+        assert f"repos/{REPO}/statuses/abc" in posted[0]
+        assert "state=pending" in posted[0]

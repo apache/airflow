@@ -16,28 +16,31 @@
 # under the License.
 #
 ---
-# AIP-120: when a maintainer adds `use project ci` to a pull request whose fork CI passed, the
-# `CI passed` commit status the Fork CI monitor posted from the fork run must stop satisfying the
-# merge ruleset at once, not at the monitor's next 15-minute run, and again once the monitor runs
-# under way have finished. Revoking it is the only thing this workflow does; project CI's result
-# is reported by the monitor. It never checks out or runs pull request code and reads nothing from
-# the pull request but its head commit SHA. See
-# dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+# AIP-120: when a maintainer adds `use project ci` to a pull request whose fork CI passed, or a
+# pull request carrying it gets a new head commit or is reopened, the `CI passed` commit status
+# posted from a fork run must stop satisfying the merge ruleset at once, not at the Fork CI
+# monitor's next 15-minute run, and again once the monitor runs under way have finished. Revoking
+# it is the only thing this workflow does; project CI's result is reported by the monitor. It never
+# checks out or runs pull request code and reads nothing from the pull request but its head commit
+# SHA. See dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
 #
 # Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
 # this file is closed by the Fork CI monitor ("Gate protection" in the document above).
 name: "Fork CI project CI label"
 on:  # yamllint disable-line rule:truthy
   pull_request_target:  # zizmor: ignore[dangerous-triggers]
-    types: [labeled]
+    types: [labeled, synchronize, reopened]
 permissions: {}
 
 jobs:
   revoke-fork-ci-passed:
     name: "Revoke the fork CI result of a pull request moved to project CI"
     if: >
-      github.repository == 'apache/airflow' &&
-      github.event.label.name == 'use project ci'
+      github.repository == 'apache/airflow' && (
+        (github.event.action == 'labeled' && github.event.label.name == 'use project ci') ||
+        (github.event.action != 'labeled' &&
+          contains(github.event.pull_request.labels.*.name, 'use project ci'))
+      )
     permissions:
       # Reading and writing the `CI passed` commit status of the head commit.
       statuses: write
@@ -85,7 +88,7 @@ jobs:
           revoke_with_retries || echo "::warning::First revoke failed; retrying later"
           # A monitor run that read the pull request before it was labelled can still post a fork
           # success after the revoke above. Once the runs under way have finished, revoke again.
-          deadline=$((SECONDS + 600))
+          deadline=$((SECONDS + 720))
           while ((SECONDS < deadline)); do
             active=0
             for run_status in queued in_progress; do

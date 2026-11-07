@@ -125,6 +125,7 @@ GATED_RUN_JOBS = (
 GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
 CHECK_RUN_NEEDED_JOB_NAME = "Check if the run is needed"
 PROJECT_CI_NOT_RUN_JOB_NAME = "CI passed (project CI not run)"
+CI_PASSED_CANCELLED_JOB_NAME = "CI passed (run cancelled)"
 BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
@@ -1143,6 +1144,8 @@ query($q: String!, $cursor: String) {
           createdAt
           workflowRun { url event workflow { resourcePath } }
           checkRuns(first: 10, filterBy: {checkName: "%(context)s"}) { nodes { name conclusion } }
+          cancelled: checkRuns(first: 1, filterBy: {checkName: "%(cancelled)s"}) { totalCount }
+          notRun: checkRuns(first: 1, filterBy: {checkName: "%(not_run)s"}) { totalCount }
         } }
       } } }
     } }
@@ -1165,7 +1168,8 @@ def find_project_ci_passed_url(node: dict[str, Any]) -> str | None:
     """
     The latest project CI pull_request run's URL when its `CI passed` job succeeded on the head commit.
 
-    The job reports under another name when the run was cancelled or skipped, which does not count.
+    The job reports under another name when the run was cancelled or skipped; such a run does not
+    count, nor does it hide an older run's result.
     None also when the last commit listed is not the head; ``read_project_ci_passed_url`` reads that.
     """
     if not is_head_listed(node):
@@ -1175,6 +1179,9 @@ def find_project_ci_passed_url(node: dict[str, Any]) -> str | None:
         for suite in (node["commits"]["nodes"][0]["commit"].get("checkSuites") or {}).get("nodes") or []
         if (run := suite.get("workflowRun") or {}).get("event") == "pull_request"
         and _workflow_file((run.get("workflow") or {}).get("resourcePath")) in PROJECT_CI_WORKFLOW_FILES
+    ]
+    suites = [
+        suite for suite in suites if not suite["cancelled"]["totalCount"] + suite["notRun"]["totalCount"]
     ]
     latest = max(suites, key=lambda suite: suite["createdAt"], default=None)
     if latest and any(
@@ -1196,16 +1203,25 @@ def read_project_ci_passed_url(client: GitHubClient, repo: str, head_sha: str) -
     ]
     if not runs:
         return None
-    checks = client.rest_get(
-        f"repos/{repo}/commits/{head_sha}/check-runs?check_name={quote(CI_PASSED_CONTEXT)}&filter=latest"
-    ).get("check_runs", [])
-    if any(
+
+    def get_check_runs(name: str) -> list[dict[str, Any]]:
+        return client.rest_get(
+            f"repos/{repo}/commits/{head_sha}/check-runs?check_name={quote(name)}&filter=latest&per_page=100"
+        ).get("check_runs", [])
+
+    skipped_suites = {
+        check["check_suite"]["id"]
+        for name in (CI_PASSED_CANCELLED_JOB_NAME, PROJECT_CI_NOT_RUN_JOB_NAME)
+        for check in get_check_runs(name)
+    }
+    run = next((run for run in runs if run["check_suite_id"] not in skipped_suites), None)
+    if run and any(
         check["name"] == CI_PASSED_CONTEXT
         and check["conclusion"] == "success"
-        and check["check_suite"]["id"] == runs[0]["check_suite_id"]
-        for check in checks
+        and check["check_suite"]["id"] == run["check_suite_id"]
+        for check in get_check_runs(CI_PASSED_CONTEXT)
     ):
-        return runs[0]["html_url"]
+        return run["html_url"]
     return None
 
 
@@ -1264,7 +1280,13 @@ def report_project_ci_passed(
     successes = 0
     for node in _search(
         client,
-        PROJECT_CI_PASSED_QUERY % {"context": CI_PASSED_CONTEXT, "app_id": GITHUB_ACTIONS_APP_ID},
+        PROJECT_CI_PASSED_QUERY
+        % {
+            "context": CI_PASSED_CONTEXT,
+            "cancelled": CI_PASSED_CANCELLED_JOB_NAME,
+            "not_run": PROJECT_CI_NOT_RUN_JOB_NAME,
+            "app_id": GITHUB_ACTIONS_APP_ID,
+        },
         f'repo:{repo} is:pr is:open label:"{LABEL_USE_PROJECT_CI}" sort:updated-desc',
     ):
         try:
@@ -1283,6 +1305,10 @@ def report_project_ci_passed(
                 )
                 state, description = rest_status.get("state"), rest_status.get("description")
                 passed_url = read_project_ci_passed_url(client, repo, node["headRefOid"])
+            # Both the status and the project check run must pass when they share a name, so a
+            # status the monitor or the label workflow never posted is not created here.
+            if not state:
+                continue
             if passed_url:
                 if (state, description) == ("success", CI_PASSED_PROJECT_DESCRIPTION):
                     continue
@@ -1291,7 +1317,6 @@ def report_project_ci_passed(
                         f"[info]`{CI_PASSED_CONTEXT}` of more pull requests left for the next run[/]"
                     )
                     continue
-                successes += 1
                 change = ("success", passed_url, CI_PASSED_PROJECT_DESCRIPTION)
             elif state == "success":
                 change = (
@@ -1303,6 +1328,7 @@ def report_project_ci_passed(
                 continue
             client.set_status(node["number"], node["headRefOid"], *change, context=CI_PASSED_CONTEXT)
             written.append(node["number"])
+            successes += change[0] == "success"
         except Exception as e:
             console_print(f"[error]#{node['number']}: `{CI_PASSED_CONTEXT}` not updated: {e}[/]")
             attention.append((node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {type(e).__name__}"))

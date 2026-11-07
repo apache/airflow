@@ -954,31 +954,41 @@ is the source the ruleset accepts.
   it is not evidence. Once a maintainer adds `use project ci`, project CI reports the check.
 - When the head commit leaves `green`, for example a re-run in the fork that fails, a `success`
   posted earlier is overwritten with `pending` so the pull request cannot merge on it.
-- A pull request carrying `use project ci` cannot merge on the fork result. When the label is
-  added, `fork-ci-project-ci-label.yml` (a `pull_request_target` workflow with only `statuses:
-  write` and `actions: read`, which checks nothing out and reads only the head SHA from the event) overwrites a fork
-  `success` with `pending` ("Waiting for project CI (use project ci)"). Every monitor run also
-  searches the open pull requests carrying the label, as they have left the state machine: while
-  the latest `ci-amd.yml` `pull_request` run on the head commit has no succeeded job named exactly
-  `CI passed`, a `success` is overwritten with `pending`; once it has, the monitor posts `success`
-  ("Project CI passed for this commit"), because GitHub does not document which of a commit
-  status and a check run of one name wins for a required context. The check run's names
-  `CI passed (run cancelled)` and `CI passed (project CI not run)` do not count, nor does a run
-  on another commit. Adding the label does not start project CI (see "Override labels"): the
-  pull request stays blocked until a maintainer starts it and it passes, and then until the next
-  monitor run posts the `success`, which can take about 15 minutes. Removing the label returns
-  the pull request to the normal flow above.
+- A pull request carrying `use project ci` cannot merge on the fork result. GitHub requires both to
+  pass when a check run and a commit status have the same name and that name is required, so the
+  `CI passed` status and project CI's `CI passed` check run must both succeed. When the label is
+  added, or a labelled pull request gets a new head commit or is reopened, `fork-ci-project-ci-label.yml`
+  (a `pull_request_target` workflow with only `statuses: write` and `actions: read`, which checks
+  nothing out and reads only the head SHA from the event) overwrites a fork `success` with `pending`
+  ("Waiting for project CI (use project ci)"). The new head commit case matters because the commit
+  can already carry a fork `success` posted for another gated pull request on it, and project CI's
+  check run does not exist while it runs.
+- Every monitor run also searches the open pull requests carrying the label, as they have left the
+  state machine, and keeps the status in line with project CI. It only writes when the head commit
+  already has a `CI passed` status: the project check run alone decides otherwise, and a `pending`
+  the monitor created would block the pull request after project CI passed. The project CI result is
+  the newest `pull_request` run of a project CI workflow file on the head commit whose job named
+  exactly `CI passed` exists; a run that reports `CI passed (run cancelled)` or
+  `CI passed (project CI not run)` is ignored and does not hide an older run's result. While that
+  job has not succeeded, a `success` is overwritten with `pending`; once it has, the monitor posts
+  `success` ("Project CI passed for this commit"). Adding the label does not start project CI (see
+  "Override labels"): the pull request stays blocked until a maintainer starts it and it passes,
+  and then until the next monitor run posts the `success`, which can take about 15 minutes.
+  Removing the label returns the pull request to the normal flow above.
 - A commit status belongs to the commit, so the monitor never writes `CI passed` on a head commit
   that a pull request carrying `use project ci` has, even for another pull request on the same
-  commit; the project CI pass owns those. When the list of those commits cannot be read, it writes
-  none in that run. The list comes from a search that lags behind a new label, so before posting a
-  fork `success` the monitor also reads the pull request itself, and the open pull requests of the
-  same head branch (the listing that finds fork pull requests), and skips the post when one now
-  carries the label or the head commit is new. A duplicate pull request from another branch at
-  the same commit is not found this way. A read and a post are not atomic, so the label
-  workflow revokes again after the monitor runs that were under way when it started have finished
-  (it waits for up to 10 minutes; a monitor run takes about 2). This last protection depends on
-  that workflow running.
+  commit; the project CI pass owns those. When the list of those commits cannot be read, it posts
+  no fork `success` in that run. The list comes from a search that lags behind a new label, so
+  before posting a fork `success` the monitor also reads the pull request itself, and the open
+  pull requests of the same head branch (the listing that finds fork pull requests), and skips the
+  post when one now carries the label or the head commit is new. A duplicate pull request from
+  another branch at the same commit is not found this way.
+- The protection is eventual with a bounded window, not atomic. A monitor write between its live
+  read and its POST, or a monitor run that outlasts the label workflow's wait, can leave a fork
+  `success` for up to one monitor cycle (15 minutes). The label workflow revokes once at once and
+  again after the monitor runs that were under way have finished, waiting for up to 12 minutes (a
+  monitor run takes about 2); this depends on the workflow running. A strict merge-time guarantee
+  needs a required check bound to a source, which is out of scope here.
   Revoking a `success` is never limited by the per-run budget of commit statuses; posting the
   project CI `success` is.
 - Known limitation: the ruleset accepts `CI passed` from any source, so a pull request that changes
