@@ -19,13 +19,18 @@
 .. _howto/operator:DatabricksStopWarehouseOperator:
 .. _howto/operator:DatabricksEditWarehouseOperator:
 
-Databricks SQL warehouse lifecycle operators
-============================================
+Databricks SQL warehouse operators
+=================================
+
+Use these operators to start, stop, or edit an existing Databricks SQL warehouse through the
+`Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
+
+Start and stop a SQL warehouse
+-----------------------------
 
 Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
 and :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStopWarehouseOperator`
-to start and stop an existing Databricks SQL warehouse through the
-`Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
+to start and stop an existing Databricks SQL warehouse.
 Both operators require the warehouse ID and use the :ref:`Databricks connection
 <howto/connection:databricks>` for authentication.
 
