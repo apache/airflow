@@ -989,6 +989,61 @@ class TestKubernetesJobOperator:
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
     @pytest.mark.non_db_test_override
+    @pytest.mark.parametrize(
+        "write_logs_error",
+        [
+            pytest.param(None, id="logs_written"),
+            pytest.param(Exception("cannot read logs"), id="log_error_keeps_job_error"),
+        ],
+    )
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_fail_writes_logs(self, mock_hook, mocked_write_logs, write_logs_error):
+        """When the Job fails, pod logs are written before the Job's error is raised."""
+        mocked_write_logs.side_effect = write_logs_error
+        event = {
+            "job": mock.MagicMock(),
+            "status": "error",
+            "message": "Job failed with error: BackoffLimitExceeded",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+        }
+
+        with pytest.raises(AirflowException, match="BackoffLimitExceeded"):
+            KubernetesJobOperator(task_id="test_task_id", get_logs=True).execute_complete(
+                context={"ti": mock.MagicMock()}, event=event
+            )
+
+        mocked_write_logs.assert_called_once_with(mock_hook.get_pod.return_value)
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_writes_logs_of_pods_created_after_deferral(self, mock_hook, mocked_write_logs):
+        """Pods the Job controller created for retries after deferral are logged too."""
+        first_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=POD_NAME, namespace=POD_NAMESPACE))
+        retry_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=f"{POD_NAME}-retry", namespace=POD_NAMESPACE))
+        mock_hook.get_pod.return_value = first_pod
+        mock_hook.core_v1_client.list_namespaced_pod.return_value.items = [first_pod, retry_pod]
+        event = {
+            "job": {"metadata": {"name": "test-job", "namespace": POD_NAMESPACE}},
+            "status": "error",
+            "message": "Job failed with error: BackoffLimitExceeded",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+        }
+
+        with pytest.raises(AirflowException, match="BackoffLimitExceeded"):
+            KubernetesJobOperator(task_id="test_task_id", get_logs=True).execute_complete(
+                context={"ti": mock.MagicMock()}, event=event
+            )
+
+        mock_hook.core_v1_client.list_namespaced_pod.assert_called_once_with(
+            namespace=POD_NAMESPACE, label_selector="batch.kubernetes.io/job-name=test-job"
+        )
+        assert mocked_write_logs.call_args_list == [mock.call(first_pod), mock.call(retry_pod)]
+
+    @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
     def test_execute_complete_pod_not_found_skips_logs(self, mock_hook, mocked_write_logs):
