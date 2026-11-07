@@ -294,3 +294,14 @@ class TestFileTaskHandlerExecutorLogs:
             "legacy log",
         ]
         assert metadata == {"end_of_log": False, "log_pos": 1}
+
+
+@patch("requests.get")
+def test_fetch_logs_from_service_sends_extra_headers(requests_get):
+    from airflow.utils.log.file_task_handler import _fetch_logs_from_service
+
+    _fetch_logs_from_service("http://h:8794/log/f.log", "f.log", headers={"Range": "bytes=-100"})
+
+    headers = requests_get.call_args.kwargs["headers"]
+    assert headers["Range"] == "bytes=-100"
+    assert headers["Authorization"]

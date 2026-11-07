@@ -5741,6 +5741,17 @@ export type GetTriggerData = {
 
 export type GetTriggerResponse = TriggerDetailResponse;
 
+export type GetTriggerLogsData = {
+    accept?: 'application/json' | 'application/x-ndjson' | '*/*';
+    /**
+     * Number of most recent log lines to return.
+     */
+    tailLines?: number;
+    triggerId: number;
+};
+
+export type GetTriggerLogsResponse = TaskInstancesLogResponse;
+
 export type DeleteVariableData = {
     variableKey: string;
 };
@@ -9915,6 +9926,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TriggerDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/triggers/{trigger_id}/logs': {
+        get: {
+            req: GetTriggerLogsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstancesLogResponse;
                 /**
                  * Unauthorized
                  */

@@ -3191,6 +3191,35 @@ triggerer:
       type: integer
       example: ~
       default: "30"
+    watcher_log_to_stdout:
+      description: |
+        Also write an asset watcher's lines to the triggerer's standard output, in addition to the watcher's
+        own log file. Platform log shippers that read the triggerer's output rely on this. A deferred task's
+        and a callback's trigger lines go to their task instance's and callback's logs, as before.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "True"
+    watcher_log_max_open_files:
+      description: |
+        Maximum number of asset watcher log files a triggerer keeps open at once. When another watcher logs,
+        the least recently written file is closed, and it is reopened, appending, when its watcher logs
+        again. Set to 0 for no limit. Either way it is at most a quarter of the triggerer's open-files limit
+        (``ulimit -n``).
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "256"
+    watcher_log_max_bytes:
+      description: |
+        Maximum size in bytes of an asset watcher's local log file. When it is reached the older lines are
+        moved to a ``rotated`` directory next to it, replacing the previous rotated file, so a watcher uses at
+        most twice this much local disk on each triggerer: 4 MiB by default, about 13,000 lines. With remote
+        logging, each rotated file is uploaded before it is replaced. Set to 0 to disable the cap.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "2097152"
     queues_enabled:
       description: |
         When set to True, deferred tasks will register triggers with the task queue they originated from,

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from unittest import mock
 
@@ -27,7 +28,14 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.core_api.routes.public.triggers import _get_public_map_indexes
 from airflow.jobs.job import Job
-from airflow.models.asset import AssetActive, AssetModel, AssetWatcherModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetModel,
+    AssetWatcherModel,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
+)
 from airflow.models.deadline import Deadline
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
@@ -35,6 +43,9 @@ from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.sdk import task
 from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.utils.log import trigger_log_reader
+from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.trigger_log import callback_trigger_log_relative_path
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -170,6 +181,7 @@ def triggers(session, create_task_instance):
         last_error="ConnectionError: token expired for user:***",
     )
     failing_asset = _watcher(session, "failing", failing)
+    session.add(DagScheduleAssetReference(dag_id="dag_sensor", asset_id=failing_asset.id))
     pending = _trigger(session, "pending")
     pending_asset = _watcher(session, "pending", pending)
     # Its watcher was removed: deleted on the next cleanup too.
@@ -686,3 +698,214 @@ def test_get_asset_lists_its_watchers_with_their_status_and_trigger(test_client,
             "status": "failing",
         }
     ]
+
+
+class TestGetTriggerLogs:
+    @staticmethod
+    def _lines(name):
+        return "".join(
+            json.dumps({"timestamp": f"2026-10-21T11:59:{i:02d}Z", "event": f"{name} {i}", "level": "info"})
+            + "\n"
+            for i in range(5)
+        )
+
+    @pytest.fixture
+    def log_folder(self, tmp_path, triggers):
+        """Each kind's lines where its trigger writes them: the task try's log, the callback's, its own."""
+        sensor_ti = triggers["sensor_ti"]
+        paths = {
+            "sensor": f"{FileTaskHandler(str(tmp_path))._render_filename(sensor_ti, sensor_ti.try_number)}"
+            ".trigger.9.log",
+            "callback": callback_trigger_log_relative_path(triggers["callback"]),
+            "failing": f"triggers/{triggers['failing'].id}/9/trigger.log",
+        }
+        for name, path in paths.items():
+            (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / path).write_text(self._lines(name))
+        # The task try's own lines are not the trigger's.
+        (tmp_path / paths["sensor"].removesuffix(".trigger.9.log")).write_text(self._lines("worker"))
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            yield
+
+    @staticmethod
+    def _events(response):
+        return [m["event"] for m in response.json()["content"] if not m["event"].startswith("::")]
+
+    @pytest.mark.parametrize("name", ["sensor", "callback", "failing"])
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch.object(trigger_log_reader, "_read_live_tail", return_value=([], "live", True))
+    def test_one_endpoint_reads_every_kind(self, _, test_client, triggers, name):
+        trigger_id = triggers["callback"].trigger_id if name == "callback" else triggers[name].id
+
+        response = test_client.get(f"/triggers/{trigger_id}/logs", params={"tail_lines": 2})
+
+        assert response.status_code == 200
+        assert self._events(response) == [f"{name} 3", f"{name} 4"]
+
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch.object(trigger_log_reader, "_read_live_tail", return_value=([], "live", True))
+    def test_ndjson(self, _, test_client, triggers):
+        response = test_client.get(
+            f"/triggers/{triggers['sensor'].id}/logs",
+            params={"tail_lines": 1},
+            headers={"Accept": "application/x-ndjson"},
+        )
+
+        assert response.headers["content-type"] == "application/x-ndjson"
+        assert json.loads(response.text.splitlines()[-1])["event"] == "sensor 4"
+
+    @pytest.mark.parametrize(
+        ("name", "live_file"),
+        [
+            pytest.param("sensor", ".trigger.{job}.log", id="task-on-a-live-triggerer"),
+            pytest.param("failing", "triggers/{trigger}/{job}/trigger.log", id="watcher-on-a-live-triggerer"),
+            pytest.param("callback", None, id="callback-on-a-dead-triggerer"),
+        ],
+    )
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch.object(trigger_log_reader, "_read_live_tail", return_value=([], "live", True))
+    def test_reads_the_live_file_only_from_a_live_triggerer(
+        self, read_live, test_client, triggers, name, live_file
+    ):
+        trigger_id = triggers["callback"].trigger_id if name == "callback" else triggers[name].id
+
+        test_client.get(f"/triggers/{trigger_id}/logs")
+
+        if live_file is None:
+            read_live.assert_not_called()
+        else:
+            path, hostname = read_live.call_args_list[0].args
+            assert path.endswith(live_file.format(trigger=trigger_id, job=triggers["live"].id))
+            assert hostname == "trig-a"
+
+    @pytest.mark.parametrize("tail_lines", [0, 10_001])
+    def test_tail_lines_is_bounded(self, test_client, triggers, tail_lines):
+        response = test_client.get(
+            f"/triggers/{triggers['sensor'].id}/logs", params={"tail_lines": tail_lines}
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            pytest.param("sensor", 200, id="task-of-the-dag"),
+            pytest.param("queued", 403, id="task-of-another-dag"),
+            pytest.param("callback", 200, id="callback-of-the-dag"),
+            pytest.param("failing", 200, id="watcher-of-an-asset-the-dag-is-scheduled-on"),
+            pytest.param("pending", 403, id="watcher-no-dag-is-scheduled-on"),
+        ],
+    )
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch.object(trigger_log_reader, "_read_live_tail", return_value=([], "live", True))
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
+    def test_needs_task_log_access_to_the_owners_dag(
+        self, is_authorized_dag, _, test_client, triggers, name, expected
+    ):
+        # Every trigger is visible; only dag_sensor's task logs are readable.
+        is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
+            access_entity != DagAccessEntity.TASK_LOGS or details.id == "dag_sensor"
+        )
+        trigger_id = triggers["callback"].trigger_id if name == "callback" else triggers[name].id
+
+        assert test_client.get(f"/triggers/{trigger_id}/logs").status_code == expected
+        # The only per-Dag check is the owner's task logs; the kind's read rule is checked without a Dag.
+        assert {
+            c.kwargs.get("access_entity") for c in is_authorized_dag.call_args_list if c.kwargs.get("details")
+        } - {None} <= {DagAccessEntity.TASK_LOGS}
+
+    @pytest.mark.parametrize(
+        ("unreadable", "hidden"),
+        [
+            pytest.param({DagAccessEntity.TASK_INSTANCE}, {"sensor"}, id="no-task-instance-read"),
+            pytest.param({DagAccessEntity.RUN}, {"callback"}, id="no-dag-run-read"),
+        ],
+    )
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch.object(trigger_log_reader, "_read_live_tail", return_value=([], "live", True))
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
+    def test_a_trigger_hidden_by_its_kinds_rule_is_not_found(
+        self, is_authorized_dag, _, test_client, triggers, unreadable, hidden
+    ):
+        # Task log access alone does not show a trigger: its kind's read rule does, as in GET /triggers.
+        is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
+            access_entity not in unreadable
+        )
+        codes = {
+            name: test_client.get(
+                f"/triggers/{triggers['callback'].trigger_id if name == 'callback' else triggers[name].id}/logs"
+            ).status_code
+            for name in ("sensor", "callback", "failing")
+        }
+
+        assert codes == {name: 404 if name in hidden else 200 for name in codes}
+
+    def test_should_respond_403_to_a_user_who_can_read_no_owner(self, unauthorized_test_client, triggers):
+        assert unauthorized_test_client.get(f"/triggers/{triggers['sensor'].id}/logs").status_code == 403
+
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
+    def test_a_watchers_logs_count_only_dags_scheduled_on_assets_the_caller_can_read(
+        self, is_authorized_dag, get_authorized_assets, test_client, session, triggers
+    ):
+        # The failing watcher's trigger also watches a second asset, which only dag_queued is scheduled on.
+        second = _watcher(session, "second", triggers["failing"])
+        session.add(DagScheduleAssetReference(dag_id="dag_queued", asset_id=second.id))
+        session.commit()
+        get_authorized_assets.return_value = {triggers["failing_asset"].id}
+        is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
+            access_entity != DagAccessEntity.TASK_LOGS or details.id == "dag_queued"
+        )
+
+        assert test_client.get(f"/triggers/{triggers['failing'].id}/logs").status_code == 403
+        get_authorized_assets.return_value = {triggers["failing_asset"].id, second.id}
+        assert test_client.get(f"/triggers/{triggers['failing'].id}/logs").status_code == 200
+
+    @pytest.mark.parametrize("by", ["name", "uri"])
+    @pytest.mark.usefixtures("log_folder")
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
+    def test_a_watchers_logs_count_dags_scheduled_on_an_asset_reference(
+        self, is_authorized_dag, get_authorized_assets, test_client, session, triggers, by
+    ):
+        # Only dag_queued is scheduled on Asset.ref(name=...) / Asset.ref(uri=...) of the failing asset.
+        asset = triggers["failing_asset"]
+        if by == "name":
+            session.add(DagScheduleAssetNameReference(name=asset.name, dag_id="dag_queued"))
+        else:
+            session.add(DagScheduleAssetUriReference(uri=asset.uri, dag_id="dag_queued"))
+        session.commit()
+        is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
+            access_entity != DagAccessEntity.TASK_LOGS or details.id == "dag_queued"
+        )
+        get_authorized_assets.return_value = {asset.id}
+        assert test_client.get(f"/triggers/{triggers['failing'].id}/logs").status_code == 200
+        # Not through an asset the caller cannot read.
+        get_authorized_assets.return_value = set()
+        assert test_client.get(f"/triggers/{triggers['failing'].id}/logs").status_code in (403, 404)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.models.dag.DagModel.get_dag_id_to_team_name_mapping")
+    @pytest.mark.usefixtures("log_folder")
+    def test_a_watchers_logs_need_a_dag_in_the_triggers_team(self, team_mapping, test_client, triggers):
+        team_mapping.return_value = {"dag_sensor": "team_x"}
+
+        assert test_client.get(f"/triggers/{triggers['failing'].id}/logs").status_code == 403
+
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    @pytest.mark.usefixtures("log_folder")
+    def test_a_trigger_the_caller_cannot_see_is_not_found(self, mock_dag_ids, test_client, triggers):
+        mock_dag_ids.return_value = {"dag_sensor"}
+
+        assert test_client.get(f"/triggers/{triggers['queued'].id}/logs").status_code == 404
+
+    @pytest.mark.parametrize("name", ["fired", "removed"])
+    def test_a_trigger_its_owner_let_go_is_not_found(self, test_client, triggers, name):
+        assert test_client.get(f"/triggers/{triggers[name].id}/logs").status_code == 404
+
+    def test_should_respond_404(self, test_client, triggers):
+        assert test_client.get("/triggers/999999/logs").status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get("/triggers/1/logs").status_code == 401

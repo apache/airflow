@@ -1055,6 +1055,14 @@ export const useTriggerServiceGetTriggerKey = "TriggerServiceGetTrigger";
 export const UseTriggerServiceGetTriggerKeyFn = ({ triggerId }: {
   triggerId: number;
 }, queryKey?: Array<unknown>) => [useTriggerServiceGetTriggerKey, ...(queryKey ?? [{ triggerId }])];
+export type TriggerServiceGetTriggerLogsDefaultResponse = Awaited<ReturnType<typeof TriggerService.getTriggerLogs>>;
+export type TriggerServiceGetTriggerLogsQueryResult<TData = TriggerServiceGetTriggerLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTriggerServiceGetTriggerLogsKey = "TriggerServiceGetTriggerLogs";
+export const UseTriggerServiceGetTriggerLogsKeyFn = ({ accept, tailLines, triggerId }: {
+  accept?: "application/json" | "*/*" | "application/x-ndjson";
+  tailLines?: number;
+  triggerId: number;
+}, queryKey?: Array<unknown>) => [useTriggerServiceGetTriggerLogsKey, ...(queryKey ?? [{ accept, tailLines, triggerId }])];
 export type VariableServiceGetVariableDefaultResponse = Awaited<ReturnType<typeof VariableService.getVariable>>;
 export type VariableServiceGetVariableQueryResult<TData = VariableServiceGetVariableDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";
