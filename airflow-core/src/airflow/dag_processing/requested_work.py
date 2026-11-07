@@ -57,6 +57,9 @@ class RequestedWorkSource:
         publication reaches a terminal outcome or the parse fails without producing a result.
         """
 
+    def callbacks_interrupted(self, attempt_id: UUID) -> None:
+        """Retry the callbacks of an attempt whose Execution API requests failed."""
+
     def flush(self, *, deadline: float | None = None) -> None:
         """Deliver pending acknowledgments within the supplied time budget."""
 

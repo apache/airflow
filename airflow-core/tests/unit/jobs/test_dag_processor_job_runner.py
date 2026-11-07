@@ -1,0 +1,524 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import functools
+import signal
+from contextvars import ContextVar
+from unittest import mock
+
+import httpx2
+import pytest
+from sqlalchemy.orm import Session
+from uuid6 import uuid7
+
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
+from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
+from airflow.dag_processing.api_client import (
+    DagProcessorAPIClient,
+    DagProcessorJobAlreadyRunning,
+    DagProcessorRegistrationRetired,
+)
+from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+from airflow.dag_processing.health import check_processor_health
+from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.dag_processing.requested_work import DatabaseRequestedWorkSource
+from airflow.exceptions import AirflowConfigException
+from airflow.jobs.dag_processor_job_runner import DagProcessorHeartbeatTimeout, DagProcessorJobRunner
+from airflow.jobs.job import Job, JobState, run_job
+
+from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.requested_work_helpers import get_api_work_source
+
+
+@pytest.fixture
+def client():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.register_job.return_value = 42
+    client.restart_required = False
+    client.heartbeat.return_value = JobState.RUNNING
+    return client
+
+
+@pytest.fixture
+def runner(tmp_path, monkeypatch):
+    monkeypatch.setattr("airflow.dag_processing.health._next_health_write_warnings", {})
+    with conf_vars({("dag_processor", "health_check_file"): str(tmp_path / "health.json")}):
+        yield DagProcessorJobRunner(
+            job=Job(heartrate=5), processor=mock.create_autospec(DagFileProcessorManager, instance=True)
+        )
+
+
+@pytest.fixture
+def clock():
+    with mock.patch(
+        "airflow.jobs.dag_processor_job_runner.monotonic", autospec=True, return_value=0
+    ) as clock:
+        yield clock
+
+
+@pytest.mark.parametrize(
+    ("error", "outcome"),
+    [
+        (None, TerminalJobState.SUCCESS),
+        (SystemExit(0), TerminalJobState.SUCCESS),
+        (ValueError("parse failed"), TerminalJobState.FAILED),
+        (KeyboardInterrupt(), TerminalJobState.FAILED),
+    ],
+)
+@mock.patch.object(Job, "prepare_for_execution", autospec=True)
+@mock.patch.object(Job, "complete_execution", autospec=True)
+def test_api_lifecycle_cleans_up_before_completion(complete, prepare, runner, client, error, outcome):
+    events = []
+    runner.processor.run.side_effect = error
+    runner.processor.terminate.side_effect = lambda: events.append("terminate")
+    runner.processor.end.side_effect = lambda: events.append("end")
+    client.complete_job.side_effect = lambda state: events.append(state)
+
+    if outcome == TerminalJobState.FAILED:
+        with pytest.raises(type(error)):
+            runner.run_with_api(client)
+    else:
+        runner.run_with_api(client)
+
+    assert runner.job.id == 42
+    assert runner.job.state == outcome.value
+    assert runner.processor.api_client is client
+    runner.processor.sync_bundles.assert_not_called()
+    client.register_job.assert_called_once_with()
+    assert events == ["terminate", "end", outcome]
+    prepare.assert_not_called()
+    complete.assert_not_called()
+
+
+@mock.patch.object(DagFileProcessorManager, "end", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "terminate", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "run", autospec=True)
+def test_api_lifecycle_replaces_the_database_work_source_before_parsing(run, terminate, end, runner, client):
+    manager = DagFileProcessorManager(max_runs=1)
+    assert isinstance(manager.work_source, DatabaseRequestedWorkSource)
+    runner.processor = manager
+    client.claim_work.return_value = []
+
+    def fetch_callbacks(processor):
+        assert isinstance(processor.work_source, ExecutionAPIWorkSource)
+        assert processor.fetch_callbacks() == []
+
+    run.side_effect = fetch_callbacks
+
+    runner.run_with_api(client)
+
+    run.assert_called_once_with(manager)
+    client.claim_work.assert_called_once_with("callbacks", [], manager.max_callbacks_per_loop)
+    terminate.assert_called_once_with(manager)
+    end.assert_called_once_with(manager)
+
+
+@mock.patch.object(DagFileProcessorManager, "run", autospec=True)
+def test_exit_signal_during_a_parse_request_acknowledges_with_the_job_credential(run, runner, client):
+    client._parse_context = ContextVar("dag_parse", default=None)
+    client.use_parse.side_effect = functools.partial(DagProcessorAPIClient.use_parse, client)
+    parse_contexts = []
+    client.acknowledge_work.side_effect = lambda kind, work: parse_contexts.append(
+        client._parse_context.get()
+    )
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+    )
+    get_api_work_source(manager)._pending_work_acks = [("callbacks", work)]
+
+    def answer_parse_request(processor):
+        with client.use_parse(mock.sentinel.parse_context):
+            processor._exit_gracefully(signal.SIGTERM, None)
+
+    run.side_effect = answer_parse_request
+    runner.processor = manager
+
+    with pytest.raises(SystemExit):
+        runner._execute()
+
+    assert parse_contexts == [None]
+
+
+def test_second_signal_during_terminate_still_ends_the_processor(runner):
+    runner.processor.terminate.side_effect = SystemExit(0)
+
+    with pytest.raises(SystemExit):
+        runner._execute()
+
+    runner.processor.end.assert_called_once_with()
+
+
+@pytest.mark.parametrize("timeout", [29, 30, 31])
+def test_api_lifecycle_validates_timeouts_before_registration(runner, client, timeout):
+    with conf_vars(
+        {
+            ("dag_processor", "health_check_threshold"): "30",
+            ("dag_processor", "job_heartbeat_timeout"): str(timeout),
+        }
+    ):
+        if timeout < 30:
+            with pytest.raises(AirflowConfigException, match="job_heartbeat_timeout.*health_check_threshold"):
+                runner.run_with_api(client)
+            client.register_job.assert_not_called()
+            client.complete_job.assert_not_called()
+            runner.processor.run.assert_not_called()
+        else:
+            runner.run_with_api(client)
+            client.register_job.assert_called_once_with()
+            runner.processor.run.assert_called_once_with()
+
+
+def test_failed_registration_never_starts_parsing(runner, client):
+    client.register_job.side_effect = httpx2.ConnectError("unavailable")
+    with pytest.raises(httpx2.ConnectError):
+        runner.run_with_api(client)
+    runner.processor.run.assert_not_called()
+    client.complete_job.assert_not_called()
+
+
+@pytest.mark.parametrize("available_at", [12, 15, None])
+@conf_vars({("dag_processor", "health_check_threshold"): "10"})
+@mock.patch("airflow.jobs.dag_processor_job_runner.sleep", autospec=True)
+def test_registration_waits_for_a_crashed_job_with_a_bounded_backoff(
+    sleep, runner, client, clock, available_at
+):
+    def wait(seconds):
+        clock.return_value += seconds
+
+    def register():
+        runner.processor.run.assert_not_called()
+        if available_at is None or clock.return_value < available_at:
+            raise DagProcessorJobAlreadyRunning("Still alive")
+        return 42
+
+    sleep.side_effect = wait
+    client.register_job.side_effect = register
+
+    if available_at is None:
+        with pytest.raises(DagProcessorJobAlreadyRunning):
+            runner.run_with_api(client)
+        runner.processor.run.assert_not_called()
+        client.complete_job.assert_not_called()
+    else:
+        runner.run_with_api(client)
+        runner.processor.run.assert_called_once_with()
+        assert runner.job.id == 42
+
+    assert sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4), mock.call(5)] + (
+        [mock.call(3)] if available_at != 12 else []
+    )
+    assert clock.return_value == (available_at or 15)
+    assert client.register_job.call_count == sleep.call_count + 1
+
+
+@pytest.mark.parametrize("reason", ["registration_conflict", "registration_retired", None])
+@mock.patch("airflow.jobs.dag_processor_job_runner.sleep", autospec=True)
+def test_registration_does_not_wait_on_other_conflicts(sleep, runner, client, reason):
+    error = httpx2.HTTPStatusError(
+        "conflict",
+        request=httpx2.Request("POST", "http://api/jobs"),
+        response=httpx2.Response(409, json={"detail": {"reason": reason}}),
+    )
+    client.register_job.side_effect = error
+
+    with pytest.raises(httpx2.HTTPStatusError):
+        runner.run_with_api(client)
+
+    sleep.assert_not_called()
+    client.register_job.assert_called_once_with()
+    runner.processor.run.assert_not_called()
+
+
+@mock.patch("airflow.jobs.dag_processor_job_runner.get_listener_manager", autospec=True)
+def test_shutdown_listener_failure_does_not_prevent_completion(listeners, runner, client):
+    listeners.return_value.hook.before_stopping.side_effect = ValueError("listener failed")
+    runner.run_with_api(client)
+    listeners.return_value.hook.before_stopping.assert_called_once_with(component=runner.job)
+    client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)
+
+
+@pytest.mark.parametrize("use_api", [False, True], ids=["database", "api"])
+@pytest.mark.parametrize("error", [None, ValueError("parse failed")], ids=["success", "failed"])
+@mock.patch("airflow.jobs.job.get_listener_manager", autospec=True)
+@mock.patch("airflow.jobs.dag_processor_job_runner.get_listener_manager", autospec=True)
+@mock.patch.object(Job, "prepare_for_execution", autospec=True)
+def test_shutdown_listener_observes_terminal_state_before_end_date(
+    prepare, api_listeners, db_listeners, runner, client, use_api, error
+):
+    db_listeners.return_value = api_listeners.return_value
+    observed = []
+    api_listeners.return_value.hook.before_stopping.side_effect = lambda component: observed.append(
+        (component.state, component.end_date)
+    )
+    runner.processor.run.side_effect = error
+
+    def run():
+        if use_api:
+            runner.run_with_api(client)
+        else:
+            run_job(
+                runner.job,
+                execute_callable=runner._execute,
+                session=mock.create_autospec(Session, instance=True),
+            )
+
+    if error is None:
+        run()
+    else:
+        with pytest.raises(ValueError, match="parse failed"):
+            run()
+
+    assert observed == [(JobState.FAILED if error else JobState.SUCCESS, None)]
+    assert runner.job.end_date is not None
+
+
+@pytest.mark.parametrize("parse_error", [None, ValueError("original error")])
+def test_completion_failure_preserves_the_original_error(runner, client, parse_error):
+    runner.processor.run.side_effect = parse_error
+    client.complete_job.side_effect = httpx2.ConnectError("completion unavailable")
+    with pytest.raises(type(parse_error) if parse_error else httpx2.ConnectError) as raised:
+        runner.run_with_api(client)
+    if parse_error:
+        assert raised.value is parse_error
+
+
+def test_completion_failure_after_a_successful_run_is_raised_even_when_retired(runner, client):
+    error = DagProcessorRegistrationRetired("ended")
+
+    def complete_job(state):
+        client.restart_required = True
+        raise error
+
+    client.complete_job.side_effect = complete_job
+
+    with pytest.raises(DagProcessorRegistrationRetired) as raised:
+        runner.run_with_api(client)
+
+    assert raised.value is error
+
+
+def test_heartbeats_are_throttled_and_use_the_api(runner, client, clock):
+    def run():
+        runner.processor.heartbeat()
+        client.heartbeat.assert_not_called()
+        clock.return_value = 5
+        runner.processor.heartbeat()
+        runner.processor.heartbeat()
+        client.heartbeat.assert_called_once_with()
+        clock.return_value = 10
+        runner.processor.heartbeat()
+        assert client.heartbeat.call_count == 2
+
+    runner.processor.run.side_effect = run
+    runner.run_with_api(client)
+
+
+@mock.patch(
+    "airflow.dag_processing.health.Path.write_text",
+    autospec=True,
+    side_effect=OSError("Health file is not writable"),
+)
+def test_health_write_failure_does_not_prevent_the_api_heartbeat(write_text, runner, client, clock):
+    def run():
+        clock.return_value = 5
+        runner.processor.heartbeat()
+
+    runner.processor.run.side_effect = run
+    runner.run_with_api(client)
+
+    write_text.assert_called_once()
+    client.heartbeat.assert_called_once_with()
+    client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)
+
+
+@pytest.mark.parametrize("restart", ["already_retired", "renewal_retired", "server_restart", "job_closed"])
+@conf_vars(
+    {("dag_processor", "job_heartbeat_timeout"): "10", ("dag_processor", "health_check_threshold"): "10"}
+)
+@mock.patch("airflow.jobs.dag_processor_job_runner.get_listener_manager", autospec=True)
+@mock.patch("airflow.jobs.dag_processor_job_runner.stats.incr", autospec=True)
+def test_restart_stops_parsing_and_releases_children(incr, listeners, runner, client, clock, restart):
+    error = DagProcessorRegistrationRetired("replaced")
+
+    def heartbeat():
+        if restart in {"renewal_retired", "job_closed"}:
+            client.restart_required = True
+        if restart == "job_closed":
+            raise error
+        return JobState.RESTARTING if restart == "server_restart" else JobState.RUNNING
+
+    def run():
+        client.restart_required = restart == "already_retired"
+        clock.return_value = 1 if client.restart_required else 5
+        runner.processor.heartbeat()
+        pytest.fail("Parsing continued after a restart request")
+
+    client.heartbeat.side_effect = heartbeat
+    runner.processor.run.side_effect = run
+    with pytest.raises(DagProcessorRegistrationRetired) as raised:
+        runner.run_with_api(client)
+    runner.processor.terminate.assert_called_once_with()
+    runner.processor.end.assert_called_once_with()
+    listeners.return_value.hook.before_stopping.assert_called_once_with(component=runner.job)
+    incr.assert_any_call("job_end", 1, 1)
+    client.complete_job.assert_called_once_with(TerminalJobState.FAILED)
+    elapsed = 1 if restart == "already_retired" else 5
+    message = str(raised.value)
+    assert f"Last successful API heartbeat was {elapsed:.1f}s ago" in message
+    assert "[dag_processor] job_heartbeat_timeout=10s" in message
+    if restart == "job_closed":
+        assert raised.value.__cause__ is error
+
+
+@pytest.mark.parametrize(
+    "completion_error",
+    [DagProcessorRegistrationRetired("ended"), httpx2.ConnectError("completion unavailable")],
+)
+def test_retired_registration_completion_failure_keeps_the_restart_error(
+    runner, client, caplog, completion_error
+):
+    error = DagProcessorRegistrationRetired("replaced")
+
+    def run():
+        client.restart_required = True
+        raise error
+
+    runner.processor.run.side_effect = run
+    client.complete_job.side_effect = completion_error
+
+    with pytest.raises(DagProcessorRegistrationRetired) as raised:
+        runner.run_with_api(client)
+
+    assert raised.value is error
+    client.complete_job.assert_called_once_with(TerminalJobState.FAILED)
+    assert {
+        "event": "Unable to record the end of the retired Dag processor Job",
+        "error_type": type(completion_error).__name__,
+        "error": str(completion_error),
+        "log_level": "warning",
+    } in caplog
+
+
+@pytest.mark.parametrize("failure", ["transport", 408, 429, 503, 401, 403])
+@conf_vars(
+    {("dag_processor", "job_heartbeat_timeout"): "10", ("dag_processor", "health_check_threshold"): "10"}
+)
+@mock.patch("airflow.jobs.dag_processor_job_runner.stats.incr", autospec=True)
+def test_heartbeat_failure_is_bounded(incr, runner, client, clock, failure, caplog):
+    error = (
+        httpx2.ConnectError("unavailable")
+        if failure == "transport"
+        else httpx2.HTTPStatusError(
+            "refused",
+            request=httpx2.Request("POST", "http://api/jobs/42/heartbeat"),
+            response=httpx2.Response(failure),
+        )
+    )
+    fatal = failure in (401, 403)
+    client.heartbeat.side_effect = error
+
+    def run():
+        clock.return_value = 5
+        runner.processor.heartbeat()
+        clock.return_value = 6
+        runner.processor.heartbeat()
+        client.heartbeat.assert_called_once_with()
+        clock.return_value = 10
+        runner.processor.heartbeat()
+
+    runner.processor.run.side_effect = run
+    with pytest.raises(httpx2.HTTPStatusError if fatal else DagProcessorHeartbeatTimeout) as raised:
+        runner.run_with_api(client)
+    assert client.heartbeat.call_count == (1 if fatal else 2)
+    failure_metrics = [call for call in incr.call_args_list if call.args[0].endswith("_heartbeat_failure")]
+    assert failure_metrics == [mock.call("job_heartbeat_failure", 1, 1)] * (0 if fatal else 2)
+    if not fatal:
+        assert {
+            "event": "Unable to heartbeat the Dag processor Job; retrying on the next interval",
+            "error_type": type(error).__name__,
+            "status_code": None if failure == "transport" else failure,
+            "elapsed_seconds": 5,
+            "timeout_seconds": 10,
+        } in caplog
+        message = str(raised.value)
+        assert "after 10.0s" in message
+        assert "[dag_processor] job_heartbeat_timeout=10s" in message
+        assert type(error).__name__ in message
+        if failure != "transport":
+            assert f"HTTP {failure}" in message
+        assert raised.value.__cause__ is error
+
+
+@pytest.mark.parametrize("failure", ["transport", 408, 429])
+@conf_vars(
+    {("dag_processor", "job_heartbeat_timeout"): "10", ("dag_processor", "health_check_threshold"): "10"}
+)
+def test_recovered_heartbeat_resets_the_lease(runner, client, clock, failure):
+    error = (
+        httpx2.ConnectError("offline")
+        if failure == "transport"
+        else httpx2.HTTPStatusError(
+            "temporarily unavailable",
+            request=httpx2.Request("POST", "http://api/jobs/42/heartbeat"),
+            response=httpx2.Response(failure),
+        )
+    )
+    client.heartbeat.side_effect = [
+        error,
+        JobState.RUNNING,
+        error,
+    ]
+
+    def run():
+        for tick in (5, 10, 15):
+            clock.return_value = tick
+            runner.processor.heartbeat()
+
+    runner.processor.run.side_effect = run
+    runner.run_with_api(client)
+    assert client.heartbeat.call_count == 3
+    client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)
+
+
+@conf_vars(
+    {
+        ("dag_processor", "health_check_threshold"): "30",
+        ("dag_processor", "job_heartbeat_timeout"): "300",
+    }
+)
+@mock.patch("airflow.dag_processing.health.monotonic", autospec=True)
+def test_api_outage_fails_readiness_until_heartbeat_recovers(health_clock, runner, client, clock):
+    client.heartbeat.side_effect = [httpx2.ConnectError("offline"), JobState.RUNNING]
+    health_clock.side_effect = lambda: clock.return_value
+
+    def run():
+        clock.return_value = 120
+        runner.processor.heartbeat()
+        check_processor_health()
+        with pytest.raises(SystemExit, match="api heartbeat age 120.0s"):
+            check_processor_health(readiness=True)
+        for tick in (125, 126):
+            clock.return_value = tick
+            runner.processor.heartbeat()
+        check_processor_health(readiness=True)
+
+    runner.processor.run.side_effect = run
+    runner.run_with_api(client)
+    assert client.heartbeat.call_count == 2
+    client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)
