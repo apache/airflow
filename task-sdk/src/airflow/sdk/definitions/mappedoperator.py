@@ -537,6 +537,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["max_retry_delay"] = value
 
     @property
+    def retry_timeout(self) -> datetime.timedelta | None:
+        return self.partial_kwargs.get("retry_timeout")
+
+    @retry_timeout.setter
+    def retry_timeout(self, value: datetime.timedelta | None) -> None:
+        self.partial_kwargs["retry_timeout"] = value
+
+    @property
     def retry_delay(self) -> datetime.timedelta:
         return self.partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY)
 

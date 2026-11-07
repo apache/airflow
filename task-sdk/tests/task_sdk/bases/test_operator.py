@@ -945,6 +945,27 @@ def test_default_retry_delay():
     assert task1.retry_delay == timedelta(seconds=300)
 
 
+@pytest.mark.parametrize(
+    ("retry_timeout", "expected"),
+    [
+        (None, None),
+        (timedelta(seconds=30), timedelta(seconds=30)),
+        (30.0, timedelta(seconds=30)),
+        (0, timedelta(0)),
+    ],
+)
+def test_retry_timeout_conversion(retry_timeout, expected):
+    task = BaseOperator(task_id="test_retry_timeout", retry_timeout=retry_timeout)
+
+    assert task.retry_timeout == expected
+
+
+@pytest.mark.parametrize("retry_timeout", [-1.0, timedelta(seconds=-1)])
+def test_retry_timeout_must_not_be_negative(retry_timeout):
+    with pytest.raises(ValueError, match="retry_timeout cannot be negative"):
+        BaseOperator(task_id="test_negative_retry_timeout", retry_timeout=retry_timeout)
+
+
 def test_dag_level_retry_delay():
     with DAG(dag_id="test_dag_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}):
         task1 = BaseOperator(task_id="test_no_explicit_retry_delay")

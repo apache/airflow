@@ -186,6 +186,9 @@ type TaskSpec struct {
 	// "retry_exponential_backoff".
 	RetryExponentialBackoff float64
 
+	// RetryTimeout corresponds to the JSON schema field "retry_timeout".
+	RetryTimeout time.Duration
+
 	// StartDate corresponds to the JSON schema field "start_date".
 	StartDate time.Time
 
