@@ -81,7 +81,11 @@ class CalendarService:
             granularity,
         )
 
-        planned_data = self._get_planned_dag_runs(dag, raw_dag_states, date_filter, granularity)
+        baseline_states = raw_dag_states
+        if not raw_dag_states and dag.timetable.periodic:
+            baseline_states = self._get_latest_dag_run_state(dag_id, session)
+
+        planned_data = self._get_planned_dag_runs(dag, baseline_states, date_filter, granularity)
 
         all_data = historical_data + planned_data
         return CalendarTimeRangeCollectionResponse(
@@ -138,6 +142,23 @@ class CalendarService:
         ]
 
         return calendar_results, dag_states
+
+    def _get_latest_dag_run_state(self, dag_id: str, session: Session) -> Sequence[Row]:
+        """Get the Dag's most recent run, regardless of the requested date range."""
+        effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
+
+        select_stmt = (
+            sa.select(
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+                DagRun.run_after,
+                DagRun.partition_date,
+            )
+            .where(DagRun.dag_id == dag_id, effective_date.is_not(None))
+            .order_by(effective_date.desc())
+            .limit(1)
+        )
+        return session.execute(select_stmt).all()
 
     def _get_planned_dag_runs(
         self,

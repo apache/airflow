@@ -230,8 +230,15 @@ class TestCalendar:
                     "logical_date_lt": "2025-01-02T23:23:59Z",
                 },
                 {
-                    "total_entries": 0,
-                    "dag_runs": [],
+                    "total_entries": 1,
+                    "dag_runs": [
+                        {
+                            "date": "2025-01-02T01:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                    ],
                 },
             ),
             (
@@ -607,6 +614,69 @@ class TestCalendarPlannedRunsCap:
         assert response.status_code == 200
         planned = [r for r in response.json()["dag_runs"] if r["state"] == "planned"]
         assert sum(r["count"] for r in planned) == CalendarService.MAX_PLANNED_RUNS
+
+
+class CalendarPlannedRunsOutsideHistoryBase:
+    """Planned runs must not depend on the Dag having runs inside the requested range."""
+
+    DAG_NAME = "test_dag_planned_outside_history"
+    END_DATE: datetime | None = None
+    DECEMBER = {
+        "granularity": "hourly",
+        "logical_date_gte": "2026-12-01T00:00:00Z",
+        "logical_date_lte": "2026-12-31T23:59:59Z",
+    }
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule="0 0 * * *",
+            start_date=datetime(2026, 11, 1),
+            end_date=self.END_DATE,
+            catchup=False,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        # The only run is in November, outside the December range requested below.
+        dag_maker.create_dagrun(
+            run_id="run_1",
+            state=DagRunState.SUCCESS,
+            logical_date=datetime(2026, 11, 5),
+        )
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+
+class TestCalendarPlannedRunsWithoutHistoryInRange(CalendarPlannedRunsOutsideHistoryBase):
+    def test_planned_runs_shown_for_month_without_history(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}", params=self.DECEMBER)
+        assert response.status_code == 200
+        body = response.json()
+
+        assert all(r["state"] == "planned" for r in body["dag_runs"])
+        planned = body["dag_runs"]
+        assert len(planned) == 31
+        assert min(r["date"] for r in planned) == "2026-12-01T00:00:00Z"
+        assert max(r["date"] for r in planned) == "2026-12-31T00:00:00Z"
+        assert all(r["count"] == 1 for r in planned)
+
+
+class TestCalendarPlannedRunsAfterEndDate(CalendarPlannedRunsOutsideHistoryBase):
+    END_DATE = datetime(2026, 11, 20)
+
+    def test_no_planned_runs_after_end_date(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}", params=self.DECEMBER)
+        assert response.status_code == 200
+        assert response.json() == {"total_entries": 0, "dag_runs": []}
 
 
 class TestCalendarBackfill:
