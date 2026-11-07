@@ -46,11 +46,13 @@ def upgrade():
         batch_op.add_column(sa.Column("scope_hash", sa.String(length=64), nullable=True))
         batch_op.add_column(sa.Column("payload_hash", sa.String(length=64), nullable=True))
         batch_op.create_index("idx_asset_event_scope_hash", ["scope_hash"], unique=True)
+        batch_op.create_index("idx_asset_event_source_dag_run", ["source_dag_id", "source_run_id"])
 
 
 def downgrade():
     """Remove the origin and idempotency fields from asset events."""
     with op.batch_alter_table("asset_event") as batch_op:
+        batch_op.drop_index("idx_asset_event_source_dag_run")
         batch_op.drop_index("idx_asset_event_scope_hash")
         batch_op.drop_column("payload_hash")
         batch_op.drop_column("scope_hash")

@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import uuid
 from contextlib import contextmanager
-from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
 import attrs
@@ -48,23 +47,26 @@ class _EmissionScope:
     """The callback's position in the trusted parent's batch, for a Dag processor callback."""
 
 
-_scope: ContextVar[_EmissionScope | None] = ContextVar("asset_emission_scope", default=None)
+# A process global, not a ContextVar: threads that the task starts get an empty context, but they
+# must emit too. Each runtime process runs one task or one callback at a time.
+_scope: _EmissionScope | None = None
 
 
 @contextmanager
 def set_asset_emission_scope(*, callback_index: int | None = None) -> Iterator[None]:
     """
-    Let the code inside emit asset events.
+    Let the process emit asset events while the code inside runs, from any of its threads.
 
     The runtime that starts user code sets this: the task runner around a task and its callbacks,
     the callback supervisor around an executor callback, and the Dag processor around a callback.
     A Dag file parse has supervisor comms too, but no scope, so it cannot emit.
     """
-    token = _scope.set(_EmissionScope(callback_index=callback_index))
+    global _scope
+    previous, _scope = _scope, _EmissionScope(callback_index=callback_index)
     try:
         yield
     finally:
-        _scope.reset(token)
+        _scope = previous
 
 
 def _raise_emission_error(error: AirflowRuntimeError) -> None:
@@ -81,6 +83,16 @@ def _raise_emission_error(error: AirflowRuntimeError) -> None:
         if status_code == 404:
             raise AssetEmissionUnavailableError(
                 "The API server cannot emit asset events", reason="unsupported_server", status_code=404
+            ) from error
+        # FastAPI request validation, for example of the partition key, gives a list of errors.
+        if status_code == 422 and isinstance(server_detail, list):
+            problems = "; ".join(
+                f"{'.'.join(str(part) for part in item.get('loc', ())[1:])}: {item.get('msg')}"
+                for item in server_detail
+                if isinstance(item, dict)
+            )
+            raise AssetEmissionError(
+                f"The API server rejected the request: {problems}", reason="invalid_request", status_code=422
             ) from error
         raise error
     raise AssetEmissionError(
@@ -123,7 +135,7 @@ def emit_asset_event(
             f"extra must be strict JSON, without NaN or Infinity: {error}", reason="invalid_json"
         ) from error
 
-    scope = _scope.get()
+    scope = _scope
     if scope is None:
         raise AssetEmissionUnavailableError(
             "Asset events can be emitted only from a running task or a callback", reason="no_runtime"
@@ -138,7 +150,8 @@ def emit_asset_event(
                 uri=uri,
                 extra=extra or {},
                 partition_key=partition_key,
-                idempotency_key=idempotency_key or str(uuid.uuid4()),
+                # An empty key goes to the server unchanged, which rejects it.
+                idempotency_key=str(uuid.uuid4()) if idempotency_key is None else idempotency_key,
                 callback_index=scope.callback_index,
             )
         )

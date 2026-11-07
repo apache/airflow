@@ -419,9 +419,10 @@ class AssetManager(LoggingMixin):
                 resolved_consumer_teams = outlet_ref.allow_consumer_teams if outlet_ref else None
                 resolved_global_consumers = outlet_ref.allow_global_consumers if outlet_ref else True
             elif dag_run is not None:
+                # No reference row gives consumer teams for a Dag-level source, so only its own team consumes.
                 resolved_source_teams = {team_name} if team_name else set()
-                resolved_consumer_teams = None
-                resolved_global_consumers = True
+                resolved_consumer_teams = []
+                resolved_global_consumers = False
             else:
                 resolved_source_teams = api_user_teams or set()
                 resolved_consumer_teams = api_allow_consumer_teams

@@ -85,8 +85,8 @@ class AssetEmissionError(RuntimeError):
     An asset event could not be emitted.
 
     ``reason`` is the server's machine-readable cause, for example ``asset_not_found``,
-    ``asset_inactive``, ``idempotency_conflict``, ``attempt_archived``, ``extra_too_large``
-    or ``emission_limit``.
+    ``asset_inactive``, ``idempotency_conflict``, ``attempt_archived``, ``extra_too_large``,
+    ``emission_limit`` or ``invalid_request``.
     """
 
     def __init__(self, message: str, *, reason: str | None = None, status_code: int | None = None):

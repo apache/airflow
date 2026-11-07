@@ -21,15 +21,14 @@ import json
 import tempfile
 import textwrap
 import time
-from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 from uuid import uuid4
 
 import pytest
 import structlog
-import time_machine
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
@@ -39,9 +38,11 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models.asset import AssetEvent, AssetModel, AssetPartitionDagRun, TaskOutletAssetReference
+from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset, PartitionedAssetTimetable
+from airflow.sdk import Asset, AssetAccessControl, PartitionedAssetTimetable
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.definitions.callback import SyncCallback
 from airflow.sdk.execution_time.comms import EmitAssetEvent
@@ -254,32 +255,33 @@ def test_concurrent_repeat_returns_the_first_receipt(api_client, source, session
     assert _event_count(session) == 1
 
 
-@pytest.mark.parametrize(
-    ("reason", "age", "status"),
-    [
-        pytest.param("retry", timedelta(minutes=1), 201, id="retry-callback"),
-        pytest.param("retry", timedelta(minutes=11), 410, id="retry-after-window"),
-        pytest.param("superseded", timedelta(minutes=1), 410, id="cleared"),
-    ],
-)
-def test_archived_attempt(api_client, source, session, reason, age, status):
+@pytest.mark.parametrize("reason", ["retry", "superseded"])
+def test_archived_attempt(api_client, source, session, reason):
     _, ti = source
     ti.state = TaskInstanceState.UP_FOR_RETRY
-    ti.end_date = DATE
+    ti.end_date = timezone.utcnow()
     if reason == "retry":
         ti.prepare_db_for_next_try(session)
     else:
         ti.archive(reason=reason, session=session)
     session.commit()
 
-    with time_machine.travel(DATE + age, tick=False):
-        if status == 201:
-            receipt = _emit_as(api_client, ti.id)
-            session.expire_all()
-            assert session.get(AssetEvent, receipt.id).source_task_instance_id == ti.id
-        else:
-            assert _emission_error(api_client, ti.id)[1]["reason"] == "attempt_archived"
-            assert _event_count(session) == 0
+    assert _emission_error(api_client, ti.id)[1]["reason"] == "attempt_archived"
+    assert _event_count(session) == 0
+
+
+def test_each_region_has_its_own_scope(api_client, source, session):
+    _, ti = source
+    other_region = TaskInstance(
+        ti.task, run_id=ti.run_id, map_index=ti.map_index, region_id=uuid4(), dag_version_id=ti.dag_version_id
+    )
+    session.add(other_region)
+    session.commit()
+
+    first = _emit_as(api_client, ti.id)
+    second = _emit_as(api_client, other_region.id)
+    assert second.id != first.id
+    assert second.replayed is False
 
 
 def test_extra_must_be_strict_json(api_client, source, session):
@@ -316,6 +318,38 @@ def test_emission_limit(api_client, source, session):
     status, detail = _emission_error(api_client, ti.id, _message("second"))
     assert (status, detail["reason"]) == (429, "emission_limit")
     assert _event_count(session) == 1
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.parametrize("scope", ["task", "dag"])
+def test_budget_check_holds_the_source_lock(api_client, source, scope):
+    run, ti = source
+    if scope == "task":
+        source_row = select(TaskInstance.id).where(TaskInstance.id == ti.id)
+    else:
+        source_row = select(DagRun.id).where(DagRun.id == run.id)
+    locked: list[bool] = []
+    budget_check = emission_route._require_emission_budget
+
+    def try_to_lock_the_source(emission_source, *, session):
+        with create_session() as other_session:
+            try:
+                other_session.execute(source_row.with_for_update(nowait=True))
+            except OperationalError:
+                other_session.rollback()
+                locked.append(True)
+            else:
+                locked.append(False)
+        budget_check(emission_source, session=session)
+
+    with mock.patch.object(
+        emission_route, "_require_emission_budget", autospec=True, side_effect=try_to_lock_the_source
+    ):
+        if scope == "task":
+            _emit_as(api_client, ti.id)
+        else:
+            api_client.asset_events.emit(_message(), source_dag_id=run.dag_id, source_run_id=run.run_id)
+    assert locked == [True]
 
 
 def test_listeners_run_after_commit(api_client, source):
@@ -392,15 +426,65 @@ def test_executor_callback_emits_for_its_dag_run(api_client, source, session, st
 
 
 @conf_vars({("core", "multi_team"): "True"})
+def test_multi_team_rejects_dag_callback_emission(api_client, source, session):
+    run, _ = source
+    with pytest.raises(ServerResponseError) as error:
+        api_client.asset_events.emit(_message(), source_dag_id=run.dag_id, source_run_id=run.run_id)
+    assert error.value.response.status_code == 403
+    assert error.value.response.json()["detail"]["reason"] == "asset_not_in_emission_list"
+    assert _event_count(session) == 0
+
+
+@conf_vars({("core", "multi_team"): "True"})
 @mock.patch("airflow.assets.manager.AssetManager._filter_dags_by_team", autospec=True, return_value=set())
 @mock.patch("airflow.models.dag.DagModel.get_team_name", autospec=True, return_value="producer-team")
-def test_callback_resolves_producer_team(get_team, filter_dags, api_client, source):
+def test_dag_run_source_reaches_only_its_own_team(get_team, filter_dags, source, session):
     run, _ = source
-    api_client.asset_events.emit(_message(), source_dag_id=run.dag_id, source_run_id=run.run_id)
+    AssetManager.register_asset_change(asset=ASSET, dag_run=run, session=session)
     get_team.assert_called_once()
     assert get_team.call_args.args == (run.dag_id,)
     assert filter_dags.call_args.kwargs["source_teams"] == {"producer-team"}
     assert filter_dags.call_args.kwargs["source_is_api"] is False
+    assert filter_dags.call_args.kwargs["allow_consumer_teams"] == []
+    assert filter_dags.call_args.kwargs["allow_global_consumers"] is False
+
+
+@pytest.mark.parametrize(
+    ("outlet_access", "emits_access", "expected"),
+    [
+        pytest.param(
+            AssetAccessControl(consumer_teams=["a", "b"]),
+            AssetAccessControl(),
+            (["a", "b"], True),
+            id="emits-cannot-widen",
+        ),
+        pytest.param(
+            AssetAccessControl(),
+            AssetAccessControl(consumer_teams=["a"], allow_global=False),
+            (["a"], False),
+            id="emits-narrows",
+        ),
+        pytest.param(
+            AssetAccessControl(consumer_teams=["a", "b"]),
+            AssetAccessControl(consumer_teams=["b", "c"]),
+            (["b"], True),
+            id="teams-intersect",
+        ),
+    ],
+)
+def test_outlet_and_emission_list_keep_the_strictest_policy(
+    dag_maker, session, outlet_access, emits_access, expected
+):
+    def declare(access_control):
+        return Asset(name=ASSET.name, uri=ASSET.uri, access_control=access_control)
+
+    with dag_maker(dag_id="shared_reference", schedule=None):
+        EmptyOperator(task_id="produce", outlets=[declare(outlet_access)], emits=[declare(emits_access)])
+    session.expire_all()
+    reference = session.scalars(
+        select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "shared_reference")
+    ).one()
+    assert (reference.allow_consumer_teams, reference.allow_global_consumers) == expected
 
 
 def test_manager_rejects_ambiguous_source(source, session):

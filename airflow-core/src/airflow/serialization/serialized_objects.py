@@ -963,6 +963,21 @@ class _DependencyDetector:
                 serialized_alias = ensure_serialized_asset(obj)
                 deps.extend(serialized_alias.iter_dag_dependencies(source=task.dag_id, target=""))
 
+        # An emission list makes the task a producer before its first event, as an outlet does.
+        emits = task.partial_kwargs.get("emits") if isinstance(task, MappedOperator) else task.emits
+        for obj in emits or []:
+            if not isinstance(obj, (Asset, SerializedAsset)):
+                continue
+            dependency = DagDependency(
+                source=task.dag_id,
+                target="asset",
+                label=obj.name,
+                dependency_type="asset",
+                dependency_id=SerializedAssetUniqueKey(name=obj.name, uri=obj.uri).to_str(),
+            )
+            if dependency not in deps:
+                deps.append(dependency)
+
         return deps
 
     @staticmethod

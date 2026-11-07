@@ -204,24 +204,26 @@ def execute_callback(
 
         kwargs_without_context = {k: v for k, v in callback_kwargs.items() if k != "context"}
 
-        # Call the callable with all kwargs if it accepts context, otherwise strip context.
-        if accepts_context(callback_callable):
-            result = callback_callable(**callback_kwargs)
-        else:
-            result = callback_callable(**kwargs_without_context)
-
-        # If the callback was a class then it is now instantiated and callable, call it.
-        # The constructor already received the full kwargs above; the __call__ method
-        # typically only needs context (e.g. BaseNotifier.__call__(self, *args)).
-        # Some callables (like BaseNotifier.__call__) only accept positional args,
-        # so check the signature first rather than catching a broad TypeError.
-        if callable(result):
-            context = callback_kwargs.get("context", {})
-            if accepts_keyword_args(result):
-                result = result(context=context) if accepts_context(result) else result()
+        # Only the call may emit asset events: module code above runs as a Dag file parse does.
+        with set_asset_emission_scope():
+            # Call the callable with all kwargs if it accepts context, otherwise strip context.
+            if accepts_context(callback_callable):
+                result = callback_callable(**callback_kwargs)
             else:
-                # Positional-only callable (e.g. BaseNotifier.__call__(self, *args))
-                result = result(context)
+                result = callback_callable(**kwargs_without_context)
+
+            # If the callback was a class then it is now instantiated and callable, call it.
+            # The constructor already received the full kwargs above; the __call__ method
+            # typically only needs context (e.g. BaseNotifier.__call__(self, *args)).
+            # Some callables (like BaseNotifier.__call__) only accept positional args,
+            # so check the signature first rather than catching a broad TypeError.
+            if callable(result):
+                context = callback_kwargs.get("context", {})
+                if accepts_keyword_args(result):
+                    result = result(context=context) if accepts_context(result) else result()
+                else:
+                    # Positional-only callable (e.g. BaseNotifier.__call__(self, *args))
+                    result = result(context)
 
         log.info("Callback executed successfully", callback_path=callback_path)
         return True, None
@@ -308,15 +310,14 @@ class CallbackSubprocess(WatchedSubprocess):
                     )
 
             _add_xcom_pull_to_context(callback_kwargs)
-            with set_asset_emission_scope():
-                success, error_msg = execute_callback(
-                    callback_path=callback_path,
-                    callback_kwargs=callback_kwargs,
-                    dag_rel_path=dag_rel_path,
-                    bundle_path=bundle_path,
-                    log=_log,
-                    callback_kwargs_encoding=callback_kwargs_encoding,
-                )
+            success, error_msg = execute_callback(
+                callback_path=callback_path,
+                callback_kwargs=callback_kwargs,
+                dag_rel_path=dag_rel_path,
+                bundle_path=bundle_path,
+                log=_log,
+                callback_kwargs_encoding=callback_kwargs_encoding,
+            )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)

@@ -2300,6 +2300,33 @@ class TestStringifiedDAGs:
         )
         assert actual == expected
 
+    def test_dag_deps_emission_list(self):
+        """An emission list makes each task a producer, without a second edge for an asset that is also an outlet."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+
+        emitted, shared, mapped = (Asset(name=name, uri=f"s3://bucket/{name}") for name in ("e", "s", "m"))
+        with DAG(dag_id="producer", schedule=None) as dag:
+            EmptyOperator(task_id="emit", emits=[emitted])
+            EmptyOperator(task_id="both", outlets=[shared], emits=[shared])
+
+            @dag.task(emits=[mapped])
+            def emit_mapped(x):
+                pass
+
+            emit_mapped.expand(x=[1, 2])
+
+        actual = DagSerialization.to_dict(dag)["dag"]["dag_dependencies"]
+        assert sorted(actual, key=lambda x: x["label"]) == [
+            {
+                "source": "producer",
+                "target": "asset",
+                "label": asset.name,
+                "dependency_type": "asset",
+                "dependency_id": SerializedAssetUniqueKey(name=asset.name, uri=asset.uri).to_str(),
+            }
+            for asset in (emitted, mapped, shared)
+        ]
+
     @pytest.mark.parametrize("mapped", [False, True])
     def test_derived_dag_deps_operator(self, mapped):
         """

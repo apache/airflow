@@ -1099,6 +1099,20 @@ class DagModelOperation(NamedTuple):
             dm.asset_expression = asset_expression
 
 
+def _intersect_consumer_policies(
+    first: tuple[list[str] | None, bool], second: tuple[list[str] | None, bool]
+) -> tuple[list[str] | None, bool]:
+    """Combine two consumer policies; ``None`` consumer teams means that teams are not limited."""
+    (first_teams, first_global), (second_teams, second_global) = first, second
+    if first_teams is None:
+        teams = second_teams
+    elif second_teams is None:
+        teams = first_teams
+    else:
+        teams = sorted(set(first_teams) & set(second_teams))
+    return teams, first_global and second_global
+
+
 def _get_task_ports(data: dict, inlets: bool, outlets: bool) -> Iterable[str]:
     if inlets:
         yield from data.get("inlets") or ()
@@ -1413,13 +1427,16 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].task_outlet_asset_references = []
                 continue
-            referenced_outlets = {
-                (task_id, assets[d.name, d.uri]): (
-                    d.access_control.get("consumer_teams"),
-                    d.access_control.get("allow_global", True),
+            referenced_outlets: dict[tuple[str, AssetModel], tuple[list[str] | None, bool]] = {}
+            for task_id, d in references:
+                key = (task_id, assets[d.name, d.uri])
+                policy = (d.access_control.get("consumer_teams"), d.access_control.get("allow_global", True))
+                # An asset in both outlets and emits shares one row; neither declaration may widen the other.
+                referenced_outlets[key] = (
+                    _intersect_consumer_policies(referenced_outlets[key], policy)
+                    if key in referenced_outlets
+                    else policy
                 )
-                for task_id, d in references
-            }
             referenced_outlet_keys = {(task_id, asset.id) for (task_id, asset) in referenced_outlets}
             orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_outlet_asset_references}
             for key, ref in orm_refs.items():

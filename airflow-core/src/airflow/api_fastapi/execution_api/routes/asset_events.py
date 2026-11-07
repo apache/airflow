@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable
-from datetime import timedelta
 from typing import Annotated, NamedTuple
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -28,7 +27,6 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
@@ -71,7 +69,6 @@ router = APIRouter(
 
 EMISSION_ORIGIN = "emission"
 # Prototype defaults; the AIP leaves the final values open.
-ARCHIVED_RETRY_EMISSION_WINDOW = timedelta(minutes=10)
 MAX_EMISSION_EXTRA_BYTES = 64 * 1024
 MAX_EMISSIONS_PER_SOURCE = 10_000
 
@@ -105,25 +102,27 @@ def _build_task_source(ti: TaskInstance, *, session: Session) -> _EmissionSource
     return _EmissionSource(
         task_instance=ti,
         dag_run=dag_run,
-        scope=("task", ti.dag_id, ti.run_id, ti.task_id, ti.map_index, dag_run.clear_number),
+        # map_index alone does not identify a task instance: each region of a loop has its own.
+        scope=(
+            "task",
+            ti.dag_id,
+            ti.run_id,
+            ti.task_id,
+            str(ti.region_id),
+            ti.map_index,
+            dag_run.clear_number,
+        ),
     )
 
 
 def _require_emitting_attempt(ti: TaskInstance) -> None:
-    if ti.working_set:
-        return
-    # The task runner reports up_for_retry before it runs on_retry_callback, and that report
-    # archives the attempt, so the callback can only emit through this bounded exception.
-    if (
-        ti.archived_reason == "retry"
-        and ti.end_date is not None
-        and timezone.utcnow() - ti.end_date <= ARCHIVED_RETRY_EMISSION_WINDOW
-    ):
-        return
-    raise HTTPException(
-        status.HTTP_410_GONE,
-        detail={"reason": "attempt_archived", "message": "This task attempt can no longer emit events"},
-    )
+    # Task callbacks need no exception: the supervisor reports a failed or up_for_retry state only
+    # after the task process exits, so the attempt is still live while its callbacks run.
+    if not ti.working_set:
+        raise HTTPException(
+            status.HTTP_410_GONE,
+            detail={"reason": "attempt_archived", "message": "This task attempt can no longer emit events"},
+        )
 
 
 def _resolve_emission_source(
@@ -225,9 +224,18 @@ def _compute_payload_hash(asset: AssetModel, body: EmitAssetEventBody) -> str:
 
 
 def _require_emission_list_entry(source: _EmissionSource, asset: AssetModel, *, session: Session) -> None:
-    ti = source.task_instance
-    if ti is None or not conf.getboolean("core", "multi_team"):
+    if not conf.getboolean("core", "multi_team"):
         return
+    ti = source.task_instance
+    if ti is None:
+        # The consumer-team limits come from the emission list, and a Dag does not have one yet.
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "asset_not_in_emission_list",
+                "message": "A Dag callback cannot emit while multi_team is on, because a Dag has no emission list",
+            },
+        )
     declared = session.scalar(
         select(TaskOutletAssetReference.asset_id).where(
             TaskOutletAssetReference.dag_id == ti.dag_id,
@@ -243,6 +251,19 @@ def _require_emission_list_entry(source: _EmissionSource, asset: AssetModel, *, 
                 "message": "The task does not declare this asset",
             },
         )
+
+
+def _lock_emission_source(source: _EmissionSource, *, session: Session) -> None:
+    """Lock the row of the source until commit, so that its requests count the budget one at a time."""
+    if source.task_instance is not None:
+        session.execute(
+            select(TaskInstance.id)
+            .where(TaskInstance.id == source.task_instance.id)
+            .with_for_update()
+            .execution_options(include_all_attempts=True)
+        )
+    else:
+        session.execute(select(DagRun.id).where(DagRun.id == source.dag_run.id).with_for_update())
 
 
 def _require_emission_budget(source: _EmissionSource, *, session: Session) -> None:
@@ -310,6 +331,7 @@ def emit_asset_event(
         existing := session.scalar(select(AssetEvent).where(AssetEvent.scope_hash == scope_hash))
     ) is not None:
         return _replay(existing, payload_hash, response)
+    _lock_emission_source(source, session=session)
     _require_emission_budget(source, session=session)
 
     callbacks: list[Callable[[], None]] = []

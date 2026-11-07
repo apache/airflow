@@ -105,6 +105,9 @@ DAG_PROCESSOR_MESSAGE_ROUTES: dict[str, str | None] = {
     # Published by the manager through its own endpoint, not forwarded as a runtime request.
     "DagFileParsingResult": None,
     "MaskSecret": None,
+    # Only the trusted in-process transport of a database-mode Dag processor sends this for a Dag
+    # callback; the emit route admits no Dag processor token, so an API-mode processor cannot emit.
+    "EmitAssetEvent": None,
     # Bound to a task instance the processor does not have. The supervisor sends the parse process id,
     # which matches no task instance, so the answer is always empty and needs no request.
     "GetPrevSuccessfulDagRun": None,

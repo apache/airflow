@@ -894,6 +894,8 @@ class AssetEvent(Base):
         Index("idx_asset_event_asset_id_partition_key", asset_id, partition_key),
         # Rows without a key hold NULL, which every supported database treats as distinct.
         Index("idx_asset_event_scope_hash", scope_hash, unique=True),
+        # Dag callback events have no task instance, so their emission budget counts by Dag run.
+        Index("idx_asset_event_source_dag_run", source_dag_id, source_run_id),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 

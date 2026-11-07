@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from unittest import mock
 
 import httpx2
@@ -93,6 +94,21 @@ def test_each_call_without_a_key_gets_its_own_key(mock_supervisor_comms):
     assert all(uuid.UUID(key) for key in keys)
 
 
+def test_empty_key_goes_to_the_server(mock_supervisor_comms):
+    mock_supervisor_comms.send.return_value = AssetEventEmissionResult(id=12, timestamp=DATE)
+    with set_asset_emission_scope():
+        emit_asset_event(ASSET, idempotency_key="")
+    assert _sent_messages(mock_supervisor_comms)[0].idempotency_key == ""
+
+
+def test_threads_of_the_runtime_can_emit(mock_supervisor_comms):
+    mock_supervisor_comms.send.return_value = AssetEventEmissionResult(id=12, timestamp=DATE)
+    with set_asset_emission_scope(callback_index=3), ThreadPoolExecutor(max_workers=1) as pool:
+        receipt = pool.submit(emit_asset_event, ASSET, idempotency_key="batch-1").result()
+    assert receipt.id == 12
+    assert _sent_messages(mock_supervisor_comms)[0].callback_index == 3
+
+
 def test_no_emission_outside_a_runtime_scope(mock_supervisor_comms):
     with pytest.raises(AssetEmissionUnavailableError) as error:
         emit_asset_event(ASSET)
@@ -154,6 +170,28 @@ def test_unexpected_response_is_not_a_receipt(mock_supervisor_comms):
             "unsupported_server",
             404,
             id="server-without-endpoint",
+        ),
+        pytest.param(
+            ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={
+                    "status_code": 422,
+                    "message": "Unprocessable Content",
+                    "detail": {
+                        "detail": [
+                            {
+                                "type": "string_too_short",
+                                "loc": ["body", "idempotency_key"],
+                                "msg": "String should have at least 1 character",
+                            }
+                        ]
+                    },
+                },
+            ),
+            AssetEmissionError,
+            "invalid_request",
+            422,
+            id="request-validation",
         ),
         pytest.param(
             ErrorResponse(error=ErrorType.PERMISSION_DENIED),

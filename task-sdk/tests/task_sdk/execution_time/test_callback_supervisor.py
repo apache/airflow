@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import signal
 import socket
+import textwrap
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -31,6 +32,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX
 from airflow.sdk.api.datamodels._generated import XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
@@ -175,6 +177,39 @@ class TestExecuteCallback:
             assert error_contains in error
         else:
             assert error is None
+
+    def test_only_the_callback_call_can_emit(self, tmp_path, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetEventEmissionResult(
+            id=7, timestamp=datetime(2026, 10, 1, tzinfo=UTC)
+        )
+        (tmp_path / "dag_file.py").write_text(
+            textwrap.dedent(
+                """
+                from airflow.sdk import Asset, emit_asset_event
+                from airflow.sdk.exceptions import AssetEmissionUnavailableError
+
+                try:
+                    emit_asset_event(Asset(name="a", uri="s3://bucket/a"))
+                    AT_IMPORT = "emitted"
+                except AssetEmissionUnavailableError as error:
+                    AT_IMPORT = error.reason
+
+
+                def callback(seen):
+                    seen.extend([AT_IMPORT, emit_asset_event(Asset(name="a", uri="s3://bucket/a")).id])
+                """
+            )
+        )
+        seen: list = []
+        success, error = execute_callback(
+            callback_path=f"{UNUSUAL_MODULE_PREFIX}dag_file.callback",
+            callback_kwargs={"seen": seen},
+            dag_rel_path=Path("dag_file.py"),
+            bundle_path=tmp_path,
+            log=structlog.get_logger(),
+        )
+        assert (success, error) == (True, None)
+        assert seen == ["no_runtime", 7]
 
     @pytest.mark.parametrize(
         "encoded_kwargs",
