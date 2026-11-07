@@ -643,11 +643,35 @@ def test_database_clients_are_installed_in_the_os_deps_stages(image_type):
 
     copied = stage.split("COPY --from=scripts install_os_dependencies.sh", 1)[1].split("\n\n", 1)[0]
     assert all(script in copied for script in ("common.sh", *CLIENT_SCRIPTS))
-    assert "COPY scripts/docker/keys/ /scripts/docker/keys/" in stage
+    assert "/keys/ /scripts/docker/keys/" in stage
     # Set in the stage, before its installation runs - from an arg, or fixed for the CI image.
     before_installation = stage.split("RUN bash /scripts/docker/install_os_dependencies.sh", 1)[0]
     assert all(f"{variable}=" in before_installation for variable in CLIENT_VARIABLES)
     assert not [script for script in CLIENT_SCRIPTS if f"bash /scripts/docker/{script}" in main_stage]
+
+
+def test_prod_dockerfile_builds_without_files_from_the_build_context():
+    dockerfile = (AIRFLOW_ROOT_PATH / "Dockerfile").read_text()
+    context_copies = [
+        line
+        for line in dockerfile.splitlines()
+        if line.startswith("COPY ") and "--from=" not in line and "<<" not in line
+    ]
+
+    # Both of those default to the Dockerfile itself, which is always in the build context.
+    assert context_copies == [
+        "COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files",
+        "COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}",
+    ]
+
+
+def test_prod_dockerfile_inlines_every_key_verbatim():
+    dockerfile = (AIRFLOW_ROOT_PATH / "Dockerfile").read_text()
+    keys = sorted((AIRFLOW_ROOT_PATH / "scripts" / "docker" / "keys").glob("*.asc"))
+
+    assert keys
+    for key in keys:
+        assert f'COPY <<"EOF" /keys/{key.name}\n{key.read_text()}EOF\n' in dockerfile
 
 
 def test_marker_covers_the_database_clients():

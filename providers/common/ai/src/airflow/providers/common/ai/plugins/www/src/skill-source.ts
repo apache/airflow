@@ -19,8 +19,37 @@
 
 import type { SkillSource } from "src/types/model";
 
-/** An HTTPS or SSH Git remote, split into its host and repository path. */
-const GIT_REMOTE = /^(?:https:\/\/|ssh:\/\/git@|git@)([^/:]+)[/:](.+?)(?:\.git)?\/?$/;
+/** The scp-like `git@host:path` SSH remote, which `new URL()` cannot parse. */
+const SCP_REMOTE = /^git@([^/:]+):(.+)$/;
+
+/** Split an HTTPS or SSH Git remote into the host its web UI is served on and the repository path. */
+function parseGitRemote(repoUrl: string): { host: string; repo: string } | undefined {
+  let host: string;
+  let path: string;
+  const scp = SCP_REMOTE.exec(repoUrl);
+  if (scp) {
+    [, host = "", path = ""] = scp;
+  } else {
+    let url: URL;
+    try {
+      url = new URL(repoUrl);
+    } catch {
+      return undefined;
+    }
+    if (url.protocol === "https:") {
+      // Keeps a port, as in https://gitlab.corp.com:8443/team/skills.
+      host = url.host;
+    } else if (url.protocol === "ssh:") {
+      // An SSH port is not the web UI's.
+      host = url.hostname;
+    } else {
+      return undefined;
+    }
+    path = url.pathname.slice(1);
+  }
+  const repo = path.replace(/\/$/, "").replace(/\.git$/, "");
+  return host && repo ? { host, repo } : undefined;
+}
 
 /**
  * How a skill's source reads in the tab: the repository or local path, the path inside the
@@ -35,12 +64,12 @@ export function describeSkillSource(source: SkillSource): {
 } {
   if (source.repo_url === undefined) return { location: source.path };
   const commit = source.commit ?? undefined;
-  const match = GIT_REMOTE.exec(source.repo_url);
-  const location = match ? `${match[1]}/${match[2]}` : source.repo_url;
+  const remote = parseGitRemote(source.repo_url);
+  const location = remote ? `${remote.host}/${remote.repo}` : source.repo_url;
   const path = source.path === "." ? undefined : source.path;
-  if (!match || commit === undefined) return { location, path, commit: commit?.slice(0, 7) };
-  const [, host, repo] = match;
-  const treeSegment = host!.includes("gitlab") ? "-/tree" : host!.includes("github") ? "tree" : undefined;
+  if (!remote || commit === undefined) return { location, path, commit: commit?.slice(0, 7) };
+  const { host, repo } = remote;
+  const treeSegment = host.includes("gitlab") ? "-/tree" : host.includes("github") ? "tree" : undefined;
   const href =
     treeSegment === undefined
       ? undefined

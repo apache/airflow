@@ -50,6 +50,8 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         if not specified.
     :param verify: Whether or not to verify SSL certificates.
     :param botocore_config: Configuration dictionary (key-values) for botocore client.
+    :param stop_job_run_on_kill: If True, stop the Glue job run when the deferred task is killed
+        (for example, cleared while running). Defaults to False.
     """
 
     aws_hook_class = GlueJobHook
@@ -65,9 +67,15 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        stop_job_run_on_kill: bool = False,
     ):
         super().__init__(
-            serialized_fields={"job_name": job_name, "run_id": run_id, "verbose": verbose},
+            serialized_fields={
+                "job_name": job_name,
+                "run_id": run_id,
+                "verbose": verbose,
+                "stop_job_run_on_kill": stop_job_run_on_kill,
+            },
             waiter_name="job_complete",
             waiter_args={"JobName": job_name, "RunId": run_id},
             failure_message="AWS Glue job failed.",
@@ -85,6 +93,26 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         self.job_name = job_name
         self.run_id = run_id
         self.verbose = verbose
+        self.stop_job_run_on_kill = stop_job_run_on_kill
+
+    async def on_kill(self) -> None:
+        """
+        Stop the Glue job run when the user acts on the deferred task.
+
+        Requires Airflow 3.3+, where the triggerer calls ``BaseTrigger.on_kill()``; on older
+        versions this hook is inert. Released 3.3.x versions also call it when the trigger is
+        reassigned to another triggerer (fixed in #73454), which stops a run the new triggerer
+        is still watching.
+        """
+        if not self.stop_job_run_on_kill or not self.run_id:
+            return
+        self.log.info("Stopping AWS Glue job %s run %s.", self.job_name, self.run_id)
+        async with await self.hook().get_async_conn() as client:
+            response = await client.batch_stop_job_run(JobName=self.job_name, JobRunIds=[self.run_id])
+        if response.get("Errors"):
+            self.log.error(
+                "Failed to stop AWS Glue job %s run %s: %s", self.job_name, self.run_id, response["Errors"]
+            )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         if not self.verbose:

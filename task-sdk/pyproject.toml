@@ -261,6 +261,7 @@ input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='AwareDatetime'
 target-python-version='3.11'
+set-default-enum-member=true
 use-annotated=true
 use-default=true
 use-double-quotes=true

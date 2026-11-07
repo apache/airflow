@@ -39,6 +39,8 @@ piece of Airflow code resolves it through:
 * ``ModalHook.lookup_app``, ``get_secret``, ``get_volume`` resolve the other named resources.
 * ``ModalHook.client`` is the underlying ``modal.Client`` for anything not covered above;
   ``client_kwargs`` splats it into SDK calls that take only ``client=``.
+* ``@task.modal`` runs a function's body in a sandbox, in an image without Airflow; see
+  :doc:`task_decorator`.
 
 Every hook method applies both the connection's credentials and its ``environment``. Raw SDK
 calls made with ``client_kwargs`` carry the credentials only; see :doc:`usage` for what that
@@ -64,6 +66,14 @@ resolution, so a worker that already ran ``modal token new`` needs no Airflow se
 
     Connection types <connections>
     Using Modal from Airflow <usage>
+    Running a Python function on Modal <task_decorator>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/modal/index>
 
 .. toctree::
     :hidden:
@@ -90,7 +100,8 @@ apache-airflow-providers-modal package
 
 `Modal <https://modal.com/>`__ provider for Apache Airflow.
 Owns the ``modal`` connection type and a hook that turns it into an authenticated
-Modal client, so operators, toolsets and executors share one credential path.
+Modal client, so operators, toolsets and executors share one credential path, and
+``@task.modal``, which runs a Python function in a Modal sandbox.
 
 
 Release: 0.1.0

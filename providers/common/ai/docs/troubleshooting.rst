@@ -164,7 +164,7 @@ Run-time errors
     it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
     Pydantic model. See :doc:`durable_execution`.
 
-``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
+Durable execution on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and
     ``[common.ai] durable_cache_path`` must be set. On 3.3 and later the task state store
     is used and the option is ignored. See :doc:`durable_execution`.
