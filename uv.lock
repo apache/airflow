@@ -179,7 +179,6 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-certifi = "2026-10-21T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pip = false
 pypdf = "2026-10-29T00:00:00Z"
@@ -22436,7 +22435,7 @@ version = "2.59.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "filelock", version = "3.32.7", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock" },
     { name = "jsonschema" },
     { name = "msgpack" },
     { name = "packaging" },
@@ -23675,7 +23674,7 @@ dependencies = [
     { name = "certifi" },
     { name = "charset-normalizer" },
     { name = "cryptography" },
-    { name = "filelock", version = "3.32.7", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock" },
     { name = "idna" },
     { name = "packaging" },
     { name = "platformdirs" },
@@ -23812,7 +23811,7 @@ resolution-markers = [
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "snowflake-connector-python", version = "4.8.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "snowflake-connector-python", version = "4.8.1", source = { registry = "https://pypi.org/simple" } },
     { name = "sqlalchemy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f2/0d/94458e9231da61efe076ff8b9d808da9c8e3be39d99eaff8e6fe85f7295e/snowflake_sqlalchemy-1.11.1.tar.gz", hash = "sha256:942b203de0404b79550c4098ca851aee2b0b22f695426b073e58d71772e38d51", size = 252184, upload-time = "2026-09-04T06:51:26.892Z" }
@@ -24133,7 +24132,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
+    { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "sphinx-markdown-builder" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9b/2b/2529cb0b1acb85489167904649387ea7b17e3172ac3286fc0c8af2887bc5/sphinx_llm-1.1.0.tar.gz", hash = "sha256:5f3b41c0d7888c75a6fe9f92b1a965c50ee233eaf38673c0ef3501072599c617", size = 408770, upload-time = "2026-09-21T10:15:26.81Z" }
@@ -24148,7 +24148,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docutils" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
+    { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "tabulate" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ad/13/102d7134743120db25e636ffb57a30818e95a416583dca83aadac9c5dd87/sphinx_markdown_builder-0.6.11.tar.gz", hash = "sha256:ba3bf33e0e42ff30ae686ac73957a95e6d045790dcfbaca012dd8ae01794e577", size = 24020, upload-time = "2026-08-16T06:51:38.158Z" }

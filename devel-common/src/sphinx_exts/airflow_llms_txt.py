@@ -54,7 +54,6 @@ from sphinx_exts.redirects import iter_redirects
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
-    from sphinx.config import Config
     from sphinx.domains.std import StandardDomain
     from sphinx.environment import BuildEnvironment
 
@@ -226,42 +225,38 @@ def _xref_title(xref: addnodes.pending_xref, env: BuildEnvironment) -> str | Non
     return None
 
 
-def _separate_markdown_doctrees(app: Sphinx, config: Config) -> None:
-    """Give the Markdown build its own doctree cache."""
-    # In sequential mode, sphinx-llm shares the HTML build's cache, but
-    # extensions can transform doctrees differently for HTML and Markdown.
-    # This cache lives inside sphinx-llm's temporary Markdown output directory,
-    # which is deleted after the Markdown files are copied.
-    # Remove this workaround once Airflow uses the upstream cache-isolation fix.
-    # config-inited runs before Sphinx creates the environment.
-
-    if app.tags.has("sphinx_llm_markdown"):
-        app.doctreedir = Path(app.outdir) / ".doctrees"
-
-
 def _is_markdown_build(app: Sphinx) -> bool:
     return app.builder is not None and app.builder.name == MARKDOWN_BUILDER
 
 
-def _link_example_sources(app: Sphinx, doctree: nodes.document) -> None:
-    """
-    Replace each ``exampleinclude`` header with a link to the whole example file.
+def _remember_example_sources(app: Sphinx, doctree: nodes.document) -> None:
+    """Preserve example filenames before exampleinclude replaces its headers."""
+    from exampleinclude import ExampleHeader
 
-    Runs before ``exampleinclude``'s own ``doctree-read`` handler, which would otherwise turn the
-    header into a bare module path plus a "View Source" button that has no Markdown equivalent.
-    """
+    for header in doctree.findall(ExampleHeader):
+        header.parent["example_source_filename"] = header["filename"]
+
+
+def _link_example_sources(app: Sphinx, doctree: nodes.document, docname: str) -> None:
+    """Replace rendered example headers with full-source links for Markdown."""
     if not _is_markdown_build(app):
         return
-    # Imported by bare name, as conf.py loads it: another import path gives a different class.
-    from exampleinclude import ExampleHeader
 
     repo_root = Path(app.config.llms_txt_repo_root).resolve()
     source_url = app.config.llms_txt_source_url.rstrip("/")
-    for header in list(doctree.findall(ExampleHeader)):
-        path = Path(header["filename"]).resolve()
+
+    for header in list(doctree.findall(nodes.paragraph)):
+        if (
+            "example-header" not in header.get("classes", [])
+            or "example_source_filename" not in header.parent
+        ):
+            continue
+
+        path = Path(header.parent["example_source_filename"]).resolve()
         if not source_url or not path.is_relative_to(repo_root):
             header.parent.remove(header)
             continue
+
         repo_path = path.relative_to(repo_root).as_posix()
         paragraph = nodes.paragraph()
         paragraph += nodes.Text("Excerpt from ")
@@ -544,8 +539,12 @@ def setup(app: Sphinx) -> dict[str, Any]:
     app.add_config_value("llms_txt_root_description", "", "env")
     app.add_config_value("llms_txt_optional_docs", [], "env")
     app.add_config_value("llms_txt_skip_docs", [], "env")
-    app.connect("config-inited", _separate_markdown_doctrees)
-    app.connect("doctree-read", _link_example_sources, priority=400)
+    app.connect("doctree-read", _remember_example_sources, priority=400)
+    app.connect("doctree-resolved", _link_example_sources)
     app.connect("doctree-resolved", _clean_markdown_doctree)
     app.connect("build-finished", _write_llms_txt, priority=102)
-    return {"parallel_read_safe": True, "parallel_write_safe": True}
+    return {
+        "env_version": 1,
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }
