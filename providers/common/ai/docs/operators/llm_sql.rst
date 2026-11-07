@@ -209,9 +209,10 @@ mostly means:
 When ``allowed_tables`` is set, the prompt lists the allowed tables and asks for
 unquoted table names and no comments. If the model's answer is still refused, the
 refusal is sent back to the model, which can rewrite the query as many times as
-``output_retries`` allows. SQL edited by a reviewer during Human-in-the-Loop approval
-is checked too, and a refusal raises
-:class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`.
+``output_retries`` allows; if it is refused every time, the task fails with
+:class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`. SQL edited
+by a reviewer during Human-in-the-Loop approval is checked too, and a refusal raises
+the same error.
 ``allowed_tables`` requires ``validate_sql=True``. It is not a template field, so the
 list is fixed when the Dag is parsed.
 
