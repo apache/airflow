@@ -30,7 +30,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
-from airflow.sdk import task_group
+from airflow.sdk import BaseOperator, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -85,6 +85,23 @@ class TryNumberLink(BaseOperatorLink):
 class TryNumberPlugin(AirflowPlugin):
     name = "try_number_plugin"
     operator_extra_links = [TryNumberLink()]
+
+
+class StaticDocsLink(BaseOperatorLink):
+    name = "Static Docs"
+
+    @property
+    def static_url(self):
+        return "https://docs.example.com/static"
+
+
+class StaticLinkOperator(BaseOperator):
+    """Operator with a link whose URL does not depend on the task run."""
+
+    operator_extra_links = (StaticDocsLink(),)
+
+    def execute(self, context):
+        pass
 
 
 @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
@@ -339,6 +356,37 @@ class TestGetExtraLinks:
         assert (
             response.json()
             == ExtraLinkCollectionResponse(extra_links={"Google Custom": None}, total_entries=1).model_dump()
+        )
+
+    def test_should_respond_200_static_link_without_xcom(self, test_client, dag_maker):
+        """A static extra link renders from the serialized Dag without any XCom entry."""
+        dag_id = "TEST_STATIC_LINK_DAG"
+        dag_run_id = "TEST_STATIC_LINK_RUN"
+        task_id = "TEST_STATIC_LINK_TASK"
+        with dag_maker(
+            dag_id=dag_id, schedule=None, default_args={"start_date": self.default_time}, serialized=True
+        ):
+            StaticLinkOperator(task_id=task_id)
+
+        dag_maker.create_dagrun(
+            run_id=dag_run_id,
+            logical_date=self.default_time,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+            data_interval=(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
+            run_after=timezone.datetime(2020, 1, 2),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links")
+
+        assert response.status_code == 200
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={"Static Docs": "https://docs.example.com/static"},
+                total_entries=1,
+            ).model_dump()
         )
 
     def test_should_respond_200_multiple_links(self, test_client, session):

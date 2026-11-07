@@ -2546,6 +2546,11 @@ def finalize(
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
+        if oe.static_url is not None:
+            # Static links are carried in the serialized Dag and rendered directly
+            # by the API server; no XCom entry is needed (or ever read back).
+            log.debug("Skipping XCom push for static operator extra link", link_name=oe.name)
+            continue
         try:
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)

@@ -34,7 +34,7 @@ from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.serialization.definitions.node import DAGNode
-from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.operatorlink import StaticOperatorLink, XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes
@@ -97,7 +97,7 @@ class SerializedMappedOperator(DAGNode):
     # Needed for serialization.
     task_id: str
     params: SerializedParamsDict = attrs.field(init=False, factory=SerializedParamsDict)
-    operator_extra_links: Collection[XComOperatorLink]
+    operator_extra_links: Collection[XComOperatorLink | StaticOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
     template_fields_renderers: dict[str, str]
@@ -381,7 +381,7 @@ class SerializedMappedOperator(DAGNode):
         )
 
     @functools.cached_property
-    def operator_extra_link_dict(self) -> dict[str, XComOperatorLink]:
+    def operator_extra_link_dict(self) -> dict[str, XComOperatorLink | StaticOperatorLink]:
         """Returns dictionary of all extra links for the operator."""
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
