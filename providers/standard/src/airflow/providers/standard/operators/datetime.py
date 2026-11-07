@@ -109,6 +109,12 @@ def target_times_as_dates(
     if lower is None or upper is None:
         return lower, upper
 
+    # Overnight window: lower time is later than upper time (e.g. 22:00-06:00).
+    # When ``base_date`` (now) is before the upper bound, the window started the
+    # previous day; otherwise it ends the next day.
     if upper < lower:
-        upper += datetime.timedelta(days=1)
+        if base_date.time() < upper.time():
+            lower -= datetime.timedelta(days=1)
+        else:
+            upper += datetime.timedelta(days=1)
     return lower, upper
