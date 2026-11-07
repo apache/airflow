@@ -317,10 +317,7 @@ def test_indexes_follow_navigation_and_use_versioned_urls(tmp_path):
         pytest.param(True, "https://github.com/apache/airflow/blob/abc", "html", id="html-unchanged"),
     ],
 )
-def test_example_source_links(tmp_path, monkeypatch, inside_repo, source_url, builder):
-    monkeypatch.syspath_prepend(str(Path(airflow_llms_txt.__file__).parent))
-
-    from exampleinclude import ExampleHeader
+def test_example_source_links(tmp_path, inside_repo, source_url, builder):
 
     repo = tmp_path / "repo"
     example = (
@@ -329,9 +326,11 @@ def test_example_source_links(tmp_path, monkeypatch, inside_repo, source_url, bu
         else tmp_path / "outside/example.py"
     )
     tree = nodes.document("", "")
-    header = ExampleHeader()
-    header["filename"] = str(example)
-    tree += header
+    wrapper = nodes.container()
+    wrapper["example_source_filename"] = str(example)
+    header = nodes.paragraph("", "Original example header", classes=["example-header"])
+    wrapper += header
+    tree += wrapper
 
     app = SimpleNamespace(
         builder=SimpleNamespace(name=builder),
@@ -341,19 +340,46 @@ def test_example_source_links(tmp_path, monkeypatch, inside_repo, source_url, bu
         ),
     )
 
-    airflow_llms_txt._link_example_sources(app, tree)
+    airflow_llms_txt._link_example_sources(app, tree, "index")
 
     if builder == "html":
-        assert tree.children == [header]
+        assert wrapper.children == [header]
     elif not inside_repo or not source_url:
-        assert not tree.children
+        assert not wrapper.children
     else:
-        assert not list(tree.findall(ExampleHeader))
-        references = list(tree.findall(nodes.reference))
+        references = list(wrapper.findall(nodes.reference))
         assert len(references) == 1
         assert references[0]["refuri"] == (source_url + "/providers/common/ai/tests/system/example.py")
         assert references[0].astext() == ("providers/common/ai/tests/system/example.py")
-        assert tree.astext() == ("Excerpt from providers/common/ai/tests/system/example.py:")
+        assert wrapper.astext() == ("Excerpt from providers/common/ai/tests/system/example.py:")
+
+
+def test_example_source_links_in_built_docs(rendered_docs):
+    assert (
+        "Excerpt from [`example.py`](https://github.com/apache/airflow/blob/test-ref/example.py):"
+    ) in rendered_docs.markdown
+    assert 'print("example survives cache reuse")' in rendered_docs.markdown
+
+    assert 'class="example-header' in rendered_docs.html
+    assert "Excerpt from" not in rendered_docs.html
+
+
+def test_remember_example_sources(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(airflow_llms_txt.__file__).parent))
+    from exampleinclude import ExampleHeader
+
+    filename = str(tmp_path / "example.py")
+    tree = nodes.document("", "")
+    wrapper = nodes.container()
+    header = ExampleHeader()
+    header["filename"] = filename
+    wrapper += header
+    tree += wrapper
+
+    airflow_llms_txt._remember_example_sources(SimpleNamespace(builder=SimpleNamespace(name="html")), tree)
+
+    assert wrapper["example_source_filename"] == filename
+    assert wrapper.children == [header]
 
 
 @pytest.mark.parametrize(
@@ -512,23 +538,8 @@ def test_navigation_handles_nested_pages_duplicates_and_cycles():
     assert airflow_llms_txt._toctree_docs(env, "guide", seen) == []
 
 
-@pytest.mark.parametrize("markdown_build", [True, False])
-def test_markdown_doctree_cache_is_separate(tmp_path, markdown_build):
-    original = tmp_path / "html-doctrees"
-    app = SimpleNamespace(
-        outdir=tmp_path / "markdown-output",
-        doctreedir=original,
-        tags=SimpleNamespace(has=lambda tag: markdown_build and tag == "sphinx_llm_markdown"),
-    )
-
-    airflow_llms_txt._separate_markdown_doctrees(app, SimpleNamespace())
-
-    expected = app.outdir / ".doctrees" if markdown_build else original
-    assert app.doctreedir == expected
-
-
 @pytest.fixture
-def rendered_markdown(tmp_path, monkeypatch):
+def rendered_docs(tmp_path):
     source = tmp_path / "source"
     output = tmp_path / "output"
     source.mkdir()
@@ -543,6 +554,7 @@ def rendered_markdown(tmp_path, monkeypatch):
         f"sys.path.insert(0, {str(extension_dir)!r})\n"
         "extensions = [\n"
         '    "redirects",\n'
+        '    "exampleinclude",\n'
         '    "sphinx_exts.airflow_llms_txt",\n'
         '    "sphinxcontrib.mermaid",\n'
         "]\n"
@@ -550,7 +562,10 @@ def rendered_markdown(tmp_path, monkeypatch):
         'redirects_file = "redirects.txt"\n'
         "llms_txt_enabled = True\n"
         'llms_txt_suffix_mode = "append"\n'
-        "llms_txt_build_parallel = False\n",
+        "llms_txt_build_parallel = False\n"
+        f"exampleinclude_sourceroot = {str(source)!r}\n"
+        f"llms_txt_repo_root = {str(source)!r}\n"
+        'llms_txt_source_url = "https://github.com/apache/airflow/blob/test-ref/"\n',
         encoding="utf-8",
     )
     (source / "redirects.txt").write_text("", encoding="utf-8")
@@ -598,11 +613,20 @@ Following paragraph outside the note.
    :caption: Further reading
 
    child
+
+Example
+-------
+
+.. exampleinclude:: example.py
 """,
         encoding="utf-8",
     )
     (source / "child.rst").write_text(
         "Child page\n==========\n\nChild documentation.\n",
+        encoding="utf-8",
+    )
+    (source / "example.py").write_text(
+        'print("example survives cache reuse")\n',
         encoding="utf-8",
     )
 
@@ -622,34 +646,47 @@ Following paragraph outside the note.
     assert app.statuscode == 0, warnings.getvalue()
     pages = list(output.rglob("index*.md"))
     assert len(pages) == 1
-    return pages[0].read_text(encoding="utf-8")
+    return SimpleNamespace(
+        markdown=pages[0].read_text(encoding="utf-8"),
+        html=(output / "index.html").read_text(encoding="utf-8"),
+    )
 
 
-def test_rendered_mermaid(rendered_markdown):
+def test_rendered_mermaid(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     assert "```mermaid\n" in rendered_markdown
     assert "graph TD\n" in rendered_markdown
     assert "A --> B" in rendered_markdown
 
 
-def test_rendered_code_caption_and_sample(rendered_markdown):
+def test_rendered_code_caption_and_sample(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     assert "**Example code**" in rendered_markdown
     assert 'print("hello")' in rendered_markdown
     assert rendered_markdown.index("**Example code**") < (rendered_markdown.index('print("hello")'))
 
 
-def test_rendered_keyword_only_marker(rendered_markdown):
+def test_rendered_keyword_only_marker(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     signature = next(line for line in rendered_markdown.splitlines() if "configure(" in line)
     assert "*" in signature
     assert "model_id" in signature
 
 
-def test_rendered_toctree_caption(rendered_markdown):
+def test_rendered_toctree_caption(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     assert "**Further reading**" in rendered_markdown
     assert "[Child page]" in rendered_markdown
     assert "# Further reading" not in rendered_markdown
 
 
-def test_rendered_admonition_has_clear_boundaries(rendered_markdown):
+def test_rendered_admonition_has_clear_boundaries(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     lines = rendered_markdown.splitlines()
     assert any(line.startswith(">") and "**Note:**" in line for line in lines)
     assert any(line.startswith(">") and "Important configuration advice." in line for line in lines)
@@ -657,12 +694,16 @@ def test_rendered_admonition_has_clear_boundaries(rendered_markdown):
     assert not following.startswith(">")
 
 
-def test_rendered_table_is_compact(rendered_markdown):
+def test_rendered_table_is_compact(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     table_lines = [line.strip() for line in rendered_markdown.splitlines() if line.strip().startswith("|")]
     assert "| Name | Value |" in table_lines
     assert "|---|---|" in table_lines
     assert "| Short | A much longer value |" in table_lines
 
 
-def test_rendered_same_page_link(rendered_markdown):
+def test_rendered_same_page_link(rendered_docs):
+    rendered_markdown = rendered_docs.markdown
+
     assert "[Setup](#setup-section)" in rendered_markdown

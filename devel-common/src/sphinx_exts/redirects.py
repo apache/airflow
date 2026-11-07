@@ -90,8 +90,12 @@ def generate_redirects(app):
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
         return
 
-            with open(redirected_filename, "w") as f:
-                f.write(build_redirect_page(to_path))
+    for from_path, to_path in iter_redirects(app):
+        redirected_filename = os.path.join(app.builder.outdir, from_path)
+        os.makedirs(os.path.dirname(redirected_filename), exist_ok=True)
+
+        with open(redirected_filename, "w", encoding="utf-8") as f:
+            f.write(build_redirect_page(to_path))
 
 
 def setup(app):

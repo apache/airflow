@@ -22,13 +22,8 @@ from unittest import mock
 
 import pytest
 from sphinx.builders.html import StandaloneHTMLBuilder
-from sphinx_exts import redirects
-from sphinx_exts.redirects import build_redirect_page  # noqa: E402
 
-SPHINX_EXTS_PATH = Path(__file__).parents[3] / "src" / "sphinx_exts"
-if SPHINX_EXTS_PATH.as_posix() not in sys.path:
-    # The extensions are loaded by Sphinx from this directory and import each other by bare name.
-    sys.path.append(SPHINX_EXTS_PATH.as_posix())
+from sphinx_exts import redirects
 
 
 @pytest.fixture
@@ -150,12 +145,10 @@ def test_generate_html_redirects(app):
 
     redirects.generate_redirects(app)
 
-    assert (output / "old.html").read_text(encoding="utf-8") == (
-        '<html><head><meta http-equiv="refresh" content="0; url=new.html"/></head></html>'
-    )
+    assert (output / "old.html").read_text(encoding="utf-8") == (redirects.build_redirect_page("new.html"))
     destination = f"..{os.path.sep}concepts.html"
     assert (output / "hooks/index.html").read_text(encoding="utf-8") == (
-        f'<html><head><meta http-equiv="refresh" content="0; url={destination}"/></head></html>'
+        redirects.build_redirect_page(destination)
     )
 
 
@@ -176,6 +169,7 @@ def test_generate_redirects_without_redirect_file(app):
 
     assert not list(output.rglob("*"))
 
+
 @pytest.mark.parametrize(
     "to_path",
     [
@@ -183,8 +177,8 @@ def test_generate_redirects_without_redirect_file(app):
         pytest.param("../security/index.html", id="without-anchor"),
     ],
 )
-def test_redirect_page_keeps_the_requested_anchor(to_path):
-    page = build_redirect_page(to_path)
+def test_redirect_page_contains_anchor_preserving_script(to_path):
+    page = redirects.build_redirect_page(to_path)
 
     assert f'var target = "{to_path}";' in page
     assert 'target = target.split("#")[0] + window.location.hash;' in page
