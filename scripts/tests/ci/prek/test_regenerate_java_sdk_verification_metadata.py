@@ -257,6 +257,23 @@ class TestValidateRegenerated:
                 ),
                 id="changed-hash-on-retained-coordinate",
             ),
+            pytest.param(
+                get_variant(
+                    '<artifact name="kept-1.0.jar">',
+                    f'<artifact name="kept-1.0.jar"><sha256 value="{HASH_B}" {GENERATED}/></artifact>\n'
+                    '         <artifact name="kept-1.0.jar">',
+                ),
+                id="duplicate-artifact",
+            ),
+            pytest.param(
+                get_variant(
+                    '<component group="org.example" name="kept" version="1.0">',
+                    f'<component group="org.example" name="kept" version="1.0"><artifact name="kept-1.0.jar">'
+                    f'<sha256 value="{HASH_B}" {GENERATED}/></artifact></component>\n'
+                    '      <component group="org.example" name="kept" version="1.0">',
+                ),
+                id="duplicate-component",
+            ),
             pytest.param(get_variant("</components>", "</components"), id="malformed-xml"),
             pytest.param(VALIDATED.replace("<components>", "<components >"), id="no-components-marker"),
         ],

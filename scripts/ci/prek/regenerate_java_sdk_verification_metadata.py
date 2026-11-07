@@ -196,7 +196,11 @@ def get_checksum_map(regenerated: str) -> dict[tuple[str, str, str, str], frozen
                 ):
                     raise UnsafeMetadataError(f"unexpected element under <artifact>: {sha256.tag}")
                 values.add(sha256.attrib["value"])
-            checksums[(*coordinate, artifact.attrib["name"])] = frozenset(values)
+            key = (*coordinate, artifact.attrib["name"])
+            # Gradle merges duplicates, so a second entry could add a hash to a retained artifact.
+            if key in checksums:
+                raise UnsafeMetadataError(f"duplicate entry: {'/'.join(key)}")
+            checksums[key] = frozenset(values)
     return checksums
 
 
