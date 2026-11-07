@@ -57,6 +57,7 @@
     :caption: Guides
 
     Connection types <connections/adbc>
+    Redis through ADBC <connections/redis>
     Using AdbcHook <operators>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
