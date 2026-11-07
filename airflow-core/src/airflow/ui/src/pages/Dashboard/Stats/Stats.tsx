@@ -28,6 +28,7 @@ import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
 import { DagImportErrors } from "./DagImportErrors";
+import { FailingTriggers } from "./FailingTriggers";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
@@ -65,6 +66,8 @@ export const Stats = () => {
           link="/dags?last_dag_run_state=failed"
           state="failed"
         />
+
+        <FailingTriggers />
 
         <DagImportErrors />
 

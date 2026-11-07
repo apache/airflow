@@ -18,7 +18,7 @@
  */
 import { createListCollection } from "@chakra-ui/react";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceState, TriggerKind, TriggerStatus } from "openapi/requests/types.gen";
 
 export const taskInstanceStateOptions = createListCollection<{
   label: string;
@@ -81,3 +81,14 @@ export const dagRunTypeOptions = createListCollection({
     { label: "common:runTypes.asset_triggered", value: "asset_triggered" },
   ],
 });
+
+export const triggerKinds: Array<TriggerKind> = ["task", "callback", "asset_watcher"];
+
+export const triggerStatuses: Array<TriggerStatus> = ["pending", "running", "failing", "orphaned"];
+
+export const triggerStatusLabelKeys: Record<TriggerStatus, string> = {
+  failing: "browse:triggers.status.failing",
+  orphaned: "browse:triggers.status.orphaned",
+  pending: "common:states.pending",
+  running: "common:states.running",
+};

@@ -360,6 +360,30 @@ describe("generateElkGraph — operator colors", () => {
   });
 });
 
+describe("generateElkGraph — asset watchers", () => {
+  it("carries the watcher's trigger and its status onto the node", () => {
+    const root = generateElkGraph({
+      direction: "RIGHT",
+      edges: [],
+      font: "12px sans-serif",
+      nodes: [
+        buildNode({
+          id: "asset-watcher:1:7",
+          label: "w",
+          trigger_id: 7,
+          trigger_status: "failing",
+          type: "asset-watcher",
+        }),
+      ],
+      openGroupIds: [],
+    });
+
+    const node = root.children?.[0] as FormattedNode;
+
+    expect(node).toMatchObject({ triggerId: 7, triggerStatus: "failing" });
+  });
+});
+
 describe("generateElkGraph — layout options", () => {
   it("keeps ELK's default node placement so nodes are not squeezed toward one line", () => {
     const root = generateElkGraph({

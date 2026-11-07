@@ -40,6 +40,8 @@ async function globalTeardown() {
     "asset_produces_1",
     "example_task_state_store",
     "example_dynamic_task_mapping",
+    "example_asset_with_watchers",
+    "example_time_delta_sensor_async",
   ];
 
   for (const dagId of dagIds) {

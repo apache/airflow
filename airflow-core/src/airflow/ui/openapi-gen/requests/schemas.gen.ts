@@ -10502,10 +10502,18 @@ export const $TriggerAssetWatcherReferenceResponse = {
         watcher_name: {
             type: 'string',
             title: 'Watcher Name'
+        },
+        scheduled_dag_ids: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Scheduled Dag Ids',
+            description: "The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read."
         }
     },
     type: 'object',
-    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name'],
+    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name', 'scheduled_dag_ids'],
     title: 'TriggerAssetWatcherReferenceResponse',
     description: 'An asset watcher a trigger serves.'
 } as const;
@@ -11701,7 +11709,7 @@ export const $BaseNodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -11726,6 +11734,27 @@ export const $BaseNodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
@@ -12856,6 +12885,18 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Callback Path'
+        },
+        callback_trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Trigger Id',
+            description: 'The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.'
         }
     },
     type: 'object',
@@ -14190,7 +14231,7 @@ export const $NodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -14215,6 +14256,27 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         children: {
             anyOf: [

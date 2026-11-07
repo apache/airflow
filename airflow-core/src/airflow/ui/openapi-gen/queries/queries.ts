@@ -2078,21 +2078,23 @@ export const useTaskServiceGetTask = <TData = Common.TaskServiceGetTaskDefaultRe
 * @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
 * @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
 * @param data.assetId Return only the triggers of this asset's watchers.
+* @param data.scheduledDagId Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
 * @param data.teams Return only the triggers of these teams.
 * @returns TriggerCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTriggerServiceGetTriggers = <TData = Common.TriggerServiceGetTriggersDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+export const useTriggerServiceGetTriggers = <TData = Common.TriggerServiceGetTriggersDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
   assetId?: number;
   dagId?: string;
   kind?: TriggerKind[];
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  scheduledDagId?: string;
   status?: TriggerStatus[];
   teams?: string[];
   triggererHostname?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }, queryKey), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }, queryKey), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }) as TData, ...options });
 /**
 * Get Trigger
 * Get a trigger, who it runs for, and how it is doing.

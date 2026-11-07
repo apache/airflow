@@ -62,8 +62,9 @@ Owner
 Each trigger names what it runs for: ``task_instance`` (Dag, run, task, map index, try and state), ``callback``
 (its id, Dag, run and state), or ``asset_watchers`` (each asset and watcher name; several assets that declare the
 same trigger share one). ``kind`` is worked out from the owner, and ``dag_id`` is the Dag of the task instance, or
-of the Dag run whose deadline the callback belongs to. In the other direction, a task instance's ``trigger`` and an
-asset's ``watchers`` (with ``status`` and ``trigger_id``) link to the trigger.
+of the Dag run whose deadline the callback belongs to. In the other direction, a task instance's ``trigger``, an
+asset's ``watchers`` (with ``status`` and ``trigger_id``) and, in the UI's deadlines, a running deadline
+callback's ``callback_trigger_id`` link to the trigger.
 
 Filtering
 ---------

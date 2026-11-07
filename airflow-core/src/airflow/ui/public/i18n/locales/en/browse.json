@@ -60,6 +60,51 @@
     },
     "title": "Deadlines"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "Dags Affected",
+      "failures": "Failures",
+      "kind": "Kind",
+      "lastError": "Last Error",
+      "lastEvent": "Last Event",
+      "owner": "Owner",
+      "status": "Status",
+      "triggerer": "Triggerer"
+    },
+    "detail": {
+      "firstFailedAt": "Failing Since",
+      "lastFailedAt": "Last Failed At",
+      "noReadableScheduledDags": "None you can read",
+      "scheduledDags": "Scheduled Dags"
+    },
+    "filters": {
+      "triggererHostname": "Triggerer Hostname"
+    },
+    "forbidden": {
+      "description": "Triggers are shown to whoever can see what they run for: a Dag's task instances or Dag runs, or an asset they watch. You can see none of these.",
+      "title": "No triggers to show"
+    },
+    "kind": {
+      "asset_watcher": "Asset Watcher",
+      "callback": "Callback",
+      "task": "Task"
+    },
+    "notFound": {
+      "backToList": "Back to Triggers",
+      "description": "Triggers are removed once they fire or what they run for is done, so this one has most likely finished.",
+      "title": "This trigger no longer exists"
+    },
+    "status": {
+      "failing": "Failing",
+      "orphaned": "Orphaned"
+    },
+    "statusHint": {
+      "failing": "It has failed since it last recovered. It clears once it fires an event or stays up for 2 minutes after it was last started. The last error says why it failed.",
+      "orphaned": "Its triggerer stopped responding, so another triggerer will take it over, usually within a minute. If it stays orphaned, no running triggerer can take it: start a triggerer or raise their capacity, and check that one serves its queue and its team.",
+      "pending": "Waiting for a triggerer to pick it up. If it stays pending, no running triggerer has room for it or serves its queue and its team.",
+      "running": "Running on a live triggerer, with no failure since it last recovered."
+    }
+  },
   "xcom": {
     "add": {
       "error": "Failed to add XCom",

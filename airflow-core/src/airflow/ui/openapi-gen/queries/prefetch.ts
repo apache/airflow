@@ -2078,21 +2078,23 @@ export const prefetchUseTaskServiceGetTask = (queryClient: QueryClient, { dagId,
 * @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
 * @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
 * @param data.assetId Return only the triggers of this asset's watchers.
+* @param data.scheduledDagId Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
 * @param data.teams Return only the triggers of these teams.
 * @returns TriggerCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTriggerServiceGetTriggers = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+export const prefetchUseTriggerServiceGetTriggers = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
   assetId?: number;
   dagId?: string;
   kind?: TriggerKind[];
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  scheduledDagId?: string;
   status?: TriggerStatus[];
   teams?: string[];
   triggererHostname?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }) });
 /**
 * Get Trigger
 * Get a trigger, who it runs for, and how it is doing.

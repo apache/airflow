@@ -30,9 +30,11 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import (
     ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
+    ReadableTriggersFilterDep,
     requires_access_dag,
 )
 from airflow.api_fastapi.core_api.services.ui.dependencies import (
+    add_asset_watcher_nodes,
     extract_single_connected_component,
     get_data_dependencies,
     get_scheduling_dependencies,
@@ -55,6 +57,7 @@ def get_dependencies(
     session: SessionDep,
     readable_dags_filter: ReadableDagsFilterDep,
     readable_assets_filter: ReadableAssetsFilterDep,
+    readable_triggers_filter: ReadableTriggersFilterDep,
     node_id: str | None = None,
     dependency_type: Literal["scheduling", "data"] = "scheduling",
 ) -> BaseGraphResponse:
@@ -78,7 +81,9 @@ def get_dependencies(
         )
         if not data["nodes"]:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with id {asset_id} was not found")
-        return BaseGraphResponse(**data)
+        return BaseGraphResponse(
+            **add_asset_watcher_nodes(data, readable_triggers=readable_triggers_filter, session=session)
+        )
 
     data = get_scheduling_dependencies(
         session,
@@ -92,4 +97,7 @@ def get_dependencies(
         except ValueError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
 
-    return BaseGraphResponse(**data)
+    # Added after the component is picked, so a Dag's graph looks up only the watchers of its own assets.
+    return BaseGraphResponse(
+        **add_asset_watcher_nodes(data, readable_triggers=readable_triggers_filter, session=session)
+    )

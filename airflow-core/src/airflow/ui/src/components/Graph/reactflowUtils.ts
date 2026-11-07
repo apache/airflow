@@ -42,6 +42,8 @@ export type CustomNodeProps = {
   taskInstance?: LightGridTaskInstanceSummary;
   team?: string | null;
   tooltip?: string | null;
+  triggerId?: number | null;
+  triggerStatus?: NodeResponse["trigger_status"];
   type: string;
   uiColor?: string | null;
   uiFgcolor?: string | null;

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
@@ -1225,16 +1226,23 @@ class PermittedTriggerFilter(OrmClause[None]):
     def __init__(
         self,
         *,
+        get_dag_ids: Callable[[], set[str]],
         task_dag_ids: set[str],
         callback_dag_ids: set[str],
         asset_ids: set[int],
         can_read_an_owner: bool,
     ) -> None:
         super().__init__()
+        self._get_dag_ids = get_dag_ids
         self.task_dag_ids = task_dag_ids
         self.callback_dag_ids = callback_dag_ids
         self.asset_ids = asset_ids
         self.can_read_an_owner = can_read_an_owner
+
+    @property
+    def dag_ids(self) -> set[str]:
+        """The Dags the caller can read, which narrow the Dags a trigger's response names."""
+        return self._get_dag_ids()
 
     def to_orm(self, select: Select) -> Select:
         # The kind by the owner recorded on the row, as Trigger.kind_expression decides it, but without its CASE:
@@ -1263,14 +1271,13 @@ def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> 
     # get_authorized_assets may assume this check has passed, as GET /assets checks it first: the FAB auth
     # manager, which has no per-asset permissions, returns every asset there.
     can_read_assets = auth_manager.is_authorized_asset(method="GET", details=AssetDetails(id=None), user=user)
-    dag_ids = (
-        auth_manager.get_authorized_dag_ids(user=user, method="GET")
-        if can_read_task_instances or can_read_runs
-        else set()
-    )
+    # Looked up once, and for a caller who reads only assets only when a response names Dags: some auth
+    # managers check every Dag for it.
+    get_dag_ids = functools.cache(lambda: auth_manager.get_authorized_dag_ids(user=user, method="GET"))
     return PermittedTriggerFilter(
-        task_dag_ids=dag_ids if can_read_task_instances else set(),
-        callback_dag_ids=dag_ids if can_read_runs else set(),
+        get_dag_ids=get_dag_ids,
+        task_dag_ids=get_dag_ids() if can_read_task_instances else set(),
+        callback_dag_ids=get_dag_ids() if can_read_runs else set(),
         asset_ids=auth_manager.get_authorized_assets(user=user, method="GET") if can_read_assets else set(),
         can_read_an_owner=can_read_task_instances or can_read_runs or can_read_assets,
     )
