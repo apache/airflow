@@ -1618,6 +1618,53 @@ class TestExternalTaskSensorV3:
         ]
         assert op.external_dates_filter == DEFAULT_DATE.isoformat()
 
+    def test_poke_does_not_store_external_run_ids_while_waiting(self):
+        op = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            failed_states=[State.FAILED],
+            skipped_states=[State.SKIPPED],
+        )
+        ti = mock.MagicMock(spec=["get_ti_count", "get_task_states", "xcom_push"])
+        ti.get_ti_count.return_value = 0
+
+        assert op.poke(context={"logical_date": DEFAULT_DATE, "ti": ti}) is False
+
+        ti.get_task_states.assert_not_called()
+        ti.xcom_push.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "expectation"),
+        [
+            pytest.param(
+                {"failed_states": [State.FAILED], "soft_fail": True},
+                pytest.raises(AirflowSkipException),
+                id="failed-soft-fail",
+            ),
+            pytest.param(
+                {"skipped_states": [State.SKIPPED]}, pytest.raises(AirflowSkipException), id="skipped"
+            ),
+            pytest.param({}, contextlib.nullcontext(), id="success"),
+        ],
+    )
+    def test_poke_keeps_outcome_when_storing_external_run_ids_fails(self, sensor_kwargs, expectation):
+        op = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            **sensor_kwargs,
+        )
+        ti = mock.MagicMock(spec=["get_ti_count", "get_task_states", "xcom_push"])
+        ti.get_ti_count.return_value = 1
+        ti.get_task_states.side_effect = RuntimeError("Execution API unavailable")
+
+        with expectation:
+            assert op.poke(context={"logical_date": DEFAULT_DATE, "ti": ti}) is True
+
+        ti.get_task_states.assert_called_once()
+        ti.xcom_push.assert_not_called()
+
     def test_get_logical_date(self):
         """For AF 3, we check for logical date or dag_run.run_after  in context."""
 
@@ -1859,6 +1906,34 @@ class TestExternalTaskAsyncSensor:
             logical_dates=[DEFAULT_DATE],
         )
         ti.xcom_push.assert_called_once_with(key=XCOM_EXTERNAL_RUN_IDS, value=["run_a", "run_b"])
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Run IDs are looked up through the Task SDK")
+    @pytest.mark.parametrize(
+        ("status", "expectation"),
+        [
+            pytest.param("success", contextlib.nullcontext(), id="success"),
+            pytest.param("failed", pytest.raises(ExternalDagFailedError), id="failed"),
+            pytest.param("skipped", pytest.raises(AirflowSkipException), id="skipped"),
+        ],
+    )
+    def test_defer_execute_complete_keeps_outcome_when_storing_external_run_ids_fails(
+        self, status, expectation
+    ):
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+        )
+        ti = mock.MagicMock(spec=["get_task_states", "xcom_push"])
+        ti.get_task_states.side_effect = RuntimeError("Execution API unavailable")
+        context = {"logical_date": DEFAULT_DATE, "ti": ti}
+
+        with expectation:
+            sensor.execute_complete(context=context, event={"status": status})
+
+        ti.get_task_states.assert_called_once()
+        ti.xcom_push.assert_not_called()
 
     def test_poke_interval_set_on_init(self):
         """Test that poke_interval is set on init and the deprecated poll_interval attribute mirrors it."""

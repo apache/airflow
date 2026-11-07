@@ -106,14 +106,12 @@ class ExternalDagLink(BaseOperatorLink):
                 external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)  # type: ignore[no-redef]
 
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.helpers import build_airflow_dagrun_url
-
             external_run_ids = XCom.get_value(ti_key=ti_key, key=XCOM_EXTERNAL_RUN_IDS)
             if not external_run_ids:
                 return _build_airflow_ui_url(f"dags/{external_dag_id}")
             if len(external_run_ids) > 1:
                 return _build_airflow_ui_url(f"dags/{external_dag_id}/runs")
-            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=external_run_ids[0])
+            return _build_airflow_ui_url(f"dags/{external_dag_id}/runs/{external_run_ids[0]}")
         from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
         query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
@@ -412,14 +410,23 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def _push_external_run_ids(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> None:
         """Store the run IDs of the external Dag runs matched by ``dttm_filter`` for ExternalDagLink."""
-        # The Execution API has no lookup from logical date to run ID; the task states map is keyed by run ID.
-        task_states = context["ti"].get_task_states(
-            dag_id=self.external_dag_id,
-            task_ids=list(self.external_task_ids) if self.external_task_ids else None,
-            task_group_id=self.external_task_group_id,
-            logical_dates=list(dttm_filter),
-        )
-        context["ti"].xcom_push(key=XCOM_EXTERNAL_RUN_IDS, value=sorted(task_states))
+        # Runs before the sensor raises or returns its result, so a failure here must not replace that
+        # result. Without the XCom, ExternalDagLink falls back to the external Dag page.
+        try:
+            # The Execution API has no lookup from logical date to run ID; the task states map is keyed by run ID.
+            task_states = context["ti"].get_task_states(
+                dag_id=self.external_dag_id,
+                task_ids=list(self.external_task_ids) if self.external_task_ids else None,
+                task_group_id=self.external_task_group_id,
+                logical_dates=list(dttm_filter),
+            )
+            context["ti"].xcom_push(key=XCOM_EXTERNAL_RUN_IDS, value=sorted(task_states))
+        except Exception:
+            self.log.warning(
+                "Could not store the matched run IDs of external Dag %s for the External DAG link",
+                self.external_dag_id,
+                exc_info=True,
+            )
 
     def _calculate_count(self, count: int, dttm_filter: Sequence[datetime.datetime]) -> float | int:
         """Calculate the normalized count based on the type of check."""
