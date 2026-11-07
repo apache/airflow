@@ -175,7 +175,28 @@ class _BaseTemporalMapper(PartitionMapper):
         self._timezone = timezone
 
     def to_downstream(self, key: str) -> str:
-        dt = datetime.strptime(key, self.input_format)
+        """
+        Map *key* to the start of its period.
+
+        ``input_format`` is tried first. A key that does not match it is still
+        accepted if it is the default output of a temporal mapper, so mappers can
+        consume each other's keys.
+        """
+        try:
+            dt = datetime.strptime(key, self.input_format)
+        except ValueError:
+            parsed = _parse_default_key(key)
+            if parsed is None:
+                raise
+            dt = parsed
+        return self._to_downstream_key(dt)
+
+    def to_rollup_downstream(self, key: str) -> str:
+        # encode_upstream renders the keys a rollup waits for in input_format, so a
+        # key in any other format would be accepted here and then never match.
+        return self._to_downstream_key(datetime.strptime(key, self.input_format))
+
+    def _to_downstream_key(self, dt: datetime) -> str:
         if dt.tzinfo is None:
             dt = make_aware(dt, self._timezone)
         else:
@@ -450,6 +471,43 @@ class StartOfYearMapper(_BaseTemporalMapper):
             second=0,
             microsecond=0,
         )
+
+
+_DEFAULT_KEY_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
+    _compile_output_format_regex(mapper.default_output_format, {"quarter": r"[1-4]"})
+    for mapper in (
+        StartOfHourMapper,
+        StartOfDayMapper,
+        StartOfWeekMapper,
+        StartOfMonthMapper,
+        StartOfQuarterMapper,
+        StartOfYearMapper,
+    )
+)
+
+
+def _parse_default_key(key: str) -> datetime | None:
+    """
+    Parse *key* if it is the default output of a temporal mapper, else return ``None``.
+
+    Fields the key does not carry default to the start of its period, e.g.
+    ``2026-Q3`` becomes ``2026-07-01T00:00:00``. Unlike ``strptime`` the match is
+    strict: every field must be fully padded and a week key must name a Monday
+    in the stated ISO week.
+    """
+    for pattern in _DEFAULT_KEY_PATTERNS:
+        if (match := pattern.fullmatch(key)) is None:
+            continue
+        parts = match.groupdict()
+        month = (int(parts["quarter"]) - 1) * 3 + 1 if "quarter" in parts else int(parts.get("m", 1))
+        try:
+            dt = datetime(int(parts["Y"]), month, int(parts.get("d", 1)), int(parts.get("H", 0)))
+        except ValueError:
+            return None
+        if "V" in parts and (dt.weekday() != 0 or dt.isocalendar().week != int(parts["V"])):
+            return None
+        return dt
+    return None
 
 
 class FanOutMapper(PartitionMapper):
