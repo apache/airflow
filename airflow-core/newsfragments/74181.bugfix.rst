@@ -1,0 +1,1 @@
+Task state store keys past their expiry are no longer returned by ``get()``.
