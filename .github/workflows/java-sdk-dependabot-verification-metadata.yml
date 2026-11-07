@@ -18,17 +18,38 @@
 # When Dependabot bumps a Gradle dependency under java-sdk/, it edits the build
 # script but cannot regenerate java-sdk/gradle/verification-metadata.xml (Gradle
 # dependency verification, verify-metadata=true). The new artifacts then have no
-# trusted checksum and `./gradlew build` fails in java-sdk-release-verify.yml.
+# trusted checksum, so `./gradlew build` fails in java-sdk-release-verify.yml and
+# the prek hook fails Static checks.
 #
-# This is a MANUAL job: a committer runs it from the Actions tab (or `gh workflow
-# run`) with the PR number. It checks that PR out, regenerates the metadata, and
-# pushes the refreshed file back onto the PR branch. Being workflow_dispatch, it
-# runs with the committer's own trigger and the normal repo GITHUB_TOKEN -- no
-# standing Dependabot secret or pull_request_target write token required.
+# This runs automatically on Dependabot PRs touching java-sdk/ (the example builds
+# are excluded: the metadata does not cover them), and a committer can still
+# dispatch it by hand from the Actions tab (or `gh workflow run`) with a PR number.
+# It runs the same script as the `regenerate-java-sdk-verification-metadata` prek
+# hook, so the file matches what Static checks expects, and pushes the result to
+# the PR branch as a follow-up commit.
+#
+# The work is split so no job holds both a write token and dependency code:
+# `regenerate` runs Gradle (dependency code, verification off) with a read-only
+# token and hands only the file onward. `publish` has the write token and
+# validates that file, using the script and baseline from the PR's base (same header
+# as there, only generated checksum entries, no changed hash for a coordinate that
+# is kept) before committing it. If validation fails,
+# a human regenerates the file with the prek hook and reviews why.
+#
+# The bot's push uses GITHUB_TOKEN, so CI for that commit waits for approval. That
+# is a side effect of GITHUB_TOKEN, not a review of the entries, and green CI
+# verifies against this same file, so it says nothing about checksum
+# authenticity. Review the new entries on the PR.
 ---
 name: Java SDK refresh verification metadata
 
 on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - "java-sdk/**"
+      - "!java-sdk/example/**"
+      - "!java-sdk/scala_spark_example/**"
   workflow_dispatch:
     inputs:
       pr_number:
@@ -40,70 +61,147 @@ permissions:
   contents: read
 
 concurrency:
-  group: java-sdk-refresh-verification-metadata-${{ github.event.inputs.pr_number }}
+  group: java-sdk-refresh-verification-metadata-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
-  refresh-verification-metadata:
-    name: Refresh Gradle verification-metadata.xml
+  resolve:
+    name: Resolve PR head
+    # The run for the bot's own commit normally finds no diff and pushes nothing;
+    # any further commit needs approval again.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       pull-requests: read
+    outputs:
+      head_ref: ${{ steps.pr.outputs.head_ref }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
     steps:
-      # Resolve the PR's head branch (and guard that it lives in this repo --
-      # Dependabot pushes to apache/airflow itself, never a fork).
-      - name: Resolve PR head branch
+      # Dependabot pushes to apache/airflow itself, never a fork.
+      - name: Resolve PR head
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           set -euo pipefail
-          repo="${{ github.repository }}"
-          head_repo=$(gh pr view "$PR_NUMBER" --repo "$repo" --json headRepositoryOwner \
-            --jq '.headRepositoryOwner.login')
-          head_ref=$(gh pr view "$PR_NUMBER" --repo "$repo" --json headRefName --jq '.headRefName')
-          if [ "$head_repo" != "${repo%%/*}" ]; then
-            echo "PR #$PR_NUMBER head is not in $repo (owner: $head_repo); refusing to push." >&2
+          # A URL selector would make gh read a PR from another repo, where isCrossRepository means nothing.
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "pr_number must be a number." >&2; exit 1; }
+          read -r cross_repo head_ref head_sha < <(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --json isCrossRepository,headRefName,headRefOid \
+            --jq '[.isCrossRepository, .headRefName, .headRefOid] | @tsv')
+          if [ "$cross_repo" != "false" ]; then
+            echo "PR #$PR_NUMBER head is not in $GITHUB_REPOSITORY; refusing to push." >&2
             exit 1
           fi
           echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
-      - name: Checkout the PR head branch
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+
+  regenerate:
+    name: Regenerate verification-metadata.xml
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Dependency code runs here, and a dispatch run could otherwise write to the default branch's cache.
+    cache-mode: none
+    # Runs dependency code with verification off, so it holds no write token
+    # and passes only the generated file onward.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ steps.pr.outputs.head_ref }}
-          fetch-depth: 0
+          ref: ${{ needs.resolve.outputs.head_sha }}
+          fetch-depth: 1
           persist-credentials: false
-      # 11: main build toolchain, 17/21: example toolchains + Gradle runtime.
+      # The last JDK is the default JAVA_HOME and runs Gradle; 11 matches the default on
+      # the ubuntu-22.04 image Static checks uses, so the same plugin variants get recorded.
       - name: Install JDK toolchains
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: temurin
           java-version: |
-            11
             17
             21
+            11
       - name: Regenerate verification-metadata.xml
-        working-directory: java-sdk
-        # `build` resolves the same configurations the release-verify check does,
-        # so every newly-bumped artifact gets a recorded sha256.
-        run: ./gradlew --no-daemon --write-verification-metadata sha256 build
-      - name: Commit and push if the metadata changed
+        run: python3 scripts/ci/prek/regenerate_java_sdk_verification_metadata.py
+      - name: Upload the regenerated file
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: java-sdk-verification-metadata
+          path: java-sdk/gradle/verification-metadata.xml
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    name: Commit verification-metadata.xml
+    needs: [resolve, regenerate]
+    runs-on: ubuntu-latest
+    # Runs no PR code: the validator and its baseline come from the PR's base (the
+    # dispatched ref on a manual run). head_ref/head_sha come from `resolve` only.
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout the PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      # The PR head's script could predate `--validate`, which it would ignore and run
+      # Gradle. The merge commit is no baseline either: it includes earlier bot commits,
+      # so an entry removed by one could return with another hash as if it were new.
+      - name: Checkout the validator and its baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: trusted
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download the regenerated file
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: java-sdk-verification-metadata
+          path: ${{ runner.temp }}/java-sdk-verification-metadata
+      - name: Validate the regenerated file
         env:
-          # Explicit token push: the checkout stores no credentials
-          # (persist-credentials: false), so authenticate the push via the URL.
-          GH_TOKEN: ${{ github.token }}
-          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          ARTIFACT_DIR: ${{ runner.temp }}/java-sdk-verification-metadata
         run: |
           set -euo pipefail
-          if git diff --quiet -- java-sdk/gradle/verification-metadata.xml; then
+          # The artifact came from a job that ran PR code: accept one regular file only.
+          src="$ARTIFACT_DIR/verification-metadata.xml"
+          if [ ! -f "$src" ] || [ -L "$src" ]; then
+            echo "Artifact is missing verification-metadata.xml or it is not a regular file." >&2
+            exit 1
+          fi
+          python3 -I trusted/scripts/ci/prek/regenerate_java_sdk_verification_metadata.py --validate "$src"
+      - name: Commit and push if the metadata changed
+        env:
+          # The checkout stores no credentials (persist-credentials: false),
+          # so authenticate the push via the URL.
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ needs.resolve.outputs.head_ref }}
+          ARTIFACT_DIR: ${{ runner.temp }}/java-sdk-verification-metadata
+        run: |
+          set -euo pipefail
+          metadata=java-sdk/gradle/verification-metadata.xml
+          cp --remove-destination "$ARTIFACT_DIR/verification-metadata.xml" "$metadata"
+          if git diff --quiet -- "$metadata"; then
             echo "verification-metadata.xml already up to date; nothing to do."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add java-sdk/gradle/verification-metadata.xml
-          git commit -m "Refresh Gradle dependency verification metadata for java-sdk"
+          git add -- "$metadata"
+          # This marker keeps Dependabot rebasing the PR (it otherwise stops once other
+          # commits exist); rebasing drops the commit and this workflow runs again.
+          git commit -m "Refresh Gradle dependency verification metadata for java-sdk [skip dependabot]"
+          # Non-force: if the branch moved since `resolve`, the push is rejected
+          # instead of overwriting the newer commits.
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            "HEAD:${HEAD_REF}"
+            "HEAD:refs/heads/${HEAD_REF}"
