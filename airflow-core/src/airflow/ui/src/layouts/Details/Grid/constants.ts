@@ -22,6 +22,8 @@ export const ROW_HEIGHT = 20;
 /** Height of a task bar / badge within a row — matches the unmapped GridTI badge height. */
 export const TASK_BAR_HEIGHT_PX = 14;
 export const GRID_HEADER_PADDING_PX = 16; // pt={4} = 4 * 4 = 16px
+/** Narrowest the task name column gets; it also pins the older-runs button when the Grid scrolls. */
+export const TASK_NAME_COLUMN_MIN_WIDTH_PX = 200;
 export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars
 
 // Gantt chart's x-axis height (time labels at top of chart)
