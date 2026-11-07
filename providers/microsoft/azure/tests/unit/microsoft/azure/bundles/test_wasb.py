@@ -16,23 +16,32 @@
 # under the License.
 from __future__ import annotations
 
+import io
+import shutil
+import tarfile
+from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
+from azure.core import MatchConditions
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 
 import airflow.version
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 from tests_common.test_utils.config import conf_vars
 
 if airflow.version.version.strip().startswith("3"):
-    from airflow.providers.microsoft.azure.bundles.wasb import WasbDagBundle
+    from airflow.providers.microsoft.azure.bundles.wasb import WasbArchiveDagBundle, WasbDagBundle
 
 WASB_CONN_ID = "wasb_dags_connection"
 CONTAINER_NAME = "my-airflow-dags-container"
 CONTAINER_PREFIX = "project1/dags"
 ACCOUNT_NAME = "myaccount"
 ACCOUNT_URL = f"https://{ACCOUNT_NAME}.blob.core.windows.net"
+ARCHIVE_BLOB = "bundle-archives/dags.tar.gz"
+_ARCHIVE_WASB_HOOK = "airflow.providers.microsoft.azure.bundles.wasb.WasbArchiveDagBundle.wasb_hook"
 
 
 @pytest.fixture(autouse=True)
@@ -277,3 +286,484 @@ class TestWasbDagBundle:
         assert bundle._log.debug.call_args_list == [download_log_call, download_log_call]
         assert mock_hook.sync_to_local_dir.call_count == 2
         assert mock_hook.sync_to_local_dir.call_args_list == [sync_call, sync_call]
+
+    def test_rejects_archive_blob(self):
+        with pytest.raises(TypeError, match="archive_blob"):
+            WasbDagBundle(
+                name="test",
+                wasb_conn_id=WASB_CONN_ID,
+                container_name=CONTAINER_NAME,
+                prefix=CONTAINER_PREFIX,
+                archive_blob=ARCHIVE_BLOB,
+            )
+
+
+def _make_archive(files: dict[str, bytes]) -> bytes:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for name, data in files.items():
+            info = tarfile.TarInfo(name=name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+class _FakeProps:
+    def __init__(self, etag: str, size: int):
+        self.etag = etag
+        self.size = size
+
+
+class _FakeStream:
+    def __init__(self, payload: bytes):
+        self._payload = payload
+
+    def readall(self) -> bytes:
+        return self._payload
+
+
+class _FakeBlob:
+    def __init__(self, store: dict[str, tuple[bytes, str]], name: str):
+        self._store = store
+        self.name = name
+
+    def get_blob_properties(self) -> _FakeProps:
+        if self.name not in self._store:
+            raise ResourceNotFoundError(self.name)
+        data, etag = self._store[self.name]
+        return _FakeProps(etag, len(data))
+
+    def download_blob(self, etag: str | None = None, match_condition=None) -> _FakeStream:
+        if self.name not in self._store:
+            raise ResourceNotFoundError(self.name)
+        data, current = self._store[self.name]
+        if etag is not None and etag != current:
+            raise HttpResponseError(message="condition not met")
+        return _FakeStream(data)
+
+
+def _archive_hook(store: dict[str, tuple[bytes, str]]) -> MagicMock:
+    hook = MagicMock(spec=WasbHook)
+    hook.check_for_container.return_value = True
+    service = MagicMock()
+    service.get_blob_client.side_effect = lambda _container, name: _FakeBlob(store, name)
+    hook.get_conn.return_value = service
+    hook.blob_service_client.url = ACCOUNT_URL
+    return hook
+
+
+@pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
+class TestWasbArchiveDagBundle:
+    def test_rejects_prefix(self):
+        with pytest.raises(TypeError, match="prefix"):
+            WasbArchiveDagBundle(
+                name="test",
+                wasb_conn_id=WASB_CONN_ID,
+                container_name=CONTAINER_NAME,
+                prefix=CONTAINER_PREFIX,
+                archive_blob=ARCHIVE_BLOB,
+            )
+
+    def test_supports_versioning(self):
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        assert WasbArchiveDagBundle.supports_versioning is False
+        bundle.version = "test_version"
+        with pytest.raises(ValueError, match="Refreshing a specific version is not supported"):
+            bundle.refresh()
+        with pytest.raises(ValueError, match="WASB url with version is not supported"):
+            bundle.view_url("test_version")
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_from_archive(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n", "subdir/dag_02.py": b"print(2)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert (bundle.path / "subdir" / "dag_02.py").read_bytes() == b"print(2)\n"
+        assert bundle._archive_etag_path() == bundle.path / ".archive_etag"
+        assert bundle._archive_etag_path().read_text() == "etag-1"
+        assert sorted(
+            path.relative_to(bundle.path).as_posix()
+            for path in bundle.path.rglob("*")
+            if path != bundle._archive_etag_path()
+        ) == [
+            "dag_01.py",
+            "subdir",
+            "subdir/dag_02.py",
+        ]
+        mock_wasb_hook_property.return_value.sync_to_local_dir.assert_not_called()
+        mock_wasb_hook_property.return_value.check_for_prefix.assert_not_called()
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_from_archive_skips_unchanged_etag(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        sentinel = bundle.path / "local-only.txt"
+        sentinel.write_text("keep me")
+
+        with patch.object(
+            _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
+        ) as spy:
+            bundle.refresh()
+
+        assert spy.call_count == 0
+        assert sentinel.read_text() == "keep me"
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_initialize_restages_when_bundle_dir_cleared_and_etag_matches(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        marker = bundle._archive_etag_path()
+        etag = marker.read_text()
+        assert marker == bundle.path / ".archive_etag"
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+
+        shutil.rmtree(bundle.path)
+
+        with patch.object(
+            _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
+        ) as spy:
+            bundle.initialize()
+
+        assert spy.call_count == 1
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert bundle._archive_etag_path().read_text() == etag
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_restages_when_only_etag_marker_remains(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        (bundle.path / "dag_01.py").unlink()
+        assert bundle._archive_etag_path().is_file()
+        assert not bundle._bundle_dir_has_files()
+
+        with patch.object(
+            _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
+        ) as spy:
+            bundle.refresh()
+
+        assert spy.call_count == 1
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+
+    @patch(
+        "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
+    )
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_prefix_refresh_drops_archive_etag_marker(
+        self, mock_archive_hook_property, mock_prefix_hook_property
+    ):
+        archive = _make_archive({"archive_only.py": b"from archive"})
+        hook = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+        hook.check_for_prefix.return_value = True
+
+        def sync_to_local_dir(*, container_name, prefix, local_dir, delete_stale):
+            assert delete_stale is True
+            local_dir = Path(local_dir)
+            for child in list(local_dir.iterdir()):
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+            (local_dir / "dag_01.py").write_bytes(b"from prefix")
+
+        hook.sync_to_local_dir.side_effect = sync_to_local_dir
+        mock_archive_hook_property.return_value = hook
+        mock_prefix_hook_property.return_value = hook
+
+        archive_bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        archive_bundle.initialize()
+        assert (archive_bundle.path / ".archive_etag").is_file()
+        assert (archive_bundle.path / "archive_only.py").is_file()
+        sibling_etag = archive_bundle.path.parent / f".{archive_bundle.name}" / "etag"
+        sibling_etag.parent.mkdir(parents=True, exist_ok=True)
+        sibling_etag.write_text("leftover")
+
+        prefix_bundle = WasbDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            prefix=CONTAINER_PREFIX,
+            container_name=CONTAINER_NAME,
+        )
+        prefix_bundle.initialize()
+        assert archive_bundle.path == prefix_bundle.path
+        assert not (prefix_bundle.path / ".archive_etag").exists()
+        assert (prefix_bundle.path / "dag_01.py").read_bytes() == b"from prefix"
+        assert not (prefix_bundle.path / "archive_only.py").exists()
+        assert sibling_etag.read_text() == "leftover"
+        hook.sync_to_local_dir.assert_called_once()
+
+        with patch.object(
+            _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
+        ) as spy:
+            WasbArchiveDagBundle(
+                name="test",
+                wasb_conn_id=WASB_CONN_ID,
+                container_name=CONTAINER_NAME,
+                archive_blob=ARCHIVE_BLOB,
+            ).initialize()
+
+        assert spy.call_count == 1
+        assert (archive_bundle.path / "archive_only.py").read_bytes() == b"from archive"
+        assert not (archive_bundle.path / "dag_01.py").exists()
+        assert (archive_bundle.path / ".archive_etag").is_file()
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_download_uses_properties_etag(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        bundle._archive_etag_path().unlink()
+
+        with patch.object(
+            _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
+        ) as spy:
+            bundle.refresh()
+
+        assert spy.call_count == 1
+        assert spy.call_args.kwargs["etag"] == "etag-1"
+        assert spy.call_args.kwargs["match_condition"] == MatchConditions.IfNotModified
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_empty_etag_always_restages(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "")})
+
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        with patch.object(
+            _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
+        ) as spy:
+            bundle.initialize()
+            assert not bundle._archive_etag_path().exists()
+            bundle.refresh()
+
+        assert spy.call_count == 2
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_replaces_tree_when_etag_changes(self, mock_wasb_hook_property):
+        store = {ARCHIVE_BLOB: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
+        mock_wasb_hook_property.return_value = _archive_hook(store)
+
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        (bundle.path / "stale.py").write_text("gone")
+        store[ARCHIVE_BLOB] = (_make_archive({"dag_02.py": b"print(2)\n"}), "etag-2")
+        bundle.refresh()
+
+        assert not (bundle.path / "dag_01.py").exists()
+        assert not (bundle.path / "stale.py").exists()
+        assert (bundle.path / "dag_02.py").read_bytes() == b"print(2)\n"
+        assert bundle._archive_etag_path().read_text() == "etag-2"
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_initialize_missing_archive_raises(self, mock_wasb_hook_property):
+        mock_wasb_hook_property.return_value = _archive_hook({})
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        with pytest.raises(ValueError, match="does not exist"):
+            bundle.initialize()
+        mock_wasb_hook_property.return_value.sync_to_local_dir.assert_not_called()
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_etag_mismatch_keeps_previous_tree(self, mock_wasb_hook_property):
+        store = {ARCHIVE_BLOB: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
+        mock_wasb_hook_property.return_value = _archive_hook(store)
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        store[ARCHIVE_BLOB] = (_make_archive({"dag_02.py": b"print(2)\n"}), "etag-2")
+
+        with (
+            patch.object(
+                _FakeBlob, "download_blob", side_effect=HttpResponseError(message="condition not met")
+            ),
+            pytest.raises(HttpResponseError, match="condition not met"),
+        ):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert not (bundle.path / "dag_02.py").exists()
+        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_corrupt_archive_keeps_previous_tree(self, mock_wasb_hook_property):
+        store = {ARCHIVE_BLOB: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
+        mock_wasb_hook_property.return_value = _archive_hook(store)
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        store[ARCHIVE_BLOB] = (b"this is not a tar archive", "etag-2")
+
+        with pytest.raises(tarfile.ReadError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_failed_swap_restores_previous_tree(self, mock_wasb_hook_property):
+        store = {ARCHIVE_BLOB: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
+        mock_wasb_hook_property.return_value = _archive_hook(store)
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        store[ARCHIVE_BLOB] = (_make_archive({"dag_02.py": b"print(2)\n"}), "etag-2")
+
+        real_rename = Path.rename
+
+        def failing_rename(self, target):
+            if self.name == "unpacked" and Path(target) == bundle.path:
+                raise OSError("simulated swap failure")
+            return real_rename(self, target)
+
+        with (
+            patch.object(Path, "rename", failing_rename),
+            pytest.raises(OSError, match="simulated swap failure"),
+        ):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert not (bundle.path / "dag_02.py").exists()
+        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_removes_only_this_bundles_stale_staging_dir(self, mock_wasb_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        mock_wasb_hook_property.return_value = _archive_hook({ARCHIVE_BLOB: (archive, "etag-1")})
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+
+        storage_root = bundle.path.parent
+        state_dir = bundle._archive_state_dir()
+        stale = state_dir / "archive-staging-dead"
+        stale.mkdir()
+        (stale / "orphan.txt").write_text("left by a killed process")
+        collided = storage_root / f".{bundle.name}-archive-staging-dead"
+        collided.mkdir()
+        other = storage_root / ".other" / "archive-staging-dead"
+        other.mkdir(parents=True)
+
+        bundle.refresh()
+
+        assert not stale.exists()
+        assert collided.is_dir()
+        assert other.is_dir()
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_refresh_rejects_archive_member_that_escapes_bundle(self, mock_wasb_hook_property):
+        store = {ARCHIVE_BLOB: (_make_archive({"dag_01.py": b"kept"}), "etag-1")}
+        mock_wasb_hook_property.return_value = _archive_hook(store)
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        bundle.initialize()
+        store[ARCHIVE_BLOB] = (_make_archive({"../escape.py": b"nope"}), "etag-2")
+
+        with pytest.raises(tarfile.TarError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
+        assert not (bundle.path.parent / "escape.py").exists()
+
+    def test_archive_blob_requires_tar_data_filter(self, monkeypatch):
+        monkeypatch.delattr(tarfile, "data_filter", raising=False)
+        with pytest.raises(RuntimeError, match="3.11.4"):
+            WasbArchiveDagBundle(
+                name="test",
+                wasb_conn_id=WASB_CONN_ID,
+                container_name=CONTAINER_NAME,
+                archive_blob=ARCHIVE_BLOB,
+            )
+
+    @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
+    def test_view_url_template_points_at_archive(self, mock_wasb_hook_property):
+        mock_wasb_hook_property.return_value = _archive_hook({})
+        bundle = WasbArchiveDagBundle(
+            name="test",
+            wasb_conn_id=WASB_CONN_ID,
+            container_name=CONTAINER_NAME,
+            archive_blob=ARCHIVE_BLOB,
+        )
+        assert bundle.view_url_template() == f"{ACCOUNT_URL}/{CONTAINER_NAME}/{ARCHIVE_BLOB}"
