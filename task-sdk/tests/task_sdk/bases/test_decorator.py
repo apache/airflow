@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import DAG, TaskGroup, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -425,3 +425,36 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
+
+
+def _build_group(mapped: bool) -> TaskGroup:
+    if mapped:
+        return TaskGroup(group_id="g").expand(value=[1])
+    return TaskGroup(group_id="g")
+
+
+@pytest.mark.parametrize("mapped", [True, False], ids=["mapped", "unmapped"])
+def test_mapped_args_default(mapped):
+    with DAG("test", schedule=None):
+        with _build_group(mapped):
+
+            @task
+            def use(mapped_args="default"):
+                return mapped_args
+
+            if mapped:
+                with pytest.raises(ValueError, match="mapped_args can't have a default other than None"):
+                    use()
+            else:
+                use()
+
+
+def test_mapped_args_default_none_in_mapped_task_group():
+    with DAG("test", schedule=None):
+        with TaskGroup(group_id="g").expand(value=[1]):
+
+            @task
+            def use(mapped_args=None):
+                return mapped_args
+
+            use()

@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.context import (
         AssetStateStoreAccessors,
         InletEventsAccessors,
+        MappedArgsAccessor,
         TaskStateStoreAccessor,
     )
     from airflow.sdk.execution_time.loop import LoopContextAccessor
@@ -87,6 +88,7 @@ class Context(TypedDict, total=False):
     loop: LoopContextAccessor
     macros: Any
     map_index_template: NotRequired[str | None]
+    mapped_args: NotRequired[MappedArgsAccessor]
     outlets: list
     params: dict[str, Any]
     partition_key: NotRequired[str | None]
@@ -118,7 +120,7 @@ class Context(TypedDict, total=False):
     var: Any
 
 
-KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys()) - {"loop"}
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys()) - {"loop", "mapped_args"}
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:

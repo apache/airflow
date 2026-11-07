@@ -77,6 +77,7 @@ from airflow.sdk.definitions.context import render_template_to_string
 from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import (
     AirflowException,
@@ -141,6 +142,7 @@ from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
+    MappedArgsAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
@@ -373,6 +375,12 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
+            # The triggerer builds this context from a serialized Dag, whose groups cannot resolve
+            # their arguments; only a parsed Dag gives a MappedTaskGroup here.
+            if isinstance(mapped_group := self.task.get_closest_mapped_task_group(), MappedTaskGroup):
+                self._cached_template_context["mapped_args"] = MappedArgsAccessor(
+                    mapped_group.expand_input, self._cached_template_context
+                )
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
                 self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
