@@ -21,7 +21,7 @@
  */
 import unicorn from "eslint-plugin-unicorn";
 
-import { ERROR, OFF, WARN } from "./levels.js";
+import { ERROR, WARN } from "./levels.js";
 
 /**
  * ESLint `unicorn` namespace.
@@ -436,25 +436,6 @@ export const unicornRules = /** @type {const} @satisfies {FlatConfig.Config} */ 
      * @see [unicorn/no-new-buffer](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/no-new-buffer.md)
      */
     [`${unicornNamespace}/no-new-buffer`]: ERROR,
-
-    /**
-     * Disallow the use of the null literal.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * let foo = null;
-     * if (bar == null) {}
-     *
-     * // ✅ Correct
-     * let foo;
-     * const foo = Object.create(null);
-     * if (foo === null) {}
-     * ```
-     * @see [Reasoning](https://lou.cx/articles/we-don-t-need-null/)
-     * @see [unicorn/no-null](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/no-null.md)
-     */
-    [`${unicornNamespace}/no-null`]: OFF,
 
     /**
      * Disallow passing single-element arrays to Promise methods.
