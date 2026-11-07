@@ -1882,6 +1882,19 @@ repos:
           ^providers/edge3/src/airflow/providers/edge3/models/.*\.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/models/.*\.py$|
           ^scripts/ci/prek/check_mapped_column_nullable_annotations\.py$
+      - id: check-cli-consistency
+        name: Check CLI argument and command consistency
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/check_cli_consistency.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/cli/cli_config\.py$|
+          ^providers/.*/cli/definition\.py$|
+          ^scripts/ci/prek/check_cli_consistency\.py$
+        additional_dependencies: ['rich>=13.6.0']
       - id: bandit
         name: bandit
         env:

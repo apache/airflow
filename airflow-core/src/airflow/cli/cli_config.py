@@ -371,7 +371,7 @@ ARG_DEFAULTS = Arg(
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
-ARG_POOL = Arg(("--pool",), "Resource pool to use")
+ARG_POOL = Arg(("--pool",), help="Resource pool to use")
 
 # teams
 ARG_TEAM_NAME = Arg(("name",), help="Team name")
