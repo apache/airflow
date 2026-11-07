@@ -17,6 +17,7 @@
 
 .. _howto/operator:DatabricksStartWarehouseOperator:
 .. _howto/operator:DatabricksStopWarehouseOperator:
+.. _howto/operator:DatabricksEditWarehouseOperator:
 
 Databricks SQL warehouse lifecycle operators
 ============================================
@@ -41,6 +42,31 @@ not stop a warehouse the Dag still needs.
 Repeated task attempts are safe: an already running warehouse is not started again, and an already
 stopped warehouse is not stopped again. If a start is requested while a warehouse is stopping, any
 transition rejection from Databricks is propagated to the task.
+
+Edit a SQL warehouse
+--------------------
+
+Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksEditWarehouseOperator`
+to change the configuration of an existing warehouse. Pass its ``warehouse_id`` and a non-empty
+``json`` dictionary containing the request body for the
+`SQL Warehouses edit API <https://docs.databricks.com/api/warehouses/v1/edit-warehouse>`_.
+For example, you can set ``cluster_size``, ``auto_stop_mins``, or ``tags``.
+
+The connection ID, warehouse ID, and nested ``json`` values support templating.
+For numeric or boolean Jinja expressions,
+set ``render_template_as_native_obj=True`` on the Dag.
+
+The task returns ``None`` without a ``return_value`` XCom, so pass the warehouse ID directly to
+downstream tasks. It completes when the edit request succeeds, without waiting for compute changes
+to finish. If the workflow needs a running warehouse,
+chain a :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
+after the edit task. Reaching ``RUNNING`` checks availability; it does not verify that all requested
+configuration changes have finished applying.
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
+    :language: python
+    :start-after: [START howto_operator_databricks_edit_sql_warehouse]
+    :end-before: [END howto_operator_databricks_edit_sql_warehouse]
 
 Start a SQL warehouse
 ---------------------
