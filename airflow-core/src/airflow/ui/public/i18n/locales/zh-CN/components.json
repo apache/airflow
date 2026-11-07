@@ -143,7 +143,7 @@
     "keepPausedDescription": "新建和未完成的执行将等待 Dag 取消暂停。",
     "title": "Dag 已暂停",
     "unfinishedRunsWillRun_one": "1 次未完成的 Dag 执行将开始或恢复。",
-    "unfinishedRunsWillRun_other": "{{count}} 次未完成的 Dag 执行将开始或恢复。",
+    "unfinishedRunsWillRun_other": "{{count, number}} 次未完成的 Dag 执行将开始或恢复。",
     "unpause": "取消暂停",
     "unpauseDescription": "Dag 将启用：未完成的执行将继续，定时调度将恢复。已暂停的回填仍保持暂停。"
   },
