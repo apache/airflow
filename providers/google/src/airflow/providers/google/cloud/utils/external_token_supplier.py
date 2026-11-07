@@ -32,6 +32,10 @@ if TYPE_CHECKING:
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+#: Fields of the IdP token request that ``ClientCredentialsGrantFlowTokenSupplier`` sets itself;
+#: extra parameters cannot replace them.
+RESERVED_TOKEN_REQUEST_FIELDS = frozenset({"grant_type", "client_id", "client_secret"})
+
 
 def cache_token_decorator(get_subject_token_method):
     """
@@ -112,7 +116,8 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
     :params oidc_issuer_url: URL of the IdP that performs OAuth2.0 Client Credentials Grant flow and returns an OIDC token.
     :params client_id: Client ID of the application requesting the token
     :params client_secret: Client secret of the application requesting the token
-    :params extra_params_kwargs: Extra parameters to be passed in the payload of the POST request to the `oidc_issuer_url`
+    :params extra_params_kwargs: Extra parameters to be passed in the payload of the POST request to the `oidc_issuer_url`.
+        They cannot replace the ``grant_type``, ``client_id`` or ``client_secret`` fields the supplier sets itself.
 
     See also:
         https://googleapis.dev/python/google-auth/latest/reference/google.auth.identity_pool.html#google.auth.identity_pool.SubjectTokenSupplier
@@ -126,6 +131,11 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
         **extra_params_kwargs: Any,
     ) -> None:
         super().__init__()
+        if overridden := sorted(RESERVED_TOKEN_REQUEST_FIELDS.intersection(extra_params_kwargs)):
+            raise ValueError(
+                f"Extra parameters cannot replace {', '.join(overridden)} in the token request: the grant type "
+                "is always client_credentials, and the client ID and secret have their own connection fields."
+            )
         self.oidc_issuer_url = oidc_issuer_url
         self.client_id = client_id
         self.client_secret = client_secret

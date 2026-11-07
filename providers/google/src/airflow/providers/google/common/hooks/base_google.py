@@ -50,7 +50,7 @@ from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 from requests import Session
 
 from airflow import version
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, mask_secret
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
@@ -366,12 +366,17 @@ class GoogleBaseHook(BaseHook):
             "idp_extra_params", None
         )
 
-        idp_extra_params_dict: dict[str, str] | None = None
+        idp_extra_params_dict: dict[str, Any] | None = None
         if idp_extra_params:
             try:
                 idp_extra_params_dict = json.loads(idp_extra_params)
             except json.decoder.JSONDecodeError:
                 raise AirflowException("Invalid JSON.")
+            if not isinstance(idp_extra_params_dict, dict):
+                raise ValueError("IdP extra request parameters must be a JSON object.")
+            # Values under sensitive key names (the same rule as for connection extras, extendable through
+            # [core] sensitive_var_conn_names) stay out of the task logs.
+            mask_secret(idp_extra_params_dict)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
