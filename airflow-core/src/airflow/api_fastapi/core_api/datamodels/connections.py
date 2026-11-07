@@ -30,6 +30,8 @@ from airflow._shared.secrets_masker import redact, should_hide_value_for_key
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 from airflow.configuration import conf
 
+PortNumber = Annotated[int, Field(ge=0, le=65535)]
+
 _MASK = "***"
 
 
@@ -248,7 +250,7 @@ class ConnectionBody(StrictBaseModel):
     host: str | None = Field(default=None)
     login: str | None = Field(default=None)
     schema_: str | None = Field(None, alias="schema")
-    port: int | None = Field(default=None)
+    port: PortNumber | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
     team_name: str | None = Field(max_length=50, default=None)
