@@ -876,11 +876,8 @@ def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag:
         return
 
     # Only load SerializedDAG when fail_fast=True (rare case ~1%)
-    ser_dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
-    if ser_dag:
-        task_dict = getattr(ser_dag, "task_dict")
-        task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
-        _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
+    if ser_dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
+        _stop_remaining_tasks(task_instance=ti, dag=ser_dag, session=session)
 
 
 def _validate_outlet_event_partition_keys(outlet_events: list[dict[str, Any]]) -> None:

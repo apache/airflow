@@ -4781,6 +4781,36 @@ class TestTIUpdateState:
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
 
+    def test_ti_update_state_to_failed_with_fail_fast_and_task_removed_from_dag(
+        self, client, session, dag_maker
+    ):
+        dag_id = "test_dag_with_fail_fast_task_removed"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="boom")
+            EmptyOperator(task_id="victim")
+
+        dr = dag_maker.create_dagrun()
+        boom = dr.get_task_instance(task_id="boom", session=session)
+        boom.state = TaskInstanceState.RUNNING
+        boom.start_date = DEFAULT_START_DATE
+        victim = dr.get_task_instance(task_id="victim", session=session)
+        victim.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="boom")
+
+        response = client.patch(
+            f"/execution/task-instances/{boom.id}/state",
+            json={"state": TerminalTIState.FAILED, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.get(TaskInstance, boom.id).state == TaskInstanceState.FAILED
+        assert session.get(TaskInstance, victim.id).state == TaskInstanceState.RUNNING
+
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
     ):
