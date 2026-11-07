@@ -27,7 +27,7 @@ import attrs
 from cadwyn import current_dependency_solver
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
@@ -72,6 +72,8 @@ from airflow.utils.db import get_query_count
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.util import AliasedClass
     from sqlalchemy.sql.elements import ColumnElement
@@ -178,6 +180,20 @@ class _XComRead:
         return tuple(column.desc() if descending else column.asc() for column in columns)
 
 
+def _get_caller_run_date(*, run_id: str, session: Session, token: ExecutionToken) -> datetime | None:
+    """Return the date of the calling task instance's Dag run, if ``run_id`` is that run."""
+    if token.claims.scope != "execution":
+        return None
+    return session.scalar(
+        select(func.coalesce(DagRun.logical_date, DagRun.run_after))
+        .join(
+            TaskInstance,
+            and_(TaskInstance.dag_id == DagRun.dag_id, TaskInstance.run_id == DagRun.run_id),
+        )
+        .where(TaskInstance.id == token.id, TaskInstance.run_id == run_id)
+    )
+
+
 def _build_xcom_read(
     *,
     dag_id: str,
@@ -199,6 +215,9 @@ def _build_xcom_read(
     loop, it covers every iteration of the task rather than the one a caller inside the loop would see.
     """
     resolver = TaskCoordinateResolver(dag_bag, session)
+    target_run_exists = include_prior_dates and session.scalar(
+        select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    )
     read = partial(
         XComModel.get_many,
         dag_ids=dag_id,
@@ -206,6 +225,10 @@ def _build_xcom_read(
         task_ids=task_id,
         key=key,
         include_prior_dates=include_prior_dates,
+        # A cross-Dag pull sends the caller's run_id, which does not exist in the Dag being read.
+        prior_dates_before=_get_caller_run_date(run_id=run_id, session=session, token=token)
+        if include_prior_dates and not target_run_exists
+        else None,
     )
     try:
         if previous_iteration and include_prior_dates:
@@ -217,7 +240,7 @@ def _build_xcom_read(
         caller = session.get(TaskInstance, token.id) if token.claims.scope == "execution" else None
         if include_prior_dates:
             task = None
-            if session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)):
+            if target_run_exists:
                 with suppress(TaskNotFound):
                     task = resolver.get_task(
                         dag_id,
