@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -126,7 +127,8 @@ class LLMSchemaCompareOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``,
+    ``fail_on_reject``, ``ignore_downstream_trigger_rules``).
     The task pauses after the comparison and only returns the result once a
     reviewer approves. The review body shows the compatibility verdict, a
     mismatch severity summary, and the full result JSON.
@@ -363,7 +365,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             body = (
                 f"Compatible: {output.compatible}"
                 + (f" (mismatches: {summary})" if summary else "")
-                + f"\n\n```\nPrompt: {self.prompt}\n\n{output.model_dump_json(indent=2)}\n```"
+                + f"\n\n```\nPrompt: {describe_prompt(self.prompt)}\n\n{output.model_dump_json(indent=2)}\n```"
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 

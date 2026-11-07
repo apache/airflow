@@ -42,6 +42,12 @@ vi.mock("src/components/NotePreview", () => ({
   NotePreview: () => <button type="button">Edit note</button>,
 }));
 
+const gridSelection = vi.hoisted(() => ({ hasSelection: false }));
+
+vi.mock("src/context/gridSelection", () => ({
+  useHasGridSelection: () => gridSelection.hasSelection,
+}));
+
 const mockConfig: Record<string, unknown> = { multi_team: false };
 const mockLoopSummary: { data?: Partial<LoopSummaryResponse> } = {};
 
@@ -100,6 +106,21 @@ describe("Header", () => {
     expect(screen.getByText(i18n.t("common:dagDetails.team"))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "team-a" })).toHaveAttribute("href", "/dags?teams=team-a");
   });
+
+  it.each([
+    { hasSelection: false, shown: true },
+    { hasSelection: true, shown: false },
+  ])(
+    "shows the actions only without a grid selection (selection: $hasSelection)",
+    ({ hasSelection, shown }) => {
+      gridSelection.hasSelection = hasSelection;
+      render(<Header taskInstance={baseTaskInstance} />, { wrapper: Wrapper });
+
+      expect(screen.queryByRole("button", { name: "Clear task" }) !== null).toBe(shown);
+      expect(screen.queryByRole("button", { name: "Mark task" }) !== null).toBe(shown);
+      gridSelection.hasSelection = false;
+    },
+  );
 
   it("hides the team stat when multi-team is disabled", () => {
     render(<Header taskInstance={{ ...baseTaskInstance, team_name: "team-a" }} />, { wrapper: Wrapper });

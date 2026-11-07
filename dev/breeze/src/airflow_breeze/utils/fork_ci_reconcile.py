@@ -20,6 +20,9 @@ Scheduled reconciler for pull requests gated to fork CI (AIP-120).
 ``classify`` is a pure function from what GitHub recorded about one pull request to the mutations
 that bring it to the desired state; ``run_reconcile`` gathers that data and applies the result.
 See "Reconciler" in dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+
+Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+this file is closed by the fork CI monitor, see "Gate protection" in the same document.
 """
 
 from __future__ import annotations
@@ -27,9 +30,10 @@ from __future__ import annotations
 import base64
 import functools
 import json
-from collections.abc import Callable, Iterable, Sequence
+import re
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import asdict, dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -57,6 +61,9 @@ from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
+    CI_RUN_STARTED_CONTEXT,
+    CI_RUN_STARTED_DESCRIPTION,
+    CI_RUN_STARTED_PROJECT_DESCRIPTION,
     JOB_STATUS_CONTEXT_PREFIX,
     JOB_STATUSES,
     STALE_JOB_STATUS,
@@ -64,6 +71,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     STATUS_STATES,
     Marker,
     fork_actions_url,
+    gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
     nudge_comment,
@@ -73,12 +81,32 @@ from airflow_breeze.utils.fork_ci_messages import (
     status_description,
     tamper_close_comment,
     ungated_comment,
+    workflow_disabled_comment,
 )
 
 CI_WORKFLOW_FILE = "ci-amd.yml"
+# The workflows that run a pull request's CI in apache/airflow, depending on its base branch:
+# ci-amd.yml on main and on release branches it was backported to, ci-amd-arm.yml on release
+# branches cut before ci-amd.yml existed, ci.yml on the older v2 and providers release branches,
+# airflow-ctl-tests.yml on the airflow-ctl release branches. A run of any of them reports
+# `CI run started`, which both CI rulesets require on every base.
+PROJECT_CI_WORKFLOW_FILES = frozenset({CI_WORKFLOW_FILE, "ci-amd-arm.yml", "ci.yml", "airflow-ctl-tests.yml"})
 # The files the gate job of ci-amd.yml reads from a pull request's base branch.
 GATE_CONFIG_PATH = ".github/fork-ci-gate.toml"
 GATE_SCRIPT_PATH = "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"
+CI_WORKFLOW_PATH = f".github/workflows/{CI_WORKFLOW_FILE}"
+# Files of the fork CI gate that a pull request whose CI runs in a fork must not change at all.
+# The gate configuration and the gate job in ci-amd.yml are checked separately, since the first
+# may carry the author's own pilot entry and the second shares its file with the CI pipeline.
+GATE_PROTECTED_PATHS = frozenset(
+    {
+        GATE_SCRIPT_PATH,
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_github.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py",
+        ".github/workflows/fork-ci-monitor.yml",
+    }
+)
 GATE_JOB_NAME = "Fork CI gate"
 # Jobs that also run, without needing the gate, in a run the gate left to fork CI: main's
 # check-run-needed (no steps outside schedule and push runs) and the "CI passed" gate job of the
@@ -106,17 +134,26 @@ TAMPER_WINDOW = timedelta(hours=6)
 # can have done project CI work and are worth listing jobs for.
 SUSPICIOUS_RUN_DURATION = timedelta(minutes=5)
 GATE_MAX_DURATION = timedelta(minutes=5)
-# Paths whose content defines what fork CI runs. A pull request changing them controls its own
-# fork CI result, so a green fork run cannot be trusted for it.
+# Paths that decide the build-info outputs (which jobs run and on which runners): the workflows
+# and actions, the breeze sources whose selective checks compute those outputs, the files that
+# install breeze, and scripts/ci/prek/, which holds the script selective checks runs to generate
+# the gitignored generated/provider_dependencies.json. That script runs with its directory first
+# on sys.path, so any module added there, such as a `yaml.py`, would run too. A pull request
+# changing them controls its own fork CI result and could change where project CI runs. Other CI
+# scripts, Dockerfiles and prek configuration only change what a selected job does, which review
+# of the diff covers like any other change.
 CI_DEFINING_PREFIXES = (
     ".github/",
-    "dev/breeze/",
-    "scripts/ci/",
-    "scripts/docker/",
-    "scripts/in_container/",
-    "Dockerfile",
+    "dev/breeze/src/",
+    "scripts/ci/prek/",
 )
-CI_DEFINING_SUFFIXES = (".pre-commit-config.yaml",)
+CI_DEFINING_FILES = frozenset(
+    {
+        "dev/breeze/pyproject.toml",
+        "dev/breeze/uv.lock",
+        "scripts/ci/install_breeze.sh",
+    }
+)
 PULL_REQUEST_FILES_CAP = 3000
 COMPARE_FILES_CAP = 300
 SLACK_SECTION_LIMIT = 3000
@@ -133,18 +170,50 @@ JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
 # Commit statuses count towards GitHub's limit of 500 content-creating requests per hour, shared by
 # every workflow of the repository. At four runs an hour this keeps job statuses to at most about
 # half of it; the rest follow on the next run, failures first. See "Job statuses" in the design doc.
-MAX_JOB_STATUSES_PER_RUN = 60
+MAX_JOB_STATUSES_PER_RUN = 40
+# `CI run started` statuses of pull requests whose CI runs in apache/airflow come out of that budget
+# first: one write per new head commit, which merging waits for, while job statuses are informational.
+# At most this many, so job statuses keep the rest; the first runs after the check became required
+# catch up on the open pull requests a batch at a time, most recently updated first.
+MAX_CI_RUN_STARTED_PER_RUN = 20
+# The GitHub Actions app, whose check suites are the workflow runs of a commit.
+GITHUB_ACTIONS_APP_ID = 15368
+# A single large fork run can need more writes than one run's budget, which the next run catches up
+# on, so deferring is only reported when it lasts this many consecutive runs: then the budget does
+# not keep up with the pull requests.
+DEFERRED_RUNS_BEFORE_ALERT = 3
+# GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
+# retried, while a persisting one means the repository's shared limits are close to exhausted.
+RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+# Reading a fork run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2
+# stream) that the next run gets past, so a pull request whose job statuses failed is only reported
+# when it failed in this many consecutive runs.
+JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = 3
+# Fixed text, so the item is posted to Slack once while the failure persists, whatever the error;
+# the run log has each run's error.
+JOB_STATUSES_FAILED_REASON = (
+    f"reporting job statuses failed in {JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT} runs in a row; "
+    "the run log has the errors"
+)
+# A pull request whose fork run finished this long ago with job statuses still not all posted is
+# reported by itself: deferring is expected to catch up within a few runs, not to leave one behind.
+MIRROR_DELAY_BEFORE_ALERT = timedelta(hours=1)
+RATE_LIMITED_NOTE = (
+    f"GitHub rate-limited the fork CI monitor in {RATE_LIMITED_RUNS_BEFORE_ALERT} runs in a row; the "
+    "repository's shared GITHUB_TOKEN limits are close to exhausted. Consider `job_statuses = false` in "
+    ".github/fork-ci-gate.toml (see dev/AGENTS.md)"
+)
 # Fixed text, so the note is posted to Slack once while deferrals persist; the run log lists the pull
 # requests.
 JOB_STATUSES_DEFERRED_NOTE = (
-    f"job statuses did not fit in the budget of {MAX_JOB_STATUSES_PER_RUN} writes per run and are "
-    "posted by later runs; if this persists, set `job_statuses = false` in .github/fork-ci-gate.toml "
-    "(see dev/AGENTS.md)"
+    f"job statuses have not fit in the budget of {MAX_JOB_STATUSES_PER_RUN} writes per run for "
+    f"{DEFERRED_RUNS_BEFORE_ALERT} runs in a row and are posted by later runs; if this persists, set "
+    "`job_statuses = false` in .github/fork-ci-gate.toml (see dev/AGENTS.md)"
 )
 
 RUNNING_STATUSES = frozenset({"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED"})
 FAILED_CONCLUSIONS = frozenset({"FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"})
-SETUP_WORKFLOW_STATES = frozenset({"disabled_fork", "disabled_manually", "missing"})
+SETUP_WORKFLOW_STATES = frozenset({"disabled_fork", "disabled_inactivity", "disabled_manually", "missing"})
 
 
 class ForkState(str, Enum):
@@ -158,6 +227,7 @@ class ForkState(str, Enum):
     CLOSED = "closed"
     RELEASED = "released"
     UNGATED = "ungated"
+    GATE_MODIFIED = "gate_modified"
 
 
 CLOSABLE_STATES = frozenset({ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH})
@@ -211,9 +281,18 @@ class PullRequestSnapshot:
     last_reopened_at: datetime | None = None
     last_reopened_by_anyone_at: datetime | None = None
     last_base_change_at: datetime | None = None
+    # (changed at, previous base, new base) for each retarget, oldest first.
+    base_changes: tuple[tuple[datetime, str, str], ...] = ()
     current_status: tuple[str, str, str] | None = None
     status_created_at: datetime | None = None
     ci_passed_state: str | None = None
+    ci_run_started_state: str | None = None
+    # GateEvent.ci_run_at of a pilot's pull request created before they joined; set from its
+    # `fork ci required` label by `mark_older_pilot_pull_request`.
+    ci_run_at: datetime | None = None
+    # The join instant of such a pull request when project CI was allowed for it before then, so its
+    # runs from before it are not gate tampering.
+    pilot_joined_at: datetime | None = None
     marker: Marker | None = None
     marker_comment_id: int | None = None
     marker_comment_body: str | None = None
@@ -234,6 +313,8 @@ class ForkObservation:
     run_url: str | None = None
     run_id: int | None = None
     run_attempt: int | None = None
+    # When the fork's check suite last changed, for a completed one when the run finished.
+    completed_at: datetime | None = None
     workflow_state: str | None = None
     error: str | None = None
 
@@ -247,6 +328,8 @@ class Plan:
     status: tuple[str, str, str] | None = None
     # (state, target URL, description) of the `CI passed` status.
     ci_passed: tuple[str, str, str] | None = None
+    # (state, target URL, description) of the `CI run started` status.
+    ci_run_started: tuple[str, str, str] | None = None
     marker_comment: str | None = None
     new_comments: list[str] = field(default_factory=list)
     close: bool = False
@@ -284,18 +367,12 @@ def observe_fork_state(fork: ForkObservation, marker: Marker | None) -> tuple[Fo
             return ForkState.FAILED, None
         return None, f"unexpected fork check suite conclusion {fork.suite_conclusion!r}"
     if fork.workflow_state is None:
-        if marker is not None and marker.state == ForkState.AWAITING_PUSH.value:
-            return ForkState.AWAITING_PUSH, None
         return None, "no fork run and the fork workflow state was not read"
     if fork.workflow_state in SETUP_WORKFLOW_STATES:
         return ForkState.SETUP_REQUIRED, None
     if fork.workflow_state == "active":
         return ForkState.AWAITING_PUSH, None
     return None, f"unexpected fork workflow state {fork.workflow_state!r}"
-
-
-def needs_workflow_state(marker: Marker | None) -> bool:
-    return marker is None or marker.state != ForkState.AWAITING_PUSH.value
 
 
 def has_job_started(job: dict[str, Any]) -> bool:
@@ -354,6 +431,22 @@ def is_gated_skip_run(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
     )
 
 
+def is_cancelled_gate_run(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
+    """
+    Whether a completed ci-amd.yml run was cancelled before it did any project CI work.
+
+    A push soon after opening a pull request cancels the first run, often before its gate has
+    decided, and the run that replaces it is the one left to fork CI. The cancelled run's jobs stay
+    on the pull request as cancelled checks next to the fork's result. Only the gate and the jobs
+    that also run in a gated run started, none failed, and at least one was cancelled.
+    """
+    jobs = list(jobs)
+    if jobs_show_project_ci(jobs, now):
+        return False
+    conclusions = {job.get("conclusion") for job in jobs}
+    return "cancelled" in conclusions and conclusions <= {"success", "skipped", "cancelled"}
+
+
 def touches(files: Iterable[str], prefixes: tuple[str, ...]) -> bool:
     return any(path.startswith(prefixes) for path in files)
 
@@ -383,7 +476,7 @@ def changes_ci_definition(files: Sequence[str], *, file_count: int | None = None
     return (
         (len(files) if file_count is None else file_count) >= PULL_REQUEST_FILES_CAP
         or touches(files, CI_DEFINING_PREFIXES)
-        or any(path.endswith(CI_DEFINING_SUFFIXES) for path in files)
+        or any(path in CI_DEFINING_FILES for path in files)
     )
 
 
@@ -397,6 +490,7 @@ def _gate_event(pr: PullRequestSnapshot, repo: str) -> GateEvent:
         author_association=pr.author_association,
         created_at=pr.created_at,
         labels=pr.labels,
+        ci_run_at=pr.ci_run_at,
     )
 
 
@@ -436,6 +530,12 @@ def _set_ci_passed(plan: Plan, pr: PullRequestSnapshot, *, passed: bool, target_
         plan.ci_passed = ("pending", target_url, CI_PASSED_REVOKED_DESCRIPTION)
 
 
+def _set_ci_run_started(plan: Plan, pr: PullRequestSnapshot, fork: ForkObservation) -> None:
+    """Report the `CI run started` check the merge rulesets require once the fork runs the head commit."""
+    if fork.run_url and pr.ci_run_started_state != "success":
+        plan.ci_run_started = ("success", fork.run_url, CI_RUN_STARTED_DESCRIPTION)
+
+
 def _set_marker_comment(plan: Plan, pr: PullRequestSnapshot, body: str) -> None:
     if body != pr.marker_comment_body:
         plan.marker_comment = body
@@ -452,6 +552,8 @@ def classify(
     changes_ci_files: Callable[[], bool | None],
     count_behind: Callable[[], int | None] = lambda: None,
     jobs_reported: str | None = None,
+    head_shared_across_bases: bool = False,
+    find_gate_change: Callable[[], str | None] = lambda: None,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -468,6 +570,11 @@ def classify(
         unknown; called at the same time as ``changes_ci_files``.
     :param jobs_reported: the completed fork run whose jobs are all reported as statuses, recorded
         in the marker so that later runs do not read its jobs again.
+    :param head_shared_across_bases: another gated pull request has the same head commit and a
+        different base, so their changed files differ but they share one commit status.
+    :param find_gate_change: describes how the pull request changes the fork CI gate, or returns
+        None; only called for pull requests that the gate tampering check applies to, once per
+        head commit.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -530,6 +637,7 @@ def classify(
     reopened_since_closing = {
         ForkState.CLOSED.value: pr.last_reopened_by_anyone_at,
         ForkState.GATE_BYPASSED.value: pr.last_reopened_at,
+        ForkState.GATE_MODIFIED.value: pr.last_reopened_at,
     }
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
@@ -538,6 +646,8 @@ def classify(
             _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
             if plan.state == ForkState.CLOSED:
                 comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo)
+            elif plan.state == ForkState.GATE_MODIFIED:
+                comment = gate_modified_close_comment(change=None)
             else:
                 # The status written with the marker links the run that bypassed the gate.
                 bypass_url = (
@@ -550,6 +660,44 @@ def classify(
             plan.close = True
             return plan
 
+    # A pull request whose CI runs in a fork must not change the gate that sent it there. Checked
+    # once per head commit: the marker records a head commit as checked only when the check ran
+    # for it (not while `use fork ci` exempted it), and a retarget since the state began changes
+    # what the pull request changes. A
+    # maintainer's reopen of one closed for it leaves the marker at gate_modified, so reopening
+    # without restoring the gate closes it again; `use project ci` is the way to accept the change.
+    gate_checked = reason in TAMPER_CHECKED_REASONS
+    already_checked = (
+        marker is not None
+        and marker.gate_checked
+        and marker.sha == pr.head_sha
+        and (pr.last_base_change_at is None or pr.last_base_change_at < marker.since)
+    )
+    if gate_checked and not already_checked:
+        change = find_gate_change()
+        if change is not None:
+            plan.state = ForkState.GATE_MODIFIED
+            if not pr.is_draft:
+                plan.draft = True
+            _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=False)
+            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _set_status(
+                plan, pr, ForkState.GATE_MODIFIED.value, f"https://github.com/{repo}/pull/{pr.number}/files"
+            )
+            _set_marker_comment(
+                plan,
+                pr,
+                state_comment(
+                    Marker(ForkState.GATE_MODIFIED.value, pr.head_sha, now), fork=pr.head_repo, run_url=None
+                ),
+            )
+            plan.new_comments.append(gate_modified_close_comment(change=change))
+            plan.close = True
+            plan.attention.append(
+                f"closed for changing the fork CI gate (author @{pr.author_login}): {change}"
+            )
+            return plan
+
     state, unknown_reason = observe_fork_state(fork, marker)
     if state is None:
         plan.unknown.append(unknown_reason or "unknown fork state")
@@ -560,14 +708,22 @@ def classify(
         # The decision is read back from the commit status on the head commit, which only
         # apache/airflow's own tokens can write, never from a comment. The changed files depend
         # on the base too, so a status written before the pull request was retargeted is stale.
-        # The status is shared by every pull request with this head commit; scoping it to one is
-        # tracked at https://github.com/apache/airflow/issues/74907
         previous = status_state(pr.current_status)
         decided = previous in (ForkState.GREEN.value, ForkState.GREEN_UNVERIFIED.value)
         stale = pr.last_base_change_at is not None and (
             pr.status_created_at is None or pr.status_created_at <= pr.last_base_change_at
         )
-        if decided and not stale:
+        if head_shared_across_bases:
+            # One commit status cannot hold a decision per base, and trusting the one written for
+            # the other pull request could skip the check; both wait for a maintainer instead.
+            unverified = True
+            if previous != ForkState.GREEN_UNVERIFIED.value:
+                plan.attention.append(
+                    "fork CI is green, but another gated pull request to a different base has the "
+                    "same head commit, so its CI-defining changes cannot be told apart; review and add "
+                    "`use project ci` to verify"
+                )
+        elif decided and not stale:
             unverified = previous == ForkState.GREEN_UNVERIFIED.value
         else:
             # Writing the status again, even unchanged, records when this decision was made.
@@ -583,10 +739,18 @@ def classify(
     plan.state = state
     since = marker.since if marker and marker.state == state.value else now
 
-    # The marker records awaiting_push before the nudge is posted, so a failed post is not retried;
-    # tracked at https://github.com/apache/airflow/issues/74908
     if marker and marker.state == ForkState.SETUP_REQUIRED.value and state == ForkState.AWAITING_PUSH:
         plan.new_comments.append(nudge_comment(fork=pr.head_repo))
+    # A new comment, because the edited state comment would not notify the author that fork CI they
+    # had working stopped running.
+    if (
+        marker
+        and marker.state not in (ForkState.SETUP_REQUIRED.value, ForkState.CLOSED.value)
+        and state == ForkState.SETUP_REQUIRED
+    ):
+        plan.new_comments.append(
+            workflow_disabled_comment(fork=pr.head_repo, workflow_state=fork.workflow_state)
+        )
 
     if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
         plan.state = ForkState.CLOSED
@@ -594,36 +758,54 @@ def classify(
         _set_marker_comment(
             plan,
             pr,
-            state_comment(Marker(ForkState.CLOSED.value, pr.head_sha, now), fork=pr.head_repo, run_url=None),
+            state_comment(
+                Marker(ForkState.CLOSED.value, pr.head_sha, now, gate_checked=gate_checked),
+                fork=pr.head_repo,
+                run_url=None,
+            ),
         )
         plan.new_comments.append(inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo))
         plan.close = True
         return plan
 
-    if state == ForkState.GREEN:
+    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
+        # A green run that changes CI files still needs a maintainer's review, which a draft would
+        # hide; the `needs project ci` label marks it instead of the review label.
         if pr.is_draft and _is_bot(pr.last_draft_actor):
             plan.draft = False
         ready = not pr.is_draft or plan.draft is False
-        if ready and LABEL_READY_FOR_REVIEW not in labels:
+        if state == ForkState.GREEN and ready and LABEL_READY_FOR_REVIEW not in labels:
             plan.add_labels.append(LABEL_READY_FOR_REVIEW)
+        elif state == ForkState.GREEN_UNVERIFIED and LABEL_READY_FOR_REVIEW in labels:
+            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     else:
-        if not pr.is_draft:
+        # A run in progress needs nothing from the author, and drafting on it would draft every
+        # approved pull request the moment it is rebased; it is drafted only if the run then fails.
+        if not pr.is_draft and state != ForkState.RUNNING:
             plan.draft = True
         if LABEL_READY_FOR_REVIEW in labels:
             plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other draft with a pending fork CI status.
+    # otherwise look like any other pull request with a pending fork CI status.
     _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
     _set_status(plan, pr, state.value, target_url, force=refresh_status)
     _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
+    _set_ci_run_started(plan, pr, fork)
     green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
     _set_marker_comment(
         plan,
         pr,
         state_comment(
-            Marker(state.value, pr.head_sha, since, behind=behind if green else None, jobs=jobs_reported),
+            Marker(
+                state.value,
+                pr.head_sha,
+                since,
+                behind=behind if green else None,
+                jobs=jobs_reported,
+                gate_checked=gate_checked,
+            ),
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
@@ -641,7 +823,7 @@ query($q: String!, $cursor: String) {
   search(type: ISSUE, first: 100, after: $cursor, query: $q) {
     pageInfo { hasNextPage endCursor }
     nodes { ... on PullRequest {
-      number createdAt authorAssociation baseRefName
+      number createdAt authorAssociation baseRefName headRefName headRefOid
       author { login }
       headRepository { nameWithOwner }
       labels(first: 50) { nodes { name } }
@@ -650,11 +832,8 @@ query($q: String!, $cursor: String) {
 }
 """
 
-PASS_TWO_QUERY = """
-query($q: String!, $cursor: String) {
-  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
-    pageInfo { hasNextPage endCursor }
-    nodes { ... on PullRequest {
+PASS_TWO_FIELDS = """
+fragment PassTwoFields on PullRequest {
       number id isDraft createdAt authorAssociation baseRefName headRefName headRefOid
       author { login }
       headRepository { nameWithOwner }
@@ -668,7 +847,7 @@ query($q: String!, $cursor: String) {
           ... on ConvertToDraftEvent { createdAt actor { login } }
           ... on UnlabeledEvent { createdAt label { name } }
           ... on ReopenedEvent { createdAt actor { login } }
-          ... on BaseRefChangedEvent { createdAt }
+          ... on BaseRefChangedEvent { createdAt previousRefName currentRefName }
         }
       }
       commits(last: 1) { nodes { commit {
@@ -676,16 +855,42 @@ query($q: String!, $cursor: String) {
         status {
           context(name: "%(context)s") { state targetUrl description createdAt }
           ciPassed: context(name: "%(ci_passed)s") { state }
+          ciRunStarted: context(name: "%(ci_run_started)s") { state }
         }
       } } }
       comments(first: 100) {
         pageInfo { hasNextPage endCursor }
         nodes { databaseId body author { login } }
       }
-    } }
+}
+"""
+
+PASS_TWO_QUERY = (
+    """
+query($q: String!, $cursor: String) {
+  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ...PassTwoFields }
   }
 }
 """
+    + PASS_TWO_FIELDS
+)
+
+PULL_REQUESTS_BY_NUMBER_QUERY = (
+    """
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { %(pull_requests)s }
+}
+"""
+    + PASS_TWO_FIELDS
+)
+
+PASS_TWO_CONTEXTS = {
+    "context": STATUS_CONTEXT,
+    "ci_passed": CI_PASSED_CONTEXT,
+    "ci_run_started": CI_RUN_STARTED_CONTEXT,
+}
 
 
 def _labels(node: dict[str, Any]) -> tuple[str, ...]:
@@ -724,32 +929,38 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
     last_reopened = None
     last_reopened_by_anyone = None
     last_base_change = None
+    base_changes = []
     for item in (node.get("timelineItems") or {}).get("nodes") or []:
         if item["__typename"] == "ConvertToDraftEvent":
             last_draft_actor = _login(item.get("actor"))
         elif item["__typename"] == "BaseRefChangedEvent":
             last_base_change = parse_github_datetime(item["createdAt"])
+            base_changes.append(
+                (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
+            )
         elif item["__typename"] == "ReopenedEvent":
             last_reopened_by_anyone = parse_github_datetime(item["createdAt"])
             # Only a reopen by someone else counts for the gate tampering check: an author closing
             # and reopening their own pull request must not hide a tampered run from it.
             if _login(item.get("actor")).casefold() != _login(node.get("author")).casefold():
                 last_reopened = last_reopened_by_anyone
-        elif (
-            item["__typename"] == "UnlabeledEvent"
-            and (item.get("label") or {}).get("name") == LABEL_USE_PROJECT_CI
-        ):
-            last_unlabel = parse_github_datetime(item["createdAt"])
+        elif item["__typename"] == "UnlabeledEvent":
+            label = (item.get("label") or {}).get("name")
+            if label == LABEL_USE_PROJECT_CI:
+                last_unlabel = parse_github_datetime(item["createdAt"])
 
     current_status = None
     status_created_at = None
     ci_passed_state = None
+    ci_run_started_state = None
     commits = (node.get("commits") or {}).get("nodes") or []
     head_status_unread = bool(commits) and commits[0]["commit"].get("oid") != node["headRefOid"]
     if commits and not head_status_unread:
         status = commits[0]["commit"].get("status") or {}
         if status.get("ciPassed"):
             ci_passed_state = status["ciPassed"]["state"].lower()
+        if status.get("ciRunStarted"):
+            ci_run_started_state = status["ciRunStarted"]["state"].lower()
         context = status.get("context")
         if context:
             current_status = (
@@ -785,9 +996,11 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         last_reopened_at=last_reopened,
         last_reopened_by_anyone_at=last_reopened_by_anyone,
         last_base_change_at=last_base_change,
+        base_changes=tuple(base_changes),
         current_status=current_status,
         status_created_at=status_created_at,
         ci_passed_state=ci_passed_state,
+        ci_run_started_state=ci_run_started_state,
         marker=marker,
         marker_comment_id=marker_id,
         marker_comment_body=marker_body,
@@ -795,6 +1008,120 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         comments_cursor=comments_cursor,
         head_status_unread=head_status_unread,
     )
+
+
+PROJECT_CI_RUNS_QUERY = """
+query($q: String!, $cursor: String) {
+  search(type: ISSUE, first: 50, after: $cursor, query: $q) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ... on PullRequest {
+      number headRefOid
+      commits(last: 1) { nodes { commit {
+        oid
+        status { context(name: "%(context)s") { state } }
+        checkSuites(first: 30, filterBy: {appId: %(app_id)d}) { nodes {
+          createdAt conclusion
+          workflowRun { url event workflow { resourcePath } }
+        } }
+      } } }
+    } }
+  }
+}
+"""
+
+
+def find_project_ci_run_url(node: dict[str, Any]) -> str | None:
+    """
+    The latest project CI pull_request run of a pull request's head commit that still needs `CI run started`.
+
+    None when the commit already has the status, when its latest run has not started because it waits
+    for a maintainer's approval or there is none yet, and when the last commit listed is not the head:
+    GitHub orders the commit list by date, so after a rebase that keeps old dates it can be another one,
+    and ``read_project_ci_run_url`` reads the head instead.
+    """
+    if not is_head_listed(node):
+        return None
+    commit = node["commits"]["nodes"][0]["commit"]
+    if ((commit.get("status") or {}).get("context") or {}).get("state") == "SUCCESS":
+        return None
+    runs = [
+        suite
+        for suite in (commit.get("checkSuites") or {}).get("nodes") or []
+        if (run := suite.get("workflowRun") or {}).get("event") == "pull_request"
+        and _workflow_file((run.get("workflow") or {}).get("resourcePath")) in PROJECT_CI_WORKFLOW_FILES
+    ]
+    if not runs:
+        return None
+    latest = max(runs, key=lambda suite: suite["createdAt"])
+    if latest.get("conclusion") == "ACTION_REQUIRED":
+        return None
+    return latest["workflowRun"]["url"]
+
+
+def is_head_listed(node: dict[str, Any]) -> bool:
+    commits = (node.get("commits") or {}).get("nodes") or []
+    return bool(commits) and commits[0]["commit"].get("oid") == node.get("headRefOid")
+
+
+def read_project_ci_run_url(client: GitHubClient, repo: str, head_sha: str) -> str | None:
+    """``find_project_ci_run_url`` for a head commit the search did not list, read from REST."""
+    statuses = client.rest_get(
+        f"repos/{repo}/commits/{head_sha}/status?per_page=100", paginate=True, items_key="statuses"
+    )
+    if any(
+        status["context"] == CI_RUN_STARTED_CONTEXT and status["state"] == "success" for status in statuses
+    ):
+        return None
+    # Newest first, and across every workflow: which one runs CI depends on the base branch.
+    runs = [
+        run
+        for run in client.rest_get(
+            f"repos/{repo}/actions/runs?event=pull_request&head_sha={head_sha}&per_page=100"
+        ).get("workflow_runs", [])
+        if _workflow_file(run.get("path")) in PROJECT_CI_WORKFLOW_FILES
+    ]
+    if not runs or runs[0].get("conclusion") == "action_required":
+        return None
+    return runs[0]["html_url"]
+
+
+def report_project_ci_runs_started(
+    client: GitHubClient, *, repo: str, skip: Collection[int], budget: int = MAX_CI_RUN_STARTED_PER_RUN
+) -> list[int]:
+    """
+    Report `CI run started` for open pull requests whose CI runs in apache/airflow; return their numbers.
+
+    :param skip: the pull requests this run treated as gated, which get the status from their fork
+        run instead; the search index can still list one without `fork ci required`.
+    """
+    reported: list[int] = []
+    for node in _search(
+        client,
+        PROJECT_CI_RUNS_QUERY % {"context": CI_RUN_STARTED_CONTEXT, "app_id": GITHUB_ACTIONS_APP_ID},
+        f'repo:{repo} is:pr is:open -label:"{LABEL_FORK_CI_REQUIRED}" sort:updated-desc',
+    ):
+        if len(reported) >= budget:
+            console_print(f"[info]`{CI_RUN_STARTED_CONTEXT}` of more pull requests left for the next run[/]")
+            break
+        if node["number"] in skip:
+            continue
+        run_url = (
+            find_project_ci_run_url(node)
+            if is_head_listed(node)
+            else read_project_ci_run_url(client, repo, node["headRefOid"])
+        )
+        if run_url is None:
+            continue
+        client.set_status(
+            node["number"],
+            node["headRefOid"],
+            "success",
+            run_url,
+            CI_RUN_STARTED_PROJECT_DESCRIPTION,
+            context=CI_RUN_STARTED_CONTEXT,
+        )
+        reported.append(node["number"])
+    return reported
 
 
 def _search(client: GitHubClient, query: str, search_query: str) -> Iterable[dict[str, Any]]:
@@ -807,8 +1134,48 @@ def _search(client: GitHubClient, query: str, search_query: str) -> Iterable[dic
         cursor = result["pageInfo"]["endCursor"]
 
 
+def fetch_open_pull_requests(
+    client: GitHubClient, numbers: Sequence[int], *, repo: str
+) -> list[dict[str, Any]]:
+    """
+    Return the pass 2 nodes of the pull requests among these that are still open.
+
+    Reads them by number rather than through the search index, which can take minutes to list a
+    pull request under a label added moments before.
+    """
+    owner, name = repo.split("/", 1)
+    nodes: list[dict[str, Any]] = []
+    for start in range(0, len(numbers), PASS_TWO_PAGE_SIZE):
+        batch = numbers[start : start + PASS_TWO_PAGE_SIZE]
+        pull_requests = " ".join(
+            f"pr{index}: pullRequest(number: {number}) {{ state ...PassTwoFields }}"
+            for index, number in enumerate(batch)
+        )
+        result = (
+            client.graphql(
+                PULL_REQUESTS_BY_NUMBER_QUERY % {"pull_requests": pull_requests, **PASS_TWO_CONTEXTS},
+                {"owner": owner, "name": name},
+                allow_partial=True,
+            )["repository"]
+            or {}
+        )
+        nodes.extend(node for node in result.values() if node and node["state"] == "OPEN")
+    return nodes
+
+
 def _is_not_found(error: GitHubError) -> bool:
     return "404" in str(error) or "Not Found" in str(error)
+
+
+def read_file(client: GitHubClient, repo: str, path: str, ref: str) -> str | None:
+    """Return a file's content at a ref, or None when it does not exist there."""
+    try:
+        content = client.rest_get(f"repos/{repo}/contents/{path}?ref={quote(ref, safe='')}")
+    except GitHubError as e:
+        if _is_not_found(e):
+            return None
+        raise
+    return base64.b64decode(content["content"]).decode()
 
 
 class BaseGateConfigs:
@@ -825,15 +1192,7 @@ class BaseGateConfigs:
         self._configs: dict[str, GateConfig | None] = {default_branch: default_config}
 
     def _read(self, path: str, base_ref: str) -> str | None:
-        try:
-            content = self._client.rest_get(
-                f"repos/{self._repo}/contents/{path}?ref={quote(base_ref, safe='')}"
-            )
-        except GitHubError as e:
-            if _is_not_found(e):
-                return None
-            raise
-        return base64.b64decode(content["content"]).decode()
+        return read_file(self._client, self._repo, path, base_ref)
 
     def get(self, base_ref: str) -> GateConfig | None:
         """Return the base branch's configuration, or None when the base branch has no gate."""
@@ -850,6 +1209,68 @@ class BaseGateConfigs:
             else:
                 self._configs[base_ref] = parse_config(config_text)
         return self._configs[base_ref]
+
+
+def find_ci_run_since(
+    client: GitHubClient, repo: str, *, head_repo: str, head_ref: str, head_sha: str, since: datetime
+) -> datetime | None:
+    """
+    When the latest ci-amd.yml pull_request run of a branch's commit created at or after ``since`` was created.
+
+    The gate decides with the creation time of its own run (GateEvent.ci_run_at); this reads the
+    same time back, so both decide alike for a pilot's pull request created before they joined.
+    Runs are matched by branch and fork too: the same commit pushed to another branch is another
+    pull request's.
+    """
+    created = quote(f">={since.astimezone(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')}", safe="")
+    runs = client.rest_get(
+        f"repos/{repo}/actions/workflows/{CI_WORKFLOW_FILE}/runs?event=pull_request"
+        f"&branch={quote(head_ref, safe='')}&head_sha={head_sha}&created={created}&per_page=100"
+    ).get("workflow_runs", [])
+    times = [
+        parse_github_datetime(run["created_at"])
+        for run in runs
+        if ((run.get("head_repository") or {}).get("full_name") or "").casefold() == head_repo.casefold()
+    ]
+    return max((time for time in times if time is not None), default=None)
+
+
+def read_ci_run_at(
+    client: GitHubClient,
+    repo: str,
+    config: GateConfig,
+    *,
+    author: str,
+    created_at: datetime | None,
+    head_repo: str,
+    head_ref: str,
+    head_sha: str,
+) -> datetime | None:
+    """The ``ci_run_at`` of a gate event; only read for a pilot's pull request created before they joined."""
+    joined_at = config.find_pilot_join_after(author, created_at)
+    if joined_at is None or not (head_repo and head_ref and head_sha):
+        return None
+    return find_ci_run_since(
+        client, repo, head_repo=head_repo, head_ref=head_ref, head_sha=head_sha, since=joined_at
+    )
+
+
+def mark_older_pilot_pull_request(
+    pr: PullRequestSnapshot, config: GateConfig, *, repo: str, now: datetime
+) -> PullRequestSnapshot:
+    """
+    Record that a pilot's pull request created before they joined is gated, for the tampering check.
+
+    Its `fork ci required` label shows that discovery found a run created after joining, which is
+    what gated it; that run is not read again, because the reconciler deletes gated runs. Before the
+    join instant the label came from something else, such as `use fork ci`. Its runs from before
+    joining are left out of the tampering check only when project CI was allowed then.
+    """
+    joined_at = config.find_pilot_join_after(pr.author_login, pr.created_at)
+    if joined_at is None or joined_at > now:
+        return pr
+    allowed_before = decide(_gate_event(pr, repo), config).reason not in GATED_REASONS
+    return replace(pr, ci_run_at=joined_at, pilot_joined_at=joined_at if allowed_before else None)
 
 
 def discover(
@@ -883,15 +1304,27 @@ def discover(
                 continue
             if config is None:
                 continue
+            author = _login(node.get("author"))
+            created_at = parse_github_datetime(node["createdAt"])
             event = GateEvent(
                 event_name="pull_request",
                 repository=repo,
                 ref="",
                 head_repository=(node.get("headRepository") or {}).get("nameWithOwner") or "",
-                author_login=_login(node.get("author")),
+                author_login=author,
                 author_association=node["authorAssociation"],
-                created_at=parse_github_datetime(node["createdAt"]),
+                created_at=created_at,
                 labels=_labels(node),
+                ci_run_at=read_ci_run_at(
+                    client,
+                    repo,
+                    config,
+                    author=author,
+                    created_at=created_at,
+                    head_repo=(node.get("headRepository") or {}).get("nameWithOwner") or "",
+                    head_ref=node.get("headRefName") or "",
+                    head_sha=node.get("headRefOid") or "",
+                ),
             )
             if decide(event, config).reason in GATED_REASONS:
                 client.add_labels(node["number"], [LABEL_FORK_CI_REQUIRED])
@@ -912,7 +1345,7 @@ def fetch_fork_observations(
             declarations.append(f"$o{index}: String!, $n{index}: String!, $s{index}: GitObjectID!")
             fields.append(
                 f"pr{index}: repository(owner: $o{index}, name: $n{index}) {{ object(oid: $s{index}) {{ "
-                "... on Commit { checkSuites(first: 30) { nodes { createdAt status conclusion "
+                "... on Commit { checkSuites(first: 30) { nodes { createdAt updatedAt status conclusion "
                 "workflowRun { databaseId runAttempt url event workflow { resourcePath } } } } } } }"
             )
             variables.update({f"o{index}": owner, f"n{index}": name, f"s{index}": pr.head_sha})
@@ -943,24 +1376,27 @@ def fetch_fork_observations(
                 run_url=latest["workflowRun"]["url"],
                 run_id=latest["workflowRun"].get("databaseId"),
                 run_attempt=latest["workflowRun"].get("runAttempt"),
+                completed_at=(
+                    parse_github_datetime(latest.get("updatedAt") or "")
+                    if latest["status"] == "COMPLETED"
+                    else None
+                ),
             )
     return observations
 
 
 def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str, str]]:
-    """The ``(state, target URL, description)`` to report for each queued or started fork job, by context."""
+    """The ``(state, target URL, description)`` to report for each finished fork job, by context."""
     statuses: dict[str, tuple[str, str, str]] = {}
     # GitHub compares contexts case-insensitively, so differently capitalised names are one context.
     contexts: dict[str, str] = {}
     for job in jobs:
         if job["name"] in UNREPORTED_JOB_NAMES:
             continue
-        if job.get("status") in RUNNING_JOB_STATUSES:
-            outcome = "running"
-        else:
-            outcome = job.get("conclusion") or ""
+        outcome = "" if job.get("status") in RUNNING_JOB_STATUSES else job.get("conclusion") or ""
         if outcome not in JOB_STATUSES:
-            # Skipped and neutral jobs did no work worth a check on the pull request.
+            # Unfinished jobs are left to `Fork CI / Tests (AMD)`; skipped and neutral ones did no work
+            # worth a check on the pull request.
             continue
         state, description = JOB_STATUSES[outcome]
         context = contexts.setdefault(
@@ -976,11 +1412,38 @@ def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, s
 class JobStatusReporter:
     """Reports each job of a pull request's fork run as a commit status, within a per-run budget."""
 
-    def __init__(self, client: GitHubClient, *, repo: str, budget: int = MAX_JOB_STATUSES_PER_RUN):
+    def __init__(
+        self,
+        client: GitHubClient,
+        *,
+        repo: str,
+        budget: int = MAX_JOB_STATUSES_PER_RUN,
+        now: datetime | None = None,
+    ):
+        """:param now: when given, deferring the statuses of a run that finished long ago is reported."""
         self._client = client
         self._repo = repo
+        self._now = now
         self.remaining = budget
         self.deferred: list[int] = []
+        # (pull request, attention item) for runs whose statuses are deferred long after they finished.
+        self.delayed: list[tuple[int, str]] = []
+
+    def _defer(self, pr: PullRequestSnapshot, fork: ForkObservation) -> None:
+        self.deferred.append(pr.number)
+        if (
+            self._now is not None
+            and fork.completed_at is not None
+            and self._now - fork.completed_at >= MIRROR_DELAY_BEFORE_ALERT
+        ):
+            # Fixed text per run, so it is posted to Slack once while the delay lasts.
+            self.delayed.append(
+                (
+                    pr.number,
+                    f"job statuses of fork run {fork.run_url} are still not all posted more than "
+                    f"{MIRROR_DELAY_BEFORE_ALERT} after it finished",
+                )
+            )
 
     def report(self, pr: PullRequestSnapshot, fork: ForkObservation) -> str | None:
         """
@@ -1004,13 +1467,9 @@ class JobStatusReporter:
         # Without writes left, the reads are spent for nothing: a backlog of hundreds of pull requests
         # would otherwise cost two reads each on every run.
         if self.remaining == 0:
-            self.deferred.append(pr.number)
+            self._defer(pr, fork)
             return None
-        jobs = self._client.rest_get(
-            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
-            paginate=True,
-            items_key="jobs",
-        )
+        jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -1040,7 +1499,7 @@ class JobStatusReporter:
         )
         for context, (state, target_url, description) in changes:
             if self.remaining == 0:
-                self.deferred.append(pr.number)
+                self._defer(pr, fork)
                 return None
             self._client.set_status(pr.number, pr.head_sha, state, target_url, description, context=context)
             # Charged per write, so writes made before a later one fails still count.
@@ -1096,6 +1555,15 @@ def load_workflow_triggers(workflows_dir: Path) -> dict[str, frozenset[str]]:
     return triggers
 
 
+def base_at(pr: PullRequestSnapshot, when: datetime) -> str:
+    """The base branch the pull request had at ``when``, from its retargets."""
+    base = pr.base_ref
+    for changed_at, previous, _ in reversed(pr.base_changes):
+        if when < changed_at:
+            base = previous
+    return base
+
+
 class BypassFinder:
     """
     Finds project CI runs that bypassed the gate, from the runs apache/airflow recorded.
@@ -1106,17 +1574,28 @@ class BypassFinder:
     signals of the design must hold for a run: it did project CI work, and its own commit changes
     `.github/workflows/`. A run did project CI work when the base branch's version of its
     workflow is not triggered by the run's event (an injected workflow, or a trigger the pull
-    request added to an existing one, such as `pull_request` on ci-arm.yml), or when it is a long
-    ci-amd.yml run whose jobs show more than the gate.
+    request added to an existing one, such as `pull_request` on ci-arm.yml) and a job of it ran,
+    or when it is a long ci-amd.yml run whose jobs show more than the gate.
     """
 
     def __init__(
-        self, client: GitHubClient, *, repo: str, now: datetime, base_triggers: dict[str, frozenset[str]]
+        self,
+        client: GitHubClient,
+        *,
+        repo: str,
+        now: datetime,
+        base_triggers: dict[str, frozenset[str]],
+        is_gated_base: Callable[[str], bool] = lambda base_ref: True,
     ):
+        """:param is_gated_base: whether a base branch has the gate; runs against one without it are project CI by design."""
         self._client = client
         self._repo = repo
         self._now = now
         self._base_triggers = base_triggers
+        self._is_gated_base = is_gated_base
+        # Pull requests whose matching run could belong to another pull request from the same
+        # branch; reported instead of closed.
+        self.ambiguous: list[tuple[int, str]] = []
         since = (now - TAMPER_WINDOW).strftime("%Y-%m-%dT%H:%M:%SZ")
         self._runs_by_branch: dict[tuple[str, str], list[WorkflowRun]] = {}
         incomplete = []
@@ -1143,19 +1622,25 @@ class BypassFinder:
 
     def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
         if run.id not in self._jobs:
-            self._jobs[run.id] = self._client.rest_get(
-                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                paginate=True,
-                items_key="jobs",
-            )
+            self._jobs[run.id] = self._client.get_run_jobs(self._repo, run.id)
         return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
         if run.id not in self._did_project_ci:
             if run.event not in self._base_triggers.get(run.workflow_file, frozenset()):
-                # Counts even when every job skipped; tracked at
-                # https://github.com/apache/airflow/issues/74905
-                result = True
+                # A workflow or trigger the base branch does not have, for example a fork-only
+                # workflow the pull request adds, did no work in apache/airflow if its jobs all
+                # skipped there. Jobs that cannot be listed count as work.
+                try:
+                    jobs = self._get_jobs(run)
+                except GitHubError:
+                    result = True
+                else:
+                    result = (
+                        jobs_show_project_ci(jobs, self._now)
+                        if run.workflow_file == CI_WORKFLOW_FILE
+                        else any(has_job_started(job) and job.get("conclusion") != "skipped" for job in jobs)
+                    )
             elif run.workflow_file != CI_WORKFLOW_FILE or not run.is_long_running(self._now):
                 result = False
             else:
@@ -1165,7 +1650,8 @@ class BypassFinder:
 
     def find_gated_runs(self, pr: PullRequestSnapshot) -> list[WorkflowRun]:
         """
-        Completed ci-amd.yml pull_request runs of the pull request's branch that only gated it.
+        Completed ci-amd.yml pull_request runs of the pull request's branch that only gated it, or
+        that a newer push cancelled before they did any project CI work.
 
         A commit that changes workflows could do project CI work under the gate's name within its
         time limit, so its runs are kept as evidence, as are runs whose change set is too large
@@ -1182,7 +1668,10 @@ class BypassFinder:
             and run.status == "completed"
             and run.run_attempt == 1
             and not self._did_run_project_ci(run)
-            and is_gated_skip_run(self._get_jobs(run), self._now)
+            and (
+                is_gated_skip_run(self._get_jobs(run), self._now)
+                or is_cancelled_gate_run(self._get_jobs(run), self._now)
+            )
             and self._commit_changes_workflows(run, pr.base_ref) is False
         ]
 
@@ -1202,11 +1691,26 @@ class BypassFinder:
                 self._changes_workflows[key] = None if len(files) >= COMPARE_FILES_CAP else False
         return self._changes_workflows[key]
 
+    def _other_pull_requests(self, pr: PullRequestSnapshot) -> list[int]:
+        """Other pull requests from the same branch that were open within the tampering window."""
+        owner = pr.head_repo.split("/", 1)[0]  # type: ignore[union-attr]
+        pulls = self._client.rest_get(
+            f"repos/{self._repo}/pulls?head={quote(owner, safe='')}:{quote(pr.head_ref, safe='')}"
+            "&state=all&per_page=100",
+            paginate=True,
+        )
+        window_start = self._now - TAMPER_WINDOW
+        return [
+            pull["number"]
+            for pull in pulls
+            if pull["number"] != pr.number
+            and (pull.get("closed_at") is None or parse_github_datetime(pull["closed_at"]) >= window_start)
+        ]
+
     def find(self, pr: PullRequestSnapshot) -> str | None:
         if not pr.head_repo:
             return None
-        # Matching by fork branch alone also picks up runs of another pull request from that branch
-        # or from before a retarget; tracked at https://github.com/apache/airflow/issues/74906
+        # Runs are listed per fork branch: GitHub records no pull request on runs from forks.
         runs = self._runs_by_branch.get((pr.head_repo.casefold(), pr.head_ref), [])
         # Runs before `use project ci` was removed were legitimate. Runs before a maintainer
         # reopened the pull request were already acted on; reopening without restoring the gate
@@ -1217,12 +1721,233 @@ class BypassFinder:
         for run in sorted(runs, key=lambda r: r.created_at, reverse=True):
             if not_before is not None and run.created_at <= not_before:
                 continue
+            # A pilot's pull request created before they joined was not gated until then.
+            if pr.pilot_joined_at is not None and run.created_at < pr.pilot_joined_at:
+                continue
+            base_ref = base_at(pr, run.created_at)
+            # Project CI against a base branch without the gate is what its gate job decides.
+            if not self._is_gated_base(base_ref):
+                continue
             if not self._did_run_project_ci(run):
                 continue
             # A change set too large to list fails closed: padding a tampered commit past the
             # compare API's cap must not hide the workflow change.
-            if self._commit_changes_workflows(run, pr.base_ref) is not False:
+            if self._commit_changes_workflows(run, base_ref) is not False:
+                others = self._other_pull_requests(pr)
+                if others:
+                    self.ambiguous.append(
+                        (
+                            pr.number,
+                            f"project CI run {run.html_url} may have bypassed the gate, but it could also "
+                            f"belong to {', '.join(f'#{n}' for n in others)} from the same branch; not closed, "
+                            "check it",
+                        )
+                    )
+                    return None
                 return run.html_url
+        return None
+
+
+def get_gate_wiring(workflow_text: str | None) -> Any:
+    """
+    The parts of a ci-amd.yml that make up the gate: its job, how build-info depends on it, the
+    jobs that run when the gate skips build-info, the names of all jobs, and the workflow-level
+    triggers and settings that every job, the gate included, runs with.
+
+    A file that is not a workflow mapping yields an object equal to nothing, so a pull request
+    breaking the workflow counts as changing the gate rather than escaping the check. So does a
+    file with YAML aliases, which ci-amd.yml does not use: an alias nested in itself expands
+    exponentially when compared.
+    """
+    if workflow_text is None:
+        return None
+    try:
+        if any(isinstance(event, yaml.AliasEvent) for event in yaml.parse(workflow_text)):
+            return object()
+        workflow = yaml.safe_load(workflow_text)
+    except yaml.YAMLError:
+        return object()
+    jobs = workflow.get("jobs") if isinstance(workflow, dict) else None
+    if not isinstance(jobs, dict):
+        return object()
+    build_info = jobs.get("build-info")
+    build_info = build_info if isinstance(build_info, dict) else {}
+    return (
+        jobs.get("gate"),
+        build_info.get("needs"),
+        build_info.get("if"),
+        find_jobs_run_when_gated(jobs),
+        get_job_names(jobs),
+        workflow.get("on", workflow.get(True)),
+        workflow.get("defaults"),
+        workflow.get("env"),
+        workflow.get("permissions"),
+        workflow.get("concurrency"),
+    )
+
+
+# A job whose `if` calls one of these runs although a job it needs was skipped: GitHub prefixes
+# `success() &&` only to an `if` without one, so even `success() || true` runs. Function names are
+# case-insensitive in GitHub expressions.
+STATUS_CHECK_FUNCTION = re.compile(r"\b(?:always|success|failure|cancelled)\s*\(", re.IGNORECASE)
+
+
+def find_jobs_run_when_gated(jobs: dict[Any, Any]) -> list[tuple[Any, Any]]:
+    """
+    The definitions of the jobs that run when the gate leaves a pull request to fork CI.
+
+    The gate succeeds then and skips build-info. A job runs if its `if` calls a status check
+    function, or if every job it needs runs, so also one that only needs a job that runs, such
+    as `ci-passed`. Such a job reports in apache/airflow whatever it is defined to, `CI passed`
+    included, so its whole definition is part of the gate. Anything unexpected counts as running.
+    """
+    runs: dict[Any, bool] = {"gate": True, "build-info": False}
+
+    def has_status_check(job: Any) -> bool:
+        if not isinstance(job, dict):
+            return True
+        condition = job.get("if")
+        if condition is None or isinstance(condition, bool):
+            return False
+        return not isinstance(condition, str) or bool(STATUS_CHECK_FUNCTION.search(condition))
+
+    def get_needs(job: Any) -> list[Any]:
+        needs = job.get("needs")
+        needs = needs if isinstance(needs, list) else [needs] if needs is not None else []
+        # A need that cannot be a job id stands for a job that is not in the workflow.
+        return [need if isinstance(need, (str, int, float, bool)) else object() for need in needs]
+
+    def is_run(job_id: Any, seen: frozenset[Any]) -> bool:
+        if job_id not in runs:
+            job = jobs.get(job_id)
+            # A cycle, which GitHub rejects anyway, or a need that is not a job of the workflow.
+            if job_id in seen or job_id not in jobs:
+                return True
+            runs[job_id] = has_status_check(job) or all(
+                is_run(need, seen | {job_id}) for need in get_needs(job)
+            )
+        return runs[job_id]
+
+    return sorted(
+        (
+            (job_id, job)
+            for job_id, job in jobs.items()
+            if job_id not in ("gate", "build-info") and is_run(job_id, frozenset())
+        ),
+        key=lambda entry: repr(entry[0]),
+    )
+
+
+def get_job_names(jobs: dict[Any, Any]) -> list[tuple[Any, Any, Any]]:
+    """
+    The name of every job, with its matrix when the name may read it.
+
+    GitHub treats a skipped required check as passed, so a job renamed to `CI passed` satisfies
+    the merge ruleset in a run the gate left to fork CI, where it is skipped. A job without a name
+    is named after its id, which cannot contain the space that `CI passed` has.
+    """
+    names = []
+    for job_id, job in jobs.items():
+        name = job.get("name") if isinstance(job, dict) else job
+        reads_matrix = name is not None and not (isinstance(name, str) and "${{" not in name)
+        strategy = job.get("strategy") if isinstance(job, dict) and reads_matrix else None
+        names.append((job_id, name, strategy))
+    return sorted(names, key=lambda entry: repr(entry[0]))
+
+
+def is_own_pilot_change(base_text: str | None, head_text: str | None, author_login: str) -> bool:
+    """Whether a gate configuration differs from the base only in the author's own pilot entry."""
+    if base_text is None or head_text is None:
+        return False
+    try:
+        base = parse_config(base_text)
+        head = parse_config(head_text)
+    except (ValueError, TypeError, AttributeError):
+        # Valid TOML of the wrong shape, such as `pilot = []`, is no permitted change either.
+        return False
+    base_pilot = {login.casefold(): joined for login, joined in base.pilot.items()}
+    head_pilot = {login.casefold(): joined for login, joined in head.pilot.items()}
+    changed = {
+        login
+        for login in base_pilot.keys() | head_pilot.keys()
+        if base_pilot.get(login) != head_pilot.get(login)
+    }
+    return replace(head, pilot=base.pilot) == base and changed <= {author_login.casefold()}
+
+
+class PullRequestChangedError(RuntimeError):
+    """The pull request's head or base changed while it was checked; the next run checks it again."""
+
+
+class GateChangeFinder:
+    """Finds how a pull request changes the fork CI gate, from its changed files."""
+
+    def __init__(self, client: GitHubClient, *, repo: str):
+        self._client = client
+        self._repo = repo
+
+    def _merge_base(self, pr: PullRequestSnapshot) -> str:
+        # The pull request's changes are against the merge base, not the base branch's tip, which
+        # may have moved on: comparing with the tip would count others' later changes as its own.
+        owner = (pr.head_repo or "").split("/", 1)[0]
+        compare = self._client.rest_get(
+            f"repos/{self._repo}/compare/{quote(pr.base_ref, safe='')}...{owner}:{pr.head_sha}?per_page=1"
+        )
+        return compare["merge_base_commit"]["sha"]
+
+    @staticmethod
+    def _changes_gate_wiring(base_text: str | None, head_text: str | None) -> bool:
+        # The head version is the contributor's: a workflow that the comparison fails on, such as
+        # one with a needs chain deeper than the recursion limit, counts as a change.
+        try:
+            return get_gate_wiring(base_text) != get_gate_wiring(head_text)
+        except Exception:
+            return True
+
+    def find(self, pr: PullRequestSnapshot) -> str | None:
+        files = self._client.rest_get(
+            f"repos/{self._repo}/pulls/{pr.number}/files?per_page=100", paginate=True
+        )
+        # The listing is of the pull request as it is now, while the head commit recorded as checked
+        # and the base whose gate configuration classifies the result are those read at the start
+        # of the run: a push in between would mark a commit checked by another one's files, and a
+        # retarget would close for a gate change a pull request whose new base has no gate.
+        current = self._client.rest_get(f"repos/{self._repo}/pulls/{pr.number}")
+        current_head = current["head"]["sha"]
+        if current_head != pr.head_sha:
+            raise PullRequestChangedError(
+                f"head moved from {pr.head_sha[:8]} to {current_head[:8]} during the gate check"
+            )
+        current_base = current["base"]["ref"]
+        if current_base != pr.base_ref:
+            raise PullRequestChangedError(
+                f"base changed from {pr.base_ref} to {current_base} during the gate check"
+            )
+        # A listing at GitHub's cap may leave out a gate file, so it is not trusted.
+        if len(files) >= PULL_REQUEST_FILES_CAP:
+            return f"it changes {len(files)} or more files, more than GitHub lists, so the gate cannot be checked"
+        paths = set(changed_paths(files))
+        for path in sorted(GATE_PROTECTED_PATHS & paths):
+            return f"it changes `{path}`"
+        if not paths & {GATE_CONFIG_PATH, CI_WORKFLOW_PATH}:
+            return None
+        head_repo = pr.head_repo or ""
+        merge_base = self._merge_base(pr)
+        if GATE_CONFIG_PATH in paths and not is_own_pilot_change(
+            read_file(self._client, self._repo, GATE_CONFIG_PATH, merge_base),
+            read_file(self._client, head_repo, GATE_CONFIG_PATH, pr.head_sha),
+            pr.author_login,
+        ):
+            return f"it changes `{GATE_CONFIG_PATH}` beyond the author's own `[pilot]` entry"
+        if CI_WORKFLOW_PATH in paths and self._changes_gate_wiring(
+            read_file(self._client, self._repo, CI_WORKFLOW_PATH, merge_base),
+            read_file(self._client, head_repo, CI_WORKFLOW_PATH, pr.head_sha),
+        ):
+            return (
+                f"it changes the `gate` job of `{CI_WORKFLOW_PATH}`, a job that runs when the gate "
+                "leaves a pull request to fork CI, the name of a job, or the workflow-level triggers or "
+                "settings they run with"
+            )
         return None
 
 
@@ -1273,6 +1998,7 @@ def read_head_status(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -
     }
     status = statuses.get(STATUS_CONTEXT)
     ci_passed = statuses.get(CI_PASSED_CONTEXT)
+    ci_run_started = statuses.get(CI_RUN_STARTED_CONTEXT)
     return replace(
         pr,
         current_status=(
@@ -1282,6 +2008,7 @@ def read_head_status(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -
         ),
         status_created_at=parse_github_datetime(status.get("created_at") or "") if status else None,
         ci_passed_state=ci_passed["state"] if ci_passed else None,
+        ci_run_started_state=ci_run_started["state"] if ci_run_started else None,
         head_status_unread=False,
     )
 
@@ -1313,6 +2040,14 @@ def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapsho
     return compare.get("behind_by")
 
 
+def find_heads_shared_across_bases(prs: Iterable[PullRequestSnapshot]) -> set[str]:
+    """Head commits of more than one pull request whose bases differ."""
+    bases_by_head: dict[str, set[str]] = {}
+    for pr in prs:
+        bases_by_head.setdefault(pr.head_sha, set()).add(pr.base_ref)
+    return {head for head, bases in bases_by_head.items() if len(bases) > 1}
+
+
 @dataclass(frozen=True)
 class DraftChange:
     """A draft state change, applied by the monitor's draft-state job rather than the reconciler."""
@@ -1341,6 +2076,11 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Dra
     for label in plan.remove_labels:
         if label != LABEL_FORK_CI_REQUIRED:
             client.remove_label(pr.number, label)
+    # New comments go before the state comment records the new state: the state recorded there is
+    # what the next run compares with, so a failure on the way posts them again rather than never.
+    # They carry no marker, so the state comment stays the earliest bot comment with one.
+    for comment in plan.new_comments:
+        client.create_comment(pr.number, comment)
     if plan.marker_comment is not None:
         if pr.marker_comment_id is not None:
             client.update_comment(pr.number, pr.marker_comment_id, plan.marker_comment)
@@ -1350,8 +2090,8 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Dra
         client.set_status(pr.number, pr.head_sha, *plan.status)
     if plan.ci_passed is not None:
         client.set_status(pr.number, pr.head_sha, *plan.ci_passed, context=CI_PASSED_CONTEXT)
-    for comment in plan.new_comments:
-        client.create_comment(pr.number, comment)
+    if plan.ci_run_started is not None:
+        client.set_status(pr.number, pr.head_sha, *plan.ci_run_started, context=CI_RUN_STARTED_CONTEXT)
     if plan.close:
         client.close(pr.number)
     # Last, because the label is what brings the pull request back to the next run: when an
@@ -1419,17 +2159,30 @@ def drop_reported(
     attention: list[tuple[int, str]],
     notes: list[str],
     record: bool = True,
+    deferred_runs: int = 0,
+    rate_limited_runs: int = 0,
+    job_status_failure_runs: dict[int, int] | None = None,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
     """
     Leave out the items the previous run already reported, and record this run's items.
 
     Only the previous run's items are kept, so an item that went away and comes back is posted
     again. A missing or unreadable file reports everything.
+
+    :param deferred_runs: the consecutive runs that deferred job statuses, recorded for the next run.
+    :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
+    :param job_status_failure_runs: per pull request, the consecutive runs whose job statuses failed,
+        recorded for the next run.
     """
-    current: dict[str, list[Any]] = {
+    current: dict[str, Any] = {
         "unknown": [list(item) for item in unknown],
         "attention": [list(item) for item in attention],
         "notes": notes,
+        "deferred_runs": deferred_runs,
+        "rate_limited_runs": rate_limited_runs,
+        "job_status_failure_runs": {
+            str(number): runs for number, runs in (job_status_failure_runs or {}).items()
+        },
     }
     try:
         previous = json.loads(reported_file.read_text())
@@ -1445,6 +2198,55 @@ def drop_reported(
         return [item for item, stored in zip(items, current[key]) if stored not in seen]
 
     return drop("unknown", unknown), drop("attention", attention), drop("notes", notes)
+
+
+def read_run_count(reported_file: Path | None, key: str) -> int | None:
+    """A count of consecutive runs the previous run recorded; None without a readable record."""
+    if reported_file is None:
+        return None
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(previous, dict):
+        return None
+    # A record written before the count was kept has none.
+    count = previous.get(key, 0)
+    return count if isinstance(count, int) and not isinstance(count, bool) else 0
+
+
+def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
+    """Per pull request, the consecutive runs whose job statuses failed, as the previous run recorded."""
+    if reported_file is None:
+        return {}
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        return {}
+    counts = previous.get("job_status_failure_runs") if isinstance(previous, dict) else None
+    if not isinstance(counts, dict):
+        return {}
+    return {
+        int(number): runs
+        for number, runs in counts.items()
+        if number.isdigit() and isinstance(runs, int) and not isinstance(runs, bool)
+    }
+
+
+def log_rate_limits(client: GitHubClient) -> None:
+    """Log what is left of the token's REST and GraphQL quotas; reading them does not count against them."""
+    try:
+        resources = client.rest_get("rate_limit")["resources"]
+    # Only logged: failing to read the quotas must not fail a run that did its work.
+    except Exception as e:
+        console_print(f"[warning]Could not read the rate limits: {e}[/]")
+        return
+    left = ", ".join(
+        f"{name} {resources[name]['remaining']}/{resources[name]['limit']}"
+        for name in ("core", "graphql")
+        if name in resources
+    )
+    console_print(f"[info]Rate limits left: {left}; rate-limited calls this run: {client.rate_limited}[/]")
 
 
 def run_reconcile(
@@ -1478,35 +2280,67 @@ def run_reconcile(
     draft_changes: list[DraftChange] = []
     configs = BaseGateConfigs(client, repo=repo, default_branch=default_branch, default_config=config)
 
-    discover(client, configs, repo=repo, now=now, unknown=unknown)
+    labelled = discover(client, configs, repo=repo, now=now, unknown=unknown)
 
     prs = [
         parse_pull_request(node)
         for node in _search(
             client,
-            PASS_TWO_QUERY
-            % {"page": PASS_TWO_PAGE_SIZE, "context": STATUS_CONTEXT, "ci_passed": CI_PASSED_CONTEXT},
+            PASS_TWO_QUERY % {"page": PASS_TWO_PAGE_SIZE, **PASS_TWO_CONTEXTS},
             f'repo:{repo} is:pr is:open label:"{LABEL_FORK_CI_REQUIRED}"',
         )
     ]
+    found = {pr.number for pr in prs}
+    unlisted = [number for number in labelled if number not in found]
+    try:
+        prs.extend(parse_pull_request(node) for node in fetch_open_pull_requests(client, unlisted, repo=repo))
+    except GitHubError as e:
+        console_print(f"[warning]Pull requests {unlisted} are left for the next run: {e}[/]")
     observations = fetch_fork_observations(client, prs)
-    bypass_finder = BypassFinder(
-        client, repo=repo, now=now, base_triggers=load_workflow_triggers(workflows_dir)
-    )
-    job_reporter = JobStatusReporter(client, repo=repo)
 
+    def is_gated_base(base_ref: str) -> bool:
+        # A base branch whose configuration cannot be read is treated as gated.
+        try:
+            return configs.get(base_ref) is not None
+        except (GitHubError, ValueError):
+            return True
+
+    bypass_finder = BypassFinder(
+        client,
+        repo=repo,
+        now=now,
+        base_triggers=load_workflow_triggers(workflows_dir),
+        is_gated_base=is_gated_base,
+    )
+    ci_run_started_note = None
+    try:
+        ci_run_started_writes = len(
+            report_project_ci_runs_started(client, repo=repo, skip={*labelled, *(pr.number for pr in prs)})
+        )
+    except Exception as e:
+        console_print(f"[error]Reporting `{CI_RUN_STARTED_CONTEXT}` for project CI failed: {e}[/]")
+        # Writes made before the failure are not known, so the whole allowance is charged.
+        ci_run_started_writes = MAX_CI_RUN_STARTED_PER_RUN
+        ci_run_started_note = (
+            f"reporting `{CI_RUN_STARTED_CONTEXT}` for project CI failed: {type(e).__name__}"
+        )
+    job_reporter = JobStatusReporter(
+        client, repo=repo, budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes, 0), now=now
+    )
+
+    previous_job_status_failure_runs = read_job_status_failure_runs(reported_file)
+    job_status_failure_runs: dict[int, int] = {}
+    shared_heads = find_heads_shared_across_bases(prs)
+    gate_change_finder = GateChangeFinder(client, repo=repo)
     for listed in prs:
         try:
             pr = listed if listed.comments_cursor is None else find_state_comment(client, repo, listed)
             if pr.head_status_unread:
                 pr = read_head_status(client, repo, pr)
             fork = observations.get(pr.number, ForkObservation())
-            if (
-                pr.head_repo
-                and fork.suite_status is None
-                and fork.error is None
-                and needs_workflow_state(pr.marker)
-            ):
+            # Read on every run, not only until the workflow is first seen enabled: it can be
+            # disabled later, and a pull request waiting for a push would then wait forever.
+            if pr.head_repo and fork.suite_status is None and fork.error is None:
                 fork = ForkObservation(workflow_state=fetch_workflow_state(client, pr.head_repo))
             jobs_reported = None
             if config.job_statuses:
@@ -1515,13 +2349,22 @@ def run_reconcile(
                 try:
                     jobs_reported = job_reporter.report(pr, fork)
                 except Exception as e:
-                    console_print(f"[warning]#{pr.number}: reporting job statuses failed: {e}[/]")
-                    unknown.append((pr.number, f"reporting job statuses failed: {type(e).__name__}: {e}"))
+                    failure_runs = previous_job_status_failure_runs.get(pr.number, 0) + 1
+                    job_status_failure_runs[pr.number] = failure_runs
+                    console_print(
+                        f"[warning]#{pr.number}: reporting job statuses failed ({failure_runs} runs in a "
+                        f"row): {type(e).__name__}: {e}[/]"
+                    )
+                    if failure_runs >= JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT:
+                        unknown.append((pr.number, JOB_STATUSES_FAILED_REASON))
 
+            base_config = configs.get(pr.base_ref)
+            if base_config is not None:
+                pr = mark_older_pilot_pull_request(pr, base_config, repo=repo, now=now)
             plan = classify(
                 pr,
                 fork,
-                config=configs.get(pr.base_ref),
+                config=base_config,
                 now=now,
                 repo=repo,
                 find_bypass_run=functools.partial(bypass_finder.find, pr),
@@ -1530,38 +2373,65 @@ def run_reconcile(
                 ),
                 count_behind=functools.partial(count_commits_behind, client, repo, pr),
                 jobs_reported=jobs_reported,
+                head_shared_across_bases=pr.head_sha in shared_heads,
+                find_gate_change=functools.partial(gate_change_finder.find, pr),
             )
             draft_change = apply_plan(client, pr, plan)
             if draft_change is not None:
                 draft_changes.append(draft_change)
             # The fork's result is in the `Fork CI / Tests (AMD)` status; the gated run's skipped
-            # checks only clutter the pull request. Runs with any project CI work stay for the
-            # tampering check.
+            # checks, and the cancelled ones of a run a newer push cancelled, only clutter the pull
+            # request. Runs with any project CI work stay for the tampering check.
             if plan.state != ForkState.GATE_BYPASSED:
                 for run in bypass_finder.find_gated_runs(pr):
                     client.delete_run(pr.number, run.id)
             unknown.extend((pr.number, reason) for reason in plan.unknown)
             attention.extend((pr.number, item) for item in plan.attention)
+        except PullRequestChangedError as e:
+            console_print(f"[info]#{listed.number}: {e}; checked again on the next run[/]")
         except Exception as e:
             console_print(f"[error]#{listed.number}: {e}[/]")
             unknown.append((listed.number, f"{type(e).__name__}: {e}"))
 
+    attention.extend(bypass_finder.ambiguous)
+    attention.extend(job_reporter.delayed)
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
+    if ci_run_started_note:
+        notes.append(ci_run_started_note)
+    previous_deferred_runs = read_run_count(reported_file, "deferred_runs")
+    deferred_runs = (previous_deferred_runs or 0) + 1 if job_reporter.deferred else 0
     if job_reporter.deferred:
         console_print(
-            f"[info]Job statuses of {len(job_reporter.deferred)} pull requests left for the next run: "
-            f"{job_reporter.deferred}[/]"
+            f"[info]Job statuses of {len(job_reporter.deferred)} pull requests left for the next run "
+            f"({deferred_runs} runs in a row): {job_reporter.deferred}[/]"
         )
-        notes.append(JOB_STATUSES_DEFERRED_NOTE)
+        # Without a record of earlier runs, deferring is reported at once, as it cannot be told apart
+        # from a budget that does not keep up.
+        if previous_deferred_runs is None or deferred_runs >= DEFERRED_RUNS_BEFORE_ALERT:
+            notes.append(JOB_STATUSES_DEFERRED_NOTE)
     # The full list for the run log; Slack may show only part of a very long one.
     for number, reason in [*unknown, *attention]:
         console_print(f"[warning]#{number}: {reason}[/]")
     console_print(f"[info]Reconciled {len(prs)} pull requests; GitHub calls: {dict(client.calls)}[/]")
+    log_rate_limits(client)
+    previous_rate_limited_runs = read_run_count(reported_file, "rate_limited_runs")
+    rate_limited_runs = (previous_rate_limited_runs or 0) + 1 if client.rate_limited else 0
+    if client.rate_limited and (
+        previous_rate_limited_runs is None or rate_limited_runs >= RATE_LIMITED_RUNS_BEFORE_ALERT
+    ):
+        notes.append(RATE_LIMITED_NOTE)
     if draft_changes_file is not None:
         draft_changes_file.write_text(json.dumps([asdict(change) for change in draft_changes]))
     if reported_file is not None:
         unknown, attention, notes = drop_reported(
-            reported_file, unknown=unknown, attention=attention, notes=notes, record=not client.dry_run
+            reported_file,
+            unknown=unknown,
+            attention=attention,
+            notes=notes,
+            record=not client.dry_run,
+            deferred_runs=deferred_runs,
+            rate_limited_runs=rate_limited_runs,
+            job_status_failure_runs=job_status_failure_runs,
         )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:

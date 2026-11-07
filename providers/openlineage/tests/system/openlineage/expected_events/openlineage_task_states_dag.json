@@ -23,6 +23,15 @@
                             "loop_group": null,
                             "is_mapped": false,
                             "parse_time_mapped_count": null
+                        },
+                        "after_failure": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0,
+                            "task_group": null,
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null
                         }
                     }
                 }
@@ -41,6 +50,9 @@
                         "try_number": 1,
                         "max_tries": 0,
                         "state": "running",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null,
                         "dag_version_id": "{{ is_uuid(result) }}",
                         "id": "{{ is_uuid(result) }}",
                         "map_index": null,
@@ -92,6 +104,9 @@
                         "try_number": 1,
                         "max_tries": 0,
                         "state": "skipped",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}",
                         "dag_version_id": "{{ is_uuid(result) }}",
                         "id": "{{ is_uuid(result) }}",
                         "map_index": null,
@@ -150,6 +165,9 @@
                         "try_number": 1,
                         "max_tries": 2,
                         "state": "running",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null,
                         "dag_version_id": "{{ is_uuid(result) }}",
                         "id": "{{ is_uuid(result) }}",
                         "map_index": null,
@@ -201,6 +219,9 @@
                         "try_number": 1,
                         "max_tries": 2,
                         "state": "failed",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}",
                         "dag_version_id": "{{ is_uuid(result) }}",
                         "id": "{{ is_uuid(result) }}",
                         "map_index": null,
@@ -246,5 +267,26 @@
             "name": "openlineage_task_states_dag.fail_without_retry"
         },
         "$absent": "the task fails without a retry"
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_states_dag.after_failure"
+        },
+        "$absent": "the task never runs, as its upstream failed"
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_states_dag.after_failure"
+        },
+        "$absent": "the task never runs, as its upstream failed"
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_task_states_dag.after_failure"
+        },
+        "$absent": "the task never runs, as its upstream failed"
     }
 ]

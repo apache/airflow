@@ -821,6 +821,53 @@ class TestTIRunState:
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
 
+    def test_ti_run_loads_consumed_event_assets_and_aliases_in_bulk(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_consumed_events_in_bulk",
+            state=State.QUEUED,
+            session=session,
+        )
+        assets = [
+            AssetModel(name=f"upstream_{i}", uri=f"s3://bucket/upstream_{i}", group="asset", extra={})
+            for i in range(3)
+        ]
+        alias = AssetAliasModel(name="upstream_alias", group="asset")
+        session.add_all([*assets, *(AssetActive.for_asset(asset) for asset in assets), alias])
+        session.flush()
+        for asset in assets:
+            event = AssetEvent(asset_id=asset.id)
+            event.source_aliases.append(alias)
+            ti.dag_run.consumed_asset_events.append(event)
+        session.commit()
+
+        with (
+            capture_orm_selects("asset") as asset_selects,
+            capture_orm_selects("asset_alias") as alias_selects,
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert sorted(event["asset"]["name"] for event in events) == [
+            "upstream_0",
+            "upstream_1",
+            "upstream_2",
+        ]
+        assert [event["source_aliases"] for event in events] == [[{"name": "upstream_alias"}]] * 3
+        assert len(asset_selects) == 1
+        assert len(alias_selects) == 1
+
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
         ti = create_task_instance(
@@ -1109,6 +1156,49 @@ class TestTIRunState:
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
 
+    def test_ti_run_does_not_load_the_dag_for_a_regular_task(self, client, dag_maker, mocker):
+        """The row rules the task out, so starting it reads no serialized Dag -- the point of the column."""
+        with dag_maker("test_regular_task_arg_bindings", serialized=True):
+
+            @task
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        assert ti.is_stub is False
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+        get_dag = mocker.patch.object(DBDagBag, "get_dag", autospec=True)
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+        get_dag.assert_not_called()
+
+    def test_ti_run_treats_an_unset_is_stub_as_a_regular_task(self, client, dag_maker):
+        """A row written before the column existed carries null and keeps its pre-upgrade behavior."""
+        with dag_maker("test_unset_is_stub", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.get(TaskInstance, ti.id).is_stub = None
+        dag_maker.session.commit()
+        assert dag_maker.session.scalar(select(TaskInstance.is_stub).where(TaskInstance.id == ti.id)) is None
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
     @mock.patch(
         "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
         autospec=True,
@@ -1156,11 +1246,13 @@ class TestTIRunState:
         [
             pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
             pytest.param(task.stub, None, id="stub-without-timeout"),
-            pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(task.stub(execution_timeout=timedelta(0)), 0.0, id="stub-zero-timeout"),
             pytest.param(
-                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+                task.stub(execution_timeout=timedelta(seconds=-30)), -30.0, id="stub-negative-timeout"
             ),
-            pytest.param(task(execution_timeout=timedelta(seconds=10)), 10.0, id="python-task"),
+            # A Python task's timeout stays with the task runner, which sends it to the supervisor,
+            # so the server resolves one only for a task whose definition it loads anyway.
+            pytest.param(task(execution_timeout=timedelta(seconds=10)), None, id="python-task"),
         ],
     )
     def test_ti_run_returns_execution_timeout(self, client, dag_maker, decorator, expected):
@@ -2108,6 +2200,7 @@ class TestTIRunState:
             dag_id=str(uuid4()),
         )
         ti.queued_dttm = queued_at
+        ti.is_stub = True
         session.commit()
 
         with mock.patch(
@@ -3928,6 +4021,7 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
+            assert (t[0].dag_id, t[0].owner_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):
@@ -4288,6 +4382,7 @@ class TestTIUpdateState:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override == 42.5
         assert ti.retry_reason == "Rate limit: backing off"
+        assert ti.retry_at == DEFAULT_END_DATE + timedelta(seconds=42.5)
 
     def test_ti_update_state_retry_policy_overrides_persisted_in_history(
         self, client, session, create_task_instance

@@ -28,11 +28,13 @@ import { ClipboardIconButton, IconButton, toaster } from "src/system-components"
 
 import Time from "src/components/Time";
 
+import { useHasMultipleDagBundles } from "src/queries/useHasMultipleDagBundles";
 import { createErrorToaster } from "src/utils";
 
 /** The parse failure itself — where it came from, when, the traceback — and a way to reparse. */
 export const DagImportErrorDetails = ({ importError }: { readonly importError: ImportErrorResponse }) => {
   const { t: translate } = useTranslation(["dashboard", "components", "dag"]);
+  const hasMultipleBundles = useHasMultipleDagBundles();
 
   const { isPending, mutate } = useDagParsingServiceReparseDagFile({
     onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
@@ -47,11 +49,6 @@ export const DagImportErrorDetails = ({ importError }: { readonly importError: I
   return (
     <>
       <HStack alignItems="center" flexWrap="wrap" gap={2} mb={2}>
-        <Text fontWeight="bold">
-          {translate("components:versionDetails.bundleName")}
-          {": "}
-          {importError.bundle_name}
-        </Text>
         <PiFilePy />
         {importError.filename}
         <ClipboardRoot value={importError.filename}>
@@ -66,6 +63,13 @@ export const DagImportErrorDetails = ({ importError }: { readonly importError: I
         >
           <AiOutlineFileSync />
         </IconButton>
+        {hasMultipleBundles ? (
+          <Text color="fg.muted" fontSize="sm" ms="auto">
+            {translate("importErrors.bundle")}
+            {": "}
+            {importError.bundle_name}
+          </Text>
+        ) : undefined}
       </HStack>
       <Text color="fg.muted" fontSize="sm" mb={2}>
         {translate("importErrors.timestamp")}

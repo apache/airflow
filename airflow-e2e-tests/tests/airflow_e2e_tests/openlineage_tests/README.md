@@ -54,12 +54,13 @@ breeze testing airflow-e2e-tests --e2e-test-mode openlineage
 - **pytest summary:** `1 passed` means every expected DAG is green. On failure it prints the
   offenders, e.g. `... not successful: {'openlineage_docs_file_dag': 'failed'}`, and logs
   `⚠ DAGs that passed only on retry (flaky first run): [...]`.
-- **On failure, the relevant task logs are printed right in the pytest output** (`check_events` plus
-  any task that didn't succeed, filtered to warning/error lines — see `task_logs.py`) — no need to
-  open the log artifact for the common case, e.g. the exact mismatch
-  (``Path `job > facets > ...`: expected X but got Y``).
+- **On failure, the OpenLineage validation errors are printed right in the pytest output**: only the
+  lines tagged `[OL_VALIDATION_ERROR]` (by `OpenLineageTestOperator`) in the logs of `check_events` and of any
+  task that didn't succeed, without the tag — see `task_logs.py`. For example
+  ``Path `job > facets > ...`: expected X but got Y``. Keep the tag in `task_logs.py` in sync with
+  `VALIDATION_ERROR_TAG` in the provider's `system/openlineage/operator.py`.
 - **Per-DAG logs** are still written in full under `airflow-e2e-tests/logs/` for deeper digging
-  beyond what gets printed.
+  beyond what gets printed, together with one `<service>.log` per compose service.
 - With `--skip-docker-compose-deletion`, the stack stays up: get a token from
   `curl -s http://localhost:8080/auth/token` and check `GET /api/v2/importErrors` for DAG parse
   errors, or browse the runs in the UI at <http://localhost:8080> (login `airflow` / `airflow`).
@@ -90,7 +91,7 @@ when a new DAG is version-gated.
 ```text
 prepare_dags.py             # sources DAGs from the provider system tests into dags/ at runtime
 harness.py                  # triggers every DAG via the REST API and collects final run states
-task_logs.py                # locates and prints the relevant task logs on failure
+task_logs.py                # prints the tagged validation errors of task logs on failure
 test_openlineage_e2e.py     # the pytest entrypoint
 dags_extra/                 # harness-only DAGs/modules (warmup DAG, versioned bundle) copied into dags/
 ```

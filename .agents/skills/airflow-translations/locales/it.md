@@ -4,40 +4,23 @@
 # Italian (`it`) translation guidelines
 
 Follow the [global translation rules](../SKILL.md) and the existing strings in
-`airflow-core/src/airflow/ui/public/i18n/locales/it/`. The English locale defines
-the meaning of each key. Use standard Italian suitable for a technical interface.
+`airflow-core/src/airflow/ui/public/i18n/locales/it/`. Use standard Italian
+suitable for a technical interface.
 
 ## Terminology
 
-Keep `Airflow`, `Dag`/`Dags`, `XCom`/`XComs`, `Provider`, `REST API`, `JSON`,
-`ID`, `PID` and `UTC` unchanged. Write `Dag` with this capitalization in prose.
+Keep `Airflow`, `Dag`/`Dags`, `Task`/`Tasks`, `Asset`/`Assets`, `Pool`/`Pools`,
+`Plugin`/`Plugins`, `Provider`/`Providers`, `Backfill`, `Job`/`Jobs`, `Bundle`,
+`Callback`, `XCom`, `Trigger`, `Heartbeat`, `Slot`, `Upstream`, `Downstream`,
+`Log`, `JSON`, `ID`, `PID`, `UTC` and `Schema` in English.
 
-The Italian interface also retains `Task`/`Tasks`, `Asset`/`Assets`,
-`Pool`/`Pools`, `Plugin`/`Plugins`, `Backfill`/`Backfills`, `Catchup` and
-`Heartbeat`. Keep these terms when translating related keys; do not replace
-`Task` with `Compito` or `Asset` with `Risorsa`.
+Use the wording already in the locale: `Run del Dag`, `Connessione`,
+`Variabile`, `Programmazione`, `Proprietario`, `Etichette`, `Pulisci` for
+clearing a task instance, and `Cercare` in search placeholders. `Scadenza` is
+the word for a deadline. A loop is `Ciclo`; one pass of it is `Iterazione`.
 
-Use these existing translations in the corresponding contexts:
-
-| English | Italian | Existing key |
-| --- | --- | --- |
-| Latest Task Instance | Ultima Istanza di Task | `components:durationChart.lastTaskInstance_one` |
-| Dag Run | Run del Dag | `common:dagRun_one` |
-| Operator | Operatore | `common:task.operator` |
-| Schedule | Programmazione | `common:dagDetails.schedule` |
-| Connection | Connessione | `admin:connections.connection_one` |
-| Variable | Variabile | `admin:variables.variable_one` |
-| Configuration | Configurazione | `common:admin.Config` |
-| Owner | Proprietario | `common:dagDetails.owner` |
-| Description | Descrizione | `common:dagDetails.description` |
-| Tags | Etichette | `common:dagDetails.tags` |
-| Dark Mode | Modalità scura | `common:appearance.darkMode` |
-| Light Mode | Modalità chiara | `common:appearance.lightMode` |
-
-Some older strings are inconsistent. Do not generalize an isolated spelling or
-an awkward translation into a rule for new strings. For example,
-`dashboard:health.scheduler` currently says `Pianificatrice`; ask the Italian translation
-owners before standardizing component names or changing existing terminology.
+Do not copy an awkward existing string into a new key. `Mostrando`, for
+example, is not Italian.
 
 ## Grammar and interface text
 
@@ -53,57 +36,54 @@ labels such as `Run del Dag` remain in use; do not copy `Ultimo Run del Dag`
 or `ID Connessione` into new prose merely because they occur in older strings.
 
 Use direct action labels, following the existing interface: `Aggiungi`,
-`Modifica`, `Elimina`, `Salva` and `Scarica`. Search placeholders currently use
-`Cercare`, as in `Cercare Connessioni`.
+`Modifica`, `Elimina`, `Salva` and `Scarica`.
 
 Use sentence case for new sentences and preserve established labels in their
 existing context. Keep accents, including `è`, `ì` and `à`, and use the Italian
 apostrophe where needed, as in `L'ID della connessione è obbligatorio`.
 
-## Task and run states
+## Plurals
 
-These values come from `common:states`. Keep them consistent across views.
+Italian needs `_zero`, `_one`, `_many` and `_other`
+(`PLURAL_SUFFIXES["it"]`). A key that omits `_many` falls through to the
+English `fallbackLng` rather than to the Italian `_other`.
 
-| State key | Italian |
-| --- | --- |
-| `deferred` | In Attesa |
-| `failed` | Fallito |
-| `no_status`, `none` | Nessun Stato |
-| `planned` | Pianificato |
-| `queued` | In Coda |
-| `removed` | Rimosso |
-| `restarting` | Riavviato |
-| `running` | In Esecuzione |
-| `scheduled` | Programmato |
-| `skipped` | Saltato |
-| `success` | Successo |
-| `up_for_reschedule` | Da Reschedulare |
-| `up_for_retry` | Da Riavviare |
-| `upstream_failed` | Upstream Fallito |
+`_many` resolves only at exact multiples of a million (1.000.000, 2.000.000,
+…). 1.500.000 and 1.000.001 resolve to `_other`. `_zero` is the explicit
+zero-count message (`Nessun` / `Nessuna` / `Nessuno`).
 
-## Plurals and interpolation
-
-Airflow configures Italian with `_zero`, `_one`, `_many` and `_other` in
-`dev/breeze/src/airflow_breeze/commands/ui_commands.py`. Supply all required
-forms for a pluralized key. `_many` is an Italian plural category, not a
-replacement for `_other`; use `_zero` for the explicit zero-count message.
-
-For example, `admin.json` contains:
+At those million counts a numeral takes **`di`** before the noun it quantifies
+("un milione **di** task"), so a `_many` form that merely repeats `_other`
+reads ungrammatically when the string interpolates a count directly in front
+of a noun:
 
 ```json
-{
-  "connection_zero": "Nessuna connessione",
-  "connection_one": "Connessione",
-  "connection_many": "Connessioni",
-  "connection_other": "Connessioni"
-}
+"change_one": "{{count, number}} modifica",
+"change_many": "{{count, number}} di modifiche",
+"change_other": "{{count, number}} modifiche",
+"change_zero": "Nessuna modifica"
 ```
 
-Preserve interpolation names, their case, and formatters such as
-`{{count, number}}`. For example, the existing delete messages are
-`Elimina 1 connessione` for `admin:connections.delete.deleteConnection_one`
-and `Elimina {{count, number}} connessioni` for the `_many` and `_other` forms.
-Keep markup, URLs, code identifiers and hotkeys unchanged.
+When the count stands in brackets and does not quantify the following noun,
+`di` does not apply and `_many` matches `_other`:
+
+```json
+"requiredActionCount_many": "Azioni richieste ({{count, number}})"
+```
+
+`altri` is still a quantified word, so `teams.more_many` is
+`e {{count, number}} di altri`. A bare noun with no numeral in the string is
+unaffected:
+
+```json
+"task_one": "Task",
+"task_many": "Tasks",
+"task_other": "Tasks",
+"task_zero": "Nessun task"
+```
+
+The UI prints the count as digits (`1.000.000`), not as the words "un milione".
+Keep `{{count, number}}` anyway: that is the form i18next selects `_many` for.
 
 ## Before submitting
 

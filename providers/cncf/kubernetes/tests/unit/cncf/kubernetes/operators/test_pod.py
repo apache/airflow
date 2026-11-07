@@ -1063,7 +1063,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.24.2"
+        image = "private.repo/alpine:3.24.3"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -1080,7 +1080,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.2"
+        assert pod.spec.containers[1].image == "alpine:3.24.3"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -2497,24 +2497,28 @@ class TestKubernetesPodOperator:
         )
         context = create_context(k)
 
-        k.trigger_reentry(
-            context=context,
-            event={
-                "status": "success",
-                "message": TEST_SUCCESS_MESSAGE,
-                "name": TEST_NAME,
-                "namespace": TEST_NAMESPACE,
-            },
-        )
+        # ``on_operator_resuming`` sees the pod re-fetched on re-entry, which is a
+        # different object from the one ``await_pod_completion`` later returns.
+        resumed_pod_mock = MagicMock()
+        k.hook.get_pod.return_value = resumed_pod_mock
+
+        callback_event = {
+            "status": "success",
+            "message": TEST_SUCCESS_MESSAGE,
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+        k.trigger_reentry(context=context, event=callback_event)
 
         # check on_operator_resuming callback
-        mock_callbacks.on_pod_cleanup.assert_called_once()
-        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+        mock_callbacks.on_operator_resuming.assert_called_once()
+        assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": remote_pod_mock,
+            "pod": resumed_pod_mock,
             "operator": k,
             "context": context,
+            "event": callback_event,
         }
 
         # check on_pod_cleanup callback
@@ -2996,6 +3000,140 @@ class TestKubernetesPodOperatorDurableExecution:
 
     def test_supports_durable_execution_marker(self):
         assert KubernetesPodOperator._KubernetesPodOperator__supports_durable_execution is True
+
+
+class TestKubernetesPodOperatorResumableMetrics:
+    PATCH = f"{KPO_MODULE}.Stats.incr"
+
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.create_mock = self.create_pod_patch.start()
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self._default_client_patch.start()
+
+        yield
+
+        patch.stopall()
+
+    def make_operator(self):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+        )
+        k.reattach_on_restart = True
+        return k
+
+    def make_pod(self, phase, reason=None):
+        pod = MagicMock()
+        pod.status.phase = phase
+        pod.status.reason = reason
+        return pod
+
+    def make_pod_request(self):
+        request = MagicMock()
+        request.to_dict.return_value = {"metadata": {"name": "test-pod"}}
+        return request
+
+    @pytest.mark.parametrize(
+        ("phase", "reason", "from_store", "expected"),
+        [
+            pytest.param(None, None, False, ["resumable_job.fresh_submit"], id="fresh_submit"),
+            pytest.param(
+                PodPhase.RUNNING,
+                None,
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.reconnect_success"],
+                id="reconnect",
+            ),
+            pytest.param(
+                PodPhase.SUCCEEDED,
+                None,
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.already_succeeded"],
+                id="already_succeeded",
+            ),
+            pytest.param(
+                PodPhase.FAILED,
+                None,
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.terminal_resubmit"],
+                id="terminal_resubmit",
+            ),
+            pytest.param(
+                PodPhase.RUNNING,
+                "Evicted",
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.terminal_resubmit"],
+                id="evicted",
+            ),
+            pytest.param(
+                PodPhase.RUNNING,
+                None,
+                False,
+                ["resumable_job.reconnect_attempt", "resumable_job.reconnect_success"],
+                id="found_by_label_search",
+            ),
+        ],
+    )
+    def test_counters_per_branch(self, phase, reason, from_store, expected):
+        k = self.make_operator()
+        context = create_context(k)
+        context["task_state_store"] = MagicMock()
+        pod = self.make_pod(phase, reason) if phase is not None else None
+
+        with (
+            patch(
+                f"{KPO_MODULE}.KubernetesPodOperator._get_pod_from_task_state_store",
+                return_value=pod if from_store else None,
+            ),
+            patch(
+                f"{KPO_MODULE}.KubernetesPodOperator.find_pod",
+                return_value=None if from_store else pod,
+            ),
+            patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion"),
+            patch(self.PATCH) as incr,
+        ):
+            k.get_or_create_pod(pod_request_obj=self.make_pod_request(), context=context)
+
+        assert [call.args[0] for call in incr.call_args_list] == expected
+
+    def test_counters_carry_task_instance_stats_tags(self):
+        k = self.make_operator()
+        context = create_context(k)
+        context["task_state_store"] = MagicMock()
+        ti = MagicMock()
+        ti.stats_tags = {"dag_id": "dag", "task_id": "task", "run_type": "manual"}
+        context["ti"] = ti
+
+        with (
+            patch(f"{KPO_MODULE}.KubernetesPodOperator._get_pod_from_task_state_store", return_value=None),
+            patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None),
+            patch(self.PATCH) as incr,
+        ):
+            k.get_or_create_pod(pod_request_obj=self.make_pod_request(), context=context)
+
+        incr.assert_called_once_with(
+            "resumable_job.fresh_submit",
+            tags={
+                "dag_id": "dag",
+                "task_id": "task",
+                "run_type": "manual",
+                "operator": "KubernetesPodOperator",
+            },
+        )
+
+    def test_no_counters_when_not_durable(self):
+        k = self.make_operator()
+        k.reattach_on_restart = False
+        context = create_context(k)
+
+        with patch(self.PATCH) as incr:
+            k.get_or_create_pod(pod_request_obj=self.make_pod_request(), context=context)
+
+        incr.assert_not_called()
 
 
 class TestKubernetesPodOperatorDurableBelow3_3:
@@ -3547,7 +3685,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.2"
+        assert pod.spec.containers[1].image == "alpine:3.24.3"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
@@ -3844,6 +3982,62 @@ class TestKubernetesPodOperatorAsync:
 
         mock_invoke_defer.assert_called_once()
         assert op.trigger_kwargs["_redefer_count"] == 1
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_on_operator_resuming_fires_before_redefer(self, mocked_hook, mock_invoke_defer):
+        """The resuming callback fires on re-entries that defer again, not only terminal ones."""
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from unit.cncf.kubernetes.test_callbacks import (
+            MockKubernetesPodOperatorCallback,
+            MockWrapper,
+        )
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        mock_invoke_defer.side_effect = TaskDeferred(trigger=MagicMock(), method_name="trigger_reentry")
+
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.running = MagicMock()
+        base_container.state.terminated = None
+        base_container.state.waiting = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Running"
+        remote_pod.status.container_statuses = [base_container]
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(
+            task_id="test_task",
+            name="test-pod",
+            deferrable=True,
+            callbacks=MockKubernetesPodOperatorCallback,
+        )
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "some transient error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(context, event)
+
+        mock_callbacks.on_operator_resuming.assert_called_once()
+        assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
+            "client": op.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod,
+            "operator": op,
+            "context": context,
+            "event": event,
+        }
+        # The task has not finished yet, so the terminal callbacks must stay untouched.
+        mock_callbacks.on_pod_completion.assert_not_called()
+        mock_callbacks.on_pod_cleanup.assert_not_called()
 
     @patch(KUB_OP_PATH.format("invoke_defer_method"))
     @patch(HOOK_CLASS)
