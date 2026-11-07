@@ -166,6 +166,8 @@ class ReprocessBehavior(str, Enum):
     FAILED = "failed"
     COMPLETED = "completed"
     NONE = "none"
+    FAILED_TASKS = "failed_tasks"
+    NEW_TASKS = "new_tasks"
 
 
 class Backfill(Base):
@@ -319,7 +321,7 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
         non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
     elif reprocess_behavior is ReprocessBehavior.NONE:
         non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
-    elif reprocess_behavior is ReprocessBehavior.FAILED:
+    elif reprocess_behavior in (ReprocessBehavior.FAILED, ReprocessBehavior.FAILED_TASKS):
         if dr.state != DagRunState.FAILED:
             non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
     return non_create_reason
@@ -342,6 +344,15 @@ def _validate_backfill_params(
     current_time = timezone.utcnow()
     if from_date >= current_time and to_date >= current_time:
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
+
+    if dag.timetable.partitioned and reprocess_behavior in (
+        ReprocessBehavior.FAILED_TASKS,
+        ReprocessBehavior.NEW_TASKS,
+    ):
+        # Partitioned reprocess always creates a new full run, so there are no tasks to selectively clear.
+        raise InvalidReprocessBehavior(
+            f"Reprocess behavior '{reprocess_behavior.value}' is not supported for partitioned Dags."
+        )
 
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
@@ -462,6 +473,7 @@ def _create_backfill_dag_run_non_partitioned(
                     info=info,
                     backfill_id=backfill_id,
                     sort_ordinal=backfill_sort_ordinal,
+                    reprocess_behavior=reprocess_behavior,
                     run_on_latest=run_on_latest_version,
                     dag_run_conf=dag_run_conf,
                 )
@@ -619,6 +631,7 @@ def _handle_clear_run(
     info: DagRunInfo,
     backfill_id: int,
     sort_ordinal: int,
+    reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE,
     run_on_latest: bool = False,
     dag_run_conf: dict | None = None,
 ) -> None:
@@ -632,6 +645,8 @@ def _handle_clear_run(
     dag.clear(
         run_id=dr.run_id,
         dag_run_state=DagRunState.QUEUED,
+        only_failed=reprocess_behavior is ReprocessBehavior.FAILED_TASKS,
+        only_new=reprocess_behavior is ReprocessBehavior.NEW_TASKS,
         session=session,
         dry_run=False,
         run_on_latest_version=run_on_latest,

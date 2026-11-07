@@ -215,15 +215,17 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
               <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
                 {translate("backfill.reprocessBehavior")}
               </RadioCardLabel>
-              <HStack align="stretch">
-                {reprocessBehaviors.map((item) => (
-                  <RadioCardItem
-                    indicatorPlacement="start"
-                    key={item.value}
-                    label={translate(item.label)}
-                    value={item.value}
-                  />
-                ))}
+              <HStack align="stretch" wrap="wrap">
+                {reprocessBehaviors
+                  .filter((item) => !(isPartitioned && item.taskLevel))
+                  .map((item) => (
+                    <RadioCardItem
+                      indicatorPlacement="start"
+                      key={item.value}
+                      label={translate(item.label)}
+                      value={item.value}
+                    />
+                  ))}
               </HStack>
             </RadioCardRoot>
           )}
