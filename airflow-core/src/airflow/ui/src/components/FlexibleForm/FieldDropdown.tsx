@@ -19,22 +19,23 @@
 import { type SingleValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
+import type { ParamValue } from "src/queries/useDagParams";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
-import { getEnumValueKey } from "./getEnumValueKey";
+import { getEnumValueKey, lookupValuesDisplay } from "./getEnumValueKey";
 
 const NULL_STRING_VALUE = "__null__";
 
-const toOptionValue = (value: unknown): string =>
+const toOptionValue = (value: ParamValue): string =>
   value === null ? NULL_STRING_VALUE : getEnumValueKey(value);
 
-const labelLookup = (key: unknown, valuesDisplay: Record<string, string> | undefined): string => {
+const labelLookup = (key: ParamValue, valuesDisplay: Record<string, string> | undefined): string => {
   const stringKey = key === null ? "null" : getEnumValueKey(key);
 
-  return valuesDisplay && typeof valuesDisplay === "object"
-    ? (valuesDisplay[stringKey] ?? valuesDisplay.None ?? stringKey)
-    : stringKey;
+  return (
+    lookupValuesDisplay(stringKey, valuesDisplay) ?? lookupValuesDisplay("None", valuesDisplay) ?? stringKey
+  );
 };
 
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
@@ -48,7 +49,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       value: toOptionValue(value),
     })) ?? [];
 
-  const currentValue = options.find((opt) => opt.value === toOptionValue(param.value)) ?? null;
+  const currentValue = options.find((opt) => opt.value === toOptionValue(param.value as ParamValue)) ?? null;
 
   const handleChange = (
     selected: SingleValue<{

@@ -21,13 +21,14 @@ import { useState } from "react";
 import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
+import type { ParamValue } from "src/queries/useDagParams";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
-import { getEnumValueKey } from "./getEnumValueKey";
+import { getEnumValueKey, lookupValuesDisplay } from "./getEnumValueKey";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string =>
-  valuesDisplay && typeof valuesDisplay === "object" ? (valuesDisplay[key] ?? key) : key;
+  lookupValuesDisplay(key, valuesDisplay) ?? key;
 
 export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
@@ -36,14 +37,14 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
 
   const choices = (param.schema.examples ?? param.schema.enum)?.filter((value) => value !== null) ?? [];
 
-  const toOption = (value: unknown) => ({
+  const toOption = (value: ParamValue) => ({
     label: labelLookup(getEnumValueKey(value), param.schema.values_display),
     value: getEnumValueKey(value),
   });
 
   // Initialize `selectedOptions` directly from `paramsDict`
   const [selectedOptions, setSelectedOptions] = useState(
-    Array.isArray(param.value) ? (param.value as Array<unknown>).map(toOption) : [],
+    Array.isArray(param.value) ? (param.value as Array<ParamValue>).map(toOption) : [],
   );
 
   // Handle changes to the select field

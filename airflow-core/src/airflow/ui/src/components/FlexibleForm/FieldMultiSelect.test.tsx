@@ -64,6 +64,26 @@ describe("FieldMultiSelect", () => {
     expect(screen.getByText(JSON.stringify(envs[0]))).toBeDefined();
   });
 
+  it("labels object choices when the values_display key differs in spacing and key order", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: {
+        enum: envs,
+        type: "array",
+        values_display: { '{"replicas": 1, "name": "dev"}': "Development" },
+      },
+      value: [envs[0]],
+    };
+
+    render(<FieldMultiSelect name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByText("Development")).toBeDefined();
+  });
+
   it("stores the original objects when object choices are selected", () => {
     const envs = [
       { name: "dev", replicas: 1 },

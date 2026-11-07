@@ -169,6 +169,42 @@ describe("FieldDropdown", () => {
     expect(screen.getByText("Development")).toBeDefined();
   });
 
+  it("labels object enum options when the values_display key differs in spacing and key order", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: {
+        enum: envs,
+        type: "object",
+        values_display: { '{"replicas": 1, "name": "dev"}': "Development" },
+      },
+      value: envs[0],
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByText("Development")).toBeDefined();
+  });
+
+  it("selects the current object value regardless of its key order", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: { enum: envs, type: "object" },
+      value: JSON.parse('{"replicas": 5, "name": "prod"}') as unknown,
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByText(JSON.stringify(envs[1]))).toBeDefined();
+  });
+
   it("stores the original object when an object enum option is selected", () => {
     const envs = [
       { name: "dev", replicas: 1 },
