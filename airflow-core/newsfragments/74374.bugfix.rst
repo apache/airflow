@@ -1,0 +1,1 @@
+Stop the scheduler from crashing when a DAG run is detached from its session during scheduling and the per-run error handler reads its identifiers.
