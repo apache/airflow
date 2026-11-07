@@ -88,12 +88,16 @@ jobs:
           revoke_with_retries || echo "::warning::First revoke failed; retrying later"
           # A monitor run that read the pull request before it was labelled can still post a fork
           # success after the revoke above. Once the runs under way have finished, revoke again.
+          # A monitor run takes about 2 minutes. An older one that is still queued or in progress is
+          # stuck, and GitHub can leave such runs behind for good, so it is not waited for.
+          since=$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
           deadline=$((SECONDS + 720))
           while ((SECONDS < deadline)); do
             active=0
             for run_status in queued in_progress; do
               runs_url="repos/${REPOSITORY}/actions/workflows/fork-ci-monitor.yml/runs"
-              count=$(gh api "${runs_url}?status=${run_status}&per_page=1" --jq '.total_count') || count=1
+              count=$(gh api -X GET "${runs_url}" -f status="${run_status}" -f created=">=${since}" \
+                -f per_page=1 --jq '.total_count') || count=1
               [[ "${count}" =~ ^[0-9]+$ ]] || count=1
               active=$((active + count))
             done

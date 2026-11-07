@@ -4292,3 +4292,39 @@ def test_label_workflow_script_revokes_only_a_fork_success(tmp_path, status, pos
     if posts:
         assert f"repos/{REPO}/statuses/abc" in posted[0]
         assert "state=pending" in posted[0]
+
+
+def test_label_workflow_script_does_not_wait_for_stuck_monitor_runs(tmp_path):
+    steps = yaml.safe_load(LABEL_WORKFLOW.read_text())["jobs"]["revoke-fork-ci-passed"]["steps"]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    # Three monitor runs are queued for good; none was created in the last 20 minutes.
+    (bin_dir / "gh").write_text(
+        FAKE_GH.replace(
+            '*"fork-ci-monitor.yml"*) echo 0 ;;',
+            '*"fork-ci-monitor.yml"*"created=>="*) echo 0 ;;\n  *"fork-ci-monitor.yml"*) echo 3 ;;',
+        )
+    )
+    (bin_dir / "sleep").write_text("#!/bin/bash\n")
+    for tool in bin_dir.iterdir():
+        tool.chmod(0o755)
+    status_file = tmp_path / "status"
+    status_file.write_text("success\tFork CI passed for this commit")
+    log = tmp_path / "gh.log"
+
+    subprocess.run(
+        ["bash", "-c", steps[0]["run"]],
+        env={
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "GH_LOG": str(log),
+            "STATUS_FILE": str(status_file),
+            "REPOSITORY": REPO,
+            "HEAD_SHA": "abc",
+            "PR_NUMBER": "1",
+        },
+        check=True,
+        timeout=30,
+    )
+
+    monitor_reads = [line for line in log.read_text().splitlines() if "fork-ci-monitor.yml" in line]
+    assert len(monitor_reads) == 2

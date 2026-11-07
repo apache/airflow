@@ -996,7 +996,9 @@ is the source the ruleset accepts.
   read and its POST, or a monitor run that outlasts the label workflow's wait, can leave a fork
   `success` for up to one monitor cycle (15 minutes). The label workflow revokes once at once and
   again after the monitor runs that were under way have finished, waiting for up to 12 minutes (a
-  monitor run takes about 2); this depends on the workflow running. A strict merge-time guarantee
+  monitor run takes about 2). It does not wait for monitor runs created more than 20 minutes
+  before, which are stuck: GitHub can leave a run queued for good, and no API call removes it.
+  This depends on the workflow running. A strict merge-time guarantee
   needs a required check bound to a source, which is out of scope here.
   Revoking a `success` is never limited by the per-run budget of commit statuses; posting the
   project CI `success` is.
