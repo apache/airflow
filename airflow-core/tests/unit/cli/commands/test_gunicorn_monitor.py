@@ -420,6 +420,31 @@ class TestCreateGunicornApp:
             assert options["preload_app"] is True
             assert "accesslog" not in options
 
+    @pytest.mark.parametrize(
+        ("host", "expected_bind"),
+        [
+            pytest.param("::", "[::]:8080", id="ipv6 any"),
+            pytest.param("::1", "[::1]:8080", id="ipv6 loopback"),
+            pytest.param("[::1]", "[::1]:8080", id="ipv6 already bracketed"),
+            pytest.param("localhost", "localhost:8080", id="hostname"),
+        ],
+    )
+    def test_create_app_bind_brackets_ipv6_host(self, host, expected_bind):
+        """IPv6 literals must be bracketed, otherwise gunicorn cannot parse the bind address."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host=host,
+                port=8080,
+                num_workers=4,
+                worker_timeout=120,
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert options["bind"] == expected_bind
+
     def test_create_app_with_ssl(self):
         """Test creating an app with SSL settings."""
         from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
