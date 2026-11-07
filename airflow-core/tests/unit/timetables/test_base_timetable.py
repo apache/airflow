@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
@@ -44,6 +45,28 @@ def test_custom_timetable_type_name_returns_qualname():
 
     # The Timetable.type_name logic should return qualname for custom timetables
     assert inst.type_name == expected
+
+
+@pytest.mark.parametrize(
+    ("partitioned", "partitioned_at_runtime"),
+    [
+        pytest.param(False, False, id="not-partitioned"),
+        pytest.param(True, True, id="partitioned-at-runtime"),
+        pytest.param(True, False, id="partitioned-without-override"),
+    ],
+)
+def test_suggest_partition_key_defaults_to_none(partitioned, partitioned_at_runtime):
+    """The base timetable suggests nothing unless a subclass derives a current partition key."""
+    from airflow.timetables.base import Timetable
+
+    class CustomTimetable(Timetable):
+        pass
+
+    timetable = CustomTimetable()
+    timetable.partitioned = partitioned
+    timetable.partitioned_at_runtime = partitioned_at_runtime
+
+    assert timetable.suggest_partition_key(pendulum.datetime(2026, 2, 18, tz="UTC")) is None
 
 
 # ---------------------------------------------------------------------------
