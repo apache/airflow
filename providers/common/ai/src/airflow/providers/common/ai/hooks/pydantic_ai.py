@@ -20,9 +20,12 @@ import asyncio
 import concurrent.futures
 import contextvars
 import functools
+import math
+import os
 import re
+import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
 
 import pydantic_ai
 from pydantic_ai import Agent
@@ -32,6 +35,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.hooks.ollama import OllamaBackend
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
@@ -44,6 +48,23 @@ pydantic_ai.BANNER_ENABLED = False
 OutputT = TypeVar("OutputT")
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+class ModelReadinessBackend(Protocol):
+    """
+    Server-specific half of :meth:`PydanticAIHook.ensure_model_ready`.
+
+    Any object with this method works; it does not need to subclass this class.
+
+    ``load`` returns once the model is available, waiting at most *timeout* seconds.
+
+    Raise ``TimeoutError`` when the call exceeds *timeout*. Every exception (``TimeoutError``,
+    ``httpx2.TransportError``, ``httpx2.HTTPStatusError`` or any other) is raised out of
+    ``ensure_model_ready`` as is, and nothing is retried.
+    """
+
+    def load(self, *, timeout: float) -> None: ...
+
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -59,6 +80,12 @@ if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
     from airflow.providers.common.compat.sdk import Connection
+
+
+def _get_unprefixed_model_name(model_name: str) -> str:
+    """Return *model_name* without its ``provider:`` prefix, splitting on the first colon only."""
+    _, sep, unprefixed_name = model_name.partition(":")
+    return unprefixed_name if sep else model_name
 
 
 def _has_recognized_provider_prefix(model_name: str) -> bool:
@@ -527,10 +554,7 @@ class PydanticAIHook(BaseHook):
             model_name = forwarded_model_id
             forwarded = True
         if not model_name:
-            raise ValueError(
-                f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
-                "hook or the Model field on the connection."
-            )
+            raise self._build_missing_model_error()
         model_name = self._qualify_model_name(
             model_name,
             forwarded_from_conn_id=forwarded_from_conn_id if forwarded else None,
@@ -561,6 +585,92 @@ class PydanticAIHook(BaseHook):
             return infer_model(model_name, provider_factory=_provider_factory)
 
         return infer_model(model_name)
+
+    def _build_missing_model_error(self) -> ValueError:
+        return ValueError(
+            f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
+            "hook or the Model field on the connection."
+        )
+
+    def _build_readiness_backend(
+        self, model_name: str, backend_factory: Callable[..., ModelReadinessBackend] | None
+    ) -> ModelReadinessBackend:
+        """
+        Build the readiness backend for the provider-prefixed *model_name*.
+
+        *backend_factory* is called with the unprefixed ``model_name`` and the connection's
+        ``base_url``; without it only Ollama has a built-in backend.
+        """
+        provider_prefix = model_name.partition(":")[0]
+        if backend_factory is None and provider_prefix != "ollama":
+            raise NotImplementedError(
+                f"ensure_model_ready has no built-in readiness backend for '{model_name}' on "
+                f"connection '{self.llm_conn_id}'; only Ollama is built in. Pass backend_factory= a "
+                "callable taking model_name= and base_url= that returns an object with load(); "
+                "OllamaBackend is available for a model that Ollama serves."
+            )
+        conn, _ = self._get_conn_and_extra()
+        base_url = conn.host or None
+        unprefixed_name = _get_unprefixed_model_name(model_name)
+        if backend_factory is not None:
+            return backend_factory(model_name=unprefixed_name, base_url=base_url)
+        # pydantic-ai's OllamaProvider falls back to OLLAMA_BASE_URL when no base_url is passed.
+        if not (ollama_url := base_url or os.getenv("OLLAMA_BASE_URL")):
+            raise ValueError(
+                f"Connection '{self.llm_conn_id}' needs a host, or the OLLAMA_BASE_URL environment "
+                "variable, to load the model."
+            )
+        return OllamaBackend(ollama_url, unprefixed_name)
+
+    def ensure_model_ready(
+        self,
+        *,
+        timeout: float = 300.0,
+        backend_factory: Callable[..., ModelReadinessBackend] | None = None,
+    ) -> None:
+        """
+        Block until this connection's local model is loaded, asking the server to load it if needed.
+
+        Sends a load request and waits for it to return; a model that is already loaded answers
+        right away. Any error from the server is raised as is.
+
+        Ollama is built in; for any other server pass *backend_factory*. Only this hook's own
+        connection is loaded -- connections in ``fallback_conn_ids`` are not, so a fallback model
+        is never loaded ahead of need.
+
+        The built-in Ollama backend does not send the connection password, so a server behind
+        authentication is not supported.
+
+        Blocks and holds the worker slot for the whole wait.
+
+        :param timeout: Seconds to wait for the load request, passed to the backend as is.
+        :param backend_factory: Callable that takes the keyword arguments ``model_name`` (the
+            resolved name without its provider prefix) and ``base_url`` (the connection host, or
+            ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). The
+            ``base_url`` it receives is only the connection host, never ``OLLAMA_BASE_URL``. When
+            given, the model prefix and connection host checks are skipped. The model name is
+            still resolved from the hook argument or the connection, and a missing model still
+            raises ``ValueError``.
+        :raises ValueError: If *timeout* is not a positive finite number, no model is configured,
+            or *backend_factory* is not given and neither the connection host nor the
+            ``OLLAMA_BASE_URL`` environment variable is set.
+        :raises NotImplementedError: If *backend_factory* is not given and the model's provider
+            prefix has no built-in backend (only ``ollama`` has one).
+        :raises TimeoutError: If a request times out.
+        :raises httpx2.TransportError: If a request cannot reach the server.
+        :raises httpx2.HTTPStatusError: If the server answers with an error status.
+        """
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError(f"timeout must be positive and finite, got {timeout}.")
+        if not (configured_name := self._get_configured_model_name()):
+            raise self._build_missing_model_error()
+        model_name = self._qualify_model_name(configured_name)
+        backend = self._build_readiness_backend(model_name, backend_factory)
+
+        started = time.monotonic()
+        self.log.info("Loading model '%s' for connection '%s'", model_name, self.llm_conn_id)
+        backend.load(timeout=timeout)
+        self.log.info("Model '%s' is ready after %.1f seconds", model_name, time.monotonic() - started)
 
     def _get_fallback_conn_ids(self) -> list[str]:
         """
