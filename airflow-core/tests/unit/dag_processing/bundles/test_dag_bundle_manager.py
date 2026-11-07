@@ -356,6 +356,17 @@ def test_sync_bundles_to_db(clear_db, session):
     ]
 
 
+def test_parse_config_does_not_log_bundles_at_info(caplog):
+    """A manager is built many times per task, so this must stay out of task logs."""
+    caplog.set_level("INFO")
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        DagBundlesManager()
+
+    assert not any("DAG bundles loaded" in str(entry) for entry in caplog.entries)
+
+
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db_does_not_log_removing_none_team(clear_db, caplog):
