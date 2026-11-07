@@ -83,6 +83,7 @@ func RunTask(
 			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
 			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
 			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			Conf:              confMap(dagRun.Conf),
 		},
 	)
 
@@ -231,6 +232,15 @@ func optionalBool(raw any) (bool, error) {
 		return false, fmt.Errorf("from_default has unexpected wire shape %T", raw)
 	}
 	return b, nil
+}
+
+// confMap unwraps the optional conf of a Dag run into the plain map exposed on
+// sdk.DagRun, so a run triggered without a conf carries a nil map.
+func confMap(conf *genmodels.Conf) map[string]any {
+	if conf == nil {
+		return nil
+	}
+	return *conf
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form
