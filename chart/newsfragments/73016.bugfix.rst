@@ -1,0 +1,1 @@
+Hash only ``data`` and ``stringData`` in the ``checksum/*`` pod annotations, instead of each rendered ConfigMap and Secret in full, so that ``helm.sh/chart`` in their labels no longer moves the checksums and restarts every component on a chart version bump whose configuration is unchanged
