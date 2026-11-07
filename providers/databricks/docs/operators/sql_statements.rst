@@ -109,3 +109,46 @@ An example usage of the ``DatabricksSQLStatementsSensor`` is as follows:
     :language: python
     :start-after: [START howto_sensor_databricks_sql_statement]
     :end-before: [END howto_sensor_databricks_sql_statement]
+
+Explicit assets
+---------------
+
+Use ``outlets`` to declare the Unity Catalog tables that the SQL statement writes to,
+using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`::
+
+    from airflow.providers.databricks.assets.databricks import UnityTableIdentity
+
+    table = UnityTableIdentity(
+        host="my-workspace.cloud.databricks.com",
+        catalog="main",
+        schema="default",
+        table="my_airflow_table",
+    )
+
+    DatabricksSQLStatementsOperator(
+        task_id="sql_statement",
+        statement="insert into main.default.my_airflow_table values (3, 'test 3')",
+        warehouse_id=WAREHOUSE_ID,
+        outlets=[table.to_asset()],
+    )
+
+An outlet is a declared output asset. It does not by itself verify that the
+declared table was changed.
+
+When ``wait_for_termination=False``, successful task completion means that the
+SQL statement was submitted successfully. The resulting asset event does not
+confirm that the table was refreshed. A warning is emitted when outlets are
+configured with ``wait_for_termination=False``.
+
+With synchronous or deferrable execution, task success follows successful remote
+completion. A declared outlet does not prove that a new Delta commit was written.
+If downstream tasks need the table to be ready, use ``wait_for_termination=True``
+or ``DatabricksSqlSensor``. Remote failure or cancellation does not produce a
+successful outlet event.
+
+Mapped tasks and templated names
+--------------------------------
+
+``outlets`` is not a templated field, so the asset is fixed when the Dag is parsed.
+Each successful mapped task instance emits an event for that same asset. The
+operator does not read table names from rendered SQL.
