@@ -169,6 +169,8 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     decoder: ClassVar[TypeAdapter[LangSDKToManager]] = TypeAdapter[LangSDKToManager](LangSDKToManager)
+    # External runtimes do not implement the large-integer MessagePack extension.
+    supports_large_ints: ClassVar[bool] = False
 
     _listeners: dict[_Channel, socket]
     _parse_request: DagFileParseRequest
