@@ -36,6 +36,8 @@ class AzureBatchTrigger(BaseTrigger):
     :param azure_batch_conn_id: Azure Batch connection id.
     :param end_time: Absolute timeout deadline as determined using ``time.time()``.
     :param poll_interval: Poll interval in seconds.
+    :param retry_total: The total number of retries for Azure Batch requests.
+        Defaults to None, which uses the Azure SDK default.
     """
 
     def __init__(
@@ -44,6 +46,7 @@ class AzureBatchTrigger(BaseTrigger):
         azure_batch_conn_id: str,
         end_time: float,
         poll_interval: int = 30,
+        retry_total: int | None = None,
     ):
         super().__init__()
 
@@ -51,6 +54,7 @@ class AzureBatchTrigger(BaseTrigger):
         self.azure_batch_conn_id = azure_batch_conn_id
         self.end_time = end_time
         self.poll_interval = poll_interval
+        self.retry_total = retry_total
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize trigger arguments and classpath."""
@@ -61,6 +65,7 @@ class AzureBatchTrigger(BaseTrigger):
                 "azure_batch_conn_id": self.azure_batch_conn_id,
                 "end_time": self.end_time,
                 "poll_interval": self.poll_interval,
+                "retry_total": self.retry_total,
             },
         )
 
@@ -121,6 +126,7 @@ class AzureBatchTrigger(BaseTrigger):
         """Poll Azure Batch job tasks until completion or timeout."""
         hook = AzureBatchHook(
             azure_batch_conn_id=self.azure_batch_conn_id,
+            retry_total=self.retry_total,
         )
 
         try:

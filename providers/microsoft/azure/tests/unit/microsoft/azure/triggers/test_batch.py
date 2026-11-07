@@ -29,6 +29,7 @@ from airflow.triggers.base import TriggerEvent
 AZURE_BATCH_CONN_ID = "azure_batch_default"
 JOB_ID = "test-job"
 POKE_INTERVAL = 5
+RETRY_TOTAL = 7
 BATCH_END_TIME = time.time() + 60 * 60 * 24 * 7
 MODULE = "airflow.providers.microsoft.azure"
 
@@ -39,6 +40,7 @@ class TestAzureBatchTrigger:
         azure_batch_conn_id=AZURE_BATCH_CONN_ID,
         poll_interval=POKE_INTERVAL,
         end_time=BATCH_END_TIME,
+        retry_total=RETRY_TOTAL,
     )
 
     def test_batch_trigger_serialization(self):
@@ -51,6 +53,7 @@ class TestAzureBatchTrigger:
             "azure_batch_conn_id": AZURE_BATCH_CONN_ID,
             "poll_interval": POKE_INTERVAL,
             "end_time": BATCH_END_TIME,
+            "retry_total": RETRY_TOTAL,
         }
 
     def test_build_trigger_event_success(self):
@@ -285,3 +288,30 @@ class TestAzureBatchTrigger:
                 }
             )
         ]
+
+    @pytest.mark.asyncio
+    async def test_trigger_passes_retry_total_to_hook(self):
+        completed_task = mock.MagicMock()
+        completed_task.id = "task1"
+        completed_task.state = batch_models.BatchTaskState.COMPLETED
+        completed_task.execution_info.result = batch_models.BatchTaskExecutionResult.SUCCESS
+
+        with mock.patch(f"{MODULE}.triggers.batch.AzureBatchHook") as mock_hook:
+            mock_hook.return_value.connection.list_tasks.return_value = [completed_task]
+
+            trigger = AzureBatchTrigger(
+                job_id=JOB_ID,
+                azure_batch_conn_id=AZURE_BATCH_CONN_ID,
+                end_time=BATCH_END_TIME,
+                poll_interval=POKE_INTERVAL,
+                retry_total=RETRY_TOTAL,
+            )
+
+            events = [event async for event in trigger.run()]
+
+            mock_hook.assert_called_once_with(
+                azure_batch_conn_id=AZURE_BATCH_CONN_ID,
+                retry_total=RETRY_TOTAL,
+            )
+
+            assert events[0].payload["status"] == "success"
