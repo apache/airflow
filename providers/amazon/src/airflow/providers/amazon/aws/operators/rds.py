@@ -168,6 +168,10 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         Only when db_type='instance'
     :param target_custom_availability_zone: The external custom Availability Zone identifier for the target
         Only when db_type='instance'
+    :param copy_option_group: Whether to copy the option group associated with the source DB snapshot
+        to the target DB snapshot, for cross-account and cross-Region copies.
+        If not set, the parameter is not sent and the RDS default applies.
+        Only when db_type='instance'
     :param source_region: The ID of the region that contains the snapshot to be copied
     :param wait_for_completion:  If True, waits for snapshot copy to complete. (default: True)
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
@@ -197,6 +201,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         pre_signed_url: str = "",
         option_group_name: str = "",
         target_custom_availability_zone: str = "",
+        copy_option_group: bool | None = None,
         source_region: str = "",
         wait_for_completion: bool = True,
         **kwargs,
@@ -212,6 +217,9 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.pre_signed_url = pre_signed_url
         self.option_group_name = option_group_name
         self.target_custom_availability_zone = target_custom_availability_zone
+        if copy_option_group is not None and self.db_type == RdsDbType.CLUSTER:
+            raise ValueError("copy_option_group is only supported when db_type='instance'")
+        self.copy_option_group = copy_option_group
         self.source_region = source_region
         self.wait_for_completion = wait_for_completion
 
@@ -224,6 +232,9 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
 
         formatted_tags = format_tags(self.tags)
         if self.db_type.value == "instance":
+            optional_params: dict[str, Any] = {}
+            if self.copy_option_group is not None:
+                optional_params["CopyOptionGroup"] = self.copy_option_group
             copy_instance_snap = self.hook.conn.copy_db_snapshot(
                 SourceDBSnapshotIdentifier=self.source_db_snapshot_identifier,
                 TargetDBSnapshotIdentifier=self.target_db_snapshot_identifier,
@@ -234,6 +245,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 OptionGroupName=self.option_group_name,
                 TargetCustomAvailabilityZone=self.target_custom_availability_zone,
                 SourceRegion=self.source_region,
+                **optional_params,
             )
             copy_response = json.dumps(copy_instance_snap, default=str)
             if self.wait_for_completion:
