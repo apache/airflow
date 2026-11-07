@@ -300,7 +300,7 @@ class TestKubernetesPodOperator:
             volume_mounts=[
                 k8s.V1VolumeMount(
                     name="{{ dag.dag_id }}",
-                    mount_path="mount_path",
+                    mount_path="/{{ dag.dag_id }}",
                     sub_path="{{ dag.dag_id }}",
                 )
             ],
@@ -319,7 +319,11 @@ class TestKubernetesPodOperator:
                     config_map=k8s.V1ConfigMapVolumeSource(
                         name="{{ dag.dag_id }}", items=[k8s.V1KeyToPath(key="key", path="path")]
                     ),
-                )
+                ),
+                k8s.V1Volume(
+                    name="host-path",
+                    host_path=k8s.V1HostPathVolumeSource(path="/data/{{ dag.dag_id }}"),
+                ),
             ],
         )
 
@@ -333,6 +337,7 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
+        assert f"/{dag_id}" == rendered.volume_mounts[0].mount_path
         assert dag_id == rendered.image
         assert dag_id == rendered.cmds
         assert dag_id == rendered.name
@@ -348,6 +353,7 @@ class TestKubernetesPodOperator:
         assert [dag_id] == rendered.configmaps
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
+        assert f"/data/{dag_id}" == rendered.volumes[1].host_path.path
 
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> tuple[k8s.V1Pod, Context]:
         with self.dag_maker(dag_id="dag") as dag:
