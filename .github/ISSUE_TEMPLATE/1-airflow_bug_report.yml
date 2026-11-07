@@ -165,6 +165,7 @@ body:
         - google
         - grpc
         - hashicorp
+        - huggingface
         - http
         - ibm-db2
         - ibm-mq
