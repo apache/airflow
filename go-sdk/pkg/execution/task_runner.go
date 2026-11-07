@@ -60,7 +60,7 @@ func RunTask(
 		)
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateRemoved,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
@@ -80,9 +80,9 @@ func RunTask(
 		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
-			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
-			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
-			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			LogicalDate:       (*time.Time)(dagRun.LogicalDate),
+			DataIntervalStart: (*time.Time)(dagRun.DataIntervalStart),
+			DataIntervalEnd:   (*time.Time)(dagRun.DataIntervalEnd),
 		},
 	)
 
@@ -140,13 +140,13 @@ func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
 func failTask(shouldRetry bool, err error) any {
 	if shouldRetry {
 		return genmodels.RetryTask{
-			EndDate:     time.Now().UTC(),
+			EndDate:     genmodels.Time(time.Now().UTC()),
 			RetryReason: err.Error(),
 		}
 	}
 	return genmodels.TaskState{
 		State:   genmodels.TaskStateStateFailed,
-		EndDate: time.Now().UTC(),
+		EndDate: genmodels.TimePtr(time.Now().UTC()),
 	}
 }
 
@@ -263,13 +263,13 @@ func executeTask(
 			)
 			if shouldRetry {
 				result = genmodels.RetryTask{
-					EndDate:     time.Now().UTC(),
+					EndDate:     genmodels.Time(time.Now().UTC()),
 					RetryReason: fmt.Sprintf("panic: %v", r),
 				}
 			} else {
 				result = genmodels.TaskState{
 					State:   genmodels.TaskStateStateFailed,
-					EndDate: time.Now().UTC(),
+					EndDate: genmodels.TimePtr(time.Now().UTC()),
 				}
 			}
 		}
@@ -282,13 +282,13 @@ func executeTask(
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
 		if shouldRetry {
 			return genmodels.RetryTask{
-				EndDate:     time.Now().UTC(),
+				EndDate:     genmodels.Time(time.Now().UTC()),
 				RetryReason: err.Error(),
 			}
 		}
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateFailed,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
@@ -301,7 +301,7 @@ func executeTask(
 // empty collections rather than None.
 func succeedTask() genmodels.SucceedTask {
 	return genmodels.SucceedTask{
-		EndDate:      time.Now().UTC(),
+		EndDate:      genmodels.Time(time.Now().UTC()),
 		TaskOutlets:  &genmodels.TaskOutlets{},
 		OutletEvents: &genmodels.OutletEvents{},
 	}
