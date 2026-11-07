@@ -1215,7 +1215,10 @@ class AsyncPodManager(LoggingMixin):
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
                     resource_version=resource_version,
-                    timeout_seconds=startup_check_interval,
+                    # The watch API takes an integer timeoutSeconds, while
+                    # startup_check_interval is a user-settable float. Keep at least 1s:
+                    # 0 means "no timeout" server side.
+                    timeout_seconds=max(1, int(startup_check_interval)),
                 ):
                     if event:
                         log_pod_event(self, event, seen_events)

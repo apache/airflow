@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import secrets
 import string
@@ -102,6 +103,15 @@ def generic_api_retry(func):
     - Retries only transient ApiException status codes.
     - Honors Retry-After on 429.
     """
+    if inspect.isasyncgenfunction(func):
+        # tenacity sees an async generator function as an ordinary sync callable, so it would wrap
+        # only the construction of the generator — which cannot fail — and never its iteration,
+        # where the API calls actually happen. The retry would silently never fire. A resumable
+        # stream has to reconnect from its own last position anyway, so retry inside the generator.
+        raise TypeError(
+            f"{func.__qualname__} is an async generator; @generic_api_retry cannot retry it. "
+            "Retry inside the generator's reconnect loop instead."
+        )
     return tenacity.retry(
         stop=tenacity.stop_after_attempt(API_RETRIES),
         wait=WaitRetryAfterOrExponential(),
