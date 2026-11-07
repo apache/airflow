@@ -16,42 +16,125 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useLayoutEffect } from "react";
+import type { RefObject } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import type { Virtualizer } from "@tanstack/react-virtual";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
-// Last Grid scrollTop per Dag. Module scope so it outlives the Grid remounting.
-const gridScrollTops = new Map<string, number>();
+// Each axis is absent until it has actually been scrollable: a Dag whose runs have not arrived
+// reports 0 for an axis that cannot move, and storing that 0 would read back as a real position.
+type ScrollPosition = {
+  left?: number;
+  top?: number;
+};
+
+// Last Grid scroll offsets per Dag. Module scope so they outlive the Grid remounting.
+const gridScrollPositions = new Map<string, ScrollPosition>();
 
 type Params = {
   dagId: string;
   flatNodes: Array<GridTask>;
   // Height of the sticky header above the rows (also the virtualizer's scrollPaddingStart).
   headerPad: number;
+  isRtl: boolean;
   rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
+  runIds: Array<string>;
   selectedGroupId?: string;
+  selectedRunId?: string;
   selectedTaskId?: string;
+  // Gantt view shares one scroller with the Grid, where the horizontal axis is the Gantt's timeline.
+  sharesScroller: boolean;
+  taskNameColumnRef: RefObject<HTMLDivElement | null>;
 };
 
-// Navigating into a task swaps the route (Dag/Run/TaskInstance each render their own Grid), so the
-// Grid unmounts and a fresh one mounts scrolled to the top. We restore the last position here so a
-// click doesn't jump the Grid: the rows are unchanged across the remount, so the saved pixel offset
-// still points at the same rows.
+// Horizontal counterpart to the virtualizer's scrollToIndex, with the same meaning of `align`.
 //
-// If the rows did change since we saved (a new version, or groups expanded/collapsed) the saved
-// offset no longer lines up, so we fall back to locating the selected task by id and centering it.
-// Rows are a fixed height, so the index alone gives the offset — no dependency on the stored pixels.
+// Run columns scroll beneath the sticky task name column, so a column tucked behind it is as hidden
+// as one past the far edge. The visible scrollport is clientWidth wide (unlike the bounding rect, it
+// excludes the vertical scrollbar), minus that column: on the left in LTR, on the right in RTL, where
+// the scrollbar also moves to the left. Returns whether the run's column was found.
+const scrollRunIntoView = ({
+  align,
+  isRtl,
+  scrollEl,
+  selectedRunId,
+  taskNameColumn,
+}: {
+  align: "center" | "nearest";
+  isRtl: boolean;
+  scrollEl: HTMLElement;
+  selectedRunId: string | undefined;
+  taskNameColumn: HTMLDivElement | null;
+}) => {
+  if (selectedRunId === undefined) {
+    return false;
+  }
+
+  // Both the duration bar and the task instance column carry the run id; either one gives the
+  // column's x position, so take whichever the query finds first.
+  const column = scrollEl.querySelector(`[data-run-id="${CSS.escape(selectedRunId)}"]`);
+
+  if (!column) {
+    return false;
+  }
+
+  const columnRect = column.getBoundingClientRect();
+  const viewRect = scrollEl.getBoundingClientRect();
+  const nameColumnWidth = taskNameColumn?.getBoundingClientRect().width ?? 0;
+  const visibleStart = isRtl ? viewRect.right - scrollEl.clientWidth : viewRect.left + nameColumnWidth;
+  const visibleEnd = isRtl ? viewRect.right - nameColumnWidth : viewRect.left + scrollEl.clientWidth;
+
+  if (columnRect.left >= visibleStart && columnRect.right <= visibleEnd) {
+    return true;
+  }
+
+  // Nearest corrects whichever edge is cut off; centre puts the column's midpoint on the view's.
+  const nearestDelta =
+    columnRect.left < visibleStart ? columnRect.left - visibleStart : columnRect.right - visibleEnd;
+  const centerDelta = columnRect.left + columnRect.width / 2 - (visibleStart + visibleEnd) / 2;
+  const delta = align === "center" ? centerDelta : nearestDelta;
+
+  // A delta in CSS pixels is direction-agnostic: scrollLeft grows rightwards even in RTL, where it
+  // runs from -(scrollWidth - clientWidth) to 0. The browser clamps an overshoot at either end, so a
+  // run near an edge simply lands as close as it can.
+  scrollEl.scrollLeft += delta;
+
+  return true;
+};
+
+// Navigating into a run or task swaps the route (Dag/Run/TaskInstance each render their own Grid),
+// so the Grid unmounts and a fresh one mounts scrolled back to the top left. Restoring the saved
+// offsets stops a click from jumping the Grid.
+//
+// If the content changed since we saved (a new version, groups expanded/collapsed, runs added or
+// paged) the offsets no longer line up, so we fall back to revealing whatever is selected: the task
+// by index, since fixed-height rows make the index alone give the offset, and the run by measuring
+// its column.
 export const useGridScrollRestore = ({
   dagId,
   flatNodes,
   headerPad,
+  isRtl,
   rowVirtualizer,
+  runIds,
   selectedGroupId,
+  selectedRunId,
   selectedTaskId,
+  sharesScroller,
+  taskNameColumnRef,
 }: Params) => {
+  // Value dep: the runs array is rebuilt on every render, so its identity would re-run the effect
+  // (and re-measure the DOM) far more often than the columns actually change.
+  const runIdsKey = runIds.join("\u0000");
+
+  // What the reveal below last settled on. The run list changes in place (polling brings a new run,
+  // the user pages), and re-revealing then would yank the Grid back to the selection after the user
+  // scrolled away from it. A remount starts empty, which is the case the reveal exists for.
+  const revealed = useRef<{ anchorId?: string; cell?: string; flatNodes?: Array<GridTask> }>({});
+
   useLayoutEffect(() => {
     const scrollEl = rowVirtualizer.scrollElement;
 
@@ -59,16 +142,25 @@ export const useGridScrollRestore = ({
       return undefined;
     }
 
-    const saved = gridScrollTops.get(dagId);
+    const saved = gridScrollPositions.get(dagId);
 
-    if (saved !== undefined) {
-      scrollEl.scrollTop = saved;
+    if (saved?.top !== undefined) {
+      scrollEl.scrollTop = saved.top;
+    }
+
+    if (saved?.left !== undefined && !sharesScroller) {
+      scrollEl.scrollLeft = saved.left;
     }
 
     const anchorId = selectedTaskId ?? selectedGroupId;
     const index = flatNodes.findIndex((node) => node.id === anchorId);
 
-    if (index !== -1) {
+    // Rows only move when the structure does (a new version, groups toggled), so the task is
+    // re-revealed then or when the selection changes, never because the runs did.
+    if (
+      index !== -1 &&
+      (revealed.current.anchorId !== anchorId || revealed.current.flatNodes !== flatNodes)
+    ) {
       const rowTop = headerPad + index * ROW_HEIGHT;
       const outOfView =
         rowTop < scrollEl.scrollTop || rowTop + ROW_HEIGHT > scrollEl.scrollTop + scrollEl.clientHeight;
@@ -76,12 +168,58 @@ export const useGridScrollRestore = ({
       if (outOfView) {
         rowVirtualizer.scrollToIndex(index, { align: "center" });
       }
+      revealed.current = { ...revealed.current, anchorId, flatNodes };
     }
 
-    const handleScroll = () => gridScrollTops.set(dagId, scrollEl.scrollTop);
+    // Sharing a scroller means moving it horizontally would drag the Gantt's timeline along with
+    // the run columns, so the Grid leaves that axis to the Gantt. The run is revealed once per
+    // selected cell, as soon as its column has rendered: runs arrive after the first paint, which is
+    // why the run ids are a dependency at all. Picking another task in the same run (from the details
+    // panel, while the Grid is scrolled away) is a new selection, so it reveals the run too.
+    const cell = `${selectedRunId ?? ""}\u0000${anchorId ?? ""}`;
+
+    if (!sharesScroller && revealed.current.cell !== cell) {
+      const found = scrollRunIntoView({
+        // Centre on a first visit, where the run lands somewhere readable rather than flush against
+        // an edge; once there is a position worth keeping, move as little as possible. A saved
+        // vertical offset says nothing about the runs, so only a horizontal one counts as one.
+        align: saved?.left === undefined ? "center" : "nearest",
+        isRtl,
+        scrollEl,
+        selectedRunId,
+        taskNameColumn: taskNameColumnRef.current,
+      });
+
+      if (found || selectedRunId === undefined) {
+        revealed.current = { ...revealed.current, cell };
+      }
+    }
+
+    const handleScroll = () => {
+      const previous = gridScrollPositions.get(dagId);
+      const canScrollX = scrollEl.scrollWidth > scrollEl.clientWidth;
+      const canScrollY = scrollEl.scrollHeight > scrollEl.clientHeight;
+
+      gridScrollPositions.set(dagId, {
+        left: canScrollX ? scrollEl.scrollLeft : previous?.left,
+        top: canScrollY ? scrollEl.scrollTop : previous?.top,
+      });
+    };
 
     scrollEl.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [dagId, selectedTaskId, selectedGroupId, flatNodes, headerPad, rowVirtualizer]);
+  }, [
+    dagId,
+    flatNodes,
+    headerPad,
+    isRtl,
+    rowVirtualizer,
+    runIdsKey,
+    selectedGroupId,
+    selectedRunId,
+    selectedTaskId,
+    sharesScroller,
+    taskNameColumnRef,
+  ]);
 };
