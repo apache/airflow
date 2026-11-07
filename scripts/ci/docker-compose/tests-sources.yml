@@ -118,6 +118,7 @@ services:
       - ../../../providers/opensearch/tests:/opt/airflow/providers/opensearch/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
       - ../../../providers/oracle/tests:/opt/airflow/providers/oracle/tests
+      - ../../../providers/oraclecloud/tests:/opt/airflow/providers/oraclecloud/tests
       - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
       - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests

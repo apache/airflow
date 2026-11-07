@@ -254,6 +254,9 @@ labelPRBasedOnFilePath:
   provider:oracle:
     - providers/oracle/**
 
+  provider:oraclecloud:
+    - providers/oraclecloud/**
+
   provider:pagerduty:
     - providers/pagerduty/**
 
