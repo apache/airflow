@@ -464,42 +464,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             py_system_site_packages=self.py_system_site_packages,
             process_line_callback=self.process_line_callback,
             is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
+            on_dataflow_job_id_found_callback=self.on_dataflow_job_id_found_callback(context),
         )
 
-        location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
-        DataflowJobLink.persist(
-            context=context,
-            region=self.dataflow_config.location,
-            job_id=self.dataflow_job_id,
-            project_id=self.dataflow_config.project_id,
-        )
-
-        if self.deferrable:
-            trigger_args = {
-                "job_id": self.dataflow_job_id,
-                "project_id": self.dataflow_config.project_id,
-                "location": location,
-                "gcp_conn_id": self.gcp_conn_id,
-                "poll_sleep": self.dataflow_config.poll_sleep,
-                "impersonation_chain": self.dataflow_config.impersonation_chain,
-            }
-            trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
-
-            if GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE:
-                trigger = DataflowJobStateCompleteTrigger(
-                    wait_until_finished=self.dataflow_config.wait_until_finished,
-                    **trigger_args,
-                )
-            else:
-                trigger = DataflowJobStatusTrigger(
-                    expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
-                    **trigger_args,
-                )
-
-            self.defer(
-                trigger=trigger,
-                method_name="execute_complete",
-            )
         self.dataflow_hook.wait_for_done(
             job_name=self.dataflow_job_name,
             location=self.dataflow_config.location,
@@ -507,6 +474,45 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             project_id=self.dataflow_config.project_id,
         )
         return {"dataflow_job_id": self.dataflow_job_id}
+
+    def on_dataflow_job_id_found_callback(self, context: Context):
+        def _on_dataflow_job_id_found_callback():
+            location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
+            DataflowJobLink.persist(
+                context=context,
+                region=self.dataflow_config.location,
+                job_id=self.dataflow_job_id,
+                project_id=self.dataflow_config.project_id,
+            )
+
+            if self.deferrable:
+                trigger_args = {
+                    "job_id": self.dataflow_job_id,
+                    "project_id": self.dataflow_config.project_id,
+                    "location": location,
+                    "gcp_conn_id": self.gcp_conn_id,
+                    "poll_sleep": self.dataflow_config.poll_sleep,
+                    "impersonation_chain": self.dataflow_config.impersonation_chain,
+                }
+                trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
+
+                if GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE:
+                    trigger = DataflowJobStateCompleteTrigger(
+                        wait_until_finished=self.dataflow_config.wait_until_finished,
+                        **trigger_args,
+                    )
+                else:
+                    trigger = DataflowJobStatusTrigger(
+                        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+                        **trigger_args,
+                    )
+
+                self.defer(
+                    trigger=trigger,
+                    method_name="execute_complete",
+                )
+
+        return _on_dataflow_job_id_found_callback
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
@@ -663,7 +669,21 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                 job_class=self.job_class,
                 process_line_callback=self.process_line_callback,
                 is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
+                on_dataflow_job_id_found_callback=self.on_dataflow_job_id_found_callback(context),
             )
+            if self.dataflow_job_name and self.dataflow_config.location:
+                multiple_jobs = self.dataflow_config.multiple_jobs or False
+                self.dataflow_hook.wait_for_done(
+                    job_name=self.dataflow_job_name,
+                    location=self.dataflow_config.location,
+                    job_id=self.dataflow_job_id,
+                    multiple_jobs=multiple_jobs,
+                    project_id=self.dataflow_config.project_id,
+                )
+        return {"dataflow_job_id": self.dataflow_job_id}
+
+    def on_dataflow_job_id_found_callback(self, context: Context):
+        def _on_dataflow_job_id_found_callback():
             if self.dataflow_job_name and self.dataflow_config.location:
                 DataflowJobLink.persist(
                     context=context,
@@ -698,15 +718,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                         method_name="execute_complete",
                     )
 
-                multiple_jobs = self.dataflow_config.multiple_jobs or False
-                self.dataflow_hook.wait_for_done(
-                    job_name=self.dataflow_job_name,
-                    location=self.dataflow_config.location,
-                    job_id=self.dataflow_job_id,
-                    multiple_jobs=multiple_jobs,
-                    project_id=self.dataflow_config.project_id,
-                )
-        return {"dataflow_job_id": self.dataflow_job_id}
+        return _on_dataflow_job_id_found_callback
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
