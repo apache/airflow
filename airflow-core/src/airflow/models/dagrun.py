@@ -2365,6 +2365,7 @@ class DagRun(Base, LoggingMixin):
                 continue
 
             ti.task = task
+            mapping_unresolved = False
             try:
                 num_mapped_tis = task.get_parse_time_mapped_ti_count()
             except NotMapped:
@@ -2383,7 +2384,7 @@ class DagRun(Base, LoggingMixin):
                     # Not all upstreams finished, so the count isn't known yet. Keep the expanded
                     # instances and restore removed ones below; _revise_map_indexes_if_mapped trims
                     # or extends them once the upstreams finish, but never restores a removed index.
-                    pass
+                    mapping_unresolved = True
                 else:
                     # Upstreams finished, check there aren't any extras
                     if ti.region_index >= total_length:
@@ -2411,6 +2412,14 @@ class DagRun(Base, LoggingMixin):
                     continue
 
             if ti.state == TaskInstanceState.REMOVED:
+                if mapping_unresolved:
+                    # The instance may have been removed because a producer shrank the list, not
+                    # because the task left the Dag, and the resolved length is still unknown. Put
+                    # it back without counting a Dag re-add or allocating an attempt that may never
+                    # run; _revise_map_indexes_if_mapped removes it again if the list stays short.
+                    self.log.debug("Restoring mapped instance '%s' while its map length is unresolved", ti)
+                    ti.state = None
+                    continue
                 self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
                 stats.incr(
                     "task_restored_to_dag",

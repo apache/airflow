@@ -2873,6 +2873,72 @@ def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, sessio
     )
 
 
+@mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+def test_restoring_shrink_removed_map_index_without_resolved_length_adds_no_attempt(
+    mock_get_backend, dag_maker, session
+):
+    """Restoring an index before the map length is known must not record a Dag re-add or a try."""
+    mock_stats = mock.MagicMock(spec=StatsLogger)
+    mock_get_backend.return_value = mock_stats
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def producer(): ...
+
+        @task
+        def consumer(arg): ...
+
+        consumer.expand(arg=producer())
+
+    dr = dag_maker.create_dagrun()
+    producer_ti = dr.get_task_instance("producer", session=session)
+    producer_ti.state = TaskInstanceState.SUCCESS
+    push_mapped_length(producer_ti, [1, 2, 3], session=session)
+    session.flush()
+    dr.task_instance_scheduling_decisions(session=session)
+
+    # A producer re-run returns a shorter list, so indexes 1 and 2 are removed at try 1.
+    push_mapped_length(producer_ti, [1], session=session)
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+    dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+    removed = dr.get_task_instance("consumer", map_index=1, session=session)
+    assert removed.state == TaskInstanceState.REMOVED
+    removed_id = removed.id
+    removed_try_number = removed.try_number
+
+    # Clearing only the producer puts the removed indexes back before the new list is known.
+    producer_ti = producer_ti.prepare_db_for_next_try(session)
+    producer_ti.state = None
+    session.flush()
+    dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+    restored = dr.get_task_instance("consumer", map_index=1, session=session)
+    assert restored.state is None
+    assert restored.id == removed_id
+    assert restored.try_number == removed_try_number
+    assert "task_restored_to_dag" not in [c.args[0] for c in mock_stats.incr.call_args_list if c.args]
+
+    # The producer returns the short list again, so the index is removed without spending a try.
+    producer_ti.state = TaskInstanceState.SUCCESS
+    push_mapped_length(producer_ti, [1], session=session)
+    session.flush()
+    dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+    assert dr.get_task_instance("consumer", map_index=1, session=session).state == TaskInstanceState.REMOVED
+    attempts = session.scalars(
+        select(TaskInstance)
+        .where(
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.task_id == "consumer",
+            TaskInstance.map_index == 1,
+            TaskInstance.run_id == dr.run_id,
+        )
+        .execution_options(include_all_attempts=True)
+    ).all()
+    assert [(ti.try_number, ti.state) for ti in attempts] == [(removed_try_number, TaskInstanceState.REMOVED)]
+
+
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     """Test that when the length of mapped literal reduces, removed state is added"""
 
