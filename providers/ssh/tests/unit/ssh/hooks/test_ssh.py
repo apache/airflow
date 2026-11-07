@@ -18,14 +18,10 @@
 from __future__ import annotations
 
 import json
-import os
 import random
-import resource
 import selectors
-import socket
 import string
 import textwrap
-import threading
 from io import StringIO
 from unittest import mock
 
@@ -106,87 +102,6 @@ TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASS
 TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
 
 TEST_CIPHERS = ["aes128-ctr", "aes192-ctr", "aes256-ctr"]
-
-
-class _ExecServer(paramiko.ServerInterface):
-    """Answers every exec request with stdout, stderr and exit status 3, then closes the channel."""
-
-    def get_allowed_auths(self, username):
-        return "password"
-
-    def check_auth_password(self, username, password):
-        return paramiko.AUTH_SUCCESSFUL
-
-    def check_channel_request(self, kind, chanid):
-        return paramiko.OPEN_SUCCEEDED
-
-    def check_channel_exec_request(self, channel, command):
-        def respond():
-            # Give the client time to see the exec request succeed before the channel closes.
-            threading.Event().wait(0.2)
-            channel.sendall(b"out-1\n")
-            channel.sendall_stderr(b"err-1\n")
-            channel.sendall(b"out-2\n")
-            channel.send_exit_status(3)
-            channel.close()
-
-        threading.Thread(target=respond, daemon=True).start()
-        return True
-
-
-@pytest.fixture
-def in_process_ssh_client():
-    """Yield an SSH client connected to an in-process paramiko server over a loopback socket."""
-    listener = socket.socket()
-    listener.bind(("127.0.0.1", 0))
-    listener.listen(1)
-    port = listener.getsockname()[1]
-    host_key = paramiko.ECDSAKey.generate()
-    transports = []
-
-    def serve():
-        sock, _ = listener.accept()
-        transport = paramiko.Transport(sock)
-        transport.add_server_key(host_key)
-        transport.start_server(server=_ExecServer())
-        transports.append(transport)
-
-    server_thread = threading.Thread(target=serve, daemon=True)
-    server_thread.start()
-    client = paramiko.SSHClient()
-    # Trust exactly the server's key; any other key is rejected by the default policy.
-    client.get_host_keys().add(f"[127.0.0.1]:{port}", host_key.get_name(), host_key)
-    client.connect(
-        "127.0.0.1",
-        port=port,
-        username="user",
-        password="password",
-        look_for_keys=False,
-        allow_agent=False,
-    )
-    yield client
-    client.close()
-    server_thread.join(timeout=10)
-    for transport in transports:
-        transport.close()
-    listener.close()
-
-
-@pytest.fixture
-def over_1024_open_fds():
-    """Hold enough descriptors that new ones are numbered above select()'s FD_SETSIZE of 1024."""
-    count = 1100
-    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    if soft < count + 256:
-        if hard != resource.RLIM_INFINITY and hard < count + 256:
-            pytest.skip(f"RLIMIT_NOFILE hard limit {hard} is too low to open {count} descriptors")
-        resource.setrlimit(resource.RLIMIT_NOFILE, (count + 256, hard))
-    fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(count)]
-    assert max(fds) > 1024
-    yield
-    for fd in fds:
-        os.close(fd)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
 
 
 class TestSSHHook:
