@@ -968,13 +968,17 @@ is the source the ruleset accepts.
   already has a `CI passed` status: the project check run alone decides otherwise, and a `pending`
   the monitor created would block the pull request after project CI passed. The project CI result is
   the newest `pull_request` run of a project CI workflow file on the head commit whose job named
-  exactly `CI passed` exists; a run that reports `CI passed (run cancelled)` or
-  `CI passed (project CI not run)` is ignored and does not hide an older run's result. While that
+  exactly `CI passed` exists; a run that has no such job and reports `CI passed (run cancelled)` or
+  `CI passed (project CI not run)` is ignored and does not hide an older run's result (a re-run
+  keeps its check suite, so one that has both is judged by its `CI passed` job). While that
   job has not succeeded, a `success` is overwritten with `pending`; once it has, the monitor posts
   `success` ("Project CI passed for this commit"). Adding the label does not start project CI (see
   "Override labels"): the pull request stays blocked until a maintainer starts it and it passes,
   and then until the next monitor run posts the `success`, which can take about 15 minutes.
-  Removing the label returns the pull request to the normal flow above.
+  Removing the label returns the pull request to the normal flow above: removing it updates the
+  pull request, so discovery (open pull requests updated within the last 24 hours) labels it
+  `fork ci required` again and the next run reports the fork result, replacing the waiting
+  `pending` once the fork run is green.
 - A commit status belongs to the commit, so the monitor never writes `CI passed` on a head commit
   that a pull request carrying `use project ci` has, even for another pull request on the same
   commit; the project CI pass owns those. When the list of those commits cannot be read, it posts

@@ -3627,6 +3627,22 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         ),
         pytest.param(
             _passed_node(
+                state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5, cancelled=1)]
+            ),
+            PASSED,
+            id="rerun-passed-next-to-the-marker-of-its-first-attempt",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[_passed_suite(4, created="2026-11-10T09:00:00Z"), _passed_suite(6, conclusion=None)],
+            ),
+            WAITING,
+            id="newest-run-still-running-is-not-passed",
+        ),
+        pytest.param(
+            _passed_node(
                 state="SUCCESS",
                 description=CI_PASSED_DESCRIPTION,
                 suites=[
@@ -3772,14 +3788,20 @@ def _rest_for_project_ci_passed(runs, checks):
         pytest.param([("CI passed", "failure", 8)], None, id="failed"),
         pytest.param([("CI passed", "success", 9)], None, id="check-of-another-run"),
         pytest.param(
+            [("CI passed", "success", 8), ("CI passed (run cancelled)", "success", 8)],
+            "https://github.com/apache/airflow/actions/runs/6",
+            id="rerun-passed-next-to-the-marker-of-its-first-attempt",
+        ),
+        pytest.param([("CI passed", "success", 7)], None, id="newest-run-still-running-is-not-passed"),
+        pytest.param(
             [("CI passed", "success", 7), ("CI passed (run cancelled)", "success", 8)],
             PROJECT_PASSED_URL,
             id="newer-cancelled-run-does-not-hide-an-older-success",
         ),
         pytest.param(
-            [("CI passed", "success", 8), ("CI passed (project CI not run)", "success", 8)],
-            None,
-            id="not-run",
+            [("CI passed", "success", 7), ("CI passed (project CI not run)", "success", 8)],
+            PROJECT_PASSED_URL,
+            id="newer-not-run-marker-does-not-hide-an-older-success",
         ),
     ],
 )

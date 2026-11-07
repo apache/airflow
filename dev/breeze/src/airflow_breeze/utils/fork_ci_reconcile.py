@@ -1169,7 +1169,8 @@ def find_project_ci_passed_url(node: dict[str, Any]) -> str | None:
     The latest project CI pull_request run's URL when its `CI passed` job succeeded on the head commit.
 
     The job reports under another name when the run was cancelled or skipped; such a run does not
-    count, nor does it hide an older run's result.
+    count, nor does it hide an older run's result. A re-run keeps its check suite, so a suite that
+    also has the exact `CI passed` check run is judged by that one, its latest attempt.
     None also when the last commit listed is not the head; ``read_project_ci_passed_url`` reads that.
     """
     if not is_head_listed(node):
@@ -1181,7 +1182,9 @@ def find_project_ci_passed_url(node: dict[str, Any]) -> str | None:
         and _workflow_file((run.get("workflow") or {}).get("resourcePath")) in PROJECT_CI_WORKFLOW_FILES
     ]
     suites = [
-        suite for suite in suites if not suite["cancelled"]["totalCount"] + suite["notRun"]["totalCount"]
+        suite
+        for suite in suites
+        if suite["checkRuns"]["nodes"] or not suite["cancelled"]["totalCount"] + suite["notRun"]["totalCount"]
     ]
     latest = max(suites, key=lambda suite: suite["createdAt"], default=None)
     if latest and any(
@@ -1209,17 +1212,18 @@ def read_project_ci_passed_url(client: GitHubClient, repo: str, head_sha: str) -
             f"repos/{repo}/commits/{head_sha}/check-runs?check_name={quote(name)}&filter=latest&per_page=100"
         ).get("check_runs", [])
 
+    passed_checks = get_check_runs(CI_PASSED_CONTEXT)
     skipped_suites = {
         check["check_suite"]["id"]
         for name in (CI_PASSED_CANCELLED_JOB_NAME, PROJECT_CI_NOT_RUN_JOB_NAME)
         for check in get_check_runs(name)
-    }
+    } - {check["check_suite"]["id"] for check in passed_checks}
     run = next((run for run in runs if run["check_suite_id"] not in skipped_suites), None)
     if run and any(
         check["name"] == CI_PASSED_CONTEXT
         and check["conclusion"] == "success"
         and check["check_suite"]["id"] == run["check_suite_id"]
-        for check in get_check_runs(CI_PASSED_CONTEXT)
+        for check in passed_checks
     ):
         return run["html_url"]
     return None
