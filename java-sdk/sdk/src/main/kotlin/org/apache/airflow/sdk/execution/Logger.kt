@@ -221,30 +221,43 @@ internal class Logger(
 }
 
 internal object LogSender {
+  private val lock = Any()
   private var writer: ByteWriteChannel? = null
+
+  /** Test hook that pauses send after it observes no usable log channel. */
+  @Volatile
+  internal var beforeEnqueueWhenNoWriter: (() -> Unit)? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
   fun configure(channel: ByteWriteChannel) {
-    writer = channel
-    if (!channel.isClosedForWrite) {
-      while (messages.isNotEmpty()) {
-        sendTo(channel, messages.removeFirst())
+    synchronized(lock) {
+      writer = channel
+      if (!channel.isClosedForWrite) {
+        while (messages.isNotEmpty()) {
+          sendTo(channel, messages.removeFirst())
+        }
       }
     }
   }
 
   fun send(message: LogMessage) {
-    val channel = writer
-    if (channel == null || channel.isClosedForWrite) {
-      messages.addLast(message)
-    } else {
-      sendTo(channel, message)
+    synchronized(lock) {
+      val channel = writer
+      if (channel == null || channel.isClosedForWrite) {
+        beforeEnqueueWhenNoWriter?.invoke()
+        messages.addLast(message)
+      } else {
+        sendTo(channel, message)
+      }
     }
   }
 
   internal fun reset() {
-    writer = null
-    messages.clear()
+    synchronized(lock) {
+      writer = null
+      beforeEnqueueWhenNoWriter = null
+      messages.clear()
+    }
   }
 
   private fun sendTo(
