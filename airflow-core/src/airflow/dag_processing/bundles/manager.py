@@ -607,13 +607,12 @@ class DagBundlesManager(LoggingMixin):
         from airflow.models.errors import ParseImportError
 
         for name, bundle in stored.items():
+            if bundle.active is not False:
+                bundle.active = False
+                bundle.teams = []
+                self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
-            if bundle.active is False:
-                continue
-            bundle.active = False
-            bundle.teams = []
-            self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-            self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
     def reassign_dags_with_unconfigured_bundles(self) -> int:
         """
