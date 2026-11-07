@@ -80,20 +80,22 @@ export const AssetEvent = ({
           </Tooltip>
         </HStack>
       )}
-      <HStack flexWrap="wrap">
-        <Box>{translate("source")}: </Box>
-        {source === "" ? (
-          <Link
-            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
-          >
-            <Box color="fg.info" overflowWrap="anywhere" padding={0}>
-              {event.source_dag_id}
-            </Box>
-          </Link>
-        ) : (
-          source
-        )}
-      </HStack>
+      {source === "" && !Boolean(event.source_dag_id) ? undefined : (
+        <HStack flexWrap="wrap">
+          <Box>{translate("source")}: </Box>
+          {source === "" ? (
+            <Link
+              to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
+            >
+              <Box color="fg.info" overflowWrap="anywhere" padding={0}>
+                {event.source_dag_id}
+              </Box>
+            </Link>
+          ) : (
+            source
+          )}
+        </HStack>
+      )}
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
