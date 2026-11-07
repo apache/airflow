@@ -1,0 +1,1 @@
+``airflow info --anonymize`` now also redacts the machine hostname reported in the ``uname`` line.
