@@ -493,6 +493,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     not lost.
     """
 
+    # External runtimes do not implement the large-integer MessagePack extension.
     supports_large_ints: ClassVar[bool] = False
     _comm_server: socket.socket
     _logs_server: socket.socket
