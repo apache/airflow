@@ -138,6 +138,64 @@ class TestBeamBasePipelineOperator:
         op.dataflow_job_id = "sample_df_job_same_value_id"
         mock_ti.xcom_push.assert_not_called()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    def test_is_dataflow_job_id_exist_callback(self, dataflow_hook_mock, beam_hook_mock):
+        op = BeamBasePipelineOperator(
+            task_id=TASK_ID,
+            runner="DataflowRunner",
+            dataflow_config={"project_id": TEST_PROJECT, "location": "us-central1"},
+        )
+        op._cast_dataflow_config()
+        (
+            _,
+            op.dataflow_job_name,
+            _,
+            _,
+            is_dataflow_job_id_exist_callback,
+        ) = op._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
+
+        assert is_dataflow_job_id_exist_callback is not None
+        assert is_dataflow_job_id_exist_callback() is False
+        dataflow_hook_mock.return_value.get_job_id_of_running_job.assert_not_called()
+
+        dataflow_hook_mock.return_value.get_job_id_of_running_job.return_value = None
+        assert is_dataflow_job_id_exist_callback(checking_by_job_name=True) is False
+        assert op.dataflow_job_id is None
+
+        dataflow_hook_mock.return_value.get_job_id_of_running_job.return_value = JOB_ID
+        assert is_dataflow_job_id_exist_callback(checking_by_job_name=True) is True
+        assert op.dataflow_job_id == JOB_ID
+        dataflow_hook_mock.return_value.get_job_id_of_running_job.assert_called_with(
+            job_name=op.dataflow_job_name,
+            project_id=TEST_PROJECT,
+            location="us-central1",
+        )
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    def test_is_dataflow_job_id_exist_callback_handles_lookup_error(self, dataflow_hook_mock, beam_hook_mock):
+        op = BeamBasePipelineOperator(
+            task_id=TASK_ID,
+            runner="DataflowRunner",
+            dataflow_config={"project_id": TEST_PROJECT, "location": "us-central1"},
+        )
+        op._cast_dataflow_config()
+        (
+            _,
+            op.dataflow_job_name,
+            _,
+            _,
+            is_dataflow_job_id_exist_callback,
+        ) = op._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
+
+        dataflow_hook_mock.return_value.get_job_id_of_running_job.side_effect = RuntimeError(
+            "missing dataflow.jobs.list permission"
+        )
+        assert is_dataflow_job_id_exist_callback is not None
+        assert is_dataflow_job_id_exist_callback(checking_by_job_name=True) is False
+        assert op.dataflow_job_id is None
+
 
 class TestBeamRunPythonPipelineOperator:
     @pytest.fixture(autouse=True)
