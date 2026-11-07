@@ -139,12 +139,15 @@ var (
 // checkTaskSpec rejects a TaskSpec whose TriggerRule is not a TriggerRule constant or whose
 // WeightRule is not a WeightRule constant. An empty TriggerRule or WeightRule is valid and leaves
 // that rule unset. checkTaskSpec also rejects a StartDate or an EndDate that a Python datetime
-// cannot hold.
+// cannot hold, and a PriorityWeight that the priority_weight column of task_instance cannot hold.
 func checkTaskSpec(spec TaskSpec) error {
 	if err := checkRule("TriggerRule", "trigger rule", spec.TriggerRule, triggerRules); err != nil {
 		return err
 	}
 	if err := checkRule("WeightRule", "weight rule", spec.WeightRule, weightRules); err != nil {
+		return err
+	}
+	if err := checkPriorityWeight(spec.PriorityWeight); err != nil {
 		return err
 	}
 	if err := checkTime("airflow.TaskSpec.StartDate", spec.StartDate); err != nil {

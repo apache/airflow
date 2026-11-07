@@ -341,29 +341,32 @@ func TestSerializeWritesAPointerFieldThatHoldsTheZeroValue(t *testing.T) {
 	)
 }
 
-func TestSerializeCapsThePriorityWeightAsPythonDoes(t *testing.T) {
+func TestTaskRejectsAPriorityWeightOutsideTheInt32Range(t *testing.T) {
 	if strconv.IntSize < 64 {
 		t.Skip("requires 64-bit int to hold a weight outside the int32 range")
 	}
 	// int64, not int, so the file still compiles where int is 32 bits.
-	tests := []struct {
-		name   string
-		weight int64
-		want   float64
-	}{
-		{name: "above", weight: math.MaxInt32 + 1, want: math.MaxInt32},
-		{name: "below", weight: math.MinInt32 - 1, want: math.MinInt32},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dag := Dag("etl")
-			dag.Task(ping, TaskSpec{PriorityWeight: ptr(int(tt.weight))})
-
-			got := serializedTask(t, serializedDag(t, dag), "ping")
-
-			assert.Equal(t, tt.want, got["priority_weight"])
+	for name, weight := range map[string]int64{
+		"above": math.MaxInt32 + 1,
+		"below": math.MinInt32 - 1,
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				fmt.Sprintf(`airflow.DagRef.Task: task "ping" of Dag "etl": `+
+					"airflow.TaskSpec.PriorityWeight is %d; Airflow takes a priority weight "+
+					"only from -2147483648 to 2147483647", weight),
+				func() { Dag("etl").Task(ping, TaskSpec{PriorityWeight: ptr(int(weight))}) },
+			)
 		})
 	}
+}
+
+func TestTaskAcceptsAPriorityWeightAtTheInt32Bounds(t *testing.T) {
+	dag := Dag("etl")
+	assert.NotPanics(t, func() {
+		dag.Task(ping, TaskSpec{TaskID: "max", PriorityWeight: ptr(math.MaxInt32)})
+		dag.Task(ping, TaskSpec{TaskID: "min", PriorityWeight: ptr(math.MinInt32)})
+	})
 }
 
 func TestSerializeWritesTimesAndDurationsToTheMicrosecond(t *testing.T) {

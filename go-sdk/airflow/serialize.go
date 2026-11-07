@@ -356,6 +356,20 @@ func checkTime(field string, t time.Time) error {
 	return nil
 }
 
+// checkPriorityWeight returns an error for a weight that the 32-bit priority_weight column of
+// task_instance cannot hold. Python's BaseOperator caps such a weight instead. A nil weight passes,
+// because it means that the field is unset.
+func checkPriorityWeight(weight *int) error {
+	if weight != nil && (*weight < math.MinInt32 || *weight > math.MaxInt32) {
+		return fmt.Errorf(
+			"airflow.TaskSpec.PriorityWeight is %d; Airflow takes a priority weight only "+
+				"from %d to %d",
+			*weight, math.MinInt32, math.MaxInt32,
+		)
+	}
+	return nil
+}
+
 // encodeDuration returns d as Python's serializer writes a timedelta: a number of seconds, to the
 // microsecond. A Python timedelta holds nothing finer than a microsecond.
 func encodeDuration(d time.Duration) float64 { return float64(d.Microseconds()) / 1e6 }
@@ -442,12 +456,6 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 	// The worker picks a runtime by queue, so a task from TriggerDagRun takes the queue of the Dag too.
 	if spec.Queue == "" {
 		spec.Queue = d.spec.Queue
-	}
-	// Python's BaseOperator caps priority_weight to a 32-bit integer, the range of the priority_weight
-	// column of task_instance.
-	if spec.PriorityWeight != nil {
-		capped := min(max(*spec.PriorityWeight, math.MinInt32), math.MaxInt32)
-		spec.PriorityWeight = &capped
 	}
 	writeSpecFields(data, spec, taskSpecRules)
 	if len(task.downstreams) > 0 {
