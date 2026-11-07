@@ -69,6 +69,7 @@ def trigger():
 def sensor_trigger():
     return HttpSensorTrigger(
         http_conn_id=TEST_CONN_ID,
+        auth_type=TEST_AUTH_TYPE,
         endpoint=TEST_ENDPOINT,
         method=TEST_METHOD,
         headers=TEST_HEADERS,
@@ -205,6 +206,7 @@ class TestHttpSensorTrigger:
         assert classpath == "airflow.providers.http.triggers.http.HttpSensorTrigger"
         assert kwargs == {
             "http_conn_id": TEST_CONN_ID,
+            "auth_type": TEST_AUTH_TYPE,
             "endpoint": TEST_ENDPOINT,
             "method": TEST_METHOD,
             "headers": TEST_HEADERS,
