@@ -24,29 +24,29 @@ import argparse
 import ast
 import datetime
 import inspect
+import json
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
-from functools import partial
+from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, NamedTuple
 
 import httpx
 import rich
+from pydantic import BaseModel, ValidationError
+from rich.markup import escape
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
-from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
+from airflowctl.ctl.utils.validation import split_validation_errors
 from airflowctl.ctl.utils.yaml import safe_load
-from airflowctl.exceptions import (
-    AirflowCtlConnectionException,
-    AirflowCtlCredentialNotFoundException,
-    AirflowCtlKeyringException,
-    AirflowCtlNotFoundException,
-)
+from airflowctl.exceptions import AirflowCtlException
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -65,6 +65,24 @@ def lazy_load_command(import_path: str) -> Callable:
     return command
 
 
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
+    """Warn that a failed write is not retried because the server may already have applied it."""
+    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+        return
+    if isinstance(error, (httpx.ConnectTimeout, httpx.PoolTimeout)):
+        return
+    method = _request_method(error)
+    if method in _WRITE_METHODS:
+        rich.print(
+            f"[yellow]The {method} request failed, but it may already have been applied on the server. "
+            "Check the server state before retrying.[/yellow]",
+            file=sys.stderr,
+        )
+
+
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
         rich.print(
@@ -75,44 +93,77 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 
     try:
         function(args)
-    except (
-        AirflowCtlCredentialNotFoundException,
-        AirflowCtlConnectionException,
-        AirflowCtlKeyringException,
-        AirflowCtlNotFoundException,
-    ) as e:
-        rich.print(f"command failed due to {e}")
+    except AirflowCtlException as e:
+        # The base class, so a new AirflowCtl error never regresses to a raw traceback.
+        rich.print(f"command failed due to {escape(str(e))}", file=sys.stderr)
         sys.exit(1)
-    except (httpx.RemoteProtocolError, httpx.ReadError) as e:
-        rich.print(f"[red]Remote protocol error: {e}[/red]")
+    except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as e:
+        rich.print(f"[red]Remote protocol error: {escape(str(e))}[/red]", file=sys.stderr)
         if "Server disconnected without sending a response." in str(e):
             rich.print(
-                f"[red]Server response error: {e}. "
-                "Please check if the server is running and the API URL is correct.[/red]"
+                f"[red]Server response error: {escape(str(e))}. "
+                "Please check if the server is running and the API URL is correct.[/red]",
+                file=sys.stderr,
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
-    except httpx.ReadTimeout as e:
-        rich.print(f"[red]Read timeout error: {e}[/red]")
+    except httpx.TimeoutException as e:
+        rich.print(f"[red]Request timeout error: {escape(str(e))}[/red]", file=sys.stderr)
         if "timed out" in str(e):
-            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+            rich.print(
+                "[red]Please check if the server is running and the API ready to accept calls.[/red]",
+                file=sys.stderr,
+            )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
-        rich.print(f"Server response error: {e}")
+        rich.print(f"Server response error: {escape(str(e))}", file=sys.stderr)
         if "Client error message:" in str(e):
             rich.print(
                 "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
-                "If you need help, run the command with --help."
+                "If you need help, run the command with --help.",
+                file=sys.stderr,
             )
+        _warn_if_write_may_have_applied(e)
+        sys.exit(1)
+    # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
+    # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
+    # as the bare httpx error.
+    except httpx.HTTPStatusError as e:
+        rich.print(f"[red]Server response error: {escape(str(e))}[/red]", file=sys.stderr)
+        if e.response.is_redirect:
+            rich.print(
+                "[red]The server answered with a redirect, which airflowctl does not follow. "
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]",
+                file=sys.stderr,
+            )
+        _warn_if_write_may_have_applied(e)
+        sys.exit(1)
+    except ValidationError as e:
+        errors = e.errors()
+        first: dict[str, Any] = dict(errors[0]) if errors else {}
+        title = escape(e.title)
+        location = escape(".".join(str(part) for part in first.get("loc", ())) or "<root>")
+        detail = f"{title} (invalid '{location}': {escape(first.get('msg', ''))})"
+        if first.get("type") == "json_invalid":
+            message = (
+                f"Server returned a non-JSON response for {title}; "
+                "check that the API URL points at the Airflow API server."
+            )
+        elif e.title.endswith("Body"):
+            message = f"Input did not match the airflowctl model {detail}."
+        else:
+            message = (
+                f"Response did not match the airflowctl model {detail}. "
+                "If the server is newer than this client, try upgrading airflowctl."
+            )
+        rich.print(f"[red]{message}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
-
-    def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command."""
-        super()._check_value(action, value)
 
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
@@ -188,11 +239,44 @@ def string_list_type(val):
     return [x.strip() for x in val.split(",")]
 
 
-def string_lower_type(val):
-    """Lower arg."""
-    if not val:
-        return
-    return val.strip().lower()
+def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
+    """Parse JSON object argument."""
+    if isinstance(val, dict):
+        return val
+    try:
+        parsed = json.loads(val)
+    except json.JSONDecodeError as e:
+        raise argparse.ArgumentTypeError(f"invalid JSON object: {val!r}") from e
+    if not isinstance(parsed, dict):
+        raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
+    return parsed
+
+
+def is_iso_datetime_type(val: str | datetime.datetime) -> datetime.datetime:
+    """Parse an ISO-8601 datetime argument."""
+    if isinstance(val, datetime.datetime):
+        return val
+    try:
+        if val.endswith("Z"):
+            val = val[:-1] + "+00:00"
+        return datetime.datetime.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"invalid datetime value: {val!r}") from e
+
+
+def is_iso_date_type(val: str | datetime.date) -> datetime.date:
+    """
+    Parse an ISO-8601 date string into a datetime.date.
+
+    Used as the argparse ``type=`` callable for datetime.date-typed CLI
+    parameters, mirroring is_iso_datetime_type() above.
+    """
+    if isinstance(val, datetime.date):
+        return val
+    try:
+        return datetime.date.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"Invalid ISO-8601 date: {val!r}") from e
 
 
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
@@ -221,13 +305,14 @@ ARG_OUTPUT = Arg(
     type=str,
 )
 
+
 # Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
     type=str,
-    default="http://localhost:8080",
+    default=None,
     dest="api_url",
-    help="The URL of the metadata database API",
+    help="The URL of the Airflow API server",
 )
 ARG_AUTH_TOKEN = Arg(
     flags=("--api-token",),
@@ -265,7 +350,31 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The Dag ID of the Dag to pause or unpause",
+    help="The Dag ID",
+)
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+)
+
+# Task Commands Args
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -279,27 +388,27 @@ ARG_ACTION_ON_EXISTING_KEY = Arg(
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
-    type=str,
+    type=string_list_type,
     dest="section",
-    help="The section of the configuration",
+    help="The section name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_OPTION = Arg(
     flags=("--option",),
-    type=str,
+    type=string_list_type,
     dest="option",
-    help="The option of the configuration",
+    help="The option name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_IGNORE_SECTION = Arg(
     flags=("--ignore-section",),
-    type=str,
+    type=string_list_type,
     dest="ignore_section",
-    help="The configuration section being ignored",
+    help="The configuration section name(s) being ignored, comma separated",
 )
 ARG_CONFIG_IGNORE_OPTION = Arg(
     flags=("--ignore-option",),
-    type=str,
+    type=string_list_type,
     dest="ignore_option",
-    help="The configuration option being ignored",
+    help="The configuration option name(s) being ignored, comma separated",
 )
 ARG_CONFIG_VERBOSE = Arg(
     flags=(
@@ -376,7 +485,7 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    output_command_list: list[str]
+    auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
     exclude_method_names: list[str]
     help_texts: dict[str, dict[str, str]]
@@ -393,8 +502,21 @@ class CommandFactory:
         # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
-        # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.auth_environment_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
+        # Datamodels whose generated bool flags follow the datamodel field defaults instead of
+        # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
+        # must keep ``dry_run=True`` and preview instead of clearing).
+        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -431,6 +553,14 @@ class CommandFactory:
             defaults_count = len(node.args.defaults)
             required_count = len(positional_args) - defaults_count
             required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+            # Parameters whose signature default carries real meaning (e.g. ``limit: int = 100``).
+            # ``argparse`` fills an omitted flag with ``None``, so these have to be dropped from
+            # the call instead of being forwarded, or the method never sees its own default.
+            non_none_default_param_names: set[str] = {
+                arg.arg
+                for arg, default in zip(positional_args[required_count:], node.args.defaults)
+                if not (isinstance(default, ast.Constant) and default.value is None)
+            }
 
             for arg in positional_args:
                 arg_name = arg.arg
@@ -446,6 +576,7 @@ class CommandFactory:
                 "name": func_name,
                 "parameters": args,
                 "required_param_names": required_param_names,
+                "non_none_default_param_names": non_none_default_param_names,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -510,12 +641,13 @@ class CommandFactory:
             "bool": bool,
             "str": str,
             "bytes": bytes,
-            "list": list,
-            "dict": dict,
+            "list": string_list_type,
+            "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
-            "datetime.datetime": datetime.datetime,
-            "dict[str, typing.Any]": dict,
+            "datetime.date": is_iso_date_type,
+            "datetime.datetime": is_iso_datetime_type,
+            "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
@@ -531,6 +663,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -539,6 +672,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=True if arg_required else _UNSET,
         )
 
     @staticmethod
@@ -561,6 +695,19 @@ class CommandFactory:
             help=arg_help,
         )
 
+    @staticmethod
+    def _allows_none(annotation: Any) -> bool:
+        """Return True if the annotation accepts None, e.g. ``str | None``."""
+        return type(None) in typing.get_args(annotation)
+
+    def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
+        """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
+        if parameter_type in self.field_bool_default_datamodels and (
+            field_default is None or isinstance(field_default, bool)
+        ):
+            return field_default
+        return False
+
     def _create_arg_for_non_primitive_type(
         self,
         parameter_type: str,
@@ -576,30 +723,31 @@ class CommandFactory:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                    )
-                )
+                annotation = field_type.annotation
             else:
                 try:
                     annotation = field_type.annotation.__args__[0]
                 except AttributeError:
                     annotation = field_type.annotation
 
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
-                    )
+            commands.append(
+                self._create_arg(
+                    arg_flags=(f"--{self._sanitize_arg_parameter_key(field)}",),
+                    arg_type=self._python_type_from_string(annotation),
+                    arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                    arg_help=f"{field} for {parameter_key} operation",
+                    arg_default=(
+                        self._get_bool_arg_default(parameter_type, field_type.default)
+                        if annotation is bool
+                        else None
+                    ),
+                    arg_required=(
+                        field_type.is_required()  # no default?
+                        and annotation is not bool  # not a bool flag
+                        and not self._allows_none(field_type.annotation)  # None not acceptable
+                    ),
                 )
+            )
         return commands
 
     def _create_args_map_from_operation(self):
@@ -651,8 +799,9 @@ class CommandFactory:
                             )
                         )
 
-            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
+            args.append(ARG_OUTPUT)
+            if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
+                args.append(ARG_AUTH_ENVIRONMENT)
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
@@ -679,7 +828,40 @@ class CommandFactory:
         ):
             params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
 
+        # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
+        # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
+        if datamodel.__name__ == "ClearTaskInstancesBody" and isinstance(params.get("task_ids"), str):
+            raw_task_ids = params["task_ids"]
+            if raw_task_ids.lstrip().startswith("["):
+                try:
+                    params["task_ids"] = json.loads(raw_task_ids)
+                except json.JSONDecodeError as e:
+                    raise SystemExit(f"Invalid JSON list for --task-ids {raw_task_ids!r}: {e}")
+            else:
+                params["task_ids"] = [
+                    task_id.strip() for task_id in raw_task_ids.split(",") if task_id.strip()
+                ]
+
         return params
+
+    def _validate_datamodel(self, datamodel: type[BaseModel], params: dict) -> Any:
+        """
+        Validate CLI input against ``datamodel`` and exit with a readable message when it is invalid.
+
+        Optional CLI flags default to ``None``, so a required datamodel field the user did not pass
+        reaches pydantic as ``None``. Report those as missing flags instead of a raw traceback.
+        """
+        try:
+            return datamodel.model_validate(params)
+        except ValidationError as e:
+            missing, invalid = split_validation_errors(
+                datamodel, e, lambda field: f"--{self._sanitize_arg_parameter_key(field)}"
+            )
+            messages = []
+            if missing:
+                messages.append(f"the following arguments are required: {', '.join(missing)}")
+            messages.extend(invalid)
+            raise SystemExit("Invalid arguments: " + "; ".join(messages))
 
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
@@ -698,12 +880,14 @@ class CommandFactory:
             datamodel = None
             datamodel_param_name = None
             args_dict = vars(args)
+            non_none_default_param_names = api_operation.get("non_none_default_param_names") or set()
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
-                            parameter_key
-                        ]
+                        value = args_dict[parameter_key]
+                        if value is None and parameter_key in non_none_default_param_names:
+                            continue
+                        method_params[self._sanitize_method_param_key(parameter_key)] = value
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
@@ -723,11 +907,11 @@ class CommandFactory:
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
                         datamodel, method_params[datamodel_param_name]
                     )
-                    method_params[datamodel_param_name] = datamodel.model_validate(
-                        method_params[datamodel_param_name]
+                    method_params[datamodel_param_name] = self._validate_datamodel(
+                        datamodel, method_params[datamodel_param_name]
                     )
                 else:
-                    method_params = datamodel.model_validate(method_params)
+                    method_params = self._validate_datamodel(datamodel, method_params)
                 method_output = operation_method_object(**method_params)
             else:
                 method_output = operation_method_object(**method_params)
@@ -739,9 +923,12 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
-            def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
+            def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
                 """Check if the object is a nested dictionary and collect list of dictionaries."""
 
                 def is_dict_nested(obj: dict) -> bool:
@@ -764,16 +951,25 @@ class CommandFactory:
                 # If dict_obj only have single key return value instead of list
                 # This can happen since we are excluding some keys from user such as total_entries from list operations
                 if len(dict_obj) == 1:
-                    return dict_obj[next(iter(dict_obj.keys()))]
+                    key, value = next(iter(dict_obj.items()))
+                    # Printed rows must be records, so plain values such as Dag tags get one row each.
+                    if top_level and isinstance(value, list) and not is_data_sequence(value):
+                        return [{key: item} for item in value]
+                    return value
                 # If not nested, return the object as a list which the result should be already a dict
                 return [dict_obj]
 
             AirflowConsole().print_as(
                 data=check_operation_and_collect_list_of_dict(
-                    convert_to_dict(method_output, api_operation["name"])
+                    dict_obj=convert_to_dict(method_output, api_operation["name"]), top_level=True
                 ),
                 output=args.output,
             )
+            if (
+                isinstance(method_output, generated_datamodels.ConnectionTestResponse)
+                and not method_output.status
+            ):
+                raise SystemExit(1)
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
@@ -808,9 +1004,15 @@ class CommandFactory:
                 )
             )
 
-    @property
+    @cached_property
     def group_commands(self) -> list[CLICommand]:
-        """List of GroupCommands generated for airflowctl."""
+        """
+        List of GroupCommands generated for airflowctl.
+
+        Cached because the builders below append to ``self.operations`` /
+        ``self.commands_map`` / ``self.group_commands_list``: recomputing would
+        duplicate every group and subcommand instead of replacing them.
+        """
         self._inspect_operations()
         self._create_args_map_from_operation()
         self._create_func_map_from_operation()
@@ -896,8 +1098,12 @@ command_factory = CommandFactory()
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
-        help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
-        description="Login to the metadata database",
+        help="Log in to the Airflow API server with an API token or a username and password",
+        description=(
+            "Log in to the Airflow API server and store the credentials for the selected environment. "
+            "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
+            "missing credentials are prompted for when running in a terminal."
+        ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
             ARG_AUTH_URL,
@@ -919,7 +1125,9 @@ AUTH_COMMANDS = (
         help="Generate and print a JWT token for the given credentials",
         description=(
             "Authenticate with username and password and print the access token to stdout. "
-            "Username and password are prompted interactively if not provided."
+            "Username and password are prompted interactively if not provided. "
+            "In non-interactive runs, pass --username and either pass --password "
+            "or pipe the password on stdin."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.get_token"),
         args=(
@@ -978,6 +1186,16 @@ DAG_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="state",
+        help="Get the status of a Dag run",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+        ),
+    ),
+    ActionCommand(
         name="unpause",
         help="Unpause a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.unpause"),
@@ -1001,6 +1219,24 @@ POOL_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
         args=(
             ARG_FILE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
+TASK_COMMANDS = (
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the status of all task instances in a Dag run",
+        description=(
+            "Get the status of all task instances in a Dag run. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
             ARG_OUTPUT,
         ),
     ),
@@ -1041,6 +1277,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",

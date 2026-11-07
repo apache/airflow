@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 
 
@@ -78,12 +80,15 @@ TEST_COMMANDS = [
     "dags get example_bash_operator",
     "dags get-details example_bash_operator",
     "dags get-stats example_bash_operator",
+    "dags get-tags",
     "dags get-version example_bash_operator 1",
     "dags list-import-errors",
     "dags list-version example_bash_operator",
     "dags list-warning",
-    # Order of trigger and pause/unpause is important for test stability because state checked
+    # Order of trigger, state, and pause/unpause is important for test stability
     "dags trigger example_bash_operator --logical-date={date_param} --run-after={date_param}",
+    'dags state example_bash_operator "manual__{date_param}"',
+    'dags state example_bash_operator --logical-date "{date_param}"',
     # Test trigger without logical-date (should default to now)
     "dags trigger example_bash_operator",
     "dags next-execution example_bash_operator",
@@ -94,12 +99,20 @@ TEST_COMMANDS = [
     "dags update example_bash_operator --no-is-paused",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
+    # Tasks commands
+    'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
+    'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
+    'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
+    # Task Instances commands
+    'taskinstances list example_bash_operator "manual__{date_param}"',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
     'xcom list example_bash_operator "manual__{date_param}" runme_0',
     'xcom edit example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"updated": "value"}}\'',
     'xcom delete example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
+    # Delete Dag run command - needs to run after xcom ops
+    'dagrun delete example_bash_operator "manual__{date_param}"',
     # Jobs commands
     "jobs list",
     # Pools commands
@@ -129,6 +142,7 @@ TEST_COMMANDS = [
     "plugins list-import-errors",
 ]
 
+
 NO_AUTH_TEST_COMMANDS = [
     "version --remote",
 ]
@@ -145,6 +159,10 @@ TEST_COMMANDS_DEBUG_MODE = [LOGIN_COMMAND] + [
 TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
     test.format(date_param=DATE_PARAM_2, xcom_key=_XCOM_KEY_2) for test in TEST_COMMANDS
 ]
+
+
+def _command_id(command: str) -> str:
+    return " ".join(command.split(" ", 2)[:2])
 
 
 def test_hardcoded_xcom_key_would_collide():
@@ -171,7 +189,7 @@ def test_hardcoded_xcom_key_would_collide():
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_DEBUG_MODE,
-    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_DEBUG_MODE],
+    ids=[_command_id(command) for command in TEST_COMMANDS_DEBUG_MODE],
 )
 def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
@@ -181,7 +199,7 @@ def test_airflowctl_commands(command: str, run_command):
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_SKIP_KEYRING,
-    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_SKIP_KEYRING],
+    ids=[_command_id(command) for command in TEST_COMMANDS_SKIP_KEYRING],
 )
 def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
     """Test airflowctl commands using docker-compose environment without using keyring."""
@@ -194,6 +212,21 @@ def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_comm
         },
         skip_login=True,
     )
+
+
+def test_backfill_create_dry_run_lists_the_runs_it_would_create(api_token, run_command, tmp_path):
+    # 2024 stays clear of the runs triggered above, which a dry run would leave out.
+    output = run_command(
+        command="backfill create-dry-run --dag-id example_bash_operator "
+        "--from-date 2024-01-01T00:00:00+00:00 --to-date 2024-01-03T00:00:00+00:00 -o json",
+        env_vars={"AIRFLOW_HOME": str(tmp_path), "AIRFLOW_CLI_TOKEN": api_token},
+        skip_login=True,
+    )
+    assert [row["logical_date"] for row in json.loads(output.splitlines()[-1])] == [
+        "2024-01-01T00:00:00Z",
+        "2024-01-02T00:00:00Z",
+        "2024-01-03T00:00:00Z",
+    ]
 
 
 @pytest.mark.parametrize("command", NO_AUTH_TEST_COMMANDS)

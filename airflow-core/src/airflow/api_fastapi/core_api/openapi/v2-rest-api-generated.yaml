@@ -9242,6 +9242,7 @@ components:
           default: none
         max_active_runs:
           type: integer
+          minimum: 1.0
           title: Max Active Runs
           default: 10
         run_on_latest_version:
@@ -9923,7 +9924,6 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
-      additionalProperties: false
       type: object
       required:
       - sections
@@ -9944,7 +9944,6 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
-      additionalProperties: false
       type: object
       required:
       - key
@@ -9961,7 +9960,6 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
-      additionalProperties: false
       type: object
       required:
       - name
@@ -10201,7 +10199,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -10489,7 +10489,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -11110,7 +11112,6 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
-      additionalProperties: false
       type: object
       required:
       - run_id
@@ -11159,6 +11160,7 @@ components:
       - backfill
       - scheduled
       - manual
+      - operator_triggered
       - asset_triggered
       - asset_materialization
       title: DagRunType
@@ -11176,7 +11178,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -12535,7 +12536,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -12918,6 +12918,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -13149,7 +13150,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -13547,7 +13547,9 @@ components:
           type: string
           title: Key
         value:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
         description:
           anyOf:
@@ -13565,7 +13567,6 @@ components:
       type: object
       required:
       - key
-      - value
       - description
       - is_encrypted
       - team_name

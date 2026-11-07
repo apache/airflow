@@ -21,6 +21,9 @@ import os
 import sys
 
 import rich
+from pydantic import ValidationError
+from rich.console import Console
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -29,23 +32,29 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionVariableBody,
     VariableBody,
 )
+from airflowctl.ctl.utils.validation import split_validation_errors
+
+
+def _print_file_error(message: str, file_path: str) -> None:
+    Console().print(f"[red]{message}: {escape(file_path)}[/red]", soft_wrap=True)
 
 
 @provide_api_client(kind=ClientKind.CLI)
 def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     """Import variables from a given file."""
-    success_message = "[green]Import successful! success: {success}[/green]"
-    errors_message = "[red]Import failed! errors: {errors}[/red]"
-
     if not os.path.exists(args.file):
-        rich.print(f"[red]Missing variable file: {args.file}")
+        _print_file_error("Missing variable file", args.file)
         sys.exit(1)
     with open(args.file) as var_file:
         try:
             var_json = json.load(var_file)
         except json.JSONDecodeError:
-            rich.print(f"[red]Invalid variable file: {args.file}")
+            _print_file_error("Invalid variable file", args.file)
             sys.exit(1)
+
+    if not isinstance(var_json, dict):
+        _print_file_error("Invalid variable file", args.file)
+        sys.exit(1)
 
     action_on_existence = BulkActionOnExistence(args.action_on_existing_key)
     vars_to_update = []
@@ -54,13 +63,15 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
         if isinstance(v, dict) and "value" in v:
             value, description = v["value"], v.get("description")
 
-        vars_to_update.append(
-            VariableBody(
-                key=k,
-                value=value,
-                description=description,
+        try:
+            vars_to_update.append(VariableBody(key=k, value=value, description=description))
+        except ValidationError as e:
+            _, invalid = split_validation_errors(VariableBody, e, str)
+            Console().print(
+                f"[red]Invalid variable {escape(repr(k))} in {escape(args.file)}: {escape('; '.join(invalid))}",
+                soft_wrap=True,
             )
-        )
+            sys.exit(1)
 
     bulk_body = BulkBodyVariableBody(
         actions=[
@@ -73,8 +84,8 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     )
     result = api_client.variables.bulk(variables=bulk_body)
     if result.create.errors:
-        rich.print(errors_message.format(errors=result.create.errors))
+        rich.print(f"[red]Import failed! errors: {escape(str(result.create.errors))}[/red]")
         sys.exit(1)
 
-    rich.print(success_message.format(success=result.create.success))
+    rich.print(f"[green]Import successful! success: {escape(str(result.create.success))}[/green]")
     return result.create.success

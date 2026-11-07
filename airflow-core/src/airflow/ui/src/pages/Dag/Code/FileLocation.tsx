@@ -21,15 +21,21 @@ import { Box, Code, HStack } from "@chakra-ui/react";
 import { ClipboardIconButton, ClipboardRoot, Tooltip } from "src/components/ui";
 
 type FileLocationProps = {
-  readonly fileloc: string;
+  readonly fileloc: string | null;
   readonly relativeFileloc: string | null;
 };
 
 export const FileLocation = ({ fileloc, relativeFileloc }: FileLocationProps) => {
+  // A Dag with run history but no parsed source file has no fileloc to show.
+  if ((fileloc === null || fileloc === "") && (relativeFileloc === null || relativeFileloc === "")) {
+    return undefined;
+  }
+
+  const fullPath = fileloc ?? relativeFileloc ?? "";
   const displayFilename =
     relativeFileloc !== null && relativeFileloc !== ""
       ? relativeFileloc
-      : (fileloc.split("/").at(-1) ?? fileloc);
+      : (fileloc?.split("/").at(-1) ?? fileloc ?? "");
 
   return (
     <Box
@@ -41,12 +47,12 @@ export const FileLocation = ({ fileloc, relativeFileloc }: FileLocationProps) =>
       py={1}
     >
       <HStack gap={2}>
-        <Tooltip closeDelay={100} content={fileloc} openDelay={100}>
+        <Tooltip closeDelay={100} content={fullPath} openDelay={100}>
           <Code fontSize="13px" wordBreak="break-word">
             {displayFilename}
           </Code>
         </Tooltip>
-        <ClipboardRoot value={fileloc}>
+        <ClipboardRoot value={fullPath}>
           <ClipboardIconButton size="2xs" />
         </ClipboardRoot>
       </HStack>

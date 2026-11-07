@@ -536,7 +536,7 @@ export type DAGDetailsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -615,7 +615,7 @@ export type DAGResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -817,7 +817,7 @@ export type DagRunTriggeredByType = 'cli' | 'operator' | 'rest_api' | 'ui' | 'te
 /**
  * Class with DagRun types.
  */
-export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'asset_triggered' | 'asset_materialization';
+export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'operator_triggered' | 'asset_triggered' | 'asset_materialization';
 
 /**
  * Dag schedule reference serializer for assets.
@@ -1468,7 +1468,7 @@ export type TaskInstanceResponse = {
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
  */
-export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred';
+export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred' | 'awaiting_input';
 
 /**
  * Task Instance body for get batch.
@@ -1653,7 +1653,7 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
     key: string;
-    value: string;
+    value?: string | null;
     description: string | null;
     is_encrypted: boolean;
     team_name: string | null;
@@ -1897,7 +1897,7 @@ export type DAGWithLatestDagRunsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
