@@ -77,7 +77,8 @@ Structured Output
 
 Set ``output_type`` to a Pydantic ``BaseModel`` when you want a typed response
 back from the LLM instead of a plain string. The model instance is pushed to
-XCom unchanged so downstream tasks can type-hint the class directly. The
+XCom unchanged so downstream tasks can type-hint the class directly. Inside a
+list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead. The
 declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for deserialization by the
 worker when it loads the Dag. Define the class at **module scope** and bind it to
@@ -157,11 +158,15 @@ Parameters
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
-- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
-  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
-  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
-  downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with ``model_dump()``
+  before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their types. A model inside a
+  list, tuple, set or dict is left for the XCom serializer when the worker registers its class. A
+  model whose class the worker cannot register from ``output_type`` (for example ``[MyModel, int]``,
+  an output marker or function, a ``TypeAliasType`` or a ``NewType``) is dumped to JSON-compatible
+  values with ``pydantic_core.to_jsonable_python``, using field names rather than aliases: as the
+  output itself when this is ``False``, and always when it is inside a list, tuple, set or dict (the
+  whole output is dumped then). Default ``False`` -- a registered Pydantic instance flows through
+  XCom unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
 
 ``decision_policy`` is not supported here: the operator runs its own ``execute``
 without the confidence gate and rejects a policy with a bar at construction.

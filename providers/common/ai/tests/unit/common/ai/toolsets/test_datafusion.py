@@ -107,6 +107,86 @@ class TestDataFusionToolsetGetTools:
             assert tool.tool_def.description
 
 
+class TestDataFusionToolsetToolPrefix:
+    def test_prefix_is_joined_to_every_tool_name_with_an_underscore(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        assert set(tools.keys()) == {"lake_list_tables", "lake_get_schema", "lake_query"}
+        assert all(name == tool.tool_def.name for name, tool in tools.items())
+
+    def test_prefix_is_part_of_the_toolset_id(self):
+        ts = DataFusionToolset([_make_mock_datasource_config("orders")], tool_prefix="lake")
+        assert ts.id == "sql_datafusion_orders_lake"
+
+    @pytest.mark.parametrize("tool_prefix", ["my-lake", "1abc", "has space"])
+    def test_prefix_must_be_identifier(self, tool_prefix):
+        with pytest.raises(ValueError, match="tool_prefix must be a valid Python identifier"):
+            DataFusionToolset([_make_mock_datasource_config()], tool_prefix=tool_prefix)
+
+    def test_prefixed_tool_dispatches_to_the_unprefixed_implementation(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake")
+        ts._engine = _make_mock_engine(registered_tables={"sales": "s3://bucket/sales/"})
+
+        result = asyncio.run(
+            ts.call_tool(
+                "lake_list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool)
+            )
+        )
+
+        assert json.loads(result) == ["sales"]
+
+
+class TestDataFusionToolsetNameConflictHint:
+    def test_hint_points_to_tool_prefix(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        assert "tool_prefix" in ts.tool_name_conflict_hint
+
+
+class TestDataFusionToolsetToolPrefixModelFacingText:
+    def test_get_schema_description_names_the_prefixed_tool(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        assert "Call lake_get_schema again" in tools["lake_get_schema"].tool_def.description
+
+    def test_get_schema_hint_names_the_prefixed_tool(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake", max_columns=2)
+        ts._engine = _make_mock_engine(
+            registered_tables={"sales": "s3://bucket/sales/"},
+            schema_fields=[(f"c{i}", "Int64") for i in range(5)],
+        )
+
+        result = asyncio.run(
+            ts.call_tool(
+                "lake_get_schema",
+                {"table_name": "sales"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+
+        assert "Call lake_get_schema with a name_contains substring" in json.loads(result)["hint"]
+
+    def test_query_retry_names_the_prefixed_tools(self, tmp_path: Path):
+        csv_path = tmp_path / "trips.csv"
+        csv_path.write_text("pickup_date,id\n2024-01-01,1\n")
+        ts = DataFusionToolset(
+            [DataSourceConfig(conn_id="", table_name="trips", uri=f"file://{csv_path}", format="csv")],
+            tool_prefix="lake",
+        )
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "lake_query",
+                    {"sql": "SELECT name FROM trips"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
+
+        assert "Use lake_get_schema and lake_list_tables tools" in exc_info.value.message
+
+
 class TestDataFusionToolsetArgsValidation:
     @pytest.mark.parametrize(
         ("tool_name", "valid_args"),

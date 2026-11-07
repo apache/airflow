@@ -185,14 +185,14 @@ class ObjectStorageToolset(AirflowToolset):
         suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
         return f"object-storage-{self._conn_id or 'default'}{suffix}"
 
-    def _tool_name(self, base: str) -> str:
+    def _build_tool_name(self, base: str) -> str:
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for base, schema in _SCHEMAS.items():
-            name = self._tool_name(base)
+            name = self._build_tool_name(base)
             tools[name] = ToolsetTool(
                 toolset=self,
                 tool_def=ToolDefinition(

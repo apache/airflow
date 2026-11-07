@@ -39,8 +39,8 @@ from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
-    GET_SCHEMA_TOOL_DESCRIPTION as _GET_SCHEMA_DESCRIPTION,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
+    build_get_schema_description,
     build_query_result,
     build_schema_result,
 )
@@ -137,10 +137,20 @@ class DataFusionToolset(AirflowToolset):
         the full list is replaced by a bounded summary (column count, a type histogram, a
         sample of columns) that points the agent at the ``name_contains`` filter, so a
         several-thousand-column table cannot exhaust the context before a query is written.
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"lake"`` produces ``"lake_query"``). Must be a valid Python identifier. Set it
+        when one agent has another toolset with the same tool names, such as a ``SQLToolset``,
+        since duplicate tool names are rejected.
     :param max_retries: How many times the model may correct a failed call to one of these
         tools before the run fails. ``None`` (the default) uses the agent's tool retry
         budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
+
+    tool_name_conflict_hint: str = (
+        "Pass a distinct `tool_prefix=...` to this toolset so its tool names and "
+        "model-facing hints are renamed together; wrapping it in `PrefixedToolset` "
+        "renames only the tools."
+    )
 
     def __init__(
         self,
@@ -150,9 +160,15 @@ class DataFusionToolset(AirflowToolset):
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
         max_columns: int = DEFAULT_MAX_COLUMNS,
+        tool_prefix: str = "",
         max_retries: int | None = None,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
+        if tool_prefix and not tool_prefix.isidentifier():
+            # The prefixed names are rendered as Python function signatures under
+            # code mode, so a name that is not an identifier breaks there.
+            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        self._tool_prefix = tool_prefix
         if not datasource_configs:
             raise ValueError("datasource_configs must contain at least one DataSourceConfig")
         self._datasource_configs = datasource_configs
@@ -165,7 +181,11 @@ class DataFusionToolset(AirflowToolset):
     @property
     def id(self) -> str:
         suffix = "_".join(config.table_name.replace("-", "_") for config in self._datasource_configs)
-        return f"sql_datafusion_{suffix}"
+        prefix = f"_{self._tool_prefix}" if self._tool_prefix else ""
+        return f"sql_datafusion_{suffix}{prefix}"
+
+    def _build_tool_name(self, base: str) -> str:
+        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     def _get_engine(self) -> DataFusionEngine:
         """Lazily create and configure a DataFusionEngine from *datasource_configs*."""
@@ -180,11 +200,16 @@ class DataFusionToolset(AirflowToolset):
         max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
-        for name, description, schema in (
+        for base, description, schema in (
             ("list_tables", "List available table names.", _LIST_TABLES_SCHEMA),
-            ("get_schema", _GET_SCHEMA_DESCRIPTION, _GET_SCHEMA_SCHEMA),
+            (
+                "get_schema",
+                build_get_schema_description(tool_name=self._build_tool_name("get_schema")),
+                _GET_SCHEMA_SCHEMA,
+            ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
         ):
+            name = self._build_tool_name(base)
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
@@ -207,13 +232,14 @@ class DataFusionToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name == "list_tables":
+        base = name.removeprefix(f"{self._tool_prefix}_") if self._tool_prefix else name
+        if base == "list_tables":
             return await self.run_blocking(self._list_tables)
-        if name == "get_schema":
+        if base == "get_schema":
             return await self.run_blocking(
                 self._get_schema, tool_args["table_name"], tool_args.get("name_contains")
             )
-        if name == "query":
+        if base == "query":
             return await self.run_blocking(self._query, tool_args["sql"])
         raise ValueError(f"Unknown tool: {name!r}")
 
@@ -245,6 +271,7 @@ class DataFusionToolset(AirflowToolset):
             max_columns=self._max_columns,
             max_result_bytes=self._max_result_bytes,
             name_contains=name_contains,
+            tool_name=self._build_tool_name("get_schema"),
         )
 
     def _query(self, sql: str) -> str:
@@ -277,7 +304,8 @@ class DataFusionToolset(AirflowToolset):
         except QueryExecutionException as ex:
             if self._is_retryable_query_error(ex):
                 raise ModelRetry(
-                    f"error: {ex!s}, Use get_schema and list_tables tools for more details."
+                    f"error: {ex!s}, Use {self._build_tool_name('get_schema')} and "
+                    f"{self._build_tool_name('list_tables')} tools for more details."
                 ) from ex
             return dumps_masked({"error": str(ex), "query": sql})
 
