@@ -5612,9 +5612,13 @@ export class DeadlinesService {
      *
      * This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
      * Dags and Dag runs.
+     *
+     * For a specific run, `include_alerts` also returns its creation-version alert
+     * definitions, independently of the deadline filters and pagination.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
+     * @param data.includeAlerts
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
@@ -5640,6 +5644,7 @@ export class DeadlinesService {
                 dag_run_id: data.dagRunId
             },
             query: {
+                include_alerts: data.includeAlerts,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
@@ -5664,7 +5669,7 @@ export class DeadlinesService {
     
     /**
      * Get Dag Deadline Alerts
-     * Get deadline alerts defined on a Dag, optionally filtered by name pattern.
+     * Get deadline alerts defined on a Dag, optionally filtered by name pattern and version.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.versionNumber

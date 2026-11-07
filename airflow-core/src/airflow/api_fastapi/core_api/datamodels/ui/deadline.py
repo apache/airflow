@@ -26,6 +26,7 @@ from pydantic import AliasPath, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import CallbackState
+from airflow.utils.types import DagRunType
 
 
 class DeadlineResponse(BaseModel):
@@ -48,18 +49,12 @@ class DeadlineResponse(BaseModel):
     callback_path: str | None = Field(validation_alias=AliasPath("callback", "data", "path"), default=None)
 
 
-class DeadlineCollectionResponse(BaseModel):
-    """Deadline Collection serializer for responses."""
-
-    deadlines: list[DeadlineResponse]
-    total_entries: int
-
-
 class DeadlineAlertResponse(BaseModel):
     """DeadlineAlert serializer for responses."""
 
     id: UUID
     name: str | None = None
+    run_type_filter: list[DagRunType] | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
     interval: float | None = Field(
         default=None,
@@ -89,6 +84,17 @@ class DeadlineAlertResponse(BaseModel):
             if isinstance(data, (int, float)):
                 return float(data)
         return None
+
+
+class DeadlineCollectionResponse(BaseModel):
+    """Deadline Collection serializer for responses."""
+
+    deadlines: list[DeadlineResponse]
+    total_entries: int
+    deadline_alerts: list[DeadlineAlertResponse] | None = Field(
+        default=None,
+        exclude_if=lambda alerts: alerts is None,
+    )
 
 
 class DeadlineAlertCollectionResponse(BaseModel):

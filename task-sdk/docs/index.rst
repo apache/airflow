@@ -102,6 +102,7 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.TaskGroup`
 - :class:`airflow.sdk.LoopDecision`
 - :class:`airflow.sdk.TaskInstanceState`
+- :class:`airflow.sdk.DagRunType`
 - :class:`airflow.sdk.DagRunState`
 - :class:`airflow.sdk.WeightRule`
 - :class:`airflow.sdk.Variable`
