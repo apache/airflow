@@ -34,7 +34,7 @@ package org.apache.airflow.sdk
  * shutdown hooks and exits. The JVM handles every signal this way for a task that
  * does not implement this interface. If the SDK can catch neither signal, for
  * example because the JVM runs with `-Xrs`, the SDK fails the task before the
- * task starts.
+ * task starts. Airflow does not retry the task.
  *
  * ```java
  * public class RunReport implements StoppableTask {
