@@ -297,18 +297,24 @@ def get_import_errors(
     import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
         session.execute(import_errors_select), itemgetter(0)
     )
+    errors_with_dag_ids = [
+        (import_error, [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None])
+        for import_error, file_dag_ids_iter in import_errors_result
+    ]
+    # One team lookup for the whole page rather than one per import error.
+    page_dag_ids = list({dag_id for _, dag_ids in errors_with_dag_ids for dag_id in dag_ids})
+    dag_id_to_team = (
+        DagModel.get_dag_id_to_team_name_mapping(page_dag_ids, session=session) if page_dag_ids else {}
+    )
 
     import_errors = []
-    for import_error, file_dag_ids_iter in import_errors_result:
-        dag_ids = [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None]
-
+    for import_error, dag_ids in errors_with_dag_ids:
         # Unauthorized unregistered-file errors were already filtered out above,
         # so anything reaching here may show its raw stacktrace.
         if not dag_ids:
             import_errors.append(import_error)
             continue
 
-        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         # Check if user has read access to all the Dags defined in the file
         requests: Sequence[IsAuthorizedDagRequest] = [
             {

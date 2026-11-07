@@ -877,6 +877,42 @@ class TestGetImportErrors:
             user=mock.ANY,
         )
 
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_team_names_are_resolved_once_per_page(
+        self,
+        mock_get_auth_manager,
+        mock_get_dag_id_to_team_name_mapping,
+        test_client,
+        permitted_dag_model_all,
+    ):
+        mock_get_dag_id_to_team_name_mapping.return_value = {
+            "dag_id1": "team_a",
+            "dag_id2": "team_b",
+            "dag_id3": None,
+        }
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
+            mock_get_auth_manager, True
+        )
+
+        response = test_client.get("/importErrors")
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 3
+        mock_get_dag_id_to_team_name_mapping.assert_called_once()
+        assert sorted(mock_get_dag_id_to_team_name_mapping.call_args.args[0]) == [
+            "dag_id1",
+            "dag_id2",
+            "dag_id3",
+        ]
+        # Each file is still authorized on its own Dags, with their own team.
+        assert sorted(
+            (request["details"].id, request["details"].team_name)
+            for call in mock_batch_is_authorized_dag.call_args_list
+            for request in call.args[0]
+        ) == [("dag_id1", "team_a"), ("dag_id2", "team_b"), ("dag_id3", None)]
+
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_bundle_name_join_condition_for_import_errors(
         self, mock_get_auth_manager, test_client, permitted_dag_model_all, import_errors, session
