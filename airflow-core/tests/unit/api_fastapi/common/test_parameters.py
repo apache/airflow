@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy import Column, MetaData, String, Table, create_engine, literal, select, text
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -487,6 +487,26 @@ class TestPrefixSearchParam:
         assert "dag_id < 'dah'" in sql
         assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
 
+    @pytest.mark.parametrize(
+        ("term", "upper"),
+        [
+            ("münchen", "müncheo"),
+            ("카페a", "카페b"),
+            ("카페", None),
+            ("café", None),
+        ],
+    )
+    def test_to_orm_drops_upper_bound_after_non_ascii_bump(self, term, upper):
+        param = _PrefixSearchParam(DagModel.dag_id).set_value(term)
+        sql = _compile(param.to_orm(select(DagModel)))
+
+        assert f"dag_id >= '{term}'" in sql
+        assert f"substr(dag.dag_id, 1, {len(term)}) = '{term}'" in sql
+        if upper is None:
+            assert "dag_id <" not in sql
+        else:
+            assert f"dag_id < '{upper}'" in sql
+
     def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
         """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
         param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
@@ -554,6 +574,29 @@ class TestPrefixSearchParamOnARealEngine:
     )
     def test_only_values_with_the_prefix_come_back(self, select_names, term, expected):
         assert select_names(term) == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.parametrize(
+    ("term", "value"),
+    [
+        ("카페", "카페매출집계"),
+        ("café", "caféteria"),
+        ("카페a", "카페abc"),
+    ],
+)
+def test_prefix_search_matches_under_locale_collation(session, term, value):
+    if session.get_bind().dialect.name == "mysql":
+        collation = "utf8mb4_unicode_ci"
+    elif session.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'en_US.utf8')")):
+        collation = "en_US.utf8"
+    else:
+        pytest.skip("Requires the PostgreSQL en_US.utf8 collation")
+    column = literal(value, type_=String()).collate(collation)
+    param = _PrefixSearchParam(column).set_value(term)
+
+    assert session.scalars(param.to_orm(select(column))).all() == [value]
 
 
 class TestTaskDisplayNamePrefixPatternParam:
