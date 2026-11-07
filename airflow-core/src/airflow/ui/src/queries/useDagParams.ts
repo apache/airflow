@@ -30,11 +30,13 @@ export type ParamSpec = {
   value: unknown;
 };
 
+export type ParamValue = Array<ParamValue> | boolean | number | string | { [key: string]: ParamValue } | null;
+
 export type ParamSchema = {
   // TODO define the structure on API as generated code
   const: string | undefined;
   description_md: string | undefined;
-  enum: Array<boolean | number | string | null> | undefined;
+  enum: Array<ParamValue> | undefined;
   examples: Array<string> | undefined;
   format: string | undefined;
   items: Record<string, unknown> | undefined;
