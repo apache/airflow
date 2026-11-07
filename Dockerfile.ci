@@ -66,6 +66,13 @@ AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+    if ! command -v python3 >/dev/null; then
+        echo
+        echo "ERROR! The hardened flavor takes Python from BASE_IMAGE, but this base image has no python3."
+        echo "Pick a BASE_IMAGE with Python, or set AIRFLOW_IMAGE_FLAVOR to 'legacy' to build on a plain Debian image."
+        echo
+        exit 1
+    fi
     # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
     # Debian packages under /usr - so ask the base image's Python where it lives.
     PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
