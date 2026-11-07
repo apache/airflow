@@ -137,7 +137,6 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
@@ -146,6 +145,8 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    build_asset_state_store,
+    build_state_store_stats_tags,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -339,7 +340,7 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
-            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
+            state_store_stats_tags = build_state_store_stats_tags(self)
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
@@ -373,14 +374,8 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
-            _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
-            if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
-                )
-                # AssetAlias inlets are resolved to their concrete assets at context build time via
-                # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
-                # asset_state. AssetAlias outlets are skipped downstream in context.py
+            if (asset_state_store := build_asset_state_store(self)) is not None:
+                self._cached_template_context["asset_state_store"] = asset_state_store
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

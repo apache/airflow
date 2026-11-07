@@ -126,6 +126,7 @@ from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
     GetAssetByUri,
+    GetAssetEventByAsset,
     GetAssetsByAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
@@ -2733,6 +2734,47 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(KeyError):
         inlet_events[Asset(name="no such asset in inlets")]
+
+
+def test_run_mapped_task_with_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
+    """Inlets added by a mapped operator's ``__init__`` are accessible in the context during execution."""
+    asset_event_resp = AssetEventResult(
+        id=1,
+        created_dagruns=[],
+        timestamp=timezone.utcnow(),
+        asset=AssetResponse(name="b", uri="b", group="asset"),
+    )
+
+    def _send(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetEventByAsset):
+            return AssetEventsResult(asset_events=[asset_event_resp])
+        return OKResponse(ok=True)
+
+    mock_supervisor_comms.send.side_effect = _send
+
+    captured = {}
+
+    class InletReaderOperator(BaseOperator):
+        def __init__(self, *, inlet_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.inlet_name = inlet_name
+            self.inlets.append(Asset(inlet_name))
+
+        def execute(self, context):
+            captured["inlets"] = context["inlets"]
+            captured["events"] = list(context["inlet_events"][Asset(self.inlet_name)])
+
+    with DAG("dag_with_mapped_inlet_task"):
+        mapped = InletReaderOperator.partial(task_id="t").expand(inlet_name=["a", "b"])
+
+    ti = create_runtime_ti(task=mapped, map_index=1)
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert captured == {"inlets": [Asset("b")], "events": [asset_event_resp]}
 
 
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
