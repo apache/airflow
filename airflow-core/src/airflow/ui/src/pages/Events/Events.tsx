@@ -38,7 +38,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
-import { useDocumentTitle } from "src/utils";
+import { shouldListReportError, useDocumentTitle } from "src/utils";
 
 import { EventsFilters } from "./EventsFilters";
 
@@ -281,7 +281,7 @@ export const Events = () => {
 
   return (
     <>
-      <ErrorAlert error={error} />
+      {shouldListReportError(error, dagId !== undefined) ? <ErrorAlert error={error} /> : undefined}
       <DataTable
         columns={columns}
         data={eventLogs}

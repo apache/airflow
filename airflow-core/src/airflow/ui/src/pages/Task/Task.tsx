@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -25,16 +24,18 @@ import { useParams } from "react-router-dom";
 
 import { useTaskServiceGetTask } from "openapi/queries";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
+
+import { HeaderCardSkeleton } from "src/components/HeaderCardSkeleton";
 
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
-import { useDocumentTitle } from "src/utils";
+import { useDocumentTitle, useStickyError } from "src/utils";
 import { getGroupTask } from "src/utils/groupTask";
 
 import { GroupTaskHeader } from "./GroupTaskHeader";
-import { Header } from "./Header";
+import { Header, HeaderError, TASK_STAT_SKELETON } from "./Header";
 
 export const Task = () => {
   const { t: translate } = useTranslation(["dag", "hitl"]);
@@ -80,12 +81,21 @@ export const Task = () => {
   const displayTabs =
     groupId === undefined ? processedTabs : processedTabs.filter((tab) => tab.value !== "events");
 
+  const shownError = useStickyError(error, task !== undefined, `${dagId}/${taskId ?? ""}`);
+
   return (
-    <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
-        {task === undefined ? undefined : <Header task={task} />}
-        {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel tabs={displayTabs}>
+      {/* A group has no task to fetch, so neither the skeleton nor the error applies to one.
+        The failure is tested first and read through useStickyError, because a refetch of a task
+        that never loaded clears the error and reports itself as pending again. */}
+      {groupId === undefined && task === undefined && Boolean(shownError) ? (
+        <HeaderError error={shownError} taskId={taskId ?? ""} />
+      ) : undefined}
+      {groupId === undefined && task === undefined && !Boolean(shownError) && isLoading ? (
+        <HeaderCardSkeleton stats={TASK_STAT_SKELETON} type="task" />
+      ) : undefined}
+      {task === undefined ? undefined : <Header error={shownError} task={task} />}
+      {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
+    </DetailsPanel>
   );
 };

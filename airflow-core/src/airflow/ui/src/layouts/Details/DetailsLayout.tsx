@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { Box, Flex, HStack } from "@chakra-ui/react";
@@ -27,10 +27,10 @@ import { Group, Panel, Separator, useDefaultLayout, useGroupRef } from "react-re
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 
-import { IconButton, ProgressBar, Toaster } from "src/system-components";
+import { IconButton, Toaster } from "src/system-components";
 
 import { DagStatusChip } from "src/components/DagStatusChip";
 import { TogglePause } from "src/components/TogglePause";
@@ -50,9 +50,9 @@ import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { useGridCrosshairHover } from "./Grid/useGridCrosshairHover";
-import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 import { getEffectiveLimit } from "./runLimitConfig";
+import { useSelectedRunCeiling } from "./useSelectedRunCeiling";
 
 // Shared scroll container for the grid + gantt in the combined view.
 const SharedScrollBox = ({
@@ -77,14 +77,19 @@ const SharedScrollBox = ({
 );
 
 type Props = {
+  /** The Dag's own load error, for the status chip. A level that fails says so in its own header. */
   readonly error?: unknown;
-  readonly isLoading?: boolean;
-  /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
-  readonly outletContext?: unknown;
-  readonly tabs: Array<NavTab>;
-} & PropsWithChildren;
+};
 
-export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
+/**
+ * Everything a Dag's detail screen keeps across its levels: the breadcrumb, the Grid and the
+ * resizable panel the levels render their own header, tabs and tab content into.
+ *
+ * It sits on the `dags/:dagId` route, so it outlives a click from a run to a task instance — the
+ * Grid's scroll offset, its expanded groups and the panel sizes all belong to this component and
+ * survive because nothing here unmounts. `DetailsPanel` is the other half, one level down.
+ */
+export const DetailsLayout = ({ error }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -162,10 +167,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   // Transient pagination offset — reset whenever the user changes filters
   const [offset, setOffset] = useState(0);
 
-  // Guard so the run_after_lte ceiling is set at most once on initial load —
-  // navigating between runs after the page has loaded should never shift the grid window.
-  const runAfterLteSetRef = useRef(false);
-
   const noDateFilters = runAfterGte === undefined && runAfterLte === undefined;
 
   // Match the Grid's first-page query so React Query shares the request. This observer does not
@@ -186,36 +187,13 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   );
   const initialGridRuns = dataGridRuns?.slice(0, limit);
 
-  // Whether the selected run is absent from the initial grid page and we don't
-  // yet have a ceiling set. Only true once initialGridRuns has loaded.
-  const runMissingFromGrid =
-    Boolean(runId) &&
-    noDateFilters &&
-    !runAfterLteSetRef.current &&
-    initialGridRuns !== undefined &&
-    !initialGridRuns.some((dr) => dr.run_id === runId);
+  useSelectedRunCeiling({ dagId, initialGridRuns, noDateFilters, runId, setRunAfterLte });
 
-  // Only fetch the individual dag run once we know it isn't already visible.
-  const { data: selectedDagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId ?? "" }, undefined, {
-    enabled: runMissingFromGrid,
-  });
-
-  // Once we have the run's run_after, write it into the URL as the ceiling.
-  // Both deps are needed: dag_run_id so we react when the fetch resolves,
-  // runMissingFromGrid so we react when initialGridRuns loads and confirms
-  // the run is absent (handles the case where selectedDagRun is already cached).
-  useEffect(() => {
-    if (selectedDagRun && runMissingFromGrid) {
-      runAfterLteSetRef.current = true;
-      setRunAfterLte(selectedDagRun.run_after);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDagRun?.dag_run_id, runMissingFromGrid]);
-
-  // Reset offset whenever URL filters change so we start from the top of the new window.
+  // Reset offset whenever URL filters change so we start from the top of the new window. This
+  // layout outlives a switch to another Dag, so the Dag counts as one of them.
   useEffect(() => {
     setOffset(0);
-  }, [runAfterGte, runAfterLte, runTypeFilter, dagRunStateFilter, triggeringUserFilter, limit]);
+  }, [dagId, runAfterGte, runAfterLte, runTypeFilter, dagRunStateFilter, triggeringUserFilter, limit]);
 
   // Jump to the very latest runs: clear the URL ceiling and reset offset.
   const handleJumpToLatest = () => {
@@ -450,12 +428,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
                     position="relative"
                   >
-                    {children}
-                    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                    <NavTabs tabs={tabs} />
-                    <Box flexGrow={1} overflow="auto" pb={3} px={2}>
-                      <Outlet context={outletContext} />
-                    </Box>
+                    <Outlet />
                   </Box>
                 </Panel>
               </>
