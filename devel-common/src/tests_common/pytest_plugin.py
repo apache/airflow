@@ -22,8 +22,10 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tomllib
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
@@ -35,6 +37,8 @@ from unittest import mock
 import pytest
 import time_machine
 from _pytest.config.findpaths import ConfigValue
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -160,6 +164,29 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
+
+def _check_uv_version() -> None:
+    """
+    Exit with a short message if the ``uv`` on PATH does not match ``[tool.uv] required-version``.
+
+    Under ``uv run`` that ``uv`` is the virtualenv's copy from the dev group, which
+    ``uv run --project <distribution>`` does not upgrade. Without this check the refresh below
+    ends in a long traceback whose only hint is ``uv self update``, which leaves that copy as is.
+    """
+    pyproject = tomllib.loads(AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text(encoding="utf-8"))
+    required_version = pyproject.get("tool", {}).get("uv", {}).get("required-version")
+    if not required_version:
+        return
+    uv_version = subprocess.check_output(["uv", "--version"], text=True).split()[1]
+    if Version(uv_version) not in SpecifierSet(required_version):
+        raise SystemExit(
+            f"uv {uv_version} at {shutil.which('uv')} does not match "
+            f'`[tool.uv] required-version = "{required_version}"` in pyproject.toml, so the provider '
+            "dependencies cannot be refreshed. Run `uv sync` to update the uv in the virtualenv, "
+            "or upgrade uv."
+        )
+
+
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
 # Breeze here as we want to do it quickly
 ALL_PYPROJECT_TOML_FILES: list[Path] = []
@@ -195,6 +222,7 @@ def _calculate_provider_deps_hash():
 
 
 if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSON_HASH_PATH.exists():
+    _check_uv_version()
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
@@ -202,6 +230,7 @@ else:
         calculated_provider_deps_hash.strip()
         != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text(encoding="utf-8").strip()
     ):
+        _check_uv_version()
         subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
         PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash, encoding="utf-8")
 # End of copied code from breeze
