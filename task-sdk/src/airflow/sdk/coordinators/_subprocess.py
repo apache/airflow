@@ -51,7 +51,7 @@ from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
-from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
+from airflow.sdk.execution_time.bundles import get_bundle_importer_registry, initialize_pinned_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
 from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
@@ -814,7 +814,8 @@ class SubprocessCoordinator(BaseCoordinator):
             this coordinator does not run. None of these retries.
         """
         try:
-            importer = find_claiming_importer(rel_path, bundle_name)
+            registry = get_bundle_importer_registry(bundle_name)
+            importer = find_claiming_importer(rel_path, bundle_name, registry=registry)
         except Exception as e:
             raise TaskLaunchError(
                 f"Cannot tell whether {rel_path!r} is a native Dag file, because the Dag importers of "

@@ -26,13 +26,16 @@ from typing import TYPE_CHECKING
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter, find_claiming_importer
 
 if TYPE_CHECKING:
-    from airflow.sdk.importers import AbstractDagImporter  # noqa: SDK001
+    from airflow.sdk.importers import AbstractDagImporter, DagImporterRegistry  # noqa: SDK001
 
 log = logging.getLogger(__name__)
 
 
 def get_claiming_importer(
-    path: str | os.PathLike[str], bundle_name: str | None
+    path: str | os.PathLike[str],
+    bundle_name: str | None,
+    *,
+    registry: DagImporterRegistry | None = None,
 ) -> CoordinatorDagImporter | None:
     """
     Return the coordinator Dag importer that claims ``path``, or ``None`` when a Python child parses it.
@@ -41,6 +44,8 @@ def get_claiming_importer(
     importers cannot be loaded, the error is logged and a Python child parses the file.
     """
     try:
+        if registry is not None:
+            return find_claiming_importer(path, bundle_name, registry=registry)
         return find_claiming_importer(path, bundle_name)
     except Exception:
         log.exception("Cannot load the Dag importer for %s in bundle %s", path, bundle_name)

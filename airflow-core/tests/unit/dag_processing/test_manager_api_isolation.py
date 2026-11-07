@@ -37,7 +37,7 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
 )
 from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+from airflow.dag_processing.bundles.manager import _get_cached_bundle_config_snapshot
 from airflow.dag_processing.manager import DagFileProcessorManager
 
 from tests_common.test_utils.config import conf_vars
@@ -184,7 +184,7 @@ def test_parsing_loop_publishes_through_the_api_without_database_calls(
             ("logging", "dag_processor_child_process_log_directory"): str(tmp_path / "logs"),
         }
     ):
-        _load_bundle_config_snapshot.cache_clear()
+        _get_cached_bundle_config_snapshot.cache_clear()
         manager = DagFileProcessorManager(
             max_runs=1, api_client=client, parsing_cleanup_interval=0, stale_bundle_cleanup_interval=1
         )
@@ -193,7 +193,7 @@ def test_parsing_loop_publishes_through_the_api_without_database_calls(
         finally:
             manager.terminate()
             manager.end()
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
 
     assert database_calls == []
     assert [(body.relative_fileloc, len(body.serialized_dags), body.import_errors) for body in published] == [

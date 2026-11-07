@@ -29,17 +29,34 @@ from getpass import getuser
 from typing import TYPE_CHECKING
 
 from airflow.dag_processing.bundles.base import unpack_bundle_version  # noqa: SDK002
-from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+from airflow.dag_processing.bundles.manager import (  # noqa: SDK002
+    DagBundlesManager,
+    is_bundle_config_reload_enabled,
+)
 from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.exceptions import AirflowException
 from airflow.sdk.execution_time.tracing import detail_span
+from airflow.sdk.importers import DagImporterRegistry, get_importer_registry
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
 
-__all__ = ["initialize_pinned_bundle", "initialize_ti_bundle", "verify_bundle_access"]
+__all__ = [
+    "get_bundle_importer_registry",
+    "initialize_pinned_bundle",
+    "initialize_ti_bundle",
+    "verify_bundle_access",
+]
+
+
+def get_bundle_importer_registry(bundle_name: str) -> DagImporterRegistry:
+    """Use accepted bundle settings for worker importer discovery when reload is enabled."""
+    if not is_bundle_config_reload_enabled():
+        return get_importer_registry(bundle_name)
+    config = DagBundlesManager().get_bundle_parse_config(bundle_name)
+    return DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=config["importers"])
 
 
 def initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:

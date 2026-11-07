@@ -40,6 +40,7 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
@@ -1788,6 +1789,34 @@ class TestExecuteTaskNativeDagFile:
     """A task of a native Dag runs its own Dag file at the version of the run, with no scan."""
 
     BUNDLE_INFO = BundleInfo(name="dags", version="v9")
+
+    def test_native_classification_uses_accepted_bundle_config_when_command_fails(self, tmp_path):
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "dags",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(tmp_path)},
+                    }
+                ]
+            )
+        )
+        with (
+            _native_dag_files("native"),
+            conf_vars(
+                {
+                    ("core", "load_examples"): "False",
+                    ("dag_processor", "dag_bundle_config_list"): None,
+                    ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                }
+            ),
+        ):
+            DagBundlesManager()
+            config_file.unlink()
+            coordinator = _NativeStubCoordinator(command=["/runtime"])
+            assert coordinator._is_native_dag_file("dag.native", "dags")
 
     @pytest.fixture(autouse=True)
     def _clean_registry(self):
