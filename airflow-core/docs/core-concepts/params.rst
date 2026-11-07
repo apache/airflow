@@ -461,7 +461,7 @@ Finally the fourth section shows advanced form elements.
 Masking Sensitive Param Values
 -------------------------------
 
-.. versionadded:: 3.4.0
+.. versionadded:: 3.5.0
 
 .. warning::
     Masking only hides the value in the places listed below. Credentials that should be stored

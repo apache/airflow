@@ -131,3 +131,75 @@ class TestConfReservedKeys:
     )
     def test_accepts_conf_without_reserved_keys(self, model_cls, field, base_kwargs, conf):
         assert getattr(model_cls(**base_kwargs, **{field: conf}), field) == conf
+
+
+class TestDAGRunResponse:
+    @staticmethod
+    def _payload(conf, dag=None):
+        now = datetime(2026, 1, 1, tzinfo=UTC)
+        payload = {
+            "run_id": "manual__1",
+            "dag_id": "the_dag",
+            "logical_date": now,
+            "queued_at": None,
+            "start_date": None,
+            "end_date": None,
+            "duration": None,
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "run_after": now,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "triggered_by": None,
+            "triggering_user_name": None,
+            "conf": conf,
+            "note": None,
+            "dag_versions": [],
+            "bundle_version": None,
+            "dag_model": {"dag_display_name": "the_dag"},
+            "partition_key": None,
+            "partition_date": None,
+        }
+        if dag is not None:
+            payload["dag"] = dag
+        return payload
+
+    @staticmethod
+    def _dag():
+        from types import SimpleNamespace
+
+        from airflow.sdk.definitions.param import Param, ParamsDict
+
+        return SimpleNamespace(
+            params=ParamsDict({"one_time_code": Param("default", type="string", format="password")})
+        )
+
+    def test_requires_dag_to_redact_conf(self):
+        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+
+        with pytest.raises(ValidationError, match="needs the run's Dag"):
+            DAGRunResponse.model_validate(self._payload({"one_time_code": "super-secret-value"}))
+
+    def test_serialization_masks_password_param(self):
+        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+
+        response = DAGRunResponse.model_validate(
+            self._payload({"one_time_code": "super-secret-value", "region": "eu"}, self._dag())
+        )
+        assert response.model_dump(mode="json")["conf"] == {"one_time_code": "***", "region": "eu"}
+        assert "super-secret-value" not in response.model_dump_json()
+
+    def test_conf_untouched_when_it_has_no_password_param(self):
+        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+
+        response = DAGRunResponse.model_validate(self._payload({"region": "eu"}, self._dag()))
+        assert response.model_dump(mode="json")["conf"] == {"region": "eu"}
+
+    def test_unmasked_keeps_raw_conf(self):
+        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+
+        response = DAGRunResponse.from_dag_run_unmasked(
+            self._payload({"one_time_code": "super-secret-value"})
+        )
+        assert response.model_dump(mode="json")["conf"] == {"one_time_code": "super-secret-value"}

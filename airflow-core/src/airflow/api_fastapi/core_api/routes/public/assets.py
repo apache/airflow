@@ -641,7 +641,8 @@ def materialize_asset(
     except DagVersionNotFound as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
-    return DAGRunResponse.from_dag_run(dag_run, context_dag)
+    dag_run.dag = context_dag
+    return dag_run
 
 
 @assets_router.get(

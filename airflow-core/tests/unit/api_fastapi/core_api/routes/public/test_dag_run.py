@@ -424,168 +424,6 @@ class TestGetDagRun:
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 403
 
-
-class TestClearDagRunMasksPasswordConf:
-    def test_single_run_clear_response_masks_password_conf(self, test_client, dag_maker, session):
-        with dag_maker(
-            "test_dag_password_clear",
-            schedule=None,
-            start_date=START_DATE1,
-            params={"one_time_code": Param("default", type="string", format="password")},
-            serialized=True,
-        ):
-            EmptyOperator(task_id="task_1")
-
-        dag_run = dag_maker.create_dagrun(
-            run_id="run_clear_secret",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE1,
-        )
-        dag_run.conf = {"one_time_code": "super-secret-value"}
-        session.merge(dag_run)
-        session.commit()
-
-        # dry_run=False so the response comes from perform_clear_dag_run(), not the dry-run
-        # ClearTaskInstanceCollectionResponse branch.
-        response = test_client.post(
-            "/dags/test_dag_password_clear/dagRuns/run_clear_secret/clear",
-            json={"dry_run": False},
-        )
-        assert response.status_code == 200
-        assert response.json()["conf"]["one_time_code"] == "***"
-
-
-class TestGetDagRunsMasksPasswordConfAcrossVersions:
-    def test_list_masks_only_the_version_that_declares_password(self, test_client, dag_maker, session):
-        from airflow.models.dag_version import DagVersion
-
-        # Version 1 of the Dag: one_time_code is a plain string param (not masked).
-        with dag_maker(
-            "test_dag_password_versioned",
-            schedule=None,
-            start_date=START_DATE1,
-            params={"one_time_code": Param("default", type="string")},
-            serialized=True,
-        ):
-            EmptyOperator(task_id="task_1")
-
-        version_1 = session.scalar(
-            select(DagVersion)
-            .where(DagVersion.dag_id == "test_dag_password_versioned")
-            .order_by(DagVersion.version_number.desc())
-        )
-
-        run_v1 = dag_maker.create_dagrun(
-            run_id="run_v1_not_password",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE1,
-        )
-        run_v1.conf = {"one_time_code": "not-actually-a-secret"}
-        # dag_maker doesn't set bundle_version by default, and DBDagBag._version_from_dag_run
-        # falls back to the *latest* Dag version whenever bundle_version is falsy, regardless of
-        # created_dag_version_id. Pin both explicitly so this run actually resolves to version 1,
-        # which is the exact behavior this test needs to exercise.
-        run_v1.created_dag_version_id = version_1.id
-        run_v1.bundle_version = "test-bundle-v1"
-        session.merge(run_v1)
-        session.commit()
-
-        # Version 2 of the SAME dag_id: one_time_code is now declared format="password".
-        # Re-entering dag_maker with a different params schema produces a new DagVersion.
-        with dag_maker(
-            "test_dag_password_versioned",
-            schedule=None,
-            start_date=START_DATE1,
-            params={"one_time_code": Param("default", type="string", format="password")},
-            serialized=True,
-        ):
-            EmptyOperator(task_id="task_1")
-
-        version_2 = session.scalar(
-            select(DagVersion)
-            .where(DagVersion.dag_id == "test_dag_password_versioned")
-            .order_by(DagVersion.version_number.desc())
-        )
-        assert version_2.id != version_1.id, "expected a new Dag version to have been created"
-
-        run_v2 = dag_maker.create_dagrun(
-            run_id="run_v2_is_password",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE2,
-        )
-        run_v2.conf = {"one_time_code": "super-secret-v2"}
-        run_v2.created_dag_version_id = version_2.id
-        run_v2.bundle_version = "test-bundle-v2"
-        session.merge(run_v2)
-        session.commit()
-
-        response = test_client.get("/dags/~/dagRuns", params={"dag_ids": ["test_dag_password_versioned"]})
-        assert response.status_code == 200
-        by_run_id = {run["dag_run_id"]: run for run in response.json()["dag_runs"]}
-
-        # v1's run must stay unmasked: its Dag version never declared format="password".
-        assert by_run_id["run_v1_not_password"]["conf"]["one_time_code"] == "not-actually-a-secret"
-        # v2's run must be masked: its Dag version does declare format="password".
-        assert by_run_id["run_v2_is_password"]["conf"]["one_time_code"] == "***"
-
-
-class TestTriggerDagRunMasksPasswordConf:
-    def test_trigger_response_masks_password_conf(self, test_client, dag_maker):
-        with dag_maker(
-            "test_dag_password_trigger",
-            schedule=None,
-            start_date=START_DATE1,
-            params={"one_time_code": Param("default", type="string", format="password")},
-            serialized=True,
-        ):
-            EmptyOperator(task_id="task_1")
-
-        now = timezone.utcnow().isoformat()
-        response = test_client.post(
-            "/dags/test_dag_password_trigger/dagRuns",
-            json={"conf": {"one_time_code": "super-secret-value"}, "logical_date": now},
-        )
-        assert response.status_code == 200
-        assert response.json()["conf"]["one_time_code"] == "***"
-
-
-class TestPatchDagRunMasksPasswordConf:
-    def test_patch_response_masks_password_conf(self, test_client, dag_maker, session):
-        with dag_maker(
-            "test_dag_password_patch",
-            schedule=None,
-            start_date=START_DATE1,
-            params={"one_time_code": Param("default", type="string", format="password")},
-            serialized=True,
-        ):
-            EmptyOperator(task_id="task_1")
-
-        dag_run = dag_maker.create_dagrun(
-            run_id="run_patch_secret",
-            state=DagRunState.QUEUED,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE1,
-        )
-        dag_run.conf = {"one_time_code": "super-secret-value"}
-        session.merge(dag_run)
-        session.commit()
-
-        response = test_client.patch(
-            "/dags/test_dag_password_patch/dagRuns/run_patch_secret",
-            json={"note": "updated note"},
-        )
-        assert response.status_code == 200
-        assert response.json()["conf"]["one_time_code"] == "***"
-
-
-class TestGetDagRunMasksPasswordConf:
     def test_masks_conf_value_for_password_format_param(self, test_client, dag_maker, session):
         with dag_maker(
             "test_dag_password_param",
@@ -619,39 +457,6 @@ class TestGetDagRunMasksPasswordConf:
         assert response.status_code == 200
         body = response.json()
         assert body["conf"] == {"env": "staging", "test_mode": True}
-
-
-class TestGetDagRunsMasksPasswordConf:
-    def test_list_across_all_dags_masks_only_relevant_runs(self, test_client, dag_maker, session):
-        with dag_maker(
-            "test_dag_password_param_list",
-            schedule=None,
-            start_date=START_DATE1,
-            params={"one_time_code": Param("default", type="string", format="password")},
-            serialized=True,
-        ):
-            EmptyOperator(task_id="task_1")
-
-        dag_run = dag_maker.create_dagrun(
-            run_id="run_with_secret_list",
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.UI,
-            logical_date=LOGICAL_DATE1,
-        )
-        dag_run.conf = {"one_time_code": "super-secret-value"}
-        session.merge(dag_run)
-        session.commit()
-
-        response = test_client.get(
-            "/dags/~/dagRuns", params={"dag_ids": ["test_dag_password_param_list", DAG2_ID]}
-        )
-        assert response.status_code == 200
-        by_run_id = {run["dag_run_id"]: run for run in response.json()["dag_runs"]}
-
-        assert by_run_id["run_with_secret_list"]["conf"]["one_time_code"] == "***"
-        # DAG2's runs declare no password-format param, must stay untouched
-        assert by_run_id[DAG2_RUN1_ID]["conf"] == {"env": "staging", "test_mode": True}
 
 
 class TestGetDagRuns:
@@ -1536,6 +1341,113 @@ class TestGetDagRuns:
         assert body["detail"][0]["type"] == "int_parsing"
         assert "dag_version" in body["detail"][0]["loc"]
 
+    def test_list_across_all_dags_masks_only_relevant_runs(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_param_list",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"one_time_code": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_with_secret_list",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"one_time_code": "super-secret-value"}
+        session.merge(dag_run)
+        session.commit()
+
+        response = test_client.get(
+            "/dags/~/dagRuns", params={"dag_ids": ["test_dag_password_param_list", DAG2_ID]}
+        )
+        assert response.status_code == 200
+        by_run_id = {run["dag_run_id"]: run for run in response.json()["dag_runs"]}
+
+        assert by_run_id["run_with_secret_list"]["conf"]["one_time_code"] == "***"
+        # DAG2's runs declare no password-format param, must stay untouched
+        assert by_run_id[DAG2_RUN1_ID]["conf"] == {"env": "staging", "test_mode": True}
+
+    def test_list_masks_only_the_version_that_declares_password(self, test_client, dag_maker, session):
+        from airflow.models.dag_version import DagVersion
+
+        # Version 1 of the Dag: one_time_code is a plain string param (not masked).
+        with dag_maker(
+            "test_dag_password_versioned",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"one_time_code": Param("default", type="string")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        version_1 = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_dag_password_versioned")
+            .order_by(DagVersion.version_number.desc())
+        )
+
+        run_v1 = dag_maker.create_dagrun(
+            run_id="run_v1_not_password",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        run_v1.conf = {"one_time_code": "not-actually-a-secret"}
+        # dag_maker doesn't set bundle_version by default, and DBDagBag._version_from_dag_run
+        # falls back to the *latest* Dag version whenever bundle_version is falsy, regardless of
+        # created_dag_version_id. Pin both explicitly so this run actually resolves to version 1,
+        # which is the exact behavior this test needs to exercise.
+        run_v1.created_dag_version_id = version_1.id
+        run_v1.bundle_version = "test-bundle-v1"
+        session.merge(run_v1)
+        session.commit()
+
+        # Version 2 of the SAME dag_id: one_time_code is now declared format="password".
+        # Re-entering dag_maker with a different params schema produces a new DagVersion.
+        with dag_maker(
+            "test_dag_password_versioned",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"one_time_code": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        version_2 = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_dag_password_versioned")
+            .order_by(DagVersion.version_number.desc())
+        )
+        assert version_2.id != version_1.id, "expected a new Dag version to have been created"
+
+        run_v2 = dag_maker.create_dagrun(
+            run_id="run_v2_is_password",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE2,
+        )
+        run_v2.conf = {"one_time_code": "super-secret-v2"}
+        run_v2.created_dag_version_id = version_2.id
+        run_v2.bundle_version = "test-bundle-v2"
+        session.merge(run_v2)
+        session.commit()
+
+        response = test_client.get("/dags/~/dagRuns", params={"dag_ids": ["test_dag_password_versioned"]})
+        assert response.status_code == 200
+        by_run_id = {run["dag_run_id"]: run for run in response.json()["dag_runs"]}
+
+        # v1's run must stay unmasked: its Dag version never declared format="password".
+        assert by_run_id["run_v1_not_password"]["conf"]["one_time_code"] == "not-actually-a-secret"
+        # v2's run must be masked: its Dag version does declare format="password".
+        assert by_run_id["run_v2_is_password"]["conf"]["one_time_code"] == "***"
+
 
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2175,6 +2087,34 @@ class TestPatchDagRun:
         assert listener.state[0] is TaskInstanceState.SUCCESS
         assert listener.state[1] is DagRunState.SUCCESS
 
+    def test_patch_response_masks_password_conf(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_patch",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"one_time_code": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_patch_secret",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"one_time_code": "super-secret-value"}
+        session.merge(dag_run)
+        session.commit()
+
+        response = test_client.patch(
+            "/dags/test_dag_password_patch/dagRuns/run_patch_secret",
+            json={"note": "updated note"},
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"]["one_time_code"] == "***"
+
 
 class TestDeleteDagRun:
     def test_delete_dag_run(self, test_client, session):
@@ -2811,6 +2751,36 @@ class TestClearDagRun:
             json={"dry_run": True, "only_new": True, "only_failed": True},
         )
         assert response.status_code == 422
+
+    def test_single_run_clear_response_masks_password_conf(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_clear",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"one_time_code": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_clear_secret",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"one_time_code": "super-secret-value"}
+        session.merge(dag_run)
+        session.commit()
+
+        # dry_run=False so the response comes from perform_clear_dag_run(), not the dry-run
+        # ClearTaskInstanceCollectionResponse branch.
+        response = test_client.post(
+            "/dags/test_dag_password_clear/dagRuns/run_clear_secret/clear",
+            json={"dry_run": False},
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"]["one_time_code"] == "***"
 
 
 class TestBulkClearDagRuns:
@@ -4856,6 +4826,24 @@ class TestTriggerDagRun:
         assert dag_run.partition_key == "arbitrary-key"
         assert dag_run.partition_date is None
 
+    def test_trigger_response_masks_password_conf(self, test_client, dag_maker):
+        with dag_maker(
+            "test_dag_password_trigger",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"one_time_code": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            "/dags/test_dag_password_trigger/dagRuns",
+            json={"conf": {"one_time_code": "super-secret-value"}, "logical_date": now},
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"]["one_time_code"] == "***"
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])
@@ -5705,75 +5693,3 @@ class TestBulkDagRuns:
             },
         )
         assert response.status_code == 403
-
-
-class TestDAGRunResponseConfRedaction:
-    @staticmethod
-    def _payload(conf):
-        import datetime as dt
-
-        now = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
-        return {
-            "run_id": "manual__1",
-            "dag_id": "the_dag",
-            "logical_date": now,
-            "queued_at": None,
-            "start_date": None,
-            "end_date": None,
-            "duration": None,
-            "data_interval_start": None,
-            "data_interval_end": None,
-            "run_after": now,
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "state": "queued",
-            "triggered_by": None,
-            "triggering_user_name": None,
-            "conf": conf,
-            "note": None,
-            "dag_versions": [],
-            "bundle_version": None,
-            "dag_model": {"dag_display_name": "the_dag"},
-            "partition_key": None,
-            "partition_date": None,
-        }
-
-    @staticmethod
-    def _dag():
-        from types import SimpleNamespace
-
-        from airflow.sdk.definitions.param import ParamsDict
-
-        return SimpleNamespace(
-            params=ParamsDict({"one_time_code": Param("default", type="string", format="password")})
-        )
-
-    def test_missing_dag_context_fails_closed(self):
-        from pydantic import ValidationError
-
-        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-
-        with pytest.raises(ValidationError, match="from_dag_run"):
-            DAGRunResponse.model_validate(self._payload({"one_time_code": "super-secret-value"}))
-
-    def test_from_dag_run_masks_password_param(self):
-        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-
-        response = DAGRunResponse.from_dag_run(
-            self._payload({"one_time_code": "super-secret-value", "region": "eu"}), self._dag()
-        )
-        assert response.conf == {"one_time_code": "***", "region": "eu"}
-
-    def test_from_dag_run_without_resolvable_dag_keeps_conf(self):
-        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-
-        response = DAGRunResponse.from_dag_run(self._payload({"region": "eu"}), None)
-        assert response.conf == {"region": "eu"}
-
-    def test_from_dag_run_unmasked_keeps_raw_conf(self):
-        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-
-        response = DAGRunResponse.from_dag_run_unmasked(
-            self._payload({"one_time_code": "super-secret-value"})
-        )
-        assert response.conf == {"one_time_code": "super-secret-value"}

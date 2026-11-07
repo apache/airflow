@@ -27,7 +27,9 @@ from pydantic import (
     AwareDatetime,
     Field,
     NonNegativeInt,
+    PrivateAttr,
     ValidationInfo,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -168,21 +170,17 @@ class BulkDAGRunClearBody(BaseDAGRunClear, PartitionSelectorMixin):
         return self
 
 
-def mask_password_conf(dag: SerializedDAG | None, conf: dict | None) -> dict | None:
-    """Replace conf values with "***" for keys the Dag declares as format="password" string Params."""
-    if not conf or dag is None:
-        return conf
+def password_conf_keys(dag: SerializedDAG) -> frozenset[str]:
+    """Return the conf keys the Dag declares as string Params with format="password"."""
     params = getattr(dag, "params", None)
     if not params:
-        return conf
-    masked = dict(conf)
-    for key in masked:
-        if key not in params:
-            continue
+        return frozenset()
+    keys = set()
+    for key in params:
         schema = params.get_param(key).schema
         if schema.get("type") == "string" and schema.get("format") == "password":
-            masked[key] = "***"
-    return masked
+            keys.add(key)
+    return frozenset(keys)
 
 
 class DAGRunResponse(BaseModel):
@@ -212,23 +210,28 @@ class DAGRunResponse(BaseModel):
     partition_date: datetime | None
     team_name: str | None = None
 
-    @field_validator("conf")
+    _password_keys: frozenset[str] = PrivateAttr(default_factory=frozenset)
+
+    @model_validator(mode="wrap")
     @classmethod
-    def _redact_password_conf(cls, conf: dict | None, info: ValidationInfo) -> dict | None:
-        context = info.context or {}
-        if context.get("unmasked"):
-            return conf
-        if "dag" not in context:
+    def _attach_password_keys(cls, data: Any, handler: Any, info: ValidationInfo) -> DAGRunResponse:
+        response = handler(data)
+        if isinstance(data, cls) or (info.context or {}).get("unmasked"):
+            return response
+        dag = data.get("dag") if isinstance(data, dict) else getattr(data, "dag", None)
+        if dag is None:
             raise ValueError(
                 "DAGRunResponse needs the run's Dag to redact password-format conf values; "
-                "build it with DAGRunResponse.from_dag_run(dag_run, dag)."
+                "set dag_run.dag before building the response."
             )
-        return mask_password_conf(context["dag"], conf)
+        response._password_keys = password_conf_keys(dag)
+        return response
 
-    @classmethod
-    def from_dag_run(cls, dag_run: Any, dag: SerializedDAG | None) -> DAGRunResponse:
-        """Build the response with ``conf`` redacted against the Param schema of ``dag``."""
-        return cls.model_validate(dag_run, context={"dag": dag})
+    @field_serializer("conf")
+    def _mask_password_conf(self, conf: dict | None) -> dict | None:
+        if not conf or not self._password_keys:
+            return conf
+        return {key: "***" if key in self._password_keys else value for key, value in conf.items()}
 
     @classmethod
     def from_dag_run_unmasked(cls, dag_run: Any) -> DAGRunResponse:

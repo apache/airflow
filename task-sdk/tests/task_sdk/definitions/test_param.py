@@ -393,7 +393,7 @@ class TestParamsDict:
         )
 
 
-class TestProcessParamsMasksPassword:
+class TestProcessParams:
     def _make_dag(self, params: dict) -> MagicMock:
         dag = MagicMock()
         dag.params = ParamsDict(params)
