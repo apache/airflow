@@ -1,0 +1,14 @@
+Clearing a task with its downstream tasks clears its ``ExternalTaskMarker`` targets in other Dags again
+
+As in Airflow 2, clearing a task instance with its downstream tasks also clears the task its
+``ExternalTaskMarker`` points at, and that task's downstream tasks, in the other Dag. This applies to the
+task instance clear endpoint and the task instance clear dialogs; clearing a whole Dag run does not cascade.
+
+To keep a clear inside one Dag, untick "Clear tasks in dependent Dags" in the clear dialog, or send
+``include_dependent_dags: false`` to ``POST /api/v2/dags/{dag_id}/clearTaskInstances``. Left unset, it
+follows ``include_downstream``.
+
+With a release of ``apache-airflow-providers-standard`` that supports this, ``ExternalTaskMarker`` runs on a
+worker, where its templates render, instead of being marked successful without running. It therefore uses
+a worker slot on every run. A marker that has not run since the upgrade has recorded no target, so clearing
+it does not cascade until it runs again.

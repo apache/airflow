@@ -675,6 +675,7 @@ class ExternalTaskMarker(EmptyOperator):
     :param external_dag_id: The dag_id that contains the dependent task that needs to be cleared.
     :param external_task_id: The task_id of the dependent task that needs to be cleared.
     :param logical_date: The logical date of the dependent task execution that needs to be cleared.
+        Defaults to the logical date of this task's own run; a run without one clears nothing.
     :param recursion_depth: The maximum level of transitive dependencies allowed. Default is 10.
         This is mostly used for preventing cyclic dependencies. It is fine to increase
         this number if necessary. However, too many levels of transitive dependencies will make
@@ -699,17 +700,21 @@ class ExternalTaskMarker(EmptyOperator):
         *,
         external_dag_id: str,
         external_task_id: str,
-        logical_date: str | datetime.datetime | None = "{{ logical_date.isoformat() }}",
+        logical_date: str | datetime.datetime | None = None,
         recursion_depth: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
+        self.logical_date: str | None
         if isinstance(logical_date, datetime.datetime):
             self.logical_date = logical_date.isoformat()
         elif isinstance(logical_date, str):
             self.logical_date = logical_date
+        elif logical_date is None:
+            # Airflow 2's webserver renders this template when clearing; Airflow 3 reads the run's date.
+            self.logical_date = None if AIRFLOW_V_3_0_PLUS else "{{ logical_date.isoformat() }}"
         else:
             raise TypeError(
                 f"Expected str or datetime.datetime type for logical_date. Got {type(logical_date)}"
@@ -722,18 +727,23 @@ class ExternalTaskMarker(EmptyOperator):
             raise ValueError("recursion_depth should be a positive integer")
         self.recursion_depth = recursion_depth
 
-    def get_external_clear_target(self, context: Context) -> ExternalClearTarget:
-        error = f"logical_date must render to a date and time, got {self.logical_date!r}"
-        try:
-            logical_date = pendulum.parse(self.logical_date)
-        except ValueError as e:
-            raise ValueError(error) from e
-        if not isinstance(logical_date, datetime.datetime):
-            raise ValueError(f"{error} ({type(logical_date).__name__})")
+    def get_external_clear_target(self, context: Context) -> ExternalClearTarget | None:
+        rendered: object = self.logical_date
+        if rendered is None:
+            # A run without a logical date has no run to point at by date.
+            if (rendered := context.get("logical_date")) is None:
+                return None
+        if isinstance(rendered, str):
+            try:
+                rendered = pendulum.parse(rendered)
+            except ValueError as e:
+                raise ValueError(f"logical_date must render to a date and time, got {rendered!r}") from e
+        if not isinstance(rendered, datetime.datetime):
+            raise ValueError(f"logical_date must render to a date and time, got {rendered!r}")
         return ExternalClearTarget(
             dag_id=self.external_dag_id,
             task_id=self.external_task_id,
-            logical_date=logical_date,
+            logical_date=rendered,
             recursion_depth=self.recursion_depth,
         )
 
