@@ -1,0 +1,1 @@
+Operators can now declare additional Jinja-templated and ``XComArg``-capable fields on the class via the new ``template_fields_extra`` class attribute. This lets operators opt extra fields into templating and XCom argument handling without modifying ``template_fields`` directly, so ``some_task.output`` can be assigned to those fields.
