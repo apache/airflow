@@ -260,7 +260,9 @@ def _path(prefix: str, *identifiers: str | uuid.UUID) -> str:
     Keys that the server matches with a ``:path`` converter still resolve, since the
     encoded ``%2F`` is decoded back to ``/`` before routing.
     """
-    return "/".join([prefix, *(quote(str(identifier), safe="") for identifier in identifiers)])
+    # quote() leaves a bare "." or ".." as is, and httpx would still collapse it as a dot segment.
+    quoted = (quote(str(i), safe="") for i in identifiers)
+    return "/".join([prefix, *("%2E" * len(q) if q in (".", "..") else q for q in quoted)])
 
 
 class TaskInstanceOperations:

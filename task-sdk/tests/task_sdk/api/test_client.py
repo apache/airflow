@@ -1480,6 +1480,30 @@ class TestConnectionOperations:
         assert isinstance(result, ErrorResponse)
         assert "super-secret-value" not in str(result.detail)
 
+    @pytest.mark.parametrize(
+        ("call", "expected_path"),
+        [
+            pytest.param(lambda c: c.connections.get(conn_id=".."), b"/connections/%2E%2E", id="dotdot"),
+            pytest.param(lambda c: c.connections.get(conn_id="."), b"/connections/%2E", id="dot"),
+            pytest.param(
+                lambda c: c.xcoms.get(dag_id="..", run_id="..", task_id="variables", key="secret"),
+                b"/xcoms/%2E%2E/%2E%2E/variables/secret",
+                id="xcoms",
+            ),
+        ],
+    )
+    def test_get_encodes_bare_dot_segments(self, call, expected_path):
+        """An identifier that is only dots cannot be collapsed by dot-segment normalization."""
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(status_code=404, json={"reason": "not_found", "message": "nope"})
+
+        call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen[0].url.raw_path.split(b"?")[0] == expected_path
+
 
 class TestAssetEventOperations:
     @pytest.mark.parametrize(
