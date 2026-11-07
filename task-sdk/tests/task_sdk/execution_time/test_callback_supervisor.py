@@ -730,25 +730,29 @@ class TestCallbackSubprocessStart:
 
         assert calls == ["import task runner", "fork"]
 
-    def test_team_name_is_set_before_the_callback_runs(self, base_start_kwargs):
+    def test_team_name_is_set_before_the_callback_runs(self, base_start_kwargs, mock_bundle_setup):
         """Secret lookups in callback code must resolve to the owning team, even at import time."""
         calls = []
+        mock_bundle_setup["bundle"].initialize.side_effect = lambda: calls.append("bundle init")
         self.mock_execute_callback.side_effect = lambda **kwargs: calls.append("execute") or (True, None)
 
         with patch(
             "airflow.sdk.execution_time.callback_supervisor.set_current_team_name",
             side_effect=lambda team_name: calls.append(("team", team_name)),
         ):
-            CallbackSubprocess.start(**{**base_start_kwargs, "team_name": "team-a"})
+            bundle_info = BundleInfo(name="test-bundle", version="1.0")
+            CallbackSubprocess.start(
+                **{**base_start_kwargs, "team_name": "team-a", "bundle_info": bundle_info}
+            )
             self.mock_super_start.call_args.kwargs["target"]()
 
-        assert calls == [("team", "team-a"), "execute"]
+        assert calls == [("team", "team-a"), "bundle init", "execute"]
 
 
 class TestCallbackTeamSecrets:
     """A callback subprocess must resolve secrets for the Dag run's team."""
 
-    def test_team_variable_wins_over_the_global_one(self, monkeypatch):
+    def test_team_variable_wins_over_the_global_one(self, monkeypatch, mock_supervisor_comms):
         from airflow.sdk.execution_time import context
         from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 
