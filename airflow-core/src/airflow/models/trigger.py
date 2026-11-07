@@ -46,7 +46,7 @@ from sqlalchemy.sql.functions import coalesce
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.configuration import conf
-from airflow.models.asset import AssetWatcherModel
+from airflow.models.asset import AssetModel, AssetWatcherModel
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
@@ -378,6 +378,8 @@ class Trigger(Base):
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
         """
+        from airflow.models.callback import TriggererCallback  # to avoid circular import: Callback -> Trigger
+
         # Resume deferred tasks
         for task_instance in session.scalars(
             select(TaskInstance).where(
@@ -386,26 +388,33 @@ class Trigger(Base):
         ):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
-        # Send an event to assets
-        trigger = session.scalars(
-            select(cls)
-            .where(cls.id == trigger_id)
-            .options(selectinload(cls.asset_watchers).selectinload(AssetWatcherModel.asset))
-        ).one_or_none()
-        if trigger is None:
-            # Already deleted for some reason
-            return
-        for asset in trigger.assets:
+        # Query by trigger_id rather than loading the Trigger: its lazy="selectin" task_instance
+        # relationship would add an unused task_instance query (joined to dag_run) to every event.
+        assets = session.scalars(
+            select(AssetModel)
+            .join(AssetWatcherModel, AssetWatcherModel.asset_id == AssetModel.id)
+            .where(AssetWatcherModel.trigger_id == trigger_id)
+        )
+        for asset in assets:
             AssetManager.register_asset_change(
                 asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
                 session=session,
             )
-        if trigger.callback:
-            trigger.callback.handle_event(event, session)
+
+        callback = session.scalar(
+            select(TriggererCallback).where(TriggererCallback.trigger_id == trigger_id).limit(1)
+        )
+        if callback is not None:
+            callback.handle_event(event, session)
         # Recorded for every kind of trigger; written with the rest of this transaction.
-        trigger.last_event_at = timezone.utcnow()
+        session.execute(
+            update(cls)
+            .where(cls.id == trigger_id)
+            .values(last_event_at=timezone.utcnow())
+            .execution_options(synchronize_session=False)
+        )
 
     @classmethod
     @provide_session
