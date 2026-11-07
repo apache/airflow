@@ -77,26 +77,14 @@ class _DatabricksWarehouseStateOperator(_DatabricksWarehouseBaseOperator):
 
     def __init__(
         self,
-        warehouse_id: str,
         *,
-        databricks_conn_id: str = "databricks_default",
         wait_for_termination: bool = True,
         polling_period_seconds: int = 30,
         timeout: float = 3600,
-        databricks_retry_limit: int = 3,
-        databricks_retry_delay: int = 1,
-        databricks_retry_args: dict[Any, Any] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-        super().__init__(
-            warehouse_id=warehouse_id,
-            databricks_conn_id=databricks_conn_id,
-            databricks_retry_limit=databricks_retry_limit,
-            databricks_retry_delay=databricks_retry_delay,
-            databricks_retry_args=databricks_retry_args,
-            **kwargs,
-        )
+        super().__init__(**kwargs)
         self.wait_for_termination = wait_for_termination
         self.polling_period_seconds = polling_period_seconds
         self.timeout = timeout
