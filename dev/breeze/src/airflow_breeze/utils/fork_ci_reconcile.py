@@ -834,6 +834,10 @@ query($q: String!, $cursor: String) {
       author { login }
       headRepository { nameWithOwner }
       labels(first: 50) { nodes { name } }
+      commits(last: 1) { nodes { commit {
+        oid
+        status { context(name: "%(context)s") { state description } }
+      } } }
     } }
   }
 }
@@ -1141,7 +1145,7 @@ query($q: String!, $cursor: String) {
         oid
         status { context(name: "%(context)s") { state description } }
         checkSuites(first: 100, filterBy: {appId: %(app_id)d}) { nodes {
-          createdAt
+          createdAt status conclusion
           workflowRun { url event workflow { resourcePath } }
           checkRuns(first: 10, filterBy: {checkName: "%(context)s"}) { nodes { name conclusion } }
           cancelled: checkRuns(first: 1, filterBy: {checkName: "%(cancelled)s"}) { totalCount }
@@ -1184,7 +1188,12 @@ def find_project_ci_passed_url(node: dict[str, Any]) -> str | None:
     suites = [
         suite
         for suite in suites
-        if suite["checkRuns"]["nodes"] or not suite["cancelled"]["totalCount"] + suite["notRun"]["totalCount"]
+        if suite["checkRuns"]["nodes"]
+        or not (
+            suite["cancelled"]["totalCount"]
+            or suite["notRun"]["totalCount"]
+            or (suite["status"], suite["conclusion"]) == ("COMPLETED", "CANCELLED")
+        )
     ]
     latest = max(suites, key=lambda suite: suite["createdAt"], default=None)
     if latest and any(
@@ -1218,6 +1227,14 @@ def read_project_ci_passed_url(client: GitHubClient, repo: str, head_sha: str) -
         for name in (CI_PASSED_CANCELLED_JOB_NAME, PROJECT_CI_NOT_RUN_JOB_NAME)
         for check in get_check_runs(name)
     } - {check["check_suite"]["id"] for check in passed_checks}
+    passed_suites = {check["check_suite"]["id"] for check in passed_checks}
+    # Cancelled before any job started, the run has no check run at all.
+    skipped_suites |= {
+        run["check_suite_id"]
+        for run in runs
+        if (run["status"], run["conclusion"]) == ("completed", "cancelled")
+        and run["check_suite_id"] not in passed_suites
+    }
     run = next((run for run in runs if run["check_suite_id"] not in skipped_suites), None)
     if run and any(
         check["name"] == CI_PASSED_CONTEXT
@@ -1495,11 +1512,14 @@ def discover(
     repo: str,
     now: datetime,
     unknown: list[tuple[int, str]] | None = None,
+    ci_passed_written: list[int] | None = None,
 ) -> list[int]:
     """
     Label newly gated pull requests with `fork ci required` and return their numbers.
 
     :param unknown: collects the pull requests whose base branch configuration could not be read.
+    :param ci_passed_written: collects the pull requests that were not gated and got their `CI passed`
+        `success` from project CI, see ``report_orphaned_ci_passed``.
     """
     since = (now - DISCOVERY_WINDOW).strftime("%Y-%m-%dT%H:%M:%SZ")
     queries = (
@@ -1508,7 +1528,7 @@ def discover(
     )
     labelled: list[int] = []
     for search_query in queries:
-        for node in _search(client, DISCOVERY_QUERY, search_query):
+        for node in _search(client, DISCOVERY_QUERY % {"context": CI_PASSED_CONTEXT}, search_query):
             if node["number"] in labelled:
                 continue
             try:
@@ -1544,7 +1564,53 @@ def discover(
             if decide(event, config).reason in GATED_REASONS:
                 client.add_labels(node["number"], [LABEL_FORK_CI_REQUIRED])
                 labelled.append(node["number"])
+            elif ci_passed_written is not None and LABEL_USE_PROJECT_CI not in event.labels:
+                try:
+                    report_orphaned_ci_passed(client, repo, node, ci_passed_written)
+                except Exception as e:
+                    console_print(f"[error]#{node['number']}: `{CI_PASSED_CONTEXT}` not updated: {e}[/]")
+                    if unknown is not None:
+                        unknown.append(
+                            (node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {type(e).__name__}")
+                        )
     return labelled
+
+
+def report_orphaned_ci_passed(
+    client: GitHubClient, repo: str, node: dict[str, Any], written: list[int]
+) -> None:
+    """
+    Post the project CI `success` for a pull request that is not gated but has a stale `CI passed` status.
+
+    A pull request that left the gated flow, for example by losing `use project ci` or `use fork ci`
+    while the gate is off, keeps the `pending` or fork status the reconciler wrote, and a status and
+    a check run of one name must both pass. Only a status written here or by the label workflow
+    counts, and only discovery's 24 hour window sees the pull request.
+    """
+    commit = ((node.get("commits") or {}).get("nodes") or [{}])[0].get("commit") or {}
+    status = (commit.get("status") or {}).get("context") or {}
+    if (
+        commit.get("oid") != node["headRefOid"]
+        or (status.get("state") or "").lower() in ("", "success")
+        or status.get("description")
+        not in (
+            CI_PASSED_DESCRIPTION,
+            CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+            CI_PASSED_REVOKED_DESCRIPTION,
+        )
+        or len(written) >= MAX_PROJECT_CI_PASSED_PER_RUN
+    ):
+        return
+    if passed_url := read_project_ci_passed_url(client, repo, node["headRefOid"]):
+        client.set_status(
+            node["number"],
+            node["headRefOid"],
+            "success",
+            passed_url,
+            CI_PASSED_PROJECT_DESCRIPTION,
+            context=CI_PASSED_CONTEXT,
+        )
+        written.append(node["number"])
 
 
 def fetch_fork_observations(
@@ -2495,7 +2561,10 @@ def run_reconcile(
     draft_changes: list[DraftChange] = []
     configs = BaseGateConfigs(client, repo=repo, default_branch=default_branch, default_config=config)
 
-    labelled = discover(client, configs, repo=repo, now=now, unknown=unknown)
+    ci_passed_written: list[int] = []
+    labelled = discover(
+        client, configs, repo=repo, now=now, unknown=unknown, ci_passed_written=ci_passed_written
+    )
 
     prs = [
         parse_pull_request(node)
@@ -2636,7 +2705,12 @@ def run_reconcile(
 
     # After the loop, so that it reads the labels and statuses as they are last.
     try:
-        report_project_ci_passed(client, repo=repo, attention=attention)
+        report_project_ci_passed(
+            client,
+            repo=repo,
+            attention=attention,
+            budget=MAX_PROJECT_CI_PASSED_PER_RUN - len(ci_passed_written),
+        )
     except Exception as e:
         console_print(f"[error]Reporting `{CI_PASSED_CONTEXT}` for `{LABEL_USE_PROJECT_CI}` failed: {e}[/]")
         ci_passed_notes.append(

@@ -104,6 +104,7 @@ JOINED = CREATED + timedelta(days=2)
 CONFIG = GateConfig(enabled=True, enabled_since=datetime(2026, 10, 1, tzinfo=UTC), close_after_days=7)
 RUN_URL = "https://github.com/someone/airflow/actions/runs/1"
 PROJECT_RUN_URL = "https://github.com/apache/airflow/actions/runs/2"
+PROJECT_PASSED_URL = "https://github.com/apache/airflow/actions/runs/5"
 GREEN = ForkObservation(suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url=RUN_URL)
 
 
@@ -1637,6 +1638,7 @@ def _run_json(run_id, workflow_file="ci-amd.yml", *, path=None, conclusion=None)
     return {
         "html_url": f"https://github.com/apache/airflow/actions/runs/{run_id}",
         "path": path or f".github/workflows/{workflow_file}",
+        "status": "completed" if conclusion else "in_progress",
         "conclusion": conclusion,
     }
 
@@ -1829,6 +1831,88 @@ def test_discover_labels_an_older_pilot_pull_request_after_a_run_since_joining(c
 
     assert labelled == [2]
     client.add_labels.assert_called_once_with(2, ["fork ci required"])
+
+
+def _ci_passed_commit(state, description, oid="sha1"):
+    return {
+        "nodes": [
+            {"commit": {"oid": oid, "status": {"context": {"state": state, "description": description}}}}
+        ]
+    }
+
+
+@pytest.mark.parametrize(
+    ("enabled", "state", "description", "passed_url", "expected_written"),
+    [
+        pytest.param(
+            False,
+            "PENDING",
+            CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+            PROJECT_PASSED_URL,
+            [1],
+            id="ungated-waiting-project-ci-passed",
+        ),
+        pytest.param(
+            False, "PENDING", CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [1], id="ungated-fork-status"
+        ),
+        pytest.param(
+            False, "PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, None, [], id="ungated-not-passed"
+        ),
+        pytest.param(False, "SUCCESS", CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [], id="already-success"),
+        pytest.param(False, "PENDING", "someone else", PROJECT_PASSED_URL, [], id="foreign-status"),
+        pytest.param(
+            True,
+            "PENDING",
+            CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+            PROJECT_PASSED_URL,
+            [],
+            id="gated-is-left-to-the-fork-flow",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_discover_posts_project_ci_success_for_an_ungated_pull_request_with_a_stale_status(
+    mock_read, client, enabled, state, description, passed_url, expected_written
+):
+    config = GateConfig(enabled=enabled, enabled_since=datetime(2026, 10, 1, tzinfo=UTC))
+    node = {**_pr_node(1), "labels": {"nodes": []}, "commits": _ci_passed_commit(state, description)}
+    node["headRefOid"] = "sha1"
+    mock_read.return_value = passed_url
+    client.graphql.side_effect = [_search_result(node), _search_result()]
+    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=config)
+    written: list[int] = []
+
+    discover(client, configs, repo=REPO, now=NOW, ci_passed_written=written)
+
+    assert written == expected_written
+    if expected_written:
+        client.set_status.assert_called_once_with(
+            1, "sha1", "success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION, context=CI_PASSED_CONTEXT
+        )
+    else:
+        client.set_status.assert_not_called()
+
+
+def test_discover_keeps_going_when_the_project_ci_lookup_of_one_pull_request_fails(client):
+    config = GateConfig(enabled=False)
+    nodes = [
+        {
+            **_pr_node(n),
+            "headRefOid": f"sha{n}",
+            "labels": {"nodes": []},
+            "commits": _ci_passed_commit("PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, f"sha{n}"),
+        }
+        for n in (1, 2)
+    ]
+    client.graphql.side_effect = [_search_result(*nodes), _search_result()]
+    client.rest_get.side_effect = [GitHubError("HTTP 502"), {"workflow_runs": []}]
+    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=config)
+    unknown: list[tuple[int, str]] = []
+
+    discover(client, configs, repo=REPO, now=NOW, unknown=unknown, ci_passed_written=[])
+
+    assert unknown == [(1, "`CI passed` not updated: GitHubError")]
+    assert client.rest_get.call_count == 2
 
 
 def _contents(files: dict[tuple[str, str], str]):
@@ -3595,16 +3679,19 @@ def _passed_suite(
     created="2026-11-10T10:00:00Z",
     cancelled=0,
     not_run=0,
+    running=False,
+    suite_cancelled=False,
     **kwargs,
 ):
     suite = _suite(run_id, created=created, **kwargs)
+    suite["status"] = "IN_PROGRESS" if running else "COMPLETED"
+    suite["conclusion"] = "CANCELLED" if suite_cancelled else None
     suite["checkRuns"] = {"nodes": [{"name": "CI passed", "conclusion": conclusion}] if conclusion else []}
     suite["cancelled"] = {"totalCount": cancelled}
     suite["notRun"] = {"totalCount": not_run}
     return suite
 
 
-PROJECT_PASSED_URL = "https://github.com/apache/airflow/actions/runs/5"
 WAITING = (
     "pending",
     "https://github.com/apache/airflow/pull/1/checks",
@@ -3636,10 +3723,25 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
             _passed_node(
                 state="SUCCESS",
                 description=CI_PASSED_DESCRIPTION,
-                suites=[_passed_suite(4, created="2026-11-10T09:00:00Z"), _passed_suite(6, conclusion=None)],
+                suites=[
+                    _passed_suite(4, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(6, conclusion=None, running=True),
+                ],
             ),
             WAITING,
             id="newest-run-still-running-is-not-passed",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[
+                    _passed_suite(5, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(6, conclusion=None, suite_cancelled=True),
+                ],
+            ),
+            ("success", "https://github.com/apache/airflow/actions/runs/5", CI_PASSED_PROJECT_DESCRIPTION),
+            id="newer-empty-cancelled-run-does-not-hide-an-older-success",
         ),
         pytest.param(
             _passed_node(
@@ -3809,6 +3911,23 @@ def test_read_project_ci_passed_url(client, checks, expected):
     older = {**_run_json(5), "check_suite_id": 7, "html_url": PROJECT_PASSED_URL}
     newer = {**_run_json(6), "check_suite_id": 8}
     client.rest_get.side_effect = _rest_for_project_ci_passed([newer, older], checks)
+
+    assert read_project_ci_passed_url(client, REPO, "sha1") == expected
+
+
+@pytest.mark.parametrize(
+    ("newer_status", "newer_conclusion", "expected"),
+    [
+        pytest.param("completed", "cancelled", PROJECT_PASSED_URL, id="newer-empty-cancelled-run"),
+        pytest.param("in_progress", None, None, id="newer-run-in-progress-without-checks"),
+    ],
+)
+def test_read_project_ci_passed_url_with_a_newer_run_without_checks(
+    client, newer_status, newer_conclusion, expected
+):
+    older = {**_run_json(5), "check_suite_id": 7, "html_url": PROJECT_PASSED_URL}
+    newer = {**_run_json(6), "check_suite_id": 8, "status": newer_status, "conclusion": newer_conclusion}
+    client.rest_get.side_effect = _rest_for_project_ci_passed([newer, older], [("CI passed", "success", 7)])
 
     assert read_project_ci_passed_url(client, REPO, "sha1") == expected
 
@@ -4039,7 +4158,7 @@ def test_run_reconcile_reports_project_ci_passed_after_the_loop(
 
     names = [c[0] for c in order.mock_calls]
     assert names.index("report") > names.index("set_status")
-    assert "budget" not in mock_report_project_ci_passed.call_args.kwargs
+    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == 5
 
 
 def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_passed, client, tmp_path):

@@ -979,6 +979,11 @@ is the source the ruleset accepts.
   pull request, so discovery (open pull requests updated within the last 24 hours) labels it
   `fork ci required` again and the next run reports the fork result, replacing the waiting
   `pending` once the fork run is green.
+  A pull request that is not gated after the label is removed (for example the gate is off) is not
+  labelled again, so discovery posts the project CI `success` for it instead, when its head commit's
+  `CI passed` status is one the reconciler wrote and is not `success`, and project CI has passed.
+  Discovery only sees pull requests updated within the last 24 hours: one whose project CI passes
+  later than that without any other update stays `pending` until it is updated.
 - A commit status belongs to the commit, so the monitor never writes `CI passed` on a head commit
   that a pull request carrying `use project ci` has, even for another pull request on the same
   commit; the project CI pass owns those. When the list of those commits cannot be read, it posts
