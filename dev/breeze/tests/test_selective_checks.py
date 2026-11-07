@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    FILES_FOR_REBUILD_CHECK,
     JAVA_SDK_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
@@ -51,10 +52,12 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    CI_FILE_GROUP_MATCHES,
     COMPONENT_BRANCH_OUTPUTS,
     IMPORT_GRAPH_NARROWING_LABEL,
     LONG_RUNNING_TEST_PROVIDERS,
     PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS,
+    FileGroupForCi,
     SelectiveChecks,
     _find_test_helper_importers,
     _get_test_list_as_json,
@@ -5950,6 +5953,8 @@ GENERAL_CHECKS = {
     "run_python_scans",
     "run_scripts_tests",
     "run_system_tests",  # follows run_unit_tests
+    "run_image_build_time_check",  # follows ci_image_build
+    "run_docs_publish",  # follows docs_build
 }
 
 
@@ -6198,3 +6203,86 @@ def test_import_graph_narrowing_can_drop_every_provider(
         files, (IMPORT_GRAPH_NARROWING_LABEL,), split_to_individual_providers=False
     )
     assert narrowed == []
+
+
+@pytest.mark.parametrize(
+    ("output", "matching_file", "other_file"),
+    [
+        pytest.param(
+            "run_shared_distributions_tests",
+            "shared/logging/src/airflow_shared/logging/config.py",
+            "airflow-core/src/airflow/models/dag.py",
+            id="shared-distributions-tests",
+        ),
+        pytest.param(
+            "run_translation_check",
+            "airflow-core/src/airflow/ui/public/i18n/locales/en/common.json",
+            "airflow-core/src/airflow/ui/src/App.tsx",
+            id="translation-check",
+        ),
+        pytest.param(
+            "run_image_build_time_check",
+            "providers/amazon/pyproject.toml",
+            "airflow-core/src/airflow/models/dag.py",
+            id="image-build-time-check",
+        ),
+        pytest.param(
+            "run_image_build_time_check",
+            "scripts/ci/prek/update_providers_dependencies.py",
+            "scripts/ci/prek/check_license.py",
+            id="image-build-time-check-dependency-script",
+        ),
+        pytest.param(
+            "run_docs_publish",
+            "task-sdk/src/airflow/sdk/__init__.py",
+            "airflow-core/src/airflow/models/dag.py",
+            id="docs-publish-version-source",
+        ),
+        pytest.param(
+            "run_docs_publish",
+            "providers/amazon/docs/index.rst",
+            "airflow-core/src/airflow/models/dag.py",
+            id="docs-publish",
+        ),
+        pytest.param(
+            "run_docs_publish",
+            "chart/Chart.yaml",
+            "airflow-core/src/airflow/models/dag.py",
+            id="docs-publish-chart-version",
+        ),
+        pytest.param(
+            "run_shared_distributions_tests",
+            "devel-common/pyproject.toml",
+            "airflow-core/src/airflow/models/dag.py",
+            id="shared-distributions-tests-devel-common",
+        ),
+        pytest.param(
+            "run_shared_distributions_tests",
+            "dev/mypy/README.md",
+            "airflow-core/src/airflow/models/dag.py",
+            id="shared-distributions-tests-mypy-distribution",
+        ),
+    ],
+)
+def test_gated_jobs_run_only_for_the_files_they_depend_on(output: str, matching_file: str, other_file: str):
+    def get_output(files: tuple[str, ...], pr_labels: tuple[str, ...] = ()) -> bool:
+        checks = SelectiveChecks(
+            files=files,
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+            pr_labels=pr_labels,
+            default_branch="main",
+        )
+        return getattr(checks, output)
+
+    assert get_output((matching_file,)) is True
+    assert get_output((other_file,)) is False
+    assert get_output((other_file,), ("full tests needed",)) is True
+
+
+def test_image_rebuild_check_files_select_the_image_build_time_check():
+    groups = (FileGroupForCi.ENVIRONMENT_FILES, FileGroupForCi.IMAGE_BUILD_FILES)
+    for file in FILES_FOR_REBUILD_CHECK:
+        assert any(re.match(regexp, file) for group in groups for regexp in CI_FILE_GROUP_MATCHES[group]), (
+            file
+        )
