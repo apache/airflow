@@ -16,11 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FilterBar } from "src/components/FilterBar";
+import { FilterBar, type DateRangeValue, type FilterValue } from "src/components/FilterBar";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+
+const hasWhenRange = (value: FilterValue): boolean => {
+  if (value === null || value === undefined || typeof value !== "object" || value instanceof Date) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return false;
+  }
+
+  const range = value as DateRangeValue;
+
+  return (range.startDate ?? "") !== "" || (range.endDate ?? "") !== "";
+};
+
+// Missing `after` is also the state before the default week is written into the URL.
+// Recording the clear here, in the same params update, stops that default being applied again.
+const rememberClearedWindow = (params: URLSearchParams, filters: Record<string, FilterValue>) => {
+  if (hasWhenRange(filters[SearchParamsKeys.EVENT_DATE_RANGE])) {
+    params.delete(SearchParamsKeys.ALL_EVENTS);
+
+    return;
+  }
+
+  params.set(SearchParamsKeys.ALL_EVENTS, "1");
+};
 
 type EventsFiltersProps = {
   readonly urlDagId?: string;
@@ -57,7 +83,11 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     searchParamKeys.push(SearchParamsKeys.TASK_ID);
   }
 
-  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(
+    searchParamKeys,
+    // Dag, run, and task audit tabs are already scoped and keep the full history.
+    urlDagId === undefined ? { adjustParams: rememberClearedWindow } : undefined,
+  );
 
   return (
     <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />

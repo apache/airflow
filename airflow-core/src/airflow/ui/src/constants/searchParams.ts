@@ -20,6 +20,7 @@ export enum SearchParamsKeys {
   ACTIVE = "active",
   ADVANCED_SEARCH = "advanced_search",
   AFTER = "after",
+  ALL_EVENTS = "all_events",
   ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
   BASE_VERSION_NUMBER = "base_version_number",
   BEFORE = "before",

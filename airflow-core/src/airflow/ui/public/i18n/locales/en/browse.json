@@ -6,9 +6,11 @@
       "user": "User",
       "when": "When"
     },
+    "defaultWindow": "Showing audit logs from the last 7 days. Older entries are hidden.",
     "filters": {
       "eventType": "Event Type"
-    }
+    },
+    "showAll": "Show all"
   },
   "dagBundles": {
     "active": "Active",

@@ -98,7 +98,7 @@ Accessing Audit Logs
 Airflow provides multiple interfaces for accessing audit log data, each suited to different use cases and technical requirements:
 
 **Web User Interface**
-   The Airflow web interface provides the most accessible method for viewing audit logs. Navigate to **Browse → Audit Logs** to access an interface with built-in filtering, sorting, and search capabilities. This interface is ideal for ad-hoc investigations and routine monitoring.
+   The Airflow web interface provides the most accessible method for viewing audit logs. Navigate to **Browse → Audit Logs** to access an interface with built-in filtering, sorting, and search capabilities. This interface is ideal for ad-hoc investigations and routine monitoring. The page opens on the last 7 days, newest first, and says so at the top. **Show all**, or clearing the When filter, lists the full history. Audit Log tabs on a Dag, a Dag run, or a task are not limited to that window.
 
 **REST API Integration**
    For programmatic access and system integration, use the ``/eventLogs`` REST API endpoint. This approach enables automated monitoring, integration with external security tools, and custom reporting applications.
