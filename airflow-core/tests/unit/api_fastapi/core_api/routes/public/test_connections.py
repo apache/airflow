@@ -69,6 +69,9 @@ TEST_CONN_LOGIN_2 = "some_login_b"
 TEST_CONN_ID_3 = "test_connection_id_3"
 TEST_CONN_TYPE_3 = "test_type_3"
 
+# Slashed ids reach the metadata DB from Airflow 2 upgrades and team-aware secrets backends.
+TEST_CONN_ID_WITH_SLASH = "dev/test_connection_id"
+
 
 @provide_session
 def _create_connection(team_name: str | None = None, *, session: Session = NEW_SESSION) -> None:
@@ -142,6 +145,13 @@ class TestDeleteConnection(TestConnectionEndpoint):
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
 
+    def test_delete_should_respond_204_when_connection_id_contains_slash(self, test_client, session):
+        session.add(Connection(conn_id=TEST_CONN_ID_WITH_SLASH, conn_type=TEST_CONN_TYPE))
+        session.commit()
+        response = test_client.delete(f"/connections/{TEST_CONN_ID_WITH_SLASH}")
+        assert response.status_code == 204
+        assert len(session.scalars(select(Connection)).all()) == 0
+
 
 class TestGetConnection(TestConnectionEndpoint):
     def test_get_should_respond_200(self, test_client, testing_team, session):
@@ -166,6 +176,15 @@ class TestGetConnection(TestConnectionEndpoint):
         assert response.status_code == 404
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
+
+    def test_get_should_respond_200_when_connection_id_contains_slash(self, test_client, session):
+        session.add(Connection(conn_id=TEST_CONN_ID_WITH_SLASH, conn_type=TEST_CONN_TYPE))
+        session.commit()
+        response = test_client.get(f"/connections/{TEST_CONN_ID_WITH_SLASH}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == TEST_CONN_ID_WITH_SLASH
+        assert body["conn_type"] == TEST_CONN_TYPE
 
     def test_get_should_respond_200_with_extra(self, test_client, session):
         self.create_connection()
