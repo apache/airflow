@@ -233,6 +233,38 @@ Generating Cluster Config
     ``cluster_config`` or ``virtual_cluster_config`` dictionaries directly as arguments to the
     ``DataprocCreateClusterOperator``.
 
+Multi-zone clusters
+^^^^^^^^^^^^^^^^^^^
+
+Multi-zone clusters can create instances across multiple Compute Engine zones within a region to improve
+resource availability and reduce stockouts. To configure a multi-zone cluster, set ``multi_zone_config`` under
+``gce_cluster_config`` (for example, ``{"target_shape": "ANY"}`` or a native
+``google.cloud.dataproc_v1.types.MultiZoneConfig`` instance) and omit ``zone_uri``. For more information, refer to the
+`MultiZoneConfig Python reference <https://cloud.google.com/python/docs/reference/dataproc/latest/google.cloud.dataproc_v1.types.MultiZoneConfig>`__
+and the `GceClusterConfig REST API reference <https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig#GceClusterConfig>`__.
+
+A multi-zone cluster configuration can look as follows:
+
+.. code-block:: python
+
+    CLUSTER_CONFIG = {
+        "gce_cluster_config": {
+            "multi_zone_config": {
+                "target_shape": "ANY",
+            },
+        },
+        "master_config": {
+            "num_instances": 1,
+            "machine_type_uri": "n1-standard-4",
+            "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
+        },
+        "worker_config": {
+            "num_instances": 2,
+            "machine_type_uri": "n1-standard-4",
+            "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
+        },
+    }
+
 Diagnose a cluster
 ------------------
 Managed Spark supports the collection of `cluster diagnostic information <https://cloud.google.com/dataproc/docs/support/diagnose-cluster-command#diagnostic_summary_and_archive_contents>`_
