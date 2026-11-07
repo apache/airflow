@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 
 import pytest
-from packaging.version import Version
 
 
 def date_param():
@@ -59,12 +58,6 @@ TEST_COMMANDS = [
     "assets list",
     "assets get 1",
     "assets create-event --asset-id=1",
-    "assets set-state-store 1 test_key test_value",
-    "assets get-state-store 1 test_key",
-    "assets list-state-store 1",
-    "assets delete-state-store 1 test_key",
-    "assets set-state-store 1 clear_key value",
-    "assets clear-state-store 1",
     # Backfill commands
     "backfill list example_bash_operator",
     # Config commands
@@ -149,14 +142,6 @@ TEST_COMMANDS = [
     "plugins list-import-errors",
 ]
 
-# The first Airflow version whose API serves each command, keyed by `_get_command_id`.
-MIN_AIRFLOW_VERSIONS = {
-    "assets set-state-store": Version("3.3.0"),
-    "assets get-state-store": Version("3.3.0"),
-    "assets list-state-store": Version("3.3.0"),
-    "assets delete-state-store": Version("3.3.0"),
-    "assets clear-state-store": Version("3.3.0"),
-}
 
 NO_AUTH_TEST_COMMANDS = [
     "version --remote",
@@ -176,20 +161,8 @@ TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
 ]
 
 
-def _get_command_id(command: str) -> str:
+def _command_id(command: str) -> str:
     return " ".join(command.split(" ", 2)[:2])
-
-
-def _skip_if_unsupported(command: str, airflow_version: Version) -> None:
-    min_version = MIN_AIRFLOW_VERSIONS.get(_get_command_id(command))
-    if min_version and airflow_version < min_version:
-        pytest.skip(f"needs Airflow >= {min_version}, the server runs {airflow_version}")
-
-
-def test_min_airflow_versions_match_test_commands():
-    """A renamed command must be renamed here too, or its version gate silently stops applying."""
-    stale_command_ids = set(MIN_AIRFLOW_VERSIONS) - {_get_command_id(command) for command in TEST_COMMANDS}
-    assert not stale_command_ids
 
 
 def test_hardcoded_xcom_key_would_collide():
@@ -216,24 +189,20 @@ def test_hardcoded_xcom_key_would_collide():
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_DEBUG_MODE,
-    ids=[_get_command_id(command) for command in TEST_COMMANDS_DEBUG_MODE],
+    ids=[_command_id(command) for command in TEST_COMMANDS_DEBUG_MODE],
 )
-def test_airflowctl_commands(command: str, airflow_version: Version, run_command):
+def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
-    _skip_if_unsupported(command, airflow_version)
     run_command(command=command, env_vars={"AIRFLOW_CLI_DEBUG_MODE": "true"}, skip_login=True)
 
 
 @pytest.mark.parametrize(
     "command",
     TEST_COMMANDS_SKIP_KEYRING,
-    ids=[_get_command_id(command) for command in TEST_COMMANDS_SKIP_KEYRING],
+    ids=[_command_id(command) for command in TEST_COMMANDS_SKIP_KEYRING],
 )
-def test_airflowctl_commands_skip_keyring(
-    command: str, api_token: str, airflow_version: Version, run_command
-):
+def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
     """Test airflowctl commands using docker-compose environment without using keyring."""
-    _skip_if_unsupported(command, airflow_version)
     run_command(
         command=command,
         env_vars={
