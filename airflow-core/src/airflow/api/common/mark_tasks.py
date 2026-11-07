@@ -20,13 +20,15 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable, Iterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
 
+from airflow.exceptions import NotMapped
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, _get_relevant_map_indexes
+from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -90,7 +92,13 @@ def set_state(
         raise ValueError("Received tasks with no run_id")
 
     dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
-    task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
+    # A relative's map indexes can only be derived from one run's expansion, and "past" or
+    # "future" put several runs in scope. The clear endpoint declines to narrow map indexes for
+    # the same reason, so match it and keep selecting every map index in that case.
+    resolve_map_indexes_in = None if future or past else run_id
+    task_id_map_index_list = list(
+        find_task_relatives(tasks, downstream, upstream, run_id=resolve_map_indexes_in, session=session)
+    )
     # now look for the task instances that are affected
 
     qry_dag = get_all_dag_task_query(dag, state, task_id_map_index_list, dag_run_ids)
@@ -124,25 +132,91 @@ def get_all_dag_task_query(
     return qry_dag
 
 
-def find_task_relatives(
-    tasks: Collection[Operator | tuple[Operator, int]], downstream: bool, upstream: bool
+class _MapIndexNarrowing(NamedTuple):
+    """Everything needed to narrow a relative down to the map indexes of one task instance."""
+
+    task: Operator
+    map_index: int
+    ti_count: int
+    run_id: str
+    session: SASession
+
+
+def _build_map_index_narrowing(
+    task: Operator, map_index: int | None, *, run_id: str | None, session: SASession | None
+) -> _MapIndexNarrowing | None:
+    """Collect what narrowing needs, or return ``None`` if the selection cannot be narrowed."""
+    # A negative map index is how an unmapped task instance is stored, so there is nothing to narrow.
+    if map_index is None or map_index < 0 or run_id is None or session is None:
+        return None
+    try:
+        ti_count = get_mapped_ti_count(task, run_id, session=session)
+    except NotMapped:
+        return None
+    return _MapIndexNarrowing(task, map_index, ti_count, run_id, session)
+
+
+def _resolve_relative_selectors(
+    relative: Operator, narrowing: _MapIndexNarrowing | None
 ) -> Iterator[str | tuple[str, int]]:
-    """Yield task ids and optionally ancestor and descendant ids."""
+    """
+    Yield the selectors for one relative of a selected task instance.
+
+    A bare task id selects every map index of the relative. That is the right answer for a
+    relative that is not expanded alongside the selected task, and the only answer available
+    when the selection carries no map index to narrow by.
+    """
+    if narrowing is None:
+        yield relative.task_id
+        return
+    match _get_relevant_map_indexes(
+        task=narrowing.task,
+        relative=relative,
+        run_id=narrowing.run_id,
+        map_index=narrowing.map_index,
+        ti_count=narrowing.ti_count,
+        session=narrowing.session,
+    ):
+        case int() as relative_map_index:
+            yield relative.task_id, relative_map_index
+        case range() as relative_map_indexes:
+            yield from ((relative.task_id, i) for i in relative_map_indexes)
+        case None:
+            yield relative.task_id
+
+
+def find_task_relatives(
+    tasks: Collection[Operator | tuple[Operator, int]],
+    downstream: bool,
+    upstream: bool,
+    *,
+    run_id: str | None = None,
+    session: SASession | None = None,
+) -> Iterator[str | tuple[str, int]]:
+    """
+    Yield task ids and optionally ancestor and descendant ids.
+
+    Given ``run_id`` and ``session``, a relative of a selected mapped task instance is narrowed
+    to the map indexes that correspond to that instance, the way the clear path narrows them.
+    Without them every map index of the relative is selected.
+    """
     for item in tasks:
+        map_index: int | None
         if isinstance(item, tuple):
             task, map_index = item
             yield task.task_id, map_index
         else:
-            task = item
+            task, map_index = item, None
             yield task.task_id
+        narrowing = _build_map_index_narrowing(task, map_index, run_id=run_id, session=session)
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
                 if relative.is_teardown:
                     continue
-                yield relative.task_id
+                yield from _resolve_relative_selectors(relative, narrowing)
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
-                yield relative.task_id
+                yield from _resolve_relative_selectors(relative, narrowing)
 
 
 @provide_session
