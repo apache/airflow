@@ -39,23 +39,8 @@ def clean_db(session):
 
 
 @time_machine.travel("2016-11-01")
-@pytest.mark.parametrize(
-    ("logical_date", "is_met"),
-    [
-        (datetime(2016, 11, 3), False),
-        (datetime(2016, 11, 1), True),
-    ],
-)
-def test_logical_date_dep(
-    dag_maker,
-    session,
-    create_dummy_dag,
-    logical_date,
-    is_met,
-):
-    """
-    If the dag's logical date is in the future, this dep should fail
-    """
+def test_future_logical_date_is_met(dag_maker, session, create_dummy_dag):
+    """A logical date in the future does not block the task; ``run_after`` decides when a run starts."""
     create_dummy_dag(
         "test_localtaskjob_heartbeat",
         start_date=datetime(2015, 1, 1),
@@ -64,25 +49,8 @@ def test_logical_date_dep(
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
-    (ti,) = dag_maker.create_dagrun(run_id="scheduled", logical_date=logical_date).task_instances
-    assert RunnableExecDateDep().is_met(ti=ti) == is_met
-
-
-@time_machine.travel("2016-01-01")
-def test_logical_date_after_end_date(session, dag_maker, create_dummy_dag):
-    """
-    If the dag's logical date is in the future this dep should fail
-    """
-    create_dummy_dag(
-        "test_localtaskjob_heartbeat",
-        start_date=datetime(2015, 1, 1),
-        end_date=datetime(2016, 11, 5),
-        schedule=None,
-        with_dagrun_type=DagRunType.MANUAL,
-        session=session,
-    )
-    (ti,) = dag_maker.create_dagrun(logical_date=datetime(2016, 11, 2)).task_instances
-    assert not RunnableExecDateDep().is_met(ti=ti)
+    (ti,) = dag_maker.create_dagrun(run_id="future", logical_date=datetime(2016, 11, 3)).task_instances
+    assert RunnableExecDateDep().is_met(ti=ti)
 
 
 class TestRunnableExecDateDep:
