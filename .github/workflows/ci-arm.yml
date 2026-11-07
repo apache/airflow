@@ -22,7 +22,7 @@
 # copies of each other (GitHub Actions has no cross-file YAML include),
 # differing only in their trigger surface, the hardcoded `platform` value in
 # `build-info`'s outputs (and the `PLATFORM` selective checks pick the runner
-# type for), and the architecture-specific print-platform job. Edit both files
+# type for), and the architecture that `build-info` prints to the step summary. Edit both files
 # together when changing pipeline shape.
 name: Tests (ARM)
 on:  # yamllint disable-line rule:truthy
@@ -216,6 +216,10 @@ jobs:
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
       run-generic-basic-tests: ${{ steps.selective-checks.outputs.run-generic-basic-tests }}
+      run-shared-distributions-tests: ${{ steps.selective-checks.outputs.run-shared-distributions-tests }}
+      run-translation-check: ${{ steps.selective-checks.outputs.run-translation-check }}
+      run-image-build-time-check: ${{ steps.selective-checks.outputs.run-image-build-time-check }}
+      run-docs-publish: ${{ steps.selective-checks.outputs.run-docs-publish }}
       run-generic-prod-image-tests: ${{ steps.selective-checks.outputs.run-generic-prod-image-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
@@ -344,6 +348,8 @@ jobs:
           if [[ "${number}" =~ ^[0-9]+$ ]]; then
             echo "pr-number=${number}" >> "${GITHUB_OUTPUT}"
           fi
+      - name: "Print architecture"
+        run: "echo '## Architecture: ARM' >> $GITHUB_STEP_SUMMARY"
       - name: Selective checks
         id: selective-checks
         env:
@@ -366,14 +372,6 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
 
-  print-platform:
-    name: "Platform: ARM"
-    needs: [build-info]
-    runs-on: ["ubuntu-slim"]
-    steps:
-      - name: "Print architecture"
-        run: "echo '## Architecture: ARM' >> $GITHUB_STEP_SUMMARY"
-
   basic-tests:
     name: "Basic tests"
     needs: [build-info, check-run-needed]
@@ -391,6 +389,8 @@ jobs:
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
       run-generic-basic-tests: ${{needs.build-info.outputs.run-generic-basic-tests}}
+      run-shared-distributions-tests: ${{needs.build-info.outputs.run-shared-distributions-tests}}
+      run-translation-check: ${{needs.build-info.outputs.run-translation-check}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -426,6 +426,7 @@ jobs:
     name: "Additional CI image checks"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
+    if: needs.build-info.outputs.run-image-build-time-check == 'true'
     permissions:
       contents: read
       packages: write
@@ -484,6 +485,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
       run-api-codegen: ${{ needs.build-info.outputs.run-api-codegen }}
+      run-docs-publish: ${{ needs.build-info.outputs.run-docs-publish }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1521,7 +1523,6 @@ jobs:
       - generate-constraints
       - migration-round-trip
       - mypy-providers
-      - print-platform
       - providers
       - tests-agent-frameworks
       - tests-airflow-ctl
@@ -1590,7 +1591,6 @@ jobs:
       - generate-constraints
       - migration-round-trip
       - mypy-providers
-      - print-platform
       - providers
       - tests-agent-frameworks
       - tests-airflow-ctl

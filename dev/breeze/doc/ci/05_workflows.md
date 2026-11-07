@@ -396,7 +396,10 @@ Before running expensive tests, we validate basic functionality:
 - React UI component tests
 - Code formatting and style checks
 
-These quick checks catch obvious problems early.
+These quick checks catch obvious problems early. The shared distributions tests and the translation
+completeness check run only when the files they depend on changed (see
+[Selective checks](04_selective_checks.md)); the Breeze unit tests, the standalone Airflow test and the
+Windows checkout test run for every change.
 
 #### 3. Image Building
 
