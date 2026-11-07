@@ -32,14 +32,13 @@ def get_python_source(x: Any) -> str | None:
     if x is None:
         return None
 
+    if isinstance(x, functools.partial):
+        return get_python_source(x.func)
+
     source_code = None
 
-    if isinstance(x, functools.partial):
-        source_code = inspect.getsource(x.func)
-
-    if source_code is None:
-        with contextlib.suppress(TypeError):
-            source_code = inspect.getsource(x)
+    with contextlib.suppress(TypeError):
+        source_code = inspect.getsource(x)
 
     if source_code is None:
         with contextlib.suppress(TypeError, AttributeError):
