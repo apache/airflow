@@ -1,0 +1,135 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Rules for values that must stay the same in several files, checked by the `blockwatch` prek hook.
+# A rule points at a value by its path: a key in a config file, or a top-level name in code, such as
+# `base_secrets.py#/DEFAULT_SECRETS_SEARCH_PATH`. A file without paths, such as a Dockerfile, is
+# matched with a regex. A value that no path reaches, such as a class attribute, is wrapped in
+# `<block>` tags in the code instead.
+# Syntax: https://github.com/mennanov/blockwatch
+
+# Go toolchain: go-sdk/go.mod is the source of truth. Every pin is compared at major.minor.
+[[block]]
+target = 'go-sdk/go.mod'
+target-pattern = '^go (?P<value>\d+\.\d+)'
+name = 'go-version'
+
+[[block]]
+target = 'kubernetes-tests/lang_sdk/go_example/go.mod'
+target-pattern = '^go (?P<value>\d+\.\d+)'
+same-as = 'go-sdk/go.mod:go-version'
+
+[[block]]
+target = '.github/workflows/{ci-amd,ci-arm,k8s-tests}.yml'
+target-pattern = "go-version: '?(?P<value>\\d+\\.\\d+)"
+same-as = 'go-sdk/go.mod:go-version'
+
+[[block]]
+target = 'airflow-e2e-tests/tests/airflow_e2e_tests/constants.py#/GO_BUILDER_IMAGE'
+same-as = 'go-sdk/go.mod:go-version'
+same-as-pattern = '(?P<value>\d+\.\d+)'
+
+[[block]]
+target = 'dev/breeze/src/airflow_breeze/commands/kubernetes_commands.py#/LANG_SDK_GO_BUILDER_IMAGE'
+same-as = 'go-sdk/go.mod:go-version'
+same-as-pattern = '(?P<value>\d+\.\d+)'
+
+[[block]]
+target = '{,go-sdk/}.pre-commit-config.yaml#/default_language_version/golang'
+same-as = 'go-sdk/go.mod:go-version'
+same-as-pattern = '^(?P<value>\d+\.\d+)'
+
+# Java SDK JDK: env.JAVA_VERSION in ci-amd.yml is the source of truth. Other workflows, such as
+# basic-tests.yml and java-sdk-release-verify.yml, use other JDKs on purpose and are not listed.
+[[block]]
+target = '.github/workflows/ci-amd.yml#/env/JAVA_VERSION'
+name = 'java-version'
+
+[[block]]
+target = '.github/workflows/ci-arm.yml#/env/JAVA_VERSION'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+
+[[block]]
+target = '.github/workflows/codeql-analysis.yml#/jobs/analyze/steps/~[name=Setup Java]/with/java-version'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+
+[[block]]
+target = 'java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions.gradle.kts'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+same-as-pattern = '(?:JavaLanguageVersion\.of\(|JavaVersion\.VERSION_|JvmTarget\.JVM_)(?P<value>\d+)'
+
+[[block]]
+target = '{scripts/docker/install_os_dependencies.sh,Dockerfile,Dockerfile.ci}'
+same-as = '.github/workflows/ci-amd.yml:java-version'
+same-as-pattern = '^(?:TEMURIN_VERSION=\$\{TEMURIN_VERSION:-|ENV TEMURIN_VERSION=")(?P<value>\d+)'
+
+# The task SDK keeps its own copy of the server's default secrets search path.
+[[block]]
+target = 'task-sdk/src/airflow/sdk/execution_time/secrets/__init__.py#/_SERVER_DEFAULT_SECRETS_SEARCH_PATH'
+same-as = 'airflow-core/src/airflow/secrets/base_secrets.py#/DEFAULT_SECRETS_SEARCH_PATH'
+
+# The UI keeps the plugin destination table of the server under its own names: `dagRun` for `dag_run`.
+[[block]]
+target = 'airflow-core/src/airflow/ui/src/utils/pluginAppliesTo.ts#/ENTITY_ROOT_BY_DESTINATION'
+same-as = 'airflow-core/src/airflow/plugins_manager.py#/_APPLIES_TO_ENTITY_ROOT'
+same-as-pattern = '"?(?P<key>\w+)"?: "(?P<value>\w+)"'
+same-as-format = 'key:identifier,value:identifier'
+
+# Node for the TypeScript SDK: the build job of ts-sdk-release.yml is the source of truth.
+[[block]]
+target = '.github/workflows/ts-sdk-release.yml#/jobs/build/steps/~[name=Set up Node.js]/with/node-version'
+name = 'node-version'
+
+[[block]]
+target = '.github/workflows/ts-sdk-release.yml#/jobs/publish/steps/~[name=Set up Node.js]/with/node-version'
+same-as = '.github/workflows/ts-sdk-release.yml:node-version'
+
+[[block]]
+target = '.github/workflows/{ci-amd,ci-arm}.yml#/jobs/tests-ts-sdk/steps/~[name=Setup node]/with/node-version'
+same-as = '.github/workflows/ts-sdk-release.yml:node-version'
+
+# pnpm: every pin must be the version the CI and PROD images install. The Dockerfiles are compared
+# as whole files, because the Java rule above already targets them. A `**/package.json` glob would
+# also match packages that don't pin pnpm, so a new package that pins it has to be added here.
+[[block]]
+target = '{ts-sdk,kubernetes-tests/lang_sdk/ts_example,dev/react-plugin-tools/react_plugin_template,airflow-core/src/airflow/ui,airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui,providers/fab/src/airflow/providers/fab/www,providers/edge3/src/airflow/providers/edge3/plugins/www,providers/common/ai/src/airflow/providers/common/ai/plugins/www}/package.json#/packageManager'
+same-as = 'Dockerfile.ci,Dockerfile,scripts/docker/install_os_dependencies.sh'
+same-as-pattern = '(?:pnpm@|ENV PNPM_VERSION="|^PNPM_VERSION=\$\{PNPM_VERSION:-)(?P<value>\d+\.\d+\.\d+)'
+
+# The pnpm that prek installs for the UI hooks, in `additional_dependencies`.
+[[block]]
+target = '{airflow-core,providers/common/ai,providers/edge3,providers/fab,ts-sdk}/.pre-commit-config.yaml'
+same-as = 'Dockerfile.ci,Dockerfile,scripts/docker/install_os_dependencies.sh'
+same-as-pattern = '(?:pnpm@|ENV PNPM_VERSION="|^PNPM_VERSION=\$\{PNPM_VERSION:-)(?P<value>\d+\.\d+\.\d+)'
+
+# Values that a comment next to the code asks to keep the same as a copy in another file.
+[[block]]
+target = 'task-sdk/src/airflow/sdk/definitions/timetables/_cron.py#/CRON_PRESETS'
+same-as = 'airflow-core/src/airflow/utils/dates.py#/cron_presets'
+
+[[block]]
+target = 'task-sdk/src/airflow/sdk/definitions/decorators/__init__.pyi#/__all__'
+same-as = 'task-sdk/src/airflow/sdk/definitions/decorators/__init__.py#/__all__'
+
+[[block]]
+target = 'dev/breeze/src/airflow_breeze/utils/kubernetes_utils.py#/FORWARDED_NODE_PORT'
+same-as = 'scripts/ci/kubernetes/nodeport.yaml#/spec/ports/0/nodePort'
+
+[[block]]
+target = 'dev/breeze/src/airflow_breeze/global_constants.py#/TYPESCRIPT_SDK_NODE_VERSION'
+same-as = 'ts-sdk/package.json#/engines/node'
+same-as-pattern = '(?P<value>\d+)'
