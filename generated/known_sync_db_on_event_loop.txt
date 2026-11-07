@@ -1,0 +1,12 @@
+GET /api/v2/backfills/{backfill_id}/dag_runs::default
+GET /api/v2/backfills/{backfill_id}/dag_runs::multi_team
+GET /api/v2/backfills/{backfill_id}::default
+GET /api/v2/backfills/{backfill_id}::multi_team
+GET /api/v2/eventLogs/{event_log_id}::default
+GET /api/v2/eventLogs/{event_log_id}::multi_team
+PUT /api/v2/backfills/{backfill_id}/cancel::default
+PUT /api/v2/backfills/{backfill_id}/cancel::multi_team
+PUT /api/v2/backfills/{backfill_id}/pause::default
+PUT /api/v2/backfills/{backfill_id}/pause::multi_team
+PUT /api/v2/backfills/{backfill_id}/unpause::default
+PUT /api/v2/backfills/{backfill_id}/unpause::multi_team
