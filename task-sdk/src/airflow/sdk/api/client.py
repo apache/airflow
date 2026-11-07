@@ -35,10 +35,13 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, JsonValue
 from tenacity import (
+    Retrying,
     before_log,
     retry,
     retry_if_exception,
+    retry_if_exception_type,
     stop_after_attempt,
+    stop_after_delay,
     wait_random_exponential,
 )
 from uuid6 import uuid7
@@ -1198,8 +1201,35 @@ class CallbackOperations:
         self.client = client
 
     def run(self, callback_id: uuid.UUID) -> None:
-        """Exchange the single-use callback token for an execution token."""
-        self.client.patch(f"callbacks/{callback_id}/run")
+        """
+        Exchange the single-use callback token for an execution token.
+
+        The server uses up the token once it gets the request, so only retry when the request never
+        reached it, and give a slow server longer to answer.
+        """
+        not_sent = (httpx2.ConnectError, httpx2.ConnectTimeout)
+        try:
+            Retrying(
+                retry=retry_if_exception_type(not_sent),
+                stop=stop_after_delay(API_CALLBACK_RUN_RETRY_SECONDS),
+                wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
+                before_sleep=_log_and_trace_retry,
+                reraise=True,
+            )(
+                self.client.request,
+                "PATCH",
+                f"callbacks/{callback_id}/run",
+                retry=False,
+                timeout=httpx2.Timeout(API_TIMEOUT, read=API_CALLBACK_RUN_READ_TIMEOUT),
+            )
+        except httpx2.TransportError as e:
+            if not isinstance(e, not_sent):
+                log.error(
+                    "Callback token exchange outcome unknown, not retrying",
+                    callback_id=callback_id,
+                    error_type=type(e).__name__,
+                )
+            raise
 
 
 class BearerAuth(httpx2.Auth):
@@ -1246,6 +1276,9 @@ API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=None)
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
+# The callback token exchange can't be retried once it reached the server, see CallbackOperations.run.
+API_CALLBACK_RUN_READ_TIMEOUT = 60.0
+API_CALLBACK_RUN_RETRY_SECONDS = 120.0
 API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
 API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
 API_CLIENT_USE_PUBLIC_CERTS = conf.getboolean("api", "client_use_public_certs", fallback=True)

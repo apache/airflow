@@ -28,8 +28,10 @@ from operator import attrgetter
 from typing import Any
 from unittest.mock import ANY, Mock, patch
 
+import httpx2
 import pytest
 import structlog
+from task_sdk import make_client
 
 from airflow.sdk.api.datamodels._generated import XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
@@ -772,6 +774,29 @@ class TestSuperviseCallbackExchangesTokenFirst:
             self._supervise(client)
 
         mock_start.assert_not_called()
+
+    @patch("tenacity.nap.time.sleep")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_slow_exchange_still_runs_the_callback(self, mock_start, _nondumpable, _sleep):
+        """The server uses up the token, then takes 6 s to answer: longer than the usual 5 s timeout."""
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+        exchanges = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal exchanges
+            exchanges += 1
+            if exchanges > 1:
+                return httpx2.Response(409, json={"detail": {"reason": "invalid_state"}})
+            if request.extensions["timeout"]["read"] < 6:
+                raise httpx2.ReadTimeout("timed out", request=request)
+            return httpx2.Response(204, headers={"Refreshed-API-Token": "execution-token"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        assert self._supervise(client) == 0
+
+        assert exchanges == 1
+        mock_start.assert_called_once()
 
     @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
