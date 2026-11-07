@@ -1158,6 +1158,16 @@ repos:
         language: python
         pass_filenames: false
         files: ^\.github/workflows/ci-amd\.yml$|^scripts/ci/prek/check_ci_gate_needs\.py$
+      - id: check-core-shim-targets-exist
+        name: Check that provider targets of core deprecation shims exist
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Released cores re-export these provider classes, so removing one breaks user imports
+        entry: ./scripts/ci/prek/check_core_shim_targets_exist.py
+        language: python
+        pass_filenames: false
+        # A change that only deletes a provider module matches no file pattern.
+        always_run: true
       - id: check-auth-manager-mock-targets
         name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
         env:
