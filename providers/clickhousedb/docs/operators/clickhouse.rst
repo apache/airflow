@@ -77,3 +77,40 @@ To return something other than the full result set, pass a custom ``handler``. F
     ``session_settings`` passed to :class:`~airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook`
     directly (via ``hook_params``) take precedence over any ``session_settings`` defined in the
     connection's ``extra`` JSON field. Conflicting keys are resolved in favor of the constructor argument.
+
+Multi-statement SQL and sessions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All statements of one ``SQLExecuteQueryOperator`` task run in the same ClickHouse session, so temporary tables
+and ``SET`` statements carry over to the statements after them:
+
+.. code-block:: python
+
+  SQLExecuteQueryOperator(
+      task_id="list_example_rows",
+      conn_id="clickhouse_default",
+      sql=[
+          "SET max_threads = 4",
+          """
+      CREATE TEMPORARY TABLE airflow_example (
+          id   UInt32,
+          name String,
+          ts   DateTime DEFAULT now()
+      ) ENGINE = MergeTree()
+      ORDER BY id
+      """,
+          """
+      INSERT INTO airflow_example (id, name) VALUES
+          (1, 'Alice'),
+          (2, 'Bob'),
+          (3, 'Charlie')
+      """,
+          "SELECT id, name FROM airflow_example ORDER BY id",
+      ],
+  )
+
+Each task run, including a retry, gets a fresh session. Sessions live on a single ClickHouse
+server, so if a load balancer can route one task's statements to different servers, set
+``"client_kwargs": {"autogenerate_session_id": false}`` in the connection's ``extra``. Temporary
+tables and ``SET`` then no longer carry over between statements; use ``session_settings`` instead
+of ``SET``.
