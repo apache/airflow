@@ -44,17 +44,6 @@ Changelog
   rendered once before ``execute()``, as for ``BashOperator``, and are no longer rendered a
   second time.
 
-.. warning::
-  The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
-  On Airflow 3.0.x, the bundled ``example_time_delta_sensor_async`` example Dag imports this
-  class, so it fails to import when ``[core] load_examples`` is on. Upgrade to Airflow 3.1 or turn
-  off ``load_examples``.
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-* ``Remove deprecated TimeDeltaSensorAsync (#76131)``
-
 Features
 ~~~~~~~~
 
@@ -70,6 +59,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove deprecated TimeDeltaSensorAsync (#76131)``
 
 1.21.0
 ......
