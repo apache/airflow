@@ -33,7 +33,7 @@ from paramiko.config import SSH_PORT
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.ssh.tunnel import AsyncSSHTunnel, SSHTunnel
 from airflow.utils.platform import getuser
@@ -642,10 +642,16 @@ class SSHHookAsync(BaseHook):
         self.passphrase = passphrase
         self.private_key = private_key
         self.keepalive_interval = keepalive_interval
+        # Default value, overridable from Connection, as on SSHHook
+        self.compress = True
 
-    def _parse_extras(self, conn: Any) -> None:
-        """Parse extra fields from the connection into instance fields."""
-        extra_options = conn.extra_dejson
+    def _parse_extras(self, conn: Any, extra_options: dict[str, Any]) -> None:
+        """
+        Parse the connection's extra fields into instance fields.
+
+        :param conn: the connection, for its host
+        :param extra_options: the connection's extra, already read without a synchronous SDK call
+        """
         if "key_file" in extra_options and self.key_file == "":
             self.key_file = extra_options["key_file"]
         if "known_hosts" in extra_options:
@@ -658,6 +664,8 @@ class SSHHookAsync(BaseHook):
             )
         if "private_key" in extra_options:
             self.private_key = extra_options["private_key"]
+        if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
+            self.compress = False
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
@@ -708,7 +716,9 @@ class SSHHookAsync(BaseHook):
 
         conn = await get_async_connection(self.ssh_conn_id)
         if conn.extra is not None:
-            self._parse_extras(conn)
+            # extra_dejson masks the secrets with a synchronous SDK call, which raises
+            # DeadlockImminentError in an async task; read the extra asynchronously.
+            self._parse_extras(conn, await get_async_extra_dejson(conn))
 
         def _get_value(self_val, conn_val, default=None):
             if self_val is not None:
@@ -722,6 +732,8 @@ class SSHHookAsync(BaseHook):
             "port": _get_value(self.port, conn.port, SSH_PORT),
             "username": _get_value(self.username, conn.login),
             "password": _get_value(self.password, conn.password),
+            # asyncssh prefers no compression; offer zlib first as paramiko does for SSHHook.
+            "compression_algs": ["zlib@openssh.com", "zlib", "none"] if self.compress else ["none"],
         }
         if self.key_file:
             conn_config["client_keys"] = self.key_file
