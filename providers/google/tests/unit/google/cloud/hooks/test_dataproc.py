@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from google.api_core.exceptions import PermissionDenied, ServiceUnavailable
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import (
     Batch,
@@ -1073,6 +1074,33 @@ class TestDataprocAsyncHook:
             retry=DEFAULT,
             timeout=None,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
+    async def test_get_batch_retries_on_service_unavailable(self, mock_client, mock_sleep):
+        mock_batch_client = AsyncMock(BatchControllerAsyncClient)
+        mock_client.return_value = mock_batch_client
+        expected_batch = mock.MagicMock()
+        mock_batch_client.get_batch.side_effect = [ServiceUnavailable("503"), expected_batch]
+
+        result = await self.hook.get_batch(batch_id=BATCH_ID, region=GCP_LOCATION, project_id=GCP_PROJECT)
+
+        assert result is expected_batch
+        assert mock_batch_client.get_batch.await_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
+    async def test_get_batch_does_not_retry_permission_denied(self, mock_client, mock_sleep):
+        mock_batch_client = AsyncMock(BatchControllerAsyncClient)
+        mock_client.return_value = mock_batch_client
+        mock_batch_client.get_batch.side_effect = PermissionDenied("denied")
+
+        with pytest.raises(PermissionDenied):
+            await self.hook.get_batch(batch_id=BATCH_ID, region=GCP_LOCATION, project_id=GCP_PROJECT)
+
+        assert mock_batch_client.get_batch.await_count == 1
 
     @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
