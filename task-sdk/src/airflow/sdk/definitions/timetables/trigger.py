@@ -109,7 +109,7 @@ class MultipleCronTriggerTimetable(BaseTimetable):
     ) -> None:
         if not crons:
             raise ValueError("cron expression required")
-        self.__attrs_init__(  # type: ignore[attr-defined]
+        self.__attrs_init__(
             [
                 CronTriggerTimetable(cron, timezone, interval=interval, run_immediately=run_immediately)
                 for cron in crons

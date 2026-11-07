@@ -58,7 +58,7 @@ def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Call
         pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
         new_pre_execute = combine_hooks(pre_execute, wrapped_condition)
         task.kwargs["pre_execute"] = new_pre_execute
-        return task  # type: ignore[return-value]
+        return task
 
     return decorator
 
@@ -83,7 +83,7 @@ def skip_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Cal
         pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
         new_pre_execute = combine_hooks(pre_execute, wrapped_condition)
         task.kwargs["pre_execute"] = new_pre_execute
-        return task  # type: ignore[return-value]
+        return task
 
     return decorator
 

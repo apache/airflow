@@ -128,7 +128,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
 
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         # TODO: FIXME when mypy gets compatible with new attrs
-        evolved = attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
+        evolved = attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})
         # The evolved copy owns the "never mapped" warning, so the intermediate factory must not repeat it.
         self._task_group_created = True
         return evolved
@@ -155,7 +155,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(self.partial_kwargs)
         # TODO: FIXME when mypy gets compatible with new attrs
-        evolved = attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
+        evolved = attr.evolve(self, partial_kwargs=kwargs)
         self._task_group_created = True
         return evolved
 

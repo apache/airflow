@@ -130,7 +130,7 @@ class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup"], DependencyMixin, m
         for task in task_list:
             if dag and not task.has_dag():
                 # If the other task does not yet have a Dag, add it to the same Dag as this task and
-                dag.add_task(task)  # type: ignore[arg-type]
+                dag.add_task(task)
             if upstream:
                 source = get_edge_source(task, self)
                 source.downstream_task_ids.add(self.node_id)

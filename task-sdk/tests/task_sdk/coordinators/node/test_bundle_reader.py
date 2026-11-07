@@ -88,7 +88,7 @@ class TestBundleReader:
         # Rejecting a terminator in the code region would make every real bundle unreadable.
         fixture = TYPESCRIPT_V1_FIXTURE.read_bytes()
         layout = _read_layout(TYPESCRIPT_V1_FIXTURE)
-        code_start = int(layout["code"]["start"], 16)  # type: ignore[index, call-overload]
+        code_start = int(layout["code"]["start"], 16)
         assert b"*/" in fixture[code_start:]
 
         assert read_bundle(TYPESCRIPT_V1_FIXTURE).dag_ids == frozenset({"test_dag"})
@@ -117,10 +117,10 @@ class TestBundleReader:
         layout = _read_layout(bundle)
         original_header_size = len(bundle.read_bytes().partition(b"\n")[0])
         layout["future_header_field"] = True
-        layout["code"]["future_section_field"] = True  # type: ignore[index]
+        layout["code"]["future_section_field"] = True
         # Fixed-width offsets let us relocate every section after extending the header.
         header_growth = len(LAYOUT_PREFIX) + len(json.dumps(layout).encode()) - original_header_size
-        for section in (layout["metadata"], layout["code"], *layout["sources"]):  # type: ignore[misc]
+        for section in (layout["metadata"], layout["code"], *layout["sources"]):
             for field in ("start", "end"):
                 value = int(section[field], 16) + header_growth
                 section[field] = f"{value:0{OFFSET_WIDTH}x}"
@@ -214,7 +214,7 @@ class TestBundleReader:
     def test_rejects_invalid_section_digest(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        layout["code"]["sha256"] = "z" * 64  # type: ignore[index]
+        layout["code"]["sha256"] = "z" * 64
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="64 lowercase hexadecimal digits"):
@@ -223,7 +223,7 @@ class TestBundleReader:
     def test_rejects_malformed_offset(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        layout["code"]["start"] = "Z" * OFFSET_WIDTH  # type: ignore[index]
+        layout["code"]["start"] = "Z" * OFFSET_WIDTH
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="16-digit lowercase hexadecimal"):
@@ -233,8 +233,8 @@ class TestBundleReader:
     def test_rejects_empty_or_reversed_section(self, tmp_path, start, end):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        layout["code"]["start"] = f"{start:0{OFFSET_WIDTH}x}"  # type: ignore[index]
-        layout["code"]["end"] = f"{end:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        layout["code"]["start"] = f"{start:0{OFFSET_WIDTH}x}"
+        layout["code"]["end"] = f"{end:0{OFFSET_WIDTH}x}"
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="code section must contain at least one byte"):
@@ -243,8 +243,8 @@ class TestBundleReader:
     def test_rejects_metadata_offset_mismatch(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        metadata_start = int(layout["metadata"]["start"], 16)  # type: ignore[index, call-overload]
-        layout["metadata"]["start"] = f"{metadata_start + 1:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        metadata_start = int(layout["metadata"]["start"], 16)
+        layout["metadata"]["start"] = f"{metadata_start + 1:0{OFFSET_WIDTH}x}"
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="metadata offsets do not match"):
@@ -255,7 +255,7 @@ class TestBundleReader:
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
         # For metadata, corrupt the opening brace so decoding would also fail if attempted first.
-        _mutate_byte(bundle, int(layout[section]["start"], 16))  # type: ignore[index, call-overload]
+        _mutate_byte(bundle, int(layout[section]["start"], 16))
 
         with pytest.raises(ValueError, match=f"{section} SHA-256 mismatch"):
             read_bundle(tmp_path / BUNDLE_NAME)
@@ -263,7 +263,7 @@ class TestBundleReader:
     def test_rejects_source_region_digest_mismatch(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        _mutate_byte(bundle, int(layout["sources"][0]["start"], 16))  # type: ignore[index, call-overload]
+        _mutate_byte(bundle, int(layout["sources"][0]["start"], 16))
 
         with pytest.raises(ValueError, match="source main.ts SHA-256 mismatch"):
             read_bundle(tmp_path / BUNDLE_NAME)
@@ -271,8 +271,8 @@ class TestBundleReader:
     def test_rejects_source_offset_mismatch(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        source_start = int(layout["sources"][0]["start"], 16)  # type: ignore[index, call-overload]
-        layout["sources"][0]["start"] = f"{source_start + 1:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        source_start = int(layout["sources"][0]["start"], 16)
+        layout["sources"][0]["start"] = f"{source_start + 1:0{OFFSET_WIDTH}x}"
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="source offsets do not match"):
@@ -299,8 +299,8 @@ class TestBundleReader:
     def test_rejects_source_declared_past_end_of_file(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        source_end = int(layout["sources"][0]["end"], 16)  # type: ignore[index, call-overload]
-        layout["sources"][0]["end"] = f"{source_end + 4096:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        source_end = int(layout["sources"][0]["end"], 16)
+        layout["sources"][0]["end"] = f"{source_end + 4096:0{OFFSET_WIDTH}x}"
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="not closed by its block comment"):
@@ -309,8 +309,8 @@ class TestBundleReader:
     def test_rejects_oversized_source(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        source_start = int(layout["sources"][0]["start"], 16)  # type: ignore[index, call-overload]
-        layout["sources"][0]["end"] = f"{source_start + 1024 * 1024 + 1:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        source_start = int(layout["sources"][0]["start"], 16)
+        layout["sources"][0]["end"] = f"{source_start + 1024 * 1024 + 1:0{OFFSET_WIDTH}x}"
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="embedded airflow source exceeds"):
@@ -418,7 +418,7 @@ class TestBundleReader:
     def test_rejects_duplicate_source_paths(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
-        layout["sources"].append(dict(layout["sources"][0]))  # type: ignore[attr-defined, index]
+        layout["sources"].append(dict(layout["sources"][0]))
         _replace_layout_payload(bundle, json.dumps(layout).encode())
 
         with pytest.raises(ValueError, match="duplicate source paths"):
@@ -428,7 +428,7 @@ class TestBundleReader:
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
         # A same-length path keeps every declared offset valid, so only the marker text disagrees.
-        layout["sources"][0]["path"] = "main.js"  # type: ignore[index]
+        layout["sources"][0]["path"] = "main.js"
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="marker does not match its declared path"):
@@ -588,7 +588,7 @@ class TestBundleReader:
         )
         read_bundle(bundle)
         layout = _read_layout(bundle)
-        _mutate_byte(bundle, int(layout["code"]["start"], 16))  # type: ignore[index, call-overload]
+        _mutate_byte(bundle, int(layout["code"]["start"], 16))
         fstat.return_value.st_ctime_ns += 1
 
         with pytest.raises(ValueError, match="code SHA-256 mismatch"):
