@@ -465,57 +465,56 @@ class ExternalTaskSensor(BaseSensorOperator):
     def execute(self, context: Context) -> None:
         """Run on the worker and defer using the triggers if deferrable is set to True."""
         if not self.deferrable:
-            super().execute(context)
+            return super().execute(context)
+        # Determine the timeout to use: prefer timeout parameter, fallback to execution_timeout
+        timeout_value = self.timeout
+        if not timeout_value and self.execution_timeout:
+            timeout_value = self.execution_timeout.total_seconds()
+
+        dttm_filter = self._get_dttm_filter(context)
+        if AIRFLOW_V_3_0_PLUS:
+            self.defer(
+                timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
+                trigger=WorkflowTrigger(
+                    external_dag_id=self.external_dag_id,
+                    external_task_group_id=self.external_task_group_id,
+                    external_task_ids=self.external_task_ids,
+                    allowed_states=self.allowed_states,
+                    failed_states=self.failed_states,
+                    skipped_states=self.skipped_states,
+                    poke_interval=self.poll_interval,
+                    soft_fail=self.soft_fail,
+                    logical_dates=list(dttm_filter),
+                    run_ids=None,
+                    execution_dates=None,
+                ),
+                method_name="execute_complete",
+            )
         else:
-            # Determine the timeout to use: prefer timeout parameter, fallback to execution_timeout
-            timeout_value = self.timeout
-            if not timeout_value and self.execution_timeout:
-                timeout_value = self.execution_timeout.total_seconds()
+            # TODO: Remove this block when Airflow 2 support is dropped
+            if self.check_existence and not self._has_checked_existence:
+                from airflow.utils.session import create_session
 
-            dttm_filter = self._get_dttm_filter(context)
-            if AIRFLOW_V_3_0_PLUS:
-                self.defer(
-                    timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
-                    trigger=WorkflowTrigger(
-                        external_dag_id=self.external_dag_id,
-                        external_task_group_id=self.external_task_group_id,
-                        external_task_ids=self.external_task_ids,
-                        allowed_states=self.allowed_states,
-                        failed_states=self.failed_states,
-                        skipped_states=self.skipped_states,
-                        poke_interval=self.poke_interval,
-                        soft_fail=self.soft_fail,
-                        logical_dates=list(dttm_filter),
-                        run_ids=None,
-                        execution_dates=None,
-                    ),
-                    method_name="execute_complete",
-                )
-            else:
-                # TODO: Remove this block when Airflow 2 support is dropped
-                if self.check_existence and not self._has_checked_existence:
-                    from airflow.utils.session import create_session
+                with create_session() as session:
+                    self._check_for_existence(session=session)
 
-                    with create_session() as session:
-                        self._check_for_existence(session=session)
-
-                self.defer(
-                    timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
-                    trigger=WorkflowTrigger(
-                        external_dag_id=self.external_dag_id,
-                        external_task_group_id=self.external_task_group_id,
-                        external_task_ids=self.external_task_ids,
-                        allowed_states=self.allowed_states,
-                        failed_states=self.failed_states,
-                        skipped_states=self.skipped_states,
-                        poke_interval=self.poke_interval,
-                        soft_fail=self.soft_fail,
-                        execution_dates=list(dttm_filter),
-                        logical_dates=None,
-                        run_ids=None,
-                    ),
-                    method_name="execute_complete",
-                )
+            self.defer(
+                timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
+                trigger=WorkflowTrigger(
+                    external_dag_id=self.external_dag_id,
+                    external_task_group_id=self.external_task_group_id,
+                    external_task_ids=self.external_task_ids,
+                    allowed_states=self.allowed_states,
+                    failed_states=self.failed_states,
+                    skipped_states=self.skipped_states,
+                    poke_interval=self.poll_interval,
+                    soft_fail=self.soft_fail,
+                    execution_dates=list(dttm_filter),
+                    logical_dates=None,
+                    run_ids=None,
+                ),
+                method_name="execute_complete",
+            )
 
     def execute_complete(self, context: Context, event: dict[str, typing.Any] | None = None) -> None:
         """Execute when the trigger fires - return immediately."""
