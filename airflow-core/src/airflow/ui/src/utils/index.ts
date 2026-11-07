@@ -29,6 +29,6 @@ export { useContainerWidth } from "./useContainerWidth";
 export { useDocumentTitle } from "./useDocumentTitle";
 export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
 export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
+export { getFilterParamNames, useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
 export * from "./query";
 export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";

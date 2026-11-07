@@ -23,6 +23,7 @@ import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 import { usePausedDefault } from "../usePausedDefault";
+import { useRememberedFilters } from "../useRememberedFilters";
 
 export const DagsFilters = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
@@ -46,7 +47,9 @@ export const DagsFilters = () => {
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
+  const onFiltersChange = useRememberedFilters(filterConfigs, handleFiltersChange);
+
   return (
-    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
+    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={onFiltersChange} />
   );
 };

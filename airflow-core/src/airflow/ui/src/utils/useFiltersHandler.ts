@@ -19,13 +19,31 @@
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import type { FilterValue, DateRangeValue } from "src/components/FilterBar";
+import type { FilterConfig, FilterValue, DateRangeValue } from "src/components/FilterBar";
 
 import { useFilterConfigs } from "src/constants/filterConfigs";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const isNonEmptyString = (value: string | null | undefined): value is string =>
   value !== null && value !== undefined && value !== "";
+
+/**
+ * The URL params a filter config owns, matching how ``handleFiltersChange`` maps it onto the query.
+ * Composite filters must enumerate every param they manage, mapped to undefined to clear it.
+ */
+export const getFilterParamNames = (config: FilterConfig): Array<string> => {
+  if (config.toSearchParams !== undefined) {
+    return Object.keys(config.toSearchParams(undefined));
+  }
+
+  if (config.type === "daterange") {
+    return [config.key, config.startKey, config.endKey].filter(
+      (param): param is string => param !== undefined,
+    );
+  }
+
+  return config.matchModeKey === undefined ? [config.key] : [config.key, config.matchModeKey];
+};
 
 const handleDateRangeChange = (
   newParams: URLSearchParams,
