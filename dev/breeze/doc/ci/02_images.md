@@ -450,8 +450,8 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                             | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                             | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `26.2.2`                    | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`              | `0.13.6`                     | `uv` version used.                                                                                                |
+| `AIRFLOW_PIP_VERSION`             | `26.3`                      | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`              | `0.13.7`                     | `uv` version used.                                                                                                |
 | `AIRFLOW_PREK_VERSION`            | `0.5.9`                     | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
