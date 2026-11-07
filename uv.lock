@@ -2012,7 +2012,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "rich-argparse", specifier = ">=1.0.0" },
+    { name = "rich-argparse", specifier = ">=1.4.0" },
     { name = "structlog", specifier = ">=25.4.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "tenacity", specifier = ">=9.1.4" },
