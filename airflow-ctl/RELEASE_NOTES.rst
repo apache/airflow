@@ -17,6 +17,119 @@
 
 .. This file is populated while releasing after cutting the release candidate. Please do not edit in PRs.
 
+airflowctl 0.1.6 (2026-11-07)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add ``dags state`` command (#68564, #69915)
+- Add ``dagrun delete`` command (#68046)
+- Add ``tasks states-for-dag-run``, ``tasks clear`` and ``taskinstances list`` commands. ``tasks clear``
+  previews by default through ``dry_run`` and changes task instances only when that is turned off (#69366)
+- Exit non-zero when ``connections test`` reports a failed test. It used to exit 0, so check scripts
+  that rely on the old exit code (#76281)
+- Print the status messages of ``dags pause`` and ``dags unpause`` to stderr. Scripts that read them from
+  stdout must read stderr instead (#76133)
+- Keep ``auth token`` stdout limited to the token (#76134)
+- Keep stdout parseable when a request is retried or fails, by sending those messages to stderr (#76347)
+- Retry writes only when the server could not have received them, and warn when a write may have
+  succeeded despite an error (#74382)
+- Raise the default API request timeout from 5 to 30 seconds, configurable with
+  ``AIRFLOW_CLI_API_TIMEOUT`` (#76125)
+- Require ``rich-argparse`` 1.4.0 or later (#76661)
+
+Bug Fixes
+^^^^^^^^^
+
+- Stop sending the stored token to the URL given with ``--api-url`` in auth commands (#76280)
+- Stop sending an old token to a new API URL (#76287)
+- Stop update commands from clearing fields left unset (#71333)
+- Fix ids with URL special characters being sent to the wrong path (#76147)
+- Fix incorrect asset queued-event endpoint paths (#70461)
+- Fix ``backfill`` pause, unpause and cancel always failing with 405 (#73282)
+- Fix ``backfill create-dry-run`` printing one all-null row (#76224)
+- Fix ``dagrun list`` ignoring ``--start-date`` and ``--end-date`` (#76348)
+- Fix ``dags get-tags`` crashing whenever a Dag has tags (#73743)
+- Fix ``pools`` export and import dropping pool team ownership (#73132)
+- Fix ``connections test`` failing on stored connections (#73098)
+- Fix ``connections create-defaults`` failing on a None response (#68853)
+- Fix ``config lint`` warnings for ``remove_if_equals`` rules (#66370)
+- Fix ``config lint`` filters matching partial config names (#75690)
+- Fix ``variables import`` with structured falsy values (#67060)
+- Fix JSON parsing of Dag run conf (#68985)
+- Fix list operations ignoring the requested offset (#70989)
+- Fix list pagination when the server caps the page size (#76268)
+- Fix list argument parsing (#72454)
+- Fix ``datetime`` parameters rejecting all input (#70249)
+- Fix ``--env`` being ignored by non-auth commands (#73808)
+- Fix operation defaults being lost when an optional flag is omitted (#65062)
+- Fix the validation error of the operations create command (#69317)
+- Fix commands crashing instead of printing their result (#72675)
+- Fix enum names and non-ISO dates in ``dags`` output (#76354)
+- Fix square brackets being dropped from table and plain output (#76175)
+- Fix failures on fields added by newer API servers (#75610)
+- Accept the ``operator_triggered`` Dag run type from Airflow 3.3+ servers (#63733)
+- Accept the ``awaiting_input`` task instance state from Airflow 3.3+ servers (#76118)
+- Accept Airflow 3.4 Dag warning types and plugin destinations (#76119)
+- Accept null ``fileloc`` values on Dags (#69110)
+- Accept null Variable values from servers that cannot decrypt them (#65452)
+- Send a request body with ``assets materialize``, which Airflow 3.4 requires (#73328)
+- Reject a non-positive ``max_active_runs`` in ``backfill create`` (#75071)
+- Stop a bad retry environment variable from breaking every command (#72429)
+- Stop swallowing unexpected keyring errors when saving credentials (#70991)
+- Handle connection and request timeouts (#76132)
+- Handle empty or corrupted JSON when loading credentials (#75279)
+- Report an unusable credentials file without a traceback (#72468)
+- Report the server error instead of a traceback on 5xx responses (#70841)
+- Report redirects and non-JSON error bodies without a traceback (#73307)
+- Report response validation errors without a traceback (#76121)
+- Keep API client error details behind a reverse proxy (#75493)
+- Report missing required options as readable errors (#75177)
+- Report missing and invalid fields in ``connections import`` (#76090)
+- Validate the file structure in ``connections import`` (#75176)
+- Report invalid pools in ``pools import`` as readable errors (#76173)
+- Report invalid variables in ``variables import`` as readable errors (#76174)
+- Escape server and user text in command messages (#76264, #76265, #76419)
+- Make command generation safe to read more than once (#73097)
+
+Improvements
+^^^^^^^^^^^^
+
+- Allow a non-default API server URL through ``AIRFLOW_CLI_API_URL`` (#76124)
+- Flag the deprecated ``expose_config=non-sensitive-only`` in ``config lint`` (#72507)
+- Log the retry reason in API client retries (#75059)
+- Drop the redundant re-validation round trip in list pagination (#71928)
+- Simplify query parameter handling (#69475)
+- Fix wrong command and API wording in docs and help (#75058)
+- Fix typos, grammar and broken references in the docs (#73146)
+- Limit the CLI reference's page contents to top-level commands (#75483)
+
+Known Issues
+^^^^^^^^^^^^
+
+- ``dags update`` without ``--is-paused`` sends ``is_paused: false``, so it unpauses the Dag. Pass
+  ``--is-paused`` to keep a paused Dag paused.
+- ``pools update`` without ``--include-deferred`` sends ``include_deferred: false``, so it resets that
+  setting. Pass ``--include-deferred`` to keep it on.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  - Remove asset state store commands from airflowctl 0.1.x, reverting #70771 and #75753 before release (#76662)
+  - Fix airflowctl dags state crash from an incomplete backport (#71095)
+  - Regenerate airflowctl datamodels from this branch's API spec (#71094)
+  - Fix airflow-ctl mypy static check on the 0.1 branch (#71096)
+  - Run CI on airflow-ctl release-branch pull requests and pushes (#70724, #70726)
+  - Bump datamodel-code-generator pin from 0.33.0 to 0.41.0 (#69854)
+  - Remove no-op exception re-raise and parser override (#70903)
+  - Remove no-op ServerResponseError re-raise blocks in operations (#70376)
+  - Remove unused airflowctl lowercase argument helper (#75768)
+  - Remove unused type: ignore comments in airflow-ctl (#75203)
+  - Fix airflowctl retry env-var tests failing on self-hosted runners (#73212)
+  - Parametrize airflowctl environment output tests (#75900)
+  - Stop airflowctl connection-refused test depending on the local network (#76077)
+  - Add tests for airflowctl utils helpers and module loading (#76271)
+
 airflowctl 0.1.5 (2026-05-26)
 -----------------------------
 
