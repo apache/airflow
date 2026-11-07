@@ -1,0 +1,6 @@
+Full probe configuration for scheduler in Helm chart
+
+The scheduler ``livenessProbe``, ``startupProbe`` and the new ``readinessProbe``
+(disabled by default) now support an ``enabled`` flag and ``httpGet``, ``tcpSocket``
+and ``grpc`` handlers in addition to the default ``exec`` handler, as well as
+``successThreshold`` and ``terminationGracePeriodSeconds``.
