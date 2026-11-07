@@ -32,8 +32,9 @@ rules:
   #
   # The audit's own threat model -- a privileged workflow loading a local action
   # out of a checkout untrusted code could have altered first -- does not reach
-  # us either, since no Airflow workflow runs on `pull_request_target` or
-  # `workflow_run`. Revisit if the symlinks go away and ASF Infra teaches the
+  # us either, since the only `pull_request_target` workflow
+  # (fork-ci-project-ci-label.yml) checks nothing out, and no Airflow workflow
+  # runs on `workflow_run`. Revisit if the symlinks go away and ASF Infra teaches the
   # allowlist about `$/`.
   self-repository:
     disable: true
