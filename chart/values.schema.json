@@ -1188,6 +1188,12 @@
                     "name": {
                         "type": "string"
                     },
+                    "annotations": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
                     "preemptionPolicy": {
                         "type": "string"
                     },
@@ -7934,6 +7940,14 @@
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into `pgbouncer`.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into PgBouncer pod (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
