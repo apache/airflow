@@ -353,7 +353,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "Type of build",
-            "options": ["--one-pass-only"],
+            "options": ["--one-pass-only", "--jobs"],
         },
         {
             "name": "Cleaning inventories",

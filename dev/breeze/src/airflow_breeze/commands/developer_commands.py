@@ -898,6 +898,7 @@ def _build_python_docs(
     include_removed_providers: bool,
     include_commits: bool,
     one_pass_only: bool,
+    jobs: int | None,
     package_filter: tuple[str, ...],
     distributions_list: str,
     doc_packages: tuple[str, ...],
@@ -949,6 +950,7 @@ def _build_python_docs(
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         one_pass_only=one_pass_only,
+        jobs=jobs,
         include_commits=include_commits,
         fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
         clean_inventory_cache=clean_inventory_cache,
@@ -1026,6 +1028,12 @@ def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Paramet
     is_flag=True,
 )
 @click.option(
+    "--jobs",
+    type=click.IntRange(min=1),
+    help="Number of parallel processes used to build Python package docs. Defaults to the number of CPU "
+    "cores. Single-package builds always use one process.",
+)
+@click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
     "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
@@ -1069,6 +1077,7 @@ def build_docs(
     include_removed_providers: bool,
     include_commits: bool,
     one_pass_only: bool,
+    jobs: int | None,
     package_filter: tuple[str, ...],
     distributions_list: str,
     sdk: tuple[str, ...],
@@ -1079,6 +1088,10 @@ def build_docs(
     """
     Build documents.
     """
+    if sdk_docs_only and jobs is not None:
+        raise click.UsageError(
+            "--jobs cannot be used with --sdk-docs-only: the SDK docs do not use the Python docs workers."
+        )
     if sdk_docs_only and sphinx_airflow_theme_path:
         raise click.UsageError(
             "--sphinx-airflow-theme-path cannot be used with --sdk-docs-only: "
@@ -1103,6 +1116,7 @@ def build_docs(
             include_removed_providers=include_removed_providers,
             include_commits=include_commits,
             one_pass_only=one_pass_only,
+            jobs=jobs,
             package_filter=package_filter,
             distributions_list=distributions_list,
             doc_packages=doc_packages,
