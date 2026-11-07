@@ -25,7 +25,7 @@ import pytest
 from httpx2 import Response
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.routes.public.dag_sources import REDACTED_SOURCE
+from airflow.api_fastapi.core_api.security import REDACTED_FILE_CONTENT
 from airflow.models import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagcode import DagCode
@@ -223,7 +223,7 @@ class TestGetDAGSource:
 
         assert response.status_code == 200
         assert response.json() == {
-            "content": REDACTED_SOURCE,
+            "content": REDACTED_FILE_CONTENT,
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
