@@ -3951,6 +3951,37 @@ class TestKubernetesPodOperatorAsync:
                 },
             )
 
+    @patch(KUB_OP_PATH.format("_write_logs"), autospec=True)
+    @patch(KUB_OP_PATH.format("process_pod_deletion"), autospec=True)
+    def test_trigger_reentry_skips_pod_completion_when_base_container_not_declared(
+        self, process_pod_deletion, mock_write_log
+    ):
+        """``_clean`` must not wait for a pod whose spec never declares the base container."""
+        self.await_pod_get.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="sidecar")]),
+            status=k8s.V1PodStatus(phase=PodPhase.RUNNING),
+        )
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod")
+
+        with pytest.raises(AirflowException, match="returned a failure") as exc_info:
+            op.trigger_reentry(
+                create_context(op),
+                {
+                    "status": "failed",
+                    "message": (
+                        f"Base container 'base' is not declared by pod {TEST_NAMESPACE}/{TEST_NAME}; "
+                        "declared containers: ['sidecar']."
+                    ),
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+
+        assert "is not declared by pod" in str(exc_info.value.__context__)
+        self.await_pod_mock.assert_not_called()
+        process_pod_deletion.assert_called_once_with(op, self.await_pod_get.return_value, reraise=False)
+
     @patch(KUB_OP_PATH.format("invoke_defer_method"))
     @patch(HOOK_CLASS)
     def test_redefer_when_pod_still_running(self, mocked_hook, mock_invoke_defer):
