@@ -36,7 +36,13 @@ def get_provider_info():
             }
         ],
         "operators": [
-            {"integration-name": "Oracle", "python-modules": ["airflow.providers.oracle.operators.oracle"]}
+            {
+                "integration-name": "Oracle",
+                "python-modules": [
+                    "airflow.providers.oracle.operators.oracle",
+                    "airflow.providers.oracle.operators.oracle_vector",
+                ],
+            }
         ],
         "asset-uris": [
             {
@@ -60,6 +66,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.oracle.hooks.handlers",
                     "airflow.providers.oracle.hooks.oracle",
+                    "airflow.providers.oracle.hooks.oracle_vector",
                 ],
             }
         ],
