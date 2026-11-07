@@ -250,6 +250,19 @@ describe("triggerDagRun", () => {
       );
     });
 
+    it.each(["if", "switch"] as const)("a trigger task given to a task group's %s", (decider) => {
+      const group = new Dag("d").taskGroup("routing");
+      const declare = group[decider].bind(group) as (...args: unknown[]) => unknown;
+
+      expect(() =>
+        declare(triggerDagRun({ dagId: "downstream_etl" }), undefined, {
+          taskId: "trigger_downstream",
+        }),
+      ).toThrowError(
+        `A triggerDagRun task of Dag "d" was given to taskGroup("routing").${decider}, which needs`,
+      );
+    });
+
     it("a trigger task left uncalled, when the Dag is read", () => {
       const dag = new Dag("d");
       dag.task(triggerDagRun({ dagId: "downstream_etl" }), { taskId: "trigger_downstream" });
