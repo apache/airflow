@@ -1893,6 +1893,53 @@ def test_discover_posts_project_ci_success_for_an_ungated_pull_request_with_a_st
         client.set_status.assert_not_called()
 
 
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_discover_recovers_a_status_on_a_base_branch_without_the_gate(mock_read, client):
+    configs = mock.create_autospec(BaseGateConfigs, instance=True)
+    configs.get.return_value = None
+    node = {
+        **_pr_node(1),
+        "headRefOid": "sha1",
+        "labels": {"nodes": []},
+        "commits": _ci_passed_commit("PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION),
+    }
+    mock_read.return_value = PROJECT_PASSED_URL
+    client.graphql.side_effect = [_search_result(node), _search_result()]
+    written: list[int] = []
+
+    discover(client, configs, repo=REPO, now=NOW, ci_passed_written=written)
+
+    assert written == [1]
+    client.add_labels.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_discover_reads_the_status_of_a_head_commit_the_search_did_not_list(mock_read, client):
+    config = GateConfig(enabled=False)
+    node = {
+        **_pr_node(1),
+        "headRefOid": "sha1",
+        "labels": {"nodes": []},
+        "commits": _ci_passed_commit("SUCCESS", CI_PASSED_DESCRIPTION, oid="older"),
+    }
+    mock_read.return_value = PROJECT_PASSED_URL
+    client.graphql.side_effect = [_search_result(node), _search_result()]
+    client.rest_get.return_value = [
+        {
+            "context": CI_PASSED_CONTEXT,
+            "state": "pending",
+            "description": CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+        }
+    ]
+    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=config)
+    written: list[int] = []
+
+    discover(client, configs, repo=REPO, now=NOW, ci_passed_written=written)
+
+    assert written == [1]
+    mock_read.assert_called_once_with(client, REPO, "sha1")
+
+
 def test_discover_keeps_going_when_the_project_ci_lookup_of_one_pull_request_fails(client):
     config = GateConfig(enabled=False)
     nodes = [

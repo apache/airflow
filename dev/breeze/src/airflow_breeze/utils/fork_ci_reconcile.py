@@ -1316,14 +1316,7 @@ def report_project_ci_passed(
                 state, description = (status.get("state") or "").lower(), status.get("description")
                 passed_url = find_project_ci_passed_url(node)
             else:
-                statuses = client.rest_get(
-                    f"repos/{repo}/commits/{node['headRefOid']}/status?per_page=100",
-                    paginate=True,
-                    items_key="statuses",
-                )
-                rest_status: dict[str, Any] = next(
-                    (s for s in statuses if s["context"] == CI_PASSED_CONTEXT), {}
-                )
+                rest_status = read_ci_passed_status(client, repo, node["headRefOid"])
                 state, description = rest_status.get("state"), rest_status.get("description")
                 passed_url = read_project_ci_passed_url(client, repo, node["headRefOid"])
             # Both the status and the project check run must pass when they share a name, so a
@@ -1527,6 +1520,17 @@ def discover(
         f'repo:{repo} is:pr is:open label:"{LABEL_USE_FORK_CI}" -label:"{LABEL_FORK_CI_REQUIRED}"',
     )
     labelled: list[int] = []
+
+    def recover_orphaned_status(node: dict[str, Any]) -> None:
+        if ci_passed_written is None or LABEL_USE_PROJECT_CI in _labels(node):
+            return
+        try:
+            report_orphaned_ci_passed(client, repo, node, ci_passed_written)
+        except Exception as e:
+            console_print(f"[error]#{node['number']}: `{CI_PASSED_CONTEXT}` not updated: {e}[/]")
+            if unknown is not None:
+                unknown.append((node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {type(e).__name__}"))
+
     for search_query in queries:
         for node in _search(client, DISCOVERY_QUERY % {"context": CI_PASSED_CONTEXT}, search_query):
             if node["number"] in labelled:
@@ -1538,6 +1542,7 @@ def discover(
                     unknown.append((node["number"], f"{type(e).__name__}: {e}"))
                 continue
             if config is None:
+                recover_orphaned_status(node)
                 continue
             author = _login(node.get("author"))
             created_at = parse_github_datetime(node["createdAt"])
@@ -1564,16 +1569,17 @@ def discover(
             if decide(event, config).reason in GATED_REASONS:
                 client.add_labels(node["number"], [LABEL_FORK_CI_REQUIRED])
                 labelled.append(node["number"])
-            elif ci_passed_written is not None and LABEL_USE_PROJECT_CI not in event.labels:
-                try:
-                    report_orphaned_ci_passed(client, repo, node, ci_passed_written)
-                except Exception as e:
-                    console_print(f"[error]#{node['number']}: `{CI_PASSED_CONTEXT}` not updated: {e}[/]")
-                    if unknown is not None:
-                        unknown.append(
-                            (node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {type(e).__name__}")
-                        )
+            else:
+                recover_orphaned_status(node)
     return labelled
+
+
+def read_ci_passed_status(client: GitHubClient, repo: str, head_sha: str) -> dict[str, Any]:
+    """The ``CI passed`` commit status of a head commit that the search did not list, from REST."""
+    statuses = client.rest_get(
+        f"repos/{repo}/commits/{head_sha}/status?per_page=100", paginate=True, items_key="statuses"
+    )
+    return next((status for status in statuses if status["context"] == CI_PASSED_CONTEXT), {})
 
 
 def report_orphaned_ci_passed(
@@ -1588,10 +1594,12 @@ def report_orphaned_ci_passed(
     counts, and only discovery's 24 hour window sees the pull request.
     """
     commit = ((node.get("commits") or {}).get("nodes") or [{}])[0].get("commit") or {}
-    status = (commit.get("status") or {}).get("context") or {}
+    if commit.get("oid") == node["headRefOid"]:
+        status = (commit.get("status") or {}).get("context") or {}
+    else:
+        status = read_ci_passed_status(client, repo, node["headRefOid"])
     if (
-        commit.get("oid") != node["headRefOid"]
-        or (status.get("state") or "").lower() in ("", "success")
+        (status.get("state") or "").lower() in ("", "success")
         or status.get("description")
         not in (
             CI_PASSED_DESCRIPTION,
