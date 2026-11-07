@@ -64,6 +64,22 @@ pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_tools
 
 The test requests the default no-egress policy and a 15-minute server-side TTL.
 
+## boxd
+
+Install the boxd extra and export an API key into the task process:
+
+```console
+pip install "apache-airflow-providers-common-ai[boxd]"
+export BOXD_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_boxd.py
+```
+
+The first task runs every tool against one machine, checks that a command stopped by its
+in-guest deadline leaves the machine and its files in place and that the default spec
+denies egress, and waits for the machine to be gone after the run. The second provisions a
+machine with an owner, attaches two agent runs to it, refuses a third run presenting the
+wrong owner, and deletes the machine. Both set a 15-minute `delete_after` as the backstop.
+
 ## OpenSandbox
 
 Install the OpenSandbox extra, point the SDK at a running server, and run:

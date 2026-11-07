@@ -218,6 +218,7 @@ booleans
 Boto
 boto
 botocore
+boxd
 bq
 bteq
 bugfix
