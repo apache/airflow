@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook
 
 qdrant_client = pytest.importorskip("qdrant_client")
@@ -45,6 +47,28 @@ class TestQdrantHook:
         self.qdrant_hook.verify_connection()
 
         mock_conn.get_collections.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("extra", "expected"),
+        [
+            pytest.param({"prefer_grpc": True}, True, id="prefer_grpc"),
+            pytest.param(
+                {"prefer_grpc": False, "prefer_gprc": True}, False, id="prefer_grpc-takes-precedence"
+            ),
+        ],
+    )
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantClient", autospec=True)
+    def test_get_conn_prefer_grpc(self, mock_qdrant_client, extra, expected, create_connection_without_db):
+        """Test that the prefer_grpc connection extra reaches QdrantClient."""
+        create_connection_without_db(
+            Connection(
+                conn_id="qdrant_default", conn_type="qdrant", host="localhost", extra=json.dumps(extra)
+            )
+        )
+
+        self.qdrant_hook.get_conn()
+
+        assert mock_qdrant_client.call_args.kwargs["prefer_grpc"] is expected
 
     @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
     def test_upsert(self, conn):
