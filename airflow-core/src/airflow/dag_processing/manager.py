@@ -543,7 +543,7 @@ class DagFileProcessorManager(LoggingMixin):
             return self._bundle_importer_registries[bundle_name]
         if not is_bundle_config_reload_enabled():
             return get_importer_registry(bundle_name)
-        importers = self._dag_bundle_manager.get_bundle_importers_config(bundle_name)
+        importers = self._dag_bundle_manager.get_bundle_parse_config(bundle_name)["importers"]
         registry = DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=importers)
         self._bundle_importer_registries[bundle_name] = registry
         return registry
@@ -2345,10 +2345,7 @@ class DagFileProcessorManager(LoggingMixin):
         )
         bundle_config = None
         if is_bundle_config_reload_enabled():
-            bundle_config = {
-                "importers": self._dag_bundle_manager.get_bundle_importers_config(dag_file.bundle_name),
-                "team_name": self._get_team_name(dag_file.bundle_name),
-            }
+            bundle_config = self._dag_bundle_manager.get_bundle_parse_config(dag_file.bundle_name)
 
         start_process: Callable[..., BaseDagFileProcessorProcess]
         if native is not None:

@@ -604,7 +604,7 @@ class TestDagFileProcessorManager:
             processor = DagFileProcessorManager(max_runs=1)
             processor.load_dag_bundles()
             processor.warm_importers()
-            processor._bundle_name_to_team_name["bundle-a"] = "team-a"
+            processor._bundle_name_to_team_name["bundle-a"] = None
             config_file.write_text("[]")
             mock_sync.side_effect = RuntimeError("database unavailable")
             processor._reconcile_bundles(known_files={})
@@ -622,6 +622,46 @@ class TestDagFileProcessorManager:
                 assert kwargs["team_name"] == "team-a"
             assert processor._dag_bundle_manager.get_bundle("bundle-a").path == bundle_path
             assert "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" not in os.environ
+
+    @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_parser_keeps_accepted_team_when_another_processor_clears_database_ownership(
+        self, mock_logger, mock_start, tmp_path
+    ):
+        config = [
+            {
+                "name": "bundle-a",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(tmp_path)},
+                "team_name": "team-a",
+            }
+        ]
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(json.dumps(config))
+        mock_logger.return_value = (structlog.get_logger(), mock.Mock(spec=["close"]))
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+            }
+        ):
+            with create_session() as session:
+                session.add(Team(name="team-a"))
+            processor = DagFileProcessorManager(max_runs=1)
+            processor.prepare_bundles()
+            with create_session() as session:
+                bundle = session.get(DagBundleModel, "bundle-a")
+                bundle.active = False
+                bundle.teams = []
+            assert processor._get_team_name("bundle-a") is None
+            file = DagFileInfo(bundle_name="bundle-a", bundle_path=tmp_path, rel_path=Path("dag.py"))
+            for _ in range(2):
+                processor._create_process(file, source=DagParseSource())
+                assert mock_start.call_args.kwargs["bundle_config"]["team_name"] == "team-a"
+                processor._reconcile_bundles(known_files={})
+            with create_session() as session:
+                assert session.get(DagBundleModel, "bundle-a").teams[0].name == "team-a"
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
     @pytest.mark.parametrize("remove_all", [False, True])
@@ -664,7 +704,7 @@ class TestDagFileProcessorManager:
                     )
                 )
             processor._reconcile_bundles(known_files={})
-            processor.deactivate_stale_dags(last_parsed={})
+            cleanup_processor_metadata()
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").active is bool(bundle_names_to_parse)
                 assert session.get(DagModel, "removed_bundle_dag").is_stale is (not bundle_names_to_parse)

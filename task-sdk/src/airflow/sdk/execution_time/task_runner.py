@@ -92,7 +92,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
     TaskNotFound,
 )
-from airflow.sdk.execution_time.bundles import initialize_ti_bundle
+from airflow.sdk.execution_time.bundles import get_bundle_importer_registry, initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
@@ -177,6 +177,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryDecision
     from airflow.sdk.exceptions import DagRunTriggerException
+    from airflow.sdk.importers import DagImporterRegistry
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 log = structlog.get_logger("task")
@@ -1098,10 +1099,12 @@ def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
                     )
 
 
-def _find_native_dag_importer(path: str, bundle_name: str) -> CoordinatorDagImporter | None:
+def _find_native_dag_importer(
+    path: str, bundle_name: str, *, registry: DagImporterRegistry | None = None
+) -> CoordinatorDagImporter | None:
     """Return the coordinator Dag importer that claims *path*, so that a Lang-SDK runtime parses it."""
     try:
-        return find_claiming_importer(path, bundle_name)
+        return find_claiming_importer(path, bundle_name, registry=registry)
     except Exception:
         # Building the Dag bag reports a broken importer configuration.
         return None
@@ -1152,7 +1155,10 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    if (importer := _find_native_dag_importer(dag_absolute_path, bundle_info.name)) is not None:
+    importer_registry = get_bundle_importer_registry(bundle_info.name)
+    if (
+        importer := _find_native_dag_importer(dag_absolute_path, bundle_info.name, registry=importer_registry)
+    ) is not None:
         _fail_lang_sdk_task(what, importer.coordinator_classpath, log)
 
     dag_file_parse_start = time.monotonic()
@@ -1162,6 +1168,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         load_op_links=False,
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
+        importer_registry=importer_registry,
     )
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:

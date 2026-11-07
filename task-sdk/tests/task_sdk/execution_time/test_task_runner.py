@@ -52,6 +52,7 @@ from airflow._shared.observability.traces import (
     new_task_run_carrier,
 )
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.listeners import hookimpl
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.providers.standard.operators.python import PythonOperator
@@ -351,7 +352,70 @@ def test_parse_dag_bag(mock_dagbag, mock_check_xcom_backend, test_dags_dir: Path
         load_op_links=False,
         bundle_path=test_dags_dir,
         bundle_name="my-bundle",
+        importer_registry=mock.ANY,
     )
+
+
+@pytest.mark.parametrize("source_change", ["unavailable", "malformed", "changed-importers"])
+@patch.object(LocalDagBundle, "initialize", autospec=True)
+def test_parse_reuses_accepted_importers_when_bundle_source_changes(
+    initialize, tmp_path, make_ti_context, source_change
+):
+    tmp_path.joinpath("dag.custom").write_text(
+        "from airflow.sdk import DAG, BaseOperator\n"
+        'with DAG("accepted_bundle") as dag:\n'
+        '    BaseOperator(task_id="a")\n'
+    )
+    config = [
+        {
+            "name": "my-bundle",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(tmp_path)},
+            "importers": [
+                {"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}
+            ],
+        }
+    ]
+    config_file = tmp_path / "bundles.json"
+    config_file.write_text(json.dumps(config))
+
+    def change_source(bundle):
+        if source_change == "unavailable":
+            config_file.unlink()
+        elif source_change == "malformed":
+            config_file.write_text("invalid JSON")
+        else:
+            config[0]["importers"] = [{"classpath": "nonexistent.Importer"}]
+            config_file.write_text(json.dumps(config))
+
+    initialize.side_effect = change_source
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): None,
+            ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+        }
+    ):
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="a",
+                dag_id="accepted_bundle",
+                run_id="run",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            dag_rel_path="dag.custom",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            ti_context=make_ti_context(),
+            start_date=timezone.utcnow(),
+            sentry_integration="",
+        )
+        result = parse(what, structlog.get_logger())
+    assert result.task.task_id == "a"
+    assert result.task.dag.dag_id == "accepted_bundle"
+    initialize.assert_called_once()
 
 
 @pytest.mark.parametrize(

@@ -109,6 +109,7 @@ class _InternalBundleConfig(BaseModel):
     bundle_class: type[BaseDagBundle]
     kwargs: dict
     team_name: str | None = None
+    importers: Any = None
 
 
 def _bundle_item_exc(msg):
@@ -476,6 +477,7 @@ class DagBundlesManager(LoggingMixin):
                 bundle_class=class_,
                 kwargs=bundle_config.kwargs,
                 team_name=bundle_config.team_name,
+                importers=bundle_config.importers,
             )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
@@ -605,12 +607,12 @@ class DagBundlesManager(LoggingMixin):
         from airflow.models.errors import ParseImportError
 
         for name, bundle in stored.items():
+            session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             if bundle.active is False:
                 continue
             bundle.active = False
             bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-            session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
     def reassign_dags_with_unconfigured_bundles(self) -> int:
@@ -835,30 +837,7 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def get_bundle_importers_config(self, name: str) -> Any:
-        """Return accepted importer settings without refreshing bundle configuration."""
-        try:
-            return deepcopy(self._snapshot.configs[name].importers)
-        except KeyError:
-            raise ValueError(f"Requested bundle '{name}' is not configured.") from None
-
-    def _refresh_config(self) -> None:
-        """Refresh bundle configuration and update this manager."""
-        self._snapshot = _refresh_bundle_config_snapshot(snapshot=self._snapshot)
-        self.parse_config()
-
-    def get_bundle(
-        self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
-    ) -> BaseDagBundle:
-        """
-        Get a DAG bundle by name.
-
-        :param name: The name of the DAG bundle.
-        :param version: The version of the DAG bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
-        :param version_data: Optional structured data associated with this version (e.g., S3 manifest).
-
-        :return: The DAG bundle.
-        """
+    def _get_bundle_config(self, name: str) -> _InternalBundleConfig:
         bundle_config = self._bundle_config
         if name not in bundle_config and (self._bundle_names is None or name in self._bundle_names):
             snapshot = _get_cached_bundle_config_snapshot()
@@ -880,6 +859,31 @@ class DagBundlesManager(LoggingMixin):
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
         self._failed_bundle_lookups.pop(name, None)
+        return cfg_bundle
+
+    def get_bundle_parse_config(self, name: str) -> dict[str, Any]:
+        """Return accepted parser settings, resolving a newly added bundle on a lookup miss."""
+        config = self._get_bundle_config(name)
+        return {"importers": deepcopy(config.importers), "team_name": config.team_name}
+
+    def _refresh_config(self) -> None:
+        """Refresh bundle configuration and update this manager."""
+        self._snapshot = _refresh_bundle_config_snapshot(snapshot=self._snapshot)
+        self.parse_config()
+
+    def get_bundle(
+        self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
+    ) -> BaseDagBundle:
+        """
+        Get a DAG bundle by name.
+
+        :param name: The name of the DAG bundle.
+        :param version: The version of the DAG bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
+        :param version_data: Optional structured data associated with this version (e.g., S3 manifest).
+
+        :return: The DAG bundle.
+        """
+        cfg_bundle = self._get_bundle_config(name)
         with self._bundle_context(name):
             return cfg_bundle.bundle_class(
                 name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
