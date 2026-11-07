@@ -65,7 +65,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -2652,8 +2652,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel.from_serialized(asset))
-                    session.flush()  # So event can set up its asset fk.
+                    # Flush earlier event writes before the savepoint, outside conflict recovery.
+                    savepoint = session.begin_nested()
+                    try:
+                        with savepoint:
+                            session.add(AssetModel.from_serialized(asset))
+                            session.flush()  # So event can set up its asset fk.
+                    except IntegrityError:
+                        existing_asset_id = session.scalar(
+                            select(AssetModel.id).where(
+                                AssetModel.name == asset.name, AssetModel.uri == asset.uri
+                            )
+                        )
+                        if existing_asset_id is None:
+                            raise
                     asset_manager.register_asset_change(
                         task_instance=ti,
                         asset=asset,
