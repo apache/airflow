@@ -161,6 +161,7 @@ var taskShape = authoringShape{
 		"executor_config":               "no Go authoring type yet: the keys are executor-specific",
 		"inlets":                        "no Go authoring type yet: an asset needs its own spec",
 		"outlets":                       "no Go authoring type yet: an asset needs its own spec",
+		"emits":                         "no Go authoring type yet: an asset needs its own spec",
 		"render_template_as_native_obj": "set on the Dag, where the schema types it without a null",
 		// 4 and 5: an attribute an author can set but the SDK cannot yet honour, and one
 		// that only Python has, are worse than a missing field: a field is easy to add

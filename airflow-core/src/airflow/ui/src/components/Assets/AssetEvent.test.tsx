@@ -35,6 +35,51 @@ const baseEvent = {
 } satisfies Partial<AssetEventResponse> as AssetEventResponse;
 
 describe("AssetEvent", () => {
+  it("links Dag-sourced events to the source run without a task", () => {
+    render(
+      <AssetEvent
+        assetId={1}
+        event={{
+          ...baseEvent,
+          source_dag_id: "producer",
+          source_map_index: null,
+          source_run_id: "failed_run",
+          source_task_id: null,
+          source_task_instance_id: null,
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByRole("link", { name: "producer" })).toHaveAttribute(
+      "href",
+      "/dags/producer/runs/failed_run",
+    );
+  });
+
+  it.each([
+    [-1, "/dags/producer/runs/run/tasks/publish"],
+    [null, "/dags/producer/runs/run/tasks/publish"],
+    [0, "/dags/producer/runs/run/tasks/publish/mapped/0"],
+    [2, "/dags/producer/runs/run/tasks/publish/mapped/2"],
+  ] as const)("preserves task links for map index %s", (sourceMapIndex, expectedUrl) => {
+    render(
+      <AssetEvent
+        assetId={1}
+        event={{
+          ...baseEvent,
+          source_dag_id: "producer",
+          source_map_index: sourceMapIndex,
+          source_run_id: "run",
+          source_task_id: "publish",
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByRole("link", { name: "producer" })).toHaveAttribute("href", expectedUrl);
+  });
+
   it("does not render a partition key line when partition_key is null", () => {
     render(<AssetEvent assetId={1} event={{ ...baseEvent, partition_key: null }} />, { wrapper: Wrapper });
 

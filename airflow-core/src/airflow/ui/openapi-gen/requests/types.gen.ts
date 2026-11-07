@@ -77,7 +77,7 @@ export type AssetEventResponse = {
     source_task_id?: string | null;
     source_dag_id?: string | null;
     source_run_id?: string | null;
-    source_map_index: number;
+    source_map_index: number | null;
     source_task_instance_id?: string | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;

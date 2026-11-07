@@ -218,6 +218,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "email",
         "email_on_failure",
         "email_on_retry",
+        "emits",
         "end_date",
         "execution_timeout",
         "executor",
@@ -276,7 +277,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
 )
 _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS = frozenset({"_arg_bindings"})
 # Task-field categories used by _get_category.
-_DIFF_V1_TASK_ASSET_FIELDS = frozenset({"inlets", "outlets"})
+_DIFF_V1_TASK_ASSET_FIELDS = frozenset({"emits", "inlets", "outlets"})
 _DIFF_V1_TASK_PARAM_FIELDS = frozenset({"params"})
 _DIFF_V1_TASK_DEPENDENCY_FIELDS = frozenset({"downstream_task_ids"})
 _DIFF_V1_TASK_METADATA_FIELDS = frozenset(

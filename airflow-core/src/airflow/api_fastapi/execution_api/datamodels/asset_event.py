@@ -18,11 +18,41 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
+from pydantic import Field, StringConstraints, model_validator
 from pydantic.types import JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
+from airflow.models.base import ID_LEN
+
+
+class EmitAssetEventBody(StrictBaseModel):
+    """Immediate emission; the server derives the source from the caller's credential."""
+
+    name: str | None = None
+    uri: str | None = None
+    extra: dict[str, JsonValue] = Field(default_factory=dict)
+    # pattern, not strip_whitespace, so the key stays byte-identical to the REST API's.
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = None
+    idempotency_key: str = Field(min_length=1, max_length=ID_LEN)
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_asset_reference(self):
+        if self.name is None and self.uri is None:
+            raise ValueError("Give the asset name, the asset URI, or both")
+        return self
+
+
+class AssetEventReceipt(StrictBaseModel):
+    """Acknowledgement of a persisted event, not of downstream scheduling."""
+
+    id: int
+    timestamp: datetime
+    replayed: bool = False
 
 
 class DagRunAssetReference(StrictBaseModel):

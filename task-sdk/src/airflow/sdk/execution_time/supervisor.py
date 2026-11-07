@@ -93,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
+    EmitAssetEvent,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
@@ -2428,6 +2429,11 @@ class ActivitySubprocess(WatchedSubprocess):
         resp = OKResponse(ok=True)
         return resp, {}
 
+    def _handle_emit_asset_event(
+        self, msg: EmitAssetEvent, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        return self.client.asset_events.emit(msg), {}
+
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[ActivitySubprocess]]] = {
         **WatchedSubprocess._get_shared_request_handlers(
             DeleteVariable,
@@ -2453,6 +2459,7 @@ class ActivitySubprocess(WatchedSubprocess):
         ),
         **dict(
             [
+                register_request_method(EmitAssetEvent, _handle_emit_asset_event),
                 register_request_method(AwaitInputTask, _handle_suspended_task),
                 register_request_method(ClearAssetStateStoreByName, _handle_clear_asset_state_store_by_name),
                 register_request_method(ClearAssetStateStoreByUri, _handle_clear_asset_state_store_by_uri),
