@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, CloseButton, Dialog, IconButton, Portal, Textarea, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceRequestWorkerMaintenance } from "openapi/queries";
+import { useRequestWorkerMaintenance } from "openapi/queries";
 import { useState } from "react";
 import { HiOutlineWrenchScrewdriver } from "react-icons/hi2";
 
@@ -30,7 +30,7 @@ export const MaintenanceEnterButton = ({ onEnterMaintenance, workerName }: Maint
   const { onClose, onOpen, open } = useDisclosure();
   const [comment, setComment] = useState("");
 
-  const enterMaintenanceMutation = useUiServiceRequestWorkerMaintenance({
+  const enterMaintenanceMutation = useRequestWorkerMaintenance(undefined, {
     onError: (error) => {
       onEnterMaintenance({
         description: `Unable to set worker ${workerName} to maintenance mode: ${error}`,
@@ -48,7 +48,10 @@ export const MaintenanceEnterButton = ({ onEnterMaintenance, workerName }: Maint
   });
 
   const enterMaintenance = () => {
-    enterMaintenanceMutation.mutate({ requestBody: { maintenance_comment: comment }, workerName });
+    enterMaintenanceMutation.mutate({
+      body: { maintenance_comment: comment },
+      path: { worker_name: workerName },
+    });
   };
 
   return (

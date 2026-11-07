@@ -17,10 +17,10 @@
  * under the License.
  */
 import {
-  useUiServiceDeleteWorker,
-  useUiServiceExitWorkerMaintenance,
-  useUiServiceRequestWorkerMaintenance,
-  useUiServiceRequestWorkerShutdown,
+  useDeleteWorker,
+  useExitWorkerMaintenance,
+  useRequestWorkerMaintenance,
+  useRequestWorkerShutdown,
 } from "openapi/queries";
 import type { Worker } from "openapi/requests/types.gen";
 import { useCallback, useMemo, useState } from "react";
@@ -109,10 +109,10 @@ export const useBulkWorkerActions = ({
   const [isBulkMaintenanceEnterPending, setIsBulkMaintenanceEnterPending] = useState(false);
   const [isBulkMaintenanceExitPending, setIsBulkMaintenanceExitPending] = useState(false);
 
-  const shutdownMutation = useUiServiceRequestWorkerShutdown();
-  const deleteMutation = useUiServiceDeleteWorker();
-  const maintenanceEnterMutation = useUiServiceRequestWorkerMaintenance();
-  const maintenanceExitMutation = useUiServiceExitWorkerMaintenance();
+  const shutdownMutation = useRequestWorkerShutdown();
+  const deleteMutation = useDeleteWorker();
+  const maintenanceEnterMutation = useRequestWorkerMaintenance();
+  const maintenanceExitMutation = useExitWorkerMaintenance();
 
   const shutdownWorkers = useMemo(
     () => selectedWorkers.filter((worker) => bulkWorkerShutdownEligibleStates.has(worker.state)),
@@ -175,7 +175,7 @@ export const useBulkWorkerActions = ({
         type: "success",
       }),
       workers: shutdownWorkers,
-      workerMutation: (worker) => shutdownMutation.mutateAsync({ workerName: worker.worker_name }),
+      workerMutation: (worker) => shutdownMutation.mutateAsync({ path: { worker_name: worker.worker_name } }),
     });
   }, [handleBulkAction, shutdownMutation, shutdownWorkers]);
 
@@ -189,7 +189,7 @@ export const useBulkWorkerActions = ({
         type: "success",
       }),
       workers: deleteWorkers,
-      workerMutation: (worker) => deleteMutation.mutateAsync({ workerName: worker.worker_name }),
+      workerMutation: (worker) => deleteMutation.mutateAsync({ path: { worker_name: worker.worker_name } }),
     });
   }, [deleteWorkers, deleteMutation, handleBulkAction]);
 
@@ -205,8 +205,8 @@ export const useBulkWorkerActions = ({
       workers: maintenanceEnterWorkers,
       workerMutation: (worker) =>
         maintenanceEnterMutation.mutateAsync({
-          requestBody: { maintenance_comment: comment },
-          workerName: worker.worker_name,
+          body: { maintenance_comment: comment },
+          path: { worker_name: worker.worker_name },
         }),
     });
   }, [handleBulkAction, maintenanceEnterMutation, maintenanceEnterWorkers]);
@@ -221,7 +221,8 @@ export const useBulkWorkerActions = ({
         type: "success",
       }),
       workers: maintenanceExitWorkers,
-      workerMutation: (worker) => maintenanceExitMutation.mutateAsync({ workerName: worker.worker_name }),
+      workerMutation: (worker) =>
+        maintenanceExitMutation.mutateAsync({ path: { worker_name: worker.worker_name } }),
     });
   }, [handleBulkAction, maintenanceExitMutation, maintenanceExitWorkers]);
 

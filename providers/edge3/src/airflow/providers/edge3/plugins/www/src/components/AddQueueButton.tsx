@@ -27,7 +27,7 @@ import {
   useDisclosure,
   VStack,
 } from "@chakra-ui/react";
-import { useUiServiceAddWorkerQueue } from "openapi/queries";
+import { useAddWorkerQueue } from "openapi/queries";
 import { useState } from "react";
 import { LuListPlus } from "react-icons/lu";
 
@@ -40,7 +40,7 @@ export const AddQueueButton = ({ onQueueUpdate, workerName }: AddQueueButtonProp
   const { onClose, onOpen, open } = useDisclosure();
   const [queueName, setQueueName] = useState("");
 
-  const addQueueMutation = useUiServiceAddWorkerQueue({
+  const addQueueMutation = useAddWorkerQueue(undefined, {
     onError: (error) => {
       onQueueUpdate({
         description: `Unable to add queue to worker ${workerName}: ${error}`,
@@ -70,8 +70,10 @@ export const AddQueueButton = ({ onQueueUpdate, workerName }: AddQueueButtonProp
     }
 
     addQueueMutation.mutate({
-      queueName: queueName.trim(),
-      workerName,
+      path: {
+        queue_name: queueName.trim(),
+        worker_name: workerName,
+      },
     });
   };
 
