@@ -23,19 +23,25 @@
 Core re-exports moved classes, such as ``airflow.sensors.time_delta.TimeDeltaSensorAsync``, from
 providers. Released cores keep those shims, so a provider that removes a target breaks user
 imports on every supported core that ships the shim, even if main drops the shim entry too.
-A target can only go once the provider requires a core that no longer ships its shim.
+
+The targets are recorded in ``core_shim_provider_targets.txt``. Every provider target of a shim on
+main must be recorded there, and every recorded target must exist. Removing a target together
+with its shim entry therefore also needs a deliberate edit to that file.
 """
 
 from __future__ import annotations
 
 import ast
+import os
 import sys
 from pathlib import Path
 
 AIRFLOW_ROOT = Path(__file__).parents[3]
 CORE_SRC = AIRFLOW_ROOT / "airflow-core" / "src"
 PROVIDERS_ROOT = AIRFLOW_ROOT / "providers"
+SNAPSHOT = Path(__file__).with_name("core_shim_provider_targets.txt")
 PROVIDER_PREFIX = "airflow.providers."
+WILDCARD_SUFFIX = ".*"
 
 
 def find_shim_files(core_src: Path = CORE_SRC) -> list[Path]:
@@ -122,17 +128,45 @@ def is_target_present(key: str, target: str, providers_root: Path = PROVIDERS_RO
     return module_file is not None and name in get_module_names(module_file)
 
 
-def main() -> int:
+def build_snapshot_entry(key: str, target: str) -> str:
+    return f"{target}{WILDCARD_SUFFIX}" if key == "*" else target
+
+
+def read_snapshot(path: Path) -> dict[str, int]:
+    """Return each recorded target with its line number."""
+    return {
+        line.strip(): number
+        for number, line in enumerate(path.read_text().splitlines(), start=1)
+        if line.strip() and not line.startswith("#")
+    }
+
+
+def is_entry_present(entry: str, providers_root: Path = PROVIDERS_ROOT) -> bool:
+    if entry.endswith(WILDCARD_SUFFIX):
+        return is_target_present("*", entry.removesuffix(WILDCARD_SUFFIX), providers_root)
+    return is_target_present("", entry, providers_root)
+
+
+def main(core_src: Path = CORE_SRC, providers_root: Path = PROVIDERS_ROOT, snapshot: Path = SNAPSHOT) -> int:
+    recorded = read_snapshot(snapshot)
     errors = []
-    for path in find_shim_files():
+    for path in find_shim_files(core_src):
         for line, key, target in find_provider_targets(path):
-            if not is_target_present(key, target):
+            entry = build_snapshot_entry(key, target)
+            if entry not in recorded:
                 errors.append(
-                    f"{path.relative_to(AIRFLOW_ROOT)}:{line}: core shim points at `{target}`, which does "
-                    "not exist. Released Airflow cores ship this shim, so removing the target breaks user "
-                    "imports on them, and removing the shim entry from main does not help. Keep the target "
-                    "until the provider requires an Airflow version that no longer ships the shim."
+                    f"{os.path.relpath(path)}:{line}: `{entry}` is missing from {os.path.relpath(snapshot)}. "
+                    "Add it, so the target stays checked after main drops this shim."
                 )
+                if not is_entry_present(entry, providers_root):
+                    errors.append(f"{os.path.relpath(path)}:{line}: `{entry}` does not exist.")
+    for entry, line in recorded.items():
+        if not is_entry_present(entry, providers_root):
+            errors.append(
+                f"{os.path.relpath(snapshot)}:{line}: `{entry}` does not exist. Released Airflow cores "
+                "ship a shim for it, so removing it breaks user imports on them, even if main drops the "
+                "shim entry. Keep it until the provider requires an Airflow version without the shim."
+            )
     for error in errors:
         print(error)
     return 1 if errors else 0

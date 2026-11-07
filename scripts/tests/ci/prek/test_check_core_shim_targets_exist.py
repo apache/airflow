@@ -19,7 +19,13 @@ from __future__ import annotations
 import textwrap
 
 import pytest
-from check_core_shim_targets_exist import find_provider_targets, is_target_present, main
+from check_core_shim_targets_exist import (
+    find_provider_targets,
+    is_entry_present,
+    is_target_present,
+    main,
+    read_snapshot,
+)
 
 MODULE = "airflow.providers.acme.sensors.wait"
 
@@ -91,6 +97,45 @@ def test_find_provider_targets_skips_non_provider_targets(write_python_file):
 )
 def test_is_target_present(providers_root, key, target, expected):
     assert is_target_present(key, target, providers_root) is expected
+
+
+def test_read_snapshot_skips_comments_and_blank_lines(write_text_file):
+    path = write_text_file(f"# header\n\n{MODULE}.WaitSensor\n{MODULE}.*\n")
+
+    assert read_snapshot(path) == {f"{MODULE}.WaitSensor": 3, f"{MODULE}.*": 4}
+
+
+@pytest.mark.parametrize(
+    ("entry", "expected"),
+    [
+        pytest.param(f"{MODULE}.WaitSensor", True, id="class"),
+        pytest.param(f"{MODULE}.*", True, id="wildcard"),
+        pytest.param("airflow.providers.acme.sensors.gone.*", False, id="removed-wildcard-module"),
+        pytest.param(f"{MODULE}.WaitSensorAsync", False, id="removed-class"),
+    ],
+)
+def test_is_entry_present(providers_root, entry, expected):
+    assert is_entry_present(entry, providers_root) is expected
+
+
+@pytest.mark.parametrize(
+    ("shim_targets", "snapshot_targets", "expected"),
+    [
+        pytest.param(["WaitSensor"], ["WaitSensor"], 0, id="recorded-and-present"),
+        pytest.param(["WaitSensor"], [], 1, id="shim-target-not-recorded"),
+        pytest.param(["WaitSensorAsync"], [], 1, id="unrecorded-shim-target-missing"),
+        pytest.param([], ["WaitSensorAsync"], 1, id="shim-and-target-removed-together"),
+    ],
+)
+def test_main(tmp_path, providers_root, shim_targets, snapshot_targets, expected):
+    core_src = tmp_path / "core"
+    core_src.mkdir()
+    entries = ", ".join(f'"{name}": "{MODULE}.{name}"' for name in shim_targets)
+    (core_src / "shims.py").write_text(f"add_deprecated_classes({{'wait': {{{entries}}}}}, __name__)\n")
+    snapshot = tmp_path / "snapshot.txt"
+    snapshot.write_text("".join(f"{MODULE}.{name}\n" for name in snapshot_targets))
+
+    assert main(core_src, providers_root, snapshot) == expected
 
 
 def test_main_passes_on_repository():
