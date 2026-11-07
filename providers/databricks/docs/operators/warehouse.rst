@@ -61,12 +61,14 @@ The connection ID, warehouse ID, and nested ``json`` values support templating.
 For numeric or boolean Jinja expressions,
 set ``render_template_as_native_obj=True`` on the Dag.
 
-The task returns ``None`` without a ``return_value`` XCom, so pass the warehouse ID directly to
-downstream tasks. It completes when the edit request succeeds, without waiting for compute changes
-to finish. If the workflow needs a running warehouse,
-chain a :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
-after the edit task. Reaching ``RUNNING`` checks availability; it does not verify that all requested
-configuration changes have finished applying.
+The operator returns ``None`` and completes when the edit request succeeds,
+without waiting for configuration changes to finish applying. Pass the
+warehouse ID explicitly to downstream tasks.
+
+If needed, follow it with
+:class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
+to wait for warehouse availability. A ``RUNNING`` state does not guarantee
+that all configuration changes have been applied.
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
     :language: python
