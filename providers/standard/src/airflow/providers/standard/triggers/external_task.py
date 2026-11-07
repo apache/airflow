@@ -125,7 +125,11 @@ class WorkflowTrigger(BaseTrigger):
             allowed_count = await get_count_func(self.allowed_states)
 
             if allowed_count == len(run_id_or_dates):
-                yield TriggerEvent({"status": "success"})
+                matched_run_id = await self._get_matched_run_id()
+                event_data = {"status": "success"}
+                if matched_run_id:
+                    event_data["run_id"] = matched_run_id
+                yield TriggerEvent(event_data)
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
@@ -178,6 +182,49 @@ class WorkflowTrigger(BaseTrigger):
             external_dag_id=self.external_dag_id,
             states=states,
         )
+
+    async def _get_matched_run_id(self) -> str | None:
+        """Get the first matched run_id of the external DAG in allowed states."""
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+            if self.external_task_ids:
+                run_id_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                    dag_id=self.external_dag_id,
+                    task_ids=list(self.external_task_ids),
+                    logical_dates=self.logical_dates,
+                    run_ids=self.run_ids,
+                )
+            elif self.external_task_group_id:
+                run_id_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                    dag_id=self.external_dag_id,
+                    task_group_id=self.external_task_group_id,
+                    logical_dates=self.logical_dates,
+                    run_ids=self.run_ids,
+                )
+            else:
+                run_id_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                    dag_id=self.external_dag_id,
+                    logical_dates=self.logical_dates,
+                    run_ids=self.run_ids,
+                )
+
+            return next(iter(run_id_map.keys())) if run_id_map else None
+        return await self._get_matched_run_id_af2()
+
+    if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
+
+        @sync_to_async
+        @provide_session
+        def _get_matched_run_id_af2(self, *, session: Session = NEW_SESSION) -> str | None:
+            """Get the first matched run_id for AF2."""
+            stmt = select(DagRun).where(
+                DagRun.dag_id == self.external_dag_id,
+                DagRun.logical_date.in_(self.execution_dates or []),
+            )
+            dag_run = session.execute(stmt).scalars().first()
+            return dag_run.run_id if dag_run else None
 
 
 class DagStateTrigger(BaseTrigger):
