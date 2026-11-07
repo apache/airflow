@@ -50,13 +50,16 @@ The package supports the following python versions: 3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.19.0``
+``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
+``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
 ``pyiceberg``                               ``>=0.8.0``
-==========================================  ==================
+==========================================  ==================================================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/2.1.2/changelog.html>`_.

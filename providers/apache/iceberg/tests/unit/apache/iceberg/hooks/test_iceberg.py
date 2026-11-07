@@ -18,8 +18,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pyarrow as pa
 import pytest
 import requests_mock
+from pyiceberg.exceptions import CommitFailedException
 
 from airflow.models import Connection
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
@@ -469,6 +471,94 @@ class TestIcebergHookCatalog:
         mock_arrow.slice.assert_called_once_with(offset=15, length=5)
 
 
+class TestIcebergHookAppend:
+    """Unit tests for IcebergHook.append (mocked catalog)."""
+
+    def test_append_dicts_aligns_schema_and_writes(self):
+        """list[dict] rows drop unknown keys and are written as a pyarrow Table."""
+        mock_schema = MagicMock()
+        mock_schema.as_arrow.return_value = pa.schema([("id", pa.int64()), ("name", pa.string())])
+
+        mock_table = _make_mock_table()
+        mock_table.schema.return_value = mock_schema
+
+        mock_cat = _make_mock_catalog()
+        mock_cat.load_table.return_value = mock_table
+        hook = _make_hook_with_mock_catalog(mock_cat)
+
+        hook.append("demo.events", [{"id": 1, "name": "alpha", "note": "dropped"}])
+
+        mock_cat.load_table.assert_called_once_with("demo.events")
+        written = mock_table.append.call_args[0][0]
+        assert isinstance(written, pa.Table)
+        assert written.column_names == ["id", "name"]
+        assert written.to_pylist() == [{"id": 1, "name": "alpha"}]
+
+    def test_append_pa_table(self):
+        """pa.Table input drops unknown columns before append."""
+        mock_schema = MagicMock()
+        mock_schema.as_arrow.return_value = pa.schema([("id", pa.int64()), ("name", pa.string())])
+        mock_table = _make_mock_table()
+        mock_table.schema.return_value = mock_schema
+        mock_cat = _make_mock_catalog()
+        mock_cat.load_table.return_value = mock_table
+        hook = _make_hook_with_mock_catalog(mock_cat)
+
+        src = pa.table({"id": [1], "name": ["a"], "extra": ["x"]})
+        hook.append("demo.events", src)
+
+        written = mock_table.append.call_args[0][0]
+        assert written.column_names == ["id", "name"]
+        assert written.to_pylist() == [{"id": 1, "name": "a"}]
+
+    def test_append_rejects_unqualified_name(self):
+        """append raises ValueError for names without a namespace."""
+        hook = _make_hook_with_mock_catalog(_make_mock_catalog())
+        with pytest.raises(ValueError, match="namespace.table"):
+            hook.append("bare", [{"id": 1}])
+
+    def test_append_retries_after_commit_failed(self):
+        """CommitFailedException reloads the table and retries the write."""
+        mock_schema = MagicMock()
+        mock_schema.as_arrow.return_value = pa.schema([("id", pa.int64())])
+
+        failing = _make_mock_table()
+        failing.schema.return_value = mock_schema
+        failing.append.side_effect = CommitFailedException("conflict")
+
+        succeeding = _make_mock_table()
+        succeeding.schema.return_value = mock_schema
+
+        mock_cat = _make_mock_catalog()
+        mock_cat.load_table.side_effect = [failing, succeeding]
+        hook = _make_hook_with_mock_catalog(mock_cat)
+
+        hook.append("demo.events", [{"id": 1}], retries=3)
+
+        assert mock_cat.load_table.call_count == 2
+        succeeding.append.assert_called_once()
+
+    def test_append_exhausts_retries(self):
+        """Repeated CommitFailedException raises after the retry budget."""
+        mock_schema = MagicMock()
+        mock_schema.as_arrow.return_value = pa.schema([("id", pa.int64())])
+        mock_table = _make_mock_table()
+        mock_table.schema.return_value = mock_schema
+        mock_table.append.side_effect = CommitFailedException("conflict")
+        mock_cat = _make_mock_catalog()
+        mock_cat.load_table.return_value = mock_table
+        hook = _make_hook_with_mock_catalog(mock_cat)
+
+        with pytest.raises(RuntimeError, match="failed after 2 attempts"):
+            hook.append("demo.events", [{"id": 1}], retries=2)
+
+    def test_append_rejects_retries_below_one(self):
+        """retries must be at least 1."""
+        hook = _make_hook_with_mock_catalog(_make_mock_catalog())
+        with pytest.raises(ValueError, match="retries must be at least 1"):
+            hook.append("demo.events", [{"id": 1}], retries=0)
+
+
 class TestPyicebergAPICompatibility:
     """Verify the pyiceberg APIs that IcebergHook depends on still exist.
 
@@ -491,10 +581,10 @@ class TestPyicebergAPICompatibility:
         assert callable(load_catalog)
 
     def test_table_has_required_attributes(self):
-        """Table exposes schema, spec, properties, and inspect."""
+        """Table exposes schema, spec, properties, inspect, and append."""
         from pyiceberg.table import Table
 
-        for attr in ("schema", "spec", "properties", "inspect"):
+        for attr in ("schema", "spec", "properties", "inspect", "append"):
             assert hasattr(Table, attr), f"pyiceberg Table missing {attr}"
 
     def test_inspect_table_has_snapshots(self):
@@ -504,13 +594,14 @@ class TestPyicebergAPICompatibility:
         assert hasattr(InspectTable, "snapshots")
 
     def test_schema_has_fields_and_find_field(self):
-        """Schema instance exposes fields and find_field."""
+        """Schema instance exposes fields, find_field, and as_arrow."""
         from pyiceberg.schema import Schema
         from pyiceberg.types import LongType, NestedField
 
         schema = Schema(NestedField(1, "id", LongType(), required=True))
         assert hasattr(schema, "fields")
         assert hasattr(schema, "find_field")
+        assert hasattr(schema, "as_arrow")
 
     def test_partition_spec_has_fields(self):
         """PartitionSpec instance exposes fields."""
