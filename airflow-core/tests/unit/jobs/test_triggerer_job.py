@@ -29,6 +29,7 @@ import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from socket import socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
@@ -117,6 +118,7 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.log import logging_processors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import (
     AssetTriggerEvent,
@@ -1543,6 +1545,61 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     factory.close.assert_called_once()
     assert 42 not in jobless_supervisor.logger_cache
     assert 42 not in jobless_supervisor.running_triggers
+
+
+@pytest.mark.parametrize("failure", [None, "upload", "close"])
+def test_close_uploads_remaining_trigger_logs(jobless_supervisor, mocker, tmp_path, cap_structlog, failure):
+    factories = {}
+    for trigger_id in (1, 2):
+        factory = TriggerLoggingFactory(log_path=str(tmp_path / f"trigger.{trigger_id}.log"))
+        factory(logging_processors(json_output=True)).info("poll before shutdown")
+        factories[trigger_id] = factory
+    jobless_supervisor.logger_cache.update(factories)
+
+    if failure == "close":
+        close = TriggerLoggingFactory.close
+
+        def close_log(factory):
+            close(factory)
+            if factory is factories[1]:
+                raise OSError("filesystem close failed")
+
+        mocker.patch.object(TriggerLoggingFactory, "close", autospec=True, side_effect=close_log)
+
+    def drain_logs(supervisor):
+        for factory in supervisor.logger_cache.values():
+            factory.bound_logger.info("final shutdown log")
+
+    mocker.patch.object(
+        TriggerRunnerSupervisor, "cleanup_sockets_after_kill", autospec=True, side_effect=drain_logs
+    )
+    uploaded = {}
+
+    def upload(logger, ti):
+        trigger_id = next(key for key, factory in factories.items() if factory.bound_logger is logger)
+        if failure == "upload" and trigger_id == 1:
+            raise RuntimeError("remote storage unavailable")
+        uploaded[trigger_id] = Path(factories[trigger_id].log_path).read_bytes()
+
+    mock_upload = mocker.patch("airflow.sdk.log.upload_to_remote", autospec=True, side_effect=upload)
+
+    jobless_supervisor.close()
+
+    assert mock_upload.call_count == 2
+    assert jobless_supervisor.logger_cache == {}
+    assert all(factory._filehandle.closed for factory in factories.values())
+    assert set(uploaded) == ({2} if failure == "upload" else {1, 2})
+    for content in uploaded.values():
+        assert [msgspec.json.decode(line)["event"] for line in content.splitlines()] == [
+            "poll before shutdown",
+            "final shutdown log",
+        ]
+
+    if failure == "close":
+        assert {"event": "Failed to close trigger log file", "trigger_id": 1} in cap_structlog
+
+    jobless_supervisor.close()
+    assert mock_upload.call_count == 2
 
 
 class TestTriggerRunner:
@@ -3276,6 +3333,30 @@ def test_state_sync_sends_released_triggers_separately_from_cancels(supervisor_b
 
 
 class TestTriggererJobRunner:
+    @pytest.mark.parametrize("kill_raises", [False, True])
+    @patch("airflow.jobs.triggerer_job_runner.stats.initialize", autospec=True)
+    @patch.object(TriggererJobRunner, "register_signals", autospec=True)
+    @patch.object(TriggerRunnerSupervisor, "start", autospec=True)
+    def test_execute_closes_logs_after_killing_runner(
+        self, mock_start, mock_signals, mock_stats, kill_raises
+    ):
+        runner = MagicMock(spec=TriggerRunnerSupervisor)
+        runner._exit_code = 0
+        mock_start.return_value = runner
+        job_runner = TriggererJobRunner(Job())
+        if kill_raises:
+            runner.kill.side_effect = RuntimeError("shutdown failed")
+            with pytest.raises(RuntimeError, match="shutdown failed"):
+                job_runner._execute()
+        else:
+            assert job_runner._execute() == 0
+
+        assert runner.method_calls == [
+            mock.call.run(),
+            mock.call.kill(escalation_delay=10, force=True),
+            mock.call.close(),
+        ]
+
     @patch("airflow.jobs.triggerer_job_runner.stats.initialize")
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
