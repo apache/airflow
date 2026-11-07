@@ -61,6 +61,7 @@ import { createColumns, getRowKey } from "./DagsListColumns";
 import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
 import { SortSelect } from "./SortSelect";
 import { MAX_RECENT_RUNS } from "./recentRunsLayout";
+import { usePausedDefault } from "./usePausedDefault";
 
 const {
   DAG_BUNDLE,
@@ -162,7 +163,10 @@ export const DagsList = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Derived through the pill's own mapping so the query can never filter on more than the pill shows.
-  const { paused, schedulingState } = pausedStateToQuery(pausedStateFromSearchParams(searchParams));
+  const pausedDefaultPending = usePausedDefault();
+  const pausedState =
+    pausedStateFromSearchParams(searchParams) ?? (pausedDefaultPending ? "not_paused" : undefined);
+  const { paused, schedulingState } = pausedStateToQuery(pausedState);
   const showFavorites = searchParams.get(FAVORITE);
   const importErrors = searchParams.get(HAS_IMPORT_ERRORS);
 
