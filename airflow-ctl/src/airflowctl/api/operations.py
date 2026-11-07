@@ -55,6 +55,8 @@ from airflowctl.api.datamodels.generated import (
     ConnectionResponse,
     ConnectionTestResponse,
     CreateAssetEventsBody,
+    DagBundleCollectionResponse,
+    DagBundleDetailResponse,
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
@@ -1200,3 +1202,30 @@ class PluginsOperations(BaseOperations):
         """List plugin import errors from the API server."""
         self.response = self.client.get("plugins/importErrors")
         return validate_response(self.response.content, PluginImportErrorCollectionResponse)
+
+
+class DagBundlesOperations(BaseOperations):
+    """Dag bundle operations."""
+
+    def get(self, bundle_name: str) -> DagBundleDetailResponse | ServerResponseError:
+        """Get a Dag bundle."""
+        self.response = self.client.get(f"dagBundles/{_quote_path_param(bundle_name)}")
+        return validate_response(self.response.content, DagBundleDetailResponse)
+
+    def list(
+        self,
+        limit: int = 100,
+        offset: int | None = None,
+        order_by: str | None = None,
+    ) -> DagBundleCollectionResponse | ServerResponseError:
+        """
+        List the Dag bundles Airflow knows about (at most `limit` results).
+
+        Args:
+            limit: Limit the number of results returned
+            offset: Offset to start returning results from
+            order_by: Order the results by `name`, `version`, `last_refreshed` or `active`, prefixed with `-` for descending
+        """
+        params = _build_query_params(limit=limit, offset=offset, order_by=order_by)
+        self.response = self.client.get("dagBundles", params=params)
+        return validate_response(self.response.content, DagBundleCollectionResponse)

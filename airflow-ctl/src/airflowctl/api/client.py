@@ -49,6 +49,7 @@ from airflowctl.api.operations import (
     BackfillOperations,
     ConfigOperations,
     ConnectionsOperations,
+    DagBundlesOperations,
     DagRunOperations,
     DagsOperations,
     JobsOperations,
@@ -585,6 +586,12 @@ class Client(httpx.Client):
     def plugins(self):
         """Operations related to plugins."""
         return PluginsOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def dagbundles(self):
+        """Operations related to Dag bundles."""
+        return DagBundlesOperations(self)
 
 
 def get_default_api_url() -> str:
