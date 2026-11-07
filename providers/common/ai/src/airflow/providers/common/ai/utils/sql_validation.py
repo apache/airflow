@@ -24,12 +24,15 @@ This is safer than a denylist because new/unexpected statement types
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import sqlglot
 from sqlglot import exp
 from sqlglot.dialects import Dialects
 from sqlglot.errors import ErrorLevel
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 # Dialect names sqlglot recognizes. Used to drop unknown dialect names so a bad
 # value never breaks parsing (sqlglot raises on an unknown dialect).
@@ -137,7 +140,7 @@ def parse_sql(
 
     try:
         statements = sqlglot.parse(sql, dialect=dialect, error_level=ErrorLevel.RAISE)
-    except sqlglot.errors.ParseError as e:
+    except sqlglot.errors.SqlglotError as e:
         raise SQLSafetyError(f"SQL parse error: {e}") from e
 
     # sqlglot.parse can return [None] for empty input
@@ -174,6 +177,17 @@ class TableScan(NamedTuple):
 
 
 _DML_TYPES: tuple[type[exp.Expr], ...] = (exp.Insert, exp.Update, exp.Delete, exp.Merge)
+
+# Sources under LATERAL / APPLY that can be checked: a subquery (its tables are scanned) and
+# column generators (UNNEST, EXPLODE/FLATTEN, INLINE, OPENJSON) that only expand their
+# arguments, which the scans still walk.
+_CHECKABLE_LATERAL_SOURCES: tuple[type[exp.Expr], ...] = (
+    exp.Subquery,
+    exp.Unnest,
+    exp.Explode,
+    exp.Inline,
+    exp.OpenJSON,
+)
 
 
 def _same_identifier(a: exp.Identifier, b: exp.Identifier) -> bool:
@@ -274,7 +288,8 @@ def collect_table_references(
     - **Catalog-qualified references are reported with their catalog**, so the caller
       rejects ``otherdb.public.orders`` instead of matching it to ``public.orders``.
     - **Unverifiable constructs are listed, not silently dropped:** nameless
-      table-valued functions (``dblink``), ``TABLE('name')`` row sources
+      table-valued functions (``dblink``), including one under ``LATERAL``,
+      ``TABLE('name')`` row sources
       (``exp.TableFromRows``), ``SHOW``, dynamic SQL (``EXEC``/``Command``), the
       ``TABLE <name>`` shorthand (which sqlglot parses incorrectly, leaking the
       ``TABLE`` keyword as a column), a **quoted identifier** (case-sensitive on the engine but
@@ -370,6 +385,14 @@ def collect_table_references(
             unverifiable.append("a TABLE(...) row source")
             continue
 
+        # A function under LATERAL (DuckDB `LATERAL read_parquet('...')`, Postgres
+        # `LATERAL generate_series(...)`) has no exp.Table node, so the table-valued
+        # function check below never sees it. Anything not in _CHECKABLE_LATERAL_SOURCES --
+        # including an allow-listed or schema-qualified function -- is refused.
+        for lateral in stmt.find_all(exp.Lateral):
+            if not isinstance(lateral.this, _CHECKABLE_LATERAL_SOURCES):
+                unverifiable.append(f"table-valued function ({lateral.this.sql()})")
+
         # `TABLE <name>` (Postgres/MySQL shorthand for SELECT * FROM <name>) is not
         # modelled by sqlglot; it parses incorrectly, leaking the reserved word TABLE as an
         # unquoted column identifier. No real query has an unquoted column named TABLE.
@@ -410,6 +433,84 @@ def collect_table_references(
                 continue
             tables.append((table.catalog, table.db, name))
     return TableScan(tables=tables, unverifiable_sources=unverifiable)
+
+
+#: Case-folded ``(catalog, schema, table)`` key compared against an ``allowed_tables`` list.
+TableKey = tuple[str | None, str | None, str]
+
+
+def canonical_table_key(catalog: str | None, schema: str | None, table: str) -> TableKey:
+    """
+    Normalize a ``(catalog, schema, table)`` reference to its case-folded comparison key.
+
+    Identifiers are case-folded because databases reflect them in their own case (Snowflake
+    stores unquoted names uppercase but reflects them lowercased), so a byte-exact match
+    against the user's entries would silently miss.
+    """
+    return (
+        catalog.casefold() if catalog else None,
+        schema.casefold() if schema else None,
+        table.casefold(),
+    )
+
+
+def canonical_allowed_tables(
+    allowed_tables: Iterable[str], default_schema: str | None = None
+) -> frozenset[TableKey]:
+    """
+    Return the comparison keys for ``allowed_tables`` entries (``table`` or ``schema.table``).
+
+    Unqualified entries resolve to ``default_schema`` so that ``"orders"`` and
+    ``"<schema>.orders"`` denote the same table. Entries carry no catalog, so any
+    catalog-qualified reference (``otherdb.public.orders``) cannot match -- that closes
+    cross-database access a single-connection allow-list cannot describe.
+    """
+    keys: set[TableKey] = set()
+    for entry in allowed_tables:
+        entry_schema, sep, table = entry.rpartition(".")
+        keys.add(canonical_table_key(None, entry_schema if sep else default_schema, table))
+    return frozenset(keys)
+
+
+class AllowedTablesViolations(NamedTuple):
+    """Result of :func:`find_allowed_tables_violations`; both lists are empty when the query complies."""
+
+    #: Constructs that cannot be checked against the allow-list (see :class:`TableScan`).
+    unverifiable_sources: list[str]
+    #: Sorted, de-duplicated names of referenced tables that are not on the allow-list.
+    disallowed_tables: list[str]
+
+
+def find_allowed_tables_violations(
+    statements: list[exp.Expr],
+    allowed: frozenset[TableKey],
+    *,
+    default_schema: str | None = None,
+    allowed_functions: frozenset[str] = frozenset(),
+) -> AllowedTablesViolations:
+    """
+    Report what in parsed ``statements`` an ``allowed_tables`` list does not permit.
+
+    Every table the statements reach (resolved scope-correctly by
+    :func:`collect_table_references`) must match a key in ``allowed``, built with
+    :func:`canonical_allowed_tables`; unqualified references resolve to ``default_schema``.
+    Callers turn a non-empty result into an error worded for their own context.
+
+    :param statements: Parsed statements, e.g. as returned by :func:`validate_sql`.
+    :param allowed: Comparison keys of the allowed tables.
+    :param default_schema: Schema assumed for references that do not name one.
+    :param allowed_functions: Case-folded names of functions sqlglot cannot type that are
+        still permitted (see :func:`collect_table_references`).
+    """
+    scan = collect_table_references(statements, allowed_functions=allowed_functions)
+    disallowed = {
+        ".".join(part for part in (catalog, schema, table) if part)
+        for catalog, schema, table in scan.tables
+        if canonical_table_key(catalog, schema or default_schema, table) not in allowed
+    }
+    return AllowedTablesViolations(
+        unverifiable_sources=scan.unverifiable_sources, disallowed_tables=sorted(disallowed)
+    )
 
 
 def validate_sql(

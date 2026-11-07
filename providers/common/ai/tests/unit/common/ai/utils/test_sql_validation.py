@@ -340,6 +340,11 @@ class TestParseSQL:
         with pytest.raises(SQLSafetyError, match="parse error"):
             parse_sql("SELECT FROM WHERE )(")
 
+    def test_rejects_untokenizable(self):
+        """An unbalanced quote fails in sqlglot's tokenizer (TokenError), not its parser."""
+        with pytest.raises(SQLSafetyError, match="parse error"):
+            parse_sql("I can't write that query")
+
 
 class TestCollectTableReferences:
     """``collect_table_references`` reports the real tables a query reaches."""
@@ -468,12 +473,58 @@ class TestCollectTableReferences:
         [
             ("SELECT * FROM dblink('h', 'SELECT 1') AS t(x int)", "postgres"),
             ("SELECT * FROM generate_series(1, 10)", "postgres"),
+            ("SELECT * FROM LATERAL read_parquet('/tmp/private.parquet')", "duckdb"),
+            ("SELECT * FROM LATERAL generate_series(1, 10)", "postgres"),
         ],
-        ids=["dblink", "generate_series"],
+        ids=["dblink", "generate_series", "lateral_read_parquet", "lateral_generate_series"],
     )
     def test_flags_table_valued_functions_as_unverifiable(self, sql, dialect):
         scan = collect_table_references(parse_sql(sql, dialect=dialect))
         assert scan.tables == []
+        assert scan.unverifiable_sources
+
+    def test_lateral_subquery_tables_are_still_reported(self):
+        """A LATERAL subquery is checkable: its tables are scanned like any other."""
+        sql = "SELECT * FROM orders o, LATERAL (SELECT * FROM items i WHERE i.order_id = o.id) x"
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert set(scan.tables) == {("", "", "orders"), ("", "", "items")}
+        assert scan.unverifiable_sources == []
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            ("SELECT * FROM orders o CROSS JOIN LATERAL unnest(o.tags) t", "postgres"),
+            ("SELECT * FROM orders o, LATERAL FLATTEN(input => o.tags) f", "snowflake"),
+            ("SELECT * FROM orders LATERAL VIEW explode(items) t AS item", "spark"),
+            ("SELECT * FROM orders LATERAL VIEW OUTER inline(items) t", "hive"),
+            ("SELECT * FROM orders o CROSS APPLY OPENJSON(o.doc) AS j", "tsql"),
+        ],
+        ids=["unnest", "flatten", "explode", "inline", "openjson"],
+    )
+    def test_lateral_column_generators_are_checkable(self, sql, dialect):
+        """A column generator under LATERAL only expands its arguments, like UNNEST in FROM."""
+        scan = collect_table_references(parse_sql(sql, dialect=dialect))
+        assert scan.tables == [("", "", "orders")]
+        assert scan.unverifiable_sources == []
+
+    def test_lateral_column_generator_arguments_are_scanned(self):
+        sql = "SELECT * FROM orders o CROSS JOIN LATERAL unnest(ARRAY(SELECT name FROM salaries)) t"
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert set(scan.tables) == {("", "", "orders"), ("", "", "salaries")}
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT * FROM LATERAL dblink('h', 'SELECT 1') AS t(x int)",
+            "SELECT * FROM LATERAL pg_catalog.dblink('h', 'SELECT 1') AS t(x int)",
+        ],
+        ids=["lateral", "lateral_schema_qualified"],
+    )
+    def test_flags_allowed_function_under_lateral_as_unverifiable(self, sql):
+        """allowed_functions permits a function call, not an unchecked LATERAL row source."""
+        scan = collect_table_references(
+            parse_sql(sql, dialect="postgres"), allowed_functions=frozenset({"dblink"})
+        )
         assert scan.unverifiable_sources
 
     @pytest.mark.parametrize(

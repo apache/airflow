@@ -178,6 +178,50 @@ By default, the operator validates generated SQL using an allowlist approach:
 You can disable validation with ``validate_sql=False`` or customize the allowed
 statement types with ``allowed_sql_types``.
 
+Restricting the tables a query may reference
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``table_names`` only selects the schemas shown to the LLM; it does not stop the
+generated SQL from reading other tables. Set ``allowed_tables`` to reject any query
+that references a table outside the list:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
+    :language: python
+    :start-after: [START howto_operator_llm_sql_allowed_tables]
+    :end-before: [END howto_operator_llm_sql_allowed_tables]
+
+Every table the query reaches is checked, including tables in subqueries and joins,
+while a CTE defined in the query is not mistaken for a table. Entries are ``table`` or
+``schema.table`` and match case-insensitively. The operator has no default schema, so
+an unqualified entry only matches unqualified references: ``orders`` does not match
+``sales.orders``. Catalog-qualified references never match.
+
+SQL that cannot be checked against the list is refused as well. In practice that
+mostly means:
+
+- SQL comments, such as a trailing ``-- per customer``;
+- quoted identifiers, such as ``FROM "orders"``, because a quoted name is
+  case-sensitive on the database while the list is matched case-insensitively;
+- functions sqlglot does not recognize, such as Postgres' ``age`` or
+  ``json_build_object``. List trusted ones in ``allowed_functions``;
+- table-valued functions such as ``dblink``.
+
+When ``allowed_tables`` is set, the prompt lists the allowed tables and asks for
+unquoted table names and no comments. If the model's answer is still refused, the
+refusal is sent back to the model, which can rewrite the query as many times as
+``output_retries`` allows; if it is refused every time, the task fails with
+:class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`. SQL edited
+by a reviewer during Human-in-the-Loop approval is checked too, and a refusal raises
+the same error.
+``allowed_tables`` requires ``validate_sql=True``. It is not a template field, so the
+list is fixed when the Dag is parsed.
+
+The check uses the same matching as ``SQLToolset(allowed_tables=...)``, except that
+``SQLToolset`` resolves unqualified entries through its ``schema`` argument. Like
+``SQLToolset``'s allow-list, it fails closed but is only as exact as the SQL parser,
+so it is not a security boundary: pair it with least-privilege grants for the
+database user that runs the generated query.
+
 Logging
 -------
 
