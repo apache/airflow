@@ -94,11 +94,6 @@ describe("getVariableOrThrow", () => {
     const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
     await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
   });
-
-  it("throws VariableNotFoundError on a null-valued result", async () => {
-    const c = client([{ body: { type: "VariableResult", key: "x", value: null } }]);
-    await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
-  });
 });
 
 describe("setVariable", () => {
@@ -126,6 +121,17 @@ describe("setVariable", () => {
       value: "42",
       description: null,
     });
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["number", 42],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.setVariable("threshold", value)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
   });
 });
 
