@@ -1707,12 +1707,15 @@ class TestWatcherLogFile:
         assert seen_closed == [False, False]
 
     @pytest.mark.parametrize("max_bytes", [0, 80], ids=["no-cap", "rotates"])
-    def test_a_removed_directory_is_recreated_by_the_next_line(self, tmp_path, max_bytes):
+    @pytest.mark.parametrize("closed", [True, False], ids=["closed", "open"])
+    def test_a_removed_directory_is_recreated_by_the_next_line(self, tmp_path, max_bytes, closed):
+        # Open: on a shared log folder, another triggerer's orphan scan can remove a running one's files.
         with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
             factory = self._factory(max_bytes)
             logger = factory(self._processors())
             logger.log(logging.INFO, "line", n=1)
-            factory.close()
+            if closed:
+                factory.close()
             shutil.rmtree(tmp_path / "triggers/1")
             logger.log(logging.INFO, "line", n=2)
             logger.log(logging.INFO, "line", n=3)
@@ -1795,6 +1798,7 @@ class TestWatcherLogFile:
             self.quiet_failures = (
                 0  # uploads that leave the file as it was, as S3, GCS and WASB on a failed write
             )
+            self.raised_failures = 0  # uploads that raise, as HDFS on a failed write
             self.objects: dict[str, str] = {}
             self.uploads: list[tuple[str, int, int]] = []  # path, bytes of the file, bytes downloaded
             self.replaced: list[str] = []  # objects whose content was replaced by other content
@@ -1802,6 +1806,9 @@ class TestWatcherLogFile:
         def upload(self, path, ti):
             self.attempts += 1
             if self.down:
+                raise OSError("store unreachable")
+            if self.raised_failures:
+                self.raised_failures -= 1
                 raise OSError("store unreachable")
             if self.quiet_failures:
                 self.quiet_failures -= 1
@@ -1828,9 +1835,16 @@ class TestWatcherLogFile:
                 for line in self.objects[key].splitlines()
             ]
 
+    class S3RemoteLogIO(_Store):
+        pass
+
     class HdfsRemoteLogIO(_Store):
         def __init__(self, base):
             super().__init__(base, replace=True)
+
+    class CustomRemoteLogIO(_Store):
+        def __init__(self, base):
+            super().__init__(base, keep=True)
 
     class OSSRemoteLogIO(_Store):
         def __init__(self, base):
@@ -1893,7 +1907,7 @@ class TestWatcherLogFile:
     def test_a_rotated_file_whose_upload_failed_is_sent_again_before_it_is_replaced(
         self, jobless_supervisor, mocker, tmp_path
     ):
-        store = self._Store(tmp_path)
+        store = self.S3RemoteLogIO(tmp_path)
         store.quiet_failures = 1
         self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
 
@@ -1902,12 +1916,22 @@ class TestWatcherLogFile:
         assert len(parts) == len(set(parts))
         assert store.lines() == list(range(200))
 
-    @pytest.mark.parametrize("store_class", ["HdfsRemoteLogIO", "OSSRemoteLogIO"])
+    def test_a_rotated_file_whose_upload_raised_is_sent_again(self, jobless_supervisor, mocker, tmp_path):
+        # HDFS raises on a failed write, and replaces the object: sent again, the part is stored once.
+        store = self.HdfsRemoteLogIO(tmp_path)
+        store.raised_failures = 1
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
+
+        assert store.attempts == len(store.uploads) + 1
+        assert store.replaced == []
+        assert store.lines() == list(range(200))
+
+    @pytest.mark.parametrize("store_class", ["HdfsRemoteLogIO", "OSSRemoteLogIO", "CustomRemoteLogIO"])
     def test_a_store_that_keeps_the_file_gets_each_part_once(
         self, jobless_supervisor, mocker, tmp_path, store_class
     ):
-        # HDFS and OSS never empty a file they stored: its lines are no sign of a failed upload. OSS appends, so
-        # sending it again would store it twice.
+        # Only S3, GCS and WASB empty a file they stored: lines another store left are no failed upload.
+        # OSS and this custom store append, so sending it again would store it twice.
         store = getattr(self, store_class)(tmp_path)
         mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
         with conf_vars(

@@ -619,8 +619,8 @@ class _CappedBytesLogger(structlog.BytesLogger):
     ``BytesLogger`` appending to ``path``, moved to the rotated directory once it reaches ``max_bytes``.
 
     ``may_rotate`` can hold a rotation off, ``on_rotate`` is called after one; ``max_bytes <= 0`` is no
-    cap. A closed file, or one whose directory was removed (a log cleaner, ``delete_local_logs``), is reopened
-    by the next line.
+    cap. A closed or removed file (a log cleaner, ``delete_local_logs``, or on a shared log folder another
+    triggerer's orphan scan) is reopened by the next line.
     """
 
     __slots__ = ("_max_bytes", "_may_rotate", "_on_rotate", "_path", "_size")
@@ -642,12 +642,22 @@ class _CappedBytesLogger(structlog.BytesLogger):
         return self._path.parent / TRIGGER_LOG_ROTATED_DIR / self._path.name
 
     def ensure_open(self) -> None:
+        if not self._file.closed and self._unlinked():
+            # Lines written to a removed file are lost.
+            with suppress(OSError):
+                self._file.close()
         if self._file.closed:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._file = self._path.open("ab")
             self._write = self._file.write
             self._flush = self._file.flush
             self._size = self._file.tell()
+
+    def _unlinked(self) -> bool:
+        try:
+            return os.fstat(self._file.fileno()).st_nlink == 0
+        except (OSError, ValueError):
+            return False
 
     def msg(self, message: bytes) -> None:
         with self._lock:
@@ -744,8 +754,10 @@ _ORPHAN_UPLOAD_CLAIM_MAX_AGE = 600.0
 _TRIGGER_ID_QUERY_CHUNK_SIZE = 500
 # Remote log handlers that take only task logs: a watcher's file is left as it was however often it is sent.
 _TASK_LOGS_ONLY_HANDLERS = frozenset({"ElasticsearchRemoteLogIO", "OpensearchRemoteLogIO"})
-# Remote log handlers that never empty a file they stored: its lines after an upload are no sign of a failed one.
-_KEEPS_STORED_FILE_HANDLERS = frozenset({"HdfsRemoteLogIO", "OSSRemoteLogIO"})
+# Remote log handlers that empty a file they stored and only log a failed write: lines left mean it failed.
+_EMPTIES_STORED_FILE_HANDLERS = frozenset({"S3RemoteLogIO", "GCSRemoteLogIO", "WasbRemoteLogIO"})
+# Remote log handlers that append to the stored object: a file sent again would be stored twice (#76640).
+_APPENDING_HANDLERS = frozenset({"OSSRemoteLogIO"})
 
 
 def _has_lines(path: Path) -> bool:
@@ -768,9 +780,9 @@ def _handler_keeps_no_copy(handler) -> bool:
     return any(cls.__name__ in _TASK_LOGS_ONLY_HANDLERS for cls in type(handler).__mro__)
 
 
-def _handler_keeps_stored_file(handler) -> bool:
-    """Whether the handler leaves a file it stored as it was (HDFS, OSS; by class name, as for the above)."""
-    return any(cls.__name__ in _KEEPS_STORED_FILE_HANDLERS for cls in type(handler).__mro__)
+def _handler_is(handler, names: frozenset[str]) -> bool:
+    """Whether the handler's class, or a base class, has one of these names (as for the above)."""
+    return any(cls.__name__ in names for cls in type(handler).__mro__)
 
 
 @attrs.define(kw_only=True)
@@ -1149,12 +1161,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     # Named only now: until then the triggerer's log server serves it as the rotated file.
                     os.replace(base / rotated, base / path)
                 handler.upload(path, None)
+                raised = False
             except Exception:
                 log.exception("Failed to upload a rotated trigger log", trigger_id=trigger_id, path=path)
-            if path != rotated and not _handler_keeps_stored_file(handler) and _has_lines(base / path):
-                # S3, GCS and WASB empty or delete a file they stored, and report a failed write only in their log.
-                # Not HDFS and OSS, which keep it: OSS appends, so sending it again would store it twice (#76640).
-                self._rotated_unconfirmed[trigger_id] = path
+                raised = True
+            if path != rotated and _has_lines(base / path):
+                # Sent again if the upload raised, or if S3, GCS or WASB left lines (others may keep them).
+                if (raised and not _handler_is(handler, _APPENDING_HANDLERS)) or (
+                    not raised and _handler_is(handler, _EMPTIES_STORED_FILE_HANDLERS)
+                ):
+                    self._rotated_unconfirmed[trigger_id] = path
 
         self._pending_rotated_uploads[trigger_id] = self._rotated_pool.submit(upload)
         self._rotated_parts[trigger_id] = part
