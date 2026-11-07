@@ -20,11 +20,26 @@
 ############################################
 ## Airflow Dag Processor PodDisruptionBudget
 ############################################
-{{- if and .Values.dagProcessor.enabled .Values.dagProcessor.podDisruptionBudget.enabled }}
+{{- if .Values.dagProcessor.enabled }}
+{{- $globals := deepCopy . -}}
+{{- $dagProcessorSets := .Values.dagProcessor.sets | default list -}}
+{{- $enableDefault := .Values.dagProcessor.enableDefault -}}
+{{- if kindIs "invalid" $enableDefault -}}
+  {{- $enableDefault = not .Values.dagProcessor.sets -}}
+{{- end -}}
+{{- if $enableDefault -}}
+  {{- $dagProcessorSets = concat (list (dict "name" "default")) $dagProcessorSets -}}
+{{- end -}}
+{{- range $dagProcessorSet := $dagProcessorSets -}}
+  {{- $dagProcessor := include "workersMergeValues" (list $.Values.dagProcessor $dagProcessorSet) | fromYaml -}}
+  {{- $_ := set $globals.Values "dagProcessor" $dagProcessor -}}
+  {{- with $globals -}}
+{{- if .Values.dagProcessor.podDisruptionBudget.enabled }}
+---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "airflow.fullname" . }}-dag-processor-pdb
+  name: {{ include "airflow.fullname" . }}-dag-processor-pdb{{ if ne .Values.dagProcessor.name "default" }}-{{ .Values.dagProcessor.name }}{{ end }}
   labels:
     tier: airflow
     component: dag-processor
@@ -40,5 +55,11 @@ spec:
       tier: airflow
       component: dag-processor
       release: {{ .Release.Name }}
+      {{- if ne .Values.dagProcessor.name "default" }}
+      dag-processor-set: {{ .Values.dagProcessor.name }}
+      {{- end }}
   {{- toYaml .Values.dagProcessor.podDisruptionBudget.config | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
