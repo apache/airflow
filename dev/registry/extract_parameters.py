@@ -66,6 +66,9 @@ from registry_tools.types import (
     MODULE_LEVEL_SECTIONS,
 )
 
+DURABLE_MECHANISM_MARKER = "marker"
+DURABLE_MECHANISM_MIXIN = "resumable_mixin"
+
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
 PROVIDERS_DIR = AIRFLOW_ROOT / "providers"
@@ -525,8 +528,8 @@ def _delegates_execute_to(cls: type, target: type, depth: int) -> bool:
     return False
 
 
-def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
-    """Return True if some class along `cls`'s resolved `execute()` chain calls execute_resumable().
+def _execute_chain_calls_resumable(cls: type, depth: int) -> type | None:
+    """Return the class along `cls`'s resolved `execute()` chain that calls execute_resumable().
 
     Same walk as `_delegates_execute_to`: a delegating override's own source may not mention
     `execute_resumable` even though the class it hands off to does. Only a real call counts,
@@ -538,20 +541,20 @@ def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
     while owner is not None:
         source = _get_method_source(owner, "execute")
         if source is None:
-            return False
+            return None
         if any(
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "execute_resumable"
             for node in ast.walk(ast.parse(textwrap.dedent(source)))
         ):
-            return True
+            return owner
         source = _strip_comment_lines(source)
         if remaining <= 0:
-            return False
+            return None
         owner = _next_execute_hop(cls, owner, source)
         remaining -= 1
-    return False
+    return None
 
 
 def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
@@ -566,17 +569,76 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     2. Genuinely implementing ResumableJobMixin's contract, where `execute()` (or a class it
     delegates to) calls `execute_resumable()`.
     """
+    return find_durable_source(cls, resumable_mixin) is not None
+
+
+def find_durable_source(cls: type, resumable_mixin: type | None) -> tuple[type, str] | None:
+    """Return the class a durable capability comes from and the mechanism it uses, or None."""
     declaring_cls = _find_marker_declaring_class(cls)
     if declaring_cls is not None and _delegates_execute_to(cls, declaring_cls, _MAX_DEFERRAL_WALK_DEPTH):
-        return True
+        return declaring_cls, DURABLE_MECHANISM_MARKER
 
     if resumable_mixin is None or resumable_mixin not in cls.__mro__:
-        return False
+        return None
 
     if inspect.isabstract(cls):
-        return False
+        return None
 
-    return _execute_chain_calls_resumable(cls, _MAX_DEFERRAL_WALK_DEPTH)
+    owner = _execute_chain_calls_resumable(cls, _MAX_DEFERRAL_WALK_DEPTH)
+    return (owner, DURABLE_MECHANISM_MIXIN) if owner is not None else None
+
+
+def _repo_relative_source(cls: type) -> Path | None:
+    try:
+        source_file = inspect.getsourcefile(cls)
+    except TypeError:
+        return None
+    if source_file is None:
+        return None
+    try:
+        return Path(source_file).resolve().relative_to(AIRFLOW_ROOT.resolve())
+    except ValueError:
+        return None
+
+
+def _provider_id_from_source(rel_path: Path) -> str | None:
+    parts = rel_path.parts
+    if not parts or parts[0] != "providers" or "src" not in parts:
+        return None
+    return "-".join(parts[1 : parts.index("src")])
+
+
+def get_durable_metadata(cls: type, resumable_mixin: type | None) -> dict:
+    """Build the durable-execution fields of a module entry."""
+    source = find_durable_source(cls, resumable_mixin)
+    if source is None:
+        return {
+            "supports_durable_execution": False,
+            "durable_mechanism": None,
+            "durable_gating_provider": None,
+            "durable_gating_class": None,
+            "durable_since_version": None,
+            "durable_default": None,
+        }
+
+    declaring_cls, mechanism = source
+    # Gated by whoever ships the declaring class, not by `cls`'s own provider: EksPodOperator
+    # ships in amazon but inherits durability from KubernetesPodOperator in cncf-kubernetes.
+    rel_path = _repo_relative_source(declaring_cls)
+    gating_provider = _provider_id_from_source(rel_path) if rel_path else None
+    # None where the default is computed in __init__ rather than declared in the signature.
+    durable_default = get_params_from_class(cls).get("durable", {}).get("default")
+
+    return {
+        "supports_durable_execution": True,
+        "durable_mechanism": mechanism,
+        "durable_gating_provider": gating_provider,
+        "durable_gating_class": f"{declaring_cls.__module__}.{declaring_cls.__qualname__}",
+        # Dated on the host by fill_durable_versions.py: this script runs in Breeze, which does
+        # not mount .git, so no git command here can see the provider tags.
+        "durable_since_version": None,
+        "durable_default": durable_default if isinstance(durable_default, bool) else None,
+    }
 
 
 def _is_terminal_block(body: list[ast.stmt]) -> bool:
@@ -861,7 +923,7 @@ def discover_classes_from_provider(
             "category": category or get_category(integration),
             "provider_id": provider_id,
             "provider_name": provider_name,
-            "supports_durable_execution": is_durable_capable(cls_or_obj, resumable_mixin),
+            **get_durable_metadata(cls_or_obj, resumable_mixin),
             "supports_deferrable": supports_deferrable(cls_or_obj),
         }
 
@@ -1025,9 +1087,7 @@ def discover_classes_from_provider(
                 "category": "decorators",
                 "provider_id": provider_id,
                 "provider_name": provider_name,
-                "supports_durable_execution": (
-                    is_durable_capable(decorated_cls, resumable_mixin) if decorated_cls else False
-                ),
+                **get_durable_metadata(decorated_cls or object, resumable_mixin if decorated_cls else None),
                 "supports_deferrable": supports_deferrable(decorated_cls) if decorated_cls else False,
             }
         )

@@ -3505,6 +3505,8 @@ main {
 
 :is(.provider-detail-page, .durable-page) .modules .module .content h3 .durable-badge,
 :is(.provider-detail-page, .durable-page) .modules .module .content h3 .deferrable-badge,
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .version-badge,
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .optin-badge,
 .durable-page .capabilities .durable-badge,
 .durable-page .capabilities .deferrable-badge {
   display: inline-flex;
@@ -3529,6 +3531,18 @@ main {
   background: color-mix(in srgb, var(--color-blue-500) 15%, transparent);
   color: var(--color-blue-700);
   color: light-dark(var(--color-blue-700), var(--color-blue-400));
+}
+
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .version-badge {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .optin-badge {
+  background: color-mix(in srgb, var(--color-amber-500) 15%, transparent);
+  color: var(--color-amber-600);
+  color: light-dark(var(--color-amber-600), var(--color-amber-400));
 }
 
 :is(.provider-detail-page, .durable-page) .modules .module .content p {
@@ -3830,6 +3844,8 @@ main {
   margin-bottom: 0;
   -webkit-line-clamp: 1;
 }
+
+
 
 /* Technical */
 .provider-detail-page .technical {
