@@ -570,9 +570,10 @@ def test__tags_length(tags: list[str], should_pass: bool):
             {"a"},
             id="two same tags",
         ),
+        pytest.param("a normal tag", {"a normal tag"}, id="single string tag"),
     ],
 )
-def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
+def test__tags_duplicates(input_tags: str | list[str], expected_result: set[str]):
     result = DAG("test-dag", tags=input_tags)
     assert result.tags == expected_result
 
@@ -581,6 +582,8 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
     ("schedule", "input_val", "expected"),
     [
         pytest.param("@daily", None, None, id="none"),
+        pytest.param("@daily", "", None, id="empty_str"),
+        pytest.param("@daily", [], None, id="empty_list"),
         pytest.param(
             "@daily",
             [DagRunType.SCHEDULED],
@@ -610,6 +613,12 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
             DagRunType.MANUAL,
             frozenset([DagRunType.MANUAL]),
             id="no_schedule_single_enum",
+        ),
+        pytest.param(
+            None,
+            "manual",
+            frozenset([DagRunType.MANUAL]),
+            id="no_schedule_single_str",
         ),
         pytest.param(
             None,
