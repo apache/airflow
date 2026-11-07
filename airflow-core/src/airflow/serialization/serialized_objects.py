@@ -2457,9 +2457,12 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
     @property
     def owner(self) -> str:
-        return ", ".join(
-            set(filter(None, (task[Encoding.VAR].get("owner") for task in self.data["dag"]["tasks"])))
-        )
+        def _get_task_owner(task: dict) -> str | None:
+            # A mapped operator keeps its owner in partial_kwargs, not at the top level.
+            var = task[Encoding.VAR]
+            return var.get("owner") or var.get("partial_kwargs", {}).get("owner")
+
+        return ", ".join(set(filter(None, (_get_task_owner(task) for task in self.data["dag"]["tasks"]))))
 
 
 @overload
