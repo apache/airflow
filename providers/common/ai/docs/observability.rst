@@ -122,7 +122,8 @@ How it works
   ``deserialize_value``: the model name badge would show the reference string (e.g. an
   ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
   string rather than an object -- the tab treats a non-object ``usage`` as absent and
-  hides the stat boxes instead of rendering ``undefined`` in each one.
+  hides the stat boxes instead of rendering ``undefined`` in each one. The skills XCom
+  comes back as that string too, so the skills section is hidden.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
