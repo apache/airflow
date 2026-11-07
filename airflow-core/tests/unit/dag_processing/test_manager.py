@@ -5930,6 +5930,124 @@ class TestDagFileProcessorManager:
 
         healthy_bundle.refresh.assert_called_once()
 
+    def test_refresh_dag_bundles_refresh_failure_records_and_clears_import_error(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle()
+        bundle.name = "refresh_fail_bundle"
+        bundle.refresh.side_effect = ConnectionResetError("Remote connection reset")
+
+        manager._dag_bundles = [bundle]
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(
+                manager,
+                "_find_files_in_bundle",
+                return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
+            ),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        error = session.scalar(
+            select(ParseImportError).where(
+                ParseImportError.bundle_name == "refresh_fail_bundle",
+                ParseImportError.filename == "refresh_fail_bundle",
+            )
+        )
+        assert error is not None
+        assert "ConnectionResetError: Remote connection reset" in error.stacktrace
+
+        bundle.refresh.side_effect = None
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(
+                manager,
+                "_find_files_in_bundle",
+                return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
+            ),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        error_after = session.scalar(
+            select(ParseImportError).where(
+                ParseImportError.bundle_name == "refresh_fail_bundle",
+                ParseImportError.filename == "refresh_fail_bundle",
+            )
+        )
+        assert error_after is None
+
+    def test_refresh_dag_bundles_discovery_failure_records_import_error(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle()
+        bundle.name = "discovery_fail_bundle"
+
+        manager._dag_bundles = [bundle]
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(
+                manager,
+                "_find_files_in_bundle",
+                side_effect=PermissionError("Permission denied scanning bundle"),
+            ),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        error = session.scalar(
+            select(ParseImportError).where(
+                ParseImportError.bundle_name == "discovery_fail_bundle",
+                ParseImportError.filename == "discovery_fail_bundle",
+            )
+        )
+        assert error is not None
+        assert "PermissionError: Permission denied scanning bundle" in error.stacktrace
+
+        with (
+            mock.patch.object(manager, "_clear_bundle_refresh_error") as mock_clear,
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(
+                manager,
+                "_find_files_in_bundle",
+                side_effect=PermissionError("Permission denied scanning bundle"),
+            ),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+            mock_clear.assert_not_called()
+
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.
 
@@ -6021,7 +6139,7 @@ class TestDagFileProcessorManager:
         ):
             manager._refresh_dag_bundles({})
             mock_update.assert_not_called()
-            assert manager._bundle_versions["mock_bundle"] == "v1"
+            assert "mock_bundle" not in manager._bundle_versions
 
             known_files: dict[str, set[DagFileInfo]] = {}
             manager._refresh_dag_bundles(known_files)
