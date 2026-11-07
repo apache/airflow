@@ -77,6 +77,8 @@ def mock_cursor(mock_get_conn):
     cursor.fetchall.return_value = [("1", "row1")]
     cursor.description = get_cursor_descriptions(["id", "value"])
     cursor.nextset.side_effect = [False]
+    # The hook drains each result set with fetchone() until it returns None.
+    cursor.fetchone.return_value = None
     mock_get_conn.return_value.cursor.return_value = cursor
     return cursor
 
@@ -151,9 +153,15 @@ def test_vertica_run_queries(
         mock_cursor.fetchall.side_effect = cursor_results
     else:
         mock_cursor.fetchall.return_value = cursor_results
-    # Each statement executed separately produces a single result set.
-    mock_cursor.nextset.side_effect = None
-    mock_cursor.nextset.return_value = False
+    # Like on a real Vertica, each executed SQL string produces one result set per statement, and
+    # the hook moves through all of them with nextset().
+    result_sets_per_execute = [
+        len([statement for statement in sql_call.split(";") if statement.strip()])
+        for sql_call in expected_calls
+    ]
+    mock_cursor.nextset.side_effect = [
+        has_next for count in result_sets_per_execute for has_next in [True] * (count - 1) + [False]
+    ]
 
     result = vertica_hook.run(
         sql,
@@ -164,6 +172,7 @@ def test_vertica_run_queries(
 
     expected_mock_calls = [mock.call(sql_call) for sql_call in expected_calls]
     mock_cursor.execute.assert_has_calls(expected_mock_calls)
+    assert mock_cursor.nextset.call_count == sum(result_sets_per_execute)
     assert [SerializableRow(*row) for row in result] == expected_result
 
 
