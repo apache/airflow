@@ -76,6 +76,7 @@ class DependencyMixin:
         *,
         setups: BaseOperator | Iterable[BaseOperator] | None = None,
         on_failure_fail_dagrun: bool | None = None,
+        on_success_succeed_dagrun: bool | None = None,
     ) -> DependencyMixin:
         """Mark a task as teardown and set its setups as direct relatives."""
         raise NotImplementedError()

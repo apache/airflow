@@ -376,6 +376,7 @@
         "is_setup": {"type": "boolean", "default": false},
         "is_teardown": {"type": "boolean", "default": false},
         "on_failure_fail_dagrun": {"type": "boolean", "default": false},
+        "on_success_succeed_dagrun": {"type": "boolean", "default": true},
         "max_active_tis_per_dag": {"type": "integer"},
         "max_active_tis_per_dagrun": {"type": "integer"},
         "_arg_bindings": {

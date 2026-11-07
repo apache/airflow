@@ -347,6 +347,14 @@ class SerializedMappedOperator(DAGNode):
     def on_failure_fail_dagrun(self, v) -> None:
         self.partial_kwargs["on_failure_fail_dagrun"] = bool(v)
 
+    @property
+    def on_success_succeed_dagrun(self) -> bool:
+        return self._get_partial_kwargs_or_operator_default("on_success_succeed_dagrun")
+
+    @on_success_succeed_dagrun.setter
+    def on_success_succeed_dagrun(self, v) -> None:
+        self.partial_kwargs["on_success_succeed_dagrun"] = bool(v)
+
     @classmethod
     def get_serialized_fields(cls):
         """Fields to extract from JSON-Serialized DAG."""
