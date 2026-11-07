@@ -205,6 +205,69 @@ class TestDBDagBag:
 
         assert result is None
 
+    @pytest.mark.parametrize("stats_prefix", [None, *METRIC_PREFIXES])
+    @patch(STATS_PATH, autospec=True)
+    @patch.object(SerializedDagModel, "get", autospec=True)
+    def test_get_latest_version_of_dag_returns_cached_dag(self, mock_get, mock_stats, stats_prefix):
+        """Reuse the cached deserialized Dag when the version and hash match."""
+        dag_bag = (
+            CachedDBDagBag(cache_size=10, cache_ttl=60, stats_prefix=stats_prefix)
+            if stats_prefix
+            else DBDagBag()
+        )
+        cached_dag = MagicMock(spec=SerializedDAG)
+        dag_bag._dags["v1"] = _CacheEntry(cached_dag, "hash1", 0.0)
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        # A different Dag proves the result came from the cache without deserialization.
+        mock_serdag.dag = MagicMock(spec=SerializedDAG)
+        mock_serdag.dag_version_id = "v1"
+        mock_serdag.dag_hash = "hash1"
+        mock_get.return_value = mock_serdag
+
+        result = dag_bag.get_latest_version_of_dag("test_dag", session=self.session)
+
+        assert result is cached_dag
+        mock_get.assert_called_once_with("test_dag", session=self.session)
+        self.session.get.assert_not_called()
+        self.session.scalar.assert_not_called()
+        assert dag_bag._dags["v1"].last_validated > 0.0
+        if stats_prefix:
+            mock_stats.incr.assert_called_once_with(f"{stats_prefix}.cache_hit")
+        else:
+            mock_stats.incr.assert_not_called()
+
+    @pytest.mark.parametrize("stats_prefix", [None, *METRIC_PREFIXES])
+    @pytest.mark.parametrize("cached_hash", [None, "old_hash"], ids=["not-cached", "hash-changed"])
+    @patch(STATS_PATH, autospec=True)
+    @patch.object(SerializedDagModel, "get", autospec=True)
+    def test_get_latest_version_of_dag_emits_cache_miss(
+        self, mock_get, mock_stats, cached_hash, stats_prefix
+    ):
+        """Emit a miss when the latest Dag is absent from the cache or its hash changed."""
+        dag_bag = (
+            CachedDBDagBag(cache_size=10, cache_ttl=60, stats_prefix=stats_prefix)
+            if stats_prefix
+            else DBDagBag()
+        )
+        fresh_dag = MagicMock(spec=SerializedDAG)
+        if cached_hash is not None:
+            dag_bag._dags["v1"] = _CacheEntry(MagicMock(spec=SerializedDAG), cached_hash, 0.0)
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag = fresh_dag
+        mock_serdag.dag_version_id = "v1"
+        mock_serdag.dag_hash = "hash1"
+        mock_get.return_value = mock_serdag
+
+        result = dag_bag.get_latest_version_of_dag("test_dag", session=self.session)
+
+        assert result is fresh_dag
+        mock_get.assert_called_once_with("test_dag", session=self.session)
+        assert dag_bag._dags["v1"].dag is fresh_dag
+        if stats_prefix:
+            mock_stats.incr.assert_called_once_with(f"{stats_prefix}.cache_miss")
+        else:
+            mock_stats.incr.assert_not_called()
+
     def test_get_dag_reflects_in_place_version_update_end_to_end(self):
         """End-to-end regression: an in-place version update must be re-read, not served stale.
 
