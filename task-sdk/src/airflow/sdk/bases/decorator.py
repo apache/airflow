@@ -561,17 +561,15 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         update_wrapper(self, self.function)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
-        if self.is_teardown:
-            if "trigger_rule" in self.kwargs:
-                raise ValueError("Trigger rule not configurable for teardown tasks.")
-            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
+        task_kwargs = self.kwargs.copy()
+        self._set_teardown_trigger_rule(task_kwargs)
+        on_failure_fail_dagrun = task_kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
             op_kwargs=kwargs,
             multiple_outputs=self.multiple_outputs,
-            **self.kwargs,
+            **task_kwargs,
         )
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
@@ -586,6 +584,13 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if self.function.__doc__ and not any(op_doc_attrs):
             op.doc_md = inspect.cleandoc(self.function.__doc__)
         return XComArg(op)
+
+    def _set_teardown_trigger_rule(self, task_kwargs: dict[str, Any]) -> None:
+        if not self.is_teardown:
+            return
+        if "trigger_rule" in task_kwargs:
+            raise ValueError("Trigger rule not configurable for teardown tasks.")
+        task_kwargs["trigger_rule"] = TriggerRule.ALL_DONE_SETUP_SUCCESS
 
     def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.
@@ -613,10 +618,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
-        if self.is_teardown:
-            if "trigger_rule" in self.kwargs:
-                raise ValueError("Trigger rule not configurable for teardown tasks.")
-            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
@@ -647,6 +648,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
+        self._set_teardown_trigger_rule(task_kwargs)
         dag = task_kwargs.pop("dag", None) or DagContext.get_current()
         task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current(dag)
 
