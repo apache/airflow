@@ -284,6 +284,9 @@ labelPRBasedOnFilePath:
   provider:samba:
     - providers/samba/**
 
+  provider:sas:
+    - providers/sas/**
+
   provider:segment:
     - providers/segment/**
 
