@@ -23,7 +23,7 @@ import threading
 import weakref
 from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import attrs
 import structlog
@@ -33,6 +33,7 @@ from airflow.process_context import force_server_context
 
 if TYPE_CHECKING:
     import httpx2
+    from a2wsgi.asgi_typing import ASGIApp
     from fastapi import FastAPI
     from starlette.types import Receive, Scope, Send
 
@@ -150,7 +151,9 @@ class InProcessExecutionAPI:
         thread.start()
 
         app = self.app
-        middleware = ASGIMiddleware(cast("Any", _RequestScopedServerContextApp(app)), loop=loop)
+        # a2wsgi types ASGI scopes and messages as TypedDict unions and Starlette as mutable mappings,
+        # so no app typed against Starlette matches a2wsgi's ``ASGIApp``.
+        middleware = ASGIMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
