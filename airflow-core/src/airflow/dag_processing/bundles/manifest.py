@@ -347,7 +347,8 @@ def build_ref_payload(
     }
 
 
-def _build_ref_payload_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+def build_ref_payload_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Build the release-reference payload that names ``manifest`` by its digest."""
     manifest_sha256 = hashlib.sha256(serialize_bundle_version_manifest(manifest)).hexdigest()
     return build_ref_payload(
         bundle_name=manifest["bundle_name"],
@@ -432,7 +433,7 @@ def build_bundle_version_manifest(
     return BundleVersionManifest(
         version=version,
         manifest=manifest,
-        ref_payload=_build_ref_payload_from_manifest(manifest),
+        ref_payload=build_ref_payload_from_manifest(manifest),
         source_snapshot=source_snapshot,
     )
 
