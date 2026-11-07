@@ -19,12 +19,14 @@ from __future__ import annotations
 import inspect
 import json
 import shlex
+import subprocess
 from functools import cached_property
 from unittest.mock import Mock
 
 import pytest
 import yaml
 
+from airflow_breeze.commands import testing_commands
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, GithubEvents
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -107,10 +109,50 @@ def test_core_change_splits_db_and_non_db_cells():
         item["command"] for item in result["items"] if item["command"].startswith("breeze testing core-tests")
     ]
     assert unit == [
-        f'breeze testing core-tests --run-in-parallel --run-db-tests-only --parallel-test-types "{core_types}"',
+        "breeze testing core-tests --run-in-parallel --run-db-tests-only --backend sqlite "
+        f"--parallel-test-types {shlex.quote(core_types)}",
         "breeze testing core-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none "
-        f'--parallel-test-types "{core_types}"',
+        f"--parallel-test-types {shlex.quote(core_types)}",
     ]
+
+
+def test_unit_test_commands_pass_the_test_types_to_the_shell_verbatim():
+    test_types = "Providers[amazon] $HOME;"
+    for item in build_unit_test_items(
+        "providers", json.dumps([{"description": "x", "test_types": test_types}])
+    ):
+        echo = item.command.replace("breeze testing providers-tests", "printf '%s\\n'", 1)
+        printed = subprocess.run(["bash", "-c", echo], capture_output=True, text=True, check=True).stdout
+        assert printed.splitlines()[-1] == test_types
+
+
+def test_docs_command_passes_each_package_to_the_shell_verbatim():
+    packages = ["amazon[x]", "$HOME;"]
+    sc = _mock_selective_checks(docs_build=True, docs_list_as_string=" ".join(packages))
+    (command,) = [
+        item["command"]
+        for item in build_local_verification_plan(sc, (), "main", full_tests_needed=False)["items"]
+    ]
+    echo = command.replace("breeze build-docs", "printf '%s\\n'", 1)
+    printed = subprocess.run(["bash", "-c", echo], capture_output=True, text=True, check=True).stdout
+    assert printed.splitlines() == packages
+
+
+def test_shared_distribution_loop_passes_each_name_to_the_shell_verbatim(tmp_path):
+    names = ["$HOME;", "a b"]
+    for name in names:
+        (tmp_path / "shared" / name).mkdir(parents=True)
+    sc = _mock_selective_checks(shared_distributions_as_json=json.dumps(names))
+    items = build_local_verification_plan(sc, (), "main", full_tests_needed=False, full=True)["items"]
+    (loop,) = [item["command"] for item in items if item["command"].startswith("for d in")]
+    printed = subprocess.run(
+        ["bash", "-c", loop.replace("uv run --group dev pytest", "pwd -P")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert printed.splitlines() == [str((tmp_path / "shared" / name).resolve()) for name in names]
 
 
 def test_every_selective_checks_run_flag_is_classified():
@@ -144,7 +186,55 @@ def test_unit_test_commands_use_the_same_flags_as_the_ci_script(group: str):
     for item in build_unit_test_items(group, json.dumps([{"description": "x", "test_types": "Always"}])):
         tokens = shlex.split(item.command)[3:]
         cut = tokens.index("--parallel-test-types")
-        assert frozenset(tokens[:cut] + tokens[cut + 2 :]) in ci_flag_sets, item.command
+        flags = tokens[:cut] + tokens[cut + 2 :]
+        # CI picks the database with the BACKEND env var, not with a flag.
+        if flags[-2:] == ["--backend", "sqlite"]:
+            flags = flags[:-2]
+        assert frozenset(flags) in ci_flag_sets, item.command
+
+
+def test_commands_that_take_a_backend_pass_one():
+    """breeze caches --backend, so a command without it reuses the "none" of an earlier command."""
+    commands = [command for items in FLAG_COMMANDS.values() for _, command, _ in items]
+    for group in ("core", "providers"):
+        commands += [
+            item.command
+            for item in build_unit_test_items(
+                group, json.dumps([{"description": "x", "test_types": "Always"}])
+            )
+        ]
+    for command in commands:
+        tokens = shlex.split(command)
+        if tokens[:2] != ["breeze", "testing"]:
+            continue
+        if any(
+            param.name == "backend" for param in testing_commands.testing_group.commands[tokens[2]].params
+        ):
+            assert "--backend" in tokens, command
+
+
+def _drop_option(tokens: list[str], option: str) -> list[str]:
+    if option not in tokens:
+        return tokens
+    index = tokens.index(option)
+    return tokens[:index] + tokens[index + 2 :]
+
+
+def test_api_client_commands_follow_the_ci_job():
+    workflow = yaml.safe_load(
+        (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-image-checks.yml").read_text()
+    )
+    # CI also copies the client into an apache/airflow-client-python checkout to show the diff.
+    ci_commands = [
+        _drop_option(shlex.split(step["run"]), "--python-client-repo")
+        for step in workflow["jobs"]["test-python-api-client"]["steps"]
+        if step.get("run", "").startswith("breeze ")
+    ]
+    verify_commands = []
+    for _, command, _ in FLAG_COMMANDS["run_api_codegen"]:
+        tokens = shlex.split(command)
+        verify_commands.append(_drop_option(tokens[tokens.index("breeze") :], "--backend"))
+    assert verify_commands == ci_commands
 
 
 def test_empty_diff_lists_nothing():
@@ -243,8 +333,8 @@ def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
         *(i["command"] for i in lean),
         "cd dev/breeze && uv run --locked pytest",
         "for d in "
-        + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
-        + "; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+        + shlex.join(sorted(json.loads(sc.shared_distributions_as_json)))
+        + '; do (cd "shared/$d" && uv run --group dev pytest) || exit 1; done',
     ]
 
 
