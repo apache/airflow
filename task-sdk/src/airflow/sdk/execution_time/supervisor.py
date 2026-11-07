@@ -1178,8 +1178,21 @@ class WatchedSubprocess:
 
             try:
                 msg = self.decoder.validate_python(self._deserialize_request(request.body))
-            except Exception:
+            except Exception as e:
                 log.exception("Unable to decode message", body=request.body)
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.GENERIC_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": f"Unable to decode message: {e}",
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
                 continue
 
             # Restore the task runner's trace context so that any outbound HTTP calls made while

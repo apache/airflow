@@ -4694,6 +4694,47 @@ class TestHandleRequest:
         generator.send(req2)
 
     @pytest.mark.parametrize(
+        "invalid_body",
+        [
+            pytest.param({"type": "NonExistentMessageType"}, id="unknown_message_type"),
+            pytest.param({"type": "GetVariable"}, id="missing_required_field"),
+        ],
+    )
+    def test_handle_requests_decoding_error_sends_error_response(
+        self, watched_subprocess, mocker, invalid_body
+    ):
+        """Test that invalid request frames produce an error response rather than dropping the frame."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=invalid_body)
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes_ = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes_)
+
+        assert frame.id == req_frame.id
+        assert frame.error is not None
+        assert frame.error["error"] == "GENERIC_ERROR"
+        assert "Unable to decode message" in frame.error["detail"]["message"]
+
+        comms = CommsDecoder(socket=None)
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            comms._from_frame(frame)
+
+        assert exc_info.value.error.error == ErrorType.GENERIC_ERROR
+        assert exc_info.value.error.detail["exception_type"] is not None
+
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(return_value=None)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_valid = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_valid)
+
+    @pytest.mark.parametrize(
         ("msg", "api_method", "expected_state"),
         [
             pytest.param(
