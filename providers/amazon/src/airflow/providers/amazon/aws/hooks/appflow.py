@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -68,7 +68,7 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
                 waiter=self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}),
                 waiter_delay=poll_interval,
                 waiter_max_attempts=max_attempts,
-                args={"flowName": flow_name},
+                args={"flowName": flow_name, "maxResults": 100},
                 failure_message="error while waiting for flow to complete",
                 status_message="waiting for flow completion, status",
                 status_args=[
@@ -80,11 +80,21 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
 
         return execution_id
 
-    def _log_execution_description(self, flow_name: str, execution_id: str):
-        response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
-        last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
-        exec_details = last_execs[execution_id]
-        self.log.info("Run complete, execution details: %s", exec_details)
+    def _log_execution_description(self, flow_name: str, execution_id: str) -> None:
+        args: dict[str, Any] = {"flowName": flow_name, "maxResults": 100}
+        while True:
+            response_desc = self.conn.describe_flow_execution_records(**args)
+            for fe in response_desc.get("flowExecutions", []):
+                if fe.get("executionId") == execution_id:
+                    self.log.info("Run complete, execution details: %s", fe)
+                    return
+            next_token = response_desc.get("nextToken")
+            if not next_token or next_token == args.get("nextToken"):
+                break
+            args["nextToken"] = next_token
+        self.log.warning(
+            "Execution %s for flow %s was not found in execution records.", execution_id, flow_name
+        )
 
     def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
         """
