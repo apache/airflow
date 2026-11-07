@@ -484,7 +484,7 @@ class TestCollectTableReferences:
         assert scan.unverifiable_sources
 
     def test_lateral_subquery_tables_are_still_reported(self):
-        """Only a function under LATERAL is unverifiable; a LATERAL subquery's tables are scanned."""
+        """A LATERAL subquery is checkable: its tables are scanned like any other."""
         sql = "SELECT * FROM orders o, LATERAL (SELECT * FROM items i WHERE i.order_id = o.id) x"
         scan = collect_table_references(parse_sql(sql, dialect="postgres"))
         assert set(scan.tables) == {("", "", "orders"), ("", "", "items")}
