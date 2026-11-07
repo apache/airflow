@@ -58,7 +58,12 @@ if TYPE_CHECKING:
 
 
 LOOP_GATE_OPERATOR = "LoopGateOperator"
-"""Operator class name the Task SDK gives the gate task of a loop."""
+"""
+Operator class name the Python Task SDK gives the gate task of a loop.
+
+A language SDK's gate carries that SDK's own operator name, so it is found by its loop's
+``gate_task_id`` instead; see :meth:`TaskCoordinateResolver.is_loop_gate`.
+"""
 
 
 @attrs.frozen(kw_only=True)
@@ -375,6 +380,17 @@ class TaskCoordinateResolver:
         if dag is None or dag.dag_id != dag_id:
             raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
         return dag.get_task(task_id)
+
+    def is_loop_gate(self, dag_version_id: UUID | None, task_id: str) -> bool:
+        """Tell whether ``task_id`` is the gate of its loop in the Dag version ``dag_version_id``."""
+        if (
+            dag_version_id is None
+            or (dag := self.get_dag(dag_version_id)) is None
+            or not dag.has_task(task_id)
+        ):
+            return False
+        loop = enclosing_loop(dag.get_task(task_id))
+        return loop is not None and loop.gate_task_id == task_id
 
     def find_task(self, ti: TaskCoordinate) -> SerializedOperator | None:
         """Return the task of ``ti`` from its pinned Dag, or None when that Dag or the task is gone."""

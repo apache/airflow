@@ -376,6 +376,47 @@ Exactly one case runs, and there is no default: a decider that returns anything 
 returned and what it could have returned. To run several tasks together on one outcome, put them behind a
 single task, or give each its own ``dag.if``.
 
+Task loops
+~~~~~~~~~~
+
+``loop`` runs a task group again and again, up to ``maxIterations``, until its handler says stop. The handler
+runs after every iteration as the loop's gate task, and ``getLoop()`` gives a task its iteration and the
+previous iteration's result:
+
+.. code-block:: typescript
+
+    import { getLoop, type LoopDecision, type XComSequence } from "@apache-airflow/ts-sdk";
+
+    type Metrics = { estimate: number; error: number };
+
+    const refine = dag.taskGroup("refine");
+
+    const improve = refine.task(async function improve(): Promise<number> {
+      const estimate = (await getLoop()).getPrevious<Metrics>()?.estimate ?? 1.0;
+      return (estimate + 2.0 / estimate) / 2.0;
+    });
+    const evaluate = refine.task(async function evaluate({ estimate }: { estimate: number }) {
+      return { estimate, error: Math.abs(estimate * estimate - 2) };
+    });
+
+    async function accurateEnough({ result }: { result: Metrics }): Promise<LoopDecision> {
+      return { stop: result.error < 1e-6, reason: `error ${result.error.toExponential(1)}` };
+    }
+
+    const evaluated = evaluate({ estimate: improve() });
+    const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+
+    report({ history: evaluated });   // every iteration's Metrics, as an XComSequence
+    refinement.before(cleanup());     // after the whole loop
+
+Without a handler, ``poll.loop({ maxIterations: 3 })`` runs the group a fixed number of times. A task outside
+the loop that takes a body task's output receives every iteration's value as an ``XComSequence``. See
+:ref:`loops-and-mapped-tasks` for when to use a loop, and the API reference for
+`loop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/taskgroupref/#loop>`__,
+`getLoop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/getloop/>`__ and
+`XComSequence <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/xcomsequence/>`__ for the
+rules a loop follows.
+
 Triggering another Dag
 ~~~~~~~~~~~~~~~~~~~~~~
 

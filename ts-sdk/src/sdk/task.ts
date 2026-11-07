@@ -25,6 +25,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { TaskClient } from "./client.js";
+import type { LoopContext } from "./loop.js";
 
 /** Runtime metadata for the current task invocation. */
 export interface TaskContext {
@@ -52,6 +53,8 @@ export interface TaskContext {
 export interface TaskScope {
   readonly ctx: TaskContext;
   readonly client: TaskClient;
+  /** Reads the loop the task is in; absent for a task outside any loop. */
+  readonly loop?: () => Promise<LoopContext>;
 }
 
 // Keyed on a global symbol, as the serve latch is: two resolved copies of the
@@ -77,9 +80,10 @@ export function runInTaskScope<T>(scope: TaskScope, fn: () => T): T {
   return scopeStorage().run(scope, fn);
 }
 
-type ScopeAccessor = "getContext" | "getClient";
+type ScopeAccessor = "getContext" | "getClient" | "getLoop";
 
-function currentScope(accessor: ScopeAccessor): TaskScope {
+/** Internal: the scope of the running task, or a throw naming `accessor` outside one. */
+export function getTaskScope(accessor: ScopeAccessor): TaskScope {
   const scope = scopeStorage().getStore();
   if (!scope) {
     throw new Error(
@@ -103,7 +107,7 @@ function currentScope(accessor: ScopeAccessor): TaskScope {
  * @throws when called outside a task handler.
  */
 export function getContext(): TaskContext {
-  return currentScope("getContext").ctx;
+  return getTaskScope("getContext").ctx;
 }
 
 /**
@@ -125,7 +129,7 @@ export function getContext(): TaskContext {
  * @throws when called outside a task handler.
  */
 export function getClient(): TaskClient {
-  return currentScope("getClient").client;
+  return getTaskScope("getClient").client;
 }
 
 /**

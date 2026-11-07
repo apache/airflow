@@ -28,8 +28,9 @@
 // Names bind by folding on both sides, so nothing has to be declared for a
 // Python `region_code` to reach a handler's `regionCode`.
 
-import type { CoordinatorClient } from "./client.js";
+import { RETURN_VALUE_KEY, type CoordinatorClient } from "./client.js";
 import type { LogChannel } from "./log-channel.js";
+import { LazyXComSequence } from "./xcom-sequence.js";
 import type {
   ArgBindings,
   ArgValueSchema,
@@ -37,9 +38,7 @@ import type {
   XComArgBinding,
 } from "../generated/supervisor.js";
 import type { JsonValue } from "../sdk/client-types.js";
-
-/** The key an upstream task's return value is stored under, as Python `@task` does. */
-const RETURN_VALUE_KEY = "return_value";
+import type { XComSequence } from "../sdk/xcom-sequence.js";
 
 /** What Airflow stamps on an argument the Dag declared as a Python `int`. */
 const INT64_FORMAT = "int64";
@@ -71,6 +70,12 @@ export interface BoundArgs {
   readonly names: readonly string[];
 }
 
+/**
+ * One bound argument: an upstream's value as XCom stores it, which is JSON, or, for an upstream the
+ * task reads every value of, a sequence that fetches those JSON values when read.
+ */
+type BoundValue = JsonValue | XComSequence<JsonValue>;
+
 const EMPTY_ARGS: BoundArgs = { args: Object.freeze({}), names: Object.freeze([]) };
 
 /** What {@link resolveArgs} needs beyond the spec itself. */
@@ -81,6 +86,11 @@ export interface ArgBindingDeps {
   readonly logs: LogChannel;
   /** Renames the handler declared with `withArgNames`, which beat folding. */
   readonly argNames: ReadonlyMap<string, string>;
+  /**
+   * Whether the output of upstream `taskId` is read as an `XComSequence` of all its values rather
+   * than as one value: true for a task of a loop the running task is outside of.
+   */
+  readonly readsAsSequence?: (taskId: string) => boolean;
 }
 
 /**
@@ -118,12 +128,15 @@ export async function resolveArgs(
 
   // Every upstream pull in flight at once, so a task called with four of them
   // waits for one round-trip rather than four.
-  const resolveAll = (): Promise<[string, JsonValue][]> =>
+  const resolveAll = (): Promise<[string, BoundValue][]> =>
     Promise.all(
-      bindings.map(async (binding): Promise<[string, JsonValue]> => [
+      bindings.map(async (binding): Promise<[string, BoundValue]> => [
         binding.name,
         binding.kind === "xcom"
-          ? await pullXComArg(binding, deps.client)
+          ? deps.readsAsSequence?.(binding.task_id)
+            ? // Nothing is fetched until the handler reads it, as Python's LazyXComSequence does.
+              new LazyXComSequence(deps.client, { key: RETURN_VALUE_KEY, taskId: binding.task_id })
+            : await pullXComArg(binding, deps.client)
           : literalValue(binding.value),
       ]),
     );
@@ -230,7 +243,7 @@ function abortError(signal: AbortSignal): Error {
 function makeArgsProxy(
   names: readonly string[],
   byFold: ReadonlyMap<string, string>,
-  values: ReadonlyMap<string, JsonValue>,
+  values: ReadonlyMap<string, BoundValue>,
   deps: ArgBindingDeps,
 ): object {
   const { argNames, logs } = deps;

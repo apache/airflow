@@ -295,6 +295,18 @@ def test_public_map_index_and_plain_expansion_of_a_persisted_task_instance(
     assert is_plain_expansion(ti, session=session) is expected_plain
 
 
+@pytest.mark.parametrize(
+    ("task_id", "expected"),
+    [("body.__loop_gate", True), ("body.producer", False), ("outside", False), ("removed", False)],
+)
+def test_loop_gate_is_read_off_its_pinned_loop(loop_coordinates, session, task_id, expected):
+    dr, producer, *_ = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert resolver.is_loop_gate(producer.dag_version_id, task_id) is expected
+    assert resolver.is_loop_gate(None, task_id) is False
+
+
 @pytest.fixture
 def loop_coordinates(dag_maker, session):
     @task_group

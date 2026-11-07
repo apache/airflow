@@ -156,6 +156,7 @@ describe("serializeDag", () => {
       language: "typescript",
       template_fields: [],
       is_stub: true,
+      _needs_expansion: false,
     });
   });
 
