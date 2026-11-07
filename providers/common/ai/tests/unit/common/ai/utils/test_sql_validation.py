@@ -220,6 +220,26 @@ class TestDataModifyingNodeDetection:
                 dialect="postgres",
             )
 
+    @pytest.mark.parametrize(
+        "allowed_types",
+        [
+            pytest.param((exp.Select,), id="narrower"),
+            pytest.param(tuple(reversed(DEFAULT_ALLOWED_TYPES)), id="reordered"),
+            pytest.param((*DEFAULT_ALLOWED_TYPES, exp.Describe), id="widened-read-only"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("sql", "node"),
+        [
+            ("WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del", "Delete"),
+            ("SELECT * INTO new_table FROM users", "Into"),
+        ],
+    )
+    def test_deep_scan_runs_with_custom_read_only_types(self, allowed_types, sql, node):
+        """A custom allow-list with no write type keeps the deep scan on."""
+        with pytest.raises(SQLSafetyError, match=f"Data-modifying operation '{node}'"):
+            validate_sql(sql, allowed_types=allowed_types, dialect="postgres")
+
 
 class TestReadOnlyMetadata:
     """Read-only metadata statements (DESCRIBE/SHOW) with ``allow_read_only_metadata``."""
