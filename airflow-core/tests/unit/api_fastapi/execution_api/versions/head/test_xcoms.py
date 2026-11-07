@@ -36,6 +36,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.exceptions import TaskNotFound
+from airflow.models.callback import Callback, CallbackFetchMethod
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError, DynamicRegion
@@ -1726,9 +1727,9 @@ class TestXComTeamAccess:
         session.commit()
 
     @staticmethod
-    def _authenticate_as(exec_app, ti_id):
+    def _authenticate_as(exec_app, identity_id):
         async def _auth(request: Request) -> TIToken:
-            return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
+            return TIToken(id=identity_id, claims=TIClaims(scope="execution"))
 
         exec_app.dependency_overrides[require_auth] = _auth
 
@@ -1827,3 +1828,32 @@ class TestXComTeamAccess:
 
         assert forbidden.status_code == 403, forbidden.json()
         assert allowed.status_code == 200, allowed.json()
+
+    def test_callback_execution_token_is_scoped_to_its_bundle_team(
+        self, client, exec_app, session, dag_maker
+    ):
+        requester_dag = f"callback_{uuid4().hex}"
+        _, requester_ti = self._make_dag(session, dag_maker, requester_dag, "team_a")
+        same_team_dag = f"same_{uuid4().hex}"
+        same_team_run, _ = self._make_dag(session, dag_maker, same_team_dag, "team_a")
+        other_team_dag = f"other_{uuid4().hex}"
+        other_team_run, _ = self._make_dag(session, dag_maker, other_team_dag, "team_b")
+        self._insert_xcom(session, same_team_run)
+        self._insert_xcom(session, other_team_run)
+        requester_bundle = session.scalar(
+            select(DagModel.bundle_name).where(DagModel.dag_id == requester_ti.dag_id)
+        )
+        callback = Callback()
+        callback.bundle_name = requester_bundle
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        session.add(callback)
+        session.commit()
+        self._authenticate_as(exec_app, callback.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            same_team = client.get(self._url(same_team_dag))
+            other_team = client.get(self._url(other_team_dag))
+
+        assert same_team.status_code == 200, same_team.json()
+        assert other_team.status_code == 403, other_team.json()
+        assert other_team.json()["detail"]["reason"] == "access_denied"
