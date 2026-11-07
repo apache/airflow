@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import socket
 from datetime import UTC, datetime, timedelta
 from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, cast
@@ -26,9 +27,20 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
-from kubernetes.client import CoreV1Event, CoreV1EventList, V1ObjectMeta, V1ObjectReference, V1Pod
+from kubernetes.client import (
+    ApiClient,
+    Configuration,
+    CoreV1Api,
+    CoreV1Event,
+    CoreV1EventList,
+    V1ObjectMeta,
+    V1ObjectReference,
+    V1Pod,
+)
 from kubernetes.client.rest import ApiException
+from kubernetes.stream.ws_client import STDOUT_CHANNEL
 from urllib3.exceptions import HTTPError as BaseHTTPError
+from websocket import ABNF, WebSocket
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
@@ -1258,11 +1270,37 @@ class TestPodManager:
         mock_pod = MagicMock()
         mock_client = MagicMock()
         mock_client.peek_stderr.return_value = ""
-        mock_client.read_all.return_value = xcom_json
+        mock_client.read_all.return_value = xcom_json.encode()
         mock_kubernetes_stream.return_value = mock_client
         ret = self.pod_manager.extract_xcom(pod=mock_pod)
         assert ret == xcom_json
         assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch("kubernetes.stream.ws_client.create_websocket")
+    def test_extract_xcom_json_multibyte_character_split_across_frames(self, mock_create_websocket):
+        xcom_json = '{"a": "\u00e9t\u00e9"}'
+        payload = xcom_json.encode()
+        split_at = payload.index("\u00e9".encode()) + 1
+        stdout = bytes([STDOUT_CHANNEL])
+        websocket = mock.MagicMock(spec=WebSocket)
+        websocket.connected = True
+        websocket.subprotocol = "v4.channel.k8s.io"
+        websocket.recv_data_frame.side_effect = [
+            (ABNF.OPCODE_BINARY, ABNF(data=stdout + payload[:split_at])),
+            (ABNF.OPCODE_BINARY, ABNF(data=stdout + payload[split_at:])),
+            (ABNF.OPCODE_CLOSE, ABNF(opcode=ABNF.OPCODE_CLOSE)),
+        ]
+        mock_create_websocket.return_value = websocket
+        pod_manager = PodManager(kube_client=CoreV1Api(ApiClient(Configuration(host="http://localhost"))))
+        pod = V1Pod(metadata=V1ObjectMeta(name="pod", namespace="default"))
+
+        readable, writer = socket.socketpair()
+        with readable, writer:
+            # Without this byte the test hangs: WSClient waits for data on the socket before each
+            # recv_data_frame call. The mocked recv_data_frame never reads it, so one byte is enough.
+            writer.send(b"\0")
+            websocket.sock = readable
+            assert pod_manager.extract_xcom_json(pod) == xcom_json
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
@@ -1277,7 +1315,7 @@ class TestPodManager:
         xcom_json = """{"a": "true"}"""
         mock_client = MagicMock()
         mock_client.peek_stderr.return_value = ""
-        mock_client.read_all.return_value = xcom_json
+        mock_client.read_all.return_value = xcom_json.encode()
         mock_kubernetes_stream.return_value = mock_client
         mock_exec_xcom_kill.side_effect = PodCommandException("Command failed with stderr: Permission denied")
         ret = self.pod_manager.extract_xcom(pod=MagicMock())
@@ -1297,7 +1335,7 @@ class TestPodManager:
         xcom_json = """{"a": "true"}"""
         mock_client = MagicMock()
         mock_client.peek_stderr.return_value = ""
-        mock_client.read_all.return_value = xcom_json
+        mock_client.read_all.return_value = xcom_json.encode()
         mock_kubernetes_stream.return_value = mock_client
         mock_exec_xcom_kill.side_effect = PodCommandException("Command failed with stderr: Permission denied")
         with pytest.raises(PodCommandException, match="Permission denied"):
@@ -1318,7 +1356,7 @@ class TestPodManager:
         mock_pod = MagicMock()
         mock_client = MagicMock()
         mock_client.peek_stderr.return_value = ""
-        mock_client.read_all.return_value = xcom_json
+        mock_client.read_all.return_value = xcom_json.encode()
         mock_kubernetes_stream.return_value = mock_client
         with pytest.raises(JSONDecodeError):
             self.pod_manager.extract_xcom(pod=mock_pod)
@@ -1336,7 +1374,7 @@ class TestPodManager:
         xcom_result = "__airflow_xcom_result_empty__"
         mock_client = MagicMock()
         mock_client.peek_stderr.return_value = ""
-        mock_client.read_all.return_value = xcom_result
+        mock_client.read_all.return_value = xcom_result.encode()
         mock_kubernetes_stream.return_value = mock_client
         ret = self.pod_manager.extract_xcom(pod=mock_pod)
         assert ret == xcom_result
