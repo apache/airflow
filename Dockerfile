@@ -1967,8 +1967,14 @@ function run_nc() {
     local host="${1}"
     local port="${2}"
     local ip
-    ip=$(python -c "import socket; print(socket.gethostbyname('${host}'))")
-    nc -zvvn "${ip}" "${port}"
+    ip=$(python -c "import socket; print(socket.getaddrinfo('${host}', None)[0][4][0])")
+    if ! nc -zvvn "${ip}" "${port}"; then
+        # If the first check fails it is possible, that the IP lookup responded with an IPv6-address, but
+        # the corresponding system was only listening on IPv4. This happens because IPv6 is generally preferred to IPv4.
+        # To prevent failures on systems listening only on IPv4 we explicitly check IPv4 here again.
+        ip=$(python -c "import socket; print(socket.getaddrinfo('${host}', None, family=socket.AF_INET)[0][4][0])")
+        nc -zvvn "${ip}" "${port}"
+    fi
 }
 
 
