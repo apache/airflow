@@ -294,7 +294,7 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         size = conn.size(path)
-        return int(size) if size else None
+        return int(size) if size is not None else None
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the FTP connection by calling path with directory."""
