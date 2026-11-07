@@ -31,7 +31,12 @@ from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
-from airflow.providers.edge3.models.types import build_callback_job_filter, is_callback_job
+from airflow.providers.edge3.models.types import (
+    build_callback_job_filter,
+    build_connection_test_job_filter,
+    is_callback_job,
+    is_connection_test_job,
+)
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -57,6 +62,10 @@ def parse_command(
         from airflow.executors.workloads import ExecuteCallback
 
         return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
+    if AIRFLOW_V_3_3_PLUS and is_connection_test_job(dag_id, task_id, run_id, try_number, map_index):
+        from airflow.executors.workloads import TestConnection
+
+        return TestConnection.model_validate_json(command)  # type: ignore[return-value]
 
     return ExecuteTask.model_validate_json(command)
 
@@ -100,11 +109,14 @@ def fetch(
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
 
-    # Callbacks go first, as in other executors (WORKLOAD_TYPE_PRIORITY). A single query would sort
-    # the whole backlog. dag_id leads the primary key, so the callback query reads only callbacks.
-    job: EdgeJobModel | None = session.scalar(
-        query.where(build_callback_job_filter()).order_by(EdgeJobModel.queued_dttm)
-    )
+    # Callbacks go first, then connection tests, as in other executors (WORKLOAD_TYPE_PRIORITY). A single
+    # query would sort the whole backlog. dag_id leads the primary key, so each tagged query reads only
+    # its own rows.
+    job: EdgeJobModel | None = None
+    for priority_filter in (build_callback_job_filter(), build_connection_test_job_filter()):
+        job = session.scalar(query.where(priority_filter).order_by(EdgeJobModel.queued_dttm))
+        if job is not None:
+            break
     if job is None:
         job = session.scalar(query.order_by(EdgeJobModel.priority_weight.desc(), EdgeJobModel.queued_dttm))
     if not job:
