@@ -1164,11 +1164,7 @@ class WatchedSubprocess:
         else:
             err_resp = self._serialize_response(error) if error else None
             frame = _ResponseFrame(id=request_id, error=err_resp)
-        self.stdin.sendall(
-            frame.as_bytes(
-                allow_large_ints=self.supports_large_ints and self._subprocess_schema_version is None
-            )
-        )
+        self.stdin.sendall(frame.as_bytes(allow_large_ints=self.supports_large_ints))
 
     def _deserialize_request(self, body: dict[str, Any] | None) -> dict[str, Any] | None:
         if self._subprocess_schema_version is None or body is None:
