@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 import time
 from copy import deepcopy
 from datetime import datetime as dt
@@ -40,6 +41,20 @@ from airflow.providers.cncf.kubernetes.resource_convert.secret import (
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+# Size of each memory unit in MiB. As in Spark, lowercase ``m`` means MiB, and decimal
+# and binary units are treated alike.
+_MEMORY_UNITS_IN_MIB = {"k": 1 / 1024, "m": 1, "g": 1024, "t": 1024 * 1024}
+
+
+def _memory_to_mib(memory: str) -> float:
+    """Convert a memory quantity such as ``512m``, ``512Mi`` or ``2Gi`` to MiB."""
+    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kKmMgGtT])i?\s*", memory)
+    if not match:
+        raise ValueError(
+            f"Invalid memory value {memory!r}, expected a number with a unit such as 512m, 512Mi or 2Gi"
+        )
+    return float(match.group(1)) * _MEMORY_UNITS_IN_MIB[match.group(2).lower()]
 
 
 def should_retry_start_spark_job(exception: BaseException) -> bool:
@@ -157,23 +172,10 @@ class SparkResources:
         return executor
 
     def convert_resources(self):
-        if isinstance(self.driver["memory"].get("limit"), str):
-            if "G" in self.driver["memory"]["limit"] or "Gi" in self.driver["memory"]["limit"]:
-                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("Gi G")) * 1024
-            elif "m" in self.driver["memory"]["limit"]:
-                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("m"))
-            # Adjusting the memory value as operator adds 40% to the given value
-            self.driver["memory"]["limit"] = str(int(self.driver["memory"]["limit"] / 1.4)) + "m"
-
-        if isinstance(self.executor["memory"].get("limit"), str):
-            if "G" in self.executor["memory"]["limit"] or "Gi" in self.executor["memory"]["limit"]:
-                self.executor["memory"]["limit"] = (
-                    float(self.executor["memory"]["limit"].rstrip("Gi G")) * 1024
-                )
-            elif "m" in self.executor["memory"]["limit"]:
-                self.executor["memory"]["limit"] = float(self.executor["memory"]["limit"].rstrip("m"))
-            # Adjusting the memory value as operator adds 40% to the given value
-            self.executor["memory"]["limit"] = str(int(self.executor["memory"]["limit"] / 1.4)) + "m"
+        for resources in (self.driver, self.executor):
+            if isinstance(resources["memory"].get("limit"), str):
+                # Adjusting the memory value as operator adds 40% to the given value
+                resources["memory"]["limit"] = f"{int(_memory_to_mib(resources['memory']['limit']) / 1.4)}m"
 
         if self.driver["cpu"].get("request"):
             self.driver["cpu"]["request"] = int(float(self.driver["cpu"]["request"]))
