@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable perfectionist/sort-enums */
-
 /* eslint-disable perfectionist/sort-objects */
 import { createListCollection } from "@chakra-ui/react";
 
@@ -54,6 +52,11 @@ export const logLevelOptions = createListCollection<{
   ],
 });
 
+// A traceback frame is "user code" unless it lives in an installed-package directory
+// (site-packages / dist-packages). DAG bundle code, plugins, and local files are all user code.
+export const isUserCodeFrame = (filename: string): boolean =>
+  !/[/\\](?:site|dist)-packages[/\\]/u.test(filename);
+
 export const parseStreamingLogContent = (
   data: TaskInstancesLogResponse | undefined,
 ): TaskInstancesLogResponse["content"] => {
@@ -73,9 +76,7 @@ export const parseStreamingLogContent = (
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (typeof data === "object" && data !== null) {
-    return [data] as unknown as TaskInstancesLogResponse["content"];
-  }
-
-  return [];
+  return typeof data === "object" && data !== null
+    ? ([data] as unknown as TaskInstancesLogResponse["content"])
+    : [];
 };

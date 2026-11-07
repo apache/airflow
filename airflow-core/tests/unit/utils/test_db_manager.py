@@ -232,7 +232,7 @@ class TestBaseDBManager:
         manager = CustomDBManager(session)
         with pytest.raises(TypeError):
             # Ensure the old kwarg name is not accepted anymore
-            manager.downgrade(to_version="1.2.3")  # type: ignore[call-arg]
+            manager.downgrade(to_version="1.2.3")
 
     @mock.patch("airflow.utils.db.create_global_lock", return_value=nullcontext())
     @mock.patch.object(MockDBManager, "drop_tables")
@@ -277,6 +277,14 @@ class TestBaseDBManager:
 
 
 class TestRunDBManager:
+    def test_get_required_table_names(self):
+        run_db_manager = _create_run_db_manager(LegacyTablesDBManager)
+
+        assert run_db_manager.get_required_table_names() == {
+            "external_legacy_table",
+            "legacy_alembic_version",
+        }
+
     def test_initdb_and_upgradedb_support_legacy_manager_signatures(self, session):
         LegacySignatureExternalManager.initdb_calls = 0
         LegacySignatureExternalManager.upgradedb_calls = 0

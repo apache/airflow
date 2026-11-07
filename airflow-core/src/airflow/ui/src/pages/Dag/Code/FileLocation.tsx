@@ -18,7 +18,7 @@
  */
 import { Box, Code, HStack } from "@chakra-ui/react";
 
-import { ClipboardIconButton, ClipboardRoot, Tooltip } from "src/components/ui";
+import { ClipboardIconButton, ClipboardRoot, Tooltip } from "src/system-components";
 
 type FileLocationProps = {
   readonly fileloc: string | null;

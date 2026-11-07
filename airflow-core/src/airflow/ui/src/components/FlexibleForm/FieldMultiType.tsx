@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Textarea } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Textarea } from "@chakra-ui/react";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 

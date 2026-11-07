@@ -25,19 +25,14 @@ from sqlalchemy import delete
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -154,8 +149,8 @@ class TestBranchDateTimeOperator:
     @pytest.mark.parametrize(
         "date",
         (
-            datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
-            datetime.datetime(2020, 6, 7, 9, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.UTC),
+            datetime.datetime(2020, 6, 7, 9, 0, 0, tzinfo=datetime.UTC),
         ),
     )
     def test_branch_datetime_operator_falls_outside_range(self, date, target_lower, target_upper):

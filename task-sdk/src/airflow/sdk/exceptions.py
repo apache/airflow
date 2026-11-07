@@ -427,3 +427,18 @@ class RemovedInAirflow4Warning(DeprecationWarning):
 
     deprecated_since: str | None = None
     "Indicates the airflow version that started raising this deprecation warning"
+
+
+class TaskGroupCycleDeprecationWarning(DeprecationWarning):
+    """Issued for Dags whose TaskGroups depend on each other in a cycle; Airflow 3.5 will reject them."""
+
+
+# FutureWarning since Python's default filters hide a DeprecationWarning raised from a Dag module.
+class DeprecatedVariableNoneValueWarning(FutureWarning):
+    """
+    Issued when a Variable is set to *None*.
+
+    This would store the string ``"None"``, which is likely unexpected. Setting
+    a variable to *None* (null) is not possible at the database level, and the
+    Execution API rejects it since 2027-02-28.
+    """

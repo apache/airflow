@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Center, Flex } from "@chakra-ui/react";
 import { useRef, type ReactNode } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+
+import { Center, Flex } from "@chakra-ui/react";
+import { NavLink, useLocation, useResolvedPath } from "react-router-dom";
 
 import { useContainerWidth } from "src/utils";
 
@@ -27,6 +28,7 @@ export type NavTab = {
   readonly label: string;
   /** Additional route segments that should also mark this tab as active. */
   readonly matchPaths?: Array<string>;
+  readonly search?: string;
   readonly value: string;
 };
 
@@ -34,56 +36,65 @@ type Props = {
   readonly tabs: Array<NavTab>;
 };
 
+const INDICATOR_HEIGHT = "2px";
+
+const trimTrailingSlash = (path: string) => path.replace(/\/$/u, "");
+
+const NavTabLink = ({
+  containerWidth,
+  icon,
+  label,
+  matchPaths,
+  search,
+  value,
+}: { readonly containerWidth: number } & NavTab) => {
+  const { pathname } = useLocation();
+  const resolved = useResolvedPath({ pathname: value, search });
+  // NavLink compares the raw location against its resolved target, and a run id carries ":" and
+  // "+". Landing on a link where those arrived percent-encoded leaves the two spellings of the
+  // same path looking different, so the tab for the page you are on reads as inactive.
+  const current = trimTrailingSlash(decodeURIComponent(pathname));
+  const target = trimTrailingSlash(decodeURIComponent(resolved.pathname));
+  const lastSegment = current.split("/").pop() ?? "";
+  const active = current === target || (matchPaths ?? []).includes(lastSegment);
+
+  return (
+    <NavLink end title={label} to={{ pathname: value, search }}>
+      <Center
+        _focus={{ color: active ? "fg" : "brand.solid" }}
+        _hover={{ color: active ? "fg" : "brand.solid" }}
+        aria-current={active ? "page" : undefined}
+        borderBottomColor={active ? "brand.solid" : "transparent"}
+        borderBottomWidth={INDICATOR_HEIGHT}
+        color={active ? "fg" : "fg.muted"}
+        fontSize="md"
+        fontWeight={active ? "bold" : "medium"}
+        height="40px"
+        mb={`-${INDICATOR_HEIGHT}`}
+        px={4}
+        transition="all 0.2s ease"
+      >
+        {containerWidth > 600 || !Boolean(icon) ? label : icon}
+      </Center>
+    </NavLink>
+  );
+};
+
 export const NavTabs = ({ tabs }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
-  const { pathname } = useLocation();
-  // Last path segment, e.g. "task-store" or "xcom"
-  const lastSegment = pathname.split("/").pop() ?? "";
 
   return (
     <Flex
       alignItems="center"
       borderBottomColor="border.emphasized"
-      borderBottomWidth={1}
+      borderBottomWidth={INDICATOR_HEIGHT}
       mb={2}
       ref={containerRef}
     >
-      {tabs.map(({ icon, label, matchPaths, value }) => {
-        const isPathMatch = (matchPaths ?? []).includes(lastSegment);
-
-        return (
-          <NavLink
-            end
-            key={value}
-            title={label}
-            to={{
-              pathname: value,
-            }}
-          >
-            {({ isActive }) => {
-              const active = isActive || isPathMatch;
-
-              return (
-                <Center
-                  _hover={{ color: "fg" }}
-                  borderBottomColor="border.info"
-                  borderBottomWidth={active ? 3 : 0}
-                  color={active ? "fg" : "fg.muted"}
-                  fontWeight="bold"
-                  height="40px"
-                  mb="-2px" // Show the border on top of its parent's border
-                  pb={active ? 0 : "3px"}
-                  px={4}
-                  transition="all 0.2s ease"
-                >
-                  {containerWidth > 600 || !Boolean(icon) ? label : icon}
-                </Center>
-              );
-            }}
-          </NavLink>
-        );
-      })}
+      {tabs.map((tab) => (
+        <NavTabLink containerWidth={containerWidth} key={tab.value} {...tab} />
+      ))}
     </Flex>
   );
 };

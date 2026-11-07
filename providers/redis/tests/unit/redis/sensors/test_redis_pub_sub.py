@@ -20,8 +20,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, call, patch
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

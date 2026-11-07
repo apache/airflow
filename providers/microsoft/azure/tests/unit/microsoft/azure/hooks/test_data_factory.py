@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -716,19 +717,30 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_connection")
+    @mock.patch(f"{MODULE}.get_async_connection", new_callable=mock.AsyncMock)
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
-    async def test_get_pipeline_run_exception_without_resource(self, mock_conn, mock_get_connection):
+    async def test_get_pipeline_run_exception_without_resource(self, mock_conn, mock_get_async_connection):
         """
         Test get_pipeline_run function without passing the resource name to check the decorator function and
         raise exception
         """
         mock_connection = Connection(extra={"factory_name": DATAFACTORY_NAME})
-        mock_get_connection.return_value = mock_connection
+        mock_get_async_connection.return_value = mock_connection
         mock_conn.return_value.pipeline_runs.get.return_value = MagicMock()
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(AirflowException):
             await hook.get_pipeline_run(RUN_ID, None, DATAFACTORY_NAME)
+
+    @staticmethod
+    def _conn_with_raising_extra_dejson(extra: dict, login="clientId", password="clientSecret"):
+        conn = mock.Mock()
+        conn.login = login
+        conn.password = password
+        conn.extra = json.dumps(extra)
+        type(conn).extra_dejson = PropertyMock(
+            side_effect=RuntimeError("You cannot use AsyncToSync in the same thread as an async event loop")
+        )
+        return conn
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -785,6 +797,50 @@ class TestAzureDataFactoryAsyncHook:
         hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
         response = await hook.get_async_conn()
         assert isinstance(response, DataFactoryManagementClient)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_does_not_touch_extra_dejson(self):
+        conn = self._conn_with_raising_extra_dejson(
+            {"tenantId": "tenantId", "subscriptionId": "subscriptionId"}
+        )
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        with (
+            mock.patch(f"{MODULE}.get_async_connection", new=mock.AsyncMock(return_value=conn)),
+            mock.patch(f"{MODULE}.AsyncClientSecretCredential"),
+            mock.patch(f"{MODULE}.AsyncDataFactoryManagementClient") as mock_client,
+        ):
+            response = await hook.get_async_conn()
+        assert response is mock_client.return_value
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_uses_get_async_connection(self):
+        conn = self._conn_with_raising_extra_dejson(
+            {"tenantId": "tenantId", "subscriptionId": "subscriptionId"}
+        )
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        with (
+            mock.patch(
+                f"{MODULE}.get_async_connection", new=mock.AsyncMock(return_value=conn)
+            ) as mock_get_async_connection,
+            mock.patch(f"{MODULE}.AsyncClientSecretCredential"),
+            mock.patch(f"{MODULE}.AsyncDataFactoryManagementClient"),
+        ):
+            await hook.get_async_conn()
+        mock_get_async_connection.assert_awaited_once_with(AZURE_DATA_FACTORY_CONN_ID)
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    async def test_provide_targeted_factory_async_does_not_touch_extra_dejson(self, mock_get_async_conn):
+        conn = self._conn_with_raising_extra_dejson(
+            {"resource_group_name": RESOURCE_GROUP_NAME, "factory_name": DATAFACTORY_NAME}
+        )
+        mock_get_async_conn.return_value.pipeline_runs.get = mock.AsyncMock(return_value=MagicMock())
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        with mock.patch(f"{MODULE}.get_async_connection", new=mock.AsyncMock(return_value=conn)):
+            await hook.get_pipeline_run(RUN_ID, None, None)
+        mock_get_async_conn.return_value.pipeline_runs.get.assert_awaited_once_with(
+            RESOURCE_GROUP_NAME, DATAFACTORY_NAME, RUN_ID
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -904,10 +960,14 @@ class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_refresh_conn(self, mock_get_async_conn):
-        """Test refresh_conn method _conn is reset and get_async_conn is called"""
+        """Test refresh_conn closes the async client before recreating it."""
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        mock_async_conn = mock.AsyncMock()
+        hook._async_conn = mock_async_conn
         await hook.refresh_conn()
         assert not hook._conn
+        mock_async_conn.close.assert_awaited_once()
+        assert hook._async_conn is None
         assert mock_get_async_conn.called
 
     @pytest.mark.asyncio

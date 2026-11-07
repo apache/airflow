@@ -23,13 +23,13 @@ import warnings
 from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
-from flask_appbuilder.const import AUTH_LDAP
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -55,7 +55,13 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.models.asset import AssetModel
 from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.security.access_view import (
+    AUDIT_LOGS_ALL_ACCESS_VIEW,
+    IMPORT_ERRORS_ALL_ACCESS_VIEW,
+    REPARSE_ALL_ACCESS_VIEW,
+)
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -64,11 +70,13 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_AUDIT_LOG_ALL,
     RESOURCE_BACKFILL,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
+    RESOURCE_DAG_BUNDLE,
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_PREFIX,
@@ -77,10 +85,12 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
+    RESOURCE_IMPORT_ERROR_ALL,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_POOL,
     RESOURCE_PROVIDER,
+    RESOURCE_REPARSE_ALL,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_LOG,
     RESOURCE_TRIGGER,
@@ -88,6 +98,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
@@ -108,6 +119,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -146,6 +158,16 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
 
+# ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
+# Airflow >= 3.4.0, and ``AccessView.REPARSE_ALL`` in a later version; the compat shim yields ``None``
+# on older Airflow versions so this provider still imports there.
+if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
+if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[AUDIT_LOGS_ALL_ACCESS_VIEW] = RESOURCE_AUDIT_LOG_ALL
+if REPARSE_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[REPARSE_ALL_ACCESS_VIEW] = RESOURCE_REPARSE_ALL
+
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
     MenuItem.AUDIT_LOG: RESOURCE_AUDIT_LOG,
@@ -171,6 +193,16 @@ if AIRFLOW_V_3_1_PLUS:
 if hasattr(MenuItem, "DEADLINES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
+# The Dag bundles menu item first ships in Airflow 3.4.0 and its view in 3.4.1, newer than this
+# provider's minimum Airflow. Unmapped, the view is denied to every role. Airflow 3.4.0 shows the
+# bundles to anyone who can read a Dag in them, so there the menu entry stays on Dag access.
+DAG_BUNDLES_ACCESS_VIEW: AccessView | None = getattr(AccessView, "DAG_BUNDLES", None)
+if DAG_BUNDLES_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[DAG_BUNDLES_ACCESS_VIEW] = RESOURCE_DAG_BUNDLE
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG_BUNDLE
+elif hasattr(MenuItem, "DAG_BUNDLES"):
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG
+
 
 class FabAuthManager(BaseAuthManager[User]):
     """
@@ -186,6 +218,13 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
+
+    @staticmethod
+    def sync_dag_perms(dag: LazyDeserializedDAG, *, session: Session) -> None:
+        """Sync Dag-specific permissions without initializing the auth manager."""
+        log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+        security_manager = ApplessAirflowSecurityManager(session=session)
+        security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
 
     @cached_property
     def apiserver_endpoint(self) -> str:
@@ -278,9 +317,17 @@ class FabAuthManager(BaseAuthManager[User]):
         def _fetch_user() -> User:
             with create_session() as session:
                 try:
-                    return session.scalars(select(User).where(User.id == user_id)).one()
+                    user = session.scalars(select(User).where(User.id == user_id)).one()
                 except NoResultFound:
                     raise ValueError(f"User with id {token['sub']} not found")
+                # A token stays syntactically valid until it expires, so the account it
+                # names has to be re-checked on every request rather than trusted from
+                # the signature alone. ``is_active`` reads the nullable ``active``
+                # column, and a null is treated as inactive here for the same reason it
+                # is on the password path in ``auth_user_db``.
+                if not user.is_active:
+                    raise ValueError(f"User with id {token['sub']} is not active")
+                return user
 
         try:
             return _fetch_user()
@@ -369,27 +416,32 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Create a new token from a payload.
 
-        By default, it uses basic authentication (username and password).
+        By default, it uses basic authentication (username and password), checked against the
+        configured ``AUTH_TYPE``. Tokens are only issued for ``AUTH_DB`` and ``AUTH_LDAP``.
         Override this method to use a different authentication method (e.g. oauth).
 
         :param headers: request headers
         :param body: request body
         """
-        if not body.get("username") or not body.get("password"):
+        username = body.get("username")
+        password = body.get("password")
+        # Treat a password made only of NUL bytes as empty, as Flask-AppBuilder's login API does.
+        if (
+            not isinstance(username, str)
+            or not isinstance(password, str)
+            or not username
+            or not password.strip("\x00")
+        ):
             raise ValueError("Username and password must be provided")
 
-        user: User | None = None
-
-        if self.security_manager.auth_type == AUTH_LDAP:
-            user = self.security_manager.auth_user_ldap(
-                body["username"], body["password"], rotate_session_id=False
-            )
-        if user is None:
-            user = self.security_manager.auth_user_db(
-                body["username"], body["password"], rotate_session_id=False
-            )
-
-        return user
+        # Only check the password against the configured authentication type. Other types (OAuth,
+        # remote user, ...) do not authenticate with a username and password, so no token is issued.
+        auth_type = self.security_manager.auth_type
+        if auth_type == AUTH_LDAP:
+            return self.security_manager.auth_user_ldap(username, password, rotate_session_id=False)
+        if auth_type == AUTH_DB:
+            return self.security_manager.auth_user_db(username, password, rotate_session_id=False)
+        return None
 
     def is_authorized_configuration(
         self,
@@ -512,7 +564,10 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
-    def is_authorized_view(self, *, access_view: AccessView, user: User) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: User, team_name: str | None = None
+    ) -> bool:
+        # ``team_name`` is ignored: FAB has no multi-team support.
         # "Docs" are only links in the menu, there is no page associated
         method: ExtendedResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
@@ -537,6 +592,26 @@ class FabAuthManager(BaseAuthManager[User]):
                 user=user,
             )
         ]
+
+    @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: User,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        Fab auth manager does not allow fine-grained access with assets. Thus, return all the asset ids.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        rows = session.execute(select(AssetModel.id)).scalars().all()
+        return set(rows)
 
     @provide_session
     def get_authorized_connections(
@@ -660,7 +735,11 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
+        login_url = urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
+        next_url = kwargs.get("next_url")
+        if next_url:
+            return f"{login_url}?{urlencode({'next': next_url})}"
+        return login_url
 
     def get_url_logout(self) -> str | None:
         """Return the logout page url."""

@@ -101,7 +101,7 @@ If you need more granular options for your Kerberos ticket the following options
     with mode ``0700`` and owned by the Airflow user. Apply the same principle as the keytab, which
     should already be ``chmod 600``.
 
-Keep in mind that Kerberos ticket are generated via ``kinit`` and will your use your local ``krb5.conf`` by default.
+Keep in mind that Kerberos tickets are generated via ``kinit`` and will use your local ``krb5.conf`` by default.
 
 Launch the ticket renewer by
 
@@ -136,7 +136,7 @@ For one time mode:
 Hadoop
 ^^^^^^
 
-If want to use impersonation this needs to be enabled in ``core-site.xml`` of your hadoop config.
+If you want to use impersonation, this needs to be enabled in ``core-site.xml`` of your hadoop config.
 
 .. code-block:: xml
 

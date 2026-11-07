@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 import re
@@ -31,25 +30,32 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, Table, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, delete, select
+from sqlalchemy.orm import declarative_base
 
 from airflow import settings
 from airflow.models import Base as airflow_base
+from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
+    _normalize_mysql_server_default,
     check_migrations,
+    check_team_names_can_be_lower_cased,
     compare_server_default,
     compare_type,
-    create_default_connections,
     downgrade,
+    get_default_connections,
     initdb,
+    reflect_tables,
     resetdb,
+    synchronize_log_template,
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
 
@@ -225,17 +231,65 @@ class TestDb:
         config = _get_alembic_config()
         check(config)
 
+    @pytest.mark.parametrize(
+        ("reflected", "rendered"),
+        [
+            pytest.param(
+                "unhex(_utf8mb4\\'00000000000000000000000000000000\\')",
+                "UNHEX('00000000000000000000000000000000')",
+                id="mysql8-charset-introducer-and-escaped-quotes",
+            ),
+            pytest.param(
+                "unhex('00000000000000000000000000000000')",
+                "UNHEX('00000000000000000000000000000000')",
+                id="plain-expression",
+            ),
+            pytest.param("(0)", "false", id="boolean"),
+        ],
+    )
+    def test_normalize_mysql_server_default_matches_rendered_default(self, reflected, rendered):
+        assert _normalize_mysql_server_default(reflected) == _normalize_mysql_server_default(rendered)
+
     def test_default_connections_sort(self):
-        pattern = re.compile("conn_id=[\"|'](.*?)[\"|']", re.DOTALL)
-        source = inspect.getsource(create_default_connections)
-        src = pattern.findall(source)
-        assert sorted(src) == src
+        conn_ids = [c.conn_id for c in get_default_connections()]
+        assert conn_ids
+        assert conn_ids == sorted(conn_ids)
 
     @pytest.mark.usefixtures("initialized_db")
     def test_check_migrations(self):
         # Should run without error. Can't easily test the behaviour, but we can check it works
         check_migrations(0)
         check_migrations(1)
+
+    @pytest.mark.usefixtures("initialized_db")
+    def test_check_team_names_can_be_lower_cased_passes_when_no_names_collide(self):
+        with create_session() as session:
+            session.add_all([Team(name="data-eng"), Team(name="Platform")])
+            session.commit()
+            try:
+                assert list(check_team_names_can_be_lower_cased(session=session)) == []
+            finally:
+                session.execute(delete(Team))
+                session.commit()
+
+    # MySQL's default collation is case insensitive, so the two rows this needs cannot coexist
+    # there -- which is also why the collision it guards against cannot arise on MySQL.
+    @pytest.mark.backend("postgres", "sqlite")
+    @pytest.mark.usefixtures("initialized_db")
+    def test_check_team_names_can_be_lower_cased_reports_a_collision(self):
+        """Two names folding onto one row would merge two teams, so migration has to stop."""
+        with create_session() as session:
+            session.add_all([Team(name="data-eng"), Team(name="Data-Eng")])
+            session.commit()
+            try:
+                errors = list(check_team_names_can_be_lower_cased(session=session))
+            finally:
+                session.execute(delete(Team))
+                session.commit()
+
+        assert len(errors) == 1
+        assert "'Data-Eng', 'data-eng'" in errors[0]
+        assert "would both become 'data-eng'" in errors[0]
 
     @pytest.mark.parametrize(
         ("auth", "expected"),
@@ -400,6 +454,51 @@ class TestDb:
         lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
 
         assert bool(lss) is False
+
+
+class TestReflectTablesSchemaQualified:
+    def test_reflect_tables_uses_mapped_class_configured_schema(self, mocker):
+        metadata = MetaData()
+        table = Table(
+            "scoped_model", metadata, Column("id", Integer, primary_key=True), schema="custom_schema"
+        )
+
+        class _ScopedModel(declarative_base(metadata=metadata)):
+            __tablename__ = "scoped_model"
+            __table__ = table
+
+        mock_reflect = mocker.patch.object(MetaData, "reflect")
+        session = mocker.MagicMock()
+
+        reflect_tables([_ScopedModel], session)
+
+        mock_reflect.assert_called_once_with(
+            bind=session.bind,
+            schema="custom_schema",
+            only=["scoped_model"],
+            extend_existing=True,
+            resolve_fks=False,
+        )
+
+    def test_synchronize_log_template_finds_table_in_configured_schema(self, mocker):
+        from airflow.models.tasklog import LogTemplate
+
+        metadata = MetaData()
+        Table(
+            LogTemplate.__tablename__,
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("filename", String(2000)),
+            Column("elasticsearch_id", String(2000)),
+            schema="custom_schema",
+        )
+        mocker.patch.object(LogTemplate.__table__, "schema", "custom_schema")
+        mocker.patch("airflow.utils.db.reflect_tables", return_value=metadata)
+        session = mocker.MagicMock()
+
+        synchronize_log_template(session=session)
+
+        session.execute.assert_called()
 
 
 class TestAutocommitEngineForMySQL:

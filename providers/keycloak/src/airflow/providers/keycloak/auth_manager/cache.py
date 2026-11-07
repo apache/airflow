@@ -20,8 +20,15 @@ import threading
 import time
 from collections.abc import Callable
 
-_CACHE_TTL_SECONDS = 30
-_SINGLE_FLIGHT_TIMEOUT_SECONDS = 60
+from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CACHE_TIMEOUT_SECONDS_KEY,
+    CONF_CACHE_TTL_SECONDS_KEY,
+    CONF_SECTION_NAME,
+)
+
+_CACHE_TTL_SECONDS: int | None = None
+_SINGLE_FLIGHT_TIMEOUT_SECONDS: int | None = None
 
 # Maps cache keys to (timestamp, result) pairs for TTL-based expiration.
 _cache: dict[tuple, tuple[float, frozenset[str]]] = {}
@@ -30,9 +37,25 @@ _pending_requests: dict[tuple, threading.Event] = {}
 _cache_lock = threading.Lock()
 
 
+def _cache_ttl_seconds() -> int:
+    global _CACHE_TTL_SECONDS
+    if not _CACHE_TTL_SECONDS:
+        _CACHE_TTL_SECONDS = conf.getint(CONF_SECTION_NAME, CONF_CACHE_TTL_SECONDS_KEY, fallback=30)
+    return _CACHE_TTL_SECONDS
+
+
+def _cache_timeout_seconds() -> int:
+    global _SINGLE_FLIGHT_TIMEOUT_SECONDS
+    if not _SINGLE_FLIGHT_TIMEOUT_SECONDS:
+        _SINGLE_FLIGHT_TIMEOUT_SECONDS = conf.getint(
+            CONF_SECTION_NAME, CONF_CACHE_TIMEOUT_SECONDS_KEY, fallback=60
+        )
+    return _SINGLE_FLIGHT_TIMEOUT_SECONDS
+
+
 def _cache_get(key: tuple) -> frozenset[str] | None:
     entry = _cache.get(key)
-    if entry and (time.monotonic() - entry[0]) < _CACHE_TTL_SECONDS:
+    if entry and (time.monotonic() - entry[0]) < _cache_ttl_seconds():
         return entry[1]
     return None
 
@@ -41,7 +64,7 @@ def _cache_set(key: tuple, value: frozenset[str]) -> None:
     with _cache_lock:
         _cache[key] = (time.monotonic(), value)
         now = time.monotonic()
-        for k in [k for k, (ts, _) in _cache.items() if now - ts > _CACHE_TTL_SECONDS * 2]:
+        for k in [k for k, (ts, _) in _cache.items() if now - ts > _cache_ttl_seconds() * 2]:
             _cache.pop(k, None)
 
 
@@ -67,7 +90,7 @@ def single_flight(cache_key: tuple, query_keycloak: Callable[[], set[str]]) -> s
 
     if not is_worker:
         # Wait for the other thread to finish
-        event.wait(timeout=_SINGLE_FLIGHT_TIMEOUT_SECONDS)
+        event.wait(timeout=_cache_timeout_seconds())
         cached = _cache_get(cache_key)
         if cached is not None:
             return set(cached)

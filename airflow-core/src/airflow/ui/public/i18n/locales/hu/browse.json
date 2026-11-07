@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Esemény típusa"
-    },
-    "title": "Naplózás"
+    }
   },
   "deadlines": {
     "columns": {

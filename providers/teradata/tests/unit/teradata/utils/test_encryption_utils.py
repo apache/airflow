@@ -23,7 +23,6 @@ from airflow.providers.teradata.utils.encryption_utils import (
     decrypt_remote_file_to_string,
     generate_encrypted_file_with_openssl,
     generate_random_password,
-    shell_quote_single,
 )
 
 
@@ -31,9 +30,8 @@ class TestEncryptionUtils:
     def test_generate_random_password_length(self):
         pwd = generate_random_password(16)
         assert len(pwd) == 16
-        # Check characters are in allowed set
         allowed_chars = string.ascii_letters + string.digits + string.punctuation
-        assert (all(c in allowed_chars for c in pwd)) is True
+        assert all(c in allowed_chars for c in pwd) is True
 
     @patch("subprocess.run")
     def test_generate_encrypted_file_with_openssl_calls_subprocess(self, mock_run):
@@ -51,24 +49,26 @@ class TestEncryptionUtils:
                 "-salt",
                 "-pbkdf2",
                 "-pass",
-                f"pass:{password}",
+                "stdin",
                 "-in",
                 file_path,
                 "-out",
                 out_file,
             ],
+            input=f"{password}\n".encode(),
             check=True,
         )
 
-    def test_shell_quote_single_simple(self):
-        s = "simple"
-        quoted = shell_quote_single(s)
-        assert quoted == "'simple'"
-
-    def test_shell_quote_single_with_single_quote(self):
-        s = "O'Reilly"
-        quoted = shell_quote_single(s)
-        assert quoted == "'O'\\''Reilly'"
+    @patch("subprocess.run")
+    def test_generate_encrypted_file_passphrase_not_on_argv(self, mock_run):
+        """The passphrase is fed on stdin, never placed on the command line (ps-visible)."""
+        password = "s3cr3t;rm -rf ~"
+        generate_encrypted_file_with_openssl("/tmp/plain.txt", password, "/tmp/out.enc")
+        args, kwargs = mock_run.call_args
+        cmd = args[0]
+        assert "stdin" in cmd
+        assert not any(password in str(part) for part in cmd), "passphrase leaked onto argv"
+        assert kwargs["input"] == f"{password}\n".encode()
 
     def test_decrypt_remote_file_to_string(self):
         password = "mysecret"
@@ -79,25 +79,42 @@ class TestEncryptionUtils:
         mock_stdin = MagicMock()
         mock_stdout = MagicMock()
         mock_stderr = MagicMock()
-
-        # Setup mock outputs and exit code
         mock_stdout.channel.recv_exit_status.return_value = 0
         mock_stdout.read.return_value = b"decrypted output"
         mock_stderr.read.return_value = b""
-
         ssh_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
 
         exit_status, output, err = decrypt_remote_file_to_string(
             ssh_client, remote_enc_file, password, bteq_command_str
         )
 
-        quoted_password = shell_quote_single(password)
         expected_cmd = (
-            f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{quoted_password} -in {remote_enc_file} | "
+            f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in {remote_enc_file} | "
             + bteq_command_str
         )
-
         ssh_client.exec_command.assert_called_once_with(expected_cmd)
+        mock_stdin.write.assert_called_once_with(password + "\n")
+        mock_stdin.flush.assert_called_once()
+        mock_stdin.channel.shutdown_write.assert_called_once()
         assert exit_status == 0
         assert output == "decrypted output"
         assert err == ""
+
+    def test_decrypt_remote_file_passphrase_not_on_argv(self):
+        """The passphrase is passed via stdin, never on the remote command line."""
+        password = "s3cr3t&rm -rf ~"
+        remote_enc_file = "/remote/encrypted.enc"
+        ssh_client = MagicMock()
+        mock_stdin = MagicMock()
+        mock_stdout = MagicMock()
+        mock_stderr = MagicMock()
+        mock_stdout.channel.recv_exit_status.return_value = 0
+        mock_stdout.read.return_value = b""
+        mock_stderr.read.return_value = b""
+        ssh_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+        decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, "bteq")
+
+        cmd = ssh_client.exec_command.call_args[0][0]
+        assert password not in cmd, "passphrase leaked onto remote command line"
+        assert "-pass stdin" in cmd

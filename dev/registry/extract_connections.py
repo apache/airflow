@@ -39,7 +39,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -204,7 +204,7 @@ def main():
 
     hooks, form_widgets, field_behaviours = HookMetaService._get_hooks_with_mocked_fab()
 
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = datetime.now(UTC).isoformat()
 
     # Group connection types by provider
     provider_connections: dict[str, list[dict]] = defaultdict(list)

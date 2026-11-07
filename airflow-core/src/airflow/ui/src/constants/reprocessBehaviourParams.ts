@@ -16,8 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReprocessBehavior } from "openapi/requests/types.gen";
+
+import { isOneOf } from "src/utils";
+
 export const reprocessBehaviors = [
-  { label: "backfill.missingRuns", value: "none" },
-  { label: "backfill.missingAndErroredRuns", value: "failed" },
-  { label: "backfill.allRuns", value: "completed" },
-];
+  { label: "components:backfill.missingRuns", value: "none" },
+  { label: "components:backfill.missingAndErroredRuns", value: "failed" },
+  { label: "components:backfill.allRuns", value: "completed" },
+] as const satisfies ReadonlyArray<{ label: string; value: ReprocessBehavior }>;
+
+export const isReprocessBehavior = isOneOf(reprocessBehaviors.map((behavior) => behavior.value));

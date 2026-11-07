@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from typing import Annotated
 
-from pydantic import Field, JsonValue, model_validator
+from pydantic import Field, JsonValue, StringConstraints, field_validator, model_validator
 
 from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
@@ -56,10 +57,25 @@ class VariableResponse(BaseModel):
 class VariableBody(StrictBaseModel):
     """Variable serializer for bodies."""
 
-    key: str = Field(max_length=ID_LEN)
+    # pattern (not strip_whitespace) so the key is stored exactly as sent, and `\S` rather than a
+    # stricter charset because `/{variable_key:path}` deliberately lets keys contain slashes.
+    key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)]
     value: JsonValue = Field(serialization_alias="val")
     description: str | None = Field(default=None)
     team_name: str | None = Field(max_length=50, default=None)
+
+    @field_validator("value", mode="after")
+    @classmethod
+    def serialize_non_string_value(cls, value: JsonValue) -> str:
+        # Variables are stored as strings. A non-string JSON value (list, dict, number, bool,
+        # null) must be JSON-encoded here: POST would otherwise store its Python repr, which
+        # deserialize_json cannot read back, and PATCH would fail in the ORM Fernet step on
+        # bytes(value, "utf-8") (see #71010). indent=2 matches Variable.set(serialize_json=True).
+        # Not allow_nan=False: rejecting here yields a 422 whose response embeds the NaN input,
+        # which starlette's JSONResponse cannot serialize -- the request would 500 instead.
+        if isinstance(value, str):
+            return value
+        return json.dumps(value, indent=2)
 
     @model_validator(mode="after")
     def validate_team_name(self) -> VariableBody:

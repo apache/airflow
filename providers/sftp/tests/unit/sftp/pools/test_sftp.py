@@ -19,8 +19,17 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from asyncssh import (
+    SFTPBadMessage,
+    SFTPConnectionLost,
+    SFTPFailure,
+    SFTPNoConnection,
+    SFTPNoSuchFile,
+    SFTPOpUnsupported,
+    SFTPPermissionDenied,
+)
 
-from airflow.providers.sftp.pools.sftp import SFTPClientPool
+from airflow.providers.sftp.pools.sftp import SFTPClientPool, _is_connection_faulty
 
 
 class TestSFTPClientPool:
@@ -85,6 +94,71 @@ class TestSFTPClientPool:
         with pytest.raises(ValueError, match="boom"):
             async with pool.get_sftp_client():
                 raise ValueError("boom")
+
+        assert any(call.kwargs.get("faulty") is True for call in release_spy.call_args_list)
+
+    @pytest.mark.parametrize(
+        ("exc", "expected"),
+        [
+            pytest.param(SFTPNoSuchFile("missing"), False, id="no-such-file"),
+            pytest.param(SFTPPermissionDenied("denied"), False, id="permission-denied"),
+            pytest.param(SFTPFailure("failure"), False, id="failure"),
+            pytest.param(SFTPOpUnsupported("unsupported"), False, id="op-unsupported"),
+            pytest.param(SFTPConnectionLost("lost"), True, id="connection-lost"),
+            pytest.param(SFTPNoConnection("no connection"), True, id="no-connection"),
+            pytest.param(SFTPBadMessage("bad message"), True, id="bad-message"),
+            pytest.param(ValueError("boom"), True, id="not-an-sftp-error"),
+        ],
+    )
+    def test_is_connection_faulty(self, exc, expected):
+        assert _is_connection_faulty(exc) is expected
+
+    @pytest.mark.asyncio
+    async def test_get_sftp_client_keeps_connection_on_application_sftp_error(self, sftp_hook_mocked, mocker):
+        """An SFTP status reply means the server answered, so the connection stays pooled."""
+        pool = SFTPClientPool("app_error_conn", pool_size=1)
+        release_spy = mocker.spy(pool, "_release_pair")
+
+        with pytest.raises(SFTPNoSuchFile):
+            async with pool.get_sftp_client():
+                raise SFTPNoSuchFile("missing")
+
+        assert release_spy.call_args_list
+        assert all(call.kwargs.get("faulty") is False for call in release_spy.call_args_list)
+
+    @staticmethod
+    async def _miss(pool, seen: list) -> None:
+        """One failed lookup against the pool, recording the client it was served."""
+        async with pool.get_sftp_client() as sftp:
+            seen.append(sftp)
+            raise SFTPNoSuchFile("missing")
+
+    @pytest.mark.asyncio
+    async def test_get_sftp_client_reuses_connection_after_application_sftp_error(
+        self, sftp_hook_mocked, mocker
+    ):
+        """Repeated misses must not cost a reconnect each: the pooled pair is handed back."""
+        async with SFTPClientPool("reuse_conn", pool_size=1) as pool:
+            close_spy = mocker.spy(pool, "_close_connection_pair")
+            seen: list = []
+
+            for _ in range(5):
+                with pytest.raises(SFTPNoSuchFile):
+                    await self._miss(pool, seen)
+
+            assert close_spy.call_count == 0
+            assert len(seen) == 5
+
+    @pytest.mark.asyncio
+    async def test_get_sftp_client_marks_connection_faulty_on_transport_sftp_error(
+        self, sftp_hook_mocked, mocker
+    ):
+        pool = SFTPClientPool("transport_error_conn", pool_size=1)
+        release_spy = mocker.spy(pool, "_release_pair")
+
+        with pytest.raises(SFTPConnectionLost):
+            async with pool.get_sftp_client():
+                raise SFTPConnectionLost("lost")
 
         assert any(call.kwargs.get("faulty") is True for call in release_spy.call_args_list)
 

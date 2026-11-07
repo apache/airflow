@@ -1,1 +1,0 @@
-Fix Azure Blob Storage authentication to check ``account_key`` field in connection extra before falling back to ``DefaultAzureCredential``

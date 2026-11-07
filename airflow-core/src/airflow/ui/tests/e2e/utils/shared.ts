@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Shared primitives for E2E API helpers.
  */
@@ -27,11 +26,7 @@ import { testConfig } from "playwright.config";
 export type RequestLike = APIRequestContext | Page;
 
 export function getRequestContext(source: RequestLike): APIRequestContext {
-  if ("request" in source) {
-    return source.request;
-  }
-
-  return source;
+  return "request" in source ? source.request : source;
 }
 
 export const { baseUrl } = testConfig.connection;

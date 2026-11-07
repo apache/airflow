@@ -17,7 +17,7 @@
 #
 # PEP 723 compliant inline script metadata (not yet widely supported)
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "apache-airflow-client",
 #   "rich>=13.6.0",

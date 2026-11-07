@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Badge } from "@chakra-ui/react";
 import { Fragment } from "react";
+
+import { Box, Badge } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { TbLogicOr } from "react-icons/tb";
 
@@ -35,7 +36,7 @@ export const AssetExpression = ({
   readonly events?: Array<NextRunAssetEventResponse>;
   readonly expression: ExpressionType | undefined;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (expression === undefined) {
     return undefined;

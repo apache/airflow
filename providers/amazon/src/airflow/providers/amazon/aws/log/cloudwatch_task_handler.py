@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import inspect
 import json
 import logging
 import os
 import shutil
 from collections.abc import Generator
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 import attrs
 import watchtower
@@ -105,6 +107,40 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     def _(self):
         return self.log_group_arn.split(":")[3]
 
+    @classmethod
+    def from_config(cls) -> CloudWatchRemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # remote_task_handler_kwargs mixes FileTaskHandler kwargs with IO kwargs; only the
+        # latter belong to this class (same split as airflow_local_settings.py).
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        remote_base_log_folder = conf.get_mandatory_value("logging", "remote_base_log_folder")
+        url_parts = urlsplit(remote_base_log_folder)
+        log_group_arn = url_parts.netloc + url_parts.path
+        if not log_group_arn:
+            raise ValueError(
+                "Cannot derive a CloudWatch log group ARN from "
+                f"logging/remote_base_log_folder: {remote_base_log_folder!r}"
+            )
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "remote_base": remote_base_log_folder,
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "log_group_arn": log_group_arn,
+            }
+            | io_kwargs,
+        )
+
     @cached_property
     def hook(self):
         """Returns AwsLogsHook."""
@@ -146,7 +182,15 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
         _ = self.handler
-        from airflow.sdk.log import relative_path_from_logger
+        from airflow.sdk.log import relative_path_from_logger as _relative_path_from_logger
+
+        def relative_path_from_logger(logger) -> Path | None:
+            try:
+                return _relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory
+                # configured elsewhere, as ``upload_to_remote`` does.
+                return None
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
@@ -215,13 +259,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 if parent.exists():
                     self.log.warning("Failed to delete local log dir: %s", parent)
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
         str_logs: list[str] = [f"{msg}\n" for group in logs for msg in group]
 
         return messages, str_logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         logs: list[RawLogStream] = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -238,7 +282,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return messages, logs
 
     def get_cloudwatch_logs(
-        self, stream_name: str, task_instance: RuntimeTI
+        self, stream_name: str, task_instance: RuntimeTI | None
     ) -> Generator[CloudWatchLogEvent, None, None]:
         """
         Return all logs from the given log stream.
@@ -271,7 +315,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 # instead of an empty view that looks like remote logging silently failed.
                 if e.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
                     raise
-                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=timezone.utc))
+                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=UTC))
                 yield {
                     "timestamp": notice_ts,
                     "ingestionTime": notice_ts,
@@ -285,7 +329,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return _iter_events()
 
     def _parse_log_event_as_dumped_json(self, event: CloudWatchLogEvent) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc).isoformat()
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC).isoformat()
         event_msg = event["message"]
         try:
             message = json.loads(event_msg)
@@ -396,7 +440,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         return messages, logs
 
     def _event_to_str(self, event: CloudWatchLogEvent) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC)
         # Format a datetime object to a string in Zulu time without milliseconds.
         formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         message = event["message"]

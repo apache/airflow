@@ -20,7 +20,9 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
+
+import { RunTypeIcon } from "src/components/RunTypeIcon";
 
 import { LegendIcon } from "./LegendIcon";
 import { PLANNED_COLOR } from "./calendarUtils";
@@ -133,6 +135,15 @@ export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, 
             />
             <Text color="fg.muted" fontSize="xs">
               {translate("dag:calendar.legend.mixed")}
+            </Text>
+          </HStack>
+
+          <HStack gap={2}>
+            <Box fontSize="14px" lineHeight={1}>
+              <RunTypeIcon runType="backfill" />
+            </Box>
+            <Text color="fg.muted" fontSize="xs">
+              {translate("dag:calendar.backfill")}
             </Text>
           </HStack>
         </HStack>

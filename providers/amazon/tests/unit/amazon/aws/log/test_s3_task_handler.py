@@ -21,6 +21,7 @@ import contextlib
 import copy
 import logging
 import os
+import pathlib
 from unittest import mock
 
 import boto3
@@ -30,7 +31,8 @@ from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
+from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO, S3TaskHandler
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import EmptyOperator
@@ -40,16 +42,135 @@ from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clea
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
-try:
-    from airflow.sdk.timezone import datetime
-except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
-
 
 @pytest.fixture(autouse=True)
 def s3mock():
     with mock_aws():
         yield
+
+
+class TestS3RemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("logging", "delete_local_logs"): "True",
+        }
+    )
+    def test_from_config(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.remote_base == "s3://bucket/remote/log/location"
+        assert subject.base_log_folder == pathlib.Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true, "max_bytes": 1024}',
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.delete_local_copy is True
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            S3RemoteLogIO.from_config()
+
+    def test_provider_registers_s3_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("s3")
+
+        assert info is not None
+        assert info.classpath == "airflow.providers.amazon.aws.log.s3_task_handler.S3RemoteLogIO"
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("logging", "remote_log_conn_id"): "aws_default",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with mock.patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, conn_id = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, S3RemoteLogIO)
+        assert remote_task_log.remote_base == "s3://bucket/remote/log/location"
+        assert conn_id == "aws_default"
+        legacy_discover.assert_not_called()
+
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control",
+        }
+    )
+    def test_from_config_reads_acl_policy(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy == "bucket-owner-full-control"
+
+    @conf_vars({("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location"})
+    def test_from_config_acl_policy_defaults_to_none(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy is None
+
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("logging", "remote_task_handler_kwargs"): '{"acl_policy": "bucket-owner-full-control"}',
+        }
+    )
+    def test_from_config_acl_policy_via_remote_task_handler_kwargs(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy == "bucket-owner-full-control"
+
+
+class TestS3TaskHandlerInit:
+    @conf_vars({("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control"})
+    def test_init_reads_acl_policy_from_conf(self):
+        handler = S3TaskHandler("/tmp/local", "s3://bucket/remote/log/location")
+
+        assert handler.io.acl_policy == "bucket-owner-full-control"
+
+    @conf_vars({("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control"})
+    def test_init_acl_policy_kwarg_overrides_conf(self):
+        handler = S3TaskHandler(
+            "/tmp/local", "s3://bucket/remote/log/location", acl_policy="bucket-owner-read"
+        )
+
+        assert handler.io.acl_policy == "bucket-owner-read"
 
 
 @pytest.mark.db_test
@@ -73,7 +194,7 @@ class TestS3RemoteLogIO:
             self.subject = self.s3_task_handler.io
             assert self.subject.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -168,6 +289,90 @@ class TestS3RemoteLogIO:
         assert rec.levelno == logging.ERROR
         assert rec.exc_info is not None
 
+    @staticmethod
+    def _expected_messages(*locations: str) -> list[str]:
+        """Source messages as ``stream()`` and ``read()`` format them, which differs on Airflow 2."""
+        if AIRFLOW_V_3_0_PLUS:
+            return list(locations)
+        return ["Found logs in s3:", *(f"  * {location}" for location in locations)]
+
+    def test_stream_returns_no_streams_when_there_are_no_logs(self):
+        messages, log_streams = self.subject.stream("1.log", self.ti)
+
+        assert messages == []
+        assert log_streams == []
+
+    def test_read_returns_none_when_there_are_no_logs(self):
+        messages, logs = self.subject.read("1.log", self.ti)
+
+        assert messages == []
+        assert logs is None
+
+    def test_stream_yields_lines_without_the_trailing_newline(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
+
+        messages, log_streams = self.subject.stream("1.log", self.ti)
+
+        assert messages == self._expected_messages(self.remote_log_location)
+        assert list(log_streams[0]) == ["Log line", "Line 2"]
+
+    def test_stream_sorts_the_keys_of_the_task_instance(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key + ".trigger.log", Body=b"Line 3\n")
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Line 1\n")
+
+        messages, log_streams = self.subject.stream("1.log", self.ti)
+
+        assert messages == self._expected_messages(
+            self.remote_log_location, self.remote_log_location + ".trigger.log"
+        )
+        assert [list(log_stream) for log_stream in log_streams] == [["Line 1"], ["Line 3"]]
+
+    def test_stream_does_not_fetch_the_object_until_it_is_consumed(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
+
+        with mock.patch.object(S3Hook, "get_key", wraps=self.subject.hook.get_key) as get_key:
+            _, log_streams = self.subject.stream("1.log", self.ti)
+            get_key.assert_not_called()
+
+            assert list(log_streams[0]) == ["Log line"]
+            get_key.assert_called_once()
+
+    def test_read_does_not_load_the_object_as_a_single_string(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
+
+        with mock.patch.object(S3RemoteLogIO, "s3_read") as s3_read:
+            messages, logs = self.subject.read("1.log", self.ti)
+
+        s3_read.assert_not_called()
+        assert messages == self._expected_messages(self.remote_log_location)
+        assert logs == ["Log line\nLine 2\n"]
+
+    def test_stream_keeps_multibyte_characters_intact_across_chunks(self):
+        self.conn.put_object(
+            Bucket="bucket", Key=self.remote_log_key, Body="첫 번째 줄\n두 번째 줄\n".encode()
+        )
+
+        # A chunk size that is guaranteed to split multi-byte characters in half.
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.CHUNK_SIZE", 3):
+            _, log_streams = self.subject.stream("1.log", self.ti)
+
+            assert list(log_streams[0]) == ["첫 번째 줄", "두 번째 줄"]
+
+    def test_stream_yields_an_error_line_when_the_object_cannot_be_read(self, caplog):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
+        error = ClientError({"Error": {"Code": "403", "Message": "Forbidden"}}, "GetObject")
+
+        with mock.patch.object(S3Hook, "get_key", side_effect=error):
+            _, log_streams = self.subject.stream("1.log", self.ti)
+            with caplog.at_level(logging.ERROR):
+                lines = list(log_streams[0])
+
+        assert len(lines) == 1
+        assert lines[0].startswith(f"Could not read logs from {self.remote_log_location} with error:")
+        errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+        assert len(errors) == 1
+        assert errors[0].exc_info is not None
+
     def test_write(self):
         with mock.patch.object(self.subject.log, "error") as mock_error:
             self.subject.write("text", self.remote_log_location)
@@ -196,6 +401,15 @@ class TestS3RemoteLogIO:
         self.subject.write("text", self.remote_log_location)
         resp = self.conn.head_object(Bucket="bucket", Key=self.remote_log_key)
         assert resp["ServerSideEncryption"] == "AES256"
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"text"
+
+    def test_write_with_acl_policy(self):
+        self.subject.acl_policy = "bucket-owner-full-control"
+        conn = self.subject.hook.get_conn()
+        with mock.patch.object(conn, "put_object", wraps=conn.put_object) as mock_put_object:
+            self.subject.write("text", self.remote_log_location)
+        assert mock_put_object.call_args.kwargs["ACL"] == "bucket-owner-full-control"
         body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
         assert body == b"text"
 
@@ -248,7 +462,7 @@ class TestS3TaskHandler:
             # Verify the hook now with the config override
             assert self.s3_task_handler.io.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -337,7 +551,7 @@ class TestS3TaskHandler:
             assert log[5].event == "Line 2"
             assert log[6].event == "Log line 3"
             assert log[7].event == "Line 4"
-            assert metadata == {"end_of_log": True, "log_pos": 4}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
@@ -362,7 +576,7 @@ class TestS3TaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert len(log) == 2
-            assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata["end_of_log"] is True
         else:
             assert len(log) == 1
             assert len(log) == len(metadata)
@@ -408,3 +622,26 @@ class TestS3TaskHandler:
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)
+
+
+def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
+    """A traversing log path is refused before the file is read or its parent removed.
+
+    ``base_log_folder.joinpath(path)`` is purely lexical, so a ``..``-bearing relative path
+    escapes the log folder. Without the containment check the file would be uploaded to the
+    remote log store and, with ``delete_local_copy``, its parent directory deleted.
+    """
+    base = tmp_path / "logs"
+    base.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.log"
+    secret.write_text("sensitive")
+
+    subject = S3RemoteLogIO(remote_base="s3://bucket/remote", base_log_folder=base, delete_local_copy=True)
+    with caplog.at_level(logging.WARNING):
+        subject.upload(os.path.join("..", "outside", "secret.log"))
+
+    assert secret.exists()
+    assert outside.exists()
+    assert "outside base_log_folder" in caplog.text

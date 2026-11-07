@@ -84,7 +84,10 @@ class InfluxDBHook(BaseHook):
     def get_uri(self, conn: Connection):
         """Add additional parameters to the URI based on InfluxDB host requirements."""
         conn_scheme = "https" if conn.schema is None else conn.schema
-        conn_port = 7687 if conn.port is None else conn.port
+        if conn.port is None:
+            conn_port = 443 if conn_scheme == "https" else 8086
+        else:
+            conn_port = conn.port
         return f"{conn_scheme}://{conn.host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient:
@@ -136,11 +139,13 @@ class InfluxDBHook(BaseHook):
 
         Example: ``Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)``
         """
+        client = self.get_conn()
+
         # By defaults its Batching
         if synchronous:
-            write_api = self.client.write_api(write_options=SYNCHRONOUS)
+            write_api = client.write_api(write_options=SYNCHRONOUS)
         else:
-            write_api = self.client.write_api()
+            write_api = client.write_api()
 
         p = Point(point_name).tag(tag_name, tag_value).field(field_name, field_value)
 
@@ -148,25 +153,29 @@ class InfluxDBHook(BaseHook):
 
     def create_organization(self, name):
         """Create a new organization."""
-        return self.client.organizations_api().create_organization(name=name)
+        return self.get_conn().organizations_api().create_organization(name=name)
 
     def delete_organization(self, org_id):
         """Delete an organization by ID."""
-        return self.client.organizations_api().delete_organization(org_id=org_id)
+        return self.get_conn().organizations_api().delete_organization(org_id=org_id)
 
     def create_bucket(self, bucket_name, description, org_id, retention_rules=None):
         """Create a bucket for an organization."""
-        return self.client.buckets_api().create_bucket(
-            bucket_name=bucket_name, description=description, org_id=org_id, retention_rules=None
+        buckets_api = self.get_conn().buckets_api()
+        return buckets_api.create_bucket(
+            bucket_name=bucket_name,
+            description=description,
+            org_id=org_id,
+            retention_rules=retention_rules,
         )
 
     def find_bucket_id_by_name(self, bucket_name):
         """Get bucket ID by name."""
-        bucket = self.client.buckets_api().find_bucket_by_name(bucket_name)
+        bucket = self.get_conn().buckets_api().find_bucket_by_name(bucket_name)
 
         return "" if bucket is None else bucket.id
 
     def delete_bucket(self, bucket_name):
         """Delete bucket by name."""
         bucket = self.find_bucket_id_by_name(bucket_name)
-        return self.client.buckets_api().delete_bucket(bucket)
+        return self.get_conn().buckets_api().delete_bucket(bucket)

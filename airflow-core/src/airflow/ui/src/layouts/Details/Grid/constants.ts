@@ -19,7 +19,7 @@
 
 // Grid layout constants - shared between Grid and Gantt for alignment
 export const ROW_HEIGHT = 20;
-/** Height of a task bar / badge within a row — matches the GridTI badge height. */
+/** Height of a task bar / badge within a row — matches the unmapped GridTI badge height. */
 export const TASK_BAR_HEIGHT_PX = 14;
 export const GRID_HEADER_PADDING_PX = 16; // pt={4} = 4 * 4 = 16px
 export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars
@@ -41,6 +41,10 @@ export const BUNDLE_VERSION_INDICATOR_LEFT = -2; // Position from left for bundl
 export const BUNDLE_VERSION_ICON_SIZE = 15; // Size of the git commit icon
 export const DAG_VERSION_INDICATOR_HEIGHT = 104; // Height of the vertical line indicator
 export const VERSION_INDICATOR_Z_INDEX = 1; // Z-index for version indicators
+export const SELECTED_TASK_OUTLINE_COLOR = {
+  dark: "brand.contrast",
+  light: "brand.solid",
+} as const;
 
 // Render a gradient to indicate a saved note on a Dag run or task instance
 export const NOTE_GRADIENT =

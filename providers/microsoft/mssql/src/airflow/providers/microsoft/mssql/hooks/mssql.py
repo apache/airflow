@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pymssql
@@ -28,6 +29,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -71,7 +73,7 @@ class MsSqlHook(DbApiHook):
     def dialect_name(self) -> str:
         return "mssql"
 
-    @property
+    @cached_property
     def dialect(self) -> Dialect:
         return MsSqlDialect(self)
 
@@ -119,7 +121,7 @@ class MsSqlHook(DbApiHook):
     def get_autocommit(self, conn: PymssqlConnection):
         return conn.autocommit_state
 
-    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
         """Return MSSQL specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 

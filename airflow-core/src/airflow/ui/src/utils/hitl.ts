@@ -19,18 +19,25 @@
 import type { TFunction } from "i18next";
 
 import type { HITLDetail, HITLDetailHistory, TaskInstanceState } from "openapi/requests/types.gen";
-import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
+
+import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
   params_input?: Record<string, unknown>;
+  // The created_at of the request the form was loaded for; the server refuses a stale answer.
+  request_created_at?: string;
 };
 
-// A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
-// parks in "awaiting_input". Either way an unanswered parked task is "response required", not
-// "no response received" (which is reserved for tasks no longer parked, e.g. cleared/finished).
+// A HITL task waits for a response in one of these states: pre-3.3 it parks in "deferred", from 3.3
+// it parks in "awaiting_input", and it is still "running" while it checks for the response before
+// parking. An unanswered task in one of them is "response required", not "no response received"
+// (which is reserved for tasks no longer waiting, e.g. cleared/finished). A run resumed after a
+// timeout is also "running" until it fails; the server refuses answers to it.
+export const HITL_PENDING_STATES: Array<TaskInstanceState> = ["deferred", "awaiting_input", "running"];
+
 export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
-  state === "deferred" || state === "awaiting_input";
+  state !== undefined && state !== null && HITL_PENDING_STATES.includes(state);
 
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
@@ -117,23 +124,18 @@ export const getHITLParamsDict = (
       if (!hitlDetail.params) {
         return;
       }
-      const paramData = hitlDetail.params[key] as ParamsSpec | undefined;
+      const paramData = hitlDetail.params[key] as ParamSpec | undefined;
 
-      // Check if there's a preloaded value from URL params
-      let finalValue = hitlDetail.params_input?.[key] ?? paramData?.value ?? value;
+      // A serialized param arrives as a `{value, description, schema}` wrapper, but `params` may
+      // also carry a bare value. Only unwrap the former: reading `paramData.value` with `??` made a
+      // `null` default (nullish) fall through to `value`, which for a wrapper is the whole object —
+      // that then reached the widget and broke it. Probing for the key distinguishes "wrapper whose
+      // default is null" from "bare value".
+      const isWrapped = paramData !== undefined && "value" in paramData;
 
-      // If preloaded value is a string that might be JSON, try to parse it
-      if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
-        try {
-          const parsed: unknown = JSON.parse(finalValue);
-
-          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            finalValue = parsed;
-          }
-        } catch {
-          // If parsing fails, keep the string value
-        }
-      }
+      // Values arrive as stored JSON, so an object param's value is already an object. A string is
+      // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
+      const finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";

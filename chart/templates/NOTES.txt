@@ -108,7 +108,7 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhos
 {{- if .Values.flower.extraNetworkPolicies }}
 
 DEPRECATION WARNING:
-   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.peers`.
+   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.ingress.from`.
    Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -118,6 +118,14 @@ DEPRECATION WARNING:
  DEPRECATION WARNING:
     Dags Git-Sync bevaiour with `dags.gitSync.recommendedProbeSetting` equal `false` is deprecated and will be removed in future.
     Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.securityContexts.disableDefaults }}
+
+ DEPRECATION WARNING:
+    `securityContexts.disableDefaults` equal `false` is deprecated and will default to `true` in a future release.
+    Please set `securityContexts.disableDefaults: true` explicitly, or provide values via `securityContexts.pod` / `securityContexts.containers` (or per-component overrides), before the default changes.
 
 {{- end }}
 

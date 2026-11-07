@@ -17,16 +17,37 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKey, Index, String, Table, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, Table, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from sqlalchemy.orm import Session
+
+# What ``airflow teams create`` and ``airflow teams sync`` accept as a team name.
+#
+# Lower case only: the environment secrets backend upper-cases the team name to build
+# ``AIRFLOW_CONN__<TEAM>___<ID>``, so ``data_eng`` and ``Data_Eng`` resolve one namespace between
+# them and each team would read the other's Connections and Variables. Two consecutive
+# underscores are excluded so that a name can never contain the ``___`` separator itself.
+#
+# Deliberately unanchored and always used with ``re.fullmatch``: ``re.match`` against a
+# ``$``-anchored pattern also accepts a trailing newline, and unlike ``teams create`` the
+# ``teams sync`` path does not strip what the bundle config gives it.
+TEAM_NAME_PATTERN = r"(?!.*__)[a-z0-9_-]{3,50}"
+
+
+def find_invalid_team_names(names: Iterable[str]) -> list[str]:
+    """Return the names that do not satisfy :data:`TEAM_NAME_PATTERN`, sorted."""
+    return sorted({name for name in names if not re.fullmatch(TEAM_NAME_PATTERN, name)})
+
 
 dag_bundle_team_association_table = Table(
     "dag_bundle_team",
@@ -41,6 +62,28 @@ dag_bundle_team_association_table = Table(
     Index("idx_dag_bundle_team_dag_bundle_name", "dag_bundle_name", unique=True),
     Index("idx_dag_bundle_team_team_name", "team_name"),
 )
+
+
+class JobTeam(Base):
+    """
+    Association between a Job and a team whose workloads that Job serves.
+
+    Mapped as a class rather than a bare association table so that a Job can be given its
+    teams before it is persisted: writing link rows never needs to load, and therefore can
+    never accidentally insert, a :class:`Team`.
+    """
+
+    __tablename__ = "job_team"
+
+    job_id: Mapped[int] = mapped_column(Integer, ForeignKey("job.id", ondelete="CASCADE"), primary_key=True)
+    team_name: Mapped[str] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="CASCADE"), primary_key=True
+    )
+
+    __table_args__ = (Index("idx_job_team_team_name", "team_name"),)
+
+    def __repr__(self):
+        return f"JobTeam(job_id={self.job_id}, team_name={self.team_name})"
 
 
 class Team(Base):

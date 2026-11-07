@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import NotePreview from "./NotePreview";
+import { NotePreview } from "./NotePreview";
 
 const defaultProps = {
   header: "Note",
@@ -32,6 +32,8 @@ const defaultProps = {
   onSave: vi.fn(),
   setNote: vi.fn(),
 };
+
+const preventDefault = (event: Event) => event.preventDefault();
 
 const renderNote = (props: Partial<typeof defaultProps> = {}) =>
   render(<NotePreview {...defaultProps} {...props} />, { wrapper: Wrapper });
@@ -90,9 +92,58 @@ describe("NotePreview", () => {
 
     it("opens an empty note straight into editing", async () => {
       renderNote({ note: "" });
-      fireEvent.click(screen.getByRole("button", { name: "note.edit" }));
+      fireEvent.click(screen.getByRole("button", { name: "note.placeholder" }));
 
       expect(await screen.findByTestId("markdown-input")).toBeInTheDocument();
+    });
+
+    it("leaves links in the preview as links", () => {
+      const onOpen = vi.fn();
+
+      renderNote({ note: "see [the docs](https://airflow.apache.org)", onOpen });
+
+      const link = screen.getByRole("link", { name: "the docs" });
+
+      // Keep happy-dom from following the link to the real site; the row only looks at the target.
+      link.addEventListener("click", preventDefault);
+      fireEvent.click(link);
+
+      expect(onOpen).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("edit-markdown")).toBeNull();
+    });
+
+    it("opens the editor when the row itself is clicked", async () => {
+      const onOpen = vi.fn();
+
+      renderNote({ note: "Existing note", onOpen });
+
+      fireEvent.click(screen.getByText("Existing note"));
+
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(await screen.findByTestId("edit-markdown")).toBeInTheDocument();
+    });
+
+    it("does not reset or reopen the note when the modal is used", async () => {
+      const onOpen = vi.fn();
+      const onSave = vi.fn();
+
+      renderNote({ note: "Existing note", onOpen, onSave });
+      fireEvent.click(screen.getByRole("button", { name: "note.edit" }));
+
+      const editInModal = await screen.findByTestId("edit-markdown");
+
+      onOpen.mockClear();
+
+      // The modal sits outside the clickable row, so its own clicks must not bubble back into it:
+      // that would reset the draft to the saved note and reopen the editor over the save.
+      fireEvent.click(editInModal);
+      await screen.findByTestId("markdown-input");
+      expect(onOpen).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: /modal.confirm/u }));
+
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onOpen).not.toHaveBeenCalled();
     });
   });
 });

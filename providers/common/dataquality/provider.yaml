@@ -21,7 +21,7 @@ name: Common Data Quality
 description: |
   Common Data Quality Provider
 
-state: ready
+state: not-ready
 lifecycle: incubation
 source-date-epoch: 1751587200
 build-system: flit_core

@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterStoppedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -96,7 +97,9 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     :param db_cluster_id: The DB cluster identifier of the Neptune DB cluster to be started.
     :param wait_for_completion: Whether to wait for the cluster to start. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to start.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -166,7 +169,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                 # re raise for any other type of client error
                 raise
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for cluster start: %s", self.cluster_id)
 
             self.defer(
@@ -175,6 +178,9 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                     db_cluster_id=self.cluster_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
+                    region_name=self.region_name,
+                    botocore_config=self.botocore_config,
+                    verify=self.verify,
                 ),
                 method_name="execute_complete",
             )
@@ -214,7 +220,9 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     :param db_cluster_id: The DB cluster identifier of the Neptune DB cluster to be stopped.
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -293,7 +301,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                 # re raise for any other type of client error
                 raise
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for cluster stop: %s", self.cluster_id)
 
             self.defer(
@@ -302,6 +310,9 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                     db_cluster_id=self.cluster_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
+                    region_name=self.region_name,
+                    botocore_config=self.botocore_config,
+                    verify=self.verify,
                 ),
                 method_name="execute_complete",
             )

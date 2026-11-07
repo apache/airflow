@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
+
+import "@testing-library/jest-dom/vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -150,7 +151,7 @@ describe("PresetFiltersMenu", () => {
     render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getAllByLabelText("Delete preset filter")[0] as HTMLElement);
+    fireEvent.click(screen.getAllByLabelText("presetFilters.deleteTitle")[0] as HTMLElement);
     fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {
@@ -169,7 +170,7 @@ describe("PresetFiltersMenu", () => {
     render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("Delete preset filter"));
+    fireEvent.click(screen.getByLabelText("presetFilters.deleteTitle"));
     fireEvent.click(await screen.findByTestId("delete-cancel-button"));
 
     await waitFor(() => {
@@ -273,7 +274,7 @@ describe("PresetFiltersMenu", () => {
     render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("Delete preset filter"));
+    fireEvent.click(screen.getByLabelText("presetFilters.deleteTitle"));
     fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {

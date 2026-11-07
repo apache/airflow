@@ -16,37 +16,42 @@
 # under the License.
 
 ARG ALPINE_VERSION="3.23"
-ARG GO_VERSION="1.23.7"
+ARG GO_VERSION="1.27.2"
 
 FROM golang:${GO_VERSION} AS builder
 
 ARG PGBOUNCER_EXPORTER_VERSION
+ARG PGBOUNCER_EXPORTER_COMMIT_SHA
 
 WORKDIR /usr/src/myapp
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-RUN URL="https://github.com/jbub/pgbouncer_exporter/archive/v${PGBOUNCER_EXPORTER_VERSION}.tar.gz" \
+# Fetch the source by commit id rather than by tag. Git tags are mutable: `vX.Y.Z` on the
+# upstream repository can be moved to different content without anything in this image's
+# build inputs changing, so a tag alone does not identify what we build. A commit id does.
+RUN URL="https://github.com/jbub/pgbouncer_exporter/archive/${PGBOUNCER_EXPORTER_COMMIT_SHA}.tar.gz" \
     && curl -L "${URL}" | tar -zx --strip-components 1 \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" )\
     && GOOS=linux GOARCH="${PLATFORM}" CGO_ENABLED=0 go build -v
 
 FROM alpine:${ALPINE_VERSION} AS final
 
-# We want to make sure this one includes latest security fixes.
-# "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
-# hadolint ignore=DL3018
-RUN apk --no-cache add libressl libressl-dev openssl
+# The exporter is a static (CGO_ENABLED=0) binary, so no extra runtime libraries are needed.
+# We only want to make sure the base image includes latest security fixes.
+RUN apk --no-cache upgrade
 
 COPY --from=builder /usr/src/myapp/pgbouncer_exporter /bin
 
 ARG PGBOUNCER_EXPORTER_VERSION
+ARG PGBOUNCER_EXPORTER_COMMIT_SHA
 ARG AIRFLOW_PGBOUNCER_EXPORTER_VERSION
 ARG GO_VERSION
 ARG COMMIT_SHA
 
 LABEL org.apache.airflow.component="pgbouncer-exporter" \
     org.apache.airflow.pgbouncer-exporter.version="${PGBOUNCER_EXPORTER_VERSION}" \
+    org.apache.airflow.pgbouncer-exporter.commit-sha="${PGBOUNCER_EXPORTER_COMMIT_SHA}" \
     org.apache.airflow.go.version="${GO_VERSION}" \
     org.apache.airflow.airflow-pgbouncer-exporter.version="${AIRFLOW_PGBOUNCER_EXPORTER_VERSION}" \
     org.apache.airflow.commit-sha="${COMMIT_SHA}" \

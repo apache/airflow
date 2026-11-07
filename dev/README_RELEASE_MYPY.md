@@ -31,6 +31,7 @@
   - [Add tags in git](#add-tags-in-git)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the distributions to PyPI (release candidates)](#publish-the-distributions-to-pypi-release-candidates)
+  - [Publish release candidate documentation](#publish-release-candidate-documentation)
   - [Prepare voting email](#prepare-voting-email)
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
@@ -39,6 +40,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Add tags in git](#add-tags-in-git-1)
+  - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -165,6 +167,43 @@ twine upload dist/apache_airflow_mypy-<VERSION>rc<RC>*
 ```
 
 Use a short-lived (throw-away) PyPI API token for the upload and delete it afterwards.
+
+## Publish release candidate documentation
+
+### Sync staging with main (skip if another vote is in progress)
+
+Before publishing the staging docs, reset the `staging` branches of
+[`apache/airflow-site`](https://github.com/apache/airflow-site) and
+[`apache/airflow-site-archive`](https://github.com/apache/airflow-site-archive) to `main`, so the staging
+site starts from the current live site rather than from whatever an earlier release left there:
+
+```shell script
+breeze workflow-run sync-staging-to-main
+```
+
+It triggers the `Reset staging to main` workflow in
+[`airflow-site`](https://github.com/apache/airflow-site/actions/workflows/reset-staging.yml) and in
+[`airflow-site-archive`](https://github.com/apache/airflow-site-archive/actions/workflows/reset-staging.yml).
+Each force-updates its repository's `staging` branch to the current `main` commit (`main` itself is not
+changed); in `airflow-site` it also rebuilds the staging site.
+
+> [!WARNING]
+> **Skip this step if a vote for any other release (Airflow, Providers, Helm Chart, airflowctl, ...) is
+> in progress.** Its release candidate docs are on the `staging` branches, and resetting `staging` to `main`
+> would overwrite the staging docs prepared for that vote. The command asks for confirmation before it
+> does anything; answer `n` to skip it.
+
+### Publish the docs
+
+Run the `Publish Docs to S3` workflow from the `apache/airflow` repository with:
+
+- **ref**: `apache-airflow-mypy-<VERSION>rc<RC>`
+- **destination**: `staging`
+- **include-docs**: `apache-airflow-mypy`
+
+After it completes, run the `Build docs` workflow from the `staging` branch of the `apache/airflow-site`
+repository. Verify the release candidate documentation at
+`https://airflow.staged.apache.org/docs/apache-airflow-mypy/stable/index.html` before starting the vote.
 
 ## Prepare voting email
 
@@ -408,6 +447,20 @@ git tag -s apache-airflow-mypy-<VERSION> -m "Apache Airflow Mypy <VERSION>"
 git push origin apache-airflow-mypy-<VERSION>
 ```
 
+## Publish documentation
+
+Run the `Publish Docs to S3` workflow from the `apache/airflow` repository with:
+
+- **ref**: `apache-airflow-mypy-<VERSION>`
+- **destination**: `live`
+- **include-docs**: `apache-airflow-mypy`
+
+After it completes, run the `Build docs` workflow from the `main` branch of the `apache/airflow-site`
+repository. Verify both the versioned and stable documentation URLs:
+
+- `https://airflow.apache.org/docs/apache-airflow-mypy/<VERSION>/index.html`
+- `https://airflow.apache.org/docs/apache-airflow-mypy/stable/index.html`
+
 ## Notify developers of release
 
 Send an announcement email to dev@airflow.apache.org and announce@apache.org:
@@ -422,8 +475,11 @@ Apache Airflow Mypy provides Mypy plugins for Apache Airflow to enhance type che
 The release is available at:
 https://pypi.org/project/apache-airflow-mypy/<VERSION>/
 
+Documentation:
+https://airflow.apache.org/docs/apache-airflow-mypy/stable/index.html
+
 Release notes:
-https://github.com/apache/airflow/blob/main/dev/mypy/RELEASE_NOTES.rst
+https://airflow.apache.org/docs/apache-airflow-mypy/stable/release_notes.html
 
 Installation:
 pip install apache-airflow-mypy

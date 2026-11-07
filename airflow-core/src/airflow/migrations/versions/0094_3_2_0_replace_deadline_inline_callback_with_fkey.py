@@ -27,7 +27,7 @@ Create Date: 2025-10-24 00:34:57.111239
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from textwrap import dedent
 
 import sqlalchemy as sa
@@ -56,7 +56,7 @@ _ASYNC_CALLBACK_CLASSNAME = "airflow.sdk.definitions.deadline.AsyncCallback"
 
 def _upgrade_postgresql(conn, batch_size):
     """Writable CTE per batch: SELECT window → INSERT callback → UPDATE deadline in one round-trip."""
-    timestamp = datetime.now(timezone.utc)
+    timestamp = datetime.now(UTC)
     batch_num = 0
     last_id = "00000000-0000-0000-0000-000000000000"
 
@@ -92,7 +92,7 @@ def _upgrade_postgresql(conn, batch_size):
                             '__var', json_build_object(
                                 'path', b.cb_path,
                                 'kwargs', b.cb_kwargs,
-                                'prefix', :prefix,
+                                'prefix', CAST(:prefix AS text),
                                 'dag_id', b.dag_id
                             ),
                             '__type', 'dict'
@@ -147,7 +147,7 @@ def _upgrade_mysql_sqlite(conn, batch_size):
 
     import uuid6
 
-    timestamp = datetime.now(timezone.utc)
+    timestamp = datetime.now(UTC)
 
     deadline_table = table(
         "deadline",
@@ -325,7 +325,7 @@ def _downgrade_postgresql(conn, batch_size):
                                 'path', c.data::jsonb->'__var'->>'path',
                                 'kwargs', c.data::jsonb->'__var'->'kwargs'
                             ),
-                            '__classname__', :classname,
+                            '__classname__', CAST(:classname AS text),
                             '__version__', 0
                         )::json,
                         callback_state = CASE
@@ -360,7 +360,7 @@ def _downgrade_postgresql(conn, batch_size):
                             'path', c.data::jsonb->'__var'->>'path',
                             'kwargs', c.data::jsonb->'__var'->'kwargs'
                         ),
-                        '__classname__', :classname,
+                        '__classname__', CAST(:classname AS text),
                         '__version__', 0
                     )::json,
                     callback_state = CASE

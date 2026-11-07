@@ -119,6 +119,28 @@ def example_llm_file_analysis_structured():
 example_llm_file_analysis_structured()
 
 
+# [START howto_operator_llm_file_analysis_approval]
+@dag(tags=["example"])
+def example_llm_file_analysis_approval():
+    from datetime import timedelta
+
+    LLMFileAnalysisOperator(
+        task_id="analyze_contract_with_approval",
+        prompt="Summarize the key obligations and flag any unusual termination clauses.",
+        llm_conn_id="pydanticai_default",
+        file_path="s3://legal/contracts/vendor-agreement.pdf",
+        file_conn_id="aws_default",
+        require_approval=True,
+        approval_timeout=timedelta(hours=1),
+        allow_modifications=True,
+    )
+
+
+# [END howto_operator_llm_file_analysis_approval]
+
+example_llm_file_analysis_approval()
+
+
 # [START howto_decorator_llm_file_analysis]
 @dag(tags=["example"])
 def example_llm_file_analysis_decorator():

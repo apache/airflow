@@ -25,8 +25,8 @@ import pytest
 
 pytest.importorskip("snowflake.snowpark")
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.snowflake.operators.snowpark import SnowparkOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from snowflake.snowpark import Session

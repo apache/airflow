@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
+from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -49,9 +50,32 @@ from airflow.api_fastapi.core_api.security import (
     ReadableEventLogsFilterDep,
     requires_access_event_log,
 )
-from airflow.models import Log
+from airflow.api_fastapi.core_api.services.public.event_logs import event_log_to_response
+from airflow.models import DagModel, Log, TaskInstance
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.interfaces import LoaderOption
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
+
+
+def _eager_load_display_names() -> tuple[LoaderOption, ...]:
+    """
+    Load only the columns that EventLogResponse reads from an event log's Dag and task instance.
+
+    The query also loads ``task_id`` because ``task_display_name`` falls back to it.
+    Without ``raiseload``, it would still join ``dag_run`` and select all of its columns, since
+    ``TaskInstance.dag_run`` is ``lazy="joined"``.
+    """
+    return (
+        joinedload(Log.task_instance)
+        .load_only(TaskInstance._task_display_property_value, TaskInstance.task_id)
+        .raiseload(TaskInstance.dag_run),
+        joinedload(Log.coordinate_task_instance)
+        .load_only(TaskInstance._task_display_property_value, TaskInstance.task_id)
+        .raiseload(TaskInstance.dag_run),
+        joinedload(Log.dag_model).load_only(DagModel._dag_display_property_value),
+    )
 
 
 @event_logs_router.get(
@@ -63,24 +87,24 @@ def get_event_log(
     event_log_id: int,
     session: SessionDep,
 ) -> EventLogResponse:
-    event_log = session.scalar(
+    event_log = session.scalars(
         # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
         # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
         # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
         # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
         # Making EventLogResponse.when nullable would be a breaking API contract change for
         # clients that currently rely on `when` always being present.
-        select(Log)
-        .where(Log.id == event_log_id, Log.dttm.is_not(None))
-        .options(joinedload(Log.task_instance))
-    )
+        select(Log).where(Log.id == event_log_id, Log.dttm.is_not(None)).options(*_eager_load_display_names())
+    ).one_or_none()
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
-    return event_log
+
+    return event_log_to_response(event_log=event_log)
 
 
 @event_logs_router.get(
     "",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
     dependencies=[Depends(requires_access_event_log("GET"))],
 )
 def get_event_logs(
@@ -100,6 +124,7 @@ def get_event_logs(
                     "event",
                     "logical_date",
                     "owner",
+                    "owner_display_name",
                     "extra",
                 ],
                 Log,
@@ -110,8 +135,14 @@ def get_event_logs(
     # Exact match filters (for backward compatibility)
     dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.dag_id, str | None))],
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.task_id, str | None))],
+    task_instance_id: Annotated[
+        FilterParam[UUID | None], Depends(filter_param_factory(Log.task_instance_id, UUID | None))
+    ],
     run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str | None))],
-    map_index: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.map_index, int | None))],
+    map_index: Annotated[
+        FilterParam[int | None],
+        Depends(filter_param_factory(Log.map_index, int | None)),
+    ],
     try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int | None))],
     owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str | None))],
     event: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.event, str | None))],
@@ -138,6 +169,10 @@ def get_event_logs(
     task_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.task_id, "task_id_pattern"))],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.run_id, "run_id_pattern"))],
     owner_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.owner, "owner_pattern"))],
+    owner_display_name_pattern: Annotated[
+        _SearchParam,
+        Depends(search_param_factory(Log.owner_display_name, "owner_display_name_pattern")),
+    ],
     event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
     # Prefix pattern search filters (index-friendly, case-sensitive)
     dag_id_prefix_pattern: Annotated[
@@ -156,11 +191,23 @@ def get_event_logs(
         _PrefixSearchParam,
         Depends(prefix_search_param_factory(Log.owner, "owner_prefix_pattern")),
     ],
+    owner_display_name_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.owner_display_name, "owner_display_name_prefix_pattern")),
+    ],
     event_prefix_pattern: Annotated[
         _PrefixSearchParam,
         Depends(prefix_search_param_factory(Log.event, "event_prefix_pattern")),
     ],
+    teams: Annotated[
+        FilterParam[list[str]],
+        Depends(
+            filter_param_factory(Log.team_name, list[str], FilterOptionEnum.IN, "teams", default_factory=list)
+        ),
+    ],
     readable_event_logs_filter: ReadableEventLogsFilterDep,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
     query = (
@@ -170,10 +217,17 @@ def get_event_logs(
         # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
         # Making EventLogResponse.when nullable would be a breaking API contract change for
         # clients that currently rely on `when` always being present.
-        select(Log)
-        .where(Log.dttm.is_not(None))
-        .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+        select(Log).where(Log.dttm.is_not(None)).options(*_eager_load_display_names())
     )
+    if region_index is not None and region_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
+    if region_id is not None:
+        # The Table, unlike the ORM entity, is not narrowed to live attempts, so earlier tries match too.
+        attempts = TaskInstance.__table__
+        attempt_ids = select(attempts.c.id).where(attempts.c.region_id == region_id)
+        if region_index is not None:
+            attempt_ids = attempt_ids.where(attempts.c.region_index == region_index)
+        query = query.where(Log.task_instance_id.in_(attempt_ids))
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
@@ -184,6 +238,7 @@ def get_event_logs(
             run_id,
             map_index,
             try_number,
+            task_instance_id,
             owner,
             event,
             excluded_events,
@@ -199,8 +254,11 @@ def get_event_logs(
             run_id_prefix_pattern,
             owner_pattern,
             owner_prefix_pattern,
+            owner_display_name_pattern,
+            owner_display_name_prefix_pattern,
             event_pattern,
             event_prefix_pattern,
+            teams,
             # Permission
             readable_event_logs_filter,
         ],
@@ -208,9 +266,9 @@ def get_event_logs(
         limit=limit,
         session=session,
     )
-    event_logs = session.scalars(event_logs_select)
+    event_logs = session.scalars(event_logs_select).all()
 
     return EventLogCollectionResponse(
-        event_logs=event_logs,
+        event_logs=[event_log_to_response(event_log=event_log) for event_log in event_logs],
         total_entries=total_entries,
     )

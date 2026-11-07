@@ -127,7 +127,20 @@ class TestResultBackendConnectionSecret:
 
         # host, port, dbname still get overridden even with an non-chart db
         assert (
-            connection == "db+postgresql://someuser:somepass@release-name-pgbouncer:6543"
+            connection == "db+postgresql://someuser:somepass@release-name-pgbouncer.default:6543"
+            "/release-name-result-backend?sslmode=allow"
+        )
+
+    def test_should_set_pgbouncer_overrides_with_use_standard_naming(self):
+        values = {
+            "useStandardNaming": True,
+            "pgbouncer": {"enabled": True},
+            "data": {"resultBackendConnection": {**self.non_chart_database_values}},
+        }
+        connection = self._get_connection(values)
+
+        assert (
+            connection == "db+postgresql://someuser:somepass@release-name-airflow-pgbouncer.default:6543"
             "/release-name-result-backend?sslmode=allow"
         )
 

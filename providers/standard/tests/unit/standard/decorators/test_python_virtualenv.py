@@ -25,7 +25,7 @@ from typing import Any
 
 import pytest
 
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -314,7 +314,7 @@ class TestPythonVirtualenvDecorator:
             return None
 
         with dag_maker(serialized=True):
-            f(datetime.datetime.now(tz=datetime.timezone.utc))
+            f(datetime.datetime.now(tz=datetime.UTC))
         dr = dag_maker.create_dagrun()
 
         dag_maker.run_ti("f", dr)

@@ -288,6 +288,9 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
 
     :param response_check_path: Path to the function that evaluates whether the API response
         passes the conditions set by the user to fire the trigger. The method must be asynchronous.
+        Optionally, it may accept an ``asset_state_store`` keyword argument (or ``**kwargs``)
+        to inspect or persist state across evaluations. Note that ``asset_state_store`` can be
+        ``None`` when running on Airflow < 3.3.0 or when the trigger is not associated with an asset watcher.
     :param http_conn_id: http connection id that has the base
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
@@ -297,7 +300,9 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param headers: Additional headers to be passed through as a dict.
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
-    :parama poll_interval: How often, in seconds, the trigger should send a request to the API.
+    :param poll_interval: How often, in seconds, the trigger should send a request to the API.
+    :param max_consecutive_failures: Maximum number of consecutive polling failures before the
+        trigger raises. The effective failure tolerance is roughly this times ``poll_interval``.
     """
 
     def __init__(
@@ -311,10 +316,14 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
         poll_interval: float = 60.0,
+        max_consecutive_failures: int = 10,
     ):
         super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
         self.response_check_path = response_check_path
         self.poll_interval = poll_interval
+        if max_consecutive_failures < 1:
+            raise ValueError("max_consecutive_failures must be greater or equal to 1")
+        self.max_consecutive_failures = max_consecutive_failures
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpEventTrigger arguments and classpath."""
@@ -330,26 +339,49 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                 "extra_options": self.extra_options,
                 "response_check_path": self.response_check_path,
                 "poll_interval": self.poll_interval,
+                "max_consecutive_failures": self.max_consecutive_failures,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via a http hook until the response passes the response check."""
         hook = super()._get_async_hook()
-        try:
-            while True:
+        failures = 0
+        while True:
+            try:
                 response = await super()._get_response(hook)
-                if await self._run_response_check(response):
-                    break
-                await asyncio.sleep(self.poll_interval)
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "response": HttpResponseSerializer.serialize(response),
-                }
-            )
-        except Exception as e:
-            self.log.error("status: error, message: %s", str(e))
+                check_passed = await self._run_response_check(response)
+                event = (
+                    TriggerEvent(
+                        {
+                            "status": "success",
+                            "response": HttpResponseSerializer.serialize(response),
+                        }
+                    )
+                    if check_passed
+                    else None
+                )
+            except Exception as exc:
+                failures += 1
+                if failures >= self.max_consecutive_failures:
+                    # The triggerer logs the traceback into this trigger's log and restarts the
+                    # watcher; anything deferred on this trigger fails instead of hanging.
+                    raise
+                self.log.warning(
+                    "Poll failed (%s/%s): %r, retrying in %s seconds",
+                    failures,
+                    self.max_consecutive_failures,
+                    exc,
+                    self.poll_interval,
+                )
+            else:
+                # "Not yet" clears the count too, or a healthy watcher would escalate after
+                # max_consecutive_failures ordinary polls.
+                failures = 0
+                if event is not None:
+                    yield event
+                    return
+            await asyncio.sleep(self.poll_interval)
 
     async def _import_from_response_check_path(self):
         """Import the response check callable from the path provided by the user."""
@@ -364,5 +396,14 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         response_check = await self._import_from_response_check_path()
         if not inspect.iscoroutinefunction(response_check):
             raise AirflowException("The response_check callable is not asynchronous.")
-        check = await response_check(response)
+        sig = inspect.signature(response_check)
+        param = sig.parameters.get("asset_state_store")
+        accepts_store = (param is not None and param.kind is not inspect.Parameter.POSITIONAL_ONLY) or any(
+            p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+        store = getattr(self, "asset_state_store", None)
+        if accepts_store:
+            check = await response_check(response, asset_state_store=store)
+        else:
+            check = await response_check(response)
         return check

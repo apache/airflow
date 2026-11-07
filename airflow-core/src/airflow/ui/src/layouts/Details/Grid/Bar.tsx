@@ -20,6 +20,7 @@ import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridButton } from "./GridButton";
@@ -43,7 +44,6 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-  const search = searchParams.toString();
 
   return (
     <Box
@@ -83,10 +83,10 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
-          label={run.run_after}
           minHeight="14px"
+          runAfter={run.run_after}
           runId={run.run_id}
-          searchParams={search}
+          searchParams={searchParams.toString()}
           state={run.state}
           style={run.has_note ? { background: NOTE_GRADIENT } : undefined}
           zIndex={1}

@@ -208,10 +208,6 @@ To fetch data from a BigQuery table you can use
 Alternatively you can fetch data for selected columns if you pass fields to
 ``selected_fields``.
 
-.. note::
-   The ``project_id`` parameter is **deprecated** and will be removed in a future
-   release. Please use ``table_project_id`` instead.
-
 The result of this operator can be retrieved in two different formats based on the value of the ``as_dict`` parameter:
 ``False`` (default) - A Python list of lists, where the number of elements in the nesting list will be equal to the number of rows fetched. Each element in the
 nesting will a nested list where elements would represent the column values for
@@ -403,10 +399,16 @@ the same logical run doesn't submit a second job, that guarantee is unrelated to
 and keeping ``force_rerun=False`` is still the right choice for it.
 
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
-earlier Airflow versions the flag is a no-op and the operator always submits a fresh job on retry,
-exactly as before -- including the pre-existing ``reattach_states``/``Conflict`` behavior, which is
-unchanged. If the task state store is unavailable at runtime, the operator logs that crash
-recovery is disabled and behaves the same way.
+earlier Airflow versions the flag is a no-op -- setting it explicitly only emits a warning -- and
+the operator always submits a fresh job on retry, exactly as before -- including the pre-existing
+``reattach_states``/``Conflict`` behavior, which is unchanged. If the task state store is
+unavailable at runtime, the operator logs that crash recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored job id isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+job id won't be there for the next retry, and the operator will submit a fresh job instead of
+reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
 To opt out and always submit a fresh job on retry, set ``durable=False``:
 

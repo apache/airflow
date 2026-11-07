@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import datetime
+import logging
 from unittest import mock
 
 import boto3
+import pytest
 from moto import mock_aws
 
 from airflow.models.dag import DAG
@@ -74,3 +76,23 @@ class TestHttpToS3Operator:
         assert len(objects_in_bucket["Contents"]) == 1
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_bucket["Contents"][0]["Key"] == self.s3_key
+
+    @pytest.mark.parametrize("log_response", [True, False])
+    @mock_aws
+    def test_execute_logs_response_only_when_requested(self, requests_mock, caplog, log_response):
+        requests_mock.register_uri("GET", EXAMPLE_URL, content=self.response)
+        boto3.client("s3").create_bucket(Bucket=self.s3_bucket)
+        operator = HttpToS3Operator(
+            task_id="http_to_s3_operator",
+            http_conn_id=self.http_conn_id,
+            endpoint=self.endpoint,
+            s3_key=self.s3_key,
+            s3_bucket=self.s3_bucket,
+            log_response=log_response,
+            dag=self.dag,
+        )
+
+        with caplog.at_level(logging.INFO, logger=operator.log.name):
+            operator.execute(None)
+
+        assert (self.response.decode() in caplog.text) is log_response

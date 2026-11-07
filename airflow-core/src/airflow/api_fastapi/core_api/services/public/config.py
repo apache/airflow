@@ -31,6 +31,11 @@ from airflow.configuration import conf
 # (e.g. Vault role_id / secret_id) as the registered ``backend_kwargs``
 # option, so they need the same redaction treatment when
 # ``display_sensitive=False``.
+# These match literal section names only, so a team scoped spelling of the same option -- the
+# ``[<team>=secrets]`` section, or ``AIRFLOW__<TEAM>___SECRETS__BACKEND_KWARG__*``, which is
+# reported under a section named after the team -- is not recognised. Nothing leaks today because
+# the secrets backend is not team aware; tracked at
+# https://github.com/apache/airflow/issues/71037
 _PER_KEY_SENSITIVE_PREFIXES: dict[str, str] = {
     "secrets": "backend_kwarg__",
     "workers": "secrets_backend_kwarg__",

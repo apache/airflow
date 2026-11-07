@@ -17,13 +17,17 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
+import { Tooltip } from "src/system-components";
+
 import type { ExpressionType } from "src/components/AssetExpression";
-import { Tooltip } from "src/components/ui";
 
 import { AssetSchedule } from "./AssetSchedule";
+
+// Mirrors AssetTriggeredTimetable.summary on the server. It is a fixed literal sent as-is,
+// so it must be compared literally rather than through a translated string.
+const ASSET_TIMETABLE_SUMMARY = "Asset";
 
 type Props = {
   readonly assetExpression: ExpressionType | null | undefined;
@@ -39,11 +43,9 @@ export const Schedule = ({
   timetableDescription,
   timetablePartitioned,
   timetableSummary,
-}: Props) => {
-  const { t: translate } = useTranslation("dags");
-
-  return Boolean(timetableSummary) ? (
-    Boolean(assetExpression) || timetableSummary === translate("schedule.asset") ? (
+}: Props) =>
+  Boolean(timetableSummary) ? (
+    Boolean(assetExpression) || timetableSummary === ASSET_TIMETABLE_SUMMARY ? (
       <AssetSchedule
         assetExpression={assetExpression}
         dagId={dagId}
@@ -51,11 +53,10 @@ export const Schedule = ({
         timetableSummary={timetableSummary}
       />
     ) : (
-      <Tooltip content={timetableDescription}>
+      <Tooltip content={timetableDescription} portalled>
         <Text fontSize="sm">
           <FiCalendar style={{ display: "inline" }} /> {timetableSummary}
         </Text>
       </Tooltip>
     )
   ) : undefined;
-};

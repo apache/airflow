@@ -139,7 +139,7 @@ Install them when installing from PyPI. For example:
 ====================  ===============================================================================
 Extra                 Dependencies
 ====================  ===============================================================================
-``ibmmq``             ``ibmmq>=2.0.6; platform_machine != "aarch64" and platform_machine != "arm64"``
+``ibmmq``             ``ibmmq>=2.1.0; platform_machine != "aarch64" and platform_machine != "arm64"``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ====================  ===============================================================================
 

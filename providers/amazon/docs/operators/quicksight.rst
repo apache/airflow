@@ -46,6 +46,9 @@ Amazon QuickSight create ingestion
 The ``QuickSightCreateIngestionOperator`` creates and starts a new SPICE ingestion for a dataset.
 The operator also refreshes existing SPICE datasets.
 
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
+
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_quicksight.py
     :language: python
     :dedent: 4
@@ -61,6 +64,9 @@ Amazon QuickSight ingestion sensor
 ==================================
 
 The ``QuickSightSensor`` waits for an Amazon QuickSight create ingestion until it reaches a terminal state.
+
+This sensor can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_quicksight.py
     :language: python

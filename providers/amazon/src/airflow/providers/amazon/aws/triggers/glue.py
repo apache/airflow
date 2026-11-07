@@ -20,12 +20,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from botocore.exceptions import ClientError
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 from airflow.providers.amazon.aws.hooks.glue import (
     GlueDataQualityHook,
@@ -53,7 +50,11 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         if not specified.
     :param verify: Whether or not to verify SSL certificates.
     :param botocore_config: Configuration dictionary (key-values) for botocore client.
+    :param stop_job_run_on_kill: If True, stop the Glue job run when the deferred task is killed
+        (for example, cleared while running). Defaults to False.
     """
+
+    aws_hook_class = GlueJobHook
 
     def __init__(
         self,
@@ -66,9 +67,15 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        stop_job_run_on_kill: bool = False,
     ):
         super().__init__(
-            serialized_fields={"job_name": job_name, "run_id": run_id, "verbose": verbose},
+            serialized_fields={
+                "job_name": job_name,
+                "run_id": run_id,
+                "verbose": verbose,
+                "stop_job_run_on_kill": stop_job_run_on_kill,
+            },
             waiter_name="job_complete",
             waiter_args={"JobName": job_name, "RunId": run_id},
             failure_message="AWS Glue job failed.",
@@ -86,14 +93,26 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         self.job_name = job_name
         self.run_id = run_id
         self.verbose = verbose
+        self.stop_job_run_on_kill = stop_job_run_on_kill
 
-    def hook(self) -> AwsGenericHook:
-        return GlueJobHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name,
-            verify=self.verify,
-            config=self.botocore_config,
-        )
+    async def on_kill(self) -> None:
+        """
+        Stop the Glue job run when the user acts on the deferred task.
+
+        Requires Airflow 3.3+, where the triggerer calls ``BaseTrigger.on_kill()``; on older
+        versions this hook is inert. Released 3.3.x versions also call it when the trigger is
+        reassigned to another triggerer (fixed in #73454), which stops a run the new triggerer
+        is still watching.
+        """
+        if not self.stop_job_run_on_kill or not self.run_id:
+            return
+        self.log.info("Stopping AWS Glue job %s run %s.", self.job_name, self.run_id)
+        async with await self.hook().get_async_conn() as client:
+            response = await client.batch_stop_job_run(JobName=self.job_name, JobRunIds=[self.run_id])
+        if response.get("Errors"):
+            self.log.error(
+                "Failed to stop AWS Glue job %s run %s: %s", self.job_name, self.run_id, response["Errors"]
+            )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         if not self.verbose:
@@ -105,7 +124,10 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         async with (
             await hook.get_async_conn() as glue_client,
             await AwsLogsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.region_name
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                config=self.botocore_config,
             ).get_async_conn() as logs_client,
         ):
             # Get log group names from job run metadata
@@ -144,7 +166,8 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                     )
                     return
 
-                if job_run_state in ("FAILED", "TIMEOUT"):
+                # STOPPED means the run was cancelled before it produced its output, not that it succeeded.
+                if job_run_state in ("FAILED", "TIMEOUT", "STOPPED", "ERROR"):
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -154,7 +177,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                         }
                     )
                     return
-                if job_run_state in ("SUCCEEDED", "STOPPED"):
+                if job_run_state == "SUCCEEDED":
                     self.log.info(
                         "Exiting Job %s Run %s State: %s",
                         self.job_name,
@@ -321,7 +344,14 @@ class GlueDataQualityRuleSetEvaluationRunCompleteTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = GlueDataQualityHook
 
     def __init__(
         self,
@@ -329,6 +359,9 @@ class GlueDataQualityRuleSetEvaluationRunCompleteTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={"evaluation_run_id": evaluation_run_id},
@@ -342,10 +375,10 @@ class GlueDataQualityRuleSetEvaluationRunCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return GlueDataQualityHook(aws_conn_id=self.aws_conn_id)
 
 
 class GlueDataQualityRuleRecommendationRunCompleteTrigger(AwsBaseWaiterTrigger):
@@ -356,7 +389,14 @@ class GlueDataQualityRuleRecommendationRunCompleteTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = GlueDataQualityHook
 
     def __init__(
         self,
@@ -364,6 +404,9 @@ class GlueDataQualityRuleRecommendationRunCompleteTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={"recommendation_run_id": recommendation_run_id},
@@ -377,7 +420,7 @@ class GlueDataQualityRuleRecommendationRunCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return GlueDataQualityHook(aws_conn_id=self.aws_conn_id)

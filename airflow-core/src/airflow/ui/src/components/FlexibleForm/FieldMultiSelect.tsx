@@ -16,21 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useState } from "react";
+
+import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
-  if (valuesDisplay && typeof valuesDisplay === "object") {
-    return valuesDisplay[key] ?? key;
-  }
-
-  return key;
-};
+const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string =>
+  valuesDisplay && typeof valuesDisplay === "object" ? (valuesDisplay[key] ?? key) : key;
 
 export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
@@ -71,6 +67,10 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
   return (
     <ReactSelect
       aria-label={translate("flexibleForm.placeholderMulti")}
+      chakraStyles={{
+        // Optical centering: the icon reads as sitting high next to lowercase labels without the nudge.
+        multiValueRemove: (provided) => ({ ...provided, alignSelf: "center", transform: "translateY(1px)" }),
+      }}
       id={`element_${name}`}
       isClearable
       isDisabled={disabled}

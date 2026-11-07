@@ -17,29 +17,33 @@
 
 /*
 Package sdk gives task functions access to the Airflow "model" (Variables,
-Connections, and XCom) at run time.
+Connections, XCom, and the per-task-instance state store) at run time.
 
-A task function does not construct a client itself. The runtime inspects the
-function's parameters and injects one by type, so you declare the narrowest
-interface you need and use it:
+A task function does not construct a client itself. It takes an
+[github.com/apache/airflow/go-sdk/airflow.Context] as its first parameter and
+gets the client from it:
 
-	func mytask(ctx context.Context, client sdk.Client, log *slog.Logger) error {
-		val, err := client.GetVariable(ctx, "my_variable")
+	func mytask(actx airflow.Context) error {
+		val, err := actx.Client().GetVariable(actx, "my_variable")
 		if err != nil {
 			return err
 		}
-		log.Info("got variable", "value", val)
+		actx.Logger().InfoContext(actx, "got variable", "value", val)
 		return nil
 	}
 
-Ask for [Client] for full access, or a narrower interface such as
-[VariableClient] or [ConnectionClient] when the task only reads one kind of
-object. The narrower type documents what the task touches and makes it easy to
-pass a fake in unit tests.
+[Client] combines the narrower [VariableClient], [ConnectionClient] and
+[XComClient]. A helper that only reads one kind of object can take the narrower
+interface. That documents what the helper touches and makes it easy to pass a
+fake in unit tests.
+
+[TaskStateStoreClient] keeps values across attempts of the same task instance,
+so a task can resume its progress after a retry.
 
 To publish a result, return a value from the task function: the runtime pushes
 it as the task's return-value XCom, so most tasks never call [XComClient]
 directly. Lookups that miss return a wrapped sentinel error ([VariableNotFound],
-[ConnectionNotFound], [XComNotFound]) you can test for with errors.Is.
+[ConnectionNotFound], [XComNotFound], [TaskStateNotFound]) you can test for with
+errors.Is.
 */
 package sdk

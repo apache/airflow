@@ -17,249 +17,94 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from unittest import mock
-
-from google.api_core.gapic_v1.method import DEFAULT
+import pytest
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
-from airflow.providers.google.cloud.operators.stackdriver import (
-    StackdriverDeleteAlertOperator,
-    StackdriverDeleteNotificationChannelOperator,
-    StackdriverDisableAlertPoliciesOperator,
-    StackdriverDisableNotificationChannelsOperator,
-    StackdriverEnableAlertPoliciesOperator,
-    StackdriverEnableNotificationChannelsOperator,
-    StackdriverListAlertPoliciesOperator,
-    StackdriverListNotificationChannelsOperator,
-    StackdriverUpsertAlertOperator,
-    StackdriverUpsertNotificationChannelOperator,
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.hooks import stackdriver as stackdriver_hook
+from airflow.providers.google.cloud.links import stackdriver as stackdriver_links
+from airflow.providers.google.cloud.operators import cloud_monitoring, stackdriver
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
+TEST_TASK_ID = "test-cloud-monitoring-operator"
+
+
+@pytest.mark.parametrize(
+    ("old_class", "new_class", "extra_kwargs"),
+    [
+        (
+            stackdriver.StackdriverListAlertPoliciesOperator,
+            cloud_monitoring.CloudMonitoringListAlertPoliciesOperator,
+            {},
+        ),
+        (
+            stackdriver.StackdriverEnableAlertPoliciesOperator,
+            cloud_monitoring.CloudMonitoringEnableAlertPoliciesOperator,
+            {},
+        ),
+        (
+            stackdriver.StackdriverDisableAlertPoliciesOperator,
+            cloud_monitoring.CloudMonitoringDisableAlertPoliciesOperator,
+            {},
+        ),
+        (
+            stackdriver.StackdriverUpsertAlertOperator,
+            cloud_monitoring.CloudMonitoringUpsertAlertOperator,
+            {"alerts": "{}"},
+        ),
+        (
+            stackdriver.StackdriverDeleteAlertOperator,
+            cloud_monitoring.CloudMonitoringDeleteAlertOperator,
+            {"name": "test-alert"},
+        ),
+        (
+            stackdriver.StackdriverListNotificationChannelsOperator,
+            cloud_monitoring.CloudMonitoringListNotificationChannelsOperator,
+            {},
+        ),
+        (
+            stackdriver.StackdriverEnableNotificationChannelsOperator,
+            cloud_monitoring.CloudMonitoringEnableNotificationChannelsOperator,
+            {},
+        ),
+        (
+            stackdriver.StackdriverDisableNotificationChannelsOperator,
+            cloud_monitoring.CloudMonitoringDisableNotificationChannelsOperator,
+            {},
+        ),
+        (
+            stackdriver.StackdriverUpsertNotificationChannelOperator,
+            cloud_monitoring.CloudMonitoringUpsertNotificationChannelOperator,
+            {"channels": "{}"},
+        ),
+        (
+            stackdriver.StackdriverDeleteNotificationChannelOperator,
+            cloud_monitoring.CloudMonitoringDeleteNotificationChannelOperator,
+            {"name": "test-channel"},
+        ),
+    ],
 )
+def test_deprecated_operator_warns_and_subclasses_new_operator(old_class, new_class, extra_kwargs):
+    with pytest.warns(AirflowProviderDeprecationWarning, match="CloudMonitoring"):
+        obj = old_class(task_id=TEST_TASK_ID, **extra_kwargs)
+    assert isinstance(obj, new_class)
 
-TEST_TASK_ID = "test-stackdriver-operator"
-TEST_FILTER = "filter"
-TEST_ALERT_POLICY_1 = {
-    "combiner": "OR",
-    "name": "projects/sd-project/alertPolicies/12345",
-    "enabled": True,
-    "display_name": "test display",
-    "conditions": [
-        {
-            "condition_threshold": {
-                "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignment_eriod": {"seconds": 60}, "per_series_aligner": "ALIGN_RATE"}],
-            },
-            "display_name": "Condition display",
-            "name": "projects/sd-project/alertPolicies/123/conditions/456",
-        }
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("StackdriverHook", stackdriver_hook.StackdriverHook),
+        ("StackdriverNotificationsLink", stackdriver_links.StackdriverNotificationsLink),
+        ("StackdriverPoliciesLink", stackdriver_links.StackdriverPoliciesLink),
+        ("GoogleCloudBaseOperator", GoogleCloudBaseOperator),
+        ("PROVIDE_PROJECT_ID", PROVIDE_PROJECT_ID),
+        ("AlertPolicy", AlertPolicy),
+        ("NotificationChannel", NotificationChannel),
+        ("DEFAULT", DEFAULT),
+        ("_MethodDefault", _MethodDefault),
     ],
-}
-
-TEST_ALERT_POLICY_2 = {
-    "combiner": "OR",
-    "name": "projects/sd-project/alertPolicies/6789",
-    "enabled": False,
-    "display_name": "test display",
-    "conditions": [
-        {
-            "condition_threshold": {
-                "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignment_period": {"seconds": 60}, "per_series_aligner": "ALIGN_RATE"}],
-            },
-            "display_name": "Condition display",
-            "name": "projects/sd-project/alertPolicies/456/conditions/789",
-        }
-    ],
-}
-
-TEST_NOTIFICATION_CHANNEL_1 = {
-    "displayName": "sd",
-    "enabled": True,
-    "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "name": "projects/sd-project/notificationChannels/12345",
-    "type": "slack",
-}
-
-TEST_NOTIFICATION_CHANNEL_2 = {
-    "displayName": "sd",
-    "enabled": False,
-    "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "name": "projects/sd-project/notificationChannels/6789",
-    "type": "slack",
-}
-
-
-class TestStackdriverListAlertPoliciesOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverListAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        mock_hook.return_value.list_alert_policies.return_value = [AlertPolicy(name="test-name")]
-        result = operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.list_alert_policies.assert_called_once_with(
-            project_id=None,
-            filter_=TEST_FILTER,
-            format_=None,
-            order_by=None,
-            page_size=None,
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-        assert result == [
-            {
-                "combiner": 0,
-                "conditions": [],
-                "display_name": "",
-                "name": "test-name",
-                "notification_channels": [],
-                "severity": 0,
-                "user_labels": {},
-            }
-        ]
-
-
-class TestStackdriverEnableAlertPoliciesOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverEnableAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.enable_alert_policies.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
-        )
-
-
-class TestStackdriverDisableAlertPoliciesOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverDisableAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.disable_alert_policies.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
-        )
-
-
-class TestStackdriverUpsertAlertsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverUpsertAlertOperator(
-            task_id=TEST_TASK_ID, alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]})
-        )
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.upsert_alert.assert_called_once_with(
-            alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]}),
-            project_id=None,
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-
-
-class TestStackdriverDeleteAlertOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverDeleteAlertOperator(
-            task_id=TEST_TASK_ID,
-            name="test-alert",
-        )
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.delete_alert_policy.assert_called_once_with(
-            name="test-alert", retry=DEFAULT, timeout=None, metadata=()
-        )
-
-
-class TestStackdriverListNotificationChannelsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverListNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        mock_hook.return_value.list_notification_channels.return_value = [
-            NotificationChannel(name="test-123")
-        ]
-
-        result = operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.list_notification_channels.assert_called_once_with(
-            project_id=None,
-            filter_=TEST_FILTER,
-            format_=None,
-            order_by=None,
-            page_size=None,
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-        # Depending on the version of google-apitools installed we might receive the response either with or
-        # without mutation_records.
-        assert result in [
-            [
-                {
-                    "description": "",
-                    "display_name": "",
-                    "labels": {},
-                    "name": "test-123",
-                    "type_": "",
-                    "user_labels": {},
-                    "verification_status": 0,
-                }
-            ],
-            [
-                {
-                    "description": "",
-                    "display_name": "",
-                    "labels": {},
-                    "mutation_records": [],
-                    "name": "test-123",
-                    "type_": "",
-                    "user_labels": {},
-                    "verification_status": 0,
-                }
-            ],
-        ]
-
-
-class TestStackdriverEnableNotificationChannelsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverEnableNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.enable_notification_channels.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
-        )
-
-
-class TestStackdriverDisableNotificationChannelsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverDisableNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.disable_notification_channels.assert_called_once_with(
-            project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
-        )
-
-
-class TestStackdriverUpsertChannelOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverUpsertNotificationChannelOperator(
-            task_id=TEST_TASK_ID,
-            channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
-        )
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.upsert_channel.assert_called_once_with(
-            channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
-            project_id=None,
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-
-
-class TestStackdriverDeleteNotificationChannelOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
-    def test_execute(self, mock_hook):
-        operator = StackdriverDeleteNotificationChannelOperator(
-            task_id=TEST_TASK_ID,
-            name="test-channel",
-        )
-        operator.execute(context=mock.MagicMock())
-        mock_hook.return_value.delete_notification_channel.assert_called_once_with(
-            name="test-channel", retry=DEFAULT, timeout=None, metadata=()
-        )
+)
+def test_names_re_exported_before_the_rename_are_still_importable(name, expected):
+    assert getattr(stackdriver, name) is expected

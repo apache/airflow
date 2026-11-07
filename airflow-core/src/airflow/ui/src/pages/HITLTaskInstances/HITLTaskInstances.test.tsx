@@ -22,6 +22,7 @@ import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
+
 import type * as SrcUtils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -33,6 +34,10 @@ import { HITLTaskInstances } from "./HITLTaskInstances";
 // `useSearchParams` is replaced with a function that returns a mutable
 // reference; tests update `mockSearchParams` before each `render` call.
 let mockSearchParams = new URLSearchParams();
+const mockConfig: Record<string, unknown> = { multi_team: false };
+// Populated by the `DataTable` stub on every render, so the column set the page
+// builds can be asserted without rendering a real table.
+let renderedColumns: Array<{ accessorKey?: string }> = [];
 
 vi.mock("react-i18next", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactI18Next>();
@@ -40,6 +45,7 @@ vi.mock("react-i18next", async (importOriginal) => {
   return {
     ...actual,
     useTranslation: () => ({
+      i18n: { language: "en" },
       // eslint-disable-next-line id-length
       t: (key: string) => key,
     }),
@@ -87,7 +93,15 @@ vi.mock("./HITLFilters", () => ({
 }));
 
 vi.mock("src/components/DataTable", () => ({
-  DataTable: () => null,
+  DataTable: ({ columns }: { columns: Array<{ accessorKey?: string }> }) => {
+    renderedColumns = columns;
+
+    return null;
+  },
+}));
+
+vi.mock("src/queries/useConfig", () => ({
+  useConfig: (key: string) => mockConfig[key],
 }));
 
 const { useTaskInstanceServiceGetHitlDetails } = await import("openapi/queries");
@@ -105,6 +119,8 @@ const lastListingCall = () => {
 };
 
 beforeEach(() => {
+  mockConfig.multi_team = false;
+  renderedColumns = [];
   vi.mocked(useTaskInstanceServiceGetHitlDetails).mockReturnValue(
     emptyHitlResponse as ReturnType<typeof useTaskInstanceServiceGetHitlDetails>,
   );
@@ -149,19 +165,20 @@ describe("HITLTaskInstances – mapIndex URL param handling (#66428)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// State filter: pending required-action rows park in either "deferred" (pre-3.3)
-// or "awaiting_input" (from 3.3). Filtering on unreceived responses must request
-// both states, otherwise awaiting_input rows are hidden from the listing.
+// State filter: pending required-action rows park in "deferred" (pre-3.3) or
+// "awaiting_input" (from 3.3), or are still "running" while the task checks for the
+// response before parking. Filtering on unreceived responses must request all three,
+// otherwise those rows are hidden from the listing.
 // ---------------------------------------------------------------------------
 describe("HITLTaskInstances – pending state filter", () => {
-  it("requests both deferred and awaiting_input when filtering for unreceived responses", () => {
+  it("requests deferred, awaiting_input and running when filtering for unreceived responses", () => {
     mockSearchParams = new URLSearchParams("response_received=false");
 
     render(<HITLTaskInstances />, { wrapper: Wrapper });
 
     const args = lastListingCall()?.[0] as { state?: Array<string> } | undefined;
 
-    expect(args?.state).toEqual(["deferred", "awaiting_input"]);
+    expect(args?.state).toEqual(["deferred", "awaiting_input", "running"]);
   });
 
   it("does not send a state filter when not filtering for unreceived responses", () => {
@@ -267,5 +284,51 @@ describe("HITLTaskInstances – auto-refresh predicate", () => {
     });
 
     expect(result).toBe(false);
+  });
+});
+
+const columnKeys = () => renderedColumns.map((column) => column.accessorKey);
+
+describe("HITLTaskInstances – team column", () => {
+  it("shows the team right after the Dag it belongs to when multi-team is enabled", () => {
+    mockConfig.multi_team = true;
+    mockSearchParams = new URLSearchParams();
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    const keys = columnKeys();
+
+    expect(keys).toContain("team_name");
+    expect(keys.indexOf("team_name")).toBe(keys.indexOf("task_instance.dag_id") + 1);
+  });
+
+  it("omits the team column when multi-team is disabled", () => {
+    mockSearchParams = new URLSearchParams();
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    expect(columnKeys()).not.toContain("team_name");
+  });
+});
+
+describe("HITLTaskInstances – team filter", () => {
+  it("sends the selected teams when the teams URL param is set", () => {
+    mockSearchParams = new URLSearchParams("teams=team-a&teams=team-b");
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    const args = lastListingCall()?.[0] as { teams?: Array<string> } | undefined;
+
+    expect(args?.teams).toEqual(["team-a", "team-b"]);
+  });
+
+  it("does not send a teams filter when the teams URL param is absent", () => {
+    mockSearchParams = new URLSearchParams();
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    const args = lastListingCall()?.[0] as { teams?: Array<string> } | undefined;
+
+    expect(args?.teams).toBeUndefined();
   });
 });

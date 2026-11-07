@@ -16,19 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as ChakraUI from "@chakra-ui/react";
-import * as EmotionReact from "@emotion/react";
+import { StrictMode } from "react";
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
-import React, { StrictMode } from "react";
-import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
-import * as ReactRouterDOM from "react-router-dom";
-import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
+
+import { pruneLegacyDependencyKeys, pruneLegacyTagFilterKeys } from "src/constants/localStorage";
 import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
 import { ShortcutRegistryProvider } from "src/context/keyboardShortcuts";
@@ -38,15 +36,6 @@ import { getNextHref, getRedirectPath } from "src/utils/links.ts";
 
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
-
-// Set React, ReactDOM, Chakra UI, and Emotion on globalThis so dynamically imported React
-// plugins (e.g. HITL Review) use the host's copies instead of bundling their own.
-Reflect.set(globalThis, "React", React);
-Reflect.set(globalThis, "ReactDOM", ReactDOM);
-Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
-Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
-Reflect.set(globalThis, "ChakraUI", ChakraUI);
-Reflect.set(globalThis, "EmotionReact", EmotionReact);
 
 // URLs that returned 403 Forbidden. Permissions won't change mid-session,
 // so we block further requests to avoid spamming the server with polling.
@@ -94,6 +83,9 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+pruneLegacyDependencyKeys();
+pruneLegacyTagFilterKeys();
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>

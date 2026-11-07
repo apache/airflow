@@ -18,16 +18,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
+    from airflow._shared.logging.remote import StreamingLogResponse
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
@@ -95,15 +93,6 @@ class LocalKubernetesExecutor(BaseExecutor):
     def _task_event_logs(self, value):
         """Not implemented for hybrid executors."""
 
-    @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
-        """Return queued tasks from local and kubernetes executor."""
-        return self.local_executor.queued_tasks | self.kubernetes_executor.queued_tasks
-
-    @queued_tasks.setter
-    def queued_tasks(self, value) -> None:
-        """Not implemented for hybrid executors."""
-
     @property  # type: ignore[override]
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from local and kubernetes executor."""
@@ -144,7 +133,7 @@ class LocalKubernetesExecutor(BaseExecutor):
     @property
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        return self.local_executor.slots_occupied + self.kubernetes_executor.slots_occupied
 
     def queue_command(
         self,
@@ -201,6 +190,12 @@ class LocalKubernetesExecutor(BaseExecutor):
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
         return [], []
 
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        """Fetch streaming task log from kubernetes executor."""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_streaming_task_log(ti=ti, try_number=try_number)
+        return [], []
+
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
         Check if a task is either queued or running in either local or kubernetes executor.
@@ -244,17 +239,6 @@ class LocalKubernetesExecutor(BaseExecutor):
             *self.local_executor.try_adopt_task_instances(local_tis),
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",  # ignoring since will get warning from the nested executors
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        # LocalExecutor doesn't have a cleanup_stuck_queued_tasks method, so we
-        # will only run KubernetesExecutor's
-        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
-        return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
 
     def revoke_task(self, *, ti: TaskInstance):
         if ti.queue == self.KUBERNETES_QUEUE:

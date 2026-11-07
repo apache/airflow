@@ -25,7 +25,10 @@ from functools import cached_property
 
 import boto3
 
-from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
+from airflow_breeze.global_constants import (
+    PACKAGES_METADATA_EXCLUDE_NAMES,
+    PACKAGES_METADATA_EXCLUDE_VERSIONS,
+)
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
@@ -34,10 +37,12 @@ PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 NON_SHORT_NAME_PACKAGES = [
     "apache-airflow",
     "apache-airflow-ctl",
+    "apache-airflow-mypy",
     "docker-stack",
     "helm-chart",
     "java-sdk",
     "task-sdk",
+    "ts-sdk",
 ]
 
 
@@ -75,6 +80,7 @@ class S3DocsPublish:
         overwrite: bool = False,
         parallelism: int = 1,
         skip_write_to_stable_folder: bool = False,
+        skip_packages_metadata: bool = False,
     ):
         self.source_dir_path = source_dir_path
         self.destination_location = destination_location
@@ -84,6 +90,7 @@ class S3DocsPublish:
         self.parallelism = parallelism
         self.source_dest_mapping: list[tuple[str, str]] = []
         self.skip_write_to_stable_folder = skip_write_to_stable_folder
+        self.skip_packages_metadata = skip_packages_metadata
 
     @cached_property
     def get_all_docs(self):
@@ -242,8 +249,8 @@ class S3DocsPublish:
             include_success_outputs=False,
         )
 
-        # Now generate the packages-metadata.json
-        self.generate_packages_metadata()
+        if not self.skip_packages_metadata:
+            self.generate_packages_metadata()
 
         # Add redirects to package folders
         [
@@ -317,15 +324,20 @@ class S3DocsPublish:
         console_print(f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n")
 
     def dump_docs_package_metadata(self, package_versions: dict[str, list[str]]):
-        all_packages_infos = [
-            {
-                "package-name": package_name,
-                "all-versions": (all_versions := self.get_latest_minor_versions(package_name, versions)),
-                "stable-version": all_versions[-1],
-            }
-            for package_name, versions in package_versions.items()
-        ]
-
+        all_packages_infos = []
+        for package_name, versions in package_versions.items():
+            all_versions = self.get_latest_minor_versions(package_name, versions)
+            # A package with only development builds, such as Java SDK snapshots, has no release yet.
+            if not all_versions:
+                console_print(f"[warning]No released versions of {package_name}; left out of the metadata\n")
+                continue
+            all_packages_infos.append(
+                {
+                    "package-name": package_name,
+                    "all-versions": all_versions,
+                    "stable-version": all_versions[-1],
+                }
+            )
         return all_packages_infos
 
     @staticmethod
@@ -335,7 +347,11 @@ class S3DocsPublish:
         console_print(f"[info]Getting package versions for {package_name} from:\n")
         console_print(versions)
         all_versions: list[Version] = []
+        excluded_versions = PACKAGES_METADATA_EXCLUDE_VERSIONS.get(package_name, [])
         for v in versions:
+            if v in excluded_versions:
+                console_print(f"[info]Skipping excluded version {package_name}/{v}\n")
+                continue
             try:
                 all_versions.append(Version(v))
             except ValueError as e:
@@ -396,6 +412,7 @@ class S3DocsPublish:
 SCHEMA_VERSION_FIELDS: dict[str, str] = {
     "execution-api": "info.version",
     "supervisor-schema": "api_version",
+    "dag": "version",
 }
 
 
@@ -477,6 +494,7 @@ def publish_schemas_to_s3(
     destination_location: str,
     execution_api_schema: pathlib.Path | None,
     supervisor_schema: pathlib.Path | None,
+    dag_schema: pathlib.Path | None = None,
     overwrite: bool = False,
     dry_run: bool = False,
 ) -> None:
@@ -492,9 +510,11 @@ def publish_schemas_to_s3(
         to_publish.append(("execution-api", execution_api_schema))
     if supervisor_schema:
         to_publish.append(("supervisor-schema", supervisor_schema))
+    if dag_schema:
+        to_publish.append(("dag", dag_schema))
 
     if not to_publish:
-        console_print("[error]No schema files provided. Pass --execution-api and/or --supervisor.\n")
+        console_print("[error]No schema files provided. Pass --execution-api, --supervisor and/or --dag.\n")
         sys.exit(1)
 
     uploaded_any = False

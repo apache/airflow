@@ -35,6 +35,7 @@ Available parameters to ``backend_kwargs``:
 
 * ``variables_file_path``: File location with variables data.
 * ``connections_file_path``: File location with connections data.
+* ``configs_file_path``: File location with configurations data.
 
 Here is a sample configuration:
 
@@ -42,7 +43,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.secrets.local_filesystem.LocalFilesystemBackend
-    backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json"}
+    backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json", "configs_file_path": "/files/config.json"}
 
 ``JSON``, ``YAML`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
 the backend returns an empty collection.
@@ -143,3 +144,47 @@ describe the variable value. The following is a sample file.
 
     VAR_A=some_value
     var_B=different_value
+
+Storing and Retrieving Configurations
+"""""""""""""""""""""""""""""""""""""
+
+If you have set ``configs_file_path`` as ``/files/my_config.json``, then the backend will read the
+file ``/files/my_config.json`` when it retrieves config options that are specified with appended ``_secret``.
+
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format.
+
+The JSON file must contain an object where the key contains config option ``_secret`` version value and the value
+contains config option value. The following are sample config options and a sample JSON file for these config options.
+Config options:
+
+  .. code-block:: ini
+
+      [database]
+      sql_alchemy_conn_secret = value_specified_in_database_sql_alchemy_conn_secret
+      [core]
+      fernet_key_secret = value_specified_in_core_fernet_key_secret
+
+JSON file:
+
+  .. code-block:: json
+
+    {
+        "value_specified_in_database_sql_alchemy_conn_secret": "sql_alchemy_conn_actual_value",
+        "value_specified_in_core_fernet_key_secret": "fernet_key_actual_value"
+    }
+
+The YAML file structure is similar to that of JSON, with key containing config option ``_secret`` version value
+and the value containing config option value. The following is a sample YAML file for the above config options example.
+
+  .. code-block:: yaml
+
+    value_specified_in_database_sql_alchemy_conn_secret: sql_alchemy_conn_actual_value
+    value_specified_in_core_fernet_key_secret: fernet_key_actual_value
+
+You can also define config options using a ``.env`` file. Then the key is the config option ``_secret`` version value,
+and the value should be the config option value. The following is a sample file for the above config options example.
+
+  .. code-block:: text
+
+    value_specified_in_database_sql_alchemy_conn_secret=sql_alchemy_conn_actual_value
+    value_specified_in_core_fernet_key_secret=fernet_key_actual_value

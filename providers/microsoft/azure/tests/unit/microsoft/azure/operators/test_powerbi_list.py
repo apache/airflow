@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, TaskDeferred, timezone
 from airflow.providers.microsoft.azure.operators.powerbi import (
     PowerBIDatasetListOperator,
     PowerBIWorkspaceListOperator,
@@ -33,12 +33,6 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
 )
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef]
-
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operators"

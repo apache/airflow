@@ -23,6 +23,7 @@
 
 - [Skill-Eval Harness](#skill-eval-harness)
   - [Prerequisites](#prerequisites)
+  - [Agent runtimes](#agent-runtimes)
   - [Usage](#usage)
   - [Cleanup](#cleanup)
   - [Adding cases](#adding-cases)
@@ -48,12 +49,49 @@ regular-file CLAUDE.md would make every arm read identical guidance.
 
 ## Prerequisites
 
-- **Authentication** (one of):
+- **Claude authentication** (one of):
   - Claude Code session (`claude /login`) — Pro/Max subscription
   - `ANTHROPIC_API_KEY` environment variable — API credits
+- **Codex authentication** (when using the Codex runtime): a Codex CLI
+  session (`codex login`)
 
-That's it — prek provisions Node, promptfoo, and the Claude Agent SDK
-automatically.
+That's it — prek provisions Node, promptfoo, and the agent SDKs automatically.
+
+## Agent runtimes
+
+Claude is the default runtime. The `run-skill-eval-codex` hook runs the same
+arms and cases through the official Codex SDK instead. The Codex provider uses
+a fresh thread for every prompt, read-only sandboxing, disabled network access,
+disabled session-history persistence, and the SDK's structured-output support.
+
+The two runtimes are separate hooks, not one hook with a flag, because the
+Codex env carries a ~300 MB Codex CLI binary. Keeping it separate means prek
+only builds that env for contributors who actually run the Codex arm. promptfoo
+bundles its own older `@openai/codex-sdk`, but that build ships a binary whose
+Developer ID certificate Apple has revoked — macOS kills it on exec and reports
+it as malware — so the Codex hook installs a notarized version explicitly.
+
+Codex caps the project docs it reads at `project_doc_max_bytes` and truncates
+past it, and the 32,768-byte default is smaller than `AGENTS.md`. The harness
+raises that cap so the whole file reaches the model — otherwise guidance
+appended at the end would be invisible to every arm and the eval would compare
+identical prefixes.
+
+When `SKILL_NAME` is set, both runtimes verify skill usage with promptfoo's
+`skill-used` assertion. The Codex SDK does not expose a first-class skill-use
+event, so promptfoo infers usage from successful reads of the skill's
+`SKILL.md` file.
+
+```bash
+# Default: Claude Agent SDK
+prek run run-skill-eval --hook-stage manual --all-files
+
+# Codex SDK, using its configured default model
+prek run run-skill-eval-codex --hook-stage manual --all-files
+
+# Codex SDK with an explicit model
+MODEL=gpt-5.4 prek run run-skill-eval-codex --hook-stage manual --all-files
+```
 
 ## Usage
 
@@ -125,8 +163,9 @@ Use `output.should_create` directly in assertions.
 1. Creates git worktrees — one with `main`'s AGENTS.md, one with
    your working tree version. Both are full repo checkouts.
 2. Generates a [promptfoo](https://github.com/promptfoo/promptfoo)
-   config with `anthropic:claude-agent-sdk` provider and
-   `output_format: json_schema` for structured output.
+   config for the selected runtime. Claude uses promptfoo's
+   `anthropic:claude-agent-sdk` provider; Codex uses its `openai:codex-sdk`
+   provider. Both request schema-constrained structured output.
 3. Runs each case against all arms in parallel.
 4. Reports pass/fail diff. Worktrees cleaned up on exit.
 

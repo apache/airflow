@@ -368,6 +368,28 @@ class TestPostConnection(TestConnectionEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            [{"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE}],
+            '{"connection_id": "a"}',
+            42,
+        ],
+        ids=["list", "string", "number"],
+    )
+    def test_post_should_respond_422_for_non_dict_json_body(self, test_client, session, body):
+        """The audit-log dependency reads the body before validation, so a non-object body still gets a 422."""
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body"]
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="post_connection",
+            logical_date=None,
+            expected_extra={"method": "POST"},
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         response = test_client.post(
@@ -985,6 +1007,93 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
+        autospec=True,
+        return_value=frozenset({"config", "extra__apprise__config"}),
+    )
+    @pytest.mark.parametrize("key", ["config", "extra__apprise__config"])
+    def test_patch_keeps_masked_provider_sensitive_extra(self, _, test_client, session, key):
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="apprise",
+                extra=json.dumps({key: "secret-config", "tag": "alerts"}),
+            )
+        )
+        session.commit()
+        masked_extra = test_client.get(f"/connections/{TEST_CONN_ID}").json()["extra"]
+        assert json.loads(masked_extra) == {key: "***", "tag": "alerts"}
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": "apprise",
+                "extra": json.dumps({key: "***", "tag": "updated"}),
+            },
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {key: "secret-config", "tag": "updated"}
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
+        autospec=True,
+        return_value=frozenset({"config", "extra__apprise__config"}),
+    )
+    def test_patch_does_not_carry_provider_sensitive_extra_to_another_type(self, _, test_client, session):
+        session.add(
+            Connection(conn_id=TEST_CONN_ID, conn_type="apprise", extra='{"config": "secret-config"}')
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "http", "extra": '{"config": "***"}'},
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {"config": "***"}
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
+        autospec=True,
+        return_value=frozenset({"config", "extra__apprise__config"}),
+    )
+    @pytest.mark.parametrize(
+        ("extra", "params"),
+        [
+            pytest.param({}, {}, id="extra-omitted"),
+            pytest.param(
+                {"extra": '{"config": "new"}'}, {"update_mask": ["conn_type"]}, id="extra-masked-out"
+            ),
+        ],
+    )
+    def test_patch_type_change_keeps_stored_provider_sensitive_extra_masked(
+        self, _, test_client, session, extra, params
+    ):
+        session.add(
+            Connection(conn_id=TEST_CONN_ID, conn_type="apprise", extra='{"config": "secret-config"}')
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "http", **extra},
+            params=params,
+        )
+
+        assert response.status_code == 200
+        assert response.json()["conn_type"] == "http"
+        assert json.loads(response.json()["extra"]) == {"config": "***"}
+        get_response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert json.loads(get_response.json()["extra"]) == {"config": "***"}
+
     def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
         """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
         self.create_connection()
@@ -1303,6 +1412,52 @@ class TestConnection(TestConnectionEndpoint):
         assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
         assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
 
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
+        autospec=True,
+        return_value=frozenset({"path", "extra__fs__path"}),
+    )
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_masked_provider_sensitive_extra_of_existing_connection(
+        self, _, test_client, session
+    ):
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type="fs", extra='{"path": "/secret"}'))
+        session.commit()
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
+
+        body = {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "***"}'}
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(captured_extra["value"]) == {"path": "/secret"}
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
+        autospec=True,
+        return_value=frozenset({"path", "extra__fs__path"}),
+    )
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_not_reuse_provider_sensitive_extra_for_another_type(self, _, test_client, session):
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type="fs", extra='{"path": "/secret"}'))
+        session.commit()
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
+
+        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", "extra": '{"path": "***"}'}
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(captured_extra["value"]) == {"path": "***"}
+
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_merge_both_password_and_extra(self, test_client, session):
         connection = Connection(
@@ -1414,6 +1569,99 @@ class TestConnection(TestConnectionEndpoint):
         assert tested_connection.password == expected_password
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_stored_extra_when_host_and_port_are_blank(self, test_client, session):
+        """Hidden unused host/port (None vs "") must not skip restoring masked extra."""
+        stored_path = "/real.pem"
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="snowflake",
+                host=None,
+                port=None,
+                extra=json.dumps({"private_key_file": stored_path, "account": "acct"}),
+            )
+        )
+        session.commit()
+
+        captured = {}
+
+        def mock_test_connection(self):
+            captured["extra"] = self.extra
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "snowflake",
+            "host": "",
+            "password": "***",
+            "extra": json.dumps({"private_key_file": "***", "account": "acct"}),
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(captured["extra"])["private_key_file"] == stored_path
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_stored_credentials_when_the_ui_sends_port_zero(self, test_client, session):
+        """The UI builds its body with ``Number(port)``, so a stored NULL port arrives as 0."""
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host=None,
+                port=None,
+                password="stored_password",
+            )
+        )
+        session.commit()
+
+        def mock_test_connection(self):
+            return True, "mocked"
+
+        # Exactly what TestConnectionButton.tsx sends for a connection with no host or port.
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "host": "",
+            "port": 0,
+            "password": "***",
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200, response.json()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reject_overridden_target_when_password_is_masked(self, test_client, session):
+        """A masked password is not caller-supplied credentials for a new destination."""
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host="stored_host",
+                port=1234,
+                password="existing_password",
+            )
+        )
+        session.commit()
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "host": "other_host",
+            "password": "***",
+        }
+        with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
+            mock_test.return_value = (True, "mocked")
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 400
+        mock_test.assert_not_called()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_test_new_connection_without_existing(self, test_client):
         body = {
             "connection_id": "non_existent_conn",
@@ -1494,6 +1742,27 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         ct = session.scalar(select(ConnectionTestRequest).filter_by(token=token))
         assert ct is not None
         assert ct.commit_on_success is True
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_commit_on_success_new_connection_is_create_only(self, test_client, session):
+        """A commit_on_success test for a connection that does not exist yet may only create it."""
+        body = {**self.TEST_REQUEST_BODY, "commit_on_success": True}
+        response = test_client.post("/connections/enqueue-test", json=body)
+        assert response.status_code == 202
+
+        ct = session.scalar(select(ConnectionTestRequest).filter_by(token=response.json()["token"]))
+        assert ct.commit_allows_update is False
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_commit_on_success_existing_connection_allows_update(self, test_client, session):
+        """A commit_on_success test for an existing connection, authorized for edit, may update it."""
+        self.create_connection()
+        body = {**self.TEST_REQUEST_BODY, "commit_on_success": True}
+        response = test_client.post("/connections/enqueue-test", json=body)
+        assert response.status_code == 202
+
+        ct = session.scalar(select(ConnectionTestRequest).filter_by(token=response.json()["token"]))
+        assert ct.commit_allows_update is True
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.get_auth_manager", autospec=True)
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
@@ -1617,16 +1886,15 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert response.status_code == 422
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_get_status_unauthorized_user_does_not_leak_row(
-        self, test_client, unauthorized_test_client, session
-    ):
+    def test_get_status_unauthorized_user_does_not_leak_row(self, test_client, unauthorized_headers, session):
         """A user without rights on the conn_id never sees the row payload via GET-by-token."""
         post_response = test_client.post("/connections/enqueue-test", json=self.TEST_REQUEST_BODY)
         assert post_response.status_code == 202
         token = post_response.json()["token"]
 
-        response = unauthorized_test_client.get(
-            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": token}
+        response = test_client.get(
+            "/connections/enqueue-test",
+            headers={**unauthorized_headers, "Airflow-Connection-Test-Token": token},
         )
         assert response.status_code in (401, 403, 404)
         body = (
@@ -1683,6 +1951,14 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
         assert response.status_code == 204
         assert response.content == b""
         _check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_respond_204_in_multi_team_mode(self, test_client, session):
+        """The route declares no body model, so the team-scoping dependency's read is the only
+        parse of the body: a correct bodyless request must not be rejected as unparsable."""
+        response = test_client.post("/connections/defaults")
+        assert response.status_code == 204
+        assert response.content == b""
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/connections/defaults")

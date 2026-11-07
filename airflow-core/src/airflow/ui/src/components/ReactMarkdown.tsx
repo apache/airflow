@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Children, isValidElement } from "react";
+import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
+
 import {
   Box,
   Code,
@@ -28,8 +31,6 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { Children, isValidElement } from "react";
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 import ReactMD from "react-markdown";
 import type { Components, Options } from "react-markdown";
 import remarkGfm from "remark-gfm";

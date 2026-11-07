@@ -89,7 +89,7 @@ This file contains several service definitions:
 - ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and Dags, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-dag-processor`` - The Dag processor parses Dag files.
-- ``airflow-api-server`` - The api server is available at ``http://localhost:8080``.
+- ``airflow-api-server`` - The API server is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
 - ``airflow-init`` - The initialization service.
@@ -247,7 +247,7 @@ You can also run :doc:`CLI commands <../usage-cli>`, but you have to do it in on
 
     docker compose run airflow-worker airflow info
 
-If you have Linux or Mac OS, you can make your work easier and download a optional wrapper scripts that will allow you to run commands with a simpler command.
+If you have Linux or Mac OS, you can make your work easier and download an optional wrapper script that will allow you to run commands with a simpler command.
 
 .. jinja:: quick_start_ctx
 
@@ -278,7 +278,7 @@ Accessing the web interface
 
 Once the cluster has started up, you can log in to the web interface and begin experimenting with Dags.
 
-The webserver is available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080`` (or the port set in ``AIRFLOW_API_SERVER_PORT``).
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Sending requests to the REST API
@@ -387,7 +387,7 @@ If you have a custom config file and wish to use it in your Airflow instance, yo
 Networking
 ==========
 
-In general, if you want to use Airflow locally, your Dags may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
+In general, if you want to use Airflow locally, your Dags may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation on `Docker Desktop networking <https://docs.docker.com/desktop/features/networking/networking-how-tos/>`_ for further information.
 
 Debug Airflow inside docker container using PyCharm
 ===================================================
@@ -466,13 +466,15 @@ runtime user id which is unknown at the time of building the image.
 +================================+=====================================================+==========================+
 | ``AIRFLOW_IMAGE_NAME``         | Airflow Image to use.                               | apache/airflow:|version| |
 +--------------------------------+-----------------------------------------------------+--------------------------+
+| ``AIRFLOW_API_SERVER_PORT``    | Host port the API server is published on.           | ``8080``                 |
++--------------------------------+-----------------------------------------------------+--------------------------+
 | ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
 |                                | Override if you want to use non-default Airflow     |                          |
 |                                | UID (for example when you map folders from host,    |                          |
 |                                | it should be set to result of ``id -u`` call.       |                          |
 |                                | When it is changed, a user with the UID is          |                          |
 |                                | created with ``default`` name inside the container  |                          |
-|                                | and home of the use is set to ``/airflow/home/``    |                          |
+|                                | and home of the user is set to ``/airflow/home/``   |                          |
 |                                | in order to share Python libraries installed there. |                          |
 |                                | This is in order to achieve the  OpenShift          |                          |
 |                                | compatibility. See more in the                      |                          |

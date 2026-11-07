@@ -65,7 +65,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
                 "to a less-restrictive secrets backend."
             )
 
-    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:  # type: ignore[override]
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
         Return connection object by routing through SUPERVISOR_COMMS.
 
@@ -126,7 +126,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Extract value from VariableResult
             if isinstance(msg, VariableResult):
-                return msg.value  # Already a string | None
+                return msg.value
             return None
         except AirflowSecretsBackendAccessDenied:
             raise
@@ -135,7 +135,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             # to allow fallback to other backends.
             return None
 
-    async def aget_connection(self, conn_id: str) -> Connection | None:  # type: ignore[override]
+    async def aget_connection(self, conn_id: str) -> Connection | None:
         """
         Return connection object asynchronously via SUPERVISOR_COMMS.
 
@@ -187,7 +187,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Extract value from VariableResult
             if isinstance(msg, VariableResult):
-                return msg.value  # Already a string | None
+                return msg.value
             return None
         except AirflowSecretsBackendAccessDenied:
             raise

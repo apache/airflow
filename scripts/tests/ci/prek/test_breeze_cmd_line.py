@@ -24,11 +24,11 @@ from ci.prek.breeze_cmd_line import BREEZE_SOURCES_DIR, breeze_env_with_local_so
 
 
 class TestBreezeEnvWithLocalSources:
-    """The hook must run breeze against the local worktree sources, not a stale cached build.
+    """The hook must run breeze against the local worktree sources, not another checkout's.
 
-    The ``breeze`` shim (ADR 0017) runs from a uvx cache that does not always reflect
-    uncommitted ``dev/breeze`` edits. Prepending the local sources to ``PYTHONPATH``
-    makes the in-process command-hash / option-group computation use the current code.
+    A legacy global breeze install stays bound to the checkout it was installed from.
+    Prepending the local sources to ``PYTHONPATH`` makes the in-process command-hash /
+    option-group computation use the current worktree's code.
     """
 
     def test_sets_pythonpath_to_breeze_sources_when_unset(self, monkeypatch):
@@ -40,7 +40,7 @@ class TestBreezeEnvWithLocalSources:
         existing = f"/some/path{os.pathsep}/other/path"
         monkeypatch.setenv("PYTHONPATH", existing)
         env = breeze_env_with_local_sources()
-        # Local breeze sources must come first so they win over the cached build.
+        # Local breeze sources must come first so they win over any other install.
         assert env["PYTHONPATH"] == f"{BREEZE_SOURCES_DIR}{os.pathsep}{existing}"
         assert env["PYTHONPATH"].split(os.pathsep)[0] == str(BREEZE_SOURCES_DIR)
 

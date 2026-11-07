@@ -84,6 +84,8 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         "google_impersonation_chain",
         "gcp_user_project",
         "match_glob",
+        "gcp_conn_id",
+        "wasb_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -131,9 +133,9 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
                 self._is_match_glob_supported = False
         except ImportError:
             self._is_match_glob_supported = False
-        if not self._is_match_glob_supported and match_glob:
-            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
         self.match_glob = match_glob
+        if not self._is_match_glob_supported and match_glob is not None:
+            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
 
     def _transform_file_path(self, file_path: str) -> str:
         """

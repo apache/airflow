@@ -21,13 +21,19 @@ readonly DOCKERHUB_USER
 DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 readonly DOCKERHUB_REPO
 
-PGBOUNCER_EXPORTER_VERSION="0.18.0"
+PGBOUNCER_EXPORTER_VERSION="0.21.0"
 readonly PGBOUNCER_EXPORTER_VERSION
+# The commit that PGBOUNCER_EXPORTER_VERSION's tag pointed at when it was reviewed. The image
+# is built from this commit, not from the tag: tags on the upstream repository are mutable and
+# can be moved to different content without this file changing. Update both together, and
+# re-check the diff upstream when you do.
+PGBOUNCER_EXPORTER_COMMIT_SHA="9e444947e9f21df7a4e120156a1e3fa5fae26b4a"
+readonly PGBOUNCER_EXPORTER_COMMIT_SHA
 
-AIRFLOW_PGBOUNCER_EXPORTER_VERSION="2026.04.17"
+AIRFLOW_PGBOUNCER_EXPORTER_VERSION="2026.10.13"
 readonly AIRFLOW_PGBOUNCER_EXPORTER_VERSION
 
-EXPECTED_GO_VERSION="1.23.7"
+EXPECTED_GO_VERSION="1.27.2"
 readonly EXPECTED_GO_VERSION
 
 COMMIT_SHA=$(git rev-parse HEAD)
@@ -58,6 +64,7 @@ docker buildx build . \
     --pull \
     --push \
     --build-arg "PGBOUNCER_EXPORTER_VERSION=${PGBOUNCER_EXPORTER_VERSION}" \
+    --build-arg "PGBOUNCER_EXPORTER_COMMIT_SHA=${PGBOUNCER_EXPORTER_COMMIT_SHA}" \
     --build-arg "AIRFLOW_PGBOUNCER_EXPORTER_VERSION=${AIRFLOW_PGBOUNCER_EXPORTER_VERSION}"\
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
     --build-arg "GO_VERSION=${EXPECTED_GO_VERSION}" \

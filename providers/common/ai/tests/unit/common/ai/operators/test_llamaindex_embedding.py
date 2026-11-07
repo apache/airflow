@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Installed only in the agent framework CI job (scripts/in_container/run_agent_framework_tests.sh).
 pytest.importorskip("llama_index.core")
 
 from llama_index.core import MockEmbedding
@@ -30,12 +31,7 @@ from airflow.providers.common.ai.operators.llamaindex_embedding import LlamaInde
 
 @pytest.fixture
 def _li(monkeypatch):
-    """Patch the two LlamaIndex constructors the operator uses inside execute().
-
-    ``llama_index`` (core + openai embeddings) is a real test dependency
-    declared in ``providers/common/ai/pyproject.toml``'s dev group, so
-    ``@patch("llama_index.core.X")`` resolves against the real module.
-    """
+    """Patch the two LlamaIndex constructors the operator uses inside execute()."""
     VectorStoreIndex = MagicMock(name="VectorStoreIndex")
     SentenceSplitter = MagicMock(name="SentenceSplitter")
     monkeypatch.setattr("llama_index.core.VectorStoreIndex", VectorStoreIndex)
@@ -73,6 +69,7 @@ class TestEmbeddingOperatorInit:
             "embed_model",
             "llm_conn_id",
             "embed_conn_id",
+            "embedding_kwargs",
             "persist_dir",
             "persist_conn_id",
         }
@@ -113,6 +110,7 @@ class TestEmbeddingOperatorExecute:
             embed_model="text-embedding-3-small",
             llm_conn_id="my_llm_conn",
             embed_conn_id="my_embed_conn",
+            embedding_kwargs={"dimensions": 128},
         )
         op.execute(context=MagicMock())
 
@@ -120,9 +118,17 @@ class TestEmbeddingOperatorExecute:
             llm_conn_id="my_llm_conn",
             embed_conn_id="my_embed_conn",
             embed_model="text-embedding-3-small",
+            embedding_kwargs={"dimensions": 128},
         )
 
-    def test_byo_embed_model_bypasses_hook(self, _li):
+    @pytest.mark.parametrize(
+        ("embedding_kwargs", "expect_warning"),
+        [
+            (None, False),
+            ({"dimensions": 128}, True),
+        ],
+    )
+    def test_byo_embed_model_bypasses_hook(self, _li, caplog, embedding_kwargs, expect_warning):
         # `embed_model` is a non-string instance -> hook is bypassed and the
         # user's instance does the embedding.
         byo = _byo_embedding(vectors=[[0.5]])
@@ -132,11 +138,14 @@ class TestEmbeddingOperatorExecute:
             task_id="test",
             documents=[{"text": "doc"}],
             embed_model=byo,
+            embedding_kwargs=embedding_kwargs,
         )
         result = op.execute(context=MagicMock())
 
         byo.get_text_embedding_batch.assert_called_once()
         assert result["chunks"][0]["vector"] == [0.5]
+        warning = "embedding_kwargs is ignored when embed_model is a pre-built embedding model"
+        assert any(warning in record.message for record in caplog.records) is expect_warning
 
     def test_invalid_embed_model_raises_typeerror(self, _li):
         # An object that's neither None/str nor duck-types as BaseEmbedding
@@ -147,7 +156,7 @@ class TestEmbeddingOperatorExecute:
         op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc"}],
-            embed_model=12345,  # type: ignore[arg-type]
+            embed_model=12345,
         )
         with pytest.raises(TypeError, match="embed_model must be"):
             op.execute(context=MagicMock())
@@ -274,7 +283,7 @@ class TestEmbeddingOperatorPersist:
         nodes_arg = _li["VectorStoreIndex"].call_args.args[0]
         assert nodes_arg[0].embedding == [0.1]
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_uri_persist_dir_uses_object_storage_path(self, mock_get_embed, mock_osp_cls, _li):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``

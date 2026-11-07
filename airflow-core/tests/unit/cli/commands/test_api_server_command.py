@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import ssl
+import subprocess
 import sys
 from unittest import mock
 
@@ -34,6 +36,22 @@ console = Console(width=400, color_system="standard")
 @pytest.mark.db_test
 class TestCliApiServer(_CommonCLIUvicornTestClass):
     main_process_regexp = r"airflow api-server"
+
+    def test_uses_worker_timeout_config_as_cli_default(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from airflow.cli.cli_parser import get_parser; "
+                "print(f\"worker_timeout={get_parser().parse_args(['api-server']).worker_timeout!r}\")",
+            ],
+            env={**os.environ, "AIRFLOW__API__WORKER_TIMEOUT": "321"},
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        assert "worker_timeout=321" in result.stdout.splitlines()
 
     @pytest.mark.parametrize(
         "args",
@@ -158,8 +176,28 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "ssl_certfile": "ssl_cert_path_placeholder",
                     "ssl_ca_certs": "ssl_ca_file_placeholder",
                     "ssl_cert_reqs": ssl.CERT_REQUIRED,
+                    "ssl_ciphers": None,
                 },
                 id="api-server with SSL cert and key",
+            ),
+            pytest.param(
+                [
+                    "api-server",
+                    "--ssl-cert",
+                    "ssl_cert_path_placeholder",
+                    "--ssl-key",
+                    "ssl_key_path_placeholder",
+                    "--ssl-ciphers",
+                    "ECDHE-RSA-AES256-GCM-SHA384",
+                ],
+                {
+                    "ssl_keyfile": "ssl_key_path_placeholder",
+                    "ssl_certfile": "ssl_cert_path_placeholder",
+                    "ssl_ca_certs": None,
+                    "ssl_cert_reqs": ssl.CERT_NONE,
+                    "ssl_ciphers": "ECDHE-RSA-AES256-GCM-SHA384",
+                },
+                id="api-server with SSL ciphers",
             ),
             pytest.param(
                 [
@@ -172,6 +210,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "ssl_certfile": None,
                     "ssl_ca_certs": None,
                     "ssl_cert_reqs": ssl.CERT_NONE,
+                    "ssl_ciphers": None,
                     "log_config": "my_log_config.yaml",
                 },
                 id="api-server with log config",
@@ -261,6 +300,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             ssl_certfile=None,
             ssl_ca_certs=None,
             ssl_cert_reqs=ssl.CERT_NONE,
+            ssl_ciphers=None,
             access_log=False,
             log_level="info",
             proxy_headers=False,
@@ -341,6 +381,27 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path), "--ssl-ca-file", str(ca_path)]
         )
         assert api_server_command._get_ssl_filepaths(args) == (str(cert_path), str(key_path), str(ca_path))
+
+    @pytest.mark.parametrize(
+        ("ssl_arguments", "expected"),
+        [
+            pytest.param([], None, id="unset"),
+            pytest.param(["--ssl-ciphers", ""], None, id="empty string"),
+            pytest.param(
+                ["--ssl-ciphers", "ECDHE-RSA-AES256-GCM-SHA384"],
+                "ECDHE-RSA-AES256-GCM-SHA384",
+                id="valid cipher list",
+            ),
+        ],
+    )
+    def test_ssl_ciphers(self, ssl_arguments, expected):
+        args = self.parser.parse_args(["api-server"] + ssl_arguments)
+        assert api_server_command._ssl_ciphers(args) == expected
+
+    def test_ssl_ciphers_rejects_unusable_cipher_list(self):
+        args = self.parser.parse_args(["api-server", "--ssl-ciphers", "NOT-A-REAL-CIPHER"])
+        with pytest.raises(AirflowConfigException, match="Invalid ssl_ciphers option 'NOT-A-REAL-CIPHER'"):
+            api_server_command._ssl_ciphers(args)
 
     @pytest.fixture
     def ssl_cert_key_and_ca(self, tmp_path):

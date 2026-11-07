@@ -56,7 +56,7 @@ class FlinkKubernetesOperator(BaseOperator):
         If not specified, default value is ``~/.kube/config``
     """
 
-    template_fields: Sequence[str] = ("application_file", "namespace")
+    template_fields: Sequence[str] = ("application_file", "namespace", "kubernetes_conn_id")
     template_ext: Sequence[str] = (".yaml", ".yml", ".json")
     ui_color = "#f4a460"
 

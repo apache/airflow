@@ -25,12 +25,12 @@
 
 ## Introduction
 
-This chart will bootstrap an [Airflow](https://airflow.apache.org) deployment on a [Kubernetes](http://kubernetes.io)
+This chart will bootstrap an [Airflow](https://airflow.apache.org) deployment on a [Kubernetes](https://kubernetes.io)
 cluster using the [Helm](https://helm.sh) package manager.
 
 ## Requirements
 
-- Kubernetes 1.30+ cluster
+- Kubernetes 1.31+ cluster
 - Helm 3.0+
 - PV provisioner support in the underlying infrastructure (optionally)
 

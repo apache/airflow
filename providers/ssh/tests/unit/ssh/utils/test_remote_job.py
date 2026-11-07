@@ -21,10 +21,12 @@ import base64
 import contextlib
 import os
 import pty
+import re
 import select
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -45,6 +47,39 @@ from airflow.providers.ssh.utils.remote_job import (
     build_windows_wrapper_command,
     generate_job_id,
 )
+
+# PowerShell ends a single-quoted string at any of these; a doubled one stands for itself.
+_PS_QUOTES = "'\u2018\u2019\u201a\u201b"
+
+
+def _decode(cmd: str) -> str:
+    return base64.b64decode(cmd.split("-EncodedCommand ")[1]).decode("utf-16-le")
+
+
+def _read_ps_single_quoted(text: str) -> tuple[str, str]:
+    """Read the PowerShell single-quoted string at the start of ``text``; return (value, rest)."""
+    assert text[0] in _PS_QUOTES, f"not a single-quoted string: {text[:40]!r}"
+    value, i = [], 1
+    while i < len(text):
+        if text[i] in _PS_QUOTES:
+            if i + 1 < len(text) and text[i + 1] in _PS_QUOTES:
+                value.append(text[i + 1])
+                i += 2
+                continue
+            return "".join(value), text[i + 1 :]
+        value.append(text[i])
+        i += 1
+    raise AssertionError("unterminated single-quoted string")
+
+
+def _eval_ps_path(expr: str, env: dict[str, str]) -> str:
+    """Evaluate a path expression the Windows builders emit: ``'...'`` or ``($env:NAME + '...')``."""
+    if expr.startswith("($env:"):
+        name, rest = expr[len("($env:") :].split(" + ", 1)
+        value, rest = _read_ps_single_quoted(rest)
+        assert rest.startswith(")")
+        return env[name] + value
+    return _read_ps_single_quoted(expr)[0]
 
 
 class TestGenerateJobId:
@@ -125,8 +160,8 @@ class TestBuildPosixWrapperCommand:
             environment={"MY_VAR": "my_value", "OTHER": "test"},
         )
 
-        assert "export MY_VAR='my_value'" in wrapper
-        assert "export OTHER='test'" in wrapper
+        assert "export MY_VAR=my_value" in wrapper
+        assert "export OTHER=test" in wrapper
 
     def test_escapes_quotes(self):
         """Test that single quotes in command are escaped."""
@@ -158,11 +193,9 @@ class TestBuildWindowsWrapperCommand:
 
         assert "powershell.exe" in wrapper
         assert "-EncodedCommand" in wrapper
-        # Decode and verify script content
-        encoded_script = wrapper.split("-EncodedCommand ")[1]
-        decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
+        decoded_script = _decode(wrapper)
         assert "New-Item -ItemType Directory" in decoded_script
-        assert "Start-Process" in decoded_script
+        assert "Win32_Process" in decoded_script
 
     def test_with_environment(self):
         """Test Windows wrapper with environment variables."""
@@ -174,6 +207,105 @@ class TestBuildWindowsWrapperCommand:
         )
         assert wrapper is not None
         assert "-EncodedCommand" in wrapper
+
+    def test_command_reaches_its_script_verbatim(self):
+        """The command is written to cmd.ps1 as a quoted literal, so no character in it is special."""
+        command = "python -c \"print(1+1)\"\n$s = @'\nline\n'@\nWrite-Output `$done \u2019q $(hostname)"
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command(command, paths))
+
+        parsed, rest = _read_ps_single_quoted(script.split('WriteAllText("$d\\cmd.ps1", ', 1)[1])
+        assert parsed == command
+        assert rest.startswith(", ")
+
+    def test_job_script_runs_without_file_so_policy_cannot_block_it(self):
+        """-File is refused under a signed-only Group Policy; the job script is run as a script block."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        assert "-File" not in script
+        assert "[scriptblock]::Create([IO.File]::ReadAllText(" in script
+
+    def test_log_stays_readable_and_gets_every_stream(self):
+        """Add-Content locks the log until the command ends, and 2>&1 alone drops Write-Host."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        assert "[System.IO.FileStream]::new($logPath, 'Append', 'Write', 'ReadWrite')" in script
+        assert "$log.AutoFlush = $true" in script
+        assert "Add-Content" not in script
+        pipeline = script.split('& "$b\\cmd.ps1" *>&1 |', 1)[1].split("$ec = ", 1)[0]
+        assert '[System.Management.Automation.ErrorRecord]) { "$_" }' in pipeline
+        assert (
+            pipeline.index("ErrorRecord") < pipeline.index("Out-String -Stream") < pipeline.index("WriteLine")
+        )
+
+    def test_environment_cannot_redirect_the_log(self):
+        """The writer opens a local path, so an environment entry named LOG_FILE changes nothing."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths, environment={"LOG_FILE": "C:\\x"}))
+
+        assert script.index('$logPath = "$b\\stdout.log"') < script.index("$env:LOG_FILE = 'C:\\x'")
+        assert "FileStream]::new($logPath," in script
+
+    def test_exit_code_is_written_however_the_command_ends(self):
+        """exit, throw and parse errors all reach finally; a negative code is recorded unsigned."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        before_try, rest = script.split("\ntry {\n", 1)
+        try_block, rest = rest.split("\n} catch {\n", 1)
+        catch_block, finally_block = rest.split("\n} finally {\n", 1)
+        # Fails unless the command reaches its own assignment, so a throw cannot pass as 0.
+        assert before_try.rstrip().endswith("$ec = 1")
+        assert '& "$b\\cmd.ps1"' in try_block
+        assert "$ec = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }" in try_block
+        assert "$log.WriteLine" in catch_block
+        assert finally_block.index("if ($ec -lt 0) { $ec += 4294967296 }") < finally_block.index("exit_code")
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("it\u2019s $HOME and $(hostname)", id="quotes-and-expansions"),
+            pytest.param("a\n'@\nb\n\u2019@", id="here-string-terminators"),
+        ],
+    )
+    def test_environment_value_is_literal(self, value):
+        """Values are single-quoted, typographic quotes included, so nothing expands or ends the script."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths, environment={"MY_VAR": value}))
+
+        parsed, rest = _read_ps_single_quoted(script.split("$env:MY_VAR = ", 1)[1])
+        assert parsed == value
+        assert rest.startswith(";")
+        job_script = script.split("@'\n", 1)[1]
+        assert re.findall(f"^[{_PS_QUOTES}]@", job_script, re.M) == ["'@"]
+
+    def test_job_starts_in_the_ssh_session_directory(self):
+        """Without a working directory, Win32_Process.Create starts the job in System32."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        assert ", $PWD.ProviderPath, $null)" in script
+
+    def test_setup_failure_fails_submission(self):
+        """A failed setup step or Create must stop the wrapper before it reports a job id."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        assert script.startswith("$ErrorActionPreference = 'Stop'\n")
+        assert 'trap { [Console]::Error.WriteLine("$_"); exit 1 }' in script
+        check = script.index("if ($p.ReturnValue -ne 0)")
+        assert check < script.index("exit 1", check) < script.index("Write-Output 'test_job'")
+        assert script.index("exit 1", check) < script.index('"$d\\pid"')
 
 
 class TestLogTailCommands:
@@ -194,6 +326,10 @@ class TestLogTailCommands:
         decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
         assert "Seek(100" in decoded_script
         assert "1024" in decoded_script
+        # Printed as a string, the chunk would be re-encoded in the SSH session's console code
+        # page, which the trigger's strict UTF-8 decoding rejects; write the bytes instead.
+        assert "[Console]::OpenStandardOutput()" in decoded_script
+        assert "$out.Write($bytes, 0, $bytes.Length)" in decoded_script
 
 
 class TestFileSizeCommands:
@@ -236,7 +372,7 @@ class TestKillCommands:
     def test_posix_kill_signals_process_group_then_falls_back(self):
         """POSIX kill targets the process group first, then a single PID as fallback."""
         cmd = build_posix_kill_command("/tmp/pid")
-        assert "cat '/tmp/pid'" in cmd
+        assert "cat /tmp/pid" in cmd
         # Negative PID => signal the whole process group (kills the job's children too)
         assert 'kill -TERM -"$p"' in cmd
         # Fallback for jobs that are not group leaders (host without setsid)
@@ -305,15 +441,39 @@ class TestPosixKillBehaviour:
             if pid_text:
                 break
             time.sleep(0.02)
-        assert pid_text, "job never wrote its pid file"
+        # Say which half failed. The wrapper creates the job dir and log file before it
+        # backgrounds anything, so their absence means the launcher never got that far,
+        # while an empty job dir means the job was launched and then died before its first
+        # statement. A bare "no pid file" cannot tell those apart.
+        job_dir = Path(paths.job_dir)
+        state = (
+            f"job dir holds {sorted(p.name for p in job_dir.iterdir())}"
+            if job_dir.exists()
+            else "job dir was never created (launcher did not run)"
+        )
+        assert pid_text, f"job never wrote its pid file; {state}"
         return int(pid_text)
 
     @staticmethod
-    def _run_bash_mc_under_pty(script: str, marker: bytes, timeout: float = 8.0) -> None:
+    def _run_bash_mc_under_pty(
+        script: str,
+        marker: bytes,
+        detached: Callable[[], bool] | None = None,
+        timeout: float = 8.0,
+    ) -> None:
         """Run ``bash -mc script`` under a pty we own so job control genuinely activates
         (bash silently disables ``-m`` without a controlling terminal). Read until the
         marker, NOT to EOF: the detached job inherits the pty slave as its stdin, so EOF
-        would not arrive until the job itself exits (the full sleep runtime)."""
+        would not arrive until the job itself exits (the full sleep runtime).
+
+        The marker only says the launcher returned, which it does the moment it puts
+        ``setsid`` in the background - before that child has forked, called setsid(2) and
+        exec'd into the job. Closing the master hangs the pty up, and the launcher is the
+        session leader here (``pty.fork`` gives it the pty as controlling terminal), so a
+        hangup inside that window can take the job down with the session before it runs its
+        first statement. ``detached``, when given, is polled until the job has proven it
+        left the session (it records its own pid), and only then do we hang up.
+        """
         pid, fd = pty.fork()
         if pid == 0:
             try:
@@ -323,6 +483,7 @@ class TestPosixKillBehaviour:
         try:
             deadline = time.monotonic() + timeout
             buf = b""
+            seen = False
             while time.monotonic() < deadline:
                 r, _, _ = select.select([fd], [], [], 0.2)
                 if fd in r:
@@ -334,7 +495,13 @@ class TestPosixKillBehaviour:
                         break
                     buf += chunk
                     if marker in buf:
+                        seen = True
                         break
+            # Without this the launcher timing out is indistinguishable from the job dying:
+            # both surface later as an empty pid file.
+            assert seen, f"launcher never emitted {marker!r} within {timeout}s (got {buf!r})"
+            while detached is not None and time.monotonic() < deadline and not detached():
+                time.sleep(0.02)
         finally:
             os.close(fd)  # hangs up the pty; the launcher (not the detached job) exits
             with contextlib.suppress(ChildProcessError):
@@ -373,7 +540,15 @@ class TestPosixKillBehaviour:
         marker = self._marker("2")
         paths = RemoteJobPaths(job_id="killtree_jc", remote_os="posix", base_dir=str(tmp_path / "jobs"))
         wrapper = build_posix_wrapper_command(marker, paths)
-        self._run_bash_mc_under_pty(wrapper + "\necho SUBMIT_DONE\n", b"SUBMIT_DONE")
+        pid_path = Path(paths.pid_file)
+        self._run_bash_mc_under_pty(
+            wrapper + "\necho SUBMIT_DONE\n",
+            b"SUBMIT_DONE",
+            # Hang up only once the job is up (pid file written), so the pgrep below sees a
+            # started job. The job survives the hangup regardless: the wrapper detaches its
+            # stdin from the terminal, so the setsid session never adopts the pty.
+            detached=lambda: pid_path.exists() and bool(pid_path.read_text().strip()),
+        )
         pgid = self._await_recorded_pid(paths)
 
         job_pids = subprocess.run(
@@ -413,3 +588,176 @@ class TestCleanupCommands:
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+    def test_posix_cleanup_accepts_custom_base_dir(self):
+        """Test POSIX cleanup accepts job dirs under a custom base directory."""
+        cmd = build_posix_cleanup_command("/data/airflow-jobs/job_123", base_dir="/data/airflow-jobs")
+        assert "rm -rf" in cmd
+        assert "/data/airflow-jobs/job_123" in cmd
+
+    def test_windows_cleanup_accepts_custom_base_dir(self):
+        """Test Windows cleanup accepts job dirs under a custom base directory."""
+        cmd = build_windows_cleanup_command("D:\\airflow-jobs\\job_123", base_dir="D:\\airflow-jobs")
+        assert "powershell.exe" in cmd
+
+    def test_posix_cleanup_custom_base_dir_rejects_outside_paths(self):
+        """With a custom base dir, paths outside it (even the default) are rejected."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command("/tmp/airflow-ssh-jobs/job_123", base_dir="/data/airflow-jobs")
+
+    def test_windows_cleanup_custom_base_dir_rejects_outside_paths(self):
+        """With a custom base dir, paths outside it (even the default) are rejected."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_windows_cleanup_command("$env:TEMP\\airflow-ssh-jobs\\job_123", base_dir="D:\\airflow-jobs")
+
+
+class TestPosixPathQuoting:
+    """A shell metacharacter in remote_base_dir must stay data, never become a command."""
+
+    @staticmethod
+    def _builders(paths):
+        return {
+            "wrapper": lambda: build_posix_wrapper_command("true", paths),
+            "cleanup": lambda: build_posix_cleanup_command(paths.job_dir),
+            "kill": lambda: build_posix_kill_command(paths.pid_file),
+            "log_tail": lambda: build_posix_log_tail_command(paths.log_file, 0, 64),
+            "file_size": lambda: build_posix_file_size_command(paths.log_file),
+            "completion": lambda: build_posix_completion_check_command(paths.exit_code_file),
+        }
+
+    @pytest.mark.parametrize(
+        "builder",
+        ["wrapper", "cleanup", "kill", "log_tail", "file_size", "completion"],
+    )
+    def test_single_quote_in_base_dir_does_not_execute(self, builder, tmp_path):
+        marker = tmp_path / "injected"
+        # The prefix keeps job_dir under POSIX_DEFAULT_BASE_DIR so _validate_job_dir passes.
+        base_dir = f"/tmp/airflow-ssh-jobs/x'; touch {marker}; :'"
+        paths = RemoteJobPaths(job_id="job_123", remote_os="posix", base_dir=base_dir)
+
+        cmd = self._builders(paths)[builder]()
+        subprocess.run(["sh", "-c", cmd], capture_output=True, check=False)
+
+        assert not marker.exists()
+
+
+class TestWindowsPathQuoting:
+    """Job paths reach PowerShell literally; only a leading ``$env:NAME`` is expanded."""
+
+    BUILDERS = ["wrapper", "cleanup", "kill", "log_tail", "file_size", "completion"]
+
+    @staticmethod
+    def _builders(paths):
+        """Each builder's command, the text that precedes the path in its script, and that path."""
+        return {
+            "wrapper": (build_windows_wrapper_command("hostname", paths), "$d = ", paths.job_dir),
+            "cleanup": (
+                build_windows_cleanup_command(paths.job_dir, base_dir=paths.base_dir),
+                "-LiteralPath ",
+                paths.job_dir,
+            ),
+            "kill": (build_windows_kill_command(paths.pid_file), "$path = ", paths.pid_file),
+            "log_tail": (build_windows_log_tail_command(paths.log_file, 0, 64), "$path = ", paths.log_file),
+            "file_size": (build_windows_file_size_command(paths.log_file), "$path = ", paths.log_file),
+            "completion": (
+                build_windows_completion_check_command(paths.exit_code_file),
+                "$path = ",
+                paths.exit_code_file,
+            ),
+        }
+
+    BASE_DIRS = [
+        pytest.param(None, id="default-base-dir"),
+        pytest.param("$Env:TEMP\\jobs", id="env-prefix-any-case"),
+        pytest.param("D:\\jobs [1] $x `y \u2019q 'z' $(hostname)", id="metacharacters"),
+    ]
+
+    @staticmethod
+    def _resolved(path: str) -> str:
+        return re.sub(r"(?i)^\$env:TEMP", lambda _: "C:\\Temp", path)
+
+    @pytest.mark.parametrize("builder", BUILDERS)
+    @pytest.mark.parametrize("base_dir", BASE_DIRS)
+    def test_path_evaluates_to_itself(self, builder, base_dir):
+        paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
+        cmd, prefix, path = self._builders(paths)[builder]
+
+        expr = _decode(cmd).split(prefix, 1)[1]
+
+        assert _eval_ps_path(expr, env={"TEMP": "C:\\Temp"}) == self._resolved(path)
+
+    @pytest.mark.parametrize("base_dir", BASE_DIRS)
+    def test_wrapper_expands_env_prefix_once(self, base_dir):
+        """The job's process gets the resolved $d, so it never re-expands $env:NAME itself."""
+        paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        env_prefix = r"(?i)\$env:TEMP"
+        assert len(re.findall(env_prefix, script)) == len(re.findall(env_prefix, paths.job_dir))
+        assert "$launch = 'powershell.exe" in script
+        assert "+ $q +" in script
+
+    @pytest.mark.parametrize("base_dir", BASE_DIRS)
+    def test_launch_command_evaluates_to_the_job_dir(self, base_dir):
+        """$launch quotes the resolved $d at runtime; emulate that step and read the result back."""
+        paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
+        resolved = self._resolved(paths.job_dir)
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        pattern = re.search(r"\$q = \"'\" \+ \(\$d -replace \"(.+?)\", '\$1\$1'\) \+ \"'\"", script)
+        assert pattern
+        q = "'" + re.sub(pattern.group(1), r"\1\1", resolved) + "'"
+        head, tail = script.split("$launch = ", 1)[1].split("\n", 1)[0].split(" + $q + ")
+        launch = _read_ps_single_quoted(head)[0] + q + _read_ps_single_quoted(tail)[0]
+        assert _read_ps_single_quoted(launch.split("$b = ", 1)[1])[0] == resolved
+        assert launch.endswith("ReadAllText($b + '\\job.ps1')))\"")
+
+    @pytest.mark.parametrize("builder", BUILDERS)
+    def test_paths_are_never_globbed(self, builder):
+        """``-Path``, named or positional, reads ``[`` and ``]`` as wildcards."""
+        paths = RemoteJobPaths(job_id="job_123", remote_os="windows")
+
+        script = _decode(self._builders(paths)[builder][0])
+
+        cmdlets = r"Test-Path|Get-Item|Get-Content|Set-Content|Add-Content|Remove-Item|Move-Item"
+        assert not re.search(rf"\b({cmdlets})\b(?![^\n]*-LiteralPath)", script)
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash to run the wrapper")
+class TestPosixEnvironmentQuoting:
+    """An environment value must reach the job verbatim and never run as shell code."""
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("two words", id="space"),
+            pytest.param("x$(touch {marker})", id="command-substitution"),
+            pytest.param("x`touch {marker}`", id="backticks"),
+            pytest.param("x; touch {marker}", id="semicolon"),
+            pytest.param("it's'; touch {marker}; '", id="single-quotes"),
+            pytest.param('say "hi" to $HOME', id="double-quotes-and-variable"),
+            pytest.param("${PATH}:~/bin", id="braced-variable-and-tilde"),
+            pytest.param("C:\\data\\\\share", id="backslashes"),
+            pytest.param("line one\nline two", id="newline"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_value_reaches_job_verbatim(self, value, tmp_path):
+        marker = tmp_path / "injected"
+        value = value.replace("{marker}", str(marker))
+        paths = RemoteJobPaths(job_id="env_job", remote_os="posix", base_dir=str(tmp_path / "jobs"))
+        wrapper = build_posix_wrapper_command('printf %s "$MY_VAR"', paths, environment={"MY_VAR": value})
+
+        subprocess.run(["bash", "-c", wrapper], check=True, capture_output=True)
+        # The job runs detached, so wait for it to record its exit code.
+        exit_code_file = Path(paths.exit_code_file)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and not exit_code_file.exists():
+            time.sleep(0.02)
+
+        assert not marker.exists()
+        assert exit_code_file.exists(), "job never recorded its exit code"
+        assert exit_code_file.read_text() == "0"
+        assert Path(paths.log_file).read_text() == value

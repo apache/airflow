@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Code, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Code, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
@@ -24,29 +24,36 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
 import { EventsFilters } from "./EventsFilters";
 
 type EventsColumn = {
   dagId?: string;
+  multiTeam: boolean;
   open?: boolean;
   runId?: string;
   taskId?: string;
 };
 
 const eventsColumn = (
-  { dagId, open, runId, taskId }: EventsColumn,
+  { dagId, multiTeam, open, runId, taskId }: EventsColumn,
   translate: (key: string) => string,
-): Array<ColumnDef<EventLogResponse>> => [
+): Array<ColumnDef<DataTableFeatures, EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
@@ -66,12 +73,28 @@ const eventsColumn = (
   },
   {
     accessorKey: "owner",
+    cell: ({ row: { original } }) => original.owner_display_name,
     enableSorting: true,
     header: translate("auditLog.columns.user"),
     meta: {
       skeletonWidth: 10,
     },
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: { row: { original: EventLogResponse } }) => (
+            <TeamName teamName={original.team_name} />
+          ),
+          enableSorting: false,
+          header: translate("common:dagDetails.team"),
+          meta: {
+            skeletonWidth: 10,
+          },
+        },
+      ]
+    : []),
   {
     accessorKey: "extra",
     cell: ({ row: { original } }) => {
@@ -155,6 +178,7 @@ const {
   MAP_INDEX: MAP_INDEX_PARAM,
   RUN_ID: RUN_ID_PARAM,
   TASK_ID: TASK_ID_PARAM,
+  TEAMS: TEAMS_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
   USER: USER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -162,6 +186,9 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const regional = taskId !== undefined && coordinates.regionId !== undefined;
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:browse.auditLog") : undefined);
@@ -181,6 +208,7 @@ export const Events = () => {
   const taskIdFilter = searchParams.get(TASK_ID_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const userFilter = searchParams.get(USER_PARAM);
+  const teams = searchParams.getAll(TEAMS_PARAM);
 
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
   // Convert string filters to appropriate types for API
@@ -203,8 +231,8 @@ export const Events = () => {
     value: eventTypeFilter,
   });
   const ownerArg = useAdvancedSearchArg({
-    patternApiKey: "ownerPattern",
-    prefixApiKey: "ownerPrefixPattern",
+    patternApiKey: "ownerDisplayNamePattern",
+    prefixApiKey: "ownerDisplayNamePrefixPattern",
     storageKey: USER_PARAM,
     value: userFilter,
   });
@@ -221,7 +249,7 @@ export const Events = () => {
     value: taskIdFilter,
   });
 
-  const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
+  const { data, error, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
       before: beforeDate,
@@ -231,51 +259,52 @@ export const Events = () => {
       ...dagIdArg,
       ...eventArg,
       limit: pagination.pageSize,
-      mapIndex: mapIndexNumber,
+      // A loop pass shares its public map index with every other pass, so its coordinates select it.
+      mapIndex: regional ? undefined : mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       ...ownerArg,
+      regionId: regional ? coordinates.regionId : undefined,
+      regionIndex: regional ? coordinates.regionIndex : undefined,
       runId: runId ?? undefined,
       ...runIdArg,
       taskId: taskId ?? undefined,
       ...taskIdArg,
+      teams: teams.length > 0 ? teams : undefined,
       tryNumber: tryNumberNumber,
     },
     undefined,
   );
 
-  const columns = eventsColumn({ dagId, open, runId, taskId }, translate);
+  const eventLogs = data?.event_logs ?? [];
+  const columns = eventsColumn({ dagId, multiTeam: multiTeamEnabled, open, runId, taskId }, translate);
 
   return (
-    <VStack alignItems="stretch">
-      {dagId === undefined && runId === undefined && taskId === undefined ? (
-        <Heading size="md">{translate("auditLog.title")}</Heading>
-      ) : undefined}
-      <Flex alignItems="center" justifyContent="space-between">
-        <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
-        <ExpandCollapseButtons
-          collapseLabel={translate("common:collapseAllExtra")}
-          expandLabel={translate("common:expandAllExtra")}
-          isExpanded={open}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
-      </Flex>
-
+    <>
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}
-        data={data?.event_logs ?? []}
+        data={eventLogs}
         displayMode="table"
+        filterActions={<EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
-        modelName="browse:auditLog.columns.event"
+        modelName="common:event"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
+        presentationActions={
+          eventLogs.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:collapseAllExtra")}
+              expandLabel={translate("common:expandAllExtra")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />
-    </VStack>
+    </>
   );
 };

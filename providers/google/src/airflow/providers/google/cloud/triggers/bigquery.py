@@ -132,13 +132,11 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 )
             )
             if task_instance is None:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_instance
 
         async def get_task_state(self):
@@ -156,13 +154,11 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             try:
                 task_state = task_states_response[ti.run_id][ti.task_id]
             except Exception:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_state
 
         async def safe_to_cancel(self) -> bool:
@@ -274,7 +270,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if job_status["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results)
+                    records = await hook.aget_records(query_results)
 
                     # If empty list, then no records are available
                     if not records:
@@ -360,7 +356,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                         query_results = await hook.get_job_output(
                             job_id=self.job_id, project_id=self.project_id
                         )
-                        records = hook.get_records(
+                        records = await hook.aget_records(
                             query_results=query_results,
                             as_dict=self.as_dict,
                             selected_fields=self.selected_fields,
@@ -528,9 +524,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                             job_id=self.second_job_id, project_id=self.project_id
                         )
 
-                        first_records = hook.get_records(first_query_results)
+                        first_records = await hook.aget_records(first_query_results)
 
-                        second_records = hook.get_records(second_query_results)
+                        second_records = await hook.aget_records(second_query_results)
 
                         # If empty list, then no records are available
                         if not first_records:
@@ -585,18 +581,25 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                         }
                     )
                     return
-                elif (
-                    first_job_response_from_hook["status"] == "pending"
-                    or second_job_response_from_hook["status"] == "pending"
+                elif "error" in (
+                    first_job_response_from_hook["status"],
+                    second_job_response_from_hook["status"],
                 ):
+                    # Report the job that failed, which is not necessarily the second one.
+                    failed_job_response = (
+                        first_job_response_from_hook
+                        if first_job_response_from_hook["status"] == "error"
+                        else second_job_response_from_hook
+                    )
+                    yield TriggerEvent(
+                        {"status": "error", "message": failed_job_response["message"], "data": None}
+                    )
+                    return
+                else:
+                    # Neither job failed, and at least one is still "pending" or "running".
                     self.log.info("Query is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-                else:
-                    yield TriggerEvent(
-                        {"status": "error", "message": second_job_response_from_hook["message"], "data": None}
-                    )
-                    return
 
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
@@ -683,20 +686,21 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                 response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if response_from_hook["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results)
+                    records = await hook.aget_records(query_results)
                     _records = records.pop(0) if records else None
                     hook.value_check(self.sql, self.pass_value, _records, self.tolerance)
                     yield TriggerEvent({"status": "success", "message": "Job completed", "records": _records})
                     return
-                elif response_from_hook["status"] == "pending":
-                    self.log.info("Query is still running...")
-                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
-                    await asyncio.sleep(self.poll_interval)
-                else:
+                elif response_from_hook["status"] == "error":
                     yield TriggerEvent(
                         {"status": "error", "message": response_from_hook["message"], "records": None}
                     )
                     return
+                else:
+                    # The job is still "pending" or "running".
+                    self.log.info("Query is still running...")
+                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                    await asyncio.sleep(self.poll_interval)
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -878,7 +882,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
 
     async def _partition_exists(self, hook: BigQueryAsyncHook, job_id: str | None, project_id: str):
         query_results = await hook.get_job_output(job_id=job_id, project_id=project_id)
-        records = hook.get_records(query_results)
+        records = await hook.aget_records(query_results)
         if records:
             records = [row[0] for row in records]
             return self.partition_id in records
@@ -898,6 +902,8 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
     :param poll_interval: Seconds between polls.
     :param impersonation_chain: Optional service account to impersonate, or a
         chained list of accounts.
+    :param empty_confirmations: Number of consecutive empty polls required
+        before reporting the buffer empty. Must be at least 1.
     """
 
     def __init__(
@@ -908,14 +914,18 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
         gcp_conn_id: str,
         poll_interval: float = 30.0,
         impersonation_chain: str | Sequence[str] | None = None,
+        empty_confirmations: int = 2,
     ):
         super().__init__()
+        if empty_confirmations < 1:
+            raise ValueError("empty_confirmations must be at least 1")
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
         self.poll_interval = poll_interval
         self.impersonation_chain = impersonation_chain
+        self.empty_confirmations = empty_confirmations
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -927,6 +937,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
+                "empty_confirmations": self.empty_confirmations,
             },
         )
 
@@ -938,6 +949,12 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        # The ``streamingBuffer`` table metadata BigQuery returns is eventually
+        # consistent, so a single absent reading can be a false "empty" right
+        # after a streaming insert. Yield success only after
+        # ``empty_confirmations`` consecutive empty polls, each ``poll_interval``
+        # apart.
+        consecutive_empty = 0
         try:
             hook = self._get_async_hook()
             async with ClientSession() as session:
@@ -951,11 +968,21 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
                         table_id=self.table_id,
                     )
                     if is_empty:
-                        message = f"Streaming buffer is empty for table: {table_uri}"
-                        self.log.info(message)
-                        yield TriggerEvent({"status": "success", "message": message})
-                        return
-                    self.log.info("Streaming buffer not empty, sleeping %ss", self.poll_interval)
+                        consecutive_empty += 1
+                        if consecutive_empty >= self.empty_confirmations:
+                            message = f"Streaming buffer is empty for table: {table_uri}"
+                            self.log.info(message)
+                            yield TriggerEvent({"status": "success", "message": message})
+                            return
+                        self.log.info(
+                            "Streaming buffer reported empty (%s/%s confirmations), sleeping %ss",
+                            consecutive_empty,
+                            self.empty_confirmations,
+                            self.poll_interval,
+                        )
+                    else:
+                        consecutive_empty = 0
+                        self.log.info("Streaming buffer not empty, sleeping %ss", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
         except Exception as e:
             self.log.exception("Error while checking streaming buffer for table %s", table_uri)

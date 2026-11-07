@@ -108,6 +108,7 @@ class TestGlueJobTrigger:
             "job_name": "job_name",
             "run_id": "JobRunId",
             "verbose": False,
+            "stop_job_run_on_kill": False,
             "aws_conn_id": "aws_conn_id",
             "waiter_max_attempts": 3,
             "waiter_delay": 10,
@@ -171,13 +172,14 @@ class TestGlueJobTrigger:
         assert logs_client.get_log_events.call_count >= 2
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("job_run_state", ["FAILED", "TIMEOUT", "STOPPED", "ERROR"])
     @mock.patch.object(AwsLogsHook, "get_async_conn")
     @mock.patch.object(GlueJobHook, "get_async_conn")
-    async def test_verbose_run_job_failed(self, mock_glue_conn, mock_logs_conn):
-        """When verbose=True and the job fails, the trigger yields an error event."""
+    async def test_verbose_run_failure_states(self, mock_glue_conn, mock_logs_conn, job_run_state):
+        """When verbose=True and the run ends in a failure state, the trigger yields an error event."""
         glue_client = AsyncMock()
         glue_client.get_job_run = AsyncMock(
-            return_value={"JobRun": {"JobRunState": "FAILED", "LogGroupName": "/aws-glue/python-jobs"}}
+            return_value={"JobRun": {"JobRunState": job_run_state, "LogGroupName": "/aws-glue/python-jobs"}}
         )
         mock_glue_conn.return_value.__aenter__ = AsyncMock(return_value=glue_client)
         mock_glue_conn.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -198,7 +200,7 @@ class TestGlueJobTrigger:
         generator = trigger.run()
         event = await generator.asend(None)
         assert event.payload["status"] == "error"
-        assert "FAILED" in event.payload["message"]
+        assert job_run_state in event.payload["message"]
         assert event.payload["run_id"] == "jr_123"
 
     @pytest.mark.asyncio
@@ -355,6 +357,46 @@ class TestGlueJobTrigger:
         assert result == "token_1"
         log_output = mock_log_info.call_args[0][0]
         assert "No new log from the Glue Job in /aws-glue/python-jobs/output" in log_output
+
+    def test_serialization_includes_stop_job_run_on_kill(self):
+        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
+        _, kwargs = trigger.serialize()
+        assert kwargs["stop_job_run_on_kill"] is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("response", "expect_error_log"),
+        [
+            (
+                {"SuccessfulSubmissions": [{"JobName": "job_name", "JobRunId": "JobRunId"}], "Errors": []},
+                False,
+            ),
+            (
+                {"SuccessfulSubmissions": [], "Errors": [{"JobName": "job_name", "JobRunId": "JobRunId"}]},
+                True,
+            ),
+        ],
+    )
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_on_kill_stops_job_run_when_enabled(self, mock_glue_conn, response, expect_error_log):
+        glue_client = AsyncMock()
+        glue_client.batch_stop_job_run = AsyncMock(return_value=response)
+        mock_glue_conn.return_value.__aenter__ = AsyncMock(return_value=glue_client)
+        mock_glue_conn.return_value.__aexit__ = AsyncMock(return_value=False)
+        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=True)
+
+        with mock.patch.object(trigger.log, "error") as mock_log_error:
+            await trigger.on_kill()
+
+        glue_client.batch_stop_job_run.assert_awaited_once_with(JobName="job_name", JobRunIds=["JobRunId"])
+        assert mock_log_error.called is expect_error_log
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_on_kill_does_not_stop_when_disabled(self, mock_glue_conn):
+        trigger = GlueJobCompleteTrigger(job_name="job_name", run_id="JobRunId", stop_job_run_on_kill=False)
+        await trigger.on_kill()
+        mock_glue_conn.assert_not_called()
 
 
 class TestGlueCatalogPartitionSensorTrigger:

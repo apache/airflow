@@ -170,6 +170,12 @@ def execution_timeout() -> int:
 
 
 @cache
+def execute_in_thread() -> bool:
+    """[openlineage] execute_in_thread."""
+    return conf.getboolean(_CONFIG_SECTION, "execute_in_thread", fallback="False")
+
+
+@cache
 def include_full_task_info() -> bool:
     """[openlineage] include_full_task_info."""
     return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")

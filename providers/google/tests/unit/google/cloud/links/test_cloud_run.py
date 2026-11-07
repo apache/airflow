@@ -21,7 +21,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
+from airflow.providers.google.cloud.links.cloud_run import (
+    CLOUD_RUN_JOB_EXECUTION_DETAILS_LINK,
+    CloudRunJobExecutionDetailsLink,
+    CloudRunJobLoggingLink,
+)
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -31,6 +35,9 @@ if AIRFLOW_V_3_0_PLUS:
 
 TEST_LOG_URI = (
     "https://console.cloud.google.com/run/jobs/logs?project=test-project&region=test-region&job=test-job"
+)
+TEST_EXECUTION_DETAILS_URI = (
+    "https://console.cloud.google.com/run/jobs/details/test-region/test-job/executions?project=test-project"
 )
 
 
@@ -52,7 +59,7 @@ class TestCloudRunJobLoggingLink:
 
         mock_context["ti"].xcom_push.assert_called_once_with(
             key=CloudRunJobLoggingLink.key,
-            value={"log_uri": TEST_LOG_URI},
+            value=TEST_LOG_URI,
         )
 
     @pytest.mark.db_test
@@ -74,7 +81,30 @@ class TestCloudRunJobLoggingLink:
         if mock_supervisor_comms:
             mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
-                value={"log_uri": TEST_LOG_URI},
+                value=TEST_LOG_URI,
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == TEST_LOG_URI
+
+
+class TestCloudRunJobExecutionDetailsLink:
+    def test_class_attributes(self):
+        assert CloudRunJobExecutionDetailsLink.key == "cloud_run_job_execution_details"
+        assert CloudRunJobExecutionDetailsLink.name == "Cloud Run Job Execution Details"
+        assert CloudRunJobExecutionDetailsLink.format_str == CLOUD_RUN_JOB_EXECUTION_DETAILS_LINK
+
+    def test_persist(self):
+        mock_context = mock.MagicMock()
+        mock_context["ti"] = mock.MagicMock()
+
+        CloudRunJobExecutionDetailsLink.persist(
+            context=mock_context,
+            region="test-region",
+            job_name="test-job",
+            project_id="test-project",
+        )
+
+        mock_context["ti"].xcom_push.assert_called_once_with(
+            key=CloudRunJobExecutionDetailsLink.key,
+            value=TEST_EXECUTION_DETAILS_URI,
+        )

@@ -16,12 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceGetConnectionsKey, useConnectionServicePatchConnection } from "openapi/queries";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
+
 import type { ConnectionBody } from "src/pages/Connections/Connections";
 
 export const useEditConnection = (

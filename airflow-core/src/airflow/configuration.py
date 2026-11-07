@@ -28,13 +28,12 @@ import warnings
 from base64 import b64encode
 from collections.abc import Callable
 from configparser import ConfigParser
+from importlib.util import find_spec
 from inspect import ismodule
 from io import StringIO
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, overload
 from urllib.parse import urlsplit
-
-from typing_extensions import overload
 
 from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
@@ -57,14 +56,18 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
-_SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
-
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
+
+_AIRFLOW_V2_SENSITIVE_OPTIONS = {
+    ("core", "dataset_manager_kwargs"),
+    ("core", "internal_api_secret_key"),
+    ("smtp", "smtp_password"),
+}
 
 
 class _SecretKeys:
@@ -96,13 +99,6 @@ class ConfigModifications:
 
     def add_default_update(self, section: str, option: str, new_default: str) -> None:
         self.default_updates[(section, option)] = new_default
-
-
-def _parse_sqlite_version(s: str) -> tuple[int, ...]:
-    match = _SQLITE3_VERSION_PATTERN.match(s)
-    if match is None:
-        return ()
-    return tuple(int(p) for p in match.group("version").split("."))
 
 
 @overload
@@ -292,6 +288,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         include_descriptions: bool = True,
         extra_spacing: bool = True,
         modifications: ConfigModifications | None = None,
+        hide_sensitive: bool = False,
     ) -> None:
         """
         Write a configuration file using a ConfigModifications object.
@@ -308,6 +305,8 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         :param include_descriptions: Whether to include section descriptions.
         :param extra_spacing: Whether to insert an extra blank line after each option.
         :param modifications: ConfigModifications instance with rename, remove, and default updates.
+        :param hide_sensitive: If True, values of options registered as sensitive are written as
+            ``< hidden >``. Only suitable for preview output, never for a real configuration file.
         """
         modifications = modifications or ConfigModifications()
         output: dict[str, list[tuple[str, str, bool, str]]] = {}
@@ -337,8 +336,15 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
                 default_value = self.get_default_value(effective_section, effective_option, fallback="")
                 is_default = str(value) == str(default_value)
+                value_to_write = str(value)
+                if hide_sensitive and (
+                    key in _AIRFLOW_V2_SENSITIVE_OPTIONS
+                    or self.is_sensitive_option(section, option)
+                    or self.is_sensitive_option(effective_section, effective_option)
+                ):
+                    value_to_write = "< hidden >"
                 output.setdefault(effective_section.lower(), []).append(
-                    (effective_option, str(value), is_default, mod_comment)
+                    (effective_option, value_to_write, is_default, mod_comment)
                 )
 
         for section, options in output.items():
@@ -369,25 +375,35 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     def _upgrade_postgres_metastore_conn(self):
         """
-        Upgrade SQL schemas.
+        Normalize the metadata DB URL scheme.
 
-        As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
-        must be replaced with `postgresql+psycopg2`. The bare `postgresql`
-        scheme is also upgraded to make the psycopg2 driver explicit.
+        SQLAlchemy does not accept the schemes `postgres+psycopg2` and `postgres`;
+        they are replaced with `postgresql+psycopg` if the psycopg (v3) driver
+        is installed, or `postgresql+psycopg2` otherwise, and a warning is emitted.
+        The valid bare `postgresql` scheme is rewritten the same way, without a
+        warning, to make the driver explicit.
         """
         section, key = "database", "sql_alchemy_conn"
         old_value = self.get(section, key, _extra_stacklevel=1)
         bad_schemes = ["postgres+psycopg2", "postgres", "postgresql"]
-        good_scheme = "postgresql+psycopg2"
+        # The provider-side hooks (common.sql / postgres / amazon) also gate psycopg (v3) on an
+        # ``_is_sqlalchemy_2()`` check, because they support Airflow 2.11 on SQLAlchemy 1.4, which has
+        # no native ``postgresql+psycopg`` dialect. airflow-core pins ``sqlalchemy>=2.0``, so that
+        # dialect is always present when the package is importable — ``find_spec`` alone suffices here.
+        good_scheme = "postgresql+psycopg" if find_spec("psycopg") is not None else "postgresql+psycopg2"
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
-            warnings.warn(
-                f"Bad scheme in Airflow configuration [database] sql_alchemy_conn: `{parsed.scheme}`. "
-                "As of SQLAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
-                f"change to `{good_scheme}` before the next Airflow release.",
-                FutureWarning,
-                stacklevel=1,
-            )
+            # The bare ``postgresql`` scheme is valid in SQLAlchemy; we only make the driver explicit,
+            # so don't warn about it. ``postgres`` and ``postgres+psycopg2`` are really unsupported.
+            if parsed.scheme != "postgresql":
+                warnings.warn(
+                    f"Unsupported scheme `{parsed.scheme}` in Airflow configuration [database] "
+                    "sql_alchemy_conn: SQLAlchemy no longer accepts it. "
+                    f"Airflow is using `{good_scheme}` instead for now; change the scheme to "
+                    f"`postgresql` (Airflow picks the driver) or `{good_scheme}`.",
+                    FutureWarning,
+                    stacklevel=1,
+                )
             self.upgraded_values[(section, key)] = old_value
             new_value = re.sub("^" + re.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)
@@ -420,7 +436,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         import sqlite3
 
         min_sqlite_version = (3, 15, 0)
-        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+        if sqlite3.sqlite_version_info >= min_sqlite_version:
             return
 
         from airflow.utils.docs import get_docs_url

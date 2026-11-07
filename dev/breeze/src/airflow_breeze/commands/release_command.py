@@ -29,6 +29,10 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.release_constraints import (
+    find_pending_provider_candidates,
+    publish_constraints,
+)
 from airflow_breeze.utils.run_utils import run_command
 
 # Pattern to match Airflow release versions (e.g., "3.0.5")
@@ -343,45 +347,36 @@ def upload_to_pypi(version, task_sdk_version=None):
         )
 
 
-def get_constraints_branch_for_version(version: str) -> str:
-    major, minor = version.split(".")[:2]
-    return f"constraints-{major}-{minor}"
+def decide_pending_candidates_override() -> bool | None:
+    """Settle the pending-provider-candidate guard before anything irreversible happens.
 
-
-def retag_constraints(release_candidate, version):
-    # By default the final ``constraints-<version>`` tag is created from the RC constraints tag.
-    # If the constraints were refreshed after the last RC (e.g. to pick up newly released
-    # providers - see dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md) the tip of the
-    # ``constraints-X-Y`` branch is newer than the RC tag and should be tagged instead.
-    constraints_branch = get_constraints_branch_for_version(version)
-    source_ref = f"constraints-{release_candidate}"
+    The constraints are resolved after the PyPI upload, so a guard that trips there leaves the
+    release published without constraints. Returns ``False`` to pin the currently-released providers,
+    or ``None`` to let the workflow derive the guard when nothing is pending.
+    """
+    pending = find_pending_provider_candidates()
+    if not pending:
+        return None
+    console_print("[warning]These providers have a release candidate on PyPI newer than their latest final:")
+    for distribution, candidate in pending:
+        console_print(f"[warning]  * {distribution}=={candidate}")
     if confirm_action(
-        f"Base the final constraints on the latest '{constraints_branch}' branch tip instead of the "
-        f"'{source_ref}' tag? Choose yes if you refreshed constraints after {release_candidate}."
+        "Pin the currently-released providers and proceed even though a provider wave is still in rc?"
     ):
-        run_command(["git", "fetch", "origin", constraints_branch], check=True)
-        source_ref = f"origin/{constraints_branch}"
-    if confirm_action(f"Retag constraints from {source_ref} as {version}?"):
-        run_command(
-            ["git", "checkout", source_ref],
-            check=True,
-        )
-        run_command(
-            [
-                "git",
-                "tag",
-                "-s",
-                f"constraints-{version}",
-                "-m",
-                f"Constraints for Apache Airflow {version}",
-            ],
-            check=True,
-        )
-    if confirm_action(f"Push constraints-{version} tag to GitHub?"):
-        run_command(
-            ["git", "push", "origin", "tag", f"constraints-{version}"],
-            check=True,
-        )
+        return False
+    exit("Release or yank the pending provider candidates, then start the release again.")
+
+
+def regenerate_constraints(version, fail_on_pending_provider_candidates: bool | None = None):
+    # The candidate's constraints pinned pre-releases, so they cannot be promoted by retagging - a
+    # released version must never point at rc pins. The workflow reads a version without "rcN" and
+    # resolves again without them, against the providers now published as finals.
+    major, minor = version.split(".")[:2]
+    publish_constraints(
+        version=version,
+        ref=f"v{major}-{minor}-stable",
+        fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
+    )
 
 
 def tag_and_push_latest_constraint(version):
@@ -478,6 +473,8 @@ def airflow_release(version, task_sdk_version):
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
 
+    fail_on_pending_provider_candidates = decide_pending_candidates_override()
+
     # Clone the asf repo
     os.chdir("..")
     working_dir = os.getcwd()
@@ -567,8 +564,8 @@ def airflow_release(version, task_sdk_version):
     # Change Directory to airflow
     os.chdir(airflow_repo_root)
 
-    # Retag and push the constraint file
-    retag_constraints(release_candidate, version)
+    # Regenerate, publish and tag the constraints for the final version
+    regenerate_constraints(version, fail_on_pending_provider_candidates)
     tag_and_push_latest_constraint(version)
 
     # Push tag for final version

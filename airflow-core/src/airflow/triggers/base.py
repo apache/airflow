@@ -21,13 +21,14 @@ import json
 from collections.abc import AsyncIterator, Hashable
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 import structlog
 from pydantic import (
     BaseModel,
     Discriminator,
     JsonValue,
+    StringConstraints,
     Tag,
     model_serializer,
 )
@@ -78,7 +79,16 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    supports_triggerer_queue: bool = True
+    # Whether a deferred task's queue should be inherited by this trigger when
+    # ``triggerer.queues_enabled`` is set. Subclasses that assign their own ``queue``
+    # directly (e.g. ``BaseEventTrigger``, ``CallbackTrigger``) must set this to False,
+    # or ``_defer_task`` will overwrite that queue with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = True
+
+    # Trigger queue assignment. None means no explicit assignment; ``BaseEventTrigger`` and
+    # ``CallbackTrigger`` set this in their ``__init__``, see `trigger_queue_inherited_from_task`.
+    # Declared as a class attribute since many provider triggers don't call ``super().__init__()``.
+    queue: str | None = None
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -293,15 +303,26 @@ class BaseEventTrigger(BaseTrigger):
     See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
     including snapshot-at-fan-out semantics, per-event timeout behavior, and
     triggerer-restart redeliver notes.
+
+    **Trigger queue assignment**
+
+    Pass ``queue`` to assign this trigger to a specific trigger queue (see
+    :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of
+    ``airflow triggerer``). When used with team-based triggerer node assignment,
+    the team and queue function as a logical 'AND'.
     """
 
-    supports_triggerer_queue: bool = False
+    # BaseEventTrigger sets its own `queue` directly (see `__init__` below), so
+    # `_defer_task` must not overwrite it with the deferring task's queue.
+    trigger_queue_inherited_from_task: bool = False
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, queue: str | None = None, **kwargs):
         super().__init__(**kwargs)
 
         # Injected by the triggerer before run() is called
         self.asset_state_store: AssetStateStoreAccessors | None = None
+        # Read by Dag processing when registering the trigger; unused once running.
+        self.queue = queue
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:
@@ -449,6 +470,29 @@ class TriggerEvent(BaseModel):
         return f"TriggerEvent<{self.payload!r}>"
 
 
+class AssetTriggerEvent(TriggerEvent):
+    """
+    An asset update emitted by a watcher, optionally identifying a native partition.
+
+    The partition key applies to every asset associated with the trigger. The payload
+    remains available in each asset event's extras and to any deferred task resumed
+    by the same trigger.
+    """
+
+    type: Literal["AssetTriggerEvent"] = "AssetTriggerEvent"
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=250)] | None = None
+
+    def __init__(self, payload, *, partition_key: str | None = None, **kwargs):
+        # Explicitly set type so serialization includes it. The triggerer supervisor
+        # needs it to reconstruct AssetTriggerEvent and preserve the partition key.
+        super().__init__(
+            payload=payload,
+            type=kwargs.pop("type", "AssetTriggerEvent"),
+            partition_key=partition_key,
+            **kwargs,
+        )
+
+
 class BaseTaskEndEvent(TriggerEvent):
     """
     Base event class to end the task without resuming on worker.
@@ -501,13 +545,18 @@ class TaskSkippedEvent(BaseTaskEndEvent):
 
 def trigger_event_discriminator(v):
     if isinstance(v, dict):
+        if v.get("type") == "AssetTriggerEvent":
+            return "_asset_"
         return v.get("task_instance_state", "_event_")
+    if isinstance(v, AssetTriggerEvent):
+        return "_asset_"
     if isinstance(v, TriggerEvent):
         return getattr(v, "task_instance_state", "_event_")
 
 
 DiscrimatedTriggerEvent = Annotated[
     Annotated[TriggerEvent, Tag("_event_")]
+    | Annotated[AssetTriggerEvent, Tag("_asset_")]
     | Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)]
     | Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)]
     | Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],

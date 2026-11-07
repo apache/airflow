@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, HStack, Input, InputGroup, Text } from "@chakra-ui/react";
 import { useRef, type KeyboardEvent } from "react";
+
+import { CloseButton, HStack, Input, InputGroup, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp, FiSearch } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
@@ -83,7 +85,7 @@ export const LogSearchInput = ({
                   : translate("logs.search.noMatches")}
               </Text>
               <IconButton
-                aria-label="Previous match"
+                aria-label={translate("logs.search.previousMatch")}
                 disabled={totalMatches === 0}
                 onClick={onSearchPrevious}
                 size="2xs"
@@ -91,7 +93,7 @@ export const LogSearchInput = ({
                 <FiChevronUp />
               </IconButton>
               <IconButton
-                aria-label="Next match"
+                aria-label={translate("logs.search.nextMatch")}
                 disabled={totalMatches === 0}
                 onClick={onSearchNext}
                 size="2xs"

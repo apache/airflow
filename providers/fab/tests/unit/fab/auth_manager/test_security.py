@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import logging
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -54,6 +55,7 @@ from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.override import (
+    DagAccessControlValidationError,
     FabAirflowSecurityManagerOverride,
     FabException,
 )
@@ -262,6 +264,59 @@ def security_manager(app_builder):
 @pytest.fixture(scope="module")
 def session(app_builder):
     return app_builder.session
+
+
+class TestDeclarativeCustomRoles:
+    @pytest.fixture(autouse=True)
+    def cleanup_configured_role(self, security_manager):
+        yield
+        security_manager.session.rollback()
+        if security_manager.find_role("ConfigAnalyst") is not None:
+            security_manager.delete_role("ConfigAnalyst")
+
+    @pytest.mark.parametrize("update_permissions", [True, False])
+    @mock.patch.object(FabAuthManager, "security_manager", new_callable=mock.PropertyMock)
+    def test_startup_creates_role_only_when_permission_updates_enabled(
+        self, mock_security_manager, security_manager, update_permissions
+    ):
+        mock_security_manager.return_value = security_manager
+        with conf_vars(
+            {
+                ("fab", "update_fab_perms"): str(update_permissions),
+                ("fab", "custom_roles"): json.dumps(
+                    {"ConfigAnalyst": [{"action": "can_read", "resource": "DAGs"}]}
+                ),
+            }
+        ):
+            FabAuthManager()._sync_appbuilder_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        if update_permissions:
+            assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+                ("can_read", "DAGs"),
+                ("can_read", "Website"),
+            }
+        else:
+            assert role is None
+
+    @conf_vars({("fab", "update_fab_perms"): "False", ("fab", "custom_roles"): '{"ConfigAnalyst": []}'})
+    def test_explicit_sync_creates_role_and_adds_homepage_permission(self, security_manager):
+        security_manager.sync_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+            ("can_read", "Website")
+        }
+
+    @conf_vars({("fab", "custom_roles"): '{"ConfigAnalyst": [{"action": "can_read", "resource": "DAGs"}]}'})
+    def test_sync_preserves_existing_role_without_adding_configured_permissions(self, security_manager):
+        role = security_manager.add_role("ConfigAnalyst")
+        permission = security_manager.create_permission("can_edit", "DAGs")
+        security_manager.add_permission_to_role(role, permission)
+        security_manager.sync_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+            ("can_edit", "DAGs"),
+            ("can_read", "Website"),
+        }
 
 
 @pytest.fixture
@@ -812,7 +867,7 @@ def test_has_all_dag_access(app, security_manager):
 
 
 def test_access_control_with_non_existent_role(security_manager):
-    with pytest.raises(FabException) as ctx:
+    with pytest.raises(DagAccessControlValidationError) as ctx:
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
@@ -820,10 +875,12 @@ def test_access_control_with_non_existent_role(security_manager):
             },
         )
     assert "role does not exist" in str(ctx.value)
+    assert isinstance(ctx.value, FabException)
+    assert isinstance(ctx.value, ValueError)
 
 
 def test_access_control_with_non_allowed_resource(security_manager):
-    with pytest.raises(FabException) as ctx:
+    with pytest.raises(DagAccessControlValidationError) as ctx:
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
@@ -854,11 +911,14 @@ def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
             )
 
 
-def test_access_control_with_invalid_permission(app, security_manager):
-    invalid_actions = [
+@pytest.mark.parametrize(
+    "action",
+    [
         "can_varimport",  # a real action, but not a member of DAG_ACTIONS
         "can_eat_pudding",  # clearly not a real action
-    ]
+    ],
+)
+def test_access_control_with_invalid_permission(app, security_manager, action):
     username = "LaUser"
     rolename = "team-a"
     with create_user_scope(
@@ -866,18 +926,17 @@ def test_access_control_with_invalid_permission(app, security_manager):
         username=username,
         role_name=rolename,
     ):
-        for action in invalid_actions:
-            with pytest.raises(FabException) as ctx:
-                security_manager._sync_dag_view_permissions(
-                    "access_control_test",
-                    access_control={rolename: {action}},
-                )
-            assert "invalid permissions" in str(ctx.value)
-            if hasattr(permissions, "resource_name"):
-                assert "invalid permission" in str(ctx.value)
-            else:
-                # Test with old airflow running new FAB
-                assert "invalid resource name" in str(ctx.value)
+        with pytest.raises(DagAccessControlValidationError) as ctx:
+            security_manager._sync_dag_view_permissions(
+                "access_control_test",
+                access_control={rolename: {action}},
+            )
+        assert "invalid permissions" in str(ctx.value)
+        if hasattr(permissions, "resource_name"):
+            assert "invalid permission" in str(ctx.value)
+        else:
+            # Test with old airflow running new FAB
+            assert "invalid resource name" in str(ctx.value)
 
 
 def test_access_control_is_set_on_init(
@@ -1053,6 +1112,29 @@ def test_create_dag_specific_permissions_airflow3(session, security_manager, mon
     with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
         # The extra query happens at permission check
         security_manager.create_dag_specific_permissions()
+
+
+def test_create_dag_specific_permissions_skips_dag_with_bad_access_control(security_manager, monkeypatch):
+    """A single DAG with an invalid access_control must not abort syncing the remaining DAGs."""
+    bad_dag = DAG("bad_access_control", schedule=None, access_control={"NonExistentRole": {ACTION_CAN_READ}})
+    good_dag = DAG("good_access_control", schedule=None, access_control={"Public": {ACTION_CAN_READ}})
+
+    import airflow.providers.fab.auth_manager.security_manager
+
+    _iter_dags_mock = mock.Mock(return_value=[bad_dag, good_dag])
+    monkeypatch.setitem(
+        airflow.providers.fab.auth_manager.security_manager.override.__dict__, "_iter_dags", _iter_dags_mock
+    )
+
+    try:
+        security_manager.create_dag_specific_permissions()
+
+        good_perms = security_manager.get_all_permissions()
+        good_resource_name = _resource_name(good_dag.dag_id, permissions.RESOURCE_DAG)
+        assert (ACTION_CAN_READ, good_resource_name) in good_perms
+    finally:
+        _delete_dag_permissions(bad_dag.dag_id, security_manager)
+        _delete_dag_permissions(good_dag.dag_id, security_manager)
 
 
 def test_get_all_permissions(security_manager):

@@ -40,6 +40,18 @@ used to specify a callback function by providing a path to the function. e.g ``"
 of parameters are described in the
 `Confluent Kafka python library <https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md>`_.
 
+.. warning::
+
+    Callback options supplied as dotted-path strings (``error_cb``, ``throttle_cb``, ``stats_cb``,
+    ``log_cb``, ``oauth_cb``, ``on_commit``) are only imported when listed in the
+    :ref:`config:apache_kafka__callback_allowlist` configuration. Each allowlist entry is the full
+    importable path of the callback itself — module plus attribute, e.g.
+    ``my_company.kafka.auth.oauth_cb`` — and must match the connection value exactly; a bare module
+    such as ``my_company.kafka.auth`` does not lead to authorization of the callables inside it.
+    This is enforced for security reasons, to prevent malicious callbacks from being executed.
+    The allowlist is empty by default, which disables string-valued callbacks entirely.
+    Managed authentication (Amazon MSK IAM, Google Managed Kafka) does not rely on this and is unaffected.
+
 If you are defining the Airflow connection from the Airflow UI, the ``extra`` field will be renamed to ``Config Dict``.
 
 Most operators and hooks will check that at the minimum the ``bootstrap.servers`` key exists and has a value set to be valid.

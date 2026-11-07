@@ -27,13 +27,15 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, ResumableJobMixin, conf
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
-class LivyOperator(BaseOperator):
+class LivyOperator(ResumableJobMixin, BaseOperator):
     """
     Wraps the Apache Livy batch REST API, allowing to submit a Spark application to the underlying cluster.
 
@@ -62,10 +64,15 @@ class LivyOperator(BaseOperator):
     :param retry_args: Arguments which define the retry behaviour.
         See Tenacity documentation at https://github.com/jd/tenacity
     :param deferrable: Run operator in the deferrable mode
+    :param durable: When True (the default) and the operator waits synchronously
+        (``deferrable=False`` with ``polling_interval > 0``), the Livy batch id is persisted before
+        polling so a worker crash reconnects to the running batch on retry instead of submitting a
+        duplicate. Requires Airflow 3.3+ (task_state_store); a no-op on earlier versions.
     """
 
     template_fields: Sequence[str] = ("spark_params",)
     template_fields_renderers = {"spark_params": "json"}
+    external_id_key = "livy_batch_id"
 
     def __init__(
         self,
@@ -100,8 +107,13 @@ class LivyOperator(BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
 
         if conf is None:
@@ -167,14 +179,17 @@ class LivyOperator(BaseOperator):
                 cast("dict", self.spark_params["conf"]), context
             )
 
+        if not self.deferrable and self._polling_interval > 0:
+            # Synchronous wait: route through the resumable mixin so a worker crash mid-poll
+            # reconnects to the running batch on retry instead of resubmitting a duplicate.
+            return self.execute_resumable(context)
+
         _batch_id: int | str = self.hook.post_batch(**self.spark_params)
         self._batch_id = _batch_id
         self.log.info("Generated batch-id is %s", self._batch_id)
 
-        # Wait for the job to complete
+        # No polling requested: submit and return without waiting (nothing to reconnect to).
         if not self.deferrable:
-            if self._polling_interval > 0:
-                self.poll_for_termination(self._batch_id)
             context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(self._batch_id)["appId"])
             return self._batch_id
 
@@ -202,6 +217,31 @@ class LivyOperator(BaseOperator):
 
             context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(self._batch_id)["appId"])
             return self._batch_id
+
+    def submit_job(self, context: Context) -> JsonValue:
+        batch_id: int | str = self.hook.post_batch(**self.spark_params)
+        self._batch_id = batch_id
+        self.log.info("Generated batch-id is %s", batch_id)
+        return batch_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        return self.hook.get_batch_state(cast("int | str", external_id), retry_args=self.retry_args).value
+
+    def is_job_active(self, status: str) -> bool:
+        return BatchState(status) not in self.hook.TERMINAL_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return BatchState(status) == BatchState.SUCCESS
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        # Set _batch_id so on_kill() can delete the batch after a reconnect (submit_job was skipped).
+        self._batch_id = cast("int | str", external_id)
+        self.poll_for_termination(self._batch_id)
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
+        batch_id = cast("int | str", external_id)
+        context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(batch_id)["appId"])
+        return batch_id
 
     def poll_for_termination(self, batch_id: int | str) -> None:
         """

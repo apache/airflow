@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import rich
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 
@@ -258,6 +259,13 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("api", "auth_backends"),
         renamed_to=ConfigParameter("fab", "auth_backends"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("api", "expose_config"),
+        was_removed=False,
+        is_invalid_if="non-sensitive-only",
+        suggestion="This value is deprecated and treated as `True`. Set `expose_config` to `True` instead; "
+        "sensitive configuration values are always masked.",
     ),
     # logging
     ConfigChange(
@@ -733,20 +741,20 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
     This function scans the Airflow configuration file for parameters that are removed or renamed in
     Airflow 3.0. It provides suggestions for alternative parameters or settings where applicable.
     CLI Arguments:
-        --section: str (optional)
-            The specific section of the configuration to lint.
+        --section: comma separated list (optional)
+            The specific section name(s) of the configuration to lint.
             Example: --section core
 
-        --option: str (optional)
-            The specific option within a section to lint.
+        --option: comma separated list (optional)
+            The specific option name(s) within a section to lint.
             Example: --option check_slas
 
-        --ignore-section: str (optional)
-            A section to ignore during linting.
+        --ignore-section: comma separated list (optional)
+            The section name(s) to ignore during linting.
             Example: --ignore-section webserver
 
-        --ignore-option: str (optional)
-            An option to ignore during linting.
+        --ignore-option: comma separated list (optional)
+            The option name(s) to ignore during linting.
             Example: --ignore-option smtp_user
 
         --verbose: flag (optional)
@@ -831,5 +839,5 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
             rich.print("[green]No issues found in your airflow.cfg. It is ready for Airflow 3![/green]")
 
     except Exception as e:
-        rich.print(f"[red]Lint configs failed: {e}")
+        rich.print(f"[red]Lint configs failed: {escape(str(e))}")
         sys.exit(1)

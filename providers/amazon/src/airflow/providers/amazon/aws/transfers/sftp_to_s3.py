@@ -34,6 +34,9 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
+SKIPPED_SAMPLE_SIZE = 10
+
+
 class SFTPToS3Operator(BaseOperator):
     """
     Transfer files from an SFTP server to Amazon S3.
@@ -74,7 +77,15 @@ class SFTPToS3Operator(BaseOperator):
     :param acl_policy: Canned ACL policy for the file being uploaded to S3.
     """
 
-    template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket", "sftp_filenames", "s3_filenames")
+    template_fields: Sequence[str] = (
+        "s3_key",
+        "sftp_path",
+        "s3_bucket",
+        "sftp_filenames",
+        "s3_filenames",
+        "sftp_conn_id",
+        "aws_conn_id",
+    )
 
     def __init__(
         self,
@@ -175,16 +186,27 @@ class SFTPToS3Operator(BaseOperator):
             if isinstance(self.sftp_filenames, str):
                 self.log.info("Getting files in %s", self.sftp_path)
                 list_dir = sftp_client.listdir(self.sftp_path)
-                if self.sftp_filenames == "*":
+                sftp_prefix: str = self.sftp_filenames
+                if sftp_prefix == "*":
                     files = list_dir
                 else:
-                    sftp_prefix: str = self.sftp_filenames
-                    files = [f for f in list_dir if sftp_prefix in f]
+                    files = [f for f in list_dir if f.startswith(sftp_prefix)]
+                    dropped = [f for f in list_dir if sftp_prefix in f and not f.startswith(sftp_prefix)]
+                    if dropped:
+                        omitted = len(dropped) - SKIPPED_SAMPLE_SIZE
+                        self.log.warning(
+                            "%d file(s) contain %r but are not selected, because a string prefix "
+                            "matches only at the start of the filename: %s%s",
+                            len(dropped),
+                            sftp_prefix,
+                            dropped[:SKIPPED_SAMPLE_SIZE],
+                            f" and {omitted} more" if omitted > 0 else "",
+                        )
 
                 for file in files:
                     self.log.info("Moving file %s", file)
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
-                        s3_filename = file.replace(self.sftp_filenames, self.s3_filenames)
+                        s3_filename = file.replace(sftp_prefix, self.s3_filenames, 1)
                     else:
                         s3_filename = file
                     self._upload_to_s3(

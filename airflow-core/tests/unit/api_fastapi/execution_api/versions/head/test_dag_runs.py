@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 import pytest
@@ -68,6 +69,27 @@ class TestDagRunTrigger:
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
         assert dag_run.run_type == DagRunType.OPERATOR_TRIGGERED
+
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": [{"__type": "datetime", "__var": 0.0}]}),
+        ],
+    )
+    def test_trigger_dag_run_rejects_reserved_conf_keys(self, client, session, dag_maker, key, conf):
+        dag_id = "test_trigger_dag_run_reserved_conf"
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        response = client.post(f"/execution/dag-runs/{dag_id}/test_run_id", json={"conf": conf})
+
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all() == []
 
     def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
         """partition_key accepted when Dag uses a partitioned timetable (happy-path guard)."""
@@ -321,6 +343,31 @@ class TestDagRunTrigger:
         assert response.status_code == 204
         child_run = session.scalars(select(DagRun).where(DagRun.run_id == child_run_id)).one()
         assert child_run.triggering_user_name == parent_triggering_user_name
+
+    def test_trigger_dag_run_value_error(self, client, session, dag_maker):
+        """Test that error is raised when a DAG Run has ValueError."""
+
+        dag_id = "test_trigger_dag_run_value_error"
+        run_id = "manual__{test_run_id}"
+        logical_date = timezone.datetime(2026, 5, 22)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat()},
+        )
+
+        detail_message = response.json()["detail"]["message"]
+        detail_reason = response.json()["detail"]["reason"]
+
+        pattern = r"The run_id provided '.*' does not match regex pattern '.*' or '.*'"
+        assert re.search(pattern, detail_message)
+        assert detail_reason == "value_error"
+        assert response.status_code == 400
 
 
 class TestDagRunClear:

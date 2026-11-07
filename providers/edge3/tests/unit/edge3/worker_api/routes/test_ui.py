@@ -17,13 +17,19 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 from sqlalchemy import delete
 
+from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.edge3.worker_api.routes.ui import jobs
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -47,6 +53,31 @@ class TestUiApiRoutes:
         assert worker_response.total_entries == 1
         assert len(worker_response.workers) == 1
         assert worker_response.workers[0].worker_name == "worker1"
+
+    def test_jobs_preserves_same_coordinate_attempts_and_legacy_identity(self, session: Session):
+        attempts = {str(UUID(int=1)): "first", str(UUID(int=2)): "second", "": "legacy"}
+        session.add_all(
+            EdgeJobModel(
+                dag_id="ui_identity",
+                task_id="task",
+                run_id="run",
+                map_index=-1,
+                try_number=1,
+                task_instance_id=task_instance_id,
+                state=TaskInstanceState.RUNNING,
+                queue="default",
+                concurrency_slots=1,
+                command="unused",
+                edge_worker=worker,
+            )
+            for task_instance_id, worker in attempts.items()
+        )
+        session.flush()
+
+        response = jobs(session=session, dag_id_pattern="ui_identity").model_dump(mode="json")
+
+        assert response["total_entries"] == 3
+        assert {job["task_instance_id"]: job["edge_worker"] for job in response["jobs"]} == attempts
 
     def test_set_worker_concurrency_limit(self, session: Session):
         from airflow.providers.edge3.worker_api.datamodels_ui import ConcurrencyRequest

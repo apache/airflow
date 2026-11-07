@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -32,8 +33,10 @@ import {
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui/Toaster";
-import { createErrorToaster } from "src/utils";
+
+import { toaster } from "src/system-components";
+
+import { createErrorToaster, getApiErrorDetail, getErrorStatus } from "src/utils";
 import type { HITLResponseParams } from "src/utils/hitl";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
@@ -43,12 +46,16 @@ export const useUpdateHITLDetail = ({
   dagRunId,
   mapIndex,
   onSuccess,
+  regionId,
+  regionIndex,
   taskId,
 }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number | undefined;
   onSuccess?: () => void;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
@@ -80,8 +87,29 @@ export const useUpdateHITLDetail = ({
     onSuccess?.();
   };
 
-  const onError = (apiError: unknown) => {
-    createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
+  const onError = async (apiError: unknown) => {
+    const detail = getApiErrorDetail(apiError);
+
+    // The backend says why it refused the answer (e.g. the task stopped waiting); show that rather
+    // than the bare status text. 403 stays with the MutationCache handler, as in createErrorToaster.
+    if (detail !== undefined && getErrorStatus(apiError) !== 403) {
+      toaster.create({
+        description: Array.isArray(detail) ? detail.join(", ") : detail,
+        title: translate("response.error"),
+        type: "error",
+      });
+    } else {
+      createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
+    }
+    // A refused answer (the request was replaced or already answered) leaves a stale request on
+    // screen; reload it so the next answer goes to what is waiting now.
+    await Promise.all(
+      [
+        [useTaskInstanceServiceGetHitlDetailsKey],
+        [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
+        [useTaskInstanceServiceGetHitlDetailTryDetailKey, { dagId, dagRunId }],
+      ].map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    );
   };
 
   const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
@@ -95,6 +123,7 @@ export const useUpdateHITLDetail = ({
     const requestBody = {
       chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
       params_input: updateHITLResponseRequestBody.params_input ?? {},
+      request_created_at: updateHITLResponseRequestBody.request_created_at,
     };
 
     try {
@@ -102,6 +131,8 @@ export const useUpdateHITLDetail = ({
         dagId,
         dagRunId,
         mapIndex: mapIndexValue,
+        regionId,
+        regionIndex,
         requestBody,
         taskId,
       });

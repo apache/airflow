@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, reconstructor
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
@@ -60,6 +60,8 @@ log = logging.getLogger(__name__)
 #
 # You can try the regex here: https://regex101.com/r/69033B/1
 RE_SANITIZE_CONN_ID = re.compile(r"^[\w#!()\-.:/\\]{1,}$")
+PORT_MIN = 0
+PORT_MAX = 65535
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
 
@@ -171,7 +173,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
-        if uri and (conn_type or host or login or password or schema or port or extra):
+        if uri and (conn_type or host or login or password or schema or port is not None or extra):
             raise AirflowException(
                 "You must create an object using the URI or individual values "
                 "(conn_type, host, login, password, schema, port or extra)."
@@ -218,6 +220,35 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         except json.JSONDecodeError:
             raise ValueError(f"Encountered non-JSON in `extra` field for connection {conn_id!r}.")
         return None
+
+    @staticmethod
+    def _validate_port(port: int | None) -> int | None:
+        if port is None:
+            return None
+        if type(port) is not int:
+            raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        if not PORT_MIN <= port <= PORT_MAX:
+            raise ValueError(
+                f"Expected value for `port` in the range {PORT_MIN}-{PORT_MAX}, but got {port!r} instead."
+            )
+        return port
+
+    @classmethod
+    def _coerce_port(cls, port) -> int | None:
+        if port is None or port == "":
+            return None
+        if isinstance(port, str):
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from None
+        return cls._validate_port(port)
+
+    @validates("port")
+    def _validate_port_assignment(self, _, port: int | str | None) -> int | None:
+        # Callers commonly pass the port as a string (env vars, config, custom secrets backends);
+        # accept those like ``from_json`` does rather than breaking them.
+        return self._coerce_port(port)
 
     @reconstructor
     def on_db_load(self):
@@ -287,13 +318,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type) or ""
-        if "_" in conn_type:
-            self.log.warning(
-                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                conn_type,
-            )
-
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
@@ -335,7 +359,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         if host_to_use:
             host_block += quote(host_to_use, safe="")
 
-        if self.port:
+        if self.port is not None:
             if host_block == "" and authority_block == "":
                 host_block += f"@:{self.port}"
             else:
@@ -390,10 +414,46 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
 
-        hook = ProvidersManager().hooks.get(self.conn_type, None)
+        hooks = ProvidersManager().hooks
+        hook = hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+            if not self.conn_type:
+                # A URI scheme cannot contain '_' (RFC 3986), so "foo_bar://h" parses with no
+                # scheme at all and leaves conn_type empty. Name that, instead of reporting an
+                # unknown hook type of "".
+                message = (
+                    f"Connection {self.conn_id!r} has no connection type, so no hook could be "
+                    "looked up. If it was defined as a URI, note that a URI scheme cannot "
+                    "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
+                    "'-' in the URI instead, which is decoded back to '_' on read."
+                )
+            else:
+                message = f'Unknown hook type "{self.conn_type}"'
+                # get_uri() encodes '_' as '-' because RFC 3986 forbids '_' in a scheme, and
+                # reading a connection back from a URI or from JSON decodes it again, so both
+                # characters serialize to '-' and a connection type spelled one way cannot
+                # resolve a hook registered the other way. Hooks register under the
+                # connection-type verbatim, so look the other spelling up rather than asserting
+                # which one is right, and resolve it rather than testing for membership: a
+                # registered connection type maps to None when its hook cannot be imported, and
+                # naming a spelling that still will not resolve is worse than naming none.
+                alternative = (
+                    self.conn_type.replace("-", "_")
+                    if "-" in self.conn_type
+                    else self.conn_type.replace("_", "-")
+                )
+                if alternative != self.conn_type and hooks.get(alternative) is not None:
+                    message += f", but a hook is registered for {alternative!r}. "
+                    if "-" in self.conn_type:
+                        message += "Spell this connection's type with '_' to reach it."
+                    else:
+                        message += (
+                            "Reading a connection from a URI or from JSON decodes '-' back to "
+                            "'_', so this connection cannot reach that hook; the provider has "
+                            "to declare its connection-type with '_'."
+                        )
+            raise AirflowException(message)
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
@@ -586,11 +646,8 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         if conn_type:
             kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
         port = kwargs.pop("port", None)
-        if port:
-            try:
-                kwargs["port"] = int(port)
-            except ValueError:
-                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        if port is not None:
+            kwargs["port"] = cls._coerce_port(port)
         return Connection(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:

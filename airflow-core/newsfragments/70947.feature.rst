@@ -1,0 +1,1 @@
+Add an ``airflow teams verify`` CLI command for validating multi-team configuration. The command checks that each team has its system-managed default pool, that DAG bundles reference existing teams, and reports any configuration inconsistencies.

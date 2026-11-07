@@ -200,7 +200,7 @@ You can add a connection using JSON format (from version 2.3.0):
             }
         }'
 
-Alternatively you may use Airflow' Connection URI format (see :ref:`Generating a Connection URI <generating_connection_uri>`).
+Alternatively you may use Airflow's Connection URI format (see :ref:`Generating a Connection URI <generating_connection_uri>`).
 
 .. code-block:: bash
 

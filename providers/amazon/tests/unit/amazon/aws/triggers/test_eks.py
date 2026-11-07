@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
 import pytest
@@ -175,6 +176,20 @@ class TestEksDeleteClusterTriggerRun(TestEksTrigger):
         assert exception._excinfo[1].operation_name == operation_name
 
     @pytest.mark.asyncio
+    @patch("asyncio.sleep", return_value=None)
+    async def test_run_retries_on_resource_in_use(self, mock_sleep):
+        in_use = ClientError({"Error": {"Code": "ResourceInUseException"}}, "delete_eks_cluster")
+        delete_cluster_mock = AsyncMock(side_effect=[in_use, in_use, None])
+        self.mock_client.delete_cluster = delete_cluster_mock
+
+        generator = self.trigger.run()
+        response = await generator.asend(None)
+
+        assert delete_cluster_mock.call_count == 3
+        delete_cluster_mock.assert_called_with(name=CLUSTER_NAME)
+        assert response == TriggerEvent({"status": "deleted"})
+
+    @pytest.mark.asyncio
     async def test_run_parameterizes_async_wait_correctly(self):
         self.mock_client.get_waiter = Mock(return_value="waiter")
 
@@ -246,6 +261,36 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
             status_message="Deleting nodegroups associated with the cluster",
             status_args=["nodegroups"],
         )
+
+    @pytest.mark.asyncio
+    @patch("asyncio.sleep", return_value=None)
+    async def test_delete_nodegroups_retries_on_resource_in_use(self, mock_sleep):
+        in_use = ClientError({"Error": {"Code": "ResourceInUseException"}}, "DeleteNodegroup")
+        mock_list_node_groups = AsyncMock(return_value={"nodegroups": ["g1"]})
+        mock_delete_nodegroup = AsyncMock(side_effect=[in_use, in_use, None])
+        mock_client = AsyncMock(list_nodegroups=mock_list_node_groups, delete_nodegroup=mock_delete_nodegroup)
+
+        await self.trigger.delete_any_nodegroups(mock_client)
+
+        assert mock_delete_nodegroup.call_count == 3
+        mock_delete_nodegroup.assert_called_with(clusterName=CLUSTER_NAME, nodegroupName="g1")
+
+    @pytest.mark.asyncio
+    @patch("asyncio.sleep", return_value=None)
+    async def test_delete_fargate_profiles_retries_on_resource_in_use(self, mock_sleep):
+        in_use = ClientError({"Error": {"Code": "ResourceInUseException"}}, "DeleteFargateProfile")
+        mock_list_fargate_profiles = AsyncMock(return_value={"fargateProfileNames": ["p1"]})
+        mock_delete_fargate_profile = AsyncMock(side_effect=[in_use, in_use, None])
+        mock_client = AsyncMock(
+            list_fargate_profiles=mock_list_fargate_profiles,
+            delete_fargate_profile=mock_delete_fargate_profile,
+            get_waiter=self.mock_waiter,
+        )
+
+        await self.trigger.delete_any_fargate_profiles(mock_client)
+
+        assert mock_delete_fargate_profile.call_count == 3
+        mock_delete_fargate_profile.assert_called_with(clusterName=CLUSTER_NAME, fargateProfileName="p1")
 
     @pytest.mark.asyncio
     async def test_when_there_are_no_nodegroups_it_should_only_log_message(self):
@@ -325,7 +370,35 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
 class TestEksPodTrigger:
     """Tests for EksPodTrigger."""
 
-    TRIGGER_START_TIME = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+    @pytest.mark.asyncio
+    @patch("pathlib.Path.read_text", autospec=True, return_value="apiVersion: v1\nkind: Config\n")
+    @patch(
+        "airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file_with_credentials", autospec=True
+    )
+    @patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.run", autospec=True)
+    async def test_keeps_shared_auth_context_while_polling(self, parent_run, generate_config, read_text):
+        config_context = MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+
+        async def events():
+            config_context.__exit__.assert_not_called()
+            yield TriggerEvent({"status": "success"})
+
+        parent_run.return_value = events()
+        trigger = self._create_trigger()
+        events_received = [event async for event in trigger.run()]
+
+        assert events_received == [TriggerEvent({"status": "success"})]
+        assert trigger.config_dict == {"apiVersion": "v1", "kind": "Config"}
+        generate_config.assert_called_once()
+        assert generate_config.call_args.kwargs == {
+            "eks_cluster_name": CLUSTER_NAME,
+            "pod_namespace": "default",
+        }
+        config_context.__exit__.assert_called_once()
+
+    TRIGGER_START_TIME = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
 
     def _create_trigger(self, **overrides):
         """Create an EksPodTrigger with sensible defaults."""

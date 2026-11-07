@@ -8,8 +8,38 @@
     },
     "filters": {
       "eventType": "Tipus d'esdeveniment"
+    }
+  },
+  "dagBundles": {
+    "active": "Activa",
+    "columns": {
+      "active": "Activa",
+      "importErrors": "Errors d'importació",
+      "lastRefreshed": "Darrera actualització",
+      "name": "Nom",
+      "version": "Versió"
     },
-    "title": "Registre d'auditoria"
+    "detail": {
+      "status": "Estat"
+    },
+    "files": {
+      "columns": {
+        "file": "Fitxer",
+        "lastParsed": "Darrera anàlisi",
+        "parseDuration": "Durada de l'anàlisi"
+      },
+      "importErrorGone": "Aquest error d'importació ja no consta al registre. Probablement s'ha resolt amb una nova anàlisi.",
+      "neverParsed": "Mai",
+      "parsedFile_one": "Fitxer analitzat",
+      "parsedFile_other": "Fitxers analitzats",
+      "parsedFilesNote": "Només es mostren els fitxers que defineixen un Dag o que no s'han pogut importar.",
+      "showImportError_one": "Veure error",
+      "showImportError_other": "Veure {{count, number}} errors"
+    },
+    "inactive": "Inactiva",
+    "neverRefreshed": "Mai",
+    "notRefreshedYet": "Encara no s'ha actualitzat",
+    "notVersioned": "Sense versions"
   },
   "deadlines": {
     "columns": {
@@ -57,6 +87,8 @@
       "successTitle": "XCom actualitzat",
       "title": "Editar XCom"
     },
+    "entry_one": "Entrada d'XCom",
+    "entry_other": "Entrades d'XCom",
     "key": "Clau",
     "title": "XCom",
     "value": "Valor"

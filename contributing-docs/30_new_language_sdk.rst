@@ -21,7 +21,10 @@ Creating a new Language SDK
 Starting from 3.3, the standard Airflow workers can run task code implemented in
 languages other than Python, using a foreign Language SDK. This document
 describes how a new Language SDK can be contributed, so Airflow can execute
-tasks implemented in the language.
+tasks implemented in the language. It is also the normative *conformance
+specification* a Language SDK is expected to meet: the `Conformance`_ section
+defines the exact TaskInstance states and capabilities an SDK MUST, SHOULD, or
+MAY support.
 
 Two components are needed for Airflow to understand how to execute such a task:
 
@@ -34,6 +37,9 @@ The two components are largely independent: the coordinator decides *how* to
 start the foreign runtime and *how* to communicate with it, and the language SDK
 implements the other end of whatever protocol the coordinator chooses. There is
 no single mandated communication mechanism.
+
+For a diagram-driven overview of how a task runs across the Python and Coordinator
+paths, see `Task execution architecture <31_task_execution_architecture.rst>`__.
 
 .. contents:: Table of Contents
    :depth: 2
@@ -113,6 +119,12 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
 * ``subprocess_schema_version`` — the ``YYYY-MM-DD`` wire-schema version the
   subprocess understands, used by the supervisor to negotiate message formats
   across SDK versions. See `Supervisor Schema`_ below.
+
+Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
+class has already resolved: the Dag bundle named by ``task_handler_bundle_name``,
+or the task's own Dag bundle when it is unset, pinned for the whole task.
+Subclasses should scan those directories rather than locating artifacts
+themselves.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
@@ -281,13 +293,21 @@ is a structlog-style event:
 
 .. code-block:: text
 
-    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00", "rows": 42}
+    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00Z", "rows": 42}
 
 * ``event`` is the log message.
 * ``level`` is the level **name** in lower case. The following levels are
   supported: ``critical``, ``error``, ``warning``, ``info``, ``debug``, and
   ``notset``. A line carrying any other level is dropped.
-* ``timestamp`` is an ISO-8601 timestamp.
+* ``timestamp`` is an RFC 3339 timestamp with a UTC offset, such as
+  ``2026-06-22T12:00:00Z``. Airflow assumes that a timestamp without an offset
+  is in the time zone set by ``[core] default_timezone``, which is UTC by
+  default. If the worker's time zone differs from that setting, records without
+  an offset show the wrong time and appear out of order in the task log.
+  Include the seconds even when they are zero. The supervisor cannot parse a
+  timestamp without seconds, such as ``2026-06-22T12:00``. It moves that value
+  to an ``invalid_timestamp`` field and uses the time it received the record
+  instead.
 * Any remaining keys are forwarded as structured fields on the log record.
 
 See Python documentation on logging for details on log levels. Since log level
@@ -331,6 +351,283 @@ Error handling
   be incomplete.
 * If the supervisor returns an ``ErrorResponse`` to a mid-task request, the SDK
   SHOULD propagate it as an error to the task function.
+
+
+Conformance
+-----------
+
+The sections above describe *how* to build an SDK. This section defines *what* an
+SDK must do to be considered conformant: which TaskInstance states its runtime is
+expected to report and which optional capabilities it may offer. Because SDKs mature
+at different rates, they are not required to be identical; each one declares the
+subset it actually supports.
+
+The key words MUST, SHOULD, and MAY are used as described in :rfc:`2119`.
+
+TaskInstance-state conformance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A running task reports its outcome to the supervisor as one of a small set of
+state transitions, each carried by a specific message on the ``--comm`` socket
+(see `Message types`_). Only the states a subprocess can *emit* are part of SDK
+conformance; scheduler-owned states (``queued``, ``scheduled``, ``running``,
+``restarting``, ``upstream_failed``) are set by Airflow and are never sent by the
+runtime, so they are out of scope here.
+
+.. list-table:: TaskInstance-state conformance
+   :header-rows: 1
+   :widths: 20 15 65
+
+   * - State
+     - Tier
+     - How it is reported / notes
+   * - ``success``
+     - MUST
+     - ``SucceedTask``, or a clean process exit (exit code 0).
+   * - ``failed``
+     - MUST
+     - ``TaskState`` with ``"state": "failed"``; also inferred from a non-zero
+       exit if no terminal message was sent.
+   * - ``up_for_retry``
+     - MUST
+     - ``RetryTask`` when the task fails but retries remain. The failure detail
+       key is ``retry_reason`` (not ``reason``).
+   * - ``skipped``
+     - SHOULD
+     - ``TaskState`` with ``"state": "skipped"``, for branching / skip semantics.
+   * - ``deferred``
+     - MAY
+     - ``DeferTask``. Requires the SDK to bridge to the triggerer.
+   * - ``up_for_reschedule``
+     - MAY
+     - ``RescheduleTask``, for reschedule-mode sensors.
+   * - ``awaiting_input``
+     - MAY
+     - ``AwaitInputTask``, for human-in-the-loop tasks.
+   * - ``removed``
+     - MAY
+     - ``TaskState`` with ``"state": "removed"``.
+
+An SDK that only implements the MUST tier can already run ordinary tasks to
+success or failure with retries; the SHOULD and MAY tiers unlock branching,
+deferral, reschedule sensors, and human-in-the-loop.
+
+Runtime capabilities
+~~~~~~~~~~~~~~~~~~~~~~
+
+Runtime capabilities describe what a task *body* can do while it executes, regardless of
+whether the task was declared in a Python Dag (via ``@task.stub``) or in a Dag definition
+authored in the target language. An SDK declares each one independently.
+
+``task-logging`` (MUST)
+    The SDK forwards the task's log output — stdout / stderr and any structured log
+    records — to the supervisor over the ``--logs`` socket, so it surfaces in the task
+    log exactly like a Python task. A remote log *storage* (S3, GCS, …) is handled
+    uniformly by the supervisor and thus not part of SDK conformance.
+
+``xcom-read-write`` (MUST)
+    The SDK exposes an API for the task to read and write XCom values across the Python
+    boundary.
+
+``connection-read`` (MUST)
+    The task can resolve an Airflow Connection by id.
+
+``variable-read-write`` (MUST)
+    The task can read, write, and delete Airflow Variables.
+
+``self-contained-bundle`` (MUST)
+    The SDK's build artifact embeds its own Airflow metadata (``dag_id``, ``task_id`` and
+    the rest of the task descriptor) inside the *same* artifact as the task code, rather
+    than shipping it in a separate sidecar file, so the deployable unit is self-describing.
+    Each runtime satisfies this its own way — a Go binary carries an ``AFBNDL01`` metadata
+    trailer (see `Native Executable Bundle Format`_), a JVM artifact embeds it in the jar,
+    a Node bundle embeds it in the package.
+
+``retry-policy`` (MAY)
+    The SDK lets task code inspect a failure and override whether the task retries or fails,
+    optionally with a custom retry delay, the equivalent of Python's ``RetryPolicy``. This is
+    distinct from reporting ``up_for_retry``: an SDK can support ordinary retries without
+    exposing a task-facing retry-policy API.
+
+``task-state-store`` (MAY)
+    The task can read and write the per-task state store.
+
+``asset-state-store`` (MAY)
+    The task can read and write the state store keyed by an asset name or URI. It says
+    nothing about whether the SDK can *declare* an asset, which is ``asset-definition``.
+
+``asset-event-emit`` (MAY)
+    The task can emit asset events — outlet events, including alias events — as it runs.
+
+``asset-event-read`` (MAY)
+    The task can read prior asset events.
+
+``object-store`` (MAY)
+    The SDK exposes an object-storage API (an ``ObjectStoragePath`` equivalent) usable from
+    task code.
+
+``listeners`` (MAY)
+    A task feeds Airflow's listener API, so a listener plugin sees it as it does a Python
+    task. OpenLineage is the main consumer: without this, a task of this SDK produces no
+    lineage facets of its own.
+
+Dag definition
+~~~~~~~~~~~~~~
+
+A Dag definition lets an entire Dag — not just individual task bodies — be written in
+the target language, without a Python Dag file. It is gated by a single umbrella
+capability:
+
+``dag-definition-authoring`` (SHOULD)
+    The SDK can define a whole Dag in the target language. The project intends every
+    Language SDK to reach this bar, but an SDK is not required to ship it before it is
+    ready; an SDK that only executes ``@task.stub`` tasks from a Python Dag is still useful
+    and remains conformant to the MUST tier.
+
+The remaining Dag-definition capabilities are **conditional**: their tier applies only when
+``dag-definition-authoring`` is supported (written ``†``). For an SDK that does not (yet) author Dags
+in its own language they are *not applicable* (``n/a``) rather than unsupported.
+
+``dag-args`` (MUST †)
+    Dag-level arguments (schedule, tags, default queue, and so on) can be set on a Dag definition.
+
+``task-args`` (MUST †)
+    Task-level arguments (retries, pool, queue, and so on) can be set on a task of a Dag definition.
+
+``dag-params`` (MUST †)
+    Dag-level params can be declared on a Dag definition.
+
+``dag-callbacks`` (MAY †)
+    Dag-level callbacks (``on_failure_callback`` and the rest) can be declared on a Dag
+    definition as functions in the target language, and Airflow runs them. This is a
+    Dag-definition concern only: the callbacks of a Python Dag are Python functions that the
+    Python runtime runs whichever SDK executes the tasks.
+
+``explicit-dependencies`` (MUST †)
+    Order-only dependencies can be drawn between tasks, the equivalent of Python's ``>>`` and
+    ``<<``.
+
+``edge-labels`` (MAY †)
+    A dependency can carry a label, the equivalent of Python's
+    ``loaded >> Label("when empty") >> notify``, and the Dag graph shows it.
+
+``taskflow-dependencies`` (MUST †)
+    Task dependencies can be expressed in a TaskFlow style, including passing a task's
+    return value to a downstream task.
+
+``task-group`` (MAY †)
+    Tasks can be organised into task groups.
+
+``task-loops`` (MAY †)
+    A task group can be repeated at runtime, the equivalent of Python's ``@task_group``
+    with ``.loop()``, bounded by ``max_iterations`` and an optional ``until`` condition.
+
+``if-else-branching`` (SHOULD †)
+    A task can decide between two downstream paths and skip the one not taken.
+
+``switch-case-branching`` (SHOULD †)
+    A task can pick one of several downstream paths and skip the others.
+
+``trigger-dag-run`` (MAY †)
+    A Dag definition can declare a task that triggers a run of another Dag, like
+    ``TriggerDagRunOperator``.
+
+``dynamic-dag-generation`` (MAY †)
+    One artifact can generate several Dags from code, for example in a loop.
+
+``human-in-the-loop`` (MAY †)
+    A Dag definition can declare a task that waits for human input.
+
+``dag-test`` (SHOULD †)
+    A Dag definition can be exercised locally with ``airflow dags test``.
+
+``asset-definition`` (MAY †)
+    Assets can be declared in the target language: the equivalents of Python's ``Asset``,
+    ``AssetAlias``, ``AssetAll`` / ``AssetAny``, and the partition mappers a partitioned
+    asset timetable consumes.
+
+``asset-scheduling`` (MAY †)
+    A Dag definition can be scheduled on asset events, including the ``AssetWatcher``
+    equivalent that turns an external trigger into those events.
+
+Python Dag with stub TaskHandler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These capabilities cover tasks declared in a Python Dag with the ``@task.stub`` decorator and
+implemented in the target language.
+
+``mixed-lang-stub-target`` (MUST)
+    The SDK can execute a task declared in a Python Dag with the ``@task.stub``
+    decorator. This is the primary execution path for every Language SDK.
+
+``taskflow-binding`` (MUST)
+    Arguments bound to a ``@task.stub`` target in the Python TaskFlow Dag — literal values
+    and upstream XCom results alike — are delivered to the task function's parameters at
+    runtime.
+
+Shared capabilities
+~~~~~~~~~~~~~~~~~~~
+
+These capabilities exist in both authoring modes, and an SDK may support them in one mode but not
+the other, so each one is declared once per mode. In a Dag definition the tier applies only when
+``dag-definition-authoring`` is supported.
+
+``mapped-tasks`` (MAY)
+    A task can be expanded at runtime via dynamic task mapping, and each mapped instance
+    receives its own arguments.
+
+``asset-inlets-outlets`` (MAY)
+    A task's asset inlets and outlets are honored, so a successful task emits events for its
+    outlets.
+
+``task-callbacks`` (MAY)
+    Task-level callbacks (``on_failure_callback`` and the rest) run for a task of this SDK.
+    The two authoring modes ask different things of the SDK: in a Dag definition the SDK
+    declares the callback as a function in its own language, while for a ``@task.stub`` task
+    the callback is declared in the Python Dag and the SDK's execution path has to get it run.
+
+Compatibility matrix
+~~~~~~~~~~~~~~~~~~~~
+
+The dimensions above are prose; each SDK also declares them *machine-readably* in one
+hand-authored ``<sdk>/capabilities.yaml``, from which prek hooks generate the published tables:
+
+.. code-block:: text
+
+    java-sdk/capabilities.yaml          <- the only file you edit
+      |
+      +-- hook: update-java-sdk-readme-matrix
+      |     +--> java-sdk/README.md            (user-facing landing page)
+      |     +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
+      |
+      +-- hook: update-lang-sdk-central-matrix   (reads every SDK in LANG_SDKS)
+            +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
+                 (consolidated cross-SDK matrix)
+
+Each hook rewrites its targets and exits non-zero when a target was stale, so a drifted table fails
+the build. Keep the manifest out of whatever the SDK publishes — it describes the SDK rather than
+being part of it; for Java that means sitting above every subproject in ``settings.gradle.kts``.
+
+A supported dimension may also record ``sdk_version``, the SDK's own release that shipped it,
+alongside ``since`` (the Airflow version). It is optional: name the release that ships, or will
+ship, the dimension, and omit it when that is not settled yet. A shared capability holds one
+entry per authoring mode:
+
+.. code-block:: yaml
+
+    mapped-tasks:
+      dag-definition:
+        supported: false
+      stub-task-handler:
+        supported: true
+        since: "3.4.0"
+        sdk_version: "1.0.0"
+
+To add an SDK, register it in ``LANG_SDKS`` (its ``id``, ``display_name`` and file locations) in
+``scripts/ci/prek/lang_sdk_compat_matrix.py``, write
+a ``capabilities.yaml`` in the same schema, and add the equivalent hook. Adding or renaming a
+dimension means editing ``STATE_DIMENSIONS`` / ``CAPABILITY_DIMENSIONS`` there **and** the prose
+above in the same PR — the renderer validates every manifest against that list.
 
 
 Testing

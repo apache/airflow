@@ -362,6 +362,21 @@ A **custom asynchronous callback** might look like this:
     ):
         EmptyOperator(task_id="example_task")
 
+.. tip::
+    ``AsyncCallback`` accepts an optional ``queue`` parameter to assign the resulting trigger to a
+    specific :ref:`trigger queue <config:triggerer__queues_enabled>`. If not specified, the
+    callback trigger runs on any triggerer started without the ``--queues`` option. See
+    :ref:`Controlling Triggerer Host Assignment Per Trigger <deferring/triggerer_queue_assignment>`
+    for details.
+
+    .. code-block:: python
+
+        AsyncCallback(
+            my_callback,
+            kwargs={"msg": "deadline missed"},
+            queue="alerts",
+        )
+
 Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -371,6 +386,9 @@ provided context as part of their execution. This means that templating can be u
 as long as the variables being templated are included in the simplified context. This currently includes the
 ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
 response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
+
+Synchronous callbacks can also read XComs from tasks in the same Dag run through ``context["xcom_pull"]``,
+for example ``context["xcom_pull"]("extract")`` or ``context["xcom_pull"]("extract", key="row_count")``.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
@@ -420,15 +438,29 @@ references for specific integrations like calendars or other data sources. To do
 a class that inherits from BaseDeadlineReference, add the ``@deadline_reference`` decorator, and
 implement an ``_evaluate_with()`` method.
 
+The decorator may be used with or without parentheses. Used bare, or with empty parentheses, the
+reference is evaluated when a new Dag run is created; pass a ``DeadlineReference.TYPES`` value to
+choose a different time.
 
-**Creating a Custom Reference**
+The class must also be registered as part of a :doc:`plugin </administration-and-deployment/plugins>`
+by adding it to the plugin's ``deadline_references`` list, the same way custom timetables are
+registered.  The decorator makes the reference available to your Dag file as
+``DeadlineReference.<ClassName>``; the plugin registration is what lets the scheduler resolve the
+class again when it deserializes the Dag.  A custom reference that is not registered in a plugin
+raises ``DeadlineReferenceNotRegistered`` at deserialization time.
+
+
+**Creating and Registering a Custom Reference**
+
+Place the reference classes and the plugin that registers them in your plugins folder (e.g.
+``$AIRFLOW_HOME/plugins/deadline_references.py``):
 
 .. code-block:: python
 
     from sqlalchemy.orm import Session
 
-    from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
+    from airflow.plugins_manager import AirflowPlugin
+    from airflow.sdk import BaseDeadlineReference, DeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
@@ -437,9 +469,9 @@ implement an ``_evaluate_with()`` method.
     class MyCustomDecoratedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are created."""
 
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            # Add your business logic here
-            return your_datetime
+        def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+            my_datetime = my_business_logic(dagrun.logical_date)
+            return my_datetime
 
 
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
@@ -447,17 +479,21 @@ implement an ``_evaluate_with()`` method.
     class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
-        required_kwargs = {"custom_param"}
+        def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+            my_datetime = my_business_logic(dagrun.queued_at)
+            return my_datetime
 
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            custom_value = kwargs["custom_param"]
-            # Use custom_value in your calculation
-            return your_datetime
+
+    # Register the classes so the scheduler can resolve them when it deserializes the Dag.
+    class MyDeadlineReferencePlugin(AirflowPlugin):
+        name = "my_deadline_reference_plugin"
+        deadline_references = [MyCustomDecoratedReference, MyQueuedReference]
 
 
 **Using a Custom Reference in a Dag**
 
-Once registered [see notes below], use your custom references in Dag definitions like any other reference:
+Once the classes are decorated and registered in a plugin, use them in Dag definitions like any
+other reference:
 
 .. code-block:: python
 
@@ -467,7 +503,7 @@ Once registered [see notes below], use your custom references in Dag definitions
     with DAG(
         dag_id="custom_reference_example",
         deadline=DeadlineAlert(
-            reference=DeadlineReference.MyCustomDecoratedReference(),
+            reference=DeadlineReference.MyCustomDecoratedReference,
             interval=timedelta(hours=2),
             callback=AsyncCallback(my_callback),
         ),
@@ -520,7 +556,14 @@ followed by a more urgent escalation if the Dag is still running.
 **Important Notes:**
 
 * **Timezone Awareness**: Always return timezone-aware datetime objects.
-* **Plugin Placement**: One convenient place for custom references is in the plugins directory.
+* **No-argument Construction**: Custom references are instantiated during registration, so they must be
+  constructible with no arguments. If your reference takes parameters, decorate it with ``@dataclass``
+  and give every field a default value.
+* **Plugin Registration**: Custom references must be listed in the ``deadline_references`` attribute
+  of an ``AirflowPlugin``, so the plugins directory is the natural home for them.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
-* **Required Parameters**: Use ``required_kwargs`` to specify parameters your reference needs.
+* **Dag run context**: Add a ``dagrun`` parameter to ``_evaluate_with()`` to use the Dag run being evaluated.
+* **Required Parameters** *(deprecated)*: ``required_kwargs`` declares which parameters your reference
+  needs. It still works but is deprecated and will be removed in Airflow 4.0 — declare the keyword-only
+  parameters your ``_evaluate_with()`` needs instead.
 * **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.

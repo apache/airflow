@@ -24,13 +24,8 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.common.compat.sdk import AirflowException, SkipMixin
+from airflow.providers.common.compat.sdk import AirflowException, SkipMixin, timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
-
-try:
-    from airflow.providers.common.compat.sdk import timezone
-except ImportError:  # Fallback for Airflow < 3.1
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -65,7 +60,7 @@ class TestSkipMixin:
         self.clean_db()
 
     def test_skip(self, dag_maker, session, time_machine):
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        now = datetime.datetime.now(tz=datetime.UTC)
         time_machine.move_to(now, tick=False)
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]

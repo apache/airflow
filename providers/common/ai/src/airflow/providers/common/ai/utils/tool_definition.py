@@ -18,10 +18,15 @@
 
 from __future__ import annotations
 
+import base64
 import dataclasses
-from typing import Any
+import json
+from typing import Any, Literal
 
 from pydantic_ai.tools import ToolDefinition
+from pydantic_core import SchemaValidator, core_schema
+
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 
 # ``ToolDefinition.return_schema`` is newer than the provider's pydantic-ai
 # floor. Detect it once so callers can include the kwarg only when supported,
@@ -42,3 +47,128 @@ def return_schema_kwargs(schema: dict[str, Any]) -> dict[str, Any]:
     if _SUPPORTS_RETURN_SCHEMA:
         return {"return_schema": schema}
     return {}
+
+
+def serialize_for_llm(value: Any) -> str:
+    """
+    Convert a Python return value to a string suitable for an LLM, with registered secrets masked.
+
+    ``bytes`` that are valid UTF-8 are returned as their text, like a ``str``. Any other
+    ``bytes`` are returned as ``{"base64": "..."}``, whose value the model can pass unchanged
+    to a ``bytes`` parameter, rather than as text with the bytes that do not decode replaced. ``bytes``
+    nested inside a container are still rendered as UTF-8 text.
+
+    :param value: The tool's return value.
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return mask_secrets(value)
+    if isinstance(value, bytes):
+        try:
+            return mask_secrets(value.decode("utf-8"))
+        except UnicodeDecodeError:
+            return json.dumps({"base64": base64.b64encode(mask_secrets(value)).decode("ascii")})
+    try:
+        return dumps_masked(value)
+    except (TypeError, ValueError):
+        # Masked before str(), which escapes backslashes and quotes inside the strings it
+        # renders, so a secret containing either would no longer match once rendered.
+        return mask_secrets(str(mask_secrets(value)))
+
+
+_SUPPORTS_METADATA = any(f.name == "metadata" for f in dataclasses.fields(ToolDefinition))
+
+
+def code_arg_kwargs(arg_name: str, language: str) -> dict[str, Any]:
+    """
+    Mark a tool as a code-execution surface whose ``arg_name`` argument holds code.
+
+    Two consumers read this metadata. Instrumentation renders the argument as
+    code in traces, tagged with ``language``. More importantly, CodeMode uses it
+    to decide which tools stay native: a tool that itself executes code must not
+    be folded into ``run_code``, because the model would then have to write a
+    script whose argument is a second script quoted as a string. Without the
+    marker, a sandbox tool is folded in and the generated orchestration runs
+    in-process on the worker -- the opposite of what a sandbox tool is for.
+
+    Returns ``{}`` when the installed pydantic-ai predates
+    ``ToolDefinition.metadata``, matching :func:`return_schema_kwargs`.
+
+    :param arg_name: The tool argument that carries the code or command.
+    :param language: Language tag for the argument, e.g. ``"shell"``.
+    """
+    if _SUPPORTS_METADATA:
+        return {"metadata": {"code_arg_name": arg_name, "code_arg_language": language}}
+    return {}
+
+
+def _fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.CoreSchema:
+    any_of = fragment.get("anyOf")
+    if isinstance(any_of, list):
+        choices: list[core_schema.CoreSchema | tuple[core_schema.CoreSchema, str]] = [
+            _fragment_to_core_schema(choice) for choice in any_of if isinstance(choice, dict)
+        ]
+        return core_schema.union_schema(choices) if choices else core_schema.any_schema()
+
+    schema_type = fragment.get("type")
+    if isinstance(schema_type, list):
+        choices = [
+            _fragment_to_core_schema({**fragment, "type": item})
+            for item in schema_type
+            if isinstance(item, str)
+        ]
+        return core_schema.union_schema(choices) if choices else core_schema.any_schema()
+
+    match schema_type:
+        case "string":
+            return core_schema.str_schema()
+        case "integer":
+            return core_schema.int_schema()
+        case "number":
+            return core_schema.float_schema()
+        case "boolean":
+            return core_schema.bool_schema()
+        case "null":
+            return core_schema.none_schema()
+        case "array":
+            items = fragment.get("items")
+            return core_schema.list_schema(
+                _fragment_to_core_schema(items) if isinstance(items, dict) else None
+            )
+        case "object":
+            return _object_fragment_to_core_schema(fragment)
+        case _:
+            return core_schema.any_schema()
+
+
+def _object_fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.CoreSchema:
+    """
+    Convert a JSON Schema ``object`` fragment to a core schema.
+
+    A fragment with no ``properties`` key is an untyped object (e.g. from a
+    ``dict[K, V]`` annotation): accept any dict rather than stripping its
+    contents. When ``properties`` is present, build a typed-dict that validates
+    each declared field recursively — nested objects are handled the same way
+    arrays already recurse into ``items``.
+
+    Undeclared keys follow native pydantic-ai: ``forbid`` for fixed signatures
+    (so a mistyped field name becomes a bounded retry), ``allow`` only when the
+    schema sets ``additionalProperties: true`` (methods that accept ``**kwargs``).
+    """
+    if "properties" not in fragment:
+        return core_schema.dict_schema()
+    required = set(fragment.get("required", []))
+    fields = {
+        name: core_schema.typed_dict_field(_fragment_to_core_schema(prop), required=name in required)
+        for name, prop in fragment["properties"].items()
+    }
+    extra_behavior: Literal["allow", "forbid"] = (
+        "allow" if fragment.get("additionalProperties") is True else "forbid"
+    )
+    return core_schema.typed_dict_schema(fields, extra_behavior=extra_behavior)
+
+
+def build_args_validator(parameters_json_schema: dict[str, Any]) -> SchemaValidator:
+    """Build an argument validator from a tool's JSON parameters schema."""
+    return SchemaValidator(_object_fragment_to_core_schema(parameters_json_schema))

@@ -49,6 +49,7 @@ class HivePartitionSensor(BaseSensorOperator):
         "schema",
         "table",
         "partition",
+        "metastore_conn_id",
     )
     ui_color = "#C5CAE9"
 
@@ -63,11 +64,9 @@ class HivePartitionSensor(BaseSensorOperator):
         **kwargs: Any,
     ):
         super().__init__(poke_interval=poke_interval, **kwargs)
-        if not partition:
-            partition = "ds='{{ ds }}'"
         self.metastore_conn_id = metastore_conn_id
         self.table = table
-        self.partition = partition
+        self.partition = partition or "ds='{{ ds }}'"
         self.schema = schema
 
     def poke(self, context: Context) -> bool:

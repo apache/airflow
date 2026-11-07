@@ -25,17 +25,15 @@ from unittest import mock
 import pytest
 
 from airflow._shared.module_loading import find_path_from_directory
+from airflow.configuration import conf
 from airflow.utils import file as file_utils
 from airflow.utils.file import (
     correct_maybe_zipped,
-    list_py_file_paths,
     open_maybe_zipped,
 )
 
 from tests_common.test_utils.config import conf_vars
 from unit.models import TEST_DAGS_FOLDER
-
-TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 
 def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
@@ -61,18 +59,19 @@ class TestCorrectMaybeZipped:
 
         assert dag_folder == path
 
+    @pytest.mark.parametrize("archive", ["/path/to/archive.zip", "/path/to/archive.ZIP"])
     @mock.patch("zipfile.is_zipfile")
-    def test_correct_maybe_zipped_archive(self, mocked_is_zipfile):
-        path = "/path/to/archive.zip/deep/path/to/file.txt"
+    def test_correct_maybe_zipped_archive(self, mocked_is_zipfile, archive):
+        path = f"{archive}/deep/path/to/file.txt"
         mocked_is_zipfile.return_value = True
 
         dag_folder = correct_maybe_zipped(path)
 
         assert mocked_is_zipfile.call_count == 1
         (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        assert args[0] == "/path/to/archive.zip"
+        assert args[0] == archive
 
-        assert dag_folder == "/path/to/archive.zip"
+        assert dag_folder == archive
 
 
 class TestOpenMaybeZipped:
@@ -94,8 +93,15 @@ class TestOpenMaybeZipped:
             content = test_file.read()
         assert isinstance(content, str)
 
+    def test_open_maybe_zipped_archive_uppercase_extension(self, test_zip_path):
+        uppercase_zip = os.path.splitext(test_zip_path)[0] + ".ZIP"
+        os.rename(test_zip_path, uppercase_zip)
+        with open_maybe_zipped(os.path.join(uppercase_zip, "test_zip.py"), "r") as test_file:
+            content = test_file.read()
+        assert isinstance(content, str)
 
-class TestListPyFilesPath:
+
+class TestDagFileHelpers:
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
             "test_invalid_cron.py",
@@ -139,7 +145,7 @@ class TestListPyFilesPath:
     def test_might_contain_dag_with_default_callable(self):
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
 
-        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True, conf=conf)
 
     @conf_vars({("core", "might_contain_dag_callable"): "unit.utils.test_file.might_contain_dag"})
     def test_might_contain_dag(self):
@@ -149,10 +155,10 @@ class TestListPyFilesPath:
         # There is a DAG defined in the file_path_with_dag, however, the might_contain_dag_callable
         # returns False no matter what, which is used to test might_contain_dag_callable actually
         # overrides the default function
-        assert not file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+        assert not file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True, conf=conf)
 
         # With safe_mode is False, the user defined callable won't be invoked
-        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False, conf=conf)
 
     def test_get_modules(self):
         file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.py")
@@ -179,38 +185,6 @@ class TestListPyFilesPath:
         modules = list(file_utils.iter_airflow_imports(file_path))
 
         assert len(modules) == 0
-
-    def test_list_py_file_paths(self, test_zip_path):
-        detected_files = set()
-        expected_files = set()
-        # No_dags is empty, _invalid_ is ignored by .airflowignore
-        ignored_files = {
-            "no_dags.py",
-            "should_ignore_this.py",
-            "test_explicit_ignore.py",
-            "test_invalid_cron.py",
-            "test_invalid_dup_task.py",
-            "test_ignore_this.py",
-            "test_invalid_param.py",
-            "test_invalid_param2.py",
-            "test_invalid_param3.py",
-            "test_invalid_param4.py",
-            "test_nested_dag.py",
-            "test_imports.py",
-            "test_nested_negate_ignore.py",
-            "file_no_airflow_dag.py",  # no_dag test case in test_zip folder
-            "test.py",  # no_dag test case in test_zip_module folder
-            "__init__.py",
-        }
-        for root, _, files in os.walk(TEST_DAG_FOLDER):
-            for file_name in files:
-                if file_name.endswith((".py", ".zip")):
-                    if file_name not in ignored_files:
-                        expected_files.add(f"{root}/{file_name}")
-        detected_files = set(list_py_file_paths(TEST_DAG_FOLDER))
-        assert detected_files == expected_files, (
-            f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
-        )
 
 
 @pytest.mark.parametrize(

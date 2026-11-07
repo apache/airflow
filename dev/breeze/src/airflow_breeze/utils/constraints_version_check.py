@@ -37,7 +37,8 @@ from airflow_breeze.global_constants import MOUNT_SELECTED
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.console import Output, console_print
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
-from airflow_breeze.utils.github import download_constraints_file
+from airflow_breeze.utils.github import download_constraints_file, get_branch_commit
+from airflow_breeze.utils.packages import load_pyproject_toml
 from airflow_breeze.utils.parallel import get_temp_file_name
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_verbose
@@ -82,6 +83,15 @@ def is_valid_version(version_str: str, latest_version: Version) -> bool:
             and not parsed_version.is_devrelease
             and parsed_version <= latest_version
         )
+    except version.InvalidVersion:
+        return False
+
+
+def is_newer_version(candidate: str, reference: str) -> bool:
+    from packaging import version
+
+    try:
+        return version.parse(candidate) > version.parse(reference)
     except version.InvalidVersion:
         return False
 
@@ -185,14 +195,13 @@ def should_show_package(releases, latest_version, constraints_date, mode, is_lat
     return True
 
 
-def get_latest_version_with_cooldown(releases: dict[str, Any], cooldown_days: int) -> str | None:
-    """Find the latest non-prerelease version whose release date is outside the cooldown period.
+def get_latest_version_with_cooldown(releases: dict[str, Any], cutoff: datetime | None) -> str | None:
+    """Find the latest non-prerelease version uploaded no later than ``cutoff`` (any time if None).
 
     Returns the version string, or None if no version qualifies.
     """
     from packaging import version
 
-    cutoff = datetime.now() - timedelta(days=cooldown_days)
     candidates: list[tuple[version.Version, str]] = []
     for v, release_files in releases.items():
         if not release_files:
@@ -211,12 +220,52 @@ def get_latest_version_with_cooldown(releases: dict[str, Any], cooldown_days: in
             ).replace(tzinfo=None)
         except (KeyError, IndexError, ValueError):
             continue
-        if upload_time <= cutoff:
+        if cutoff is None or upload_time <= cutoff:
             candidates.append((parsed_v, v))
     if not candidates:
         return None
     candidates.sort(key=lambda x: x[0], reverse=True)
     return candidates[0][1]
+
+
+def load_cooldown_overrides() -> dict[str, bool | str]:
+    """Per-package ``exclude-newer-package`` entries of the root pyproject.toml, by canonical name.
+
+    The constraints are resolved under these rules (Airflow's own distributions are exempt from
+    the cooldown, a few packages have a moved cutoff), so "latest" has to be read under the same
+    rules or the check flags pins that resolved exactly as configured.
+    """
+    from packaging.utils import canonicalize_name
+
+    tool_uv = load_pyproject_toml(AIRFLOW_ROOT_PATH / "pyproject.toml").get("tool", {}).get("uv", {})
+    return {
+        canonicalize_name(name): value for name, value in tool_uv.get("exclude-newer-package", {}).items()
+    }
+
+
+_DURATION_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(minute|hour|day)s?\s*$")
+
+
+def get_release_cutoff(pkg: str, cooldown_days: int, overrides: dict[str, bool | str]) -> datetime | None:
+    """Return the newest upload time still eligible as ``latest`` for ``pkg``, None for no limit.
+
+    Mirrors the ``exclude-newer-package`` values uv accepts: ``false`` lifts the cooldown, a
+    timestamp fixes the cutoff, a duration such as ``"12 hours"`` replaces the window.
+    """
+    from packaging.utils import canonicalize_name
+
+    override = overrides.get(canonicalize_name(pkg))
+    if override is False:
+        return None
+    if isinstance(override, str):
+        if match := _DURATION_RE.match(override):
+            amount, unit = float(match.group(1)), match.group(2)
+            return datetime.now() - timedelta(**{f"{unit}s": amount})
+        try:
+            return datetime.fromisoformat(override.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            console_print(f"[yellow]Ignoring unparsable exclude-newer-package value for {pkg}: {override}[/]")
+    return datetime.now() - timedelta(days=cooldown_days)
 
 
 def get_first_newer_release_date_str(releases, current_version):
@@ -253,6 +302,20 @@ def get_first_newer_release_date_str(releases, current_version):
         return None
 
 
+def save_constraints(constraints: str, constraints_commit: str | None, directory: Path) -> None:
+    """Keep the checked constraints for a later report. Failing to keep them never fails the check."""
+    if not constraints_commit:
+        console_print("[warning]Constraints not saved: the constraints commit could not be read.[/]")
+        return
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "constraints.txt").write_text(constraints)
+        # Written last, so that its presence means the copy is complete.
+        (directory / "constraints-commit.txt").write_text(f"{constraints_commit}\n")
+    except OSError as e:
+        console_print(f"[warning]Constraints not saved to {directory}: {e}[/]")
+
+
 def constraints_version_check(
     python: str,
     airflow_constraints_mode: str,
@@ -262,20 +325,39 @@ def constraints_version_check(
     github_token: str | None = None,
     github_repository: str | None = None,
     cooldown_days: int = 4,
+    constraints_file: Path | None = None,
+    save_constraints_to: Path | None = None,
 ):
     console_print(f"[bold cyan]Python version:[/] [white]{python}[/]")
     console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]")
-    console_print(f"[bold cyan]Cooldown period:[/] [white]{cooldown_days} days[/]\n")
-    with tempfile.TemporaryDirectory() as temp_dir:
-        constraints_file = Path(temp_dir) / "constraints.txt"
-        download_constraints_file(
-            constraints_reference=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
-            python_version=python,
-            airflow_constraints_mode=airflow_constraints_mode,
-            github_token=github_token,
-            output_file=constraints_file,
-        )
+    cooldown_overrides = load_cooldown_overrides()
+    exempt_count = sum(1 for value in cooldown_overrides.values() if value is False)
+    console_print(
+        f"[bold cyan]Cooldown period:[/] [white]{cooldown_days} days[/] "
+        f"[white]({exempt_count} distributions exempt via exclude-newer-package)[/]\n"
+    )
+    if constraints_file is not None:
         lines = constraints_file.read_text().splitlines()
+    else:
+        # A saved copy records its commit, so the branch is resolved first and downloaded at that commit.
+        constraints_commit = (
+            get_branch_commit(DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH, github_token)
+            if save_constraints_to
+            else None
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            downloaded_file = Path(temp_dir) / "constraints.txt"
+            download_constraints_file(
+                constraints_reference=constraints_commit or DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+                python_version=python,
+                airflow_constraints_mode=airflow_constraints_mode,
+                github_token=github_token,
+                output_file=downloaded_file,
+            )
+            constraints = downloaded_file.read_text()
+        if save_constraints_to:
+            save_constraints(constraints, constraints_commit, save_constraints_to)
+        lines = constraints.splitlines()
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
         console_print(
@@ -302,6 +384,7 @@ def constraints_version_check(
         airflow_constraints_mode=airflow_constraints_mode,
         github_repository=github_repository,
         cooldown_days=cooldown_days,
+        cooldown_overrides=cooldown_overrides,
     )
 
     print_table_footer(
@@ -445,15 +528,8 @@ def process_packages(
     airflow_constraints_mode: str,
     github_repository: str | None,
     cooldown_days: int = 4,
+    cooldown_overrides: dict[str, bool | str] | None = None,
 ) -> tuple[int, int, list[str], dict[str, int]]:
-    @contextmanager
-    def preserve_pyproject_file(pyproject_path: Path):
-        original_content = pyproject_path.read_text()
-        try:
-            yield
-        finally:
-            pyproject_path.write_text(original_content)
-
     def fetch_pypi_data(pkg: str) -> dict:
         pypi_url = f"https://pypi.org/pypi/{pkg}/json"
         with urllib.request.urlopen(pypi_url) as resp:
@@ -472,13 +548,21 @@ def process_packages(
     skipped_count = 0
     explanations = []
     status_counts: dict[str, int] = {"ok": 0, "new": 0, "warning": 0, "critical": 0}
+    # Resolved lazily on the first package that needs an explanation, then shared by all of
+    # them — see resolve_baseline_versions() for why one resolution is enough.
+    baseline: tuple[str, dict[str, str]] | None = None
 
     for pkg, pinned_version in packages:
         try:
             data = fetch_pypi_data(pkg)
             releases = data["releases"]
-            latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cooldown_days)
+            cutoff = get_release_cutoff(pkg, cooldown_days, cooldown_overrides or {})
+            latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cutoff)
             latest_version = latest_version_with_cooldown or data["info"]["version"]
+            if is_newer_version(pinned_version, latest_version):
+                # The pin can still be ahead of `latest` (an override dropped after the constraints
+                # resolved with it): nothing to upgrade to, so nothing to explain.
+                latest_version = pinned_version
             latest_release_date = get_release_dates(releases, latest_version)
             constraint_release_date = get_release_dates(releases, pinned_version)
             is_latest_version = pinned_version == latest_version
@@ -496,7 +580,7 @@ def process_packages(
                     format_str=format_str,
                     is_latest_version=is_latest_version,
                     versions_behind_str=versions_behind_str,
-                    cooldown_days=cooldown_days,
+                    cooldown_days=0 if cutoff is None else cooldown_days,
                 )
                 status_counts[status_category] += 1
                 if not is_latest_version:
@@ -505,6 +589,13 @@ def process_packages(
                 skipped_count += 1
 
             if explain_why and not is_latest_version:
+                if baseline is None:
+                    baseline = resolve_baseline_versions(
+                        python_version=python_version,
+                        airflow_constraints_mode=airflow_constraints_mode,
+                        github_repository=github_repository,
+                    )
+                baseline_text, baseline_versions = baseline
                 explanation = explain_package_upgrade(
                     pkg=pkg,
                     pinned_version=pinned_version,
@@ -512,6 +603,8 @@ def process_packages(
                     python_version=python_version,
                     airflow_constraints_mode=airflow_constraints_mode,
                     github_repository=github_repository,
+                    baseline_text=baseline_text,
+                    baseline_versions=baseline_versions,
                 )
                 explanations.append(explanation)
         except HTTPError as e:
@@ -629,6 +722,103 @@ def find_downgrades(
     return sorted(downgrades)
 
 
+@contextmanager
+def preserve_files(*paths: Path):
+    """Restore the given files' contents on exit — ``uv sync`` rewrites ``uv.lock``."""
+    originals = {path: path.read_text() for path in paths}
+    try:
+        yield
+    finally:
+        for path, content in originals.items():
+            path.write_text(content)
+
+
+def get_additional_sync_args(airflow_constraints_mode: str) -> list[str]:
+    if airflow_constraints_mode == "constraints-source-providers":
+        # In case of source constraints we also need to add all development dependencies
+        # to reflect exactly what is installed in the CI image by default. The ``ci-image``
+        # group aggregates dev/docs/docs-gen plus any hard-to-install provider extras
+        # (see root pyproject.toml).
+        return ["--group", "ci-image"]
+    return []
+
+
+# Marker echoed between ``uv sync`` and ``uv pip freeze`` so the freeze output can be
+# sliced out of the combined shell log.
+FREEZE_MARKER = "===BREEZE_RESOLVED_FREEZE==="
+
+
+def sync_and_freeze(
+    *,
+    python_version: str,
+    airflow_constraints_mode: str,
+    github_repository: str | None,
+    title: str,
+):
+    """Resolve at --resolution highest and, in the *same* shell, freeze the result.
+
+    Each ``execute_command_in_shell`` call is a fresh ``docker compose run --rm``
+    container, so running ``uv pip freeze`` as a separate call would not reliably see
+    the environment the sync just populated. Chaining both in one ``bash -c`` keeps
+    the freeze in the same shell/venv as the sync. ``&&`` ensures the freeze only runs
+    when the sync succeeds and that a sync failure is still reflected in the return
+    code. Returns ``(result, combined_output_text, {canonical_name: version})``.
+    """
+    sync = shlex.join(
+        [
+            "uv",
+            "sync",
+            "--all-packages",
+            *get_additional_sync_args(airflow_constraints_mode),
+            "--resolution",
+            "highest",
+            "--refresh",
+            "--python",
+            python_version,
+        ]
+    )
+    output = Output(title=title, file_name=get_temp_file_name())
+    result = execute_command_in_shell(
+        ShellParams(
+            github_repository=github_repository,
+            python=python_version,
+            mount_sources=MOUNT_SELECTED,
+        ),
+        project_name="breeze-constraints",
+        command=shlex.join(["bash", "-c", f"{sync} && echo {FREEZE_MARKER} && uv pip freeze"]),
+        output=output,
+        signal_error=False,
+    )
+    text = Path(output.file_name).read_text()
+    versions = parse_freeze(text.split(FREEZE_MARKER, 1)[1]) if FREEZE_MARKER in text else {}
+    return result, text, versions
+
+
+def resolve_baseline_versions(
+    *,
+    python_version: str,
+    airflow_constraints_mode: str,
+    github_repository: str | None,
+) -> tuple[str, dict[str, str]]:
+    """Resolve the unpinned workspace at --resolution highest, once.
+
+    This is the resolution that actually generates the constraints, so it is the ground
+    truth for "what would the constraints pick". It depends only on the workspace and the
+    command's own arguments — never on which package is being explained — and every
+    explanation restores ``pyproject.toml``/``uv.lock`` before the next one starts. So one
+    resolution is enough for the whole run, and recomputing it per package would repeat an
+    identical several-minute ``uv sync`` dozens of times.
+    """
+    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
+        _, text, versions = sync_and_freeze(
+            python_version=python_version,
+            airflow_constraints_mode=airflow_constraints_mode,
+            github_repository=github_repository,
+            title="output_baseline",
+        )
+    return text, versions
+
+
 def explain_package_upgrade(
     pkg: str,
     pinned_version: str,
@@ -636,85 +826,24 @@ def explain_package_upgrade(
     python_version: str,
     airflow_constraints_mode: str,
     github_repository: str | None,
+    baseline_text: str,
+    baseline_versions: dict[str, str],
 ) -> str:
     explanation = (
         f"[bold blue]\n--- Explaining for {pkg} (current: {pinned_version}, latest: {latest_version}) ---[/]"
     )
+    # Breeze limits startup imports; packaging is needed only when explaining a package.
+    from packaging.utils import canonicalize_name
 
-    @contextmanager
-    def preserve_pyproject_file(pyproject_path: Path):
-        original_content = pyproject_path.read_text()
-        try:
-            yield pyproject_path
-        finally:
-            pyproject_path.write_text(original_content)
-
-    additional_args = []
-    if airflow_constraints_mode == "constraints-source-providers":
-        # In case of source constraints we also need to add all development dependencies
-        # to reflect exactly what is installed in the CI image by default. The ``ci-image``
-        # group aggregates dev/docs/docs-gen plus any hard-to-install provider extras
-        # (see root pyproject.toml).
-        additional_args.extend(["--group", "ci-image"])
-    with (
-        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
-        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
-    ):
-        from packaging.utils import canonicalize_name
-
-        canonical_pkg = str(canonicalize_name(pkg))
-
-        shell_params = ShellParams(
-            github_repository=github_repository,
-            python=python_version,
-            mount_sources=MOUNT_SELECTED,
+    canonical_pkg = str(canonicalize_name(pkg))
+    baseline_version = baseline_versions.get(canonical_pkg)
+    if baseline_version == latest_version:
+        return explanation + (
+            f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
+            f"--resolution highest. The constraints file appears to be stale.[/]"
         )
-
-        # Marker echoed between ``uv sync`` and ``uv pip freeze`` so the freeze output can be
-        # sliced out of the combined shell log.
-        freeze_marker = "===BREEZE_RESOLVED_FREEZE==="
-
-        def sync_and_freeze(title: str):
-            """Resolve at --resolution highest and, in the *same* shell, freeze the result.
-
-            Each ``execute_command_in_shell`` call is a fresh ``docker compose run --rm``
-            container, so running ``uv pip freeze`` as a separate call would not reliably see
-            the environment the sync just populated. Chaining both in one ``bash -c`` keeps
-            the freeze in the same shell/venv as the sync. ``&&`` ensures the freeze only runs
-            when the sync succeeds and that a sync failure is still reflected in the return
-            code. Returns ``(result, combined_output_text, {canonical_name: version})``.
-            """
-            sync = shlex.join(
-                [
-                    "uv",
-                    "sync",
-                    "--all-packages",
-                    *additional_args,
-                    "--resolution",
-                    "highest",
-                    "--refresh",
-                    "--python",
-                    python_version,
-                ]
-            )
-            output = Output(title=title, file_name=get_temp_file_name())
-            result = execute_command_in_shell(
-                shell_params,
-                project_name="breeze-constraints",
-                command=shlex.join(["bash", "-c", f"{sync} && echo {freeze_marker} && uv pip freeze"]),
-                output=output,
-                signal_error=False,
-            )
-            text = Path(output.file_name).read_text()
-            versions = parse_freeze(text.split(freeze_marker, 1)[1]) if freeze_marker in text else {}
-            return result, text, versions
-
-        # Baseline: resolve the workspace at --resolution highest *without* any pin and
-        # record what version that resolution naturally selects for the package. This is
-        # the resolution that actually generates the constraints, so it is the ground truth
-        # for "what would the constraints pick".
-        _, before_text, before_versions = sync_and_freeze("output_before")
-        baseline_version = before_versions.get(canonical_pkg)
+    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
+        airflow_pyproject = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
@@ -722,7 +851,12 @@ def explain_package_upgrade(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False
             )
             explanation += "\n" + str(syntax)
-        after_result, after_text, after_versions = sync_and_freeze("output_after")
+        after_result, after_text, after_versions = sync_and_freeze(
+            python_version=python_version,
+            airflow_constraints_mode=airflow_constraints_mode,
+            github_repository=github_repository,
+            title="output_after",
+        )
 
         # A zero exit code only proves that *some* valid resolution exists with the pin — not
         # that --resolution highest would ever select it. Inspect what was actually resolved:
@@ -730,7 +864,7 @@ def explain_package_upgrade(
         # resolution (i.e. the constraints) keeps the package at its lower version, so this is
         # NOT a clean upgrade.
         resolved_version = after_versions.get(canonical_pkg)
-        downgrades = find_downgrades(before_versions, after_versions, exclude=canonical_pkg)
+        downgrades = find_downgrades(baseline_versions, after_versions, exclude=canonical_pkg)
 
         if after_result.returncode != 0:
             # Forcing the package to its latest version produced no valid resolution at all:
@@ -743,18 +877,13 @@ def explain_package_upgrade(
             conflict = extract_uv_conflict(after_text)
             if conflict:
                 explanation += f"\n\n[bold yellow]Conflict as reported by uv:[/]\n{conflict}"
-        elif not before_versions or not after_versions:
+        elif not baseline_versions or not after_versions:
             # Without the resolved version lists we cannot tell a clean upgrade apart from one
             # that only works by downgrading other packages — never silently claim success.
             explanation += (
                 f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
                 f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
                 f"could not be classified.[/]"
-            )
-        elif baseline_version == latest_version:
-            explanation += (
-                f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
-                f"--resolution highest. The constraints file appears to be stale.[/]"
             )
         elif resolved_version != latest_version:
             explanation += (
@@ -781,7 +910,11 @@ def explain_package_upgrade(
             printf_cmd = "printf '%s\\n' " + " ".join(shlex.quote(pin) for pin in conflict_pins)
             probe_output = Output(title="conflict_probe", file_name=get_temp_file_name())
             execute_command_in_shell(
-                shell_params,
+                ShellParams(
+                    github_repository=github_repository,
+                    python=python_version,
+                    mount_sources=MOUNT_SELECTED,
+                ),
                 project_name="breeze-constraints",
                 command=shlex.join(
                     [
@@ -811,7 +944,7 @@ def explain_package_upgrade(
             # Full resolver logs of both phases — only when explicitly requested, since they
             # are very long (each is a complete uv sync plus freeze).
             explanation += (
-                f"\n\n[yellow]--- uv resolver output: phase 1, baseline (no pin) ---[/]\n{before_text}"
+                f"\n\n[yellow]--- uv resolver output: phase 1, baseline (no pin) ---[/]\n{baseline_text}"
                 f"\n[yellow]--- uv resolver output: phase 2, with {pkg}=={latest_version} pinned ---[/]"
                 f"\n{after_text}"
             )

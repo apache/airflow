@@ -33,7 +33,7 @@ Airflow has a very extensive set of operators available, with some built-in to t
 - Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
 
 .. note::
-    The ``@task`` decorator is recommended over the classic :class:`~airflow.providers.standard.operators.python.PythonOperator`
+    The ``@task`` decorator is the Taskflow equivalent of :class:`~airflow.providers.standard.operators.python.PythonOperator`
     to execute Python callables with no template rendering in its arguments.
 
 For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.
@@ -213,7 +213,7 @@ In some cases, you may want to exclude a string from templating and use it direc
     )
 
 This will fail with ``TemplateNotFound: cat script.sh`` since Airflow would treat the string as a path to a file, not a command.
-We can prevent Airflow from treating this value as a reference to a file by wrapping it in :func:`~airflow.util.template.literal`.
+We can prevent Airflow from treating this value as a reference to a file by wrapping it in :func:`~airflow.sdk.literal`.
 This approach disables the rendering of both macros and files and can be applied to selected nested fields while retaining the default templating rules for the remainder of the content.
 
 .. code-block:: python
@@ -226,7 +226,7 @@ This approach disables the rendering of both macros and files and can be applied
     )
 
 .. versionadded:: 2.8
-    :func:`~airflow.util.template.literal` was added.
+    :func:`~airflow.sdk.literal` was added.
 
 Alternatively, if you want to prevent Airflow from treating a value as a reference to a file, you can override ``template_ext``:
 

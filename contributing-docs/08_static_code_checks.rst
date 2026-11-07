@@ -161,6 +161,12 @@ After installation, prek hooks are run automatically when you commit the
 code or push it to the repository (depending on stages configured for the hooks). Some of the
 hooks are configured to run on "manual" stage only and are not run automatically.
 
+The hooks of the root ``.pre-commit-config.yaml`` run one at a time, except for some slow checks
+that set ``priority: 1000``. Those checks run in parallel at the end. Before you set that priority
+on another hook, read the rules in ``scripts/ci/prek/AGENTS.md``. ``check-prek-parallel-hooks``
+fails when a hook sets a priority other than 1000, or sets 1000 but is not listed in
+``PARALLEL_HOOKS`` in ``scripts/ci/prek/check_prek_parallel_hooks.py``.
+
 By default when you run ``prek``, the ``pre-commit`` stage hooks are run.
 
 But you can run prek hooks manually as needed.
@@ -234,8 +240,9 @@ To check other usage types of the pre-commit framework, see `Pre-commit website 
      - "- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`"
      - "- **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`"
      - "- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`"
-     - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`"
+     - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)"
      - "- **Build docs:** `breeze build-docs`"
+     - "- **List the local verification for your changes:** `breeze verify` (add `--full` for everything CI runs for the default matrix cell except static checks, `--json` for machine-readable output). It uses the same selective-checks logic as CI."
      - "- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`"
 .. AGENT-SKILL-END
 
@@ -356,7 +363,7 @@ To show unused mypy ignores, run:
   prek mypy-airflow-core --all-files
 
 For **providers**, mypy still runs via breeze (``breeze run mypy``) as a separate CI job and requires
-``breeze ci-image build --python 3.10`` to be built locally. Providers use a separate docker-volume
+``breeze ci-image build --python 3.11`` to be built locally. Providers use a separate docker-volume
 (called ``mypy-cache-volume``) that keeps the cache of last MyPy execution.
 
 To clear all mypy caches (the Docker volume used by providers, any legacy repo-root ``.mypy_cache``,

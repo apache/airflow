@@ -335,7 +335,7 @@ class TestHITLOperator:
                 "poke_interval": 5.0,
             }
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS, reason="This only works in airflow-core >= 3.1.3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS, reason="This only works on Airflow >= 3.1.3")
     @pytest.mark.parametrize(
         ("input_params", "expected_params"),
         [
@@ -393,7 +393,7 @@ class TestHITLOperator:
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_1_3_PLUS,
-        reason="Preserve the old behavior if airflow-core < 3.1.3. Otherwise the UI will break.",
+        reason="Preserve the old behavior on Airflow versions < 3.1.3. Otherwise the UI will break.",
     )
     def test_serialzed_params_legacy(self) -> None:
         hitl_op = HITLOperator(
@@ -974,6 +974,32 @@ class TestHITLSummaryForListeners:
             "serialized_params": None,
         }
 
+    def test_summary_reflects_rendered_subject_body(self) -> None:
+        """The summary reads subject/body live, so it reflects rendered values (guards #70296)."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review for {{ ds }}",
+            body="Deploy {{ ds }}?",
+            options=["Yes", "No"],
+        )
+        # Airflow renders template fields in place before execute.
+        op.subject = "Review for 2020-01-01"
+        op.body = "Deploy 2020-01-01?"
+
+        assert op.hitl_summary["subject"] == "Review for 2020-01-01"
+        assert op.hitl_summary["body"] == "Deploy 2020-01-01?"
+
+    def test_summary_extension_via_hitl_summary_extra(self) -> None:
+        """Subclasses and runtime code extend the summary through the public hitl_summary_extra dict."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["A", "B"],
+        )
+        op.hitl_summary_extra["team"] = "data-eng"
+
+        assert op.hitl_summary["team"] == "data-eng"
+
     def test_approval_operator_init_summary(self) -> None:
         """ApprovalOperator hitl_summary includes base + approval-specific fields."""
         op = ApprovalOperator(
@@ -1382,7 +1408,8 @@ class TestHITLSummaryForListeners:
             },
         )
 
-        assert s == {
+        # hitl_summary is a property, so re-read it to see the execute_complete additions.
+        assert op.hitl_summary == {
             "subject": "Release v2.0?",
             "body": "Please approve the production deployment.",
             "options": ["Approve", "Reject"],

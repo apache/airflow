@@ -20,10 +20,23 @@ from __future__ import annotations
 from unittest.mock import create_autospec
 
 import pytest
+from pydantic import ValidationError
 
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
-from airflow.triggers.base import BaseEventTrigger, BaseTrigger, StartTriggerArgs, TriggerEvent
+from airflow.triggers.base import (
+    AssetTriggerEvent,
+    BaseEventTrigger,
+    BaseTrigger,
+    StartTriggerArgs,
+    TriggerEvent,
+)
+
+
+@pytest.mark.parametrize("partition_key", ["", " \t\n", "x" * 251, 42])
+def test_asset_trigger_event_rejects_invalid_partition_key(partition_key):
+    with pytest.raises(ValidationError, match="partition_key"):
+        AssetTriggerEvent({"changed": True}, partition_key=partition_key)
 
 
 class DummyOperator(BaseOperator):
@@ -287,3 +300,13 @@ def test_create_shared_stream_producer_raises_by_default():
     """
     with pytest.raises(NotImplementedError, match="create_shared_stream_producer"):
         _PlainEventTrigger.create_shared_stream_producer({})
+
+
+def test_base_event_trigger_queue_not_inherited_from_task():
+    """False so `_defer_task` doesn't overwrite the trigger's own `queue` with the task's."""
+    assert BaseEventTrigger.trigger_queue_inherited_from_task is False
+
+
+def test_base_event_trigger_queue_defaults_to_none():
+    trigger = _PlainEventTrigger()
+    assert trigger.queue is None

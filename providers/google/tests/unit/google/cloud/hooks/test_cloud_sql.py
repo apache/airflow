@@ -24,6 +24,7 @@ import platform
 import stat
 import tempfile
 from pathlib import Path
+from subprocess import PIPE, STDOUT
 from unittest import mock
 from unittest.mock import PropertyMock, call, mock_open
 from urllib.parse import parse_qsl, unquote, urlsplit
@@ -45,6 +46,7 @@ from airflow.providers.google.cloud.hooks.cloud_sql import (
     CloudSQLAsyncHook,
     CloudSQLDatabaseHook,
     CloudSQLHook,
+    CloudSQLImportError,
     CloudSqlProxyRunner,
 )
 
@@ -96,7 +98,7 @@ class TestGcpSqlHookDefaultProjectId:
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp=httplib2.Response({"status": 400}), content=b"Error content")
         )
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(CloudSQLImportError) as ctx:
             self.cloudsql_hook.import_instance(instance="instance", body={})
         err = ctx.value
         assert "Importing instance " in str(err)
@@ -165,9 +167,80 @@ class TestGcpSqlHookDefaultProjectId:
             ),
             {"name": "operation_id"},
         ]
-        with pytest.raises(HttpError):
-            self.cloudsql_hook.export_instance(project_id="example-project", instance="instance", body={})
+        # First submit returns 429 (one of the two operation-in-progress codes recognised by
+        # ``is_operation_in_progress_exception``); ``operation_in_progress_retry`` retries and the
+        # second submit succeeds, returning the operation name. The import test below covers 409.
+        result = self.cloudsql_hook.export_instance(
+            project_id="example-project", instance="instance", body={}
+        )
+        assert result == "operation_id"
+        assert export_method.call_count == 2
+        assert execute_method.call_count == 2
         wait_for_operation_to_complete.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_import_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn):
+        import_method = get_conn.return_value.instances.return_value.import_
+        execute_method = import_method.return_value.execute
+        execute_method.side_effect = [
+            HttpError(
+                resp=httplib2.Response({"status": 409}),
+                content=b"operationInProgress",
+            ),
+            {"name": "operation_id"},
+        ]
+        wait_for_operation_to_complete.return_value = None
+        # First submit returns 409 ``operationInProgress``. ``_submit_import`` re-raises it past its
+        # friendly-message wrapper (instead of converting it to CloudSQLImportError), so
+        # ``operation_in_progress_retry`` sees the raw HttpError, retries, and the second submit
+        # succeeds; the resulting operation is awaited exactly once.
+        self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
+        assert import_method.call_count == 2
+        assert execute_method.call_count == 2
+        wait_for_operation_to_complete.assert_called_once_with(
+            project_id="example-project", operation_name="operation_id"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_import_does_not_resubmit_when_polling_fails(
+        self, wait_for_operation_to_complete, get_conn
+    ):
+        import_method = get_conn.return_value.instances.return_value.import_
+        execute_method = import_method.return_value.execute
+        execute_method.return_value = {"name": "operation_id"}
+        wait_for_operation_to_complete.side_effect = HttpError(
+            resp=httplib2.Response({"status": 429}),
+            content=b"rate limited",
+        )
+        # The submit succeeds, then the operation-status polling raises a retryable 429. The retry
+        # scope must not include the polling: re-running ``import_instance`` would re-submit an
+        # import that was already accepted and import the same data twice. The task must fail
+        # instead, with exactly one submit on record.
+        with pytest.raises(CloudSQLImportError, match="Importing instance instance failed"):
+            self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
+        import_method.assert_called_once_with(body={}, instance="instance", project="example-project")
+        execute_method.assert_called_once_with(num_retries=5)
+        wait_for_operation_to_complete.assert_called_once_with(
+            project_id="example-project", operation_name="operation_id"
+        )
+
+    @pytest.mark.parametrize("failing_step", ["submit", "polling"])
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_import_error_with_non_utf8_body(
+        self, wait_for_operation_to_complete, get_conn, failing_step
+    ):
+        error = HttpError(resp=httplib2.Response({"status": 400}), content=b"bad \xff body")
+        execute_method = get_conn.return_value.instances.return_value.import_.return_value.execute
+        if failing_step == "submit":
+            execute_method.side_effect = error
+        else:
+            execute_method.return_value = {"name": "operation_id"}
+            wait_for_operation_to_complete.side_effect = error
+        with pytest.raises(CloudSQLImportError, match="Importing instance instance failed: bad � body"):
+            self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id",
@@ -541,6 +614,26 @@ class TestGcpSqlHookDefaultProjectId:
         assert result == mock_response
         operations_method.assert_called_once()
         get_method.assert_called_once_with(project="gcp-project", operation="operation_id")
+        execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    def test_list_operations(self, mock_get_conn):
+        operations_method = mock_get_conn.return_value.operations
+        list_method = operations_method.return_value.list
+        execute_method = list_method.return_value.execute
+        execute_method.return_value = {
+            "items": [
+                {"name": "op1", "status": "DONE", "targetId": "my-instance"},
+                {"name": "op2", "status": "RUNNING", "targetId": "other-instance"},
+            ]
+        }
+
+        result = self.cloudsql_hook.list_operations(project_id="gcp-project", instance="my-instance")
+
+        # Only operations whose targetId matches the instance are returned.
+        assert result == [{"name": "op1", "status": "DONE", "targetId": "my-instance"}]
+        operations_method.assert_called_once()
+        list_method.assert_called_once_with(project="gcp-project", instance="my-instance", maxResults=None)
         execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.build")
@@ -1123,6 +1216,75 @@ class TestCloudSqlDatabaseHook:
         hook.create_connection()
         proxy_runner = hook.get_sqlproxy_runner()
         assert proxy_runner is not None
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.BaseHook.get_connection", autospec=True)
+    def test_cloudsql_database_hook_get_sqlproxy_runner_v2_tcp(self, get_connection):
+        if AIRFLOW_V_3_1_PLUS:
+            connection = Connection(
+                conn_id="test_conn_id", **_parse_from_uri("http://user:password@host:80/database")
+            )
+        else:
+            connection = Connection(uri="http://user:password@host:80/database")
+        extras = json.dumps(
+            {
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+                "use_proxy": "True",
+                "sql_proxy_use_tcp": "True",
+                "sql_proxy_major_version": "2",
+                "sql_proxy_version": "v2.14.0",
+            }
+        )
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = extras
+        else:
+            connection.set_extra(extras)
+        get_connection.return_value = connection
+        hook = CloudSQLDatabaseHook(
+            gcp_cloudsql_conn_id="cloudsql_connection", default_gcp_project_id="google_connection"
+        )
+        hook.create_connection()
+        proxy_runner = hook.get_sqlproxy_runner()
+
+        assert proxy_runner.sql_proxy_major_version == 2
+        assert proxy_runner.command_line_parameters == [
+            "--unix-socket",
+            hook.sql_proxy_unique_path,
+            "--auto-ip",
+            f"google_connection:test:instance?port={hook.sql_proxy_tcp_port}",
+        ]
+
+    @pytest.mark.parametrize("major_version", ["", "3", "v2", None])
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.BaseHook.get_connection", autospec=True)
+    def test_cloudsql_database_hook_rejects_invalid_sql_proxy_major_version(
+        self, get_connection, major_version
+    ):
+        if AIRFLOW_V_3_1_PLUS:
+            connection = Connection(
+                conn_id="test_conn_id", **_parse_from_uri("http://user:password@host:80/database")
+            )
+        else:
+            connection = Connection(uri="http://user:password@host:80/database")
+        extras = json.dumps(
+            {
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+                "use_proxy": "True",
+                "sql_proxy_major_version": major_version,
+            }
+        )
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = extras
+        else:
+            connection.set_extra(extras)
+        get_connection.return_value = connection
+
+        with pytest.raises(ValueError, match="The extra 'sql_proxy_major_version' must be 1 or 2"):
+            CloudSQLDatabaseHook(
+                gcp_cloudsql_conn_id="cloudsql_connection", default_gcp_project_id="google_connection"
+            )
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_cloudsql_database_hook_get_database_hook(self, get_connection):
@@ -1898,6 +2060,31 @@ class TestCloudSqlProxyRunner:
         with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
             runner._get_sql_proxy_download_url()
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.httpx2.get")
+    def test_download_sql_proxy_follows_redirects(self, mock_get, tmp_path):
+        """The download URL redirects, so the request must opt in to following them."""
+        mock_get.return_value = mock.Mock(status_code=200, content=b"binary")
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "12345678"),
+            instance_specification="project:us-east-1:instance",
+        )
+
+        runner._download_sql_proxy_if_needed()
+
+        mock_get.assert_called_once_with(runner._get_sql_proxy_download_url(), follow_redirects=True)
+        assert runner.sql_proxy_was_downloaded is True
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.httpx2.get")
+    def test_download_sql_proxy_raises_on_error_status(self, mock_get, tmp_path):
+        mock_get.return_value = mock.Mock(status_code=404, content=b"", reason_phrase="Not Found")
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "12345678"),
+            instance_specification="project:us-east-1:instance",
+        )
+
+        with pytest.raises(AirflowException, match="Status code = 404. Reason = Not Found"):
+            runner._download_sql_proxy_if_needed()
+
     def test_cloud_sql_proxy_runner_adds_enable_iam_login_flag(self):
         runner = CloudSqlProxyRunner(
             path_prefix="12345678",
@@ -1933,6 +2120,170 @@ class TestCloudSqlProxyRunner:
 
         assert runner._get_credential_parameters() == ["-credential_file", "/tmp/key.json"]
         assert "-enable_iam_login" in runner.command_line_parameters
+
+    def test_cloud_sql_proxy_runner_rejects_unknown_major_version(self):
+        with pytest.raises(ValueError, match="The sql_proxy_major_version must be 1 or 2"):
+            CloudSqlProxyRunner(
+                path_prefix="12345678",
+                instance_specification="project:us-east-1:instance",
+                sql_proxy_major_version=3,
+            )
+
+    def test_cloud_sql_proxy_runner_v1_rejects_v2_version(self):
+        with pytest.raises(ValueError, match="Set sql_proxy_major_version to 2"):
+            CloudSqlProxyRunner(
+                path_prefix="12345678",
+                instance_specification="project:us-east-1:instance",
+                sql_proxy_version="v2.14.0",
+            )
+
+    @pytest.mark.parametrize(
+        "instance_specification",
+        ["project:us-east-1:instance", "project:us-east-1:instance?port=5432"],
+        ids=["unix_socket", "tcp"],
+    )
+    def test_cloud_sql_proxy_runner_v2_command_line(self, instance_specification):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification=instance_specification,
+            sql_proxy_version="v2.14.0",
+            sql_proxy_major_version=2,
+        )
+
+        assert runner.command_line_parameters == [
+            "--unix-socket",
+            "12345678",
+            "--auto-ip",
+            instance_specification,
+        ]
+
+    def test_cloud_sql_proxy_runner_v2_adds_auto_iam_authn_flag(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_version="v2.14.0",
+            sql_proxy_enable_iam_login=True,
+            sql_proxy_major_version=2,
+        )
+
+        assert "--auto-iam-authn" in runner.command_line_parameters
+        assert "-enable_iam_login" not in runner.command_line_parameters
+
+    def test_cloud_sql_proxy_runner_v2_version_ok(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_version="v2.14.0",
+            sql_proxy_major_version=2,
+        )
+
+        assert runner._get_sql_proxy_download_url() == (
+            "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.0/cloud-sql-proxy."
+            f"{platform.system().lower()}.{get_processor()}"
+        )
+
+    @pytest.mark.parametrize("version", ["v1.23.0", "2.14.0", "v2.14", "v2.14.0\n"])
+    def test_cloud_sql_proxy_runner_v2_version_nok(self, version):
+        with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
+            CloudSqlProxyRunner(
+                path_prefix="12345678",
+                instance_specification="project:us-east-1:instance",
+                sql_proxy_version=version,
+                sql_proxy_major_version=2,
+            )
+
+    def test_cloud_sql_proxy_runner_v2_requires_version_to_download(self):
+        with pytest.raises(ValueError, match="The sql_proxy_version must be specified"):
+            CloudSqlProxyRunner(
+                path_prefix="12345678",
+                instance_specification="project:us-east-1:instance",
+                sql_proxy_major_version=2,
+            )
+
+    def test_cloud_sql_proxy_runner_v2_requires_instance_specification(self):
+        with pytest.raises(ValueError, match="does not support forwarding all instances"):
+            CloudSqlProxyRunner(
+                path_prefix="12345678",
+                instance_specification="",
+                sql_proxy_version="v2.14.0",
+                sql_proxy_major_version=2,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection", autospec=True)
+    def test_cloud_sql_proxy_runner_v2_credentials_file_flag(self, get_connection):
+        connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = json.dumps({"key_path": "/tmp/key.json"})
+        else:
+            connection.set_extra(json.dumps({"key_path": "/tmp/key.json"}))
+        get_connection.return_value = connection
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+            sql_proxy_version="v2.14.0",
+            sql_proxy_major_version=2,
+        )
+
+        assert runner._get_credential_parameters() == ["--credentials-file", "/tmp/key.json"]
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.Popen", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection", autospec=True)
+    def test_cloud_sql_proxy_runner_v2_start_proxy_reads_ready_line_from_stdout(
+        self, get_connection, mock_popen, tmp_path
+    ):
+        get_connection.return_value = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        # A pre-existing binary means no download, so no sql_proxy_version is needed.
+        proxy_binary = tmp_path / "cloud-sql-proxy"
+        proxy_binary.touch()
+        process = mock_popen.return_value
+        process.pid = 1234
+        process.poll.return_value = None
+        process.stdout = mock.Mock(spec=["readline"])
+        process.stdout.readline.side_effect = [
+            b"Authorizing with Application Default Credentials\n",
+            b"The proxy has started successfully and is ready for new connections!\n",
+        ]
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "12345678"),
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+            sql_proxy_binary_path=str(proxy_binary),
+            sql_proxy_major_version=2,
+        )
+
+        runner.start_proxy()
+
+        mock_popen.assert_called_once_with(
+            [
+                str(proxy_binary),
+                "--unix-socket",
+                str(tmp_path / "12345678"),
+                "--auto-ip",
+                "project:us-east-1:instance",
+            ],
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=STDOUT,
+        )
+        assert process.stdout.readline.call_count == 2
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.subprocess.check_output", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection", autospec=True)
+    def test_cloud_sql_proxy_runner_v2_get_proxy_version(self, get_connection, check_output, tmp_path):
+        get_connection.return_value = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        check_output.return_value = b"cloud-sql-proxy version 2.14.0+linux.amd64\n"
+        proxy_binary = tmp_path / "cloud-sql-proxy"
+        proxy_binary.touch()
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "12345678"),
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+            sql_proxy_binary_path=str(proxy_binary),
+            sql_proxy_major_version=2,
+        )
+
+        assert runner.get_proxy_version() == "2.14.0+linux.amd64"
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
     def test_credentials_file_from_keyfile_dict_is_chmod_0600(self, get_connection, tmp_path):

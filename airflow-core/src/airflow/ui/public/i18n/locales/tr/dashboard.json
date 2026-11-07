@@ -1,9 +1,9 @@
 {
-  "deferredSlotsNotCounted": "Slotlarda sayılmayan ertelenenler: {{count}}",
+  "deferredSlotsNotCounted": "Slotlarda sayılmayan ertelenenler: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Çubukta gösterilen ertelenmiş görevler havuz slotlarına dahil edilir. Çubuğun altında gösterilen ertelenmiş görevler, ertelenmiş görevleri slotlara saymayan havuzlardandır.",
   "favorite": {
-    "favoriteDags_one": "İlk {{count}} favori Dag(lar)",
-    "favoriteDags_other": "İlk {{count}} favori Dag(lar)",
+    "favoriteDags_one": "İlk {{count, number}} favori Dag(lar)",
+    "favoriteDags_other": "İlk {{count, number}} favori Dag(lar)",
     "noDagRuns": "Bu dag için henüz Dag Çalıştırması yok.",
     "noFavoriteDags": "Henüz favori yok. Favorilere eklemek için listede bir Dag'ın yanındaki yıldız simgesine tıklayın."
   },

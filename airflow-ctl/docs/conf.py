@@ -283,7 +283,10 @@ exampleinclude_sourceroot = os.path.abspath("..")
 redirects_file = "redirects.txt"
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
-spelling_word_list_filename = [SPELLING_WORDLIST_PATH.as_posix()]
+spelling_word_list_filename = [
+    SPELLING_WORDLIST_PATH.as_posix(),
+    (pathlib.Path(__file__).parent / "spelling_wordlist.txt").as_posix(),
+]
 spelling_exclude_patterns = ["project.rst", "changelog.rst"]
 
 spelling_ignore_contributor_names = False

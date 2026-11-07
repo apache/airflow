@@ -31,6 +31,11 @@ try:
 except Exception:
     SQLToolset = None  # type: ignore[assignment,misc]
 
+try:
+    from pydantic_ai_harness import CodeMode
+except ImportError:
+    CodeMode = None  # type: ignore[assignment,misc]
+
 
 # [START howto_decorator_agent_structured_output_class]
 # Pydantic output classes must be defined at module scope so downstream
@@ -65,9 +70,19 @@ if SQLToolset is not None:
                 "the schema and answer the question with data."
             ),
             toolsets=[
+                # ``allowed_tables`` scopes the agent's intent, but it is an
+                # application-level guardrail, not a security boundary. Point
+                # ``postgres_default`` at a least-privilege role whose SELECT grants
+                # are limited to these tables -- that is the boundary that holds even
+                # if the agent (which may be under prompt injection) reaches for data
+                # through a function the parser cannot see. See the "Security" section
+                # of the toolsets docs.
                 SQLToolset(
                     db_conn_id="postgres_default",
                     allowed_tables=["customers", "orders"],
+                    # Functions sqlglot cannot type are rejected while allowed_tables is
+                    # set; list any the agent legitimately needs (e.g. to shape output).
+                    allowed_functions=["json_build_object"],
                     max_rows=20,
                 )
             ],
@@ -99,7 +114,7 @@ def example_agent_operator_hook():
             HookToolset(
                 http_hook,
                 allowed_methods=["run"],
-                tool_name_prefix="http_",
+                tool_prefix="http",
             )
         ],
     )
@@ -135,7 +150,7 @@ def example_agent_self_hosted():
             HookToolset(
                 http_hook,
                 allowed_methods=["run"],
-                tool_name_prefix="http_",
+                tool_prefix="http",
             )
         ],
     )
@@ -266,7 +281,7 @@ example_agent_operator_hitl_review()
 
 
 # [START howto_operator_agent_code_mode]
-if SQLToolset is not None:
+if SQLToolset is not None and CodeMode is not None:
 
     @dag(tags=["example"])
     def example_agent_operator_code_mode():
@@ -278,7 +293,7 @@ if SQLToolset is not None:
             toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
             # Requires the `code-mode` extra:
             #   pip install "apache-airflow-providers-common-ai[code-mode]"
-            code_mode=True,
+            capabilities=[CodeMode(max_tool_calls=200)],
         )
 
     # [END howto_operator_agent_code_mode]

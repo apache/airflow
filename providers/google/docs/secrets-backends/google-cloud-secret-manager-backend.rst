@@ -119,7 +119,9 @@ You can configure the credentials in three ways:
 Managing secrets
 """"""""""""""""
 
-If you want to configure a connection, you need to save it as a :ref:`connection URI representation <generating_connection_uri>`.
+If you want to configure a connection, you can save it either as a
+:ref:`JSON representation <connection-serialization-json-example>` or as a
+:ref:`connection URI representation <generating_connection_uri>`.
 Variables should be saved as plain text.
 
 In order to manage secrets, you can use the ``gcloud`` tool or other supported tools. For more information, take a look at:
@@ -151,6 +153,24 @@ You can do it with the gcloud tools as in the example below.
         --data-file=- \
         --replication-policy=automatic
     Created version [1] of the secret [airflow-connections-first-connection].
+
+A connection with many extras is easier to read and maintain as JSON, because its values do not need
+to be URL-encoded. The ``extra`` field can be a nested JSON object:
+
+.. code-block:: bash
+
+    $ echo '{
+        "conn_type": "google_cloud_platform",
+        "extra": {
+          "project": "my-project",
+          "key_path": "/keys/sa.json",
+          "scope": "https://www.googleapis.com/auth/cloud-platform"
+        }
+      }' | gcloud beta secrets create \
+        airflow-connections-second-connection \
+        --data-file=- \
+        --replication-policy=automatic
+    Created version [1] of the secret [airflow-connections-second-connection].
 
 If you have the default backend configuration and you want to create a variable named ``first-variable``,
 you should create a secret named ``airflow-variables-first-variable``. You can do it with the gcloud
@@ -196,6 +216,52 @@ To check the variables is correctly read from the backend secret, you can use ``
     $ airflow variables get first-variable
     secret_content
 
+Multi-team lookup
+=================
+
+In multi-team mode this backend looks for a team-scoped secret first and falls back to the
+team-agnostic name when no team-scoped secret exists.
+
+For connections:
+
+* Team-scoped: ``{connections_prefix}{sep}{team_name}--{conn_id}``
+* Team-agnostic fallback: ``{connections_prefix}{sep}{conn_id}``
+
+For variables:
+
+* Team-scoped: ``{variables_prefix}{sep}{team_name}--{key}``
+* Team-agnostic fallback: ``{variables_prefix}{sep}{key}``
+
+The team name and the secret id are separated by ``--``, while ``sep`` (default ``-``) separates
+the prefix from what follows. So with ``connections_prefix="airflow-connections"``,
+``team_name="team_a"`` and ``conn_id="smtp_default"``, the backend looks up
+``airflow-connections-team_a--smtp_default`` before falling back to
+``airflow-connections-smtp_default``.
+
+.. note::
+
+    Unlike the Azure Key Vault backend, this backend does **not** normalize underscores to the
+    separator. The secret id keeps the exact form you request it under, in the team-scoped name
+    as well as the team-agnostic one.
+
+Because a team name may itself contain ``--``, an id that contains ``--`` is ambiguous — team
+``team_a`` with conn_id ``prod--db`` and team ``team_a--prod`` with conn_id ``db`` would name the
+same secret. Such an id is therefore never resolved, for team-scoped and team-agnostic lookups
+alike, and the backend never parses an id to infer which team it belongs to. A warning is logged
+whenever an id is refused for this reason, so the resulting ``None`` is not mistaken for a missing
+secret. Avoid ``--`` in connection ids and variable keys.
+
+.. warning::
+
+    This refusal only applies when ``[core] multi_team`` is enabled — with multi-team support
+    off, no team-scoped name can exist for a ``--``-containing id to collide with, so it resolves
+    normally. If you already store a connection or variable whose id contains ``--``, it keeps
+    working until multi-team support is enabled, at which point it silently stops resolving (a
+    warning is logged, but lookups do not raise) instead of raising outright. Check for ids
+    containing ``--`` before turning on ``multi_team``.
+
+``get_config`` is not team-scoped and is unaffected by any of the above.
+
 Clean up
 ========
 
@@ -205,4 +271,5 @@ delete secrets by running ``gcloud beta secrets delete``:
 .. code-block:: bash
 
     gcloud beta secrets delete airflow-connections-first-connection
+    gcloud beta secrets delete airflow-connections-second-connection
     gcloud beta secrets delete airflow-variables-first-variable

@@ -51,7 +51,7 @@ def get_provider_info():
                         "password": "Access Token (optional)",
                     },
                     "placeholders": {
-                        "extra": '{"key_file": "optional/path/to/keyfile", "private_key": "optional inline private key"}'
+                        "extra": '{"key_file": "optional/path/to/keyfile", "private_key": "optional inline private key", "private_key_passphrase": "", "strict_host_key_checking": "accept-new", "known_hosts_file": "", "ssh_config_file": "", "host_proxy_cmd": "", "ssh_port": "", "github_app_id": "", "github_installation_id": ""}'
                     },
                 },
             }

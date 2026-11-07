@@ -20,11 +20,11 @@ from __future__ import annotations
 import codecs
 import io
 import itertools
+import linecache
 import logging
 import os
 import re
 import sys
-import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property
 from pathlib import Path
@@ -254,25 +254,19 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
     return maker
 
 
-# structlog >= 26.1.0 added a `name` slot + kwarg to BytesLogger
-# (hynek/structlog#786). Detect it once so we can avoid a redundant slot and
-# forward `name` through the parent init. The same detection is applied to
-# WriteLogger so the analogous upstream change lands without a regression.
-_BYTES_LOGGER_HAS_NAME = "name" in getattr(structlog.BytesLogger, "__slots__", ())
+# structlog >= 26.1.0 (our floor) gave BytesLogger a `name` slot + kwarg
+# (hynek/structlog#786), but WriteLogger has not received the analogous change
+# yet. Detect it so the upstream addition lands without a regression.
 _WRITE_LOGGER_HAS_NAME = "name" in getattr(structlog.WriteLogger, "__slots__", ())
 
 
 class NamedBytesLogger(structlog.BytesLogger):
-    __slots__ = () if _BYTES_LOGGER_HAS_NAME else ("name",)
+    __slots__ = ()
 
     def __init__(self, name: str | None = None, file: BinaryIO | None = None):
         if file is not None:
             file = make_file_io_non_caching(file)
-        if _BYTES_LOGGER_HAS_NAME:
-            super().__init__(file, name=name)  # type: ignore[call-arg]
-        else:
-            super().__init__(file)
-            self.name = name
+        super().__init__(file, name=name)
 
 
 class NamedWriteLogger(structlog.WriteLogger):
@@ -370,6 +364,16 @@ def _make_safe_enc_hook(default):
     return safe_enc_hook
 
 
+def _add_source_lines(stacks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add each frame's source code ``line``, which structlog's ``ExceptionDictTransformer`` omits."""
+    for stack in stacks:
+        for frame in stack["frames"]:
+            linecache.checkcache(frame["filename"])
+            if line := linecache.getline(frame["filename"], frame["lineno"]).strip():
+                frame["line"] = line
+    return stacks
+
+
 @cache
 def structlog_processors(
     json_output: bool,
@@ -427,29 +431,25 @@ def structlog_processors(
     # structlog to ignore.
 
     import contextlib
+    import importlib
 
     import click
 
     suppress: tuple[ModuleType, ...] = (click, contextlib)
-    try:
-        import httpcore
-
-        suppress = (*suppress, httpcore)
-    except ImportError:
-        pass
-    try:
-        import httpx
-
-        suppress = (*suppress, httpx)
-    except ImportError:
-        pass
+    # airflow-core is still on httpx while the Task SDK is on httpx2, so either (or both) may
+    # be installed; tracked at https://github.com/apache/airflow/issues/70522
+    for module_name in ("httpcore", "httpcore2", "httpx", "httpx2"):
+        with contextlib.suppress(ImportError):
+            suppress = (*suppress, importlib.import_module(module_name))
 
     if json_output:
         dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
             use_rich=False, show_locals=False, suppress=suppress
         )
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+        dict_tracebacks = structlog.processors.ExceptionRenderer(
+            lambda exc_info: _add_source_lines(dict_exc_formatter(exc_info))
+        )
 
         import msgspec
 
@@ -644,17 +644,6 @@ def configure_logging(
             text_output = cast("TextIO", output)
         logger_factory = LoggerFactory(NamedWriteLogger, io=text_output)
 
-    # Replace structlog's WRITE_LOCKS dict with a WeakKeyDictionary so entries
-    # for closed file descriptors are garbage-collected instead of leaking.
-    # TODO: drop once structlog ships the upstream fix (tracked for 26.1.0).
-    try:
-        from structlog import _output as _structlog_output
-
-        if isinstance(_structlog_output.WRITE_LOCKS, dict):
-            _structlog_output.WRITE_LOCKS = weakref.WeakKeyDictionary()  # type: ignore[assignment]
-    except Exception:
-        pass
-
     structlog.configure(
         processors=shared_pre_chain + [for_structlog],
         cache_logger_on_first_use=cache_logger_on_first_use,
@@ -708,6 +697,7 @@ def configure_logging(
             "airflow": {"level": log_level.upper()},
             # These ones are too chatty even at info
             "httpx": {"level": "WARN"},
+            "httpx2": {"level": "WARN"},
             "sqlalchemy.engine": {"level": "WARN"},
             "alembic.runtime.plugins": {"level": "WARN"},
         }

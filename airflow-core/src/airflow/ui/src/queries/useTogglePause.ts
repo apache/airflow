@@ -32,7 +32,9 @@ import type {
   DAGPatchBody,
   DAGResponse,
   DAGWithLatestDagRunsCollectionResponse,
+  DagSchedulingState,
 } from "openapi/requests/types.gen";
+
 import { createErrorToaster } from "src/utils";
 
 type TogglePauseVariables = { dagId: string; requestBody: DAGPatchBody };
@@ -45,14 +47,16 @@ type TogglePauseContext = {
 
 export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const dagKey = UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]);
   const dagDetailsKey = UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]);
   const dagsListPrefix: QueryKey = [useDagServiceGetDagsUiKey];
 
   const onMutate = async ({ requestBody }: TogglePauseVariables): Promise<TogglePauseContext> => {
-    const nextIsPaused = requestBody.is_paused;
+    const nextSchedulingState: DagSchedulingState =
+      requestBody.scheduling_state ?? (requestBody.is_paused === true ? "paused" : "active");
+    const nextIsPaused = nextSchedulingState === "paused";
 
     // Cancel in-flight refetches so they cannot overwrite the optimistic update.
     await Promise.all([
@@ -67,15 +71,19 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
       queryKey: dagsListPrefix,
     });
 
-    // Optimistically reflect the new is_paused value so the Switch flips
-    // immediately on click rather than waiting for the server round-trip.
+    // Reflect the scheduling state immediately instead of waiting for the server round-trip.
     if (previousDag !== undefined) {
-      queryClient.setQueryData<DAGResponse>(dagKey, { ...previousDag, is_paused: nextIsPaused });
+      queryClient.setQueryData<DAGResponse>(dagKey, {
+        ...previousDag,
+        is_paused: nextIsPaused,
+        scheduling_state: nextSchedulingState,
+      });
     }
     if (previousDagDetails !== undefined) {
       queryClient.setQueryData<DAGDetailsResponse>(dagDetailsKey, {
         ...previousDagDetails,
         is_paused: nextIsPaused,
+        scheduling_state: nextSchedulingState,
       });
     }
     queryClient.setQueriesData<DAGWithLatestDagRunsCollectionResponse>(
@@ -86,7 +94,9 @@ export const useTogglePause = ({ dagId }: { dagId: string }) => {
           : {
               ...current,
               dags: current.dags.map((dag) =>
-                dag.dag_id === dagId ? { ...dag, is_paused: nextIsPaused } : dag,
+                dag.dag_id === dagId
+                  ? { ...dag, is_paused: nextIsPaused, scheduling_state: nextSchedulingState }
+                  : dag,
               ),
             },
     );

@@ -1094,7 +1094,8 @@ def test_topological_sort_reverse_declared_order_matches_sweep():
     group = dag.task_group
     nodes = list(group.children.values())
     id_to_idx = {nid: i for i, nid in enumerate(group.children)}
-    projected = [group._project_child_deps(i, child, id_to_idx) for i, child in enumerate(nodes)]
+    group_dict = group.dag.task_group.get_task_group_dict()
+    projected = [group._project_child_deps(i, child, id_to_idx, group_dict) for i, child in enumerate(nodes)]
 
     sweep_order = [node.node_id for node in group._sweep_projection(nodes, projected)]
     pass_number_order = [node.node_id for node in group._sort_via_pass_numbering(nodes, projected)]

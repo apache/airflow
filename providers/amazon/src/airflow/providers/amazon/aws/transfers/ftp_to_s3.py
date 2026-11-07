@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ftplib
+import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -28,6 +29,9 @@ from airflow.providers.ftp.hooks.ftp import FTPHook
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
+
+
+SKIPPED_SAMPLE_SIZE = 10
 
 
 class FTPToS3Operator(BaseOperator):
@@ -66,7 +70,15 @@ class FTPToS3Operator(BaseOperator):
         transfer. Default is True.
     """
 
-    template_fields: Sequence[str] = ("ftp_path", "s3_bucket", "s3_key", "ftp_filenames", "s3_filenames")
+    template_fields: Sequence[str] = (
+        "ftp_path",
+        "s3_bucket",
+        "s3_key",
+        "ftp_filenames",
+        "s3_filenames",
+        "ftp_conn_id",
+        "aws_conn_id",
+    )
 
     def __init__(
         self,
@@ -135,19 +147,37 @@ class FTPToS3Operator(BaseOperator):
                     path=self.ftp_path,
                 )
 
-                if self.ftp_filenames == "*":
+                ftp_prefix: str = self.ftp_filenames
+                if ftp_prefix == "*":
                     files = list_dir
                 else:
-                    ftp_filename: str = self.ftp_filenames
-                    files = [f for f in list_dir if ftp_filename in f]
+                    # ``nlst`` may qualify entries with the listed directory, so the prefix applies
+                    # to the file name, while the substring test mirrors the old rule over the whole entry.
+                    files, dropped = [], []
+                    for entry in list_dir:
+                        if posixpath.basename(entry).startswith(ftp_prefix):
+                            files.append(entry)
+                        elif ftp_prefix in entry:
+                            dropped.append(entry)
+                    if dropped:
+                        omitted = len(dropped) - SKIPPED_SAMPLE_SIZE
+                        self.log.warning(
+                            "%d file(s) contain %r but are not selected, because a string prefix "
+                            "matches only at the start of the filename: %s%s",
+                            len(dropped),
+                            ftp_prefix,
+                            dropped[:SKIPPED_SAMPLE_SIZE],
+                            f" and {omitted} more" if omitted > 0 else "",
+                        )
 
                 for file in files:
                     self.log.info("Moving file %s", file)
 
+                    # The entry is kept as listed for retrieval, but the destination key is
+                    # built from the file name so it never embeds the source directory.
+                    filename = posixpath.basename(file)
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
-                        filename = file.replace(self.ftp_filenames, self.s3_filenames)
-                    else:
-                        filename = file
+                        filename = filename.replace(ftp_prefix, self.s3_filenames, 1)
 
                     s3_file_key = f"{self.s3_key}{filename}"
                     self.__upload_to_s3_from_ftp(file, s3_file_key)

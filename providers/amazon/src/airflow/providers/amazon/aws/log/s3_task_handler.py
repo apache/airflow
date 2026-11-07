@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import codecs
+import inspect
 import logging
 import os
 import pathlib
@@ -35,7 +37,19 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import (
+        LogMessages,
+        LogResponse,
+        LogSourceInfo,
+        RawLogStream,
+        StreamingLogResponse,
+    )
+
+
+# Mirrors ``airflow.utils.log.file_task_handler.CHUNK_SIZE`` so that remote reads are chunked the
+# same way local log reads are. Not imported from core to avoid coupling the provider to a private
+# constant that older Airflow versions may not expose.
+CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 
 
 @attrs.define
@@ -43,8 +57,35 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
     remote_base: str
     base_log_folder: pathlib.Path = attrs.field(converter=pathlib.Path)
     delete_local_copy: bool
+    acl_policy: str | None = None
 
     processors = ()
+
+    @classmethod
+    def from_config(cls) -> S3RemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # remote_task_handler_kwargs mixes FileTaskHandler kwargs with IO kwargs; only the
+        # latter belong to this class (same split as airflow_local_settings.py).
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "remote_base": conf.get_mandatory_value("logging", "remote_base_log_folder"),
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "acl_policy": conf.get("aws", "s3_task_handler_acl_policy", fallback=None) or None,
+            }
+            | io_kwargs,
+        )
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
@@ -55,6 +96,15 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             local_loc = self.base_log_folder.joinpath(path)
             remote_loc = os.path.join(self.remote_base, path)
+
+        # ``joinpath``/``relative_to`` are lexical and do not normalise ``..``, so a caller-supplied
+        # path can escape ``base_log_folder``. Mirrors the check in ``CloudWatchRemoteLogIO.upload``.
+        base = self.base_log_folder.resolve()
+        try:
+            local_loc.resolve().relative_to(base)
+        except ValueError:
+            self.log.warning("Skipping upload: path %s is outside base_log_folder %s", local_loc, base)
+            return
 
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
@@ -135,6 +185,8 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         extra_args = {}
         if conf.getboolean("logging", "ENCRYPT_S3_LOGS"):
             extra_args["ServerSideEncryption"] = "AES256"
+        if self.acl_policy:
+            extra_args["ACL"] = self.acl_policy
 
         # Default to a single retry attempt because s3 upload failures are
         # rare but occasionally occur.  Multiple retry attempts are unlikely
@@ -159,22 +211,65 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
                     return False
         return True
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
-        logs: list[str] = []
-        messages = []
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
+        messages, log_streams = self.stream(relative_path, ti)
+        if not log_streams:
+            return messages, None
+
+        # Exhaust each stream into a single string, for callers that cannot consume a stream.
+        # The newline is added back per line so that the string is byte-identical to the object.
+        return messages, ["".join(f"{line}\n" for line in log_stream) for log_stream in log_streams]
+
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
+        messages: list[str] = []
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, relative_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
-        if keys:
-            keys = sorted(f"s3://{bucket}/{key}" for key in keys)
-            if AIRFLOW_V_3_0_PLUS:
-                messages = keys
-            else:
-                messages.append("Found logs in s3:")
-                messages.extend(f"  * {key}" for key in keys)
-            for key in keys:
-                logs.append(self.s3_read(key, return_error=True))
-            return messages, logs
-        return messages, None
+        if not keys:
+            return messages, []
+
+        keys = sorted(f"s3://{bucket}/{key}" for key in keys)
+        if AIRFLOW_V_3_0_PLUS:
+            messages = keys
+        else:
+            messages.append("Found logs in s3:")
+            messages.extend(f"  * {key}" for key in keys)
+
+        # The objects are not fetched here: each generator issues its GetObject on first use.
+        return messages, [self._get_log_stream(key) for key in keys]
+
+    def _get_log_stream(self, remote_log_location: str) -> RawLogStream:
+        r"""
+        Yield the lines of a remote log object without holding the whole object in memory.
+
+        Lines are split exactly like :func:`~airflow.utils.log.file_task_handler._stream_lines_by_chunk`
+        does for local logs: on ``"\n"`` only, with the trailing newline stripped, so the records the
+        log reader sees are the same ones it saw when this method read the object as a single string.
+
+        :param remote_log_location: the log's location in remote storage
+        :yield: Lines of the log object.
+        """
+        body = None
+        try:
+            body = self.hook.get_key(remote_log_location).get()["Body"]
+            # An incremental decoder keeps multi-byte characters intact across chunk boundaries.
+            decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+            buffer = ""
+            for chunk in body.iter_chunks(chunk_size=CHUNK_SIZE):
+                buffer += decoder.decode(chunk)
+                *lines, buffer = buffer.split("\n")
+                yield from lines
+            buffer += decoder.decode(b"", final=True)
+            if buffer:
+                yield from buffer.split("\n")
+        except Exception as error:
+            # Surface the failure as a log line instead of raising, so that a single unreadable
+            # object does not hide the logs of the other objects of the same task instance.
+            msg = f"Could not read logs from {remote_log_location} with error: {error}"
+            self.log.exception(msg)
+            yield msg
+        finally:
+            if body is not None:
+                body.close()
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
@@ -208,6 +303,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             base_log_folder=base_log_folder,
             delete_local_copy=kwargs.get(
                 "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+            ),
+            acl_policy=kwargs.get(
+                "acl_policy", conf.get("aws", "s3_task_handler_acl_policy", fallback=None) or None
             ),
         )
 

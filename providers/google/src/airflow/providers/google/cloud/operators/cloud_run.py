@@ -29,7 +29,10 @@ from google.cloud.run_v2 import Job, Service
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
-from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
+from airflow.providers.google.cloud.links.cloud_run import (
+    CloudRunJobExecutionDetailsLink,
+    CloudRunJobLoggingLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 
@@ -319,7 +322,10 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         Default: ``False``.
     """
 
-    operator_extra_links = (CloudRunJobLoggingLink(),)
+    operator_extra_links = (
+        CloudRunJobLoggingLink(),
+        CloudRunJobExecutionDetailsLink(),
+    )
     template_fields = (
         "project_id",
         "region",
@@ -380,6 +386,13 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                 context=context,
                 log_uri=self.operation.metadata.log_uri,
             )
+
+        CloudRunJobExecutionDetailsLink.persist(
+            context=context,
+            region=self.region,
+            job_name=self.job_name,
+            project_id=self.project_id,
+        )
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)

@@ -16,16 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { useState } from "react";
+
+import { Flex } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useConnectionServiceGetConnections } from "openapi/queries";
 import type { ConnectionResponse } from "openapi/requests/types.gen";
+
+import { Tooltip, ActionBar } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -36,17 +41,18 @@ import {
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { Tooltip } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+import { TeamName } from "src/components/TeamName";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
+import DuplicateConnectionButton from "./DuplicateConnectionButton";
 import EditConnectionButton from "./EditConnectionButton";
 import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
@@ -71,8 +77,8 @@ const getColumns = ({
 }: {
   hasSelection: boolean;
   translate: TFunction;
-} & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
-  const columns: Array<ColumnDef<ConnectionResponse>> = [
+} & GetColumnsParams): Array<ColumnDef<DataTableFeatures, ConnectionResponse>> => {
+  const columns: Array<ColumnDef<DataTableFeatures, ConnectionResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.connection_id} />,
@@ -107,6 +113,9 @@ const getColumns = ({
       ? [
           {
             accessorKey: "team_name",
+            cell: ({ row: { original } }: { row: { original: ConnectionResponse } }) => (
+              <TeamName teamName={original.team_name} />
+            ),
             header: translate("columns.team"),
           },
         ]
@@ -117,9 +126,11 @@ const getColumns = ({
         <Flex justifyContent="end">
           <TestConnectionButton connection={original} />
           <EditConnectionButton connection={original} disabled={hasSelection} />
+          <DuplicateConnectionButton connection={original} disabled={hasSelection} />
           <DeleteConnectionButton connectionId={original.connection_id} disabled={hasSelection} />
         </Flex>
       ),
+      enableHiding: false,
       enableSorting: false,
       header: "",
       meta: {
@@ -132,7 +143,7 @@ const getColumns = ({
 };
 
 export const Connections = () => {
-  const { t: translate } = useTranslation(["admin", "common"]);
+  const { i18n, t: translate } = useTranslation(["admin", "common"]);
 
   useDocumentTitle(translate("common:admin.Connections"));
 
@@ -147,7 +158,7 @@ export const Connections = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
-  const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
+  const { data, error, isLoading } = useConnectionServiceGetConnections({
     ...(advancedSearch.enabled
       ? { connectionIdPattern: connectionIdPattern ?? undefined }
       : { connectionIdPrefixPattern: connectionIdPattern ?? undefined }),
@@ -190,35 +201,30 @@ export const Connections = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={connectionIdPattern ?? ""}
-          onChange={handleSearchChange}
-          placeholder={translate("connections.searchPlaceholder")}
-        />
-        <HStack gap={4} mt={2}>
-          <Spacer />
-          <AddConnectionButton />
-        </HStack>
-      </VStack>
-
       <DataTable
         columns={columns}
         data={data?.connections ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={connectionIdPattern ?? ""}
+            onChange={handleSearchChange}
+            placeholder={translate("connections.searchPlaceholder")}
+          />
+        }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:connections.connection"
         noRowsMessage={<NothingFoundInfo />}
         onStateChange={setTableURLState}
+        primaryActions={<AddConnectionButton />}
         total={data?.total_entries ?? 0}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("deleteActions.tooltip")}>

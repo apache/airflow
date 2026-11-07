@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect } from "tests/e2e/fixtures";
 import { test } from "tests/e2e/fixtures/dashboard-data";
 
@@ -58,7 +59,7 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.waitForDashboardLoad();
 
     await homePage.activeDagsCard.click();
-    await expect(homePage.page).toHaveURL(/paused=false/);
+    await expect(homePage.page).toHaveURL(/scheduling_state=active/);
 
     await homePage.navigate();
     await homePage.waitForDashboardLoad();

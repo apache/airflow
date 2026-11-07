@@ -34,6 +34,7 @@ Spelling exceptions.
 from __future__ import annotations
 
 import inspect
+import json
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -1124,7 +1125,8 @@ def provide_targeted_factory_async(func: T) -> T:
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
                 conn = await get_async_connection(self.conn_id)
-                extras = conn.extra_dejson
+                # extra_dejson can call mask_secret -> sync send on the triggerer loop.
+                extras = json.loads(conn.extra) if conn.extra else {}
                 default_value = extras.get(default_key) or extras.get(
                     f"extra__azure_data_factory__{default_key}"
                 )
@@ -1175,7 +1177,8 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
             return self._async_conn
 
         conn = await get_async_connection(self.conn_id)
-        extras = conn.extra_dejson
+        # extra_dejson can call mask_secret -> sync send on the triggerer loop.
+        extras = json.loads(conn.extra) if conn.extra else {}
         tenant = get_field(extras, "tenantId")
 
         try:
@@ -1208,6 +1211,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
 
     async def refresh_conn(self) -> AsyncDataFactoryManagementClient:  # type: ignore[override]
         self._conn = None
+        await self.close()
         return await self.get_async_conn()
 
     @provide_targeted_factory_async

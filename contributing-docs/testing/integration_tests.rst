@@ -89,7 +89,8 @@ The following integrations are available.
 +---------------+-------------------------------------------------------+
 | qdrant        | Integration required for Qdrant tests.                |
 +---------------+-------------------------------------------------------+
-| redis         | Integration required for Redis tests.                 |
+| redis         | * Integration required for Redis tests.               |
+|               | * Integration required for Redis cluster mode tests.  |
 +---------------+-------------------------------------------------------+
 | statsd        | Integration required for Statsd hooks.                |
 +---------------+-------------------------------------------------------+
@@ -188,7 +189,7 @@ Running Integration Tests from the Host
 You can also run integration tests using Breeze from the host. Depending on the type of integration,
 you can rum "providers" or "core" integration tests. You can consult the table above to see which
 integration is "core" and which is "provider" one, also by running the
-``breeze providers-integration-tests --help`` or ``breeze core-integration-tests --help`` command
+``breeze testing providers-integration-tests --help`` or ``breeze testing core-integration-tests --help`` command
 you can see the list of available integrations for each type of test.
 
 Runs all core integration tests:

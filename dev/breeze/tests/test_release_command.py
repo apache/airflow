@@ -540,53 +540,97 @@ def test_remove_old_release_no_task_sdk_version(monkeypatch, release_cmd):
     assert chdir_calls == [svn_release_repo, "/original/dir"]
 
 
-@pytest.mark.parametrize(
-    ("version", "expected_branch"),
-    [
-        ("3.3.0", "constraints-3-3"),
-        ("3.0.5", "constraints-3-0"),
-        ("3.12.10", "constraints-3-12"),
-    ],
-)
-def test_get_constraints_branch_for_version(release_cmd, version, expected_branch):
-    assert release_cmd.get_constraints_branch_for_version(version) == expected_branch
+def test_regenerate_constraints_resolves_from_the_stable_branch(monkeypatch, release_cmd):
+    """The final release resolves from the branch it is cut from, not from main."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+
+    release_cmd.regenerate_constraints("3.3.0")
+
+    assert calls == {
+        "version": "3.3.0",
+        "ref": "v3-3-stable",
+        "fail_on_pending_provider_candidates": None,
+    }
 
 
-def test_retag_constraints_from_rc_tag_by_default(monkeypatch, release_cmd):
-    run_command_calls: list[list[str]] = []
+def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd):
+    """No rc suffix reaches the workflow, which is what makes it refuse pre-releases."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
 
-    def fake_confirm_action(prompt: str, **_kwargs) -> bool:
-        # Decline basing on the branch tip; accept the retag and the push.
-        return not prompt.startswith("Base the final constraints on the latest")
+    release_cmd.regenerate_constraints("3.0.5")
 
-    monkeypatch.setattr(release_cmd, "confirm_action", fake_confirm_action)
-    monkeypatch.setattr(release_cmd, "run_command", lambda cmd, **_kwargs: run_command_calls.append(cmd))
+    assert "rc" not in str(calls["version"])
+    assert calls["ref"] == "v3-0-stable"
 
-    release_cmd.retag_constraints("3.3.0rc2", "3.3.0")
 
-    assert ["git", "checkout", "constraints-3.3.0rc2"] in run_command_calls
-    assert ["git", "tag", "-s", "constraints-3.3.0", "-m", "Constraints for Apache Airflow 3.3.0"] in (
-        run_command_calls
+@pytest.mark.parametrize("override", [None, False])
+def test_regenerate_constraints_passes_the_override_through(monkeypatch, release_cmd, override):
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+
+    release_cmd.regenerate_constraints("3.3.0", override)
+
+    assert calls["fail_on_pending_provider_candidates"] is override
+
+
+def test_decide_override_does_not_prompt_without_pending_candidates(monkeypatch, release_cmd):
+    monkeypatch.setattr(release_cmd, "find_pending_provider_candidates", lambda: [])
+
+    def fail_if_called(*a, **k):
+        raise AssertionError("confirm_action must not be called when nothing is pending")
+
+    monkeypatch.setattr(release_cmd, "confirm_action", fail_if_called)
+
+    assert release_cmd.decide_pending_candidates_override() is None
+
+
+def test_decide_override_pins_released_providers_when_accepted(monkeypatch, release_cmd):
+    monkeypatch.setattr(
+        release_cmd,
+        "find_pending_provider_candidates",
+        lambda: [("apache-airflow-providers-standard", "2.0.0rc1")],
     )
-    assert ["git", "push", "origin", "tag", "constraints-3.3.0"] in run_command_calls
-    # The branch tip is not fetched when basing on the RC tag.
-    assert not any(cmd[:2] == ["git", "fetch"] for cmd in run_command_calls)
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: True)
+
+    assert release_cmd.decide_pending_candidates_override() is False
 
 
-def test_retag_constraints_from_branch_tip_when_confirmed(monkeypatch, release_cmd):
-    run_command_calls: list[list[str]] = []
-
-    def fake_confirm_action(prompt: str, **_kwargs) -> bool:
-        return True
-
-    monkeypatch.setattr(release_cmd, "confirm_action", fake_confirm_action)
-    monkeypatch.setattr(release_cmd, "run_command", lambda cmd, **_kwargs: run_command_calls.append(cmd))
-
-    release_cmd.retag_constraints("3.3.0rc2", "3.3.0")
-
-    assert ["git", "fetch", "origin", "constraints-3-3"] in run_command_calls
-    assert ["git", "checkout", "origin/constraints-3-3"] in run_command_calls
-    assert ["git", "checkout", "constraints-3.3.0rc2"] not in run_command_calls
-    assert ["git", "tag", "-s", "constraints-3.3.0", "-m", "Constraints for Apache Airflow 3.3.0"] in (
-        run_command_calls
+def test_decide_override_stops_the_release_when_declined(monkeypatch, release_cmd):
+    """Keeping the guard on would only fail after the PyPI upload, so declining stops here."""
+    monkeypatch.setattr(
+        release_cmd,
+        "find_pending_provider_candidates",
+        lambda: [("apache-airflow-providers-standard", "2.0.0rc1")],
     )
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
+
+    with pytest.raises(SystemExit):
+        release_cmd.decide_pending_candidates_override()
+
+
+class _StopRelease(Exception):
+    pass
+
+
+def test_airflow_release_decides_override_before_touching_svn(monkeypatch, release_cmd):
+    """The override is settled before the first irreversible step, not after the PyPI upload."""
+    calls: list[str] = []
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **kw: True)
+    monkeypatch.setattr(release_cmd, "run_command", lambda *a, **kw: None)
+    monkeypatch.setattr(release_cmd.os, "chdir", lambda *a: None)
+    monkeypatch.setattr(
+        release_cmd, "decide_pending_candidates_override", lambda: calls.append("override") or None
+    )
+
+    def stop_at_clone(*a, **kw):
+        calls.append("clone")
+        raise _StopRelease
+
+    monkeypatch.setattr(release_cmd, "clone_asf_repo", stop_at_clone)
+
+    with pytest.raises(_StopRelease):
+        release_cmd.airflow_release.callback("3.4.0", None)
+
+    assert calls == ["override", "clone"]

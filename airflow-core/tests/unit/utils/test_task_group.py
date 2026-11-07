@@ -20,7 +20,11 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict, task_group_to_dict_grid
+from airflow.api_fastapi.core_api.services.ui.task_group import (
+    get_task_group_children_getter,
+    task_group_to_dict,
+    task_group_to_dict_grid,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -33,8 +37,10 @@ from airflow.sdk import (
     task_group as task_group_decorator,
     teardown,
 )
+from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.utils.dag_edges import dag_edges
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag
 from unit.models import DEFAULT_DATE
 
@@ -250,6 +256,59 @@ def test_task_group_to_dict_alternative_syntax():
     serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
+
+
+@conf_vars({("api", "grid_view_sorting_order"): "hierarchical_alphabetical"})
+def test_task_group_to_dict_hierarchical_alphabetical_sort():
+    """``hierarchical_alphabetical`` orders serialized children: groups first, then tasks, each alphabetical."""
+    # The getter caches the resolved sort order, so force a re-read under the patched config.
+    get_task_group_children_getter.cache_clear()
+    try:
+        logical_date = pendulum.parse("20200101")
+        dag = DAG("test_tg_hier_alpha", schedule=None, start_date=logical_date)
+        # Added in a non-alphabetical order, mixing tasks and groups.
+        EmptyOperator(task_id="zeta", dag=dag)
+        group_b = TaskGroup("group_b", dag=dag)
+        EmptyOperator(task_id="b1", dag=dag, task_group=group_b)
+        group_a = TaskGroup("group_a", dag=dag)
+        EmptyOperator(task_id="a1", dag=dag, task_group=group_a)
+        EmptyOperator(task_id="alpha", dag=dag)
+
+        serialized_dag = create_scheduler_dag(dag)
+        node = task_group_to_dict(serialized_dag.task_group)
+
+        assert [child["id"] for child in node["children"]] == ["group_a", "group_b", "alpha", "zeta"]
+    finally:
+        # Don't leak the patched sort order to other tests.
+        get_task_group_children_getter.cache_clear()
+
+
+def test_task_group_to_dict_builds_group_dict_once(monkeypatch):
+    """Rendering the whole tree threads one group_dict; it is not rebuilt per nested group."""
+    with DAG("test_group_dict_once", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("outer"):
+            with TaskGroup("inner"):
+                EmptyOperator(task_id="a")
+                EmptyOperator(task_id="b")
+        with TaskGroup("sibling"):
+            EmptyOperator(task_id="c")
+
+    serialized = create_scheduler_dag(dag)
+
+    calls = 0
+    original = SerializedTaskGroup.get_task_group_dict
+
+    def counting(self):
+        nonlocal calls
+        calls += 1
+        return original(self)
+
+    monkeypatch.setattr(SerializedTaskGroup, "get_task_group_dict", counting)
+
+    # A full render must build the group map exactly once, not once per group.
+    task_group_to_dict(serialized.task_group)
+
+    assert calls == 1
 
 
 def test_task_group_to_dict_grid_includes_task_group_doc_md(dag_maker):
@@ -502,17 +561,11 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
     nodes = task_group_to_dict(dag.task_group)
     edges = dag_edges(dag)
 
+    # group_d depends on group_c (`group_d << group_c`), so it must sort after group_c
+    # rather than before task1, which has no dependency on it at all.
     expected_node_id = {
         "id": None,
         "children": [
-            {
-                "id": "group_d",
-                "children": [
-                    {"id": "group_d.task11"},
-                    {"id": "group_d.task12"},
-                    {"id": "group_d.upstream_join_id"},
-                ],
-            },
             {"id": "task1"},
             {
                 "id": "group_a",
@@ -539,6 +592,14 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
                     {"id": "group_c.task8"},
                     {"id": "group_c.upstream_join_id"},
                     {"id": "group_c.downstream_join_id"},
+                ],
+            },
+            {
+                "id": "group_d",
+                "children": [
+                    {"id": "group_d.task11"},
+                    {"id": "group_d.task12"},
+                    {"id": "group_d.upstream_join_id"},
                 ],
             },
             {"id": "task10"},
@@ -728,12 +789,17 @@ def test_build_task_group_deco_context_manager(dag_maker):
     assert dag.task_dict["section_1.section_2.task_4"].downstream_task_ids == {"task_end"}
 
     # Node IDs test
+    # task_start feeds section_1.task_1 directly (a task-level dep crossing into the
+    # group), so section_1 must sort after task_start, not before it.
     node_ids = {
         "id": None,
         "children": [
+            {"id": "task_start"},
             {
                 "id": "section_1",
                 "children": [
+                    {"id": "section_1.task_1"},
+                    {"id": "section_1.task_2"},
                     {
                         "id": "section_1.section_2",
                         "children": [
@@ -741,12 +807,9 @@ def test_build_task_group_deco_context_manager(dag_maker):
                             {"id": "section_1.section_2.task_4"},
                         ],
                     },
-                    {"id": "section_1.task_1"},
-                    {"id": "section_1.task_2"},
                 ],
             },
             {"id": "task_end"},
-            {"id": "task_start"},
         ],
     }
 
@@ -1187,6 +1250,80 @@ def test_topological_sort_serialized_layered():
                 )
 
 
+def test_topological_group_dep_list_syntax():
+    """List-based deps (`[b0, b1] >> a`) must produce the same topological order as individual deps.
+
+    Declaring a group dependency via a list (`groups >> a`) only populates
+    `upstream_group_ids`, not `upstream_task_ids`, so `a` must not sort as if it had no
+    upstream at all.
+    """
+    with DAG("test_dag_list_dep", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("a") as tg_a:
+            EmptyOperator(task_id="task")
+
+        groups = []
+        for x in range(3):
+            with TaskGroup(f"b_{x}") as tg_b:
+                EmptyOperator(task_id="task")
+            groups.append(tg_b)
+
+        groups >> tg_a  # list-based dep — previously produced the wrong order
+
+    order = [node.node_id for node in dag.task_group.topological_sort()]
+    pos = {node_id: i for i, node_id in enumerate(order)}
+    assert all(pos[f"b_{x}"] < pos["a"] for x in range(3)), (
+        f"Expected all b_x before a in topological order, got: {order!r}"
+    )
+
+
+def test_topological_sort_serialized_list_dep_between_groups():
+    """Same as test_topological_group_dep_list_syntax, exercised on the serialized variant."""
+    with DAG("test_dag_list_dep_serialized", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("a"):
+            EmptyOperator(task_id="task")
+
+        groups = []
+        for x in range(3):
+            with TaskGroup(f"b_{x}") as tg_b:
+                EmptyOperator(task_id="task")
+            groups.append(tg_b)
+
+        groups >> dag.task_group.children["a"]
+
+    serialized = create_scheduler_dag(dag)
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    pos = {node_id: i for i, node_id in enumerate(order)}
+    assert all(pos[f"b_{x}"] < pos["a"] for x in range(3)), (
+        f"Expected all b_x before a in topological order, got: {order!r}"
+    )
+
+
+def test_topological_sort_serialized_task_level_cross_group_dep():
+    """Task-level deps between groups are respected for ordering after serialization.
+
+    A task-level dependency that crosses into another group's entry task (bypassing any
+    group-to-group edge) must still order the downstream group after the upstream one.
+    """
+    with DAG("test_cross_group_task_dep", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("stage_b"):
+            b_start = EmptyOperator(task_id="b_start")
+            b_end = EmptyOperator(task_id="b_end")
+            b_start >> b_end
+
+        with TaskGroup("stage_a"):
+            a_start = EmptyOperator(task_id="a_start")
+            a_end = EmptyOperator(task_id="a_end")
+            a_start >> a_end
+
+        b_end >> a_start
+
+    serialized = create_scheduler_dag(dag)
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    pos = {node_id: i for i, node_id in enumerate(order)}
+
+    assert pos["stage_b"] < pos["stage_a"]
+
+
 def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(monkeypatch):
     dag = _make_padded_reverse_chain(chain_length=80, independent_count=80)
     serialized = create_scheduler_dag(dag)
@@ -1212,6 +1349,140 @@ def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(mo
     assert set(position) == {*(f"r{i}" for i in range(80)), *(f"i{i}" for i in range(80))}
     for i in range(79):
         assert position[f"r{i}"] < position[f"r{i + 1}"]
+
+
+# Deserialization orders a group's children by label, so these Dags declare children in label order
+# to give the Task SDK sort the same input as the serialized one.
+
+
+def _make_sibling_groups_cycle():
+    with DAG("sibling_groups_cycle", schedule=None, start_date=DEFAULT_DATE) as dag:
+        end = EmptyOperator(task_id="end")
+        with TaskGroup("group1"):
+            a1 = EmptyOperator(task_id="a1")
+            a2 = EmptyOperator(task_id="a2")
+        with TaskGroup("group2"):
+            b1 = EmptyOperator(task_id="b1")
+            b2 = EmptyOperator(task_id="b2")
+        start = EmptyOperator(task_id="start")
+        start >> [a1, b2]
+        a1 >> b1
+        b2 >> a2
+        [a2, b1] >> end
+    return dag
+
+
+def _make_group_bridged_by_outside_task():
+    with DAG("group_bridged_by_outside_task", schedule=None, start_date=DEFAULT_DATE) as dag:
+        bridge = EmptyOperator(task_id="bridge")
+        with TaskGroup("group"):
+            a = EmptyOperator(task_id="a")
+            b = EmptyOperator(task_id="b")
+        a >> bridge >> b
+    return dag
+
+
+def _make_bridged_group_among_siblings():
+    with DAG("bridged_group_among_siblings", schedule=None, start_date=DEFAULT_DATE) as dag:
+        after = EmptyOperator(task_id="after")
+        bridge = EmptyOperator(task_id="bridge")
+        with TaskGroup("group"):
+            a = EmptyOperator(task_id="a")
+            b = EmptyOperator(task_id="b")
+        for i in range(3):
+            EmptyOperator(task_id=f"x{i}")
+        a >> bridge >> b >> after
+    return dag
+
+
+def _make_nested_bridged_group():
+    with DAG("nested_bridged_group", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("outer"):
+            after = EmptyOperator(task_id="after")
+            bridge = EmptyOperator(task_id="bridge")
+            with TaskGroup("inner"):
+                a = EmptyOperator(task_id="a")
+                b = EmptyOperator(task_id="b")
+        a >> bridge >> b >> after
+    return dag
+
+
+def _make_three_group_ring():
+    with DAG("three_group_ring", schedule=None, start_date=DEFAULT_DATE) as dag:
+        groups = {}
+        for group_id in ("g0", "g1", "g2"):
+            with TaskGroup(group_id):
+                groups[group_id] = (EmptyOperator(task_id="first"), EmptyOperator(task_id="second"))
+        groups["g1"][0] >> groups["g0"][1]
+        groups["g2"][0] >> groups["g1"][1]
+        groups["g0"][0] >> groups["g2"][1]
+    return dag
+
+
+def _get_topological_orders(group_dict):
+    return {
+        group_id: [node.node_id for node in group.topological_sort(group_dict=group_dict)]
+        for group_id, group in group_dict.items()
+    }
+
+
+@pytest.mark.parametrize(
+    ("make_dag", "expected"),
+    [
+        pytest.param(
+            _make_sibling_groups_cycle,
+            {
+                None: ["start", "group1", "group2", "end"],
+                "group1": ["group1.a1", "group1.a2"],
+                "group2": ["group2.b1", "group2.b2"],
+            },
+            id="sibling-groups",
+        ),
+        pytest.param(
+            _make_group_bridged_by_outside_task,
+            {None: ["bridge", "group"], "group": ["group.a", "group.b"]},
+            id="group-bridged-by-outside-task",
+        ),
+        # Only two of six siblings depend on a later sibling, which keeps the sweep.
+        pytest.param(
+            _make_bridged_group_among_siblings,
+            {
+                None: ["bridge", "group", "x0", "x1", "x2", "after"],
+                "group": ["group.a", "group.b"],
+            },
+            id="bridged-group-among-siblings",
+        ),
+        # Two of outer's three children depend on a later sibling, which selects pass numbering.
+        pytest.param(
+            _make_nested_bridged_group,
+            {
+                None: ["outer"],
+                "outer": ["outer.bridge", "outer.inner", "outer.after"],
+                "outer.inner": ["outer.inner.a", "outer.inner.b"],
+            },
+            id="nested-bridged-group",
+        ),
+        # Two of the three siblings depend on a later sibling, which selects pass numbering.
+        pytest.param(
+            _make_three_group_ring,
+            {
+                None: ["g0", "g1", "g2"],
+                "g0": ["g0.first", "g0.second"],
+                "g1": ["g1.first", "g1.second"],
+                "g2": ["g2.first", "g2.second"],
+            },
+            id="three-group-ring",
+        ),
+    ],
+)
+def test_topological_sort_task_group_cycle(make_dag, expected):
+    """Siblings that depend on each other only at the group level are ordered instead of raising."""
+    dag = make_dag()
+    dag.check_cycle()
+    serialized = create_scheduler_dag(dag)
+
+    assert _get_topological_orders(serialized.task_group.get_task_group_dict()) == expected
+    assert _get_topological_orders(dag.task_group.get_task_group_dict()) == expected
 
 
 def test_task_group_arrow_with_setup_group():

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * HITL (Human-in-the-Loop) API helpers and end-to-end scenario.
  */

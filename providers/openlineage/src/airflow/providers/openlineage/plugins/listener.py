@@ -19,14 +19,15 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import threading
 from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
+from sqlalchemy.orm import object_session
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -51,7 +52,10 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_parent_run_facet,
     get_dag_run_dag_and_task_from_ti,
     get_job_name,
+    get_orm_task_instance_positions,
     get_task_documentation,
+    get_task_instance_position,
+    get_task_instance_run_id,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
@@ -137,8 +141,12 @@ def _run_adapter_method(method_name: str, /, *args, **kwargs):
     background worker threads (e.g. the ``datadog`` transport, which always starts an async
     HTTP worker thread) are never closed, so this leaks one thread per event and steadily
     consumes scheduler CPU and memory until restart.
+
+    Returns nothing: the emitted event is only of use inside the pool worker, and pickling it
+    back to the parent would turn a redacted event the pickler chokes on into a spurious
+    "failed to submit" warning for an emission that actually succeeded.
     """
-    return getattr(_get_process_adapter(), method_name)(*args, **kwargs)
+    getattr(_get_process_adapter(), method_name)(*args, **kwargs)
 
 
 def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **kwargs):
@@ -148,11 +156,30 @@ def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **
     Module-level so it is picklable across the ProcessPoolExecutor boundary used by
     `_on_task_instance_manual_state_change` for scheduler-side "task state changed
     externally" emissions. The method is resolved on the per-process adapter so the
-    pool worker reuses one client across events (see ``_run_adapter_method``).
+    pool worker reuses one client across events (see ``_run_adapter_method``), and nothing is
+    returned so an unpicklable event cannot fail the future after a successful emission.
     """
     event = getattr(_get_process_adapter(), adapter_method_name)(**kwargs)
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
-    return event
+
+
+def _get_task_end_date(task_instance: RuntimeTaskInstance | TaskInstance) -> datetime:
+    """
+    Return the end date for a terminal event of a task instance that finished in the current process.
+
+    Airflow 2 and the Airflow 3 task runner set ``end_date`` before they notify listeners, and that value is the
+    stored one, so the event time matches it. In the cases below the time of the notification is used instead,
+    so the event time is later than the stored ``end_date`` by however long the task's state change callbacks
+    took:
+
+    - Airflow 3.0.0 to 3.0.4, whose task runner never sets ``end_date`` on the task instance.
+    - Before Airflow 3.4.0, a task that raised ``AirflowSkipException``, or a ``TriggerDagRunOperator`` task
+      skipped or failed because the Dag run it triggers already exists.
+    """
+    end_date = getattr(task_instance, "end_date", None)
+    if isinstance(end_date, datetime):
+        return end_date
+    return timezone.utcnow()
 
 
 class OpenLineageListener:
@@ -177,6 +204,18 @@ class OpenLineageListener:
             if TYPE_CHECKING:
                 assert task
             start_date = task_instance.start_date
+
+            # Only sensors in reschedule mode re-run without a new try_number, so only they can
+            # repeat a START for a run id that already emitted one. Other operators can also have
+            # TaskReschedule rows (a missing-Dag startup failure writes them before any listener
+            # hook fires), and those attempts have emitted nothing yet.
+            if (
+                getattr(task, "reschedule", False)
+                and task_instance.get_template_context().get("task_reschedule_count", 0) > 0
+            ):
+                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
+                return
+
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 
@@ -230,11 +269,6 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_running():
-            context = task_instance.get_template_context()
-            if hasattr(context, "task_reschedule_count") and context["task_reschedule_count"] > 0:
-                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
-                return
-
             date = dagrun.logical_date
             if AIRFLOW_V_3_0_PLUS and date is None:
                 date = dagrun.run_after
@@ -249,13 +283,8 @@ class OpenLineageListener:
                 clear_number=clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
 
@@ -325,6 +354,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
                     ),
                     **debug_facet,
                 },
@@ -384,7 +414,7 @@ class OpenLineageListener:
             self._on_task_instance_success(task_instance, dag, dagrun, task)
 
     def _on_task_instance_success(self, task_instance: RuntimeTaskInstance, dag, dagrun, task):
-        end_date = timezone.utcnow()
+        end_date = _get_task_end_date(task_instance)
 
         controls = resolve_task_emission_policy(
             operator=task,
@@ -411,13 +441,8 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
 
@@ -486,6 +511,8 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
+                        end_date=end_date,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -560,7 +587,7 @@ class OpenLineageListener:
         task,
         error: None | str | BaseException = None,
     ) -> None:
-        end_date = timezone.utcnow()
+        end_date = _get_task_end_date(task_instance)
 
         controls = resolve_task_emission_policy(
             operator=task,
@@ -587,13 +614,8 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.FAIL.value.lower()
             operator_name = task.task_type.lower()
 
@@ -662,6 +684,8 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
+                        end_date=end_date,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -712,7 +736,7 @@ class OpenLineageListener:
         dagrun,
         task,
     ) -> None:
-        end_date = timezone.utcnow()
+        end_date = _get_task_end_date(task_instance)
 
         controls = resolve_task_emission_policy(
             operator=task,
@@ -739,13 +763,8 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                try_number=task_instance.try_number,
-                logical_date=date,
-                map_index=task_instance.map_index,
-            )
+            position = get_task_instance_position(task_instance)
+            task_uuid = get_task_instance_run_id(task_instance, logical_date=date, position=position)
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
 
@@ -813,6 +832,8 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=controls.include_full_task_info,
+                        ti_position=position,
+                        end_date=end_date,
                     ),
                     **get_airflow_debug_facet(),
                 },
@@ -890,13 +911,8 @@ class OpenLineageListener:
             # pickler loses TaskGroup attributes and crashes event emission -- see
             # the equivalent note in `on_dag_run_running` (listener.py ~868).
             date = dagrun.logical_date or dagrun.run_after
-            task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                try_number=ti.try_number,
-                logical_date=date,
-                map_index=ti.map_index,
-            )
+            position = get_orm_task_instance_positions([ti], session=object_session(ti))[ti.id]
+            task_uuid = get_task_instance_run_id(ti, logical_date=date, position=position)
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=ti.dag_id,
                 logical_date=date,
@@ -933,6 +949,7 @@ class OpenLineageListener:
                         task,
                         task_uuid,
                         include_full_task_info=include_full_task_info,
+                        ti_position=position,
                     )
 
             adapter_kwargs: dict = {
@@ -974,9 +991,59 @@ class OpenLineageListener:
 
     def _execute(self, callable, callable_name: str, use_fork: bool = False):
         if use_fork:
-            self._fork_execute(callable, callable_name)
+            if conf.execute_in_thread():
+                self._thread_execute(callable, callable_name)
+            else:
+                self._fork_execute(callable, callable_name)
         else:
             callable()
+
+    def _thread_execute(self, callable, callable_name: str):
+        """
+        Run OpenLineage event emission in a time-bounded daemon thread.
+
+        Opt-in alternative to :meth:`_fork_execute`, enabled via
+        ``[openlineage] execute_in_thread``. Unlike forking, this never duplicates the
+        task runner process, so no supervisor connection is inherited and left in a broken
+        state -- emission therefore cannot strand the task in the ``running`` state. The
+        task runner waits at most ``[openlineage] execution_timeout`` for emission and then
+        proceeds. Metadata extraction still runs in-process with full access to the task
+        runtime, so Operators whose extractors resolve Connections, Variables or XComs keep
+        working.
+        """
+
+        def _run():
+            try:
+                callable()
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s thread failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+
+        thread = threading.Thread(
+            target=_run,
+            name=f"openlineage-{callable_name}",
+            daemon=True,
+        )
+        thread.start()
+        thread.join(timeout=conf.execution_timeout())
+        if thread.is_alive():
+            # Emission is still running. We deliberately do not keep waiting: the thread is a
+            # daemon, reaped when the process exits. Unlike the fork path -- where parent and
+            # child shared a socket fd with no cross-process locking and could interleave bytes
+            # on the supervisor channel -- this thread reaches the supervisor only through the
+            # shared SUPERVISOR_COMMS threading lock, so it cannot corrupt the protocol. The main
+            # thread may briefly wait on that lock if the abandoned thread is mid-request, but the
+            # wait is bounded by a single round trip. This mirrors the fork path terminating an
+            # over-running child.
+            self.log.warning(
+                "OpenLineage %s thread did not finish within execution_timeout=%ss and will be "
+                "abandoned. This has no impact on actual task execution status.",
+                callable_name,
+                conf.execution_timeout(),
+            )
 
     def _terminate_with_wait(self, process: psutil.Process):
         process.terminate()
@@ -1007,14 +1074,21 @@ class OpenLineageListener:
                 self._terminate_with_wait(process)
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
-            setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
-            if not AIRFLOW_V_3_0_PLUS:
-                configure_orm(disable_connection_pool=True)
-            self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
+            # Everything the child does lives in this try, and the exit lives in its finally: a child
+            # that returns instead of exiting becomes a second task runner. It would unwind into the
+            # hook's caller and keep executing task-runner code while sharing the supervisor socket
+            # with the real one, duplicating state writes and interleaving bytes on the channel.
             try:
+                setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
+                if not AIRFLOW_V_3_0_PLUS:
+                    configure_orm(disable_connection_pool=True)
+                self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
                 callable()
                 self.log.debug("Process with current pid finishes after %s", callable_name)
-            except Exception:
+            except BaseException:
+                # BaseException, not Exception: a SIGINT delivered to the process group reaches this
+                # child as KeyboardInterrupt, and Airflow's own AirflowTaskTimeout / TaskDeferred
+                # also derive from BaseException.
                 self.log.warning(
                     "OpenLineage %s process failed. This has no impact on actual task execution status.",
                     callable_name,
@@ -1025,8 +1099,13 @@ class OpenLineageListener:
                 # logging so buffered records (including any warnings above) are flushed
                 # before the process exits. Without this, the final log lines are silently
                 # dropped, making failures invisible.
-                logging.shutdown()
-            os._exit(0)
+                # Nest os._exit in its own finally so that a raising logging.shutdown()
+                # (e.g. a remote handler whose close() throws) cannot skip the exit and
+                # unwind back into the task runner as a second process.
+                try:
+                    logging.shutdown()
+                finally:
+                    os._exit(0)
 
     @property
     def executor(self) -> ProcessPoolExecutor:
@@ -1044,8 +1123,26 @@ class OpenLineageListener:
     @hookimpl
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
-        with timeout(30):
-            self.executor.shutdown(wait=True)
+        if self._executor is None:
+            # Do not build a pool just to tear it down -- on the task runner this hook fires at the
+            # end of every task, where no pool was ever needed.
+            return
+
+        # Detach before shutting down so a later event rebuilds a fresh pool. Left attached, every
+        # subsequent submission would raise "cannot schedule new futures after shutdown" and drop
+        # its event for the remaining lifetime of the process.
+        executor, self._executor = self._executor, None
+        try:
+            with timeout(30):
+                executor.shutdown(wait=True)
+        except BaseException:
+            # `timeout` is SIGALRM-based: it raises AirflowTaskTimeout when shutdown overruns, and
+            # ValueError when called off the main thread. Neither may escape a listener hook --
+            # and BaseException is required, not Exception, because AirflowTaskTimeout derives from
+            # BaseException so that user code cannot swallow it. Every hook call site guards with
+            # `except Exception`, so letting it through would reach the caller.
+            self.log.warning("OpenLineage executor did not shut down cleanly.", exc_info=True)
+            executor.shutdown(wait=False)
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str) -> None:
@@ -1207,9 +1304,14 @@ class OpenLineageListener:
     def submit_callable(self, callable, *args, **kwargs):
         try:
             fut = self.executor.submit(callable, *args, **kwargs)
-        except BrokenProcessPool:
-            self.log.warning("ProcessPoolExecutor is broken; recreating and retrying submission.")
-            self._executor.shutdown(wait=False)
+        except RuntimeError:
+            # BrokenProcessPool subclasses RuntimeError, so this also covers a pool that was already
+            # shut down ("cannot schedule new futures after shutdown"). The retry is deliberately
+            # unguarded: every caller wraps this in `except BaseException`, and a second consecutive
+            # failure deserves to surface in their warning rather than be swallowed here.
+            self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
+            if self._executor is not None:
+                self._executor.shutdown(wait=False)
             self._executor = None
             fut = self.executor.submit(callable, *args, **kwargs)
         fut.add_done_callback(self.log_submit_error)
