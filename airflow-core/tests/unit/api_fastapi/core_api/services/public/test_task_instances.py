@@ -17,20 +17,42 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody
-from airflow.api_fastapi.core_api.services.public.task_instances import BulkTaskInstanceService
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    ClearTaskInstancesBody,
+)
+from airflow.api_fastapi.core_api.services.public.task_instances import (
+    EXTERNAL_CLEAR_TARGET_XCOM_KEY as CORE_RECORD_KEY,
+    BulkTaskInstanceService,
+    ExternalClearDepthExceeded,
+    clear_dependent_runs,
+    find_dependent_clears,
+)
 from airflow.models import DagModel
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import ExternalClearTarget, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions.external_clear import EXTERNAL_CLEAR_TARGET_XCOM_KEY
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils.db import (
     clear_db_runs,
 )
+from tests_common.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
 DAG_ID_1 = "TEST_DAG_1"
@@ -424,3 +446,317 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
         assert specific_map_index_task_keys == expected_specific_keys
         assert all_map_index_task_keys == expected_all_keys
         assert len(results.errors) == expected_error_count
+
+
+CLEAR_DATE = timezone.datetime(2026, 10, 1)
+
+
+def _record(ti, value, session) -> None:
+    """Store a target the way the execution API stores the task runner's push."""
+    if isinstance(value, ExternalClearTarget):
+        value = value.serialize()
+    XComModel.set_for_attempt(
+        task_instance_id=ti.id,
+        key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+        value=value,
+        serialize=False,
+        session=session,
+    )
+    session.flush()
+
+
+def _target(dag_id: str, task_id: str = "wait", **kwargs) -> ExternalClearTarget:
+    return ExternalClearTarget(dag_id=dag_id, task_id=task_id, logical_date=CLEAR_DATE, **kwargs)
+
+
+def _find(sources, session, *, can_clear=lambda dag_id: True, dag_bag=None, **kwargs):
+    return find_dependent_clears(
+        sources, dag_bag=dag_bag or DBDagBag(), can_clear=can_clear, session=session, **kwargs
+    )
+
+
+def _keys(clears) -> list[tuple[str, str, str]]:
+    return sorted((ti.dag_id, ti.run_id, ti.task_id) for clear in clears for ti in clear.task_instances)
+
+
+def _make_child(dag_maker, dag_id: str, *logical_dates):
+    """A Dag ``prep >> wait >> load`` with one run per logical date."""
+    with dag_maker(dag_id):
+        EmptyOperator(task_id="prep") >> EmptyOperator(task_id="wait") >> EmptyOperator(task_id="load")
+    return [dag_maker.create_dagrun(run_id=f"run_{d:%H}", logical_date=d) for d in logical_dates]
+
+
+def _make_parent(dag_maker, dag_id: str, logical_date=CLEAR_DATE, task_ids=("mark",)):
+    with dag_maker(dag_id):
+        for task_id in task_ids:
+            EmptyOperator(task_id=task_id)
+    dag_run = dag_maker.create_dagrun(logical_date=logical_date)
+    return [dag_run.get_task_instance(task_id) for task_id in task_ids]
+
+
+def test_follows_target_into_downstream_of_target_task(dag_maker, session):
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("child"), session)
+
+    assert _keys(_find([mark], session)) == [
+        ("child", child_run.run_id, "load"),
+        ("child", child_run.run_id, "wait"),
+    ]
+
+
+def test_uses_recorded_logical_date_not_the_parent_run_date(dag_maker, session):
+    parent_date = CLEAR_DATE + timedelta(hours=5)
+    midnight_run, _same_hour_run = _make_child(dag_maker, "child", CLEAR_DATE, parent_date)
+    (mark,) = _make_parent(dag_maker, "parent", parent_date)
+    _record(mark, _target("child"), session)
+
+    assert [clear.run_id for clear in _find([mark], session)] == [midnight_run.run_id]
+
+
+def test_follows_targets_recorded_by_the_target_dag(dag_maker, session):
+    (grandchild_run,) = _make_child(dag_maker, "grandchild", CLEAR_DATE)
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    _record(child_run.get_task_instance("load"), _target("grandchild"), session)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("child"), session)
+
+    keys = _keys(_find([mark], session))
+
+    assert ("grandchild", grandchild_run.run_id, "load") in keys
+    assert len(keys) == 4
+
+
+def test_merges_targets_into_one_clear_per_run(dag_maker, session):
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    mark_wait, mark_load = _make_parent(dag_maker, "parent", task_ids=("mark_wait", "mark_load"))
+    _record(mark_wait, _target("child"), session)
+    _record(mark_load, _target("child", task_id="load"), session)
+
+    clears = _find([mark_wait, mark_load], session)
+
+    assert [(clear.dag.dag_id, clear.run_id, sorted(clear.task_ids)) for clear in clears] == [
+        ("child", child_run.run_id, ["load", "wait"])
+    ]
+    assert _keys(clears) == [("child", child_run.run_id, "load"), ("child", child_run.run_id, "wait")]
+
+
+def test_raises_when_targets_go_deeper_than_first_recursion_depth(dag_maker, session):
+    _make_child(dag_maker, "grandchild", CLEAR_DATE)
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    _record(child_run.get_task_instance("load"), _target("grandchild"), session)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("child", recursion_depth=1), session)
+
+    with pytest.raises(ExternalClearDepthExceeded, match="more than 1 levels"):
+        _find([mark], session)
+
+
+def test_does_not_follow_targets_in_dags_the_caller_cannot_clear(dag_maker, session):
+    _make_child(dag_maker, "grandchild", CLEAR_DATE)
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    _record(child_run.get_task_instance("load"), _target("grandchild"), session)
+    (mark,) = _make_parent(dag_maker, "parent")
+    # Following the forbidden Dag would also exceed this depth and abort the clear.
+    _record(mark, _target("child", recursion_depth=1), session)
+
+    clears = _find([mark], session, can_clear=lambda dag_id: dag_id != "grandchild")
+
+    assert {key[0] for key in _keys(clears)} == {"child"}
+
+
+def test_leaves_tasks_the_source_selection_clears_to_it(dag_maker, session):
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("child"), session)
+    _record(child_run.get_task_instance("load"), _target("parent", task_id="mark"), session)
+
+    assert _keys(_find([mark], session)) == [
+        ("child", child_run.run_id, "load"),
+        ("child", child_run.run_id, "wait"),
+    ]
+
+
+def test_task_without_a_recorded_target_pulls_in_nothing(dag_maker, session):
+    _make_child(dag_maker, "child", CLEAR_DATE)
+    (mark,) = _make_parent(dag_maker, "parent")
+
+    assert _find([mark], session) == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param(
+            {"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1, 2]}, id="envelope"
+        ),
+        pytest.param("child", id="not-a-dict"),
+        pytest.param(
+            {"dag_id": "child", "task_id": "wait", "logical_date": "2026-10-01T00:00:00+00:00"},
+            id="missing-key",
+        ),
+        pytest.param(
+            {
+                "dag_id": "child",
+                "task_id": "wait",
+                "logical_date": "2026-10-01T00:00:00",
+                "recursion_depth": 1,
+            },
+            id="naive-date",
+        ),
+    ],
+)
+def test_ignores_a_record_that_does_not_validate(dag_maker, session, value):
+    _make_child(dag_maker, "child", CLEAR_DATE)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, value, session)
+
+    assert _find([mark], session) == []
+
+
+def test_skips_a_target_run_with_no_serialized_dag(dag_maker, session):
+    _make_child(dag_maker, "child", CLEAR_DATE)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("child"), session)
+    dag_bag = mock.create_autospec(DBDagBag, instance=True)
+    dag_bag.get_dag_for_run.return_value = None
+
+    assert _find([mark], session, dag_bag=dag_bag) == []
+
+
+def test_only_failed_keeps_successful_target_task_instances(dag_maker, session):
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    child_run.get_task_instance("wait", session=session).state = TaskInstanceState.SUCCESS
+    child_run.get_task_instance("load", session=session).state = TaskInstanceState.FAILED
+    session.flush()
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("child"), session)
+
+    assert _keys(_find([mark], session, only_failed=True)) == [("child", child_run.run_id, "load")]
+
+
+def _make_loop_child(dag_maker, session):
+    """A Dag ``wait >> loop(step)`` whose run holds three passes of the loop."""
+
+    @task_group
+    def body():
+        EmptyOperator(task_id="step")
+
+    with dag_maker("loop_child", serialized=True):
+        loop = create_loop(body, max_iterations=3)
+        EmptyOperator(task_id="wait") >> loop
+    loop_run = dag_maker.create_dagrun(logical_date=CLEAR_DATE)
+    root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    for index in (2, 3):
+        for task in loop.iter_tasks():
+            session.add(
+                TaskInstance(
+                    task=task,
+                    run_id=loop_run.run_id,
+                    dag_version_id=loop_run.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=index,
+                )
+            )
+    session.flush()
+    return loop_run
+
+
+def test_clearing_a_target_dag_archives_later_loop_passes(dag_maker, session):
+    _make_loop_child(dag_maker, session)
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("loop_child"), session)
+
+    clear_dependent_runs(
+        _find([mark], session),
+        body=ClearTaskInstancesBody(dry_run=False, only_failed=False),
+        dag_run_state=DagRunState.QUEUED,
+        session=session,
+    )
+
+    live_later_passes = session.scalars(
+        select(TaskInstance.task_id).where(
+            TaskInstance.dag_id == "loop_child",
+            TaskInstance.working_set.is_(True),
+            TaskInstance.region_index > 1,
+        )
+    ).all()
+    assert live_later_passes == []
+
+
+def test_clear_returns_only_the_executions_it_cleared(dag_maker, session):
+    @task_group
+    def body():
+        MockOperator.partial(task_id="step").expand(arg1=["a", "b"])
+
+    with dag_maker("loop_child", serialized=True):
+        loop = create_loop(body, max_iterations=2)
+        EmptyOperator(task_id="wait") >> loop
+    loop_run = dag_maker.create_dagrun(logical_date=CLEAR_DATE)
+    root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    # A second pass whose mapped instances reuse the map indexes of the first pass.
+    second_pass = DynamicRegion(
+        dag_id=loop_run.dag_id,
+        run_id=loop_run.run_id,
+        node_id="body.step",
+        parent_region_id=root.id,
+        parent_region_index=2,
+    )
+    session.add(second_pass)
+    session.flush()
+    for task in loop.iter_tasks():
+        mapped = task.task_id == "body.step"
+        for slot in range(2) if mapped else [2]:
+            session.add(
+                TaskInstance(
+                    task=task,
+                    run_id=loop_run.run_id,
+                    dag_version_id=loop_run.created_dag_version_id,
+                    region_id=second_pass.id if mapped else root.id,
+                    region_index=slot,
+                )
+            )
+    session.flush()
+    for ti in loop_run.get_task_instances(session=session):
+        failed = ti.region_id == second_pass.id and ti.region_index == 0
+        ti.state = TaskInstanceState.FAILED if failed else TaskInstanceState.SUCCESS
+    session.flush()
+    (mark,) = _make_parent(dag_maker, "parent")
+    _record(mark, _target("loop_child"), session)
+
+    cleared = clear_dependent_runs(
+        _find([mark], session, only_failed=True),
+        body=ClearTaskInstancesBody(dry_run=False, only_failed=True),
+        dag_run_state=DagRunState.QUEUED,
+        session=session,
+    )
+
+    assert [(ti.task_id, ti.region_id, ti.region_index) for ti in cleared] == [
+        ("body.step", second_pass.id, 0)
+    ]
+
+
+def test_cycle_back_into_a_partly_selected_mapped_task_clears_its_other_instances(dag_maker, session):
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    with dag_maker("parent"):
+        MockOperator.partial(task_id="mark").expand(arg1=["a", "b"])
+    parent_run = dag_maker.create_dagrun(logical_date=CLEAR_DATE)
+    mark_0, mark_1 = sorted(
+        (ti for ti in parent_run.get_task_instances(session=session) if ti.task_id == "mark"),
+        key=lambda ti: ti.map_index,
+    )
+    _record(mark_0, _target("child"), session)
+    _record(child_run.get_task_instance("load"), _target("parent", task_id="mark"), session)
+
+    found = {
+        (ti.dag_id, ti.task_id, ti.map_index)
+        for clear in _find([mark_0], session)
+        for ti in clear.task_instances
+    }
+
+    assert ("parent", "mark", mark_1.map_index) in found
+    assert ("parent", "mark", mark_0.map_index) not in found
+
+
+def test_core_reads_the_key_the_task_sdk_writes():
+    assert CORE_RECORD_KEY == EXTERNAL_CLEAR_TARGET_XCOM_KEY

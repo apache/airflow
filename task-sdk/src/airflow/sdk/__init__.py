@@ -60,6 +60,7 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "ExternalClearTarget",
     "FanOutMapper",
     "FixedKeyMapper",
     "HourWindow",
@@ -176,6 +177,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.external_clear import ExternalClearTarget
     from airflow.sdk.definitions.loop import LoopDecision
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
@@ -291,6 +293,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "EdgeModifier": (".definitions.edges", "EdgeModifier"),
     "EventsTimetable": (".definitions.timetables.events", "EventsTimetable"),
     "ExceptionRetryPolicy": (".definitions.retry_policy", "ExceptionRetryPolicy"),
+    "ExternalClearTarget": (".definitions.external_clear", "ExternalClearTarget"),
     "FanOutMapper": (".definitions.partition_mappers.temporal", "FanOutMapper"),
     "FixedKeyMapper": (".definitions.partition_mappers.fixed_key", "FixedKeyMapper"),
     "HourWindow": (".definitions.partition_mappers.window", "HourWindow"),
