@@ -93,8 +93,16 @@ class DurableStorage:
         path = self._get_path()
         try:
             self._cache = json.loads(path.read_text())
-        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
+        except FileNotFoundError:
             self._cache = {}
+        except OSError:
+            log.warning(
+                "Durable: could not read the journal; failing this attempt so finished steps don't run again"
+            )
+            raise
+        except (json.JSONDecodeError, ValueError):
+            log.warning("Durable: journal is corrupt; failing this attempt so finished steps don't run again")
+            raise
 
         return self._cache
 
@@ -139,8 +147,8 @@ class DurableStorage:
                 self._write(json.dumps(cache))
             else:
                 self._get_path().unlink()
-                self._cache = None
+                self._cache = {}
         except FileNotFoundError:
-            self._cache = None
+            self._cache = {}
         except Exception:
             log.warning("Durable: could not clean up the journal file", exc_info=True)

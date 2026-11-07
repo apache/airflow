@@ -82,6 +82,30 @@ class TestSaveLoad:
     def test_missing_key_is_none(self, storage):
         assert storage.load_step("missing") is None
 
+    @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
+    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, storage):
+        with pytest.raises(OSError, match="S3 is unavailable"):
+            storage.load_step("k")
+
+    @pytest.mark.parametrize(
+        ("contents", "expected_exception"),
+        [(b'{"k":', json.JSONDecodeError), (b"\xff", UnicodeDecodeError)],
+        ids=["truncated-json", "invalid-encoding"],
+    )
+    def test_a_corrupt_journal_blocks_reads_and_writes(self, storage, tmp_path, contents, expected_exception):
+        storage.save_step("k", ENTRY)
+        journal = next(tmp_path.iterdir())
+        journal.write_bytes(contents)
+        storage._cache = None
+
+        with pytest.raises(expected_exception):
+            storage.load_step("k")
+
+        with pytest.raises(expected_exception):
+            storage.save_step("new", ENTRY)
+
+        assert journal.read_bytes() == contents
+
     def test_an_entry_that_cannot_be_encoded_is_skipped_and_the_rest_kept(self, storage):
         circular: dict = {}
         circular["self"] = circular
@@ -106,6 +130,19 @@ class TestSaveLoad:
 
 
 class TestDeleteSteps:
+    @pytest.mark.parametrize("journal_exists", [True, False])
+    @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
+    def test_saving_after_cleanup_does_not_read_storage(self, mock_read, storage, journal_exists):
+        storage._cache = {}
+        if journal_exists:
+            storage.save_step("a", ENTRY)
+
+        storage.delete_steps(["a"])
+
+        assert storage.save_step("b", ENTRY)
+        assert storage.load_step("b") == ENTRY
+        mock_read.assert_not_called()
+
     def test_deleting_the_last_steps_removes_the_file(self, storage, tmp_path):
         storage.save_step("a", ENTRY)
 
