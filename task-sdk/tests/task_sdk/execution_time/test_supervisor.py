@@ -4136,19 +4136,18 @@ class TestHandleRequest:
         assert isinstance(message.detail["model"], MaskSecret)
 
     @pytest.mark.parametrize("schema_version", [None, "2026-06-16"])
-    def test_send_large_integer_to_python_only(self, watched_subprocess, schema_version):
+    @pytest.mark.parametrize("value", [-(2**63) - 1, 2**64], ids=["negative", "positive"])
+    def test_send_large_integer_to_python_with_schema_version(
+        self, watched_subprocess, schema_version, value
+    ):
         process, reader = watched_subprocess
         process._subprocess_schema_version = schema_version
-        message = XComResult(key="large", value=2**64)
+        message = XComResult(key="large", value=value)
 
-        if schema_version is not None:
-            with pytest.raises(OverflowError, match="can't serialize ints"):
-                process.send_msg(message, request_id=0)
-        else:
-            process.send_msg(message, request_id=0)
-            received = CommsDecoder(socket=reader)._get_response()
-            assert received == message
-            assert type(received.value) is int
+        process.send_msg(message, request_id=0)
+        received = CommsDecoder(socket=reader)._get_response()
+        assert received == message
+        assert type(received.value) is int
 
     @pytest.mark.parametrize("status", [404, 410, 422, 500])
     def test_terminal_report_propagates_errors_other_than_conflict(self, watched_subprocess, status):
