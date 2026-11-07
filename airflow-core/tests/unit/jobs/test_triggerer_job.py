@@ -78,7 +78,7 @@ from airflow.jobs.triggerer_job_runner import (
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import BatchSerializedDagResolver, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
@@ -117,6 +117,7 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import (
     AssetTriggerEvent,
@@ -879,17 +880,18 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
-    dag_bag = mocker.Mock()
-    serialized_dag_model = mocker.Mock()
+    serialized_dag = mocker.Mock(spec=SerializedDAG)
     task = mocker.Mock(start_from_trigger=False)
-    serialized_dag_model.dag.get_task.return_value = task
-    dag_bag.get_serialized_dag_model_for_run.return_value = serialized_dag_model
+    serialized_dag.get_task.return_value = task
+    serdag_resolver = mocker.Mock(spec=BatchSerializedDagResolver)
+    serdag_resolver.resolve.return_value = (mocker.Mock(spec=SerializedDagModel), serialized_dag)
 
     render_log_fname = mocker.Mock(return_value="/logs/ti")
 
     jobless_supervisor._create_workload(
         trigger=trigger,
-        dag_bag=dag_bag,
+        dag_bag=mocker.Mock(spec=DBDagBag),
+        serdag_resolver=serdag_resolver,
         render_log_fname=render_log_fname,
         session=mocker.Mock(),
     )
@@ -953,6 +955,36 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
 
     expected_version = run_created_version if pinned else latest_version
     dag_bag.get_serialized_dag_model.assert_called_once_with(version_id=expected_version, session=session)
+
+
+def test_build_trigger_workloads_batches_serdag_resolution(session, supervisor_builder, dag_maker, mocker):
+    """
+    Hydrating many triggers of one run resolves the Dag version and loads the serialized Dag once
+    per batch, not once per trigger, and still builds every workload.
+    """
+    with dag_maker(serialized=True):
+        for i in range(3):
+            EmptyOperator(task_id=f"task_{i}")
+    run = dag_maker.create_dagrun()
+    assert run.bundle_version is None  # unpinned: every trigger resolves through the latest version
+
+    trigger_ids = set()
+    for ti in run.task_instances:
+        trigger_orm = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=7)))
+        session.add(trigger_orm)
+        session.flush()
+        ti.trigger_id = trigger_orm.id
+        trigger_ids.add(trigger_orm.id)
+    session.commit()
+
+    get_latest_version = mocker.spy(DagVersion, "get_latest_version")
+    get_serialized_dag_model = mocker.spy(DBDagBag, "get_serialized_dag_model")
+
+    built = supervisor_builder().build_trigger_workloads(trigger_ids)
+
+    assert {workload.id for workload in built} == trigger_ids
+    assert get_latest_version.call_count == 1
+    assert get_serialized_dag_model.call_count == 1
 
 
 def test_load_triggers_survives_task_missing_from_resolved_dag_version(supervisor_builder, session, caplog):

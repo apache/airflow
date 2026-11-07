@@ -59,7 +59,7 @@ from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import BatchSerializedDagResolver, DBDagBag
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.trigger import RecordedFailure, Trigger, TriggerKind
 from airflow.observability.metrics import stats_utils
@@ -1034,6 +1034,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         render_log_fname: Callable[..., str],
         session: Session,
         log_context: TaskLogContext | None = None,
+        *,
+        serdag_resolver: BatchSerializedDagResolver | None = None,
     ) -> workloads.RunTrigger | None:
         self._record_missing_owner(trigger)
         self.trigger_kinds[trigger.id] = (
@@ -1101,16 +1103,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         )
 
         dag_run = trigger.task_instance.get_dagrun(session=session)
-        serialized_dag_model = dag_bag.get_serialized_dag_model_for_run(
-            dag_run, session=session
-        ) or dag_bag.get_serialized_dag_model(
-            version_id=trigger.task_instance.dag_version_id, session=session
+        if serdag_resolver is None:
+            serdag_resolver = BatchSerializedDagResolver(dag_bag)
+        resolved_serdag = serdag_resolver.resolve(
+            dag_run, fallback_version_id=trigger.task_instance.dag_version_id, session=session
         )
 
-        if serialized_dag_model:
+        if resolved_serdag is not None:
+            serialized_dag_model, serialized_dag = resolved_serdag
             task = None
             try:
-                task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+                task = serialized_dag.get_task(trigger.task_instance.task_id)
             except TaskNotFound:
                 log.warning(
                     "Task not found in resolved Dag version; building plain workload",
@@ -1162,6 +1165,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def build_trigger_workloads(self, new_trigger_ids: set[int]) -> list[workloads.RunTrigger]:
         """Build workloads for new trigger IDs."""
         dag_bag = DBDagBag()
+        serdag_resolver = BatchSerializedDagResolver(dag_bag)
         with create_session() as session:
             new_triggers = self.fetch_trigger_details(new_trigger_ids, session=session)
             log_contexts = prepare_task_log_contexts(
@@ -1215,6 +1219,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         if new_trigger_orm.task_instance is not None
                         else None
                     ),
+                    serdag_resolver=serdag_resolver,
                 ):
                     to_create.append(workload)
 
