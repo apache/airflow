@@ -397,7 +397,61 @@ class TestKubernetesPodOperator:
             conn_id="kubernetes_default",
             config_file=file_path,
             in_cluster=None,
+            ssl_ca_cert=None,
         )
+
+    @patch(HOOK_CLASS)
+    def test_ssl_ca_cert_passed_to_hook(self, hook_mock):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            ssl_ca_cert="/path/to/ca.crt",
+        )
+        k.hook
+        hook_mock.assert_called_once_with(
+            cluster_context=None,
+            conn_id="kubernetes_default",
+            config_file=None,
+            in_cluster=None,
+            ssl_ca_cert="/path/to/ca.crt",
+        )
+
+    @patch(HOOK_CLASS)
+    def test_ssl_ca_cert_survives_subclass_property(self, hook_mock):
+        """A subclass defining ssl_ca_cert as a read-only property (as
+        GKEOperatorMixin does) must still instantiate, and the operator
+        value must reach the hook instead of raising AttributeError."""
+
+        class PropertyOperator(KubernetesPodOperator):
+            @property
+            def ssl_ca_cert(self) -> str:
+                return "cluster-ca"
+
+        op = PropertyOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            ssl_ca_cert="/path/to/ca.crt",
+        )
+        op.hook
+        hook_mock.assert_called_once_with(
+            cluster_context=None,
+            conn_id="kubernetes_default",
+            config_file=None,
+            in_cluster=None,
+            ssl_ca_cert="/path/to/ca.crt",
+        )
+        assert op.ssl_ca_cert == "cluster-ca"
 
     @pytest.mark.parametrize(
         ("input", "render_template_as_native_obj", "raises_error"),
