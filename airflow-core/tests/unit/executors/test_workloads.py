@@ -531,6 +531,7 @@ class TestExecuteCallbackMakeVersionData:
         dag_run.dag_id = "test_dag"
         dag_run.run_id = "test_run"
         dag_run.bundle_version = bundle_version
+        dag_run.team_name = "team-a"
         dag_run.dag_model.bundle_name = "test-bundle"
         dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
         if has_created_dag_version:
@@ -571,3 +572,11 @@ class TestExecuteCallbackMakeVersionData:
 
         assert workload.bundle_info.version == "abc123"
         assert workload.bundle_info.version_data is None
+
+    def test_team_name_is_copied_from_the_dag_run(self):
+        """The worker needs the team to resolve secrets from the callback's own team."""
+        callback, dag_run = self._make_mocks(bundle_version="abc123", version_data=None)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.team_name == "team-a"

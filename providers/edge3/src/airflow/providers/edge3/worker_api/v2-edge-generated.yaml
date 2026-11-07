@@ -1153,6 +1153,11 @@ components:
           title: Log Path
         callback:
           $ref: '#/components/schemas/CallbackDTO'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         type:
           type: string
           const: ExecuteCallback

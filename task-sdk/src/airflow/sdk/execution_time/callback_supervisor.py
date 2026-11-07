@@ -42,6 +42,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     MaskSecret,
 )
+from airflow.sdk.execution_time.context import set_current_team_name
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
@@ -263,6 +264,7 @@ class CallbackSubprocess(WatchedSubprocess):
         callback_kwargs_encoding: str | None = None,
         dag_rel_path: os.PathLike[str],
         bundle_info: _BundleInfoLike | None = None,
+        team_name: str | None = None,
         client: Client,
         logger: FilteringBoundLogger | None = None,
         **kwargs,
@@ -278,6 +280,9 @@ class CallbackSubprocess(WatchedSubprocess):
 
             _log = structlog.get_logger(logger_name="callback_runner")
             task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, CallbackToSupervisor](log=_log)
+            # Set before initializing the bundle or importing callback code, so that secret
+            # lookups made at import time already resolve to the owning team's values.
+            set_current_team_name(team_name)
             bundle_path = None
 
             # If bundle info is provided, initialize the bundle and ensure its path is importable.
@@ -470,6 +475,7 @@ def supervise_callback(
     callback_kwargs_encoding: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
+    team_name: str | None = None,
     token: str = "",
     server: str | None = None,
     client: Client | None = None,
@@ -484,6 +490,7 @@ def supervise_callback(
     :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
+    :param team_name: Team owning the Dag, so Connection and Variable lookups use its secrets.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param client: Optional preconfigured client for communication with the server (mostly for tests).
@@ -513,6 +520,7 @@ def supervise_callback(
                 callback_kwargs_encoding=callback_kwargs_encoding,
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
+                team_name=team_name,
                 client=client,
                 logger=logger,
                 subprocess_logs_to_stdout=True,

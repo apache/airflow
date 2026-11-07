@@ -941,6 +941,55 @@ def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_superv
     )
 
 
+@mock.patch(
+    "airflow.sdk.execution_time.callback_supervisor.supervise_callback",
+    autospec=True,
+)
+def test_run_workload_passes_team_name_to_callback_supervisor(mock_supervise):
+    """BaseExecutor.run_workload forwards ExecuteCallback.team_name to the supervisor."""
+    mock_supervise.return_value = 0
+    wl = workloads.ExecuteCallback(
+        callback=CallbackDTO(
+            id="12345678-1234-5678-1234-567812345678",
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        ),
+        dag_rel_path="test.py",
+        bundle_info=BundleInfo(name="test_bundle"),
+        token="test-token",
+        log_path="test.log",
+        team_name="team_a",
+    )
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    assert mock_supervise.call_args.kwargs["team_name"] == "team_a"
+
+
+@mock.patch(
+    "airflow.sdk.execution_time.callback_supervisor.supervise_callback",
+    autospec=True,
+)
+def test_run_workload_omits_team_name_for_callback_without_team(mock_supervise):
+    """A team-less callback must not pass team_name, so it runs on a Task SDK that lacks the argument."""
+    mock_supervise.return_value = 0
+    wl = workloads.ExecuteCallback(
+        callback=CallbackDTO(
+            id="12345678-1234-5678-1234-567812345678",
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.func", "kwargs": {}},
+        ),
+        dag_rel_path="test.py",
+        bundle_info=BundleInfo(name="test_bundle"),
+        token="test-token",
+        log_path="test.log",
+    )
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    assert "team_name" not in mock_supervise.call_args.kwargs
+
+
 @mock.patch("airflow.sdk.execution_time.supervisor.supervise_task")
 @pytest.mark.parametrize(
     ("config_overrides", "explicit_arg", "expected"),
