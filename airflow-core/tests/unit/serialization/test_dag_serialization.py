@@ -3050,15 +3050,18 @@ class TestStringifiedDAGs:
                 BaseSerialization.deserialize(encoded)
 
     @pytest.mark.parametrize("exc_type", [KeyError, AttributeError])
-    def test_base_exc_serialize_deserialize_round_trip(self, exc_type):
+    @pytest.mark.parametrize(
+        "args",
+        [("boom",), ("a", "b"), (), (("a", 1),)],
+        ids=["one", "several", "none", "one-tuple"],
+    )
+    def test_base_exc_serialize_deserialize_round_trip(self, exc_type, args):
         """Pins the allow-list to the encode branch, by going through ``serialize`` rather than
         hand-building the node: if that branch ever accepts another builtin, this fails."""
-        result = BaseSerialization.deserialize(BaseSerialization.serialize(exc_type("boom")))
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(exc_type(*args)))
 
         assert isinstance(result, exc_type)
-        # The encode branch stores ``[var.args]``, so the args arrive nested. Pre-existing shape,
-        # asserted as it is rather than as it ought to be.
-        assert result.args == (("boom",),)
+        assert result.args == args
 
 
 def test_kubernetes_optional():
