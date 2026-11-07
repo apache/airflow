@@ -240,6 +240,20 @@ class TestEmrCreateJobFlowOperator:
             "Trigger is not a EmrCreateJobFlowTrigger"
         )
 
+    @pytest.mark.parametrize("wait_policy", list(WaitPolicy))
+    def test_create_job_flow_deferrable_serializes_wait_policy_waiter(self, mocked_hook_client, wait_policy):
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = True
+        self.operator.wait_for_completion = True
+        self.operator.wait_policy = wait_policy
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.operator.execute(self.mock_context)
+
+        _, trigger_kwargs = exc.value.trigger.serialize()
+        assert trigger_kwargs["waiter_name"] == WAITER_POLICY_NAME_MAPPING[wait_policy]
+
     def test_create_job_flow_deferrable_no_wait(self, mocked_hook_client):
         """
         Test to make sure that the operator does NOT raise a TaskDeferred exception
