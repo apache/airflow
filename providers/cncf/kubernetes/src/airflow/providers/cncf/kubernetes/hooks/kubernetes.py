@@ -1186,53 +1186,50 @@ class AsyncKubernetesHook(KubernetesHook):
             if since_seconds is not None:
                 kwargs["since_seconds"] = since_seconds
 
-            raw_resp: ClientResponse | None = None
             try:
-                raw_resp = await v1_api.read_namespaced_pod_log(**kwargs)  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
-                # ``_preload_content=False`` skips kubernetes_asyncio's own status check, which it
-                # runs only when it preloads the body, so without this a non-2xx would stream its
-                # error body as log lines. Raised as ApiException rather than letting
-                # ``raise_for_status`` produce a ClientResponseError, which generic_api_retry does
-                # not treat as retryable, so a transient status would stop being retried.
-                if not 200 <= raw_resp.status <= 299:
-                    raise async_client.ApiException(status=raw_resp.status, reason=raw_resp.reason)
-                pending: list[bytes] = []
-                lines_since_yield = 0
-                # Not ``async for line in raw_resp.content``: ``readline()`` raises
-                # ``LineTooLong`` past the 4 MiB high-water mark.
-                # Decoding below uses 'replace' because kubernetes_asyncio decodes with strict
-                # UTF-8, which raises UnicodeDecodeError and crashes the task when pod output
-                # contains binary data or truncated multi-byte sequences.
-                async for chunk in raw_resp.content.iter_chunked(_LOG_STREAM_CHUNK_SIZE):
-                    if b"\n" in chunk:
-                        *lines, tail = chunk.split(b"\n")
-                        if pending:
-                            pending.append(lines[0])
-                            lines[0] = b"".join(pending)
-                            pending.clear()
-                        for line in lines:
-                            # Safe per line: ``\n`` never appears inside a multi-byte sequence.
-                            yield line.removesuffix(b"\r").decode("utf-8", errors="replace")
-                            lines_since_yield += 1
-                            if lines_since_yield >= _LOG_STREAM_YIELD_EVERY_LINES:
-                                lines_since_yield = 0
-                                await asyncio.sleep(0)
-                        if tail:
-                            pending.append(tail)
-                    else:
-                        # Appended whole: concatenating per chunk would recopy the line so far
-                        # every time, which is quadratic when a container emits no newline.
-                        pending.append(chunk)
-                    await asyncio.sleep(0)
-                if pending:
-                    yield b"".join(pending).removesuffix(b"\r").decode("utf-8", errors="replace")
+                raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(**kwargs)  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
+                with contextlib.closing(raw_resp):
+                    # ``_preload_content=False`` skips kubernetes_asyncio's own status check, which
+                    # it runs only when it preloads the body, so without this a non-2xx would stream
+                    # its error body as log lines. Raised as ApiException rather than letting
+                    # ``raise_for_status`` produce a ClientResponseError, which generic_api_retry
+                    # does not treat as retryable, so a transient status would stop being retried.
+                    if not 200 <= raw_resp.status <= 299:
+                        raise async_client.ApiException(status=raw_resp.status, reason=raw_resp.reason)
+                    pending: list[bytes] = []
+                    lines_since_yield = 0
+                    # Not ``async for line in raw_resp.content``: ``readline()`` raises
+                    # ``LineTooLong`` past the 4 MiB high-water mark.
+                    # Decoding below uses 'replace' because kubernetes_asyncio decodes with strict
+                    # UTF-8, which raises UnicodeDecodeError and crashes the task when pod output
+                    # contains binary data or truncated multi-byte sequences.
+                    async for chunk in raw_resp.content.iter_chunked(_LOG_STREAM_CHUNK_SIZE):
+                        if b"\n" in chunk:
+                            *lines, tail = chunk.split(b"\n")
+                            if pending:
+                                pending.append(lines[0])
+                                lines[0] = b"".join(pending)
+                                pending.clear()
+                            for line in lines:
+                                # Safe per line: ``\n`` never appears inside a multi-byte sequence.
+                                yield line.removesuffix(b"\r").decode("utf-8", errors="replace")
+                                lines_since_yield += 1
+                                if lines_since_yield >= _LOG_STREAM_YIELD_EVERY_LINES:
+                                    lines_since_yield = 0
+                                    await asyncio.sleep(0)
+                            if tail:
+                                pending.append(tail)
+                        else:
+                            # Appended whole: concatenating per chunk would recopy the line so far
+                            # every time, which is quadratic when a container emits no newline.
+                            pending.append(chunk)
+                        await asyncio.sleep(0)
+                    if pending:
+                        yield b"".join(pending).removesuffix(b"\r").decode("utf-8", errors="replace")
             except async_client.ApiException as e:
                 if e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
                 raise
-            finally:
-                if raw_resp is not None:
-                    raw_resp.close()
 
     @generic_api_retry
     async def get_pod_events(
