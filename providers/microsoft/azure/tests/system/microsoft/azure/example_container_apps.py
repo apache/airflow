@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Synthetic example: provision the job and an Azure connection before running this Dag.
+"""Synthetic example: provision a Container Apps environment and Azure connection before running this Dag.
 
 For workload identity, configure azure_default without login/password and provision
 Azure's federated token file and environment on workers and triggerers.
@@ -26,12 +26,21 @@ import os
 from datetime import datetime
 
 from airflow.providers.common.compat.sdk import DAG
-from airflow.providers.microsoft.azure.operators.container_apps import AzureContainerAppsJobOperator
+from airflow.providers.microsoft.azure.operators.container_apps import (
+    AzureContainerAppsCreateOrUpdateJobOperator,
+    AzureContainerAppsJobOperator,
+)
 
 DAG_ID = "example_container_apps_jobs"
 RESOURCE_GROUP = os.environ.get("ACA_RESOURCE_GROUP", "example-resource-group")
 JOB_NAME = os.environ.get("ACA_JOB_NAME", "example-job")
 CONTAINER_NAME = os.environ.get("ACA_CONTAINER_NAME", "worker")
+LOCATION = os.environ.get("ACA_LOCATION", "westeurope")
+ENVIRONMENT_ID = os.environ.get(
+    "ACA_ENVIRONMENT_ID",
+    "/subscriptions/example-subscription/resourceGroups/example-resource-group/"
+    "providers/Microsoft.App/managedEnvironments/example-environment",
+)
 
 with DAG(
     dag_id=DAG_ID,
@@ -40,6 +49,37 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
+    # [START container_apps_create_job]
+    create_job = AzureContainerAppsCreateOrUpdateJobOperator(
+        task_id="create_job",
+        resource_group=RESOURCE_GROUP,
+        job_name=JOB_NAME,
+        job_definition={
+            "location": LOCATION,
+            "properties": {
+                "environmentId": ENVIRONMENT_ID,
+                "configuration": {
+                    "triggerType": "Manual",
+                    "replicaTimeout": 300,
+                    "replicaRetryLimit": 0,
+                    "manualTriggerConfig": {"parallelism": 1, "replicaCompletionCount": 1},
+                },
+                "template": {
+                    "containers": [
+                        {
+                            "name": CONTAINER_NAME,
+                            "image": "python:3.12-slim",
+                            "command": ["python", "-c"],
+                            "args": ["print('Hello from Azure Container Apps Jobs')"],
+                            "resources": {"cpu": 0.5, "memory": "1Gi"},
+                        }
+                    ],
+                },
+            },
+        },
+    )
+    # [END container_apps_create_job]
+
     # [START container_apps_jobs]
     defaults = AzureContainerAppsJobOperator(
         task_id="run_defaults",
@@ -63,8 +103,9 @@ with DAG(
         timeout_seconds=3600,
         retries=0,
     )
-    defaults >> overridden
     # [END container_apps_jobs]
+
+    create_job >> defaults >> overridden
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

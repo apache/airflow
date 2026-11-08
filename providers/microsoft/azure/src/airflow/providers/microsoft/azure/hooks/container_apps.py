@@ -32,6 +32,7 @@ from azure.mgmt.appcontainers.aio import ContainerAppsAPIClient as AsyncContaine
 from azure.mgmt.appcontainers.models import (
     ContainerResources,
     EnvironmentVar,
+    Job,
     JobExecution,
     JobExecutionContainer,
     JobExecutionTemplate,
@@ -166,7 +167,7 @@ def get_execution_result(execution_name: str, execution: JobExecution | None) ->
 
 class AzureContainerAppsJobHook(AzureBaseHook):
     """
-    Start and monitor executions of existing Azure Container Apps Jobs.
+    Create or update Azure Container Apps Jobs and monitor their executions.
 
     Supports service principal credentials (login, password and ``tenantId``)
     and DefaultAzureCredential, including workload identity.
@@ -212,6 +213,15 @@ class AzureContainerAppsJobHook(AzureBaseHook):
                 ),
             ) as client:
                 yield client
+
+    def create_or_update_job(self, resource_group: str, job_name: str, job_definition: dict[str, Any]) -> Job:
+        """Create or update a job from an Azure resource definition and wait for provisioning."""
+        with self.get_client() as client:
+            return client.jobs.begin_create_or_update(
+                resource_group_name=resource_group,
+                job_name=job_name,
+                job_envelope=Job(job_definition),
+            ).result()
 
     def start_job(
         self,

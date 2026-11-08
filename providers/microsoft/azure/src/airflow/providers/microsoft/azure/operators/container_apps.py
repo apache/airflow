@@ -36,6 +36,58 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+class AzureContainerAppsCreateOrUpdateJobOperator(BaseOperator):
+    """
+    Create or update an Azure Container Apps Job and wait for provisioning.
+
+    This operator does not start an execution. It returns the job name for XCom.
+
+    :param resource_group: Resource group containing the job.
+    :param job_name: Name of the job to create or update.
+    :param job_definition: Azure job resource definition, including ``location``
+        and ``properties``. Existing jobs are updated with this definition.
+    :param azure_conn_id: Azure connection ID.
+    :param subscription_id: Subscription ID; defaults to connection extra ``subscriptionId``.
+    """
+
+    template_fields: Sequence[str] = (
+        "azure_conn_id",
+        "subscription_id",
+        "resource_group",
+        "job_name",
+        "job_definition",
+    )
+    template_fields_renderers = {"job_definition": "json"}
+
+    def __init__(
+        self,
+        *,
+        resource_group: str,
+        job_name: str,
+        job_definition: dict[str, Any],
+        azure_conn_id: str = "azure_default",
+        subscription_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.resource_group = resource_group
+        self.job_name = job_name
+        self.job_definition = job_definition
+        self.azure_conn_id = azure_conn_id
+        self.subscription_id = subscription_id
+
+    @cached_property
+    def hook(self) -> AzureContainerAppsJobHook:
+        """Create the hook after connection fields have been templated."""
+        return AzureContainerAppsJobHook(self.azure_conn_id, self.subscription_id)
+
+    def execute(self, context: Context) -> str:
+        """Wait for Azure to provision the job and return its name for downstream tasks."""
+        self.hook.create_or_update_job(self.resource_group, self.job_name, self.job_definition)
+        return self.job_name
+
+
 class AzureContainerAppsJobOperator(BaseOperator):
     """
     Start an existing Azure Container Apps Job and wait for its exact execution.
@@ -97,10 +149,13 @@ class AzureContainerAppsJobOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+
         if poll_interval_seconds <= 0:
             raise ValueError("poll_interval_seconds must be greater than zero")
+
         if timeout_seconds is not None and timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be greater than zero")
+
         self.resource_group = resource_group
         self.job_name = job_name
         self.azure_conn_id = azure_conn_id
@@ -126,8 +181,6 @@ class AzureContainerAppsJobOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Submit once, then poll on the worker or defer to the triggerer."""
-        if not self.resource_group or not self.job_name:
-            raise ValueError("resource_group and job_name are required")
         execution_name = self.hook.start_job(
             self.resource_group,
             self.job_name,
@@ -139,8 +192,10 @@ class AzureContainerAppsJobOperator(BaseOperator):
             cpu=float(self.cpu) if self.cpu is not None else None,
             memory=self.memory,
         )
+
         self._execution_name = execution_name
         started_at = time.monotonic()
+
         if self.deferrable:
             deadline = None
             if self.timeout_seconds is not None:
@@ -158,6 +213,7 @@ class AzureContainerAppsJobOperator(BaseOperator):
                 ),
                 method_name="execute_complete",
             )
+
         while True:
             remaining = (
                 None
@@ -166,6 +222,7 @@ class AzureContainerAppsJobOperator(BaseOperator):
             )
             if remaining is not None and remaining <= 0:
                 break
+
             try:
                 execution = self.hook.get_execution(
                     self.resource_group, self.job_name, execution_name, timeout_seconds=remaining
@@ -174,18 +231,22 @@ class AzureContainerAppsJobOperator(BaseOperator):
                 if self.timeout_seconds is None or time.monotonic() - started_at < self.timeout_seconds:
                     raise
                 break
+
             if self.timeout_seconds is not None:
                 remaining = self.timeout_seconds - (time.monotonic() - started_at)
                 if remaining <= 0:
                     break
+
             result = get_execution_result(execution_name, execution)
             if result is not None:
                 self._terminal_observed = True
                 return self.execute_complete(context, result)
+
             delay = self.poll_interval_seconds
             if remaining is not None:
                 delay = min(delay, remaining)
             time.sleep(delay)
+
         self._stop_execution()
         self._terminal_observed = True
         raise AzureContainerAppsJobExecutionError(f"Execution {execution_name!r} timed out")
@@ -196,11 +257,13 @@ class AzureContainerAppsJobOperator(BaseOperator):
             raise AzureContainerAppsJobExecutionError(
                 (event or {}).get("message") or "Container Apps Job trigger returned no successful execution"
             )
+
         return event["execution_name"]
 
     def _stop_execution(self) -> None:
         if self._execution_name is None:
             return
+
         try:
             self.hook.stop_execution(self.resource_group, self.job_name, self._execution_name)
         except (AzureError, TimeoutError):

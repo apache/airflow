@@ -25,6 +25,32 @@ to start an **existing** Azure Container Apps Job and wait for the execution ret
 The operator does not create, update, or delete jobs. On success, its return value (and default
 ``return_value`` XCom) is the execution name.
 
+To provision a job first, use
+:class:`~airflow.providers.microsoft.azure.operators.container_apps.AzureContainerAppsCreateOrUpdateJobOperator`.
+It creates or updates the named job using Azure's create-or-update API, waits for provisioning on
+the worker, and returns the job name for XCom. It does not start an execution.
+
+.. _howto/operator:AzureContainerAppsCreateOrUpdateJobOperator:
+
+Creating or updating a job
+-------------------------
+
+Supply ``job_definition`` as an Azure job resource dictionary with ``location`` and ``properties``,
+including an existing Container Apps environment ID, job configuration, and container template.
+The resource group and Container Apps environment must already exist. If the job exists, the
+supplied definition updates it. Use a manual trigger configuration when Airflow should control
+when executions start. The definition and connection and target fields support templating.
+The identity needs permission to create or update jobs in addition to the execution permissions below.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_container_apps.py
+    :language: python
+    :dedent: 4
+    :start-after: [START container_apps_create_job]
+    :end-before: [END container_apps_create_job]
+
+Chain this task before :class:`~airflow.providers.microsoft.azure.operators.container_apps.AzureContainerAppsJobOperator`
+to provision the job before starting an execution.
+
 Authentication
 --------------
 
@@ -36,7 +62,8 @@ on **both workers and triggerers**. The Azure connection can supply ``managed_id
 and ``workload_identity_tenant_id`` through the provider's existing credential helpers.
 
 Supply ``subscription_id`` explicitly or set ``subscriptionId`` in the connection extra.
-``resource_group`` and ``job_name`` are always explicit. The identity needs permission to read
+``resource_group`` and ``job_name`` are required by Azure and must be supplied explicitly;
+the Azure SDK validates these target values. The identity needs permission to read
 the job and its executions, start executions, and stop the exact execution.
 
 Defaults and overrides

@@ -27,7 +27,10 @@ from azure.mgmt.appcontainers.models import JobExecution
 from airflow.exceptions import TaskDeferred
 from airflow.providers.microsoft.azure.exceptions import AzureContainerAppsJobExecutionError
 from airflow.providers.microsoft.azure.hooks.container_apps import AzureContainerAppsJobHook
-from airflow.providers.microsoft.azure.operators.container_apps import AzureContainerAppsJobOperator
+from airflow.providers.microsoft.azure.operators.container_apps import (
+    AzureContainerAppsCreateOrUpdateJobOperator,
+    AzureContainerAppsJobOperator,
+)
 from airflow.providers.microsoft.azure.triggers.container_apps import AzureContainerAppsJobTrigger
 
 MODULE = "airflow.providers.microsoft.azure.operators.container_apps"
@@ -180,11 +183,12 @@ def test_invalid_configuration(kwargs, message):
 
 
 @pytest.mark.parametrize("field", ["resource_group", "job_name"])
-def test_empty_rendered_target(operator, field):
+def test_empty_rendered_target_is_passed_to_sdk(operator, field):
     setattr(operator, field, "")
-    with pytest.raises(ValueError, match=field):
-        operator.execute({})
-    operator.hook.start_job.assert_not_called()
+    operator.hook.get_execution.return_value = JobExecution(status="Succeeded")
+
+    assert operator.execute({}) == "execution"
+    assert operator.hook.start_job.call_args.args == (operator.resource_group, operator.job_name)
 
 
 def test_invalid_rendered_cpu_does_not_submit(operator):
@@ -250,3 +254,64 @@ def test_hook_uses_templated_connection_and_subscription(hook):
     )
     assert operator.hook is hook.return_value
     hook.assert_called_once_with("connection", "subscription")
+
+
+@patch(f"{MODULE}.AzureContainerAppsJobHook", autospec=True)
+def test_create_or_update_job_renders_definition_and_returns_job_name(hook):
+    operator = AzureContainerAppsCreateOrUpdateJobOperator(
+        task_id="create_job",
+        resource_group="{{ params.group }}",
+        job_name="{{ params.job }}",
+        job_definition={
+            "location": "{{ params.location }}",
+            "properties": {
+                "environmentId": "{{ params.environment }}",
+                "template": {"containers": [{"name": "worker", "image": "{{ params.image }}"}]},
+            },
+        },
+        azure_conn_id="{{ params.connection }}",
+        subscription_id="{{ params.subscription }}",
+    )
+    operator.render_template_fields(
+        {
+            "params": {
+                "group": "group",
+                "job": "job",
+                "location": "westeurope",
+                "environment": "environment",
+                "image": "example/image:latest",
+                "connection": "connection",
+                "subscription": "subscription",
+            }
+        }
+    )
+
+    assert operator.execute({}) == "job"
+    hook.assert_called_once_with("connection", "subscription")
+    hook.return_value.create_or_update_job.assert_called_once_with(
+        "group",
+        "job",
+        {
+            "location": "westeurope",
+            "properties": {
+                "environmentId": "environment",
+                "template": {"containers": [{"name": "worker", "image": "example/image:latest"}]},
+            },
+        },
+    )
+    hook.return_value.start_job.assert_not_called()
+
+
+@patch(f"{MODULE}.AzureContainerAppsJobHook", autospec=True)
+def test_create_or_update_job_provisioning_failure_fails_task(hook):
+    operator = AzureContainerAppsCreateOrUpdateJobOperator(
+        task_id="create_job",
+        resource_group="group",
+        job_name="job",
+        job_definition={"location": "westeurope"},
+    )
+    hook.return_value.create_or_update_job.side_effect = AzureError("provisioning failed")
+
+    with pytest.raises(AzureError, match="provisioning failed"):
+        operator.execute({})
+    hook.assert_called_once_with("azure_default", None)

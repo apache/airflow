@@ -611,6 +611,34 @@ def test_lookup_errors_propagate(hook, client):
     client.jobs_executions.list.assert_not_called()
 
 
+def test_create_or_update_job_waits_for_provisioning(hook, client):
+    definition = {
+        "location": "westeurope",
+        "properties": {"environmentId": "environment", "configuration": {"triggerType": "Manual"}},
+    }
+    poller = create_autospec(LROPoller, instance=True)
+    poller.result.return_value = Job({"name": "job", **definition})
+    client.jobs.begin_create_or_update.return_value = poller
+
+    assert hook.create_or_update_job("group", "job", definition) is poller.result.return_value
+    client.jobs.begin_create_or_update.assert_called_once_with(
+        resource_group_name="group", job_name="job", job_envelope=Job(definition)
+    )
+    poller.result.assert_called_once_with()
+    client.jobs.begin_start.assert_not_called()
+
+
+@pytest.mark.parametrize("stage", ["submission", "provisioning"])
+def test_create_or_update_job_errors_propagate(hook, client, stage):
+    poller = create_autospec(LROPoller, instance=True)
+    client.jobs.begin_create_or_update.return_value = poller
+    target = client.jobs.begin_create_or_update if stage == "submission" else poller.result
+    target.side_effect = AzureError("provisioning failed")
+
+    with pytest.raises(AzureError, match="provisioning failed"):
+        hook.create_or_update_job("group", "job", {"location": "westeurope"})
+
+
 @pytest.fixture
 def async_client():
     client = create_autospec(AsyncContainerAppsAPIClient, instance=True)
