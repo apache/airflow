@@ -80,6 +80,14 @@ If you are deploying an image from a private repository, you need to create a se
 Using Git-Sync
 --------------
 
+To use a directory name other than ``repo``, set ``dags.gitSync.link``. For example,
+``link: myrepo`` places Dags under ``$AIRFLOW_HOME/dags/myrepo/<subPath>`` (or
+``<dags.mountPath>/myrepo/<subPath>`` when a custom mount path is set). This applies
+with and without persistence. The name must start with a letter, digit, underscore
+or hyphen and contain only letters, digits, underscores, hyphens and dots.
+This only renames the directory: Git-Sync publishes a symlink inside the Dag mount
+path, so the directory level cannot be removed.
+
 Mounting Dags using Git-Sync sidecar with persistence enabled
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -107,10 +115,6 @@ This option will always use running Git-Sync sidecar on every dag-processor, wor
 
 The Git-Sync sidecar containers will sync Dags from a git repository every configured number of
 seconds. If you are using the ``KubernetesExecutor``, Git-Sync will run as an init container on your worker pods.
-
-If you want the synced files to appear under a different directory name than ``repo`` inside the Dag mount path,
-set ``dags.gitSync.link`` in your ``values.yaml``. For example, ``link: myrepo`` will mount Dags under
-``$AIRFLOW_HOME/dags/myrepo`` instead of ``$AIRFLOW_HOME/dags/repo``.
 
 .. code-block:: bash
 
@@ -219,7 +223,7 @@ To configure mounting Dags from private GitHub repository, follow below steps:
       ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 3. Add the public key to your private repo under ``Settings > Deploy keys``.
-4. Convert the private ssh key to a base64 string and save it's value.
+4. Convert the private ssh key to a base64 string and save its value.
 
    .. note::
 

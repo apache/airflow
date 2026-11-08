@@ -70,14 +70,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.3.0"
+defaultAirflowTag: "3.3.2"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 2.11.0 and above is supported.
-airflowVersion: "3.3.0"
+airflowVersion: "3.3.2"
 
 images:
   airflow:
@@ -4557,7 +4557,7 @@ dags:
     subPath: "tests/dags"
 
     # Name of the directory where git-sync will create the symlink to the checked out repository.
-    # This allows customization of the DAG mount path structure.
+    # This allows customization of the Dag folder path.
     # Default is "repo" for backward compatibility.
     link: "repo"
 

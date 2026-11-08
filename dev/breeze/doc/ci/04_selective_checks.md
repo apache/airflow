@@ -94,6 +94,14 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * `Python scans`, `Javascript scans`, `API tests/codegen`, `UI`, `WWW`, `Kubernetes` tests and `DOC builds`
   are enabled if any of the relevant files have been changed.
 * `Helm` tests are run only if relevant files have been changed and if current branch is `main`.
+* On a component's release branch (`chart/vX-Yx-test|stable`, `airflow-ctl/vX-Y-test|stable`, taken from
+  the GitHub context: `base_ref` for a pull request, `ref_name` for a push) only that component's tests run,
+  always: Helm and Kubernetes tests on `chart/`, airflow-ctl tests and its integration tests on
+  `airflow-ctl/`, with the CI and PROD images they need. Every other output decorated with
+  `_scoped_to_component_branch` is off, including `run-generic-prod-image-tests` (Docker Compose, image
+  building examples, basic end-to-end tests) and `run-generic-basic-tests` (standalone Airflow, shared
+  distributions); provider tests are skipped and docs build only the component's package. Static checks
+  still run. A test fails when a new `run_*` output is neither scoped nor listed as a general check.
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `CI Image building` is enabled if either test are run, docs are build.
 * `PROD Image building` is enabled when kubernetes tests are run.
@@ -216,6 +224,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
 | run-api-tests                                           | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
+| run-generic-basic-tests                                 | Whether the standalone Airflow and shared distributions tests run: off on component branches          | true                                     |      |
+| run-generic-prod-image-tests                            | Whether the PROD image's own tests run (Docker Compose, examples, basic e2e): off on component branches | true                                     |      |
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |

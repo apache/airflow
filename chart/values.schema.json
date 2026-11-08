@@ -79,7 +79,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.3.0",
+            "default": "3.3.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -94,7 +94,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 2.11.0 and above is supported.",
             "type": "string",
-            "default": "3.3.0",
+            "default": "3.3.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -12135,8 +12135,9 @@
                             "default": 1
                         },
                         "link": {
-                            "description": "Name of the directory where git-sync will create the symlink to the checked out repository. This allows customization of the DAG mount path structure.",
+                            "description": "Name of the directory where git-sync will create the symlink to the checked out repository. This allows customization of the Dag folder path.",
                             "type": "string",
+                            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*$",
                             "default": "repo"
                         },
                         "maxFailures": {
