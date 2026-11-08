@@ -694,33 +694,39 @@ def find_dependent_clears(
             )
         frontier = set()
         for target in targets:
-            target_tis = session.scalars(
-                select(TI)
-                .join(TI.dag_run)
-                .where(
-                    TI.dag_id == target.dag_id,
-                    TI.task_id == target.task_id,
+            # One row per run, however many map indexes or archived attempts the target task has.
+            target_runs = session.scalars(
+                select(DagRun).where(
+                    DagRun.dag_id == target.dag_id,
                     DagRun.logical_date == target.logical_date,
+                    select(TI.id)
+                    .where(
+                        TI.dag_id == DagRun.dag_id,
+                        TI.run_id == DagRun.run_id,
+                        TI.task_id == target.task_id,
+                        TI.working_set.is_(True),
+                    )
+                    .exists(),
                 )
             )
-            for target_ti in target_tis:
-                if (dag := dag_bag.get_dag_for_run(target_ti.dag_run, session=session)) is None:
+            for target_run in target_runs:
+                if (dag := dag_bag.get_dag_for_run(target_run, session=session)) is None:
                     log.warning(
                         "Not following an external clear target into a run with no serialized Dag",
-                        dag_id=target_ti.dag_id,
-                        run_id=target_ti.run_id,
+                        dag_id=target_run.dag_id,
+                        run_id=target_run.run_id,
                     )
                     continue
                 task_ids = set(
                     dag.partial_subset(
-                        task_ids=[target_ti.task_id], include_downstream=True, include_upstream=False
+                        task_ids=[target.task_id], include_downstream=True, include_upstream=False
                     ).task_dict
                 )
-                run_key = (target_ti.dag_id, target_ti.run_id)
+                run_key = (target_run.dag_id, target_run.run_id)
                 runs.setdefault(run_key, (dag, set()))[1].update(task_ids)
                 for ti in dag.clear(
                     task_ids=sorted(task_ids),
-                    run_id=target_ti.run_id,
+                    run_id=target_run.run_id,
                     only_failed=only_failed,
                     only_running=only_running,
                     exclude_task_ids=frozenset(source_executions[run_key]),
@@ -783,27 +789,16 @@ def clear_dependent_runs(
     session: Session,
 ) -> list[TI]:
     """
-    Clear what :func:`find_dependent_clears` found, selecting it again under the run locks.
+    Clear what :func:`find_dependent_clears` found.
 
-    Each Dag clears under its own ``rerun_with_latest_version``, and ``SerializedDAG.clear`` archives the
-    later passes of any loop gate it clears.
+    The caller must still hold the locks on these runs that the plan was made under, so the plan's
+    selection still holds. Each Dag clears under its own ``rerun_with_latest_version``, and
+    ``SerializedDAG.clear`` archives the later passes of any loop gate it clears.
     """
-    lock_dag_runs(session, {(clear.dag.dag_id, clear.run_id) for clear in clears}, refresh=True)
     cleared: list[TI] = []
     for clear in clears:
         task_ids = sorted(clear.task_ids)
-        selected = {
-            (ti.task_id, ti.map_index, ti.region_id, ti.region_index)
-            for ti in clear.dag.clear(
-                task_ids=task_ids,
-                run_id=clear.run_id,
-                only_failed=body.only_failed,
-                only_running=body.only_running,
-                exclude_task_ids=clear.exclude_task_ids,
-                dry_run=True,
-                session=session,
-            )
-        }
+        selected = {(ti.task_id, ti.map_index, ti.region_id, ti.region_index) for ti in clear.task_instances}
         clear.dag.clear(
             task_ids=task_ids,
             run_id=clear.run_id,
