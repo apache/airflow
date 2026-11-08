@@ -679,6 +679,24 @@ class TestCalendarPlannedRunsAfterEndDate(CalendarPlannedRunsOutsideHistoryBase)
         assert response.json() == {"total_entries": 0, "dag_runs": []}
 
 
+class TestCalendarPlannedRunsInNextYear(CalendarPlannedRunsOutsideHistoryBase):
+    def test_planned_runs_shown_for_month_in_next_year(self, test_client):
+        # The only run is in November 2026; January 2027 has no history of its own.
+        params = {
+            "granularity": "hourly",
+            "logical_date_gte": "2027-01-01T00:00:00Z",
+            "logical_date_lte": "2027-01-31T23:59:59Z",
+        }
+        response = test_client.get(f"/calendar/{self.DAG_NAME}", params=params)
+        assert response.status_code == 200
+        planned = response.json()["dag_runs"]
+
+        assert all(r["state"] == "planned" for r in planned)
+        assert len(planned) == 31
+        assert min(r["date"] for r in planned) == "2027-01-01T00:00:00Z"
+        assert max(r["date"] for r in planned) == "2027-01-31T00:00:00Z"
+
+
 class TestCalendarBackfill:
     """Historical runs must expose whether they came from a backfill."""
 
