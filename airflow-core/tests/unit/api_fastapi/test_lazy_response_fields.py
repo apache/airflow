@@ -29,13 +29,12 @@ responses: the hazard is the annotation, not the name of the class holding it. A
 defined inside a function is out of reach, and so is a response model that lives outside
 the package, such as one belonging to a provider's auth manager app.
 
-Declaring a field ``Iterable[...]`` was a deliberate choice in #57878, to spare the routes
-a ``list()`` or ``.all()`` that SQLA2's typing had made them add. Whether that costs
-anything is decided at the route, not here, so the fields that already carry the
-annotation are listed in ``LAZY_FIELDS_WITHOUT_SYNC_QUERY``: each one was read at every
-construction site and hands validation nothing left to resolve. They stay as they are.
-The annotation still permits the hazard in all of them, which no test can see from the
-datamodel, so the set is closed -- a field added after this test has to be ``list[...]``.
+Some of the annotations are deliberate: #57878 converted a batch of fields to spare their
+routes a ``list()`` or ``.all()`` that SQLA2's typing had made them add. Whether that
+costs anything is decided at the route, not here, so the fields that already carry the
+annotation are listed in ``LAZY_FIELDS_WITHOUT_SYNC_QUERY`` and stay as they are. The
+annotation still permits the hazard in all of them, which no test can see from the
+datamodel.
 """
 
 from __future__ import annotations
@@ -65,9 +64,11 @@ import airflow.api_fastapi
 
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
-# Only Iterable and Generator are validated lazily; the other three raise
-# PydanticSchemaGenerationError at class definition instead, so they cannot reach the
-# event loop. All five are listed to keep the rule one thing a reviewer has to remember.
+# Iterable and Generator are validated lazily. The other three raise
+# PydanticSchemaGenerationError at class definition unless the model sets
+# ``arbitrary_types_allowed``, and then Iterator is passed through unvalidated and
+# consumed during serialization, the same hazard; the async two cannot validate a sync
+# iterable at all. All five are listed to keep the rule one thing to remember.
 LAZY_ORIGINS = frozenset({Iterable, Iterator, Generator, AsyncIterable, AsyncIterator})
 
 PACKAGE_PREFIX = f"{airflow.api_fastapi.__name__}."
@@ -93,8 +94,11 @@ _EXECUTION_DATAMODELS = "airflow-core/src/airflow/api_fastapi/execution_api/data
 # during serialization, so an ORM row whose attributes the response reads would be
 # lazy-loaded there anyway. What makes these safe is that every route hands the field
 # items that are already validated responses, plain values, or ORM rows with everything
-# the response reads already loaded. Every construction site of every entry was read to
-# confirm it; the grouping below says which reason applies.
+# the response reads already loaded. A route that passes an unconsumed
+# ``session.scalars(...)`` also needs a statement with no post-load: SQLAlchemy runs
+# ``selectin``, ``subquery`` and ``immediate`` loads on the first iteration, which here is
+# serialization, whether or not the response reads them. The grouping below says which
+# reason applies to each entry.
 #
 # This set is closed. A new field goes in as list[...], not in here.
 LAZY_FIELDS_WITHOUT_SYNC_QUERY = frozenset(
@@ -118,11 +122,13 @@ LAZY_FIELDS_WITHOUT_SYNC_QUERY = frozenset(
         f"{_CORE_DATAMODELS}/import_error.py::ImportErrorCollectionResponse.import_errors",
         f"{_CORE_DATAMODELS}/ui/deadline.py::DeadlineAlertCollectionResponse.deadline_alerts",
         f"{_CORE_DATAMODELS}/variables.py::VariableCollectionResponse.variables",
-        # ORM rows, and every relationship the response reads is eager-loaded by the route
-        # or by the mapper: ``joinedload(Backfill.dag_model)``, ``joinedload(DagVersion
-        # .dag_model)`` and ``joinedload(DagVersion.bundle)``, ``joinedload(DagWarning
-        # .dag_model)``, ``joinedload(Job.dag_model)`` -- all read through an AliasPath --
-        # and ``Job.job_teams``, which is ``lazy="selectin"`` and feeds ``team_names``.
+        # ORM rows, and every relationship the response reads is loaded inside the route.
+        # ``Backfill.dag_model``, ``DagVersion.dag_model``, ``DagWarning.dag_model`` and
+        # ``Job.dag_model`` are read through an AliasPath and joinedloaded; so is
+        # ``DagVersion.bundle``, which ``bundle_url`` reads. The joinedload on
+        # ``DagWarning.dag_model`` also replaces its mapper-level ``lazy="selectin"``.
+        # ``Job.job_teams`` is ``lazy="selectin"`` and feeds ``team_names``; its post-load
+        # runs in the route because that route materializes the result with ``.all()``.
         f"{_CORE_DATAMODELS}/backfills.py::BackfillCollectionResponse.backfills",
         f"{_CORE_DATAMODELS}/dag_versions.py::DAGVersionCollectionResponse.dag_versions",
         f"{_CORE_DATAMODELS}/dag_warning.py::DAGWarningCollectionResponse.dag_warnings",
@@ -170,9 +176,8 @@ def _find_api_fastapi_models() -> tuple[tuple[str, type[pydantic.BaseModel]], ..
 
     ``__module__`` and ``__qualname__`` have to agree with where the name was found, so a
     re-export or an alias is counted once, under its defining module. The key names the
-    file rather than the module, matching the other ``generated/known_*.txt`` lists, and
-    the qualified name disambiguates the class names that the core and execution APIs
-    share.
+    file rather than the module, and the qualified name disambiguates the class names that
+    the core and execution APIs share.
     """
     models = []
     for module in _import_api_fastapi_modules():
@@ -318,8 +323,8 @@ def test_unlisted_response_fields_are_not_lazy():
             "serializes the response on the event loop and any query they trigger there blocks the "
             "whole API server. Declare them as list[...]; the OpenAPI schema is unchanged. "
             "LAZY_FIELDS_WITHOUT_SYNC_QUERY is not the place for a new one: it records the fields "
-            "that predate this test, each checked against the routes it has today, and a route that "
-            "resolves its items today is one refactor away from not doing so:\n" + "\n".join(offenders),
+            "that predate this test, and a route that resolves its items today is one refactor "
+            "away from not doing so:\n" + "\n".join(offenders),
             pytrace=False,
         )
 
