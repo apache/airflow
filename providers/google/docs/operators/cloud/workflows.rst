@@ -37,7 +37,7 @@ Create workflow
 ---------------
 
 To create a workflow use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsCreateWorkflowOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsCreateWorkflowOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -63,7 +63,7 @@ Update workflow
 ---------------
 
 To update a workflow use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsUpdateWorkflowOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsUpdateWorkflowOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -77,7 +77,7 @@ Get workflow
 ------------
 
 To get a workflow use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsGetWorkflowOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsGetWorkflowOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -91,7 +91,7 @@ List workflows
 --------------
 
 To list workflows use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsListWorkflowsOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsListWorkflowsOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -105,7 +105,7 @@ Delete workflow
 ---------------
 
 To delete a workflow use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsDeleteWorkflowOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsDeleteWorkflowOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -119,7 +119,7 @@ Create execution
 ----------------
 
 To create an execution use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsCreateExecutionOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsCreateExecutionOperator`.
 This operator is not idempotent due to API limitation.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
@@ -129,7 +129,7 @@ This operator is not idempotent due to API limitation.
       :end-before: [END how_to_create_execution]
 
 The create operator does not wait for execution to complete. To wait for execution result use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowExecutionSensor`.
+:class:`~airflow.providers.google.cloud.sensors.workflows.WorkflowExecutionSensor`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -143,7 +143,7 @@ Get execution
 -------------
 
 To get an execution use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsGetExecutionOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsGetExecutionOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python
@@ -157,7 +157,7 @@ List executions
 ---------------
 
 To list executions use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsListExecutionsOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsListExecutionsOperator`.
 By default this operator will return only executions for last 60 minutes.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
@@ -172,7 +172,7 @@ Cancel execution
 ----------------
 
 To cancel an execution use
-:class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsCancelExecutionOperator`.
+:class:`~airflow.providers.google.cloud.operators.workflows.WorkflowsCancelExecutionOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/workflows/example_workflows.py
       :language: python

@@ -40,7 +40,9 @@ Other tasks fail outside the task runner:
       running in the metadata database, so the scheduler fails it as a task whose state changed externally. The
       worker emits START, the scheduler FAIL with one `runId`, and the airflow run facet of the scheduler's FAIL,
       built from the stored task instance, describes the same task instance, map index and task group included,
-      while the other map indexes are not affected
+      while the other map indexes are not affected. The error message is the one of that path ("Executor ...
+      reported that the task instance ..."), or, when the executor did not report the lost process in time, the one
+      of the scheduler failing a task instance without a heartbeat (the ids of the task instance): both are valid
 
 It needs a deployment with the CeleryExecutor (the OpenLineage e2e tests).
 """

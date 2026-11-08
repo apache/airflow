@@ -832,11 +832,8 @@ query($q: String!, $cursor: String) {
 }
 """
 
-PASS_TWO_QUERY = """
-query($q: String!, $cursor: String) {
-  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
-    pageInfo { hasNextPage endCursor }
-    nodes { ... on PullRequest {
+PASS_TWO_FIELDS = """
+fragment PassTwoFields on PullRequest {
       number id isDraft createdAt authorAssociation baseRefName headRefName headRefOid
       author { login }
       headRepository { nameWithOwner }
@@ -865,10 +862,35 @@ query($q: String!, $cursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes { databaseId body author { login } }
       }
-    } }
+}
+"""
+
+PASS_TWO_QUERY = (
+    """
+query($q: String!, $cursor: String) {
+  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ...PassTwoFields }
   }
 }
 """
+    + PASS_TWO_FIELDS
+)
+
+PULL_REQUESTS_BY_NUMBER_QUERY = (
+    """
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { %(pull_requests)s }
+}
+"""
+    + PASS_TWO_FIELDS
+)
+
+PASS_TWO_CONTEXTS = {
+    "context": STATUS_CONTEXT,
+    "ci_passed": CI_PASSED_CONTEXT,
+    "ci_run_started": CI_RUN_STARTED_CONTEXT,
+}
 
 
 def _labels(node: dict[str, Any]) -> tuple[str, ...]:
@@ -1110,6 +1132,35 @@ def _search(client: GitHubClient, query: str, search_query: str) -> Iterable[dic
         if not result["pageInfo"]["hasNextPage"]:
             return
         cursor = result["pageInfo"]["endCursor"]
+
+
+def fetch_open_pull_requests(
+    client: GitHubClient, numbers: Sequence[int], *, repo: str
+) -> list[dict[str, Any]]:
+    """
+    Return the pass 2 nodes of the pull requests among these that are still open.
+
+    Reads them by number rather than through the search index, which can take minutes to list a
+    pull request under a label added moments before.
+    """
+    owner, name = repo.split("/", 1)
+    nodes: list[dict[str, Any]] = []
+    for start in range(0, len(numbers), PASS_TWO_PAGE_SIZE):
+        batch = numbers[start : start + PASS_TWO_PAGE_SIZE]
+        pull_requests = " ".join(
+            f"pr{index}: pullRequest(number: {number}) {{ state ...PassTwoFields }}"
+            for index, number in enumerate(batch)
+        )
+        result = (
+            client.graphql(
+                PULL_REQUESTS_BY_NUMBER_QUERY % {"pull_requests": pull_requests, **PASS_TWO_CONTEXTS},
+                {"owner": owner, "name": name},
+                allow_partial=True,
+            )["repository"]
+            or {}
+        )
+        nodes.extend(node for node in result.values() if node and node["state"] == "OPEN")
+    return nodes
 
 
 def _is_not_found(error: GitHubError) -> bool:
@@ -2235,16 +2286,16 @@ def run_reconcile(
         parse_pull_request(node)
         for node in _search(
             client,
-            PASS_TWO_QUERY
-            % {
-                "page": PASS_TWO_PAGE_SIZE,
-                "context": STATUS_CONTEXT,
-                "ci_passed": CI_PASSED_CONTEXT,
-                "ci_run_started": CI_RUN_STARTED_CONTEXT,
-            },
+            PASS_TWO_QUERY % {"page": PASS_TWO_PAGE_SIZE, **PASS_TWO_CONTEXTS},
             f'repo:{repo} is:pr is:open label:"{LABEL_FORK_CI_REQUIRED}"',
         )
     ]
+    found = {pr.number for pr in prs}
+    unlisted = [number for number in labelled if number not in found]
+    try:
+        prs.extend(parse_pull_request(node) for node in fetch_open_pull_requests(client, unlisted, repo=repo))
+    except GitHubError as e:
+        console_print(f"[warning]Pull requests {unlisted} are left for the next run: {e}[/]")
     observations = fetch_fork_observations(client, prs)
 
     def is_gated_base(base_ref: str) -> bool:
