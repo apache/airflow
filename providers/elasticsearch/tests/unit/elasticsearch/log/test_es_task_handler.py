@@ -930,6 +930,9 @@ class TestElasticsearchRemoteLogIO:
     def test_upload_returns_early_when_ti_is_none(self, tmp_json_file):
         self.elasticsearch_io.upload(tmp_json_file, ti=None)
 
+    def test_read_returns_no_logs_when_ti_is_none(self):
+        assert self.elasticsearch_io.read("executor_callbacks/dag/run/cb", None) == ([], [])
+
 
 class TestFormatErrorDetail:
     def test_returns_none_for_empty(self):

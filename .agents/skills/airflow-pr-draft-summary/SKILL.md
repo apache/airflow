@@ -55,10 +55,8 @@ The commit message **body** should describe **why** the change is made — the m
 context — and **never what** the change is. The diff already shows what changed; restating it in
 prose adds noise.
 
-For `airflow-core` (and `chart/`, `dev/mypy/`) **user-facing** changes, add a newsfragment in that distribution's `newsfragments/` directory. **Golden rule: only add a newsfragment when you are certain the change is visible to users; when in doubt, do not add one** — a maintainer will request one in review if it is needed. Build/release tooling, CI, packaging, internal refactors, and dev-only scripts are not user-facing and must not get a newsfragment:
-`echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
-
-**Do not add newsfragments for `providers/` or `airflow-ctl/`** — their release managers regenerate the changelog from `git log` and do not consume newsfragments. Update the changelog directly when needed: `providers/<provider>/docs/changelog.rst` (see `providers/AGENTS.md`) or `airflow-ctl/RELEASE_NOTES.rst`. Changes to `task-sdk/` use `airflow-core/newsfragments/` since task-sdk ships in airflow-core.
+Follow the newsfragment rules in root `AGENTS.md` (full text in `contributing-docs/18_contribution_workflow.rst`). When an `airflow-core` change does need one:
+`echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.significant.rst`
 
 - NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
 

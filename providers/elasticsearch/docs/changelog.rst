@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support task loop coordinates in remote log identifiers (#74345)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid errors when reading callback logs without a task instance (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.9.2
 .....
 

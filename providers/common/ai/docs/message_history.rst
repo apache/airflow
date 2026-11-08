@@ -30,6 +30,13 @@ turns and, after the run, pushes the full updated transcript
 run reads it back to resume the conversation. ``None`` (the default) keeps the
 single-turn behavior unchanged.
 
+To record the transcript of a single-turn run, set ``emit_message_history=True``.
+The operator starts the run with no prior turns and pushes ``result.all_messages()``
+to the same ``message_history`` XCom key, so the transcript is available to
+downstream tasks for inspection, evaluation or storage. ``emit_message_history`` defaults
+to ``True`` when ``message_history`` is set; pass ``False`` to keep a seeded run from
+pushing it.
+
 The operator does **not** decide *where* a session is stored -- that keying is
 deployment-specific. The pattern is three tasks: load the prior transcript for
 the session, run the agent, store the updated transcript. The example keys a
@@ -49,7 +56,8 @@ fresh session instead of trying to parse the string ``"None"``.
 
 .. note::
 
-    ``message_history`` cannot be combined with ``enable_hitl_review`` -- the
+    ``message_history`` and ``emit_message_history`` cannot be combined with
+    ``enable_hitl_review`` -- the
     operator raises at construction. The post-review (human-approved) transcript
     is not recoverable today, so emitting the pre-review transcript would
     silently drop the reviewed turns.

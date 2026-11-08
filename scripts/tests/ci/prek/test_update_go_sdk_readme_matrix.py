@@ -23,28 +23,17 @@ from ci.prek import lang_sdk_compat_matrix as matrix, update_go_sdk_readme_matri
 SCHEMA_VERSION = "2026-06-16"
 
 
-def _doc() -> dict:
-    def entry(supported: bool) -> dict:
-        return {"supported": supported, "since": "3.3" if supported else None, "note": ""}
-
-    return {
-        "sdk": "go",
-        "supervisor_schema_version": SCHEMA_VERSION,
-        "min_airflow_version": "3.3",
-        "states": {state: entry(True) for state, _ in matrix.STATE_DIMENSIONS},
-        "capabilities": {cap.name: entry(True) for cap in matrix.CAPABILITY_DIMENSIONS},
-    }
-
-
 class TestMain:
     @pytest.fixture
-    def wired(self, tmp_path, monkeypatch):
+    def wired(self, tmp_path, monkeypatch, capabilities_doc):
+        doc = capabilities_doc("go")
         capabilities_yaml = tmp_path / "capabilities.yaml"
-        capabilities_yaml.write_text(yaml.safe_dump(_doc()))
+        capabilities_yaml.write_text(yaml.safe_dump(doc))
         readme = tmp_path / "README.md"
         readme.write_text(f"intro\n\n{matrix.README_MATRIX_HEADER}\n{matrix.README_MATRIX_FOOTER}\n\noutro\n")
         go_messages = tmp_path / "messages.go"
-        go_messages.write_text(f'package execution\n\nconst SupervisorSchemaVersion = "{SCHEMA_VERSION}"\n')
+        schema_version = doc["supervisor_schema_version"]
+        go_messages.write_text(f'package execution\n\nconst SupervisorSchemaVersion = "{schema_version}"\n')
         monkeypatch.setattr(
             hook,
             "LANG_SDKS",
@@ -56,7 +45,7 @@ class TestMain:
     def test_generates_target_then_is_idempotent(self, wired):
         assert hook.main() == 1
         content = wired.read_text()
-        assert "| Dimension | Tier | Supported | Since | Notes |" in content
+        assert "| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |" in content
         assert matrix.SUPPORTED_MARK in content
         assert content.startswith("intro\n") and content.endswith("outro\n")
 
@@ -77,7 +66,7 @@ class TestMain:
     def test_schema_version_matches_go_source(self):
         sdk = next(entry for entry in matrix.LANG_SDKS if entry["id"] == hook.SDK_ID)
         doc = matrix.load_capabilities(sdk["capabilities_yaml"], expected_sdk=hook.SDK_ID)
-        assert doc["supervisor_schema_version"] == hook.read_go_schema_version()
+        assert doc.supervisor_schema_version == hook.read_go_schema_version()
 
     @pytest.mark.parametrize(
         "declaration",

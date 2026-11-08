@@ -52,6 +52,7 @@ import { formatNumber, useDocumentTitle } from "src/utils";
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
+import DuplicateConnectionButton from "./DuplicateConnectionButton";
 import EditConnectionButton from "./EditConnectionButton";
 import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
@@ -125,9 +126,11 @@ const getColumns = ({
         <Flex justifyContent="end">
           <TestConnectionButton connection={original} />
           <EditConnectionButton connection={original} disabled={hasSelection} />
+          <DuplicateConnectionButton connection={original} disabled={hasSelection} />
           <DeleteConnectionButton connectionId={original.connection_id} disabled={hasSelection} />
         </Flex>
       ),
+      enableHiding: false,
       enableSorting: false,
       header: "",
       meta: {

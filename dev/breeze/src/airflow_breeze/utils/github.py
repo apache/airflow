@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from rich.markup import escape
 
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -180,10 +181,15 @@ def log_github_rate_limit_error(response: Response) -> None:
 
 
 def download_file_from_github(
-    reference: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
+    reference: str,
+    path: str,
+    output_file: Path,
+    github_token: str | None = None,
+    timeout: int = 60,
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
 ) -> bool:
     """
-    Downloads a file from the GitHub repository of Apache Airflow using the GitHub API.
+    Downloads a file from a GitHub repository (Apache Airflow by default) using the GitHub API.
 
     In case of any error different from 404, it will exit the process with error code 1.
 
@@ -192,11 +198,12 @@ def download_file_from_github(
     :param output_file: Path where the file should be downloaded
     :param github_token: GitHub token to use for authentication
     :param timeout: timeout in seconds for the download request, default is 60 seconds
+    :param github_repository: repository to download from, default is apache/airflow
     :return: whether the file was successfully downloaded (False if the file is missing)
     """
     import requests
 
-    url = f"https://api.github.com/repos/apache/airflow/contents/{path}?ref={reference}"
+    url = f"https://api.github.com/repos/{github_repository}/contents/{path}?ref={reference}"
     console_print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
         headers = {"Accept": "application/vnd.github.v3.raw"}
@@ -299,6 +306,16 @@ def get_active_airflow_versions(
     return airflow_versions, airflow_release_dates
 
 
+def get_constraints_github_repository() -> str:
+    """
+    Returns the repository keeping the constraints branches.
+
+    It is CONSTRAINTS_GITHUB_REPOSITORY when set, the variable the Dockerfiles read for the same purpose,
+    and apache/airflow otherwise.
+    """
+    return os.environ.get("CONSTRAINTS_GITHUB_REPOSITORY") or APACHE_AIRFLOW_GITHUB_REPOSITORY
+
+
 def download_constraints_file(
     constraints_reference: str,
     python_version: str,
@@ -307,7 +324,7 @@ def download_constraints_file(
     output_file: Path,
 ) -> bool:
     """
-    Downloads constraints file from GitHub repository of Apache Airflow
+    Downloads constraints file from the constraints repository (see get_constraints_github_repository)
 
     :param constraints_reference: airflow version
     :param python_version: python version
@@ -322,7 +339,40 @@ def download_constraints_file(
         path=constraints_file_path,
         github_token=github_token,
         output_file=output_file,
+        github_repository=get_constraints_github_repository(),
     )
+
+
+def get_branch_commit(branch: str, github_token: str | None = None, timeout: int = 60) -> str | None:
+    """
+    Returns the commit a branch of the constraints repository (see get_constraints_github_repository)
+    points to.
+
+    Unlike the downloads above, it never exits the process: any error is reported as a warning.
+
+    :param branch: branch to resolve
+    :param github_token: GitHub token to use for authentication
+    :param timeout: timeout in seconds for the request, default is 60 seconds
+    :return: the commit SHA, or None if it could not be read
+    """
+    import requests
+
+    url = f"https://api.github.com/repos/{get_constraints_github_repository()}/commits/{branch}"
+    headers = {"Accept": "application/vnd.github.sha"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    try:
+        response = requests.get(url, headers=headers, timeout=timeout)
+    except requests.RequestException as e:
+        console_print(f"[warning]Could not read the commit of {branch}: {e}")
+        return None
+    commit = response.text.strip()
+    if response.status_code != 200 or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        log_github_rate_limit_error(response)
+        console_print(f"[warning]Could not read the commit of {branch}. Status code {response.status_code}")
+        return None
+    return commit
 
 
 def get_tag_date(tag: str) -> str | None:

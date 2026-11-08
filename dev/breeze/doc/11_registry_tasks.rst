@@ -30,10 +30,10 @@ These are all of the available registry commands:
 Extracting registry data
 ........................
 
-The ``breeze registry extract-data`` command runs the three extraction scripts
-(``extract_metadata.py``, ``extract_parameters.py``, ``extract_connections.py``)
-inside a breeze CI container where all providers are installed. This is the same
-command used by the ``registry-build.yml`` CI workflow.
+The ``breeze registry extract-data`` command runs ``extract_metadata.py`` on the host,
+where it can read the ``providers-*`` release tags, then ``extract_parameters.py`` and
+``extract_connections.py`` inside a breeze CI container where all providers are installed.
+This is the same command used by the ``registry-build.yml`` CI workflow.
 
 .. image:: ./images/output_registry_extract-data.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_registry_extract-data.svg

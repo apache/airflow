@@ -23,6 +23,7 @@ import base64
 import logging
 import mimetypes
 import os
+import re
 from collections.abc import Iterable
 
 import sendgrid
@@ -39,11 +40,25 @@ from sendgrid.helpers.mail import (
 )
 
 from airflow.providers.common.compat.sdk import BaseHook
-from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
 
 AddressesType = str | Iterable[str]
+
+
+def _get_email_address_list(addresses: AddressesType) -> list[str]:
+    """
+    Return a list of email addresses; a string may separate them with ``,`` or ``;``.
+
+    Copied from ``airflow.providers.smtp.utils.emailer.get_email_address_list``.
+    """
+    if isinstance(addresses, str):
+        return re.split(r"\s*[,;]\s*", addresses)
+    if isinstance(addresses, Iterable):
+        if not all(isinstance(item, str) for item in addresses):
+            raise TypeError("The items in your iterable must be strings.")
+        return list(addresses)
+    raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
 
 
 def send_email(
@@ -78,15 +93,15 @@ def send_email(
 
     # Add the recipient list of to emails.
     personalization = Personalization()
-    to = get_email_address_list(to)
+    to = _get_email_address_list(to)
     for to_address in to:
         personalization.add_to(Email(to_address))
     if cc:
-        cc = get_email_address_list(cc)
+        cc = _get_email_address_list(cc)
         for cc_address in cc:
             personalization.add_cc(Email(cc_address))
     if bcc:
-        bcc = get_email_address_list(bcc)
+        bcc = _get_email_address_list(bcc)
         for bcc_address in bcc:
             personalization.add_bcc(Email(bcc_address))
 

@@ -49,10 +49,11 @@ How it works
   no GenAI spans are emitted.
 * **Correlation.** The worker opens a task span before the operator runs, so the
   agent's spans nest under it and share its ``trace_id``.
-  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` (and
-  ``@task.agent``) additionally stamps the task-instance identity on every GenAI
-  span it emits: the five keys core tracing already puts on the task span
-  (``airflow.dag_id``, ``airflow.task_id``, ``airflow.dag_run.run_id``,
+  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
+  :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` and its SQL / branch /
+  file-analysis / schema-compare subclasses (and their decorator forms) additionally stamp the
+  task-instance identity on every GenAI span they emit: the five keys core
+  tracing already puts on the task span (``airflow.dag_id``, ``airflow.task_id``, ``airflow.dag_run.run_id``,
   ``airflow.task_instance.try_number``, ``airflow.task_instance.map_index``) plus
   ``airflow.task_instance.id`` as the per-attempt run join key. So a span is
   filterable by dag, task, run, attempt, or map index directly, without walking
@@ -62,25 +63,27 @@ How it works
   attempts share one trace and appear as repeated task-run spans on it,
   distinguished by ``try number``. Only a manual clear or rerun regenerates the
   context and starts a new trace.
-* **Run join key.** For an ``AgentOperator`` run, the task-instance id (unique
-  per attempt, since Airflow regenerates it on each retry) is passed to
+* **Run join key.** For an ``AgentOperator`` run or a run of ``LLMOperator`` or one of
+  its subclasses (and their decorator equivalents), the task-instance id
+  (unique per attempt, since Airflow regenerates it on each retry) is passed to
   pydantic-ai as the run's ``run_id``. It surfaces on the run's GenAI spans as
   ``gen_ai.agent.call.id``, and the operator also exposes it, alongside the run's
   token usage, on XCom under the ``run_id`` and ``usage`` keys. ``usage`` is
   this attempt's own usage -- not the cross-attempt cumulative total described
   under ``usage_limits`` in :ref:`howto/operator:agent` -- and it is pushed on
   a failed attempt too, so a downstream ``all_done`` task or failure callback
-  can read what the last attempt spent. With ``durable=True``, steps an
-  attempt replays from the cache are not part of it. XCom is cleared at the start of every
+  can read what the last attempt spent. XCom is cleared at the start of every
   attempt, so only the most recent attempt's value survives, not each
   historical attempt's. A downstream task can then reference the
-  run (``ti.xcom_pull(task_ids="my_agent", key="run_id")``) and a trace
+  run (``ti.xcom_pull(task_ids="my_task", key="run_id")``) and a trace
   backend can join a task's output to its agent trace without parsing logs.
-  With ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial
-  model run, not the human-feedback regenerations. A run that resumes after a
-  tool approval (see :doc:`tool_approval`) continues as
-  ``<task-instance id>-resumed-<n>`` after pause ``n``, which is the ``run_id``
-  the operator pushes; ``usage`` covers every part.
+  ``AgentOperator`` additionally: with ``durable=True``, steps an attempt replays
+  from the cache are not part of ``usage``; with ``enable_hitl_review`` the
+  ``run_id`` and ``usage`` reflect the initial model run, not the human-feedback
+  regenerations; and a run that resumes after a tool approval (see
+  :doc:`tool_approval`) continues as ``<task-instance id>-resumed-<n>`` after
+  pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
+  covering every part.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
@@ -89,37 +92,38 @@ How it works
   ``usage`` above, so a downstream task, a Jinja template, or a REST client can read which
   model responded without parsing the decision record or a span
   (``ti.xcom_pull(task_ids="my_agent", key="__AIRFLOW__COMMON_AI_MODEL_NAME__")``).
-  Only ``AgentOperator`` /
-  ``@task.agent`` and ``LLMOperator`` / ``@task.llm`` push it today; like ``run_id`` and
-  ``usage``, with ``enable_hitl_review`` it is the initial run's model, not a
-  human-feedback regeneration's, since ``regenerate_with_feedback`` doesn't re-push it.
-  ``LLMOperator``'s subclasses that override ``execute()`` instead of calling
-  ``super().execute()`` -- ``LLMBranchOperator``, ``LLMSQLQueryOperator``,
-  ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` -- don't publish it yet;
-  this is upcoming work.
-* **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
-  ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands,
-  ADK or OpenAI Agents SDK agent run inside ``agent_framework_tracing`` (see below). ``LLMOperator`` /
-  ``@task.llm`` additionally pushes the model name above. The other LLM
-  operators still emit GenAI spans correlated to the task span by nesting, but
-  without the identity attributes, the run join key, or the model name.
+  ``AgentOperator`` and ``LLMOperator`` and its subclasses (and their decorator forms)
+  push it; like ``run_id`` and ``usage``, with ``enable_hitl_review`` it is the initial
+  run's model, not a human-feedback regeneration's, since ``regenerate_with_feedback``
+  doesn't re-push it.
+* **Skills.** An ``AgentSkillsToolset`` publishes the skills it offered the agent, where
+  each came from (a local path, or a repository, path and commit) and the skill tools the
+  agent called for each, under the namespaced key ``__AIRFLOW__COMMON_AI_SKILLS__``. See
+  :ref:`agent-skills-observability`.
+* **Scope.** The ``run_id`` / ``usage`` XComs and the model name come from
+  ``AgentOperator`` and ``LLMOperator`` and its subclasses (and their decorator forms).
+  Those operators also stamp the ``airflow.*`` identity attributes on their spans, and so
+  does a Strands, ADK or OpenAI Agents SDK agent run inside ``agent_framework_tracing``
+  (see below).
 * .. _howto/observability:model-tab:
 
   **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
   task-instance page showing the resolved model name and the ``usage`` XCom above as a
-  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  readable table, including an estimated cost, and the skills XCom above as the list of
+  skills the agent was offered, with the ones it loaded first. It needs Airflow >= 3.4, since it relies on
   the ``applies_to`` operator scoping core added in that version to show up only for
-  ``LLMOperator`` / ``AgentOperator`` runs (and their ``@task.llm`` / ``@task.agent``
-  decorator forms) -- the match is on the exact operator name, so a subclass of either does
-  not get the tab automatically. Like the span-level cost above, the tab's number is a
-  best-effort ``genai-prices`` estimate, not provider-reported billing. With a custom XCom
-  backend that offloads large values to external storage (e.g. ``common.io`` with
+  ``AgentOperator`` runs and runs of ``LLMOperator`` and its SQL / branch / file-analysis /
+  schema-compare subclasses (and their decorator forms) -- the match is on the exact
+  operator name, so a subclass of your own does not get the tab automatically. Like the
+  span-level cost above, the tab's number is a best-effort ``genai-prices`` estimate, not
+  provider-reported billing. With a custom XCom backend that offloads large values to external storage (e.g. ``common.io`` with
   ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
   the real value, since the public XCom endpoint it calls never runs the backend's
   ``deserialize_value``: the model name badge would show the reference string (e.g. an
   ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
   string rather than an object -- the tab treats a non-object ``usage`` as absent and
-  hides the stat boxes instead of rendering ``undefined`` in each one.
+  hides the stat boxes instead of rendering ``undefined`` in each one. The skills XCom
+  comes back as that string too, so the skills section is hidden.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
@@ -274,8 +278,8 @@ carries three tags:
      - The toolset class, such as ``SQLToolset`` or ``ObjectStorageToolset``.
    * - ``framework``
      - ``pydantic_ai`` for ``AgentOperator`` and your own Pydantic AI agents;
-       ``strands``, ``adk``, ``langchain``, ``anthropic`` or ``openai_agents`` for a call
-       through that framework's adapter;
+       ``strands``, ``adk``, ``langchain``, ``anthropic``, ``openai_agents`` or ``claude_agent_sdk``
+       for a call through that framework's adapter;
        ``none`` for a call to a toolset's ``airflow_tools()`` made without an adapter.
    * - ``outcome``
      - ``executed`` when the call returned, ``failed`` when it raised (including a

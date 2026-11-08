@@ -22,6 +22,7 @@
     },
     "favoriteState": "最愛狀態",
     "favoriteStatePlaceholder": "選擇最愛狀態…",
+    "hasImportErrors": "有匯入錯誤",
     "noTimetableTypesFound": "找不到排程規則類型",
     "paused": {
       "active": "啟用中",
@@ -129,6 +130,7 @@
     "dagRuns": "搜尋 $t(common:dagRun_other)",
     "dags": "搜尋 Dags",
     "hotkey": "+K",
+    "mapIndexes": "搜尋 $t(common:mapIndex)",
     "tasks": "搜尋任務"
   },
   "sort": {
