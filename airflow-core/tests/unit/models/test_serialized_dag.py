@@ -32,9 +32,16 @@ import airflow.example_dags as example_dags_module
 import airflow.models.serialized_dag as serialized_dag_module
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow.dag_processing.dagbag import DagBag
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetModel,
+    AssetPartitionDagRun,
+    AssetPartitionDagRunWake,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagcode import DagCode
 from airflow.models.deadline_alert import DeadlineAlert as DAM
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
@@ -43,6 +50,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -107,12 +115,14 @@ class TestSerializedDagModel:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
+        db.clear_db_apdr()
         # The module reads the config once at import time, so conf_vars alone leaves the already
         # bound constant untouched and the compressed branch never runs.
         monkeypatch.setattr(serialized_dag_module, "_COMPRESS_SERIALIZED_DAGS", request.param)
         with conf_vars({("core", "compress_serialized_dags"): str(request.param)}):
             yield
         db.clear_db_serialized_dags()
+        db.clear_db_apdr()
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -1231,6 +1241,143 @@ class TestSerializedDagModel:
         # computed for change detection either way and an unwritten row is trivially consistent.
         assert serdag.dag_hash != original_hash
         assert serdag.dag_hash == SDM.hash(serdag.data)
+
+    @staticmethod
+    def _build_partitioned_dag(dag_id: str, assets, *, tasks: tuple[str, ...] = ("task1",)) -> DAG:
+        dag = DAG(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=assets))
+        for task_id in tasks:
+            EmptyOperator(task_id=task_id, dag=dag)
+        return dag
+
+    @staticmethod
+    def _read_dag_level_wakes(session, dag_id: str) -> list[str]:
+        return session.scalars(
+            select(AssetPartitionDagRunWake.reason).where(
+                AssetPartitionDagRunWake.target_dag_id == dag_id, AssetPartitionDagRunWake.apdr_id.is_(None)
+            )
+        ).all()
+
+    def _sync_partitioned_dag(self, dag_id: str, session, *, with_task_instances: bool = False) -> None:
+        scheduler_dag = sync_dag_to_db(
+            self._build_partitioned_dag(dag_id, Asset("a") & Asset("b")), session=session
+        )
+        if with_task_instances:
+            scheduler_dag.create_dagrun(
+                run_id="test1",
+                run_after=DEFAULT_DATE,
+                state=DagRunState.QUEUED,
+                logical_date=None,
+                data_interval=None,
+                partition_key="k",
+                triggered_by=DagRunTriggeredByType.TEST,
+                run_type=DagRunType.MANUAL,
+            )
+        # The first definition of a partitioned Dag asks for the evaluation of its pending runs.
+        assert self._read_dag_level_wakes(session, dag_id) == ["dag_changed"]
+        session.execute(delete(AssetPartitionDagRunWake))
+        session.commit()
+
+    @pytest.mark.parametrize("with_task_instances", [False, True], ids=["in-place", "new-version"])
+    def test_write_dag_wakes_partition_dag_runs_when_the_timetable_changes(
+        self, testing_dag_bundle, session, with_task_instances
+    ):
+        dag_id = "partition_timetable_changed"
+        self._sync_partitioned_dag(dag_id, session, with_task_instances=with_task_instances)
+
+        widened = self._build_partitioned_dag(dag_id, Asset("a") | Asset("b"))
+        SDM.write_dag(LazyDeserializedDAG.from_dag(widened), bundle_name="testing", session=session)
+        session.commit()
+
+        assert self._read_dag_level_wakes(session, dag_id) == ["dag_changed"]
+        assert session.scalar(select(func.count()).where(SDM.dag_id == dag_id)) == (
+            2 if with_task_instances else 1
+        )
+
+    def test_write_dag_does_not_wake_partition_dag_runs_when_only_tasks_change(
+        self, testing_dag_bundle, session
+    ):
+        dag_id = "partition_tasks_changed"
+        self._sync_partitioned_dag(dag_id, session)
+
+        more_tasks = self._build_partitioned_dag(dag_id, Asset("a") & Asset("b"), tasks=("task1", "task2"))
+        assert SDM.write_dag(LazyDeserializedDAG.from_dag(more_tasks), bundle_name="testing", session=session)
+        session.commit()
+
+        assert self._read_dag_level_wakes(session, dag_id) == []
+
+    @pytest.mark.parametrize("has_pending_run", [True, False])
+    def test_write_dag_wakes_the_pending_runs_of_a_dag_that_is_no_longer_partitioned(
+        self, testing_dag_bundle, session, has_pending_run
+    ):
+        dag_id = "partition_turned_off"
+        self._sync_partitioned_dag(dag_id, session)
+        if has_pending_run:
+            session.add(
+                AssetPartitionDagRun(target_dag_id=dag_id, partition_key="k", pending_partition_key="k")
+            )
+            session.commit()
+
+        unpartitioned = DAG(dag_id=dag_id, schedule=None)
+        EmptyOperator(task_id="task1", dag=unpartitioned)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(unpartitioned), bundle_name="testing", session=session)
+        session.commit()
+
+        assert self._read_dag_level_wakes(session, dag_id) == (["dag_changed"] if has_pending_run else [])
+
+    def test_write_dag_wakes_the_pending_runs_left_to_a_dag_written_for_the_first_time(
+        self, testing_dag_bundle, session
+    ):
+        """A Dag deleted and created again finds the pending runs that its earlier definition left behind."""
+        dag_id = "partition_dag_created_again"
+        session.add(AssetPartitionDagRun(target_dag_id=dag_id, partition_key="k", pending_partition_key="k"))
+        session.commit()
+
+        dag = DAG(dag_id=dag_id, schedule=None)
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        assert self._read_dag_level_wakes(session, dag_id) == ["dag_changed"]
+
+    @pytest.mark.parametrize(
+        ("with_task_instances", "code_write"),
+        [(False, "update_source_code"), (True, "write_code")],
+        ids=["in-place", "new-version"],
+    )
+    def test_write_dag_adds_the_wake_row_before_the_writes_that_follow_the_definition(
+        self, testing_dag_bundle, session, with_task_instances, code_write
+    ):
+        """The Dag processor commits the definition even when a write after it fails, so the row must be in."""
+        dag_id = "partition_code_write_fails"
+        self._sync_partitioned_dag(dag_id, session, with_task_instances=with_task_instances)
+
+        widened = self._build_partitioned_dag(dag_id, Asset("a") | Asset("b"))
+        with mock.patch.object(DagCode, code_write, autospec=True, side_effect=ValueError("broken")):
+            with pytest.raises(ValueError, match="broken"):
+                SDM.write_dag(LazyDeserializedDAG.from_dag(widened), bundle_name="testing", session=session)
+
+        assert [wake.reason for wake in session.new if isinstance(wake, AssetPartitionDagRunWake)] == [
+            "dag_changed"
+        ]
+
+    def test_row_read_again_after_a_rollback_serves_a_definition_written_in_place_since(
+        self, testing_dag_bundle, session
+    ):
+        dag_id = "decoded_data_after_rollback"
+        dag = DAG(dag_id=dag_id)
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+        serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        assert serdag.dag.task_ids == ["task1"]
+
+        EmptyOperator(task_id="task2", dag=dag)
+        with create_session(scoped=False) as writer:
+            SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=writer)
+        session.rollback()
+
+        assert sorted(serdag.dag.task_ids) == ["task1", "task2"]
+        assert session.scalar(select(SDM).where(SDM.dag_id == dag_id)) is serdag
 
     def test_deadline_uuid_regeneration_keeps_hash_consistent(self, testing_dag_bundle, session):
         """Regenerated deadline UUIDs rewrite dag.data, so the stored hash must describe the rewrite."""

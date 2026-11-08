@@ -32,7 +32,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, inspect, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload, load_only
 
@@ -44,6 +44,7 @@ from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
     AssetModel,
+    AssetPartitionDagRunWake,
     DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
     DagScheduleAssetReference,
@@ -70,6 +71,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, DagSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
+from airflow.utils.helpers import chunks
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name, with_row_locks
 from airflow.utils.types import DagRunType
@@ -1207,7 +1209,9 @@ class AssetModelOperation(NamedTuple):
         orm_assets: dict[tuple[str, str], AssetModel] = {
             (am.name, am.uri): am
             for am in session.scalars(
-                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
+                select(AssetModel)
+                .where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
+                .options(joinedload(AssetModel.active))
             )
         }
         for key, model in orm_assets.items():
@@ -1268,8 +1272,24 @@ class AssetModelOperation(NamedTuple):
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
+        models = list(models)
         if values := [{"name": m.name, "uri": m.uri} for m in models]:
             session.execute(stmt, values)
+        # An inactive asset may hold key logs of pending partition Dag runs, which activating it can
+        # satisfy. sync_assets loads whether each existing asset is active; the assets it creates have
+        # no key logs, and their activation state is not loaded.
+        if inactive := [m for m in models if inspect(m).attrs.active.loaded_value is None]:
+            active = {
+                pair
+                for chunk in chunks(inactive, 400)
+                for pair in session.execute(
+                    select(AssetActive.name, AssetActive.uri).where(
+                        tuple_(AssetActive.name, AssetActive.uri).in_([(m.name, m.uri) for m in chunk])
+                    )
+                ).tuples()
+            }
+            if activated := [m for m in inactive if (m.name, m.uri) in active]:
+                AssetPartitionDagRunWake.add_for_activated_assets(activated, session=session)
 
     def add_dag_asset_references(
         self,

@@ -1530,6 +1530,7 @@ responder
 reStructuredText
 resultset
 resumable
+resync
 retryable
 Reusability
 rfc

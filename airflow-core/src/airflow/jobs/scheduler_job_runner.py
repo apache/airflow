@@ -22,19 +22,24 @@ import logging
 import multiprocessing
 import operator
 import os
+import random
 import signal
 import sys
 import time
+from array import array
+from bisect import bisect_left
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from contextlib import ExitStack, suppress
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
 from sqlalchemy import (
+    Integer,
     Text,
     and_,
     case,
@@ -42,11 +47,15 @@ from sqlalchemy import (
     delete,
     exists,
     func,
+    insert,
     inspect,
+    literal_column,
+    null,
     or_,
     select,
     text,
     tuple_,
+    union_all,
     update,
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
@@ -85,10 +94,12 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    AssetPartitionDagRunWake,
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    PartitionWakeReason,
     TaskInletAssetReference,
     TaskOutletAssetReference,
     alias_association_table,
@@ -188,6 +199,138 @@ still selects at least one runnable task instance queued behind blocked ones.
 
 :meta private:
 """
+
+# Max number of lock queries per loop that refill the partition Dag runs to evaluate, when rows found
+# in the wake queue are locked by another scheduler or no longer pending.
+MAX_PARTITION_CLAIM_REFILLS_PER_LOOP = 3
+# Max number of ids per IN-list on a secondary index. MySQL estimates the rows of longer lists from
+# sampled statistics, and has then chosen a full scan of the table.
+_PARTITION_IN_LIST_SIZE = 199
+# Max number of Dags whose pending partition Dag runs one loop starts evaluating for a Dag-level wake row.
+_PARTITION_FAN_OUT_STARTS_PER_LOOP = 50
+# Max number of Dag-level wake rows of one Dag that a fan-out reads, and deletes once it is done.
+_PARTITION_FAN_OUT_WAKE_ROWS = 500
+# Max number of wake rows one loop deletes after evaluating their runs. Rows left over wake their
+# runs once more.
+_PARTITION_MAX_CONSUMED_WAKE_ROWS = 20_000
+# Max number of wake rows of fired or deleted runs one loop deletes; the next loops find the rest.
+_PARTITION_MAX_ORPHANED_WAKE_ROWS = 20_000
+# Max number of batches of wake rows one firing of the cleanup timer deletes or merges.
+_PARTITION_WAKE_CLEANUP_BATCHES = 20
+
+
+class _PartitionSweep:
+    """
+    Pending partition Dag runs to evaluate once each, held per Dag in id order.
+
+    Ids leave only once a committed loop evaluated their run, or found it fired, deleted or owned by
+    another Dag. An id whose run a loop could not lock stays, so that a run another transaction holds
+    is evaluated in a later loop.
+    """
+
+    def __init__(self) -> None:
+        self._ids_by_dag: dict[str, array[int]] = {}
+        self._dag_order: deque[str] = deque()
+
+    def __len__(self) -> int:
+        """Return the number of Dags with runs left."""
+        return len(self._ids_by_dag)
+
+    def __contains__(self, dag_id: str) -> bool:
+        return dag_id in self._ids_by_dag
+
+    def add(self, dag_id: str, ids: Iterable[int]) -> None:
+        if (sorted_ids := array("q", sorted(set(ids)))) and dag_id not in self._ids_by_dag:
+            self._ids_by_dag[dag_id] = sorted_ids
+            self._dag_order.append(dag_id)
+
+    def rotate(self, positions: int) -> None:
+        self._dag_order.rotate(-positions)
+
+    def peek(self, limit: int) -> list[str]:
+        """Return the Dags the next loop serves first."""
+        return list(itertools.islice(self._dag_order, limit))
+
+    def take(
+        self, dag_ids: Sequence[str], budget: int, *, taken: set[int]
+    ) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
+        """
+        Take up to *budget* ids, one Dag at a time in turn, skipping the ids in *taken*.
+
+        Return the ids taken, and the ids passed over because another source already took them.
+        Neither leaves the sweep: :meth:`commit` removes them once their loop is committed.
+        """
+        candidates: list[tuple[int, str]] = []
+        covered: list[tuple[int, str]] = []
+        positions = dict.fromkeys(dag_ids, 0)
+        remaining = list(dag_ids)
+        while remaining and len(candidates) < budget:
+            still_remaining = []
+            for dag_id in remaining:
+                ids, position = self._ids_by_dag[dag_id], positions[dag_id]
+                while position < len(ids) and ids[position] in taken:
+                    covered.append((ids[position], dag_id))
+                    position += 1
+                if position < len(ids):
+                    candidates.append((ids[position], dag_id))
+                    taken.add(ids[position])
+                    position += 1
+                positions[dag_id] = position
+                if position < len(ids):
+                    still_remaining.append(dag_id)
+                if len(candidates) == budget:
+                    break
+            remaining = still_remaining
+        return candidates, covered
+
+    def is_left_empty(self, dag_id: str, done: Collection[int]) -> bool:
+        return all(apdr_id in done for apdr_id in self._ids_by_dag.get(dag_id, ()))
+
+    def holds(self, dag_id: str, apdr_id: int) -> bool:
+        """Whether the sweep still has to evaluate this run of this Dag."""
+        ids = self._ids_by_dag.get(dag_id, ())
+        position = bisect_left(ids, apdr_id)
+        return position < len(ids) and ids[position] == apdr_id
+
+    def commit(self, *, done: dict[str, set[int]], dropped: Collection[str], served: int) -> None:
+        """Remove what a committed loop finished, and serve the next Dags first in the next loop."""
+        for dag_id, ids in done.items():
+            if (dag_ids := self._ids_by_dag.get(dag_id)) is not None:
+                self._ids_by_dag[dag_id] = array("q", (i for i in dag_ids if i not in ids))
+        for dag_id in dropped:
+            self._ids_by_dag.pop(dag_id, None)
+        for dag_id in [d for d, ids in self._ids_by_dag.items() if not ids]:
+            del self._ids_by_dag[dag_id]
+        self._dag_order.rotate(-served)
+        self._dag_order = deque(d for d in self._dag_order if d in self._ids_by_dag)
+
+
+class _PartitionClaim(NamedTuple):
+    """The pending partition Dag runs a loop evaluates, and the wake rows it writes or deletes."""
+
+    apdrs: list[AssetPartitionDagRun]
+    consumed: list[int]
+    orphaned: list[int]
+    finished_wakes: list[int]
+    resync_wakes: list[str]
+    unsignalled: set[int]
+
+
+@dataclass
+class _PartitionLoop:
+    """What a loop of the partition claim changes in memory, applied once the loop is committed."""
+
+    resync_kind: str | None
+    fan_out_starts: dict[str, tuple[list[int], list[int]]] = field(default_factory=dict)
+    fan_out_done: dict[str, set[int]] = field(default_factory=lambda: defaultdict(set))
+    fan_out_dropped: set[str] = field(default_factory=set)
+    fan_out_served: int = 0
+    resync_done: dict[str, set[int]] = field(default_factory=lambda: defaultdict(set))
+    resync_dropped: set[str] = field(default_factory=set)
+    resync_served: int = 0
+    evaluated: int = 0
+    resync_fired: int = 0
+    oldest_signal_at: datetime | None = None
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -400,6 +543,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        self._partition_resync_interval = conf.getint("scheduler", "asset_partition_resync_interval")
+        if self._partition_resync_interval <= 0:
+            raise ValueError("[scheduler] asset_partition_resync_interval must be greater than 0")
+        # The pending runs of Dags with a Dag-level wake row, and the rows to delete once they are done.
+        self._partition_fan_out = _PartitionSweep()
+        self._partition_fan_out_wakes: dict[str, list[int]] = {}
+        self._partition_resync = _PartitionSweep()
+        self._partition_resync_kind: str | None = None
+        self._partition_resync_passes = 0
+        self._partition_resync_started_at = 0.0
+        self._partition_rng = random.Random()
+        # Monotonic time from which the next resync pass may start; the first loop starts the
+        # startup pass.
+        self._partition_next_resync_at = 0.0
+        self._partition_loop: _PartitionLoop | None = None
+        # A gauge keeps the value a previous process reported, so report 0 once if nothing is waiting.
+        self._partition_wake_lag_reported = True
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2067,6 +2227,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._clean_up_partition_wakes,
+            non_fatal=True,
+        )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._remove_unreferenced_triggers,
             non_fatal=True,
         )
@@ -2458,63 +2623,479 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
         use is membership lookup, and a heavier return type would just be discarded.
 
+        A pending APDR is evaluated when a row of :class:`AssetPartitionDagRunWake` asks for it:
+        one written with each key log added to it, or one for its Dag, written when the Dag's
+        timetable changes or when an asset the Dag is scheduled on is activated. The outcome of the
+        evaluation depends only on the timetable, the APDR's key logs, which assets are active, and
+        how the Dag's asset references and aliases resolve. A pass when the scheduler starts, and then
+        one every ``[scheduler] asset_partition_resync_interval``, also evaluates every pending APDR
+        once: for key logs written without a wake row, and for a new link from an alias to an asset
+        that is already active.
+
         Asset deactivation freezes pending APDRs: when an asset becomes inactive
         (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
         stop contributing to the rollup. If the consumer Dag still depends on that
         asset, firing on stale history would conflict with the declared topology,
-        so the APDR waits. Reactivating the asset resumes evaluation automatically.
+        so the APDR waits. Reactivating the asset wakes its consumer Dags again.
         This matches the UI's progress view (``_fetch_active_assets_per_dag``).
 
         Pausing and draining freeze pending APDRs, mirroring the ``is_paused`` /
         ``is_draining`` half of :meth:`~airflow.models.dag.DagModel.dags_needing_dagruns`.
         ``has_import_errors`` needs no predicate of its own: it is only ever set together
         with ``is_stale`` (``_update_import_errors``) and cleared together with it
-        (``DagModelOperation.update_dags``), so the ``is_stale`` filter above already
-        excludes those Dags. ``exceeds_max_non_backfill`` is the one genuine divergence --
-        an APDR for a Dag already at ``max_active_runs`` still creates its run, which then
-        waits at the QUEUED->RUNNING gate rather than being held back here.
+        (``DagModelOperation.update_dags``), so the ``is_stale`` filter of
+        :meth:`_lock_pending_partition_dag_runs` already excludes those Dags.
+        ``exceeds_max_non_backfill`` is the one genuine divergence -- an APDR for a Dag already at
+        ``max_active_runs`` still creates its run, which then waits at the QUEUED->RUNNING gate
+        rather than being held back here.
 
         Nothing accrues while a Dag is inactive -- ``AssetManager.register_asset_change``
         drops paused and draining Dags before any ``PartitionedAssetKeyLog`` row is
         written -- so an event produced during the pause is never recorded and a partially
         satisfied APDR cannot advance past it. On reactivation the APDR resumes from the
         keys logged before it went inactive, unless the rollup definition changed in the
-        meantime, in which case the stale-fingerprint cleanup below drops it instead.
+        meantime, in which case the stale-fingerprint cleanup of
+        :meth:`_evaluate_partition_dag_runs` drops it instead.
         """
-        # Cap per-tick work so the scheduler transaction stays bounded and other
-        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
-        # FIFO is intentional: the oldest pending APDR fires first. A persistently
-        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
-        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
-        # in HA two schedulers can otherwise both grab the same satisfied APDR
-        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
-        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
-        # two APDRs share a `created_at` under bulk asset-event ingestion.
-        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
-        pending_apdrs = session.scalars(
+        loop = self._partition_loop = _PartitionLoop(resync_kind=self._partition_resync_kind)
+        claim = self._claim_partition_dag_runs(loop, session=session)
+        partition_dag_ids = (
+            self._evaluate_partition_dag_runs(claim.apdrs, session=session) if claim.apdrs else set()
+        )
+        loop.evaluated = len(claim.apdrs)
+        if fired := [
+            apdr
+            for apdr in claim.apdrs
+            if apdr.id in claim.unsignalled and apdr.created_dag_run_id is not None
+        ]:
+            # Any Dag-level row of the run's Dag asked for it too, except one that a running fan-out
+            # read, which asks only for the runs that fan-out holds.
+            unrequested = set(
+                self._find_dags_without_dag_level_wakes(
+                    sorted({apdr.target_dag_id for apdr in fired}), session=session
+                )
+            )
+            loop.resync_fired = sum(apdr.target_dag_id in unrequested for apdr in fired)
+        self._write_partition_wakes(claim, session=session)
+        return partition_dag_ids
+
+    def _claim_partition_dag_runs(self, loop: _PartitionLoop, *, session: Session) -> _PartitionClaim:
+        """
+        Lock the pending partition Dag runs this loop evaluates, and read the wake rows they consume.
+
+        The runs come from three sources, in this order: the wake rows of single runs, oldest first
+        within a Dag and in turn across Dags; the pending runs of Dags that have a Dag-level wake row;
+        and the startup or periodic resync. While the last two have runs left, each keeps a share of
+        the loop, and a source with fewer runs than its share leaves the rest to the others.
+
+        The wake rows are read before the serialized Dags and the key logs. A wake row is committed
+        with its key log, so the evaluation sees every key log whose wake row this loop deletes, and
+        a wake row committed later survives and wakes the run again.
+        """
+        budget = self._max_partition_dag_runs_per_loop
+        share = max(1, budget // 10)
+        signals = self._read_partition_signals(budget, session=session)
+        apdr_signals = [(apdr_id, dag_id, at) for dag_id, apdr_id, at in signals if apdr_id is not None]
+        dag_signals = [(dag_id, at) for dag_id, apdr_id, at in signals if apdr_id is None]
+        finished_wakes = self._start_partition_fan_outs(
+            [dag_id for dag_id, _ in dag_signals], loop, session=session
+        )
+        self._start_partition_resync_if_due(session=session)
+        loop.resync_kind = self._partition_resync_kind
+
+        fan_out_window = self._partition_fan_out.peek(budget)
+        resync_window = self._partition_resync.peek(budget)
+        can_run = self._read_dag_eligibility({*fan_out_window, *resync_window}, session=session)
+        loop.fan_out_dropped = {dag_id for dag_id in fan_out_window if not can_run.get(dag_id)}
+        loop.resync_dropped = {dag_id for dag_id in resync_window if not can_run.get(dag_id)}
+        # The resync never evaluates the runs of a Dag that cannot run now, so a Dag-level wake row
+        # makes the Dag evaluate them once it can.
+        resync_wakes = [dag_id for dag_id in resync_window if can_run.get(dag_id) is False]
+
+        taken: set[int] = set()
+        signalled = []
+        for apdr_id, dag_id, _ in apdr_signals:
+            if apdr_id not in taken:
+                taken.add(apdr_id)
+                signalled.append((apdr_id, dag_id))
+        fan_out, fan_out_covered = self._partition_fan_out.take(
+            [dag_id for dag_id in fan_out_window if can_run.get(dag_id)], budget, taken=taken
+        )
+        resync, resync_covered = self._partition_resync.take(
+            [dag_id for dag_id in resync_window if can_run.get(dag_id)], budget, taken=taken
+        )
+        fan_out_share, resync_share = min(share, len(fan_out)), min(share, len(resync))
+        signalled_count = min(len(signalled), budget - fan_out_share - resync_share)
+        fan_out_count = min(len(fan_out), budget - signalled_count - resync_share)
+        resync_count = min(len(resync), budget - signalled_count - fan_out_count)
+        queue = signalled[:signalled_count] + fan_out[:fan_out_count] + resync[:resync_count]
+        spare = signalled[signalled_count:] + fan_out[fan_out_count:] + resync[resync_count:]
+
+        locked: dict[int, AssetPartitionDagRun] = {}
+        tried: set[int] = set()
+        for refill in range(MAX_PARTITION_CLAIM_REFILLS_PER_LOOP + 1):
+            tried.update(apdr_id for apdr_id, _ in queue)
+            for batch in chunks([apdr_id for apdr_id, _ in queue], _ADRQ_DELETE_CHUNK_SIZE):
+                locked.update(
+                    (apdr.id, apdr) for apdr in self._lock_pending_partition_dag_runs(batch, session=session)
+                )
+            missing = budget - len(locked)
+            if missing <= 0 or not spare or refill == MAX_PARTITION_CLAIM_REFILLS_PER_LOOP:
+                break
+            queue, spare = spare[:missing], spare[missing:]
+
+        def count_served(window: list[str], candidates: list[tuple[int, str]]) -> int:
+            """Return how many Dags at the head of *window* this loop served; the next loop starts after them."""
+            served = {dag_id for apdr_id, dag_id in candidates if apdr_id in tried}
+            return max((i + 1 for i, dag_id in enumerate(window) if dag_id in served), default=0)
+
+        loop.fan_out_served = count_served(fan_out_window, fan_out)
+        loop.resync_served = count_served(resync_window, resync)
+
+        # The run of a source that could not be locked: owned by which Dag, and whether it fired.
+        found: dict[int, tuple[str, bool]] = {}
+        for batch in chunks(sorted(tried.difference(locked)), _ADRQ_DELETE_CHUNK_SIZE):
+            found.update(
+                (apdr_id, (dag_id, run_id is not None))
+                for apdr_id, dag_id, run_id in session.execute(
+                    select(
+                        AssetPartitionDagRun.id,
+                        AssetPartitionDagRun.target_dag_id,
+                        AssetPartitionDagRun.created_dag_run_id,
+                    ).where(AssetPartitionDagRun.id.in_(batch))
+                )
+            )
+
+        def is_settled(apdr_id: int, dag_id: str) -> bool:
+            """Whether nothing is left to evaluate for this run of this Dag."""
+            if apdr_id in locked:
+                return True
+            if apdr_id in found:
+                owner, fired = found[apdr_id]
+                return fired or owner != dag_id
+            return apdr_id in tried
+
+        # A wake row whose run fired, was deleted, or now belongs to another Dag, which SQLite
+        # allows by reusing the id of a deleted run.
+        orphans = {
+            (apdr_id, dag_id)
+            for apdr_id, dag_id, _ in apdr_signals
+            if is_settled(apdr_id, dag_id)
+            and not (apdr_id in locked and locked[apdr_id].target_dag_id == dag_id)
+        }
+        loop.oldest_signal_at = min(
+            itertools.chain(
+                (at for apdr_id, dag_id, at in apdr_signals if (apdr_id, dag_id) not in orphans),
+                (at for _, at in dag_signals),
+            ),
+            default=None,
+        )
+        for sweep_done, candidates in (
+            (loop.fan_out_done, fan_out + fan_out_covered),
+            (loop.resync_done, resync + resync_covered),
+        ):
+            for apdr_id, dag_id in candidates:
+                if is_settled(apdr_id, dag_id):
+                    sweep_done[dag_id].add(apdr_id)
+        for dag_id in fan_out_window:
+            if can_run.get(dag_id) and self._partition_fan_out.is_left_empty(
+                dag_id, loop.fan_out_done[dag_id]
+            ):
+                finished_wakes.extend(self._partition_fan_out_wakes.get(dag_id, ()))
+
+        consumed: list[int] = []
+        orphaned: list[int] = []
+        read: set[int] = set()
+        wake = AssetPartitionDagRunWake
+        for batch in chunks(sorted({*locked, *(apdr_id for apdr_id, _ in orphans)}), _PARTITION_IN_LIST_SIZE):
+            for wake_id, apdr_id, dag_id in session.execute(
+                select(wake.id, wake.apdr_id, wake.target_dag_id).where(wake.apdr_id.in_(batch))
+            ):
+                if apdr_id in locked and locked[apdr_id].target_dag_id == dag_id:
+                    consumed.append(wake_id)
+                    read.add(apdr_id)
+                elif (apdr_id, dag_id) in orphans:
+                    orphaned.append(wake_id)
+        # A run that a running fan-out still has to evaluate was asked for by the fan-out's Dag-level row.
+        resynced = {
+            apdr_id for apdr_id, dag_id in resync if not self._partition_fan_out.holds(dag_id, apdr_id)
+        }
+        return _PartitionClaim(
+            apdrs=sorted(locked.values(), key=lambda apdr: (apdr.created_at, apdr.id)),
+            consumed=sorted(consumed)[:_PARTITION_MAX_CONSUMED_WAKE_ROWS],
+            orphaned=sorted(orphaned)[:_PARTITION_MAX_ORPHANED_WAKE_ROWS],
+            finished_wakes=sorted(finished_wakes),
+            resync_wakes=self._find_dags_without_dag_level_wakes(resync_wakes, session=session),
+            unsignalled={apdr_id for apdr_id in locked if apdr_id in resynced and apdr_id not in read},
+        )
+
+    def _find_dags_without_dag_level_wakes(self, dag_ids: list[str], *, session: Session) -> list[str]:
+        """
+        Return the Dags of *dag_ids* that have no Dag-level wake row, which would make a new one redundant.
+
+        The rows that a running fan-out of this scheduler read do not count: the fan-out deletes them
+        once it is done with the runs it read when it started.
+        """
+        if not dag_ids:
+            return []
+        wake = AssetPartitionDagRunWake
+        woken: set[str] = set()
+        for batch in chunks(dag_ids, _PARTITION_IN_LIST_SIZE):
+            woken.update(
+                dag_id
+                for dag_id, wake_id in session.execute(
+                    select(wake.target_dag_id, wake.id).where(
+                        wake.target_dag_id.in_(batch), wake.apdr_id.is_(None)
+                    )
+                )
+                if wake_id not in self._partition_fan_out_wakes.get(dag_id, ())
+            )
+        return [dag_id for dag_id in dag_ids if dag_id not in woken]
+
+    def _read_partition_signals(
+        self, budget: int, *, session: Session
+    ) -> list[tuple[str, int | None, datetime]]:
+        """
+        Return the wake rows of Dags that can run, one per run and one per Dag for Dag-level rows.
+
+        Within a Dag the oldest row comes first; across Dags they come in turn, so that many rows of
+        one Dag do not hold back the rows of the others. Rows of single runs and Dag-level rows are
+        capped apart: a Dag-level row stays until the evaluation of every pending run of its Dag is
+        done, and Dags whose evaluation is running must not hide the rows of other runs or Dags. On an
+        idle scheduler this is the only query of the partition claim.
+        """
+        wake = AssetPartitionDagRunWake
+        can_run = (
+            DagModel.is_paused.is_(False),
+            DagModel.is_draining.is_(False),
+            DagModel.is_stale.is_(False),
+        )
+        runs = (
+            select(
+                wake.target_dag_id.label("dag_id"),
+                wake.apdr_id.label("apdr_id"),
+                func.min(wake.id).label("first_id"),
+                func.min(wake.created_at).label("first_at"),
+            )
+            .join(DagModel, DagModel.dag_id == wake.target_dag_id)
+            .where(wake.apdr_id.is_not(None), *can_run)
+            .group_by(wake.target_dag_id, wake.apdr_id)
+            .subquery()
+        )
+        ranked = select(
+            runs,
+            func.row_number().over(partition_by=runs.c.dag_id, order_by=runs.c.first_id).label("turn"),
+        ).subquery()
+        # Each kind takes its first rows with a top-N sort of its own; ranking both kinds in one
+        # window would sort every group once more. SQLite rejects ORDER BY and LIMIT on the members
+        # of a compound select, so each kind is a subquery.
+        run_level = select(ranked).order_by(ranked.c.turn, ranked.c.first_id).limit(2 * budget).subquery()
+        dag_level = (
+            select(
+                wake.target_dag_id.label("dag_id"),
+                sql_cast(null(), Integer).label("apdr_id"),
+                func.min(wake.id).label("first_id"),
+                func.min(wake.created_at).label("first_at"),
+                literal_column("1", Integer).label("turn"),
+            )
+            .join(DagModel, DagModel.dag_id == wake.target_dag_id)
+            .where(wake.apdr_id.is_(None), *can_run)
+            .group_by(wake.target_dag_id)
+            .order_by(func.min(wake.id))
+            .limit(len(self._partition_fan_out) + _PARTITION_FAN_OUT_STARTS_PER_LOOP)
+            .subquery()
+        )
+        signals = union_all(
+            *(
+                select(kind.c.dag_id, kind.c.apdr_id, kind.c.first_at, kind.c.turn, kind.c.first_id)
+                for kind in (run_level, dag_level)
+            )
+        ).subquery()
+        return [
+            (dag_id, apdr_id, first_at)
+            for dag_id, apdr_id, first_at in session.execute(
+                select(signals.c.dag_id, signals.c.apdr_id, signals.c.first_at).order_by(
+                    signals.c.turn, signals.c.first_id
+                )
+            )
+        ]
+
+    def _start_partition_fan_outs(
+        self, dag_ids: list[str], loop: _PartitionLoop, *, session: Session
+    ) -> list[int]:
+        """
+        Read the pending runs of Dags with a Dag-level wake row, to evaluate them in the next loops.
+
+        The Dag-level rows are read before the pending runs and before any of them is evaluated, so
+        the evaluation sees the definition or asset they report. Return the Dag-level rows of Dags
+        that have no pending run, which are done already.
+        """
+        if not (
+            new := [dag_id for dag_id in dict.fromkeys(dag_ids) if dag_id not in self._partition_fan_out][
+                :_PARTITION_FAN_OUT_STARTS_PER_LOOP
+            ]
+        ):
+            return []
+        wake = AssetPartitionDagRunWake
+        wake_ids: dict[str, list[int]] = defaultdict(list)
+        pending: dict[str, list[int]] = defaultdict(list)
+        for batch in chunks(new, _PARTITION_IN_LIST_SIZE):
+            ranked = (
+                select(
+                    wake.id,
+                    wake.target_dag_id,
+                    func.row_number().over(partition_by=wake.target_dag_id, order_by=wake.id).label("turn"),
+                )
+                .where(wake.target_dag_id.in_(batch), wake.apdr_id.is_(None))
+                .subquery()
+            )
+            for wake_id, dag_id in session.execute(
+                select(ranked.c.id, ranked.c.target_dag_id).where(
+                    ranked.c.turn <= _PARTITION_FAN_OUT_WAKE_ROWS
+                )
+            ):
+                wake_ids[dag_id].append(wake_id)
+        for batch in chunks(new, _PARTITION_IN_LIST_SIZE):
+            for apdr_id, dag_id in session.execute(
+                select(AssetPartitionDagRun.id, AssetPartitionDagRun.target_dag_id).where(
+                    AssetPartitionDagRun.target_dag_id.in_(batch),
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                )
+            ):
+                pending[dag_id].append(apdr_id)
+        done: list[int] = []
+        for dag_id in new:
+            if pending[dag_id]:
+                loop.fan_out_starts[dag_id] = (wake_ids[dag_id], pending[dag_id])
+            else:
+                done.extend(wake_ids[dag_id])
+        return done
+
+    def _start_partition_resync_if_due(self, *, session: Session) -> None:
+        """
+        Read every pending run, once a pass is due and none is running.
+
+        The pass starts only once the read completes, so that a loop retried after a failed read
+        reads again. A pass started by a loop that is then retried is kept: the retried attempt
+        evaluates the same runs, because a run leaves the pass only once a committed loop is done
+        with it.
+        """
+        if self._partition_resync or (now := time.monotonic()) < self._partition_next_resync_at:
+            return
+        ids_by_dag = self._read_pending_partition_dag_runs(session=session)
+        for dag_id in sorted(ids_by_dag):
+            self._partition_resync.add(sys.intern(dag_id), ids_by_dag.pop(dag_id))
+        if self._partition_resync:
+            # A random start, so that a scheduler that restarts often does not favour the same Dags.
+            self._partition_resync.rotate(self._partition_rng.randrange(len(self._partition_resync)))
+        self._partition_next_resync_at = now + self._partition_resync_interval
+        self._partition_resync_kind = "periodic" if self._partition_resync_passes else "startup"
+        self._partition_resync_passes += 1
+        self._partition_resync_started_at = now
+
+    @staticmethod
+    def _read_pending_partition_dag_runs(*, session: Session) -> dict[str, list[int]]:
+        """Return the ids of every pending partition Dag run of a Dag that exists, per Dag."""
+        ids_by_dag: dict[str, list[int]] = defaultdict(list)
+        for apdr_id, dag_id in session.execute(
+            # The runs of Dags that no longer exist are left to come back with their Dag, whose first
+            # definition then wakes them. Streamed: the result holds every pending run.
+            select(AssetPartitionDagRun.id, AssetPartitionDagRun.target_dag_id)
+            .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+            .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+            .execution_options(yield_per=10_000)
+        ):
+            ids_by_dag[dag_id].append(apdr_id)
+        return ids_by_dag
+
+    @staticmethod
+    def _read_dag_eligibility(dag_ids: Collection[str], *, session: Session) -> dict[str, bool]:
+        """Return, for each of *dag_ids* that exists, whether it can run: not paused, draining or stale."""
+        can_run: dict[str, bool] = {}
+        for batch in chunks(sorted(dag_ids), _ADRQ_DELETE_CHUNK_SIZE):
+            can_run.update(
+                (dag_id, not (paused or draining or stale))
+                for dag_id, paused, draining, stale in session.execute(
+                    select(
+                        DagModel.dag_id, DagModel.is_paused, DagModel.is_draining, DagModel.is_stale
+                    ).where(DagModel.dag_id.in_(batch))
+                )
+            )
+        return can_run
+
+    @staticmethod
+    def _lock_pending_partition_dag_runs(
+        apdr_ids: list[int], *, session: Session
+    ) -> Iterable[AssetPartitionDagRun]:
+        # Rows another scheduler holds are skipped; they keep their wake rows. The Dag filter is checked
+        # again on the locked row's own Dag, because the Dag can stop running after the claim read it.
+        return session.scalars(
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
                 .where(
+                    AssetPartitionDagRun.id.in_(apdr_ids),
                     AssetPartitionDagRun.created_dag_run_id.is_(None),
                     DagModel.is_paused.is_(False),
                     DagModel.is_draining.is_(False),
                     DagModel.is_stale.is_(False),
-                )
-                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-                .limit(self._max_partition_dag_runs_per_loop),
+                ),
                 of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
                 session=session,
             )
-        ).all()
-        if not pending_apdrs:
-            return set()
+        )
 
+    @staticmethod
+    def _write_partition_wakes(claim: _PartitionClaim, *, session: Session) -> None:
+        """
+        Delete the wake rows this loop is done with, and write those the resync asks for.
+
+        Deleting the rows of the runs the loop evaluated is atomic with the Dag runs it creates, so
+        these writes go in the loop's transaction rather than in batches committed apart. Each is
+        bounded per loop instead, and the next loops do the rest:
+
+        * the rows of the runs the loop evaluated, at most ``_PARTITION_MAX_CONSUMED_WAKE_ROWS``;
+        * the rows of runs that fired or were deleted, at most ``_PARTITION_MAX_ORPHANED_WAKE_ROWS``;
+        * the Dag-level rows of the fan-outs the loop finished, at most
+          ``_PARTITION_FAN_OUT_WAKE_ROWS`` per fan-out;
+        * one Dag-level row per Dag that the resync found unable to run, at most one per Dag the loop
+          serves.
+        """
+        wake = AssetPartitionDagRunWake
+        for batch in chunks(claim.consumed, _ADRQ_DELETE_CHUNK_SIZE):
+            session.execute(delete(wake).where(wake.id.in_(batch)))
+        # Another scheduler can delete the same orphan and Dag-level rows: skip the rows it holds
+        # rather than waiting for its loop to commit.
+        still_orphaned = ~exists().where(
+            AssetPartitionDagRun.id == wake.apdr_id,
+            AssetPartitionDagRun.target_dag_id == wake.target_dag_id,
+            AssetPartitionDagRun.created_dag_run_id.is_(None),
+        )
+        for wake_ids, condition in ((claim.orphaned, still_orphaned), (claim.finished_wakes, None)):
+            for batch in chunks(wake_ids, _ADRQ_DELETE_CHUNK_SIZE):
+                query = select(wake.id).where(wake.id.in_(batch))
+                if condition is not None:
+                    query = query.where(condition)
+                if held := session.scalars(
+                    with_row_locks(query, of=wake, skip_locked=True, key_share=False, session=session)
+                ).all():
+                    session.execute(delete(wake).where(wake.id.in_(held)))
+        if claim.resync_wakes:
+            now = timezone.utcnow()
+            session.execute(
+                insert(wake.__table__),
+                [
+                    {"target_dag_id": dag_id, "reason": PartitionWakeReason.RESYNC, "created_at": now}
+                    for dag_id in claim.resync_wakes
+                ],
+            )
+
+    def _evaluate_partition_dag_runs(
+        self, pending_apdrs: list[AssetPartitionDagRun], *, session: Session
+    ) -> set[str]:
+        """Evaluate the locked pending runs, oldest first, and create the Dag runs that are satisfied."""
         # Pre-fetch all required serialized Dags in one query. The same map
         # serves the stale-version cleanup below and the downstream rollup
         # evaluation, so the table is only hit once per tick.
@@ -2538,9 +3119,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # The fingerprint per dag is computed once and cached to avoid redundant
         # serialization when multiple APDRs share the same target dag.
         latest_fp_by_dag: dict[str, dict] = {}
+        # A Dag that is no longer partitioned is stale even when its fingerprint matches: a timetable
+        # scheduled on aliases only has the same empty fingerprint either way.
+        not_partitioned: set[str] = set()
         for dag_id, serdag in serdags_by_dag_id.items():
             try:
-                latest_fp_by_dag[dag_id] = compute_rollup_fingerprint(serdag.dag.timetable)
+                timetable = serdag.dag.timetable
+                latest_fp_by_dag[dag_id] = compute_rollup_fingerprint(timetable)
+                if not timetable.partitioned:
+                    not_partitioned.add(dag_id)
             except Exception:
                 # If deserialization fails, skip rather than treating as stale —
                 # a broken serdag should not silently wipe pending progress.
@@ -2552,7 +3139,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if serdags_by_dag_id.get(apdr.target_dag_id) is not None
             and apdr.target_dag_id in latest_fp_by_dag  # fingerprint failed to compute → skip
             and (
-                apdr.rollup_fingerprint is None
+                apdr.target_dag_id in not_partitioned
+                or apdr.rollup_fingerprint is None
                 or apdr.rollup_fingerprint != latest_fp_by_dag[apdr.target_dag_id]
             )
         ]
@@ -2708,7 +3296,121 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
+        self._commit_partition_loop()
         # END: create dagruns
+
+    def _commit_partition_loop(self) -> None:
+        """
+        Keep what the committed loop changed in the fan-outs and the resync, and report its metrics.
+
+        A loop that ``@retry_db_transaction`` retries never gets here, so the next attempt starts
+        from the state before it.
+        """
+        if (loop := self._partition_loop) is None:
+            return
+        self._partition_loop = None
+        for dag_id, (wake_ids, pending) in loop.fan_out_starts.items():
+            self._partition_fan_out.add(dag_id, pending)
+            self._partition_fan_out_wakes[dag_id] = wake_ids
+        self._partition_fan_out.commit(
+            done=loop.fan_out_done, dropped=loop.fan_out_dropped, served=loop.fan_out_served
+        )
+        for dag_id in [d for d in self._partition_fan_out_wakes if d not in self._partition_fan_out]:
+            del self._partition_fan_out_wakes[dag_id]
+        self._partition_resync.commit(
+            done=loop.resync_done, dropped=loop.resync_dropped, served=loop.resync_served
+        )
+        if self._partition_resync_kind and not self._partition_resync:
+            stats.timing(
+                "scheduler.asset_partitions.resync_pass_duration",
+                timedelta(seconds=time.monotonic() - self._partition_resync_started_at),
+            )
+            self._partition_resync_kind = None
+        if loop.evaluated:
+            stats.incr("scheduler.asset_partitions.evaluated", loop.evaluated)
+        if loop.resync_fired:
+            stats.incr(
+                "scheduler.asset_partitions.resync_fired",
+                loop.resync_fired,
+                tags={"pass": loop.resync_kind or "periodic"},
+            )
+        if loop.oldest_signal_at is not None:
+            stats.gauge(
+                "scheduler.asset_partitions.wake_lag",
+                max((timezone.utcnow() - loop.oldest_signal_at).total_seconds(), 0.0),
+            )
+            self._partition_wake_lag_reported = True
+        elif self._partition_wake_lag_reported:
+            stats.gauge("scheduler.asset_partitions.wake_lag", 0)
+            self._partition_wake_lag_reported = False
+
+    def _clean_up_partition_wakes(self) -> None:
+        """
+        Delete the wake rows of Dags that no longer exist, and merge those of Dags that cannot run.
+
+        The claim reads only the rows of Dags that can run, so the rows of others would build up.
+        One Dag-level row replaces the rows of a paused, draining or stale Dag: once the Dag can run
+        again, the scheduler evaluates all its pending runs, which covers what the rows asked for.
+        Each batch commits on its own, rows another transaction holds are skipped, and one firing runs
+        at most a fixed number of batches. The Dags whose rows are oldest are merged first, so that a
+        Dag merged in a firing goes behind the others in the next.
+        """
+        wake = AssetPartitionDagRunWake
+        batches = 0
+        while batches < _PARTITION_WAKE_CLEANUP_BATCHES:
+            batches += 1
+            with create_session() as session:
+                wake_ids = session.scalars(
+                    with_row_locks(
+                        select(wake.id)
+                        .where(~exists().where(DagModel.dag_id == wake.target_dag_id))
+                        .order_by(wake.id)
+                        .limit(_ADRQ_DELETE_CHUNK_SIZE),
+                        of=wake,
+                        skip_locked=True,
+                        key_share=False,
+                        session=session,
+                    )
+                ).all()
+                if wake_ids:
+                    session.execute(delete(wake).where(wake.id.in_(wake_ids)))
+            if len(wake_ids) < _ADRQ_DELETE_CHUNK_SIZE:
+                break
+        if batches >= _PARTITION_WAKE_CLEANUP_BATCHES:
+            return
+        with create_session() as session:
+            dag_ids = session.scalars(
+                select(wake.target_dag_id)
+                .join(DagModel, DagModel.dag_id == wake.target_dag_id)
+                .where(or_(DagModel.is_paused, DagModel.is_draining, DagModel.is_stale))
+                .group_by(wake.target_dag_id)
+                .having(func.count() > 1)
+                .order_by(func.min(wake.id))
+                .limit(_PARTITION_WAKE_CLEANUP_BATCHES - batches)
+            ).all()
+        for dag_id in dag_ids:
+            while batches < _PARTITION_WAKE_CLEANUP_BATCHES:
+                batches += 1
+                with create_session() as session:
+                    wake_ids = session.scalars(
+                        with_row_locks(
+                            select(wake.id)
+                            .where(wake.target_dag_id == dag_id)
+                            .order_by(wake.id)
+                            .limit(_ADRQ_DELETE_CHUNK_SIZE),
+                            of=wake,
+                            skip_locked=True,
+                            key_share=False,
+                            session=session,
+                        )
+                    ).all()
+                    if len(wake_ids) > 1:
+                        # Written in the transaction that deletes the rows it replaces, so no request is
+                        # lost; a later batch of the same Dag merges it again with the rest.
+                        session.add(wake(target_dag_id=dag_id, reason=PartitionWakeReason.COALESCED))
+                        session.execute(delete(wake).where(wake.id.in_(wake_ids)))
+                if len(wake_ids) < _ADRQ_DELETE_CHUNK_SIZE:
+                    break
 
     @provide_session
     def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
@@ -4343,6 +5045,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
+        activated: list[AssetModel] = []
 
         def _generate_warning_message(
             offending: AssetModel, attr: str, value: str
@@ -4392,6 +5095,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 incoming_name_to_uri[asset.name] = asset.uri
                 incoming_uri_to_name[asset.uri] = asset.name
                 session.add(AssetActive.for_asset(asset))
+                activated.append(asset)
 
         warnings_to_have = {
             dag_id: DagWarning(
@@ -4403,6 +5107,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 sorted(_activate_assets_generate_warnings()), key=operator.itemgetter(0)
             )
         }
+        if activated:
+            AssetPartitionDagRunWake.add_for_activated_assets(activated, session=session)
 
         session.execute(
             delete(DagWarning).where(

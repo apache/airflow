@@ -1326,6 +1326,7 @@ class TestDBCleanup:
             "dag_schedule_asset_uri_reference",  # leave alone for now
             "task_outlet_asset_reference",  # leave alone for now
             "asset_dag_run_queue",  # self-managed
+            "asset_partition_dag_run_wake",  # self-managed, by the scheduler
             "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys

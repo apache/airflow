@@ -17,18 +17,24 @@
 
 from __future__ import annotations
 
-import pytest
-from sqlalchemy import select, update
+import sqlite3
 
+import pytest
+from sqlalchemy import delete, event, select, update
+from sqlalchemy.exc import IntegrityError
+
+from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
     AssetAliasModel,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRunWake,
     DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
+    PartitionedAssetKeyLog,
     TaskOutletAssetReference,
     expand_alias_to_assets,
     remove_references_to_deleted_dags,
@@ -36,12 +42,20 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.variable import Variable
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, AssetAlias
 from airflow.serialization.definitions.assets import SerializedAssetAlias
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.dag import sync_dags_to_db
+from tests_common.test_utils.db import (
+    clear_db_apdr,
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_pakl,
+    clear_db_variables,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -268,3 +282,145 @@ def test_remove_reference_for_inactive_dag(
     _simulate_soft_dag_deletion("test2")
     remove_references_to_deleted_dags(session=session)
     assert set(session.execute(select_stmt)) == set()
+
+
+class TestPartitionDagRunWakes:
+    """The wake rows that ask the scheduler to evaluate pending partition Dag runs."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_db(self):
+        clear_db_dags()
+        clear_db_assets()
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_variables()
+        yield
+        clear_db_dags()
+        clear_db_assets()
+        clear_db_apdr()
+        clear_db_pakl()
+        clear_db_variables()
+
+    @staticmethod
+    def _build_key_log(apdr_id: int) -> PartitionedAssetKeyLog:
+        return PartitionedAssetKeyLog(
+            asset_id=1,
+            asset_event_id=1,
+            asset_partition_dag_run_id=apdr_id,
+            source_partition_key="k",
+            target_dag_id="consumer",
+            target_partition_key="k",
+        )
+
+    @staticmethod
+    def _read_wakes(session) -> list[tuple[int | None, str, str]]:
+        return [
+            tuple(row)
+            for row in session.execute(
+                select(
+                    AssetPartitionDagRunWake.apdr_id,
+                    AssetPartitionDagRunWake.target_dag_id,
+                    AssetPartitionDagRunWake.reason,
+                ).order_by(AssetPartitionDagRunWake.id)
+            )
+        ]
+
+    def test_key_log_writes_its_wake_row_in_its_transaction(self, session):
+        session.add(self._build_key_log(7))
+        session.flush()
+        assert self._read_wakes(session) == [(7, "consumer", "key_log")]
+
+        session.rollback()
+        assert self._read_wakes(session) == []
+
+    def test_partial_flush_writes_wake_rows_only_for_the_key_logs_it_inserts(self, session):
+        first, second = self._build_key_log(1), self._build_key_log(2)
+        session.add_all([first, second])
+
+        session.flush([first])
+        assert self._read_wakes(session) == [(1, "consumer", "key_log")]
+
+        session.flush()
+        assert self._read_wakes(session) == [(1, "consumer", "key_log"), (2, "consumer", "key_log")]
+
+    def test_flush_without_key_logs_writes_no_wake_row(self, session):
+        statements: list[str] = []
+
+        def _record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(settings.engine, "before_cursor_execute", _record)
+        try:
+            session.add(AssetModel(name="no-key-log", uri="s3://no-key-log"))
+            session.flush()
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", _record)
+
+        assert statements
+        assert not any("asset_partition_dag_run_wake" in statement for statement in statements)
+
+    def test_key_logs_of_a_failed_flush_get_no_wake_row(self, session):
+        session.add(Variable(key="taken", val="v"))
+        session.commit()
+        # Unrelated mappers flush in name order, so the key log is inserted before the variable that fails.
+        session.add(self._build_key_log(1))
+        session.add(Variable(key="taken", val="v"))
+        with pytest.raises(IntegrityError):
+            session.flush()
+        session.rollback()
+
+        session.add(AssetModel(name="after-the-failure", uri="s3://after-the-failure"))
+        session.flush()
+
+        assert self._read_wakes(session) == []
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            pytest.param(lambda asset: [asset], id="asset"),
+            pytest.param(lambda asset: [Asset.ref(name=asset.name)], id="name-ref"),
+            pytest.param(lambda asset: [Asset.ref(uri=asset.uri)], id="uri-ref"),
+            pytest.param(lambda asset: [AssetAlias("activated-alias")], id="alias"),
+        ],
+    )
+    def test_activation_wakes_the_dags_scheduled_on_the_asset(self, dag_maker, session, schedule):
+        asset = Asset(name="activated", uri="s3://activated")
+        with dag_maker(dag_id="scheduled-on-it", schedule=schedule(asset), session=session):
+            EmptyOperator(task_id="t")
+        with dag_maker(dag_id="scheduled-elsewhere", schedule=[Asset(name="other")], session=session):
+            EmptyOperator(task_id="t")
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            EmptyOperator(task_id="t", outlets=[asset])
+        asset_model = session.scalar(select(AssetModel).where(AssetModel.name == asset.name))
+        alias_model = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == "activated-alias"))
+        if alias_model is not None:
+            alias_model.assets.append(asset_model)
+        session.execute(delete(AssetPartitionDagRunWake))
+        session.flush()
+
+        AssetPartitionDagRunWake.add_for_activated_assets([asset_model], session=session)
+
+        assert self._read_wakes(session) == [(None, "scheduled-on-it", "asset_activated")]
+
+    @pytest.mark.backend("sqlite")
+    def test_activation_of_many_assets_stays_within_the_bind_parameter_limit_of_old_sqlite(
+        self, dag_maker, session
+    ):
+        assets = [Asset(name=f"many-{i}", uri=f"s3://many/{i}") for i in range(300)]
+        with dag_maker(dag_id="scheduled-on-the-first", schedule=[assets[0]], session=session):
+            EmptyOperator(task_id="t")
+        with dag_maker(dag_id="producer-of-many", schedule=None, session=session):
+            EmptyOperator(task_id="t", outlets=assets)
+        session.execute(delete(AssetPartitionDagRunWake))
+        session.flush()
+        asset_models = session.scalars(select(AssetModel).where(AssetModel.name.like("many-%"))).all()
+        assert len(asset_models) == 300
+        # The default limit of SQLite before 3.32.
+        dbapi_connection = session.connection().connection.dbapi_connection
+        limit = dbapi_connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, 999)
+        try:
+            AssetPartitionDagRunWake.add_for_activated_assets(asset_models, session=session)
+        finally:
+            dbapi_connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, limit)
+
+        assert self._read_wakes(session) == [(None, "scheduled-on-the-first", "asset_activated")]
