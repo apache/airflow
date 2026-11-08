@@ -16,19 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from contextlib import nullcontext
 from unittest import mock
 
 import pytest
+import tenacity
 from kubernetes.client import CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
 
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.providers.cncf.kubernetes.triggers.kueue import (
     KubernetesKueueJobTrigger,
     KueueJobState,
     build_job_event,
     collect_xcom_results,
     get_job_state,
+    list_job_pods,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, XComRetrievalError
 from airflow.triggers.base import TriggerEvent
@@ -132,24 +136,45 @@ class TestCollectXcomResults:
         assert xcom_results == {"already-read": "{}", "ready": '{"a": 1}'}
 
     @pytest.mark.parametrize(
-        ("error", "expectation"),
+        ("error", "read_pod_error", "expectation"),
         [
-            (XComRetrievalError("sidecar stopped"), nullcontext()),
-            (ApiException(status=404), nullcontext()),
-            (ApiException(status=403), pytest.raises(ApiException)),
+            (XComRetrievalError("sidecar stopped"), None, nullcontext()),
+            (ApiException(status=404), None, nullcontext()),
+            (ApiException(status=0), ApiException(status=404), nullcontext()),
+            (ApiException(status=0), None, pytest.raises(ApiException)),
+            (ApiException(status=403), None, pytest.raises(ApiException)),
+            (json.JSONDecodeError("Unterminated string", '{"a', 1), None, nullcontext()),
         ],
-        ids=["sidecar-stopped", "pod-deleted", "other-api-error"],
+        ids=[
+            "sidecar-stopped",
+            "pod-deleted",
+            "exec-failed-on-deleted-pod",
+            "exec-failed-on-existing-pod",
+            "other-api-error",
+            "partial-xcom-json",
+        ],
     )
-    def test_skips_pods_stopped_or_deleted_by_preemption(self, error, expectation):
+    def test_skips_pods_stopped_or_deleted_by_preemption(self, error, read_pod_error, expectation):
         self.client.list_namespaced_pod.return_value = k8s.V1PodList(
             items=[build_pod("preempted", base="terminated", sidecar="running")]
         )
+        self.client.read_namespaced_pod.side_effect = read_pod_error
         self.pod_manager.extract_xcom.side_effect = error
         xcom_results: dict[str, str] = {}
 
         with expectation:
             collect_xcom_results(self.client, self.pod_manager, JOB_NAME, NAMESPACE, "base", xcom_results)
         assert xcom_results == {}
+
+
+@mock.patch.object(list_job_pods.retry, "wait", tenacity.wait_none())
+def test_list_job_pods_retries_transient_api_errors():
+    client = mock.create_autospec(CoreV1Api, instance=True)
+    pods = [build_pod("pod")]
+    client.list_namespaced_pod.side_effect = [ApiException(status=503), k8s.V1PodList(items=pods)]
+
+    assert list_job_pods(client, JOB_NAME, NAMESPACE) == pods
+    assert client.list_namespaced_pod.call_count == 2
 
 
 class TestKubernetesKueueJobTrigger:
@@ -168,8 +193,14 @@ class TestKubernetesKueueJobTrigger:
         ],
     )
     @mock.patch(TRIGGER_PATH.format("collect_xcom_results"), autospec=True)
-    @mock.patch(TRIGGER_PATH.format("KubernetesKueueJobTrigger.sync_hook"))
-    @mock.patch(TRIGGER_PATH.format("KubernetesKueueJobTrigger.hook"))
+    @mock.patch(
+        TRIGGER_PATH.format("KubernetesKueueJobTrigger.sync_hook"),
+        new_callable=lambda: mock.create_autospec(KubernetesHook, instance=True),
+    )
+    @mock.patch(
+        TRIGGER_PATH.format("KubernetesKueueJobTrigger.hook"),
+        new_callable=lambda: mock.create_autospec(AsyncKubernetesHook, instance=True),
+    )
     async def test_run_waits_through_preemption(
         self,
         mock_hook,
@@ -187,7 +218,7 @@ class TestKubernetesKueueJobTrigger:
             build_job(False),
             build_job(False, "Complete"),
         ]
-        mock_hook.get_job_status = mock.AsyncMock(side_effect=jobs)
+        mock_hook.get_job_status.side_effect = jobs
 
         def read_xcom(client, pod_manager, job_name, namespace, base_container_name, xcom_results):
             xcom_results["pod"] = "{}"

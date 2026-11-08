@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Iterable
 from enum import Enum
 from functools import cached_property
@@ -31,6 +32,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     AsyncKubernetesHook,
     KubernetesHook,
 )
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
 from airflow.providers.cncf.kubernetes.utils.container import container_is_running, container_is_terminated
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, XComRetrievalError
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
@@ -98,6 +100,26 @@ def get_succeeded_pod_xcoms(pods: Iterable[k8s.V1Pod], xcom_results: dict[str, s
     ]
 
 
+@generic_api_retry
+def list_job_pods(client: CoreV1Api, job_name: str, namespace: str) -> list[k8s.V1Pod]:
+    """Return the pods the Job has now."""
+    return client.list_namespaced_pod(
+        namespace=namespace, label_selector=f"{JOB_NAME_LABEL}={job_name}"
+    ).items
+
+
+@generic_api_retry
+def is_pod_deleted(client: CoreV1Api, pod: k8s.V1Pod) -> bool:
+    """Return whether the pod no longer exists."""
+    try:
+        client.read_namespaced_pod(name=pod.metadata.name, namespace=pod.metadata.namespace)
+    except ApiException as e:
+        if e.status == 404:
+            return True
+        raise
+    return False
+
+
 def collect_xcom_results(
     client: CoreV1Api,
     pod_manager: PodManager,
@@ -112,10 +134,7 @@ def collect_xcom_results(
     Reading the XCom also stops the XCom sidecar: until then the pod, and so the Job, cannot finish.
     Pods already read are skipped, so this is called at each poll.
     """
-    pods = client.list_namespaced_pod(
-        namespace=namespace, label_selector=f"{JOB_NAME_LABEL}={job_name}"
-    ).items
-    for pod in pods:
+    for pod in list_job_pods(client, job_name, namespace):
         if (
             pod.metadata.name in xcom_results
             or not container_is_terminated(pod, base_container_name)
@@ -127,9 +146,16 @@ def collect_xcom_results(
         except XComRetrievalError as e:
             pod_manager.log.warning("Cannot read the XCom of the pod %s: %s", pod.metadata.name, e)
         except ApiException as e:
-            if e.status != 404:
+            # kubernetes.stream reports any failed exec with status 0, also for a pod deleted meanwhile.
+            # Skipping on other failures, such as a forbidden exec, would leave the sidecar keeping the
+            # Job running forever.
+            if e.status != 404 and not (e.status == 0 and is_pod_deleted(client, pod)):
                 raise
             pod_manager.log.warning("The pod %s was deleted before its XCom was read", pod.metadata.name)
+        except json.JSONDecodeError as e:
+            # The sidecar is stopped anyway, so the pod is not read again. If the pod succeeded, the check
+            # of the number of XCom once the Job is finished fails the task.
+            pod_manager.log.warning("The XCom of the pod %s is not valid JSON: %s", pod.metadata.name, e)
 
 
 class KubernetesKueueJobTrigger(BaseTrigger):

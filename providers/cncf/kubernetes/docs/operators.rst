@@ -961,6 +961,12 @@ and delete its running pods) then admit it again, any number of times. New pods,
 created at each admission. Pods that already succeeded are not deleted by a preemption and still count
 for the Job. Once the Job is finished, logs are read from the pods the Job has at that time.
 
+The wait has no timeout of its own: a Job that Kueue never admits, for example because ``queue_name``
+names no ``LocalQueue`` of the namespace, keeps the task waiting. Set ``execution_timeout`` on the task to
+bound the wait: with ``deferrable=True``, the operator also passes it as the timeout of the trigger. When
+the timeout is reached, the task fails and the Job is deleted, so that Kueue does not run it later.
+``active_deadline_seconds`` does not bound this wait: Kubernetes stops its timer while the Job is suspended.
+
 XCom
 ^^^^
 
@@ -973,7 +979,15 @@ other XCom pushed and ``unwrap_single``).
 
 If the XCom of a succeeded pod could not be read, for example because the pod was deleted before the
 task finished, the task fails rather than returning an incomplete list. A pod that writes no XCom does
-not fail the task: its value is ``None``.
+not fail the task: its value is ``None``. A pod whose ``return.json`` is not valid JSON, for example
+because the pod was preempted while writing it, is handled the same way as a pod whose XCom could not
+be read.
+
+With ``deferrable=True``, the XCom read so far are kept only in the memory of the trigger. If the
+trigger restarts while the Job runs, for example when the triggerer is deployed again, the XCom of the
+pods read before the restart are lost: their XCom sidecar is stopped, so they cannot be read again.
+If any of those pods succeeded, the task then fails once the Job is finished, and a retry of the task
+runs the whole Job again.
 
 Number of pods: ``completions`` and ``parallelism``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
