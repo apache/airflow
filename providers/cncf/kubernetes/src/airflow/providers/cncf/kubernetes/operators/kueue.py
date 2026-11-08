@@ -24,12 +24,14 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from kubernetes.client import models as k8s
+from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
+from urllib3.exceptions import HTTPError
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.triggers.kueue import (
-    JOB_NAME_LABEL,
     JOB_STATE_MESSAGES,
     KubernetesKueueJobTrigger,
     KueueJobState,
@@ -37,6 +39,7 @@ from airflow.providers.cncf.kubernetes.triggers.kueue import (
     collect_xcom_results,
     get_job_state,
     get_succeeded_pod_xcoms,
+    list_job_pods,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import XComRetrievalError
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
@@ -47,7 +50,13 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.models import BaseOperator
 
+# The ``error`` the scheduler gives a deferred task whose trigger timed out: Airflow 3 raises
+# ``TaskDeferralTimeout`` for it, from a module that changed in 3.2, and Airflow 2 a ``TaskDeferralError``
+_DEFERRAL_TIMEOUT_ERRORS = ("Trigger timeout", "Trigger/execution timeout")
+
 if TYPE_CHECKING:
+    from pendulum import DateTime
+
     from airflow.sdk import Context
 
 
@@ -160,6 +169,8 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         if not self.wait_until_job_complete:
             return super().execute(context)
 
+        if self.parallelism is not None and self.parallelism < 1:
+            raise ValueError("parallelism cannot be less than 1 with `wait_until_job_complete=True`.")
         self.name = self._set_name(self.name)
         self.job_request_obj = self.build_job_request_obj(context)
         self.job = self.create_job(job_request_obj=self.job_request_obj)  # must set `self.job` for `on_kill`
@@ -182,6 +193,8 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                     do_xcom_push=self.do_xcom_push,
                 ),
                 method_name="execute_complete",
+                # Airflow 3 does not apply execution_timeout to the time spent deferred
+                timeout=self.execution_timeout,
             )
 
         return self.execute_complete(
@@ -208,13 +221,14 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
     def execute_complete(self, context: Context, event: dict, **kwargs):
         # The pods found before a preemption by Kueue were deleted: read the ones the Job has now
         pods = sorted(
-            self.client.list_namespaced_pod(
-                namespace=event["namespace"], label_selector=f"{JOB_NAME_LABEL}={event['name']}"
-            ).items,
-            key=lambda pod: pod.metadata.name,
+            list_job_pods(self.client, event["name"], event["namespace"]), key=lambda pod: pod.metadata.name
         )
         for pod in pods:
             self.log_matching_pod(pod=pod, context=context)
+        if self.get_logs and event["status"] == "error":
+            # super() raises for a failed Job before it writes the logs of the pods
+            for pod in pods:
+                self._write_logs(pod)
         xcom_result = get_succeeded_pod_xcoms(pods, event["xcom_result"])
         result = super().execute_complete(
             context,
@@ -234,3 +248,35 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                 f"'{event['name']}': the other pods were deleted, or their XCom could not be read"
             )
         return result
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        if next_method == "__fail__" and (next_kwargs or {}).get("error") in _DEFERRAL_TIMEOUT_ERRORS:
+            self._kill_job_of_timed_out_deferral(context)
+        return super().resume_execution(next_method, next_kwargs, context)
+
+    def _kill_job_of_timed_out_deferral(self, context: Context) -> None:
+        """
+        Delete the Job when the deferral timed out, as ``on_kill`` does when the sync wait times out.
+
+        ``on_kill`` is not called for a deferred task, and a Job that Kueue never admits would otherwise
+        stay in its queue, and be run if Kueue admits it later.
+        """
+        ti = context["ti"]
+        name = ti.xcom_pull(task_ids=ti.task_id, key="job_name")
+        namespace = ti.xcom_pull(task_ids=ti.task_id, key="job_namespace")
+        if not name:
+            return
+        self.log.info("Deleting the job '%s' as the task timed out while waiting for it", name)
+        self.job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=name, namespace=namespace))
+        try:
+            self.on_kill()
+        except ApiException as e:
+            self.log.warning("Could not delete the job '%s': %s", name, e)
+
+    def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
+        """Write the logs of the ``container_logs`` of a pod of the finished Job."""
+        # Failed pods of earlier attempts may have no readable logs left, e.g. once evicted
+        try:
+            self.pod_manager.fetch_requested_container_logs(pod=pod, containers=self.container_logs)
+        except (HTTPError, ApiException) as e:
+            self.log.warning("Could not read the logs of pod %s: %s", pod.metadata.name, e)
