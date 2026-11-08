@@ -276,7 +276,7 @@ class BigQueryToGCSOperator(BaseOperator):
                     conn_id=self.gcp_conn_id,
                     job_id=self.job_id,
                     project_id=self.project_id or self.hook.project_id,
-                    location=self.location or self.hook.location,
+                    location=job.location or self.location or self.hook.location,
                     impersonation_chain=self.impersonation_chain,
                     cancel_on_kill=self.cancel_on_kill,
                 ),
@@ -307,7 +307,6 @@ class BigQueryToGCSOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.hook and self.job_id and self.cancel_on_kill:
-            # BigQuery finds a regional job only with its location, which the job object reports.
             location = (self._job.location if self._job else None) or self.location
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=location)
         else:

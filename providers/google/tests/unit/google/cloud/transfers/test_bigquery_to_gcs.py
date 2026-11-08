@@ -209,6 +209,25 @@ class TestBigQueryToGCSOperator:
 
         assert exc.value.trigger.cancel_on_kill is False
 
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
+    def test_execute_deferrable_mode_hands_the_job_location_to_trigger(self, mock_hook):
+        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id="real_job_id", error_result=False, location="asia-northeast3"
+        )
+
+        operator = BigQueryToGCSOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=["gs://some-bucket/some-file.txt"],
+            project_id=JOB_PROJECT_ID,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context=mock.MagicMock())
+
+        assert exc.value.trigger.location == "asia-northeast3"
+
     @pytest.mark.parametrize("cancel_on_kill", [True, False])
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
     def test_on_kill(self, mock_hook, cancel_on_kill):
