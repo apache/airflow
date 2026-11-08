@@ -2264,8 +2264,21 @@ class DagFileProcessorManager(LoggingMixin):
             finished.append(file)
             self.handle_parsing_result(file, proc)
 
+        bundle_to_team = self._get_team_names({file.bundle_name for file in finished})
+
         for file in finished:
             processor = self._processors.pop(file)
+            stats.decr(
+                "dag_processing.processes",
+                tags=prune_dict(
+                    {
+                        "file_path": file.normalized_file_path_for_stats,
+                        "bundle_name": normalize_name_for_stats(file.bundle_name),
+                        "action": "finish",
+                        "team_name": bundle_to_team.get(file.bundle_name),
+                    }
+                ),
+            )
             processor.close()
 
     def _get_log_dir(self) -> str:

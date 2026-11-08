@@ -90,7 +90,7 @@ READ_ONLY_METADATA_TYPES: tuple[type[exp.Expr], ...] = (
 # Note: exp.Command is sqlglot's fallback for any syntax it doesn't recognize.
 # Including it makes the denylist fail-closed (safer), but may block legitimate
 # vendor-specific SQL that sqlglot can't parse. Callers who need such syntax can
-# provide custom allowed_types to bypass the deep scan entirely.
+# add exp.Command to a custom allowed_types, which also turns the deep scan off.
 _DATA_MODIFYING_NODES: tuple[type[exp.Expr], ...] = (
     exp.Insert,
     exp.Update,
@@ -433,7 +433,9 @@ def validate_sql(
     :param allowed_types: Tuple of sqlglot expression types to permit.
         Defaults to ``(Select, Union, Intersect, Except)``. When supplied, the
         caller takes full control of the allow-list and ``allow_read_only_metadata``
-        is ignored.
+        is ignored. The deep scan for data-modifying nodes still runs unless the
+        allow-list admits a write, directly (``exp.Insert``) or through a base class
+        (``exp.DML``).
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
     :param allow_multiple_statements: Whether to allow multiple semicolon-separated
         statements. Default ``False``.
@@ -445,18 +447,23 @@ def validate_sql(
     :raises SQLSafetyError: If the SQL is empty, contains disallowed statement types,
         or has multiple statements when not permitted.
     """
-    # A caller-supplied ``allowed_types`` is an explicit opt-out of the curated
-    # read-only defaults (and the data-modifying deep scan). Otherwise we use the
-    # read-only defaults, optionally widened with metadata statements, and keep
-    # the deep scan on.
     if allowed_types is None:
         types: tuple[type[exp.Expr], ...] = DEFAULT_ALLOWED_TYPES
         if allow_read_only_metadata:
             types = types + READ_ONLY_METADATA_TYPES
-        run_data_modifying_scan = True
     else:
         types = allowed_types
-        run_data_modifying_scan = types == DEFAULT_ALLOWED_TYPES
+    # Only an allow-list that admits a write opts out of the deep scan, whether it names
+    # the write type (``exp.Insert``) or a base of it (``exp.DML``). Comparing to
+    # DEFAULT_ALLOWED_TYPES would also switch it off for a narrower or reordered
+    # read-only list such as ``(exp.Select,)``, letting ``WITH d AS (DELETE ...)
+    # SELECT ...`` through. Scanning a list that admits writes would instead reject the
+    # writes it allows: MERGE nests Insert and Update, ALTER ... DROP COLUMN nests Drop.
+    run_data_modifying_scan = not any(
+        issubclass(allowed, node) or issubclass(node, allowed)
+        for allowed in types
+        for node in _DATA_MODIFYING_NODES
+    )
 
     parsed = parse_sql(sql, dialect=dialect, allow_multiple_statements=allow_multiple_statements)
 
@@ -468,9 +475,7 @@ def validate_sql(
             )
 
     # Deep scan: reject data-modifying nodes hidden inside otherwise-allowed statements
-    # (e.g. data-modifying CTEs, SELECT INTO, EXPLAIN <write>). Runs for the curated
-    # read-only allow-list — callers who provide custom allowed_types have explicitly
-    # opted into non-read-only operations.
+    # (e.g. data-modifying CTEs, SELECT INTO, EXPLAIN <write>).
     if run_data_modifying_scan:
         _check_for_data_modifying_nodes(parsed)
 

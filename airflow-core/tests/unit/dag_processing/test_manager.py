@@ -7266,6 +7266,47 @@ class TestMultiTeamMetrics:
         mock_decr.assert_called_once_with("dag_processing.processes", tags=expected_tags)
 
     @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                True,
+                "team_alpha",
+                {
+                    "file_path": "a.py",
+                    "bundle_name": "testing",
+                    "action": "finish",
+                    "team_name": "team_alpha",
+                },
+                id="with_team",
+            ),
+            pytest.param(
+                False,
+                None,
+                {"file_path": "a.py", "bundle_name": "testing", "action": "finish"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_names")
+    @mock.patch("airflow.dag_processing.manager.stats.decr")
+    def test_collect_results_includes_team_name(
+        self, mock_decr, mock_get_team_names, multi_team, team_name, expected_tags
+    ):
+        mock_get_team_names.return_value = {"testing": team_name}
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = multi_team
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+        processor = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = True
+        manager._processors[file] = processor
+
+        manager._collect_results()
+
+        assert file not in manager._processors
+        mock_decr.assert_called_once_with("dag_processing.processes", tags=expected_tags)
+
+    @pytest.mark.parametrize(
         ("team_name", "expected_tags"),
         [
             pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
