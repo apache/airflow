@@ -46,7 +46,7 @@ from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_installed
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
@@ -941,32 +941,53 @@ def _hook_exclusion(hook_cls, patterns: list[str]) -> DatasetFilter:
     )
 
 
-# gs:// because translating an asset needs the converter of the provider owning the scheme, and
-# google is a dev dependency of this provider while amazon is not.
-def _collect_gs_parts(collector):
+# file:// because translating an asset needs the converter of the provider owning the scheme, and
+# common.io is a dev dependency of this provider; other providers' converters are tested only when installed.
+def _collect_file_parts(collector):
     storage_hook, warehouse_hook = _FakeStorageHook(), _FakeWarehouseHook()
-    collector.add_output_asset(context=storage_hook, uri="gs://bucket/staging/part_0")
-    collector.add_output_asset(context=storage_hook, uri="gs://bucket/final/summary")
-    collector.add_output_asset(context=warehouse_hook, uri="gs://bucket/staging/part_1")
+    collector.add_output_asset(context=storage_hook, uri="file://host/staging/part_0")
+    collector.add_output_asset(context=storage_hook, uri="file://host/final/summary")
+    collector.add_output_asset(context=warehouse_hook, uri="file://host/staging/part_1")
 
 
 def test_get_hook_lineage_excludes_datasets_per_reporting_hook(hook_lineage_collector):
-    _collect_gs_parts(hook_lineage_collector)
+    _collect_file_parts(hook_lineage_collector)
 
     result = ExtractorManager().get_hook_lineage(
-        controls=_controls(_hook_exclusion(_FakeStorageHook, ["gs://bucket/staging/.*"]))
+        controls=_controls(_hook_exclusion(_FakeStorageHook, ["file://host/staging/.*"]))
     )
 
     assert result == OperatorLineage(
         outputs=[
-            OpenLineageDataset(namespace="gs://bucket", name="final/summary"),
-            OpenLineageDataset(namespace="gs://bucket", name="staging/part_1"),
+            OpenLineageDataset(namespace="file://host", name="/final/summary"),
+            OpenLineageDataset(namespace="file://host", name="/staging/part_1"),
         ]
     )
 
 
+@pytest.mark.parametrize(
+    "scheme",
+    [
+        pytest.param("gs", marks=skip_if_not_installed("airflow.providers.google"), id="google"),
+        pytest.param("s3", marks=skip_if_not_installed("airflow.providers.amazon"), id="amazon"),
+    ],
+)
+def test_get_hook_lineage_excludes_datasets_translated_by_provider_converter(hook_lineage_collector, scheme):
+    storage_hook = _FakeStorageHook()
+    hook_lineage_collector.add_output_asset(context=storage_hook, uri=f"{scheme}://bucket/staging/part_0")
+    hook_lineage_collector.add_output_asset(context=storage_hook, uri=f"{scheme}://bucket/final/summary")
+
+    result = ExtractorManager().get_hook_lineage(
+        controls=_controls(_hook_exclusion(_FakeStorageHook, [f"{scheme}://bucket/staging/.*"]))
+    )
+
+    assert result == OperatorLineage(
+        outputs=[OpenLineageDataset(namespace=f"{scheme}://bucket", name="final/summary")]
+    )
+
+
 def test_get_hook_lineage_returns_empty_lineage_when_everything_excluded(hook_lineage_collector):
-    _collect_gs_parts(hook_lineage_collector)
+    _collect_file_parts(hook_lineage_collector)
 
     result = ExtractorManager().get_hook_lineage(
         controls=_controls(DatasetFilter(authoring_patterns=(".*",)))
@@ -998,7 +1019,7 @@ def test_extract_metadata_excluded_hook_lineage_does_not_fall_back_to_inlets(hoo
         def execute(self, context: Context) -> Any:
             pass
 
-    _collect_gs_parts(hook_lineage_collector)
+    _collect_file_parts(hook_lineage_collector)
     task = FakeUnsupportedOperator(
         task_id="unsupported_task", inlets=[OpenLineageDataset(namespace="ns", name="inlet")]
     )
@@ -1008,7 +1029,7 @@ def test_extract_metadata_excluded_hook_lineage_does_not_fall_back_to_inlets(hoo
         task=task,
         task_instance_state=None,
         task_instance=MagicMock(),
-        controls=_controls(DatasetFilter(authoring_patterns=("gs://.*",))),
+        controls=_controls(DatasetFilter(authoring_patterns=("file://.*",))),
     )
 
     assert metadata.inputs == []
