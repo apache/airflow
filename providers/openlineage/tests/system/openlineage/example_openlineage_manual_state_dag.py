@@ -38,6 +38,9 @@ It checks:
       first outcome
     - tasks the scheduler skips or fails because of the change, and map indexes that never start, emit nothing
     - the Dag run events of the child Dags, whoever emitted them
+
+Airflow 3.0 emits the event of only one of the tasks a change marks with their upstream or downstream, whichever
+its unordered query returns first, so the events of those tasks are checked from Airflow 3.1 on.
 """
 
 from __future__ import annotations

@@ -289,6 +289,7 @@
         }
     },
     {
+        "$since": "3.1",
         "eventType": "COMPLETE",
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_downstream_success"},
         "run": {
@@ -390,6 +391,7 @@
         }
     },
     {
+        "$since": "3.1",
         "eventType": "FAIL",
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_upstream_failed"},
         "run": {
