@@ -31,6 +31,7 @@ class LocalDagBundle(BaseDagBundle):
     """
 
     supports_versioning = False
+    refresh_changes_source = False
 
     def __init__(self, *, path: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
