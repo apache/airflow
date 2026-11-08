@@ -235,3 +235,15 @@ class TestSqliteHook:
         assert engine.name == "sqlite"
         # Assert filepath of the sqliate DB is correct
         assert engine.url.database == hook.get_connection(conn_id).host
+
+    def test_get_ui_field_behaviour(self):
+        assert SqliteHook.get_ui_field_behaviour() == {
+            "hidden_fields": ["port", "schema", "login", "password"],
+            "relabeling": {
+                "host": "File path",
+            },
+            "placeholders": {
+                "host": "/path/to/database.db (leave empty or use :memory: for an in-memory database)",
+                "extra": '{"mode": "ro"}',
+            },
+        }

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 from urllib.parse import unquote
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -30,6 +31,20 @@ class SqliteHook(DbApiHook):
     default_conn_name = "sqlite_default"
     conn_type = "sqlite"
     hook_name = "Sqlite"
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for SQLite connection."""
+        return {
+            "hidden_fields": ["port", "schema", "login", "password"],
+            "relabeling": {
+                "host": "File path",
+            },
+            "placeholders": {
+                "host": "/path/to/database.db (leave empty or use :memory: for an in-memory database)",
+                "extra": '{"mode": "ro"}',
+            },
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
