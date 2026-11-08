@@ -50,6 +50,9 @@ but not limited to:
   (``dag_id``, ``task_id``, ``run_id``, ``try_number``, ``map_index``) is merged into
   ``query_tags`` automatically. Set to ``False`` to suppress these automatic tags.
 
+The ``statement`` and nested ``parameters`` values support Jinja templating. Use SQL parameter
+markers such as ``:run_date`` to bind values rendered from the Airflow context.
+
 Examples
 --------
 
@@ -59,6 +62,13 @@ An example usage of the ``DatabricksSQLStatementsOperator`` is as follows:
     :language: python
     :start-after: [START howto_operator_sql_statements]
     :end-before: [END howto_operator_sql_statements]
+
+The following example checks values passed through templated SQL and bound parameters:
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_statement_parameters.py
+    :language: python
+    :start-after: [START howto_operator_sql_statement_parameters]
+    :end-before: [END howto_operator_sql_statement_parameters]
 
 
 .. _howto/sensor:DatabricksSQLStatementsSensor:

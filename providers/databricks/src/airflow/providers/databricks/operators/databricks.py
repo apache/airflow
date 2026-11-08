@@ -1614,11 +1614,12 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DatabricksSQLStatementsOperator`
 
-    :param statement: The SQL statement to execute. The statement can optionally be parameterized, see parameters.
+    :param statement: The SQL statement to execute. The statement can optionally be parameterized,
+        see parameters. (templated)
     :param warehouse_id: Warehouse upon which to execute a statement.
     :param catalog: Sets default catalog for statement execution, similar to USE CATALOG in SQL.
     :param schema: Sets default schema for statement execution, similar to USE SCHEMA in SQL.
-    :param parameters: A list of parameters to pass into a SQL statement containing parameter markers.
+    :param parameters: A list of parameters to pass into a SQL statement containing parameter markers. (templated)
 
         .. seealso::
             https://docs.databricks.com/api/workspace/statementexecution/executestatement#parameters
@@ -1647,7 +1648,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags")
+    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags", "statement", "parameters")
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"

@@ -3671,6 +3671,31 @@ class TestDatabricksRunNowOperatorDurable:
 
 
 class TestDatabricksSQLStatementsOperator:
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_execute_renders_statement_and_parameters(self, mock_hook):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="SELECT {{ params.expression }} WHERE event_date = :event_date",
+            warehouse_id=WAREHOUSE_ID,
+            parameters=[{"name": "event_date", "value": "{{ ds }}", "type": "DATE"}],
+            wait_for_termination=False,
+            include_airflow_query_tags=False,
+        )
+        op.render_template_fields(context={"ds": DATE, "params": {"expression": "COUNT(*)"}})
+
+        op.execute(None)
+
+        mock_hook.return_value.post_sql_statement.assert_called_once_with(
+            {
+                "statement": "SELECT COUNT(*) WHERE event_date = :event_date",
+                "warehouse_id": WAREHOUSE_ID,
+                "catalog": None,
+                "schema": None,
+                "parameters": [{"name": "event_date", "value": DATE, "type": "DATE"}],
+                "wait_timeout": "0s",
+            }
+        )
+
     def test_init(self):
         """
         Test the initializer.
