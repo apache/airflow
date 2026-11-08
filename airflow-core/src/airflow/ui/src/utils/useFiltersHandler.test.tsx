@@ -118,6 +118,27 @@ describe("useFiltersHandler multiselect writes", () => {
     expect(result.current.searchParams.get(SearchParamsKeys.OFFSET)).toBeNull();
     expect(result.current.searchParams.get(SearchParamsKeys.CURSOR)).toBeNull();
   });
+
+  it("clears the extra keys passed as clearKeys in the same write", () => {
+    const { result } = renderFiltersHandler(["/dags?tags=ml&dag_folder=team_a&dag_bundle=dags-folder"]);
+
+    act(() =>
+      result.current.handleFiltersChange(
+        {},
+        { clearKeys: [SearchParamsKeys.DAG_FOLDER, SearchParamsKeys.DAG_BUNDLE] },
+      ),
+    );
+
+    expect(result.current.searchParams.toString()).toBe("");
+  });
+
+  it("keeps keys outside the filters when no clearKeys are passed", () => {
+    const { result } = renderFiltersHandler(["/dags?tags=ml&dag_folder=team_a"]);
+
+    act(() => result.current.handleFiltersChange({}));
+
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_FOLDER)).toBe("team_a");
+  });
 });
 
 // Composite filters (fromSearchParams/toSearchParams) span several URL params behind one key;

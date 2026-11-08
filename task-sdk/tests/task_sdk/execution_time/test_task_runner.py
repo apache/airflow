@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import contextvars
 import functools
+import inspect
 import json
 import os
 import textwrap
@@ -3598,6 +3599,62 @@ class TestRuntimeTaskInstance:
         result = await runtime_ti.axcom_pull(key="test_key", task_ids="body.first")
 
         assert result == ["only"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("pull_method", "get_all_method"),
+        [
+            pytest.param("xcom_pull", "get_all", id="sync"),
+            pytest.param("axcom_pull", "aget_all", id="async"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("pull_kwargs", "expected"),
+        [
+            pytest.param({"default": "fallback_value"}, "fallback_value", id="default passed"),
+            pytest.param({}, None, id="default not passed"),
+        ],
+    )
+    async def test_xcom_pull_uses_default_when_no_map_indexes_and_no_xcom(
+        self, create_runtime_ti, mock_supervisor_comms, pull_method, get_all_method, pull_kwargs, expected
+    ):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="pull_task"))
+
+        with patch.object(XCom, get_all_method, autospec=True, return_value=None):
+            result = getattr(runtime_ti, pull_method)(key="missing_key", task_ids="task_a", **pull_kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+
+        assert result == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("pull_method", "get_all_method"),
+        [
+            pytest.param("xcom_pull", "get_all", id="sync"),
+            pytest.param("axcom_pull", "aget_all", id="async"),
+        ],
+    )
+    async def test_xcom_pull_default_fills_correct_position_with_multiple_task_ids(
+        self, create_runtime_ti, mock_supervisor_comms, pull_method, get_all_method
+    ):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="pull_task"))
+
+        def get_all_side_effect(*, run_id, key, task_id, dag_id, include_prior_dates):
+            if task_id == "task_with_xcom":
+                return ["stored_value"]
+            return None
+
+        with patch.object(XCom, get_all_method, autospec=True, side_effect=get_all_side_effect):
+            result = getattr(runtime_ti, pull_method)(
+                key="my_key",
+                task_ids=["task_with_xcom", "task_without_xcom"],
+                default="my_default",
+            )
+            if inspect.isawaitable(result):
+                result = await result
+
+        assert result == ["stored_value", "my_default"]
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
