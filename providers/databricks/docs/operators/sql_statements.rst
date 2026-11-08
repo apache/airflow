@@ -63,7 +63,7 @@ An example usage of the ``DatabricksSQLStatementsOperator`` is as follows:
     :start-after: [START howto_operator_sql_statements]
     :end-before: [END howto_operator_sql_statements]
 
-The following example checks values passed through templated SQL and bound parameters:
+The following example uses templated SQL and bound parameters:
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_statement_parameters.py
     :language: python

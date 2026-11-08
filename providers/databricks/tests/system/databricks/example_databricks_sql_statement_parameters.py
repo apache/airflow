@@ -21,7 +21,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.providers.common.compat.sdk import DAG
+from airflow.providers.common.compat.sdk import DAG, task
+from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.operators.databricks import DatabricksSQLStatementsOperator
 from airflow.providers.databricks.operators.warehouse import DatabricksStopWarehouseOperator
 
@@ -35,7 +36,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
-    params={"client": "airflow", "expected_count": 2},
+    params={"client": "airflow", "row_count": 2, "increment": 1},
 ) as dag:
     # [START howto_operator_sql_statement_parameters]
     sql_statement = DatabricksSQLStatementsOperator(
@@ -43,17 +44,25 @@ with DAG(
         databricks_conn_id="databricks_default",
         warehouse_id=WAREHOUSE_ID,
         statement="""
-            SELECT assert_true(:run_date = '{{ ds }}'),
-                   assert_true(:client = 'airflow'),
-                   assert_true(:row_count = {{ params.expected_count }})
+            SELECT :run_date AS run_date,
+                   :client AS client,
+                   :row_count + {{ params.increment }} AS total
         """,
         parameters=[
             {"name": "run_date", "value": "{{ ds }}", "type": "STRING"},
             {"name": "client", "value": "{{ params.client }}", "type": "STRING"},
-            {"name": "row_count", "value": "{{ params.expected_count }}", "type": "INT"},
+            {"name": "row_count", "value": "{{ params.row_count }}", "type": "INT"},
         ],
     )
     # [END howto_operator_sql_statement_parameters]
+
+    @task
+    def validate_result(statement_id: str, run_date: str) -> None:
+        hook = DatabricksHook(databricks_conn_id="databricks_default")
+        response = hook._do_api_call(("GET", f"2.0/sql/statements/{statement_id}"))
+        assert response["result"]["data_array"] == [[run_date, "airflow", "3"]]
+
+    check_result = validate_result(sql_statement.output["statement_id"], "{{ ds }}")
 
     stop_warehouse = DatabricksStopWarehouseOperator(
         task_id="stop_warehouse",
@@ -61,7 +70,7 @@ with DAG(
         trigger_rule="all_done",
     )
 
-    sql_statement >> stop_warehouse
+    sql_statement >> check_result >> stop_warehouse
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
