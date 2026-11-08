@@ -525,8 +525,9 @@ def _parse_param_docs(docstring: str) -> dict[str, str]:
         else:
             name = None
 
+    params = {param: desc for param, text in params.items() if (desc := " ".join(text.split()))}
     if params:
-        return {param: desc for param, text in params.items() if (desc := " ".join(text.split()))}
+        return params
 
     # Fall back to Google style (``Args:`` section).
     in_args = False

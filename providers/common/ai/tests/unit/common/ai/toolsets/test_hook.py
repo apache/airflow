@@ -824,6 +824,16 @@ class TestParseParamDocs:
         """
         assert _parse_param_docs(docstring) == {"key": "The key label"}
 
+    def test_empty_sphinx_param_does_not_hide_google_args(self):
+        docstring = """Read records.
+
+        Args:
+            path: Path to read.
+
+        :param undocumented:
+        """
+        assert _parse_param_docs(docstring) == {"path": "Path to read."}
+
     def test_google_style(self):
         docstring = """Do something.
 
