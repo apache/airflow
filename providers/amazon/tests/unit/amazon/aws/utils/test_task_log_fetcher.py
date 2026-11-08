@@ -44,7 +44,7 @@ class TestAwsTaskLogFetcher:
     def setup_method(self):
         self.set_up_log_fetcher()
 
-    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsLogsHook")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsLogsHook", autospec=True)
     def test_hook_is_built_with_the_given_aws_configuration(self, logs_hook_mock):
         botocore_config = {"read_timeout": 10}
 

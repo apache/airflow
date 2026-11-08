@@ -93,7 +93,7 @@ class TestBatchOperator:
 
         self.mock_context = mock.MagicMock()
 
-    @patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher")
+    @patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher", autospec=True)
     @patch.object(BatchClientHook, "get_job_awslogs_info")
     def test_get_batch_log_fetcher_uses_operator_aws_configuration(
         self, mock_get_job_awslogs_info, log_fetcher_mock

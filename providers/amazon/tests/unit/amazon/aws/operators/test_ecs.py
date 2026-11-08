@@ -200,7 +200,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert fetcher.hook.region_name == "region"
 
-    @mock.patch("airflow.providers.amazon.aws.operators.ecs.AwsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.operators.ecs.AwsTaskLogFetcher", autospec=True)
     def test_get_task_log_fetcher_uses_operator_aws_configuration(self, log_fetcher_mock):
         botocore_config = {"read_timeout": 10}
         self.set_up_operator(
