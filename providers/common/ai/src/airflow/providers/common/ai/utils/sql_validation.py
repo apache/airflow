@@ -90,7 +90,7 @@ READ_ONLY_METADATA_TYPES: tuple[type[exp.Expr], ...] = (
 # Note: exp.Command is sqlglot's fallback for any syntax it doesn't recognize.
 # Including it makes the denylist fail-closed (safer), but may block legitimate
 # vendor-specific SQL that sqlglot can't parse. Callers who need such syntax can
-# provide custom allowed_types to bypass the deep scan entirely.
+# add exp.Command to a custom allowed_types, which also turns the deep scan off.
 _DATA_MODIFYING_NODES: tuple[type[exp.Expr], ...] = (
     exp.Insert,
     exp.Update,
@@ -433,8 +433,9 @@ def validate_sql(
     :param allowed_types: Tuple of sqlglot expression types to permit.
         Defaults to ``(Select, Union, Intersect, Except)``. When supplied, the
         caller takes full control of the allow-list and ``allow_read_only_metadata``
-        is ignored. The deep scan for data-modifying nodes still runs unless one of
-        the supplied types is itself a data-modifying type (e.g. ``exp.Insert``).
+        is ignored. The deep scan for data-modifying nodes still runs unless the
+        allow-list admits a write, directly (``exp.Insert``) or through a base class
+        (``exp.DML``).
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
     :param allow_multiple_statements: Whether to allow multiple semicolon-separated
         statements. Default ``False``.
@@ -452,11 +453,17 @@ def validate_sql(
             types = types + READ_ONLY_METADATA_TYPES
     else:
         types = allowed_types
-    # Only an allow-list that admits a write opts out of the deep scan. Comparing to
+    # Only an allow-list that admits a write opts out of the deep scan, whether it names
+    # the write type (``exp.Insert``) or a base of it (``exp.DML``). Comparing to
     # DEFAULT_ALLOWED_TYPES would also switch it off for a narrower or reordered
     # read-only list such as ``(exp.Select,)``, letting ``WITH d AS (DELETE ...)
-    # SELECT ...`` through.
-    run_data_modifying_scan = not any(issubclass(t, _DATA_MODIFYING_NODES) for t in types)
+    # SELECT ...`` through. Scanning a list that admits writes would instead reject the
+    # writes it allows: MERGE nests Insert and Update, ALTER ... DROP COLUMN nests Drop.
+    run_data_modifying_scan = not any(
+        issubclass(allowed, node) or issubclass(node, allowed)
+        for allowed in types
+        for node in _DATA_MODIFYING_NODES
+    )
 
     parsed = parse_sql(sql, dialect=dialect, allow_multiple_statements=allow_multiple_statements)
 
