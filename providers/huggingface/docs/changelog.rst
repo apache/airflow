@@ -2,7 +2,7 @@ Changelog
 =========
 
 Version 0.1.0
-------------
+=============
 
 Initial public release of the Hugging Face provider for Apache Airflow.
 

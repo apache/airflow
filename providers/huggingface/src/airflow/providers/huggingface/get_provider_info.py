@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Hugging Face Datasets",
                 "external-doc-url": "https://huggingface.co/docs/datasets/",
+                "tags": ["machine-learning"],
             }
         ],
         "hooks": [

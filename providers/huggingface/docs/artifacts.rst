@@ -1,5 +1,5 @@
 Dataset artifact contract
-========================
+=========================
 
 Load and map tasks write a JSON manifest at the requested ``output_uri`` and
 one Parquet object per split beside it (``<uri>.split-N.parquet``). The

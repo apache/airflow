@@ -12,7 +12,7 @@ Supported capabilities
 ----------------------
 
 * Airflow connection based Hub authentication, with Hub SDK fallback when the
-default connection is absent.
+  default connection is absent.
 * Revision pinning and source provenance for Hub dataset loads.
 * Split aware Parquet handoff with features metadata and content fingerprints.
 * Synchronous publication of materialized or streamed datasets with the Hub
@@ -54,6 +54,27 @@ Guides
    artifacts
    security
    changelog
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: References
+
+    Python API <_api/airflow/providers/huggingface/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Resources
+
+    Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/huggingface/index>
 
 The system-test DAGs under ``tests/system/huggingface/`` also serve as runnable
 examples and are collected with pytest through Airflow's ``get_test_run(dag)``
@@ -104,14 +125,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0``.
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=3.0,<4``
-``datasets``         ``>=3.4.0,<5``
-``huggingface-hub``  ``>=0.24,<2``
-===================  ==================
-
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0,<4``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``datasets``                                ``>=4.0.0``
+``huggingface-hub``                         ``>=0.24``
+==========================================  ==================
 
 Downloading official packages
 -----------------------------

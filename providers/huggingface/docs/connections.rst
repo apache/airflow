@@ -1,9 +1,9 @@
 Hugging Face connection
-======================
+=======================
 
 The hook uses the Airflow connection type ``huggingface`` and defaults to
 connection ID ``huggingface_default``. Put the Hub access token in the password
-field, labelled **Access token** in the connection form. Host, schema, port,
+field, labeled **Access token** in the connection form. Host, schema, port,
 and login are hidden. Extra fields are not used for authentication.
 
 The hook creates a cached ``HfApi`` client and uses it for Hub metadata,
