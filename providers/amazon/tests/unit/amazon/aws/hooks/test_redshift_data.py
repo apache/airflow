@@ -355,6 +355,19 @@ class TestRedshiftDataHook:
             statement_name=statement_name,
         )
 
+        mock_conn.execute_statement.assert_called_once_with(
+            Database=DATABASE,
+            Sql=mock.ANY,
+            ClusterIdentifier=cluster_identifier,
+            DbUser=db_user,
+            Parameters=[{"name": "schema", "value": schema}, {"name": "table", "value": table}],
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            WithEvent=False,
+        )
+        sql = mock_conn.execute_statement.call_args.kwargs["Sql"]
+        assert "kcu.table_schema = :schema" in sql
+        assert "kcu.table_name = :table" in sql
         mock_conn.get_statement_result.assert_called_once_with(Id=STATEMENT_ID)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
