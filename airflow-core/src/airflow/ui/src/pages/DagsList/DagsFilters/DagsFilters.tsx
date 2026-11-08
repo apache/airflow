@@ -45,11 +45,23 @@ export const DagsFilters = () => {
     searchParamKeys.push(SearchParamsKeys.TEAMS);
   }
 
-  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
+  const { filterConfigs, handleFiltersChange, initialValues, searchParams } =
+    useFiltersHandler(searchParamKeys);
+  const hasFolderSelection =
+    searchParams.has(SearchParamsKeys.DAG_FOLDER) || searchParams.has(SearchParamsKeys.DAG_BUNDLE);
 
   const onFiltersChange = useRememberedFilters(filterConfigs, handleFiltersChange);
 
   return (
     <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={onFiltersChange} />
+    <FilterBar
+      configs={filterConfigs}
+      hasExternalFilters={hasFolderSelection}
+      initialValues={initialValues}
+      onFiltersChange={handleFiltersChange}
+      onReset={() =>
+        handleFiltersChange({}, { clearKeys: [SearchParamsKeys.DAG_FOLDER, SearchParamsKeys.DAG_BUNDLE] })
+      }
+    />
   );
 };

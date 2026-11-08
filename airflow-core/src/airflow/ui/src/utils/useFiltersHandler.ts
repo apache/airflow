@@ -201,7 +201,10 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
     }
   });
 
-  const handleFiltersChange = (filters: Record<string, FilterValue>) => {
+  const handleFiltersChange = (
+    filters: Record<string, FilterValue>,
+    { clearKeys = [] }: { readonly clearKeys?: ReadonlyArray<string> } = {},
+  ) => {
     setTableURLState({
       cursor: undefined,
       pagination: { ...pagination, pageIndex: 0 },
@@ -243,6 +246,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
         }
       });
 
+      clearKeys.forEach((key) => newParams.delete(key));
       newParams.delete(SearchParamsKeys.OFFSET);
       newParams.delete(SearchParamsKeys.CURSOR);
 
