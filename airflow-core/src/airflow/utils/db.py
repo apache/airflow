@@ -67,14 +67,8 @@ _USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
-    import sqlalchemy
-    from packaging.version import Version
-
     is_psycopg3 = find_spec("psycopg") is not None
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
-
-    _USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+    _USE_PSYCOPG3 = is_psycopg3
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
@@ -118,7 +112,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
     "3.4.0": "b4f1a7d2c903",
-    "3.5.0": "38c8df3fcb9c",
+    "3.5.0": "d8c6f3a129b0",
 }
 
 # Prefix used to identify tables holding data moved during migration.

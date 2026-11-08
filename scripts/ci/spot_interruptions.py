@@ -80,7 +80,11 @@ COMMENT_AUTHOR = "github-actions[bot]"
 # A job cancelled while its run was not, e.g. by its timeout, is a failure too.
 FAILED_CONCLUSIONS = ("failure", "cancelled", "timed_out")
 # GitHub answers with a server error while overloaded, and the same request often succeeds later.
-TRANSIENT_ERROR = re.compile(r"\(HTTP 5\d\d\)")
+# Server errors, and connections GitHub dropped mid-request (an HTTP/2 stream reset, for one).
+TRANSIENT_ERROR = re.compile(
+    r"\(HTTP 5\d\d\)|stream error|connection reset by peer|unexpected EOF|TLS handshake timeout|i/o timeout"
+)
+NOT_FOUND_ERROR = re.compile(r"\(HTTP 404\)")
 GH_API_ATTEMPTS = 3
 GH_API_RETRY_DELAY_SECONDS = 5
 
@@ -96,6 +100,10 @@ class FailedJob:
 
 def is_transient(error: subprocess.CalledProcessError) -> bool:
     return bool(TRANSIENT_ERROR.search(error.stderr or ""))
+
+
+def is_not_found(error: subprocess.CalledProcessError) -> bool:
+    return bool(NOT_FOUND_ERROR.search(error.stderr or ""))
 
 
 def gh_api(*args: str) -> str:
@@ -381,6 +389,14 @@ def update_notice_on(repo: str, pr_number: int, run: dict, jobs: list[FailedJob]
     write_comment(repo, pr_number, existing, body)
 
 
+def is_run_deleted(repo: str, run_id: int) -> bool:
+    try:
+        gh_api(f"repos/{repo}/actions/runs/{run_id}", "--jq", ".id")
+    except subprocess.CalledProcessError as e:
+        return is_not_found(e)
+    return False
+
+
 def describe_error(error: subprocess.CalledProcessError) -> str:
     return " ".join((error.stderr or str(error)).split())
 
@@ -406,6 +422,9 @@ def run_pr_comments(repo: str, now: datetime) -> bool:
         except subprocess.CalledProcessError as e:
             if is_transient(e):
                 print(f"::warning::Skipped run {run['html_url']}, GitHub keeps failing: {describe_error(e)}")
+            elif is_not_found(e) and is_run_deleted(repo, run["id"]):
+                # Runs are deleted at any time, also between listing them and reading their jobs.
+                print(f"Skipped run {run['html_url']}: it was deleted")
             else:
                 print(f"Could not handle run {run['html_url']}: {describe_error(e)}", file=sys.stderr)
                 ok = False

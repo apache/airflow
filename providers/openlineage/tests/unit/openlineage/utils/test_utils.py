@@ -20,12 +20,15 @@ from __future__ import annotations
 import datetime
 import enum
 import pathlib
+import pickle
+import threading
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import UUID, uuid4
 
+import attrs
 import pendulum
 import pytest
 from openlineage.client.facet_v2 import parent_run
@@ -51,7 +54,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInstanceInfo,
     TaskInstancePosition,
     _build_labeled_edge_map,
-    _convert_to_json_safe_list,
+    _convert_to_json_safe,
     _extract_ol_info_from_asset_event,
     _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
@@ -2615,11 +2618,11 @@ def test_daginfo_timetable_summary():
     # timetable is enough to get summary
     dag.timetable = NullTimetable()
     dag.timetable_summary = None
-    assert DagInfo(dag).timetable_summary == "None"
+    assert DagInfo(dag)["timetable_summary"] == "None"
 
     # but if summary is present, it's preferred
     dag.timetable_summary = "explicit_summary"
-    assert DagInfo(dag).timetable_summary == "explicit_summary"
+    assert DagInfo(dag)["timetable_summary"] == "explicit_summary"
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
@@ -4642,6 +4645,87 @@ def test_task_instance_info_of_stored_instance_without_task_does_not_raise():
     assert "loop" not in info
 
 
+def _get_info_json_encodable_subclasses(cls: type[InfoJsonEncodable] = InfoJsonEncodable):
+    for subclass in cls.__subclasses__():
+        # Leave out the subclasses other tests define
+        if subclass.__module__ == InfoJsonEncodable.__module__:
+            yield subclass
+        yield from _get_info_json_encodable_subclasses(subclass)
+
+
+@pytest.mark.db_test
+def test_info_json_encodables_of_stored_objects_pickle_to_their_items_only(dag_maker):
+    """
+    The scheduler and API server send facets to a process pool, while what they are built from may not pickle.
+
+    A serialized Dag with a mapped operator doesn't, so no encodable may keep it or any other built-from object.
+    """
+    asset = Asset("s3://bucket/key")
+    with dag_maker(serialized=True):
+        with TaskGroup("group"):
+            plain = EmptyOperator(task_id="plain", inlets=[asset], outlets=[asset])
+        plain >> PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+        PythonOperator.partial(task_id="mapped_from_upstream", python_callable=list).expand(
+            op_kwargs=plain.output
+        )
+    run = dag_maker.create_dagrun()
+    stored = next(ti for ti in run.task_instances if ti.task_id == "group.plain")
+    dag = stored.task.dag
+
+    infos = [
+        DagInfo(dag),
+        DagRunInfo(run),
+        TaskInstanceInfo(stored, dag=dag, dag_run=run),
+        AssetInfo(asset),
+        TaskInfo(stored.task, runtime_assets=[(asset, None)]),
+        TaskInfoComplete(stored.task),
+        TaskInfo(dag.get_task("mapped")),
+        TaskInfoComplete(dag.get_task("mapped")),
+        TaskInfo(dag.get_task("mapped_from_upstream")),
+        TaskInfoComplete(dag.get_task("mapped_from_upstream")),
+        TaskGroupInfo(stored.task.task_group),
+    ]
+
+    # A new encodable must be added here too
+    assert {type(info) for info in infos} == set(_get_info_json_encodable_subclasses())
+    for info in infos:
+        assert vars(info) == {}
+        unpickled = pickle.loads(pickle.dumps(info))
+        assert type(unpickled) is type(info)
+        assert unpickled == info
+
+
+@pytest.mark.db_test
+def test_task_info_complete_of_stored_mapped_task_leaves_out_its_expand_input(dag_maker):
+    with dag_maker(serialized=True):
+
+        @task
+        def produce():
+            return [1, 2]
+
+        @task
+        def consume(x):
+            return x
+
+        produced = produce()
+        consume.expand(x=produced)
+        PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=produced)
+    dag = dag_maker.create_dagrun().task_instances[0].task.dag
+
+    for task_id in ("consume", "mapped"):
+        assert not {"expand_input", "op_kwargs_expand_input"} & TaskInfoComplete(dag.get_task(task_id)).keys()
+
+
+def test_task_info_complete_keeps_only_json_native_values_of_operator_attributes():
+    operator = BashOperator(task_id="t", bash_command="echo 1")
+    operator.custom = {"when": datetime.datetime(2026, 1, 2), "lock": threading.Lock()}
+
+    info = TaskInfoComplete(operator)
+
+    assert info["custom"] == {"when": "2026-01-02 00:00:00", "lock": "<<non-serializable: lock>>"}
+    pickle.dumps(info)
+
+
 def test_task_instance_info_uses_the_position_it_is_given():
     # The task instance's own loop and expansion differ, so the info can only match the given position
     ti = SimpleNamespace(
@@ -6085,6 +6169,16 @@ class _DatasetName(str, enum.Enum):
     SYNC = "user_sync"
 
 
+class _Color(enum.Enum):
+    RED = 1
+
+
+@attrs.define
+class _Creds:
+    user: str
+    password: str
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
@@ -6100,19 +6194,27 @@ class _DatasetName(str, enum.Enum):
         pytest.param(
             [{"nested": {"items": ["a", None, 1.0]}}], [{"nested": {"items": ["a", None, 1.0]}}], id="nested"
         ),
+        pytest.param([{"c": _Color.RED}], [{"c": 1}], id="enum_uses_value"),
+        pytest.param([{"s": {"a"}}], [{"s": ["a"]}], id="set"),
+        pytest.param(
+            [{"creds": _Creds("u", "p")}], [{"creds": {"user": "u", "password": "p"}}], id="attrs_as_dict"
+        ),
+        pytest.param(
+            [{"lock": threading.Lock()}], [{"lock": "<<non-serializable: lock>>"}], id="other_object"
+        ),
     ],
 )
-def test_convert_to_json_safe_list(value, expected):
-    assert _convert_to_json_safe_list(value, "outlets") == expected
+def test_convert_to_json_safe(value, expected):
+    assert _convert_to_json_safe(value, "outlets") == expected
 
 
 @patch("airflow.providers.openlineage.utils.utils.log", autospec=True)
-def test_convert_to_json_safe_list_returns_none_on_failure(mock_log):
+def test_convert_to_json_safe_returns_none_on_failure(mock_log):
     circular: list = []
     circular.append(circular)
-    assert _convert_to_json_safe_list(circular, "outlets") is None
+    assert _convert_to_json_safe(circular, "outlets") is None
     mock_log.warning.assert_called_once_with(
-        "Unable to serialize task `%s` to a JSON list: %s", "outlets", mock.ANY
+        "Unable to convert `%s` to JSON-native types: %s", "outlets", mock.ANY
     )
     assert str(mock_log.warning.call_args.args[2]) == "Circular reference detected"
 

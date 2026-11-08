@@ -28,10 +28,11 @@
         "lastParsed": "最后解析时间",
         "parseDuration": "解析耗时"
       },
-      "file_one": "文件",
-      "file_other": "文件",
       "importErrorGone": "此导入错误已不再被记录，可能已通过重新解析修复。",
       "neverParsed": "从未",
+      "parsedFile_one": "已解析文件",
+      "parsedFile_other": "已解析文件",
+      "parsedFilesNote": "仅列出定义了 Dag 或导入失败的文件。",
       "showImportError_one": "查看错误",
       "showImportError_other": "查看 {{count, number}} 个错误"
     },

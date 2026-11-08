@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.39.0``
+Release: ``9.40.0``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.39.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.40.0/>`_.
 
 Installation
 ------------
@@ -57,8 +57,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.42.93``
-``botocore``                                ``>=1.42.93``
+``boto3``                                   ``>=1.43.4``
+``botocore``                                ``>=1.43.4``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
@@ -111,7 +111,7 @@ Optional dependencies
 Extra                 Dependencies
 ====================  ======================================================================================================================================================================
 ``aiobotocore``       ``aiobotocore>=3.0.0``
-``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=11.0.0``
 ``s3fs``              ``s3fs>=2023.10.0``
 ``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
 ``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
@@ -131,9 +131,9 @@ Extra                 Dependencies
 ``standard``          ``apache-airflow-providers-standard``
 ``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
+``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``, ``duckdb>=1.2.2``
 ``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
 ====================  ======================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.39.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.40.0/changelog.html>`_.

@@ -211,14 +211,48 @@ class TestDataModifyingNodeDetection:
         result = validate_sql("SELECT * FROM users WHERE id IN (SELECT user_id FROM orders)")
         assert len(result) == 1
 
-    def test_deep_scan_runs_with_explicit_default_types(self):
-        """Deep scan should also block when DEFAULT_ALLOWED_TYPES is passed explicitly."""
-        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
-            validate_sql(
-                "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
-                allowed_types=DEFAULT_ALLOWED_TYPES,
-                dialect="postgres",
-            )
+    @pytest.mark.parametrize(
+        "allowed_types",
+        [
+            pytest.param(DEFAULT_ALLOWED_TYPES, id="explicit-default"),
+            pytest.param((exp.Select,), id="narrower"),
+            pytest.param(tuple(reversed(DEFAULT_ALLOWED_TYPES)), id="reordered"),
+            pytest.param((*DEFAULT_ALLOWED_TYPES, exp.Describe), id="widened-read-only"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("sql", "node"),
+        [
+            ("WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del", "Delete"),
+            ("SELECT * INTO new_table FROM users", "Into"),
+        ],
+    )
+    def test_deep_scan_runs_with_custom_read_only_types(self, allowed_types, sql, node):
+        """A custom allow-list with no write type keeps the deep scan on."""
+        with pytest.raises(SQLSafetyError, match=f"Data-modifying operation '{node}'"):
+            validate_sql(sql, allowed_types=allowed_types, dialect="postgres")
+
+    @pytest.mark.parametrize(
+        ("allowed_types", "sql", "expected_type"),
+        [
+            pytest.param((exp.Select, exp.Insert), "INSERT INTO t SELECT * FROM s", exp.Insert, id="leaf"),
+            pytest.param((exp.Select, exp.DML), "INSERT INTO t SELECT * FROM s", exp.Insert, id="base-class"),
+            pytest.param(
+                (exp.Select, exp.Merge),
+                "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET v = s.v "
+                "WHEN NOT MATCHED THEN INSERT (id, v) VALUES (s.id, s.v)",
+                exp.Merge,
+                id="merge-nests-insert-and-update",
+            ),
+            pytest.param(
+                (exp.Select, exp.Alter), "ALTER TABLE t DROP COLUMN c", exp.Alter, id="alter-nests-drop"
+            ),
+        ],
+    )
+    def test_deep_scan_skipped_when_custom_types_admit_writes(self, allowed_types, sql, expected_type):
+        """An allow-list that admits a write, directly or through a base class, turns the deep scan off."""
+        (stmt,) = validate_sql(sql, allowed_types=allowed_types, dialect="postgres")
+        assert isinstance(stmt, expected_type)
 
 
 class TestReadOnlyMetadata:
