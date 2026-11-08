@@ -23,6 +23,8 @@ from airflow.providers.common.ai.utils.sql_validation import (
     _DATA_MODIFYING_NODES,
     DEFAULT_ALLOWED_TYPES,
     SQLSafetyError,
+    canonical_allowed_functions,
+    canonical_allowed_tables,
     collect_table_references,
     parse_sql,
     resolve_sqlglot_dialect,
@@ -528,6 +530,54 @@ class TestCollectTableReferences:
         assert scan.unverifiable_sources
 
     @pytest.mark.parametrize(
+        "sql",
+        ["SELECT * FROM orders WHERE id IN secret", "SELECT * FROM orders WHERE id IN main.secret"],
+        ids=["bare", "schema_qualified"],
+    )
+    def test_flags_in_bare_name_as_unverifiable(self, sql):
+        """SQLite reads `IN <name>` as a table, but sqlglot parses the name as a column."""
+        scan = collect_table_references(parse_sql(sql, dialect="sqlite"))
+        assert scan.unverifiable_sources == ["an IN <name> source"]
+
+    def test_flags_allowed_function_after_in_as_unverifiable(self):
+        """allowed_functions permits a function call, not SQLite's `IN json_each(...)` row source."""
+        scan = collect_table_references(
+            parse_sql("SELECT * FROM orders WHERE id IN json_each('[1]')", dialect="sqlite"),
+            allowed_functions=frozenset({"json_each"}),
+        )
+        assert scan.unverifiable_sources == ["an IN <name> source"]
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            ("SELECT * FROM orders WHERE id IN (1, 2)", "sqlite"),
+            ("SELECT * FROM orders WHERE id IN (id)", "sqlite"),
+            ("SELECT * FROM orders WHERE id IN UNNEST([1, 2])", "bigquery"),
+        ],
+        ids=["list", "parenthesized_column", "unnest"],
+    )
+    def test_in_list_and_unnest_are_checkable(self, sql, dialect):
+        scan = collect_table_references(parse_sql(sql, dialect=dialect))
+        assert scan.tables == [("", "", "orders")]
+        assert scan.unverifiable_sources == []
+
+    def test_in_subquery_tables_are_still_reported(self):
+        sql = "SELECT * FROM orders WHERE id IN (SELECT order_id FROM salaries)"
+        scan = collect_table_references(parse_sql(sql, dialect="sqlite"))
+        assert set(scan.tables) == {("", "", "orders"), ("", "", "salaries")}
+        assert scan.unverifiable_sources == []
+
+    def test_dialect_decides_where_a_backslash_string_ends(self):
+        """MySQL's backslash escape ends the first literal early, so the subquery on secret is real."""
+        sql = "SELECT 'a\\' AS x, ' , (SELECT pw FROM secret) AS b -- '\nFROM orders"
+
+        def tables(dialect):
+            return {table.name for table in parse_sql(sql, dialect=dialect)[0].find_all(exp.Table)}
+
+        assert tables("mysql") == {"secret", "orders"}
+        assert tables(None) == {"orders"}
+
+    @pytest.mark.parametrize(
         ("sql", "dialect"),
         [("SHOW TABLES", "snowflake"), ("SHOW COLUMNS FROM secret", "mysql")],
         ids=["show_tables", "show_columns"],
@@ -738,6 +788,38 @@ _READ_STATEMENTS = {
     "cte_select": "WITH c AS (SELECT 1 AS a) SELECT * FROM c",
     "union_all": "SELECT 1 UNION ALL SELECT 2",
 }
+
+
+class TestCanonicalAllowLists:
+    def test_unqualified_entry_resolves_to_default_schema(self):
+        assert canonical_allowed_tables(["orders", "Sales.Items"], "public") == {
+            (None, "public", "orders"),
+            (None, "sales", "items"),
+        }
+
+    @pytest.mark.parametrize(
+        "entry",
+        ["db.sales.orders", "", ".orders", "sales."],
+        ids=["three_parts", "empty", "empty_schema", "empty_table"],
+    )
+    def test_rejects_malformed_table_entry(self, entry):
+        with pytest.raises(ValueError, match="must be 'table' or 'schema.table'"):
+            canonical_allowed_tables([entry])
+
+    @pytest.mark.parametrize("helper", [canonical_allowed_tables, canonical_allowed_functions])
+    def test_rejects_a_bare_string(self, helper):
+        """Iterating "orders" would allow the tables o, r, d, e and s."""
+        with pytest.raises(TypeError, match="not a string"):
+            helper("orders")
+
+    @pytest.mark.parametrize("entry", [None, {"table": "orders"}], ids=["none", "dict"])
+    def test_rejects_non_string_table_entry(self, entry):
+        with pytest.raises(TypeError, match="entries must be strings"):
+            canonical_allowed_tables([entry])
+
+    def test_functions_are_case_folded(self):
+        assert canonical_allowed_functions(["JSON_Build_Object"]) == {"json_build_object"}
+        assert canonical_allowed_functions(None) == frozenset()
 
 
 class TestSqlglotDriftTripwires:

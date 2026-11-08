@@ -289,7 +289,8 @@ def collect_table_references(
       rejects ``otherdb.public.orders`` instead of matching it to ``public.orders``.
     - **Unverifiable constructs are listed, not silently dropped:** nameless
       table-valued functions (``dblink``), including one under ``LATERAL``,
-      ``TABLE('name')`` row sources
+      ``x IN`` followed by a name or function rather than a parenthesized list (a table on
+      SQLite), ``TABLE('name')`` row sources
       (``exp.TableFromRows``), ``SHOW``, dynamic SQL (``EXEC``/``Command``), the
       ``TABLE <name>`` shorthand (which sqlglot parses incorrectly, leaking the
       ``TABLE`` keyword as a column), a **quoted identifier** (case-sensitive on the engine but
@@ -393,6 +394,12 @@ def collect_table_references(
             if not isinstance(lateral.this, _CHECKABLE_LATERAL_SOURCES):
                 unverifiable.append(f"table-valued function ({lateral.this.sql()})")
 
+        # `x IN <name>` reads a table on SQLite (`IN secret`, `IN json_each(...)`), but
+        # sqlglot parses the name as a column. Lists, subqueries and UNNEST use other
+        # arguments of exp.In, so anything in `field` is refused.
+        if any(in_.args.get("field") is not None for in_ in stmt.find_all(exp.In)):
+            unverifiable.append("an IN <name> source")
+
         # `TABLE <name>` (Postgres/MySQL shorthand for SELECT * FROM <name>) is not
         # modelled by sqlglot; it parses incorrectly, leaking the reserved word TABLE as an
         # unquoted column identifier. No real query has an unquoted column named TABLE.
@@ -464,12 +471,38 @@ def canonical_allowed_tables(
     ``"<schema>.orders"`` denote the same table. Entries carry no catalog, so any
     catalog-qualified reference (``otherdb.public.orders``) cannot match -- that closes
     cross-database access a single-connection allow-list cannot describe.
+
+    :raises TypeError: if ``allowed_tables`` is a string rather than a list of names.
+    :raises ValueError: if an entry is not ``table`` or ``schema.table``.
     """
+    _reject_bare_string("allowed_tables", allowed_tables)
     keys: set[TableKey] = set()
     for entry in allowed_tables:
-        entry_schema, sep, table = entry.rpartition(".")
-        keys.add(canonical_table_key(None, entry_schema if sep else default_schema, table))
+        if not isinstance(entry, str):
+            raise TypeError(f"allowed_tables entries must be strings, got {entry!r}.")
+        parts = entry.split(".")
+        if len(parts) > 2 or not all(parts):
+            raise ValueError(f"allowed_tables entries must be 'table' or 'schema.table', got {entry!r}.")
+        keys.add(canonical_table_key(None, parts[0] if len(parts) == 2 else default_schema, parts[-1]))
     return frozenset(keys)
+
+
+def canonical_allowed_functions(allowed_functions: Iterable[str] | None) -> frozenset[str]:
+    """
+    Return the case-folded ``allowed_functions`` names compared against a query's functions.
+
+    :raises TypeError: if ``allowed_functions`` is a string rather than a list of names.
+    """
+    if allowed_functions is None:
+        return frozenset()
+    _reject_bare_string("allowed_functions", allowed_functions)
+    return frozenset(name.casefold() for name in allowed_functions)
+
+
+def _reject_bare_string(argument: str, value: Iterable[str]) -> None:
+    """Refuse a ``str`` where a list of names is expected; iterating it would yield single characters."""
+    if isinstance(value, str):
+        raise TypeError(f"{argument} must be a list of names, not a string: use [{value!r}].")
 
 
 class AllowedTablesViolations(NamedTuple):

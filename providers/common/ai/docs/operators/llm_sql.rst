@@ -204,7 +204,8 @@ mostly means:
   case-sensitive on the database while the list is matched case-insensitively;
 - functions sqlglot does not recognize, such as Postgres' ``age`` or
   ``json_build_object``. List trusted ones in ``allowed_functions``;
-- table-valued functions such as ``dblink``.
+- table-valued functions such as ``dblink``, and ``x IN`` followed by a name or function
+  rather than a parenthesized list, which SQLite reads as a table.
 
 When ``allowed_tables`` is set, the prompt lists the allowed tables and asks for
 unquoted table names and no comments. If the model's answer is still refused, the
@@ -213,8 +214,12 @@ refusal is sent back to the model, which can rewrite the query as many times as
 :class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`. SQL edited
 by a reviewer during Human-in-the-Loop approval is checked too, and a refusal raises
 the same error.
-``allowed_tables`` requires ``validate_sql=True``. It is not a template field, so the
-list is fixed when the Dag is parsed.
+``allowed_tables`` requires ``validate_sql=True`` and a SQL dialect, so the query is
+parsed the way the database reads it: set ``dialect``, or ``db_conn_id`` to detect it
+from the database hook. Omit ``allowed_tables`` for no restriction; an explicit
+``None`` is rejected like an empty list, so a list read from a missing Variable cannot
+turn the check off. It is not a template field, so the list is fixed when the Dag is
+parsed.
 
 The check uses the same matching as ``SQLToolset(allowed_tables=...)``, except that
 ``SQLToolset`` resolves unqualified entries through its ``schema`` argument. Like
