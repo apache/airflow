@@ -177,12 +177,14 @@ describe("loadPlugin", () => {
     }
   });
 
-  it("renders nothing when the bundle cannot be fetched", async () => {
+  it("reloads once and renders nothing when the bundle cannot be fetched", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
 
     const { default: Component } = await loadPlugin(pluginA, () => Promise.reject(new Error("network down")));
     const { container } = render(<Component />, { wrapper: Wrapper });
 
+    expect(reload).toHaveBeenCalledOnce();
     // An error page here would bury the page the plugin was only decorating.
     expect(container).toBeEmptyDOMElement();
   });
@@ -197,6 +199,27 @@ describe("loadPlugin", () => {
     const { default: component } = await loadPlugin(pluginB, () => Promise.resolve());
 
     expect(component).not.toBe(componentA);
+  });
+
+  it("registers plugin dependencies before importing the plugin bundle", async () => {
+    const calls: Array<string> = [];
+
+    await loadPlugin(
+      pluginA,
+      () => {
+        calls.push("bundle");
+        (globalThis as Record<string, unknown>).AirflowPlugin = componentA;
+
+        return Promise.resolve();
+      },
+      () => {
+        calls.push("dependencies");
+
+        return Promise.resolve();
+      },
+    );
+
+    expect(calls).toEqual(["dependencies", "bundle"]);
   });
 });
 

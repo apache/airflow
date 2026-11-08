@@ -91,9 +91,10 @@ export const Gantt = ({
   const endDateGte = searchParams.get(SearchParamsKeys.END_DATE_GTE) ?? undefined;
   const endDateLte = searchParams.get(SearchParamsKeys.END_DATE_LTE) ?? undefined;
 
-  const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
+  // Match the Grid's query and discard its pagination lookahead row so the combined view polls once.
+  const { data: dataGridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
-    limit,
+    limit: limit + 1,
     offset,
     runAfterGte,
     runAfterLte,
@@ -101,6 +102,7 @@ export const Gantt = ({
     runType,
     triggeringUser,
   });
+  const gridRuns = dataGridRuns?.slice(0, limit);
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({
     dagRunState,
     depth,

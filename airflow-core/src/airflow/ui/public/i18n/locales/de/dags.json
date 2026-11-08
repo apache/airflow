@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favorisierter Zustand",
     "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
+    "hasImportErrors": "Hat Fehler mein Parsen",
     "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",

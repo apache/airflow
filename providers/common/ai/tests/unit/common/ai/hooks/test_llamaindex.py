@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.util
 import warnings
 from unittest.mock import MagicMock, patch
 
@@ -23,6 +24,13 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
+
+# The hook imports llama-index only when it builds a model, so only those tests need it.
+requires_llama_index = pytest.mark.skipif(
+    importlib.util.find_spec("llama_index") is None,
+    reason="llama-index is installed only in the agent framework CI job "
+    "(scripts/in_container/run_agent_framework_tests.sh)",
+)
 
 
 def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:
@@ -176,6 +184,7 @@ class TestResolveModel:
             )
 
 
+@requires_llama_index
 class TestGetEmbeddingModel:
     @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")
@@ -295,6 +304,7 @@ class TestGetEmbeddingModel:
             hook.get_embedding_model()
 
 
+@requires_llama_index
 class TestGetLlm:
     @patch("llama_index.llms.openai.OpenAI")
     @patch.object(LlamaIndexHook, "get_connection")
@@ -316,6 +326,7 @@ class TestGetLlm:
             hook.get_llm()
 
 
+@requires_llama_index
 class TestConnectionTest:
     @patch("llama_index.llms.openai.OpenAI")
     @patch.object(LlamaIndexHook, "get_connection")

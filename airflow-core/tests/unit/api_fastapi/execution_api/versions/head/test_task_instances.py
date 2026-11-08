@@ -821,6 +821,53 @@ class TestTIRunState:
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
 
+    def test_ti_run_loads_consumed_event_assets_and_aliases_in_bulk(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_consumed_events_in_bulk",
+            state=State.QUEUED,
+            session=session,
+        )
+        assets = [
+            AssetModel(name=f"upstream_{i}", uri=f"s3://bucket/upstream_{i}", group="asset", extra={})
+            for i in range(3)
+        ]
+        alias = AssetAliasModel(name="upstream_alias", group="asset")
+        session.add_all([*assets, *(AssetActive.for_asset(asset) for asset in assets), alias])
+        session.flush()
+        for asset in assets:
+            event = AssetEvent(asset_id=asset.id)
+            event.source_aliases.append(alias)
+            ti.dag_run.consumed_asset_events.append(event)
+        session.commit()
+
+        with (
+            capture_orm_selects("asset") as asset_selects,
+            capture_orm_selects("asset_alias") as alias_selects,
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert sorted(event["asset"]["name"] for event in events) == [
+            "upstream_0",
+            "upstream_1",
+            "upstream_2",
+        ]
+        assert [event["source_aliases"] for event in events] == [[{"name": "upstream_alias"}]] * 3
+        assert len(asset_selects) == 1
+        assert len(alias_selects) == 1
+
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
         ti = create_task_instance(
@@ -1199,9 +1246,9 @@ class TestTIRunState:
         [
             pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
             pytest.param(task.stub, None, id="stub-without-timeout"),
-            pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(task.stub(execution_timeout=timedelta(0)), 0.0, id="stub-zero-timeout"),
             pytest.param(
-                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+                task.stub(execution_timeout=timedelta(seconds=-30)), -30.0, id="stub-negative-timeout"
             ),
             # A Python task's timeout stays with the task runner, which sends it to the supervisor,
             # so the server resolves one only for a task whose definition it loads anyway.
@@ -2153,6 +2200,7 @@ class TestTIRunState:
             dag_id=str(uuid4()),
         )
         ti.queued_dttm = queued_at
+        ti.is_stub = True
         session.commit()
 
         with mock.patch(

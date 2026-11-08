@@ -8,6 +8,7 @@
     "Variables": "Variabili"
   },
   "allOperators": "Tutti gli Operatori",
+  "allTeams": "Tutti i Team",
   "appearance": {
     "appearance": "Aspetto",
     "darkMode": "Modalità scura",
@@ -22,17 +23,25 @@
   "assetEvent_one": "Evento Asset",
   "assetEvent_other": "Eventi Asset",
   "assetEvent_zero": "Nessun evento asset",
+  "assetInactive": {
+    "tooltip": "L'Asset upstream è stato disattivato; lo scheduler sospende la valutazione delle partizioni finché non viene riattivato."
+  },
   "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "backfill_zero": "Nessun backfill",
+  "breadcrumb": "Percorso di navigazione",
   "browse": {
     "auditLog": "Registro di Controllo (Logs)",
+    "dagBundles": "Dag Bundles",
+    "deadlines": "Scadenze",
+    "jobs": "Jobs",
     "requiredActions": "Azioni Richieste",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Collassa tutti i json extra",
   "collapseDetailsPanel": "Collassa i Dettagli",
+  "consumingAsset": "Asset che consuma",
   "createdAssetEvent_many": "Eventi Asset Creati",
   "createdAssetEvent_one": "Evento Asset Creato",
   "createdAssetEvent_other": "Eventi Asset Creati",
@@ -41,7 +50,13 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dag_zero": "Nessun Dag",
+  "dagBundle_many": "Dag Bundles",
+  "dagBundle_one": "Dag Bundle",
+  "dagBundle_other": "Dag Bundles",
+  "dagBundle_zero": "Nessun Dag Bundle",
   "dagDetails": {
+    "activeRuns": "Run attivi",
+    "bundleVersion": "Versione del Bundle",
     "catchup": "Catchup",
     "dagRunTimeout": "Timeout del Run del Dag",
     "defaultArgs": "Argomenti di Default",
@@ -61,7 +76,8 @@
     "owner": "Proprietario",
     "params": "Parametri",
     "schedule": "Programmazione",
-    "tags": "Etichette"
+    "tags": "Etichette",
+    "team": "Team"
   },
   "dagId": "ID del Dag",
   "dagRun": {
@@ -75,6 +91,9 @@
     },
     "expectedDuration": "Durata Prevista",
     "lastSchedulingDecision": "Ultima Decisione di Programmazione",
+    "mappedPartitionKey": "Chiave di partizione mappata",
+    "partitionDate": "Data della partizione",
+    "partitionKey": "Chiave di partizione",
     "queuedAt": "In Coda il",
     "runAfter": "Esegui dopo",
     "runType": "Tipo di Run",
@@ -87,8 +106,12 @@
   "dagRun_other": "Run del Dag",
   "dagRun_zero": "Nessun run del Dag",
   "dagRunId": "ID del Run del Dag",
-  "defaultToGraphView": "Default to vista grafica",
-  "defaultToGridView": "Default to vista griglia",
+  "dagRunState": "Stato del run del Dag",
+  "delete": "Elimina",
+  "diff": "Diff",
+  "diffCompareWith": "Confronta con",
+  "diffExit": "Esci dal diff",
+  "diffSelectVersionToCompare": "Seleziona la versione da confrontare",
   "direction": "Direzione",
   "docs": {
     "documentation": "Documentazione",
@@ -101,14 +124,27 @@
     "tooltip": "Premi {{hotkey}} per scaricare i log"
   },
   "duration": "Durata",
+  "edit": "Modifica",
   "endDate": "Data di Fine",
   "error": {
     "back": "Indietro",
     "defaultMessage": "Si è verificato un errore imprevisto",
     "home": "Home",
+    "invalidUrl": "Pagina non trovata. Controlla l'URL e riprova.",
     "notFound": "Pagina non trovata",
+    "reload": "Ricarica la pagina",
     "title": "Errore"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Non hai il permesso di eseguire questa azione.",
+      "title": "Accesso negato"
+    }
+  },
+  "event_many": "Eventi",
+  "event_one": "Evento",
+  "event_other": "Eventi",
+  "event_zero": "Nessun evento",
   "expand": {
     "collapse": "Collassa",
     "expand": "Espandi",
@@ -120,62 +156,129 @@
     "all": "Tutti",
     "and": "E",
     "any": "Qualunque",
+    "hiddenAsset": "Asset nascosto",
     "or": "O"
   },
   "filter": "Filtro",
   "filters": {
+    "addFilter": "Aggiungi filtro",
+    "allIterations": "Tutte",
+    "completedAt": "Completato il",
+    "date": "Data",
     "durationFrom": "Durata da",
     "durationTo": "Durata a",
+    "endTime": "Ora di fine",
+    "iteration": "Iterazione",
     "logicalDateFrom": "Data Logica Da",
     "logicalDateTo": "Data Logica A",
+    "loop": "Ciclo",
+    "loopAllIterations": "{{loop}} tutte",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Seleziona un ciclo",
+    "maxActiveRunsFrom": "Run attivi massimi da",
+    "maxActiveRunsTo": "Run attivi massimi a",
+    "removeFilter": "Rimuovi filtro",
     "runAfterFrom": "Esegui Dopo Da",
-    "runAfterTo": "Esegui Dopo A"
+    "runAfterTo": "Esegui Dopo A",
+    "searchAsset": "Cercare Asset",
+    "selectDateRange": "Seleziona un intervallo di date",
+    "selectDateTime": "Seleziona data e ora",
+    "startTime": "Ora di inizio",
+    "switchIteration": "Cambia iterazione",
+    "time": "Ora"
+  },
+  "fullscreen": {
+    "tooltip": "Premi {{hotkey}} per la schermata intera"
+  },
+  "generateToken": "Genera token",
+  "includedIn": "Incluso in",
+  "key": "Chiave",
+  "loading": "Caricamento…",
+  "logLevel": {
+    "hide": "Nascondi i livelli di Log",
+    "hotkey": "l",
+    "show": "Mostra i livelli di Log"
   },
   "logicalDate": "Data Logica",
   "logout": "Esci",
   "logoutConfirmation": "Stai per uscire dall'applicazione.",
   "mapIndex": "Mappa Index",
   "modal": {
+    "add": "Aggiungi",
     "cancel": "Annulla",
     "confirm": "Conferma",
     "delete": {
       "button": "Elimina",
       "confirmation": "Confermi di voler eliminare {{resourceName}}? Questa azione non può essere annullata."
-    }
+    },
+    "save": "Salva"
   },
   "nav": {
     "admin": "Amministrazione",
     "assets": "Asset",
     "browse": "Sfoglia",
     "dags": "Dag",
+    "dashboard": "Dashboard",
     "docs": "Documentazione",
     "home": "Home",
     "legacyFabViews": "Legacy View",
     "plugins": "Plugins",
     "security": "Sicurezza"
   },
+  "no": "No",
   "noItemsFound": "Nessun {{modelName}} trovato",
   "note": {
     "add": "Aggiungi una nota",
     "dagRun": "Nota del Run del Dag",
+    "edit": "Modifica la nota",
     "label": "Note",
     "placeholder": "Aggiungi una nota...",
-    "taskInstance": "Nota dell'Istanza di Task"
+    "preview": "Anteprima",
+    "taskInstance": "Nota dell'Istanza di Task",
+    "write": "Scrivi"
   },
-  "pools": {
-    "deferred": "In Attesa",
-    "open": "Aperto",
-    "pools_many": "Pools",
-    "pools_one": "Pool",
-    "pools_other": "Pools",
-    "pools_zero": "Nessun pool",
-    "queued": "In Coda",
-    "running": "In Esecuzione",
-    "scheduled": "Programmato"
+  "overallStatus": "Stato generale",
+  "pagination": {
+    "nextPage": "Pagina successiva",
+    "previousPage": "Pagina precedente"
+  },
+  "partition_many": "Partizioni",
+  "partition_one": "Partizione",
+  "partition_other": "Partizioni",
+  "partition_zero": "Nessuna partizione",
+  "partitionedDagRun_many": "Run del Dag partizionati",
+  "partitionedDagRun_one": "Run del Dag partizionato",
+  "partitionedDagRun_other": "Run del Dag partizionati",
+  "partitionedDagRun_zero": "Nessun Run del Dag partizionato",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Eventi Asset ricevuti"
+  },
+  "pause": "Metti in pausa",
+  "pendingDagRun_many": "{{count, number}} di Run del Dag in sospeso",
+  "pendingDagRun_one": "{{count, number}} Run del Dag in sospeso",
+  "pendingDagRun_other": "{{count, number}} Run del Dag in sospeso",
+  "pendingDagRun_zero": "Nessun Run del Dag in sospeso",
+  "presetFilters": {
+    "deleteTitle": "Elimina il filtro salvato",
+    "deleteWarning": "I filtri salvati sono memorizzati solo in questo browser.",
+    "duplicate": "Il filtro salvato \"{{name}}\" contiene già questa stessa configurazione.",
+    "empty": "Nessun filtro salvato",
+    "info": {
+      "default": "Fissa un filtro salvato come predefinito e viene applicato automaticamente quando apri questa pagina senza filtri.",
+      "save": "Salva i filtri e l'ordinamento attuali come filtro salvato con un nome, e puoi tornarci in qualsiasi momento.",
+      "storage": "I filtri salvati sono memorizzati in questo browser."
+    },
+    "namePlaceholder": "Nome del filtro salvato",
+    "nothingToSave": "Niente da salvare. Applica filtri o un ordinamento per salvare un filtro.",
+    "save": "Salva",
+    "setDefault": "Imposta come predefinito",
+    "title": "Filtri salvati",
+    "unsetDefault": "Rimuovi il predefinito"
   },
   "reset": "Resetta",
   "runId": "ID del Run",
   "runTypes": {
+    "asset_materialization": "Materializzazione di Asset",
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Manuale",
@@ -188,6 +291,13 @@
     },
     "tooltip": "Premi {{hotkey}} per scorrere a {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Corrispondenza in qualsiasi punto del valore (ricerca per sottostringa). Più lenta nelle installazioni grandi perché non può usare l'indice B-tree predefinito. Vedi la sezione della documentazione sugli indici personalizzati dei metadati.",
+      "title": "Corrispondenza ovunque",
+      "toggleLabel": "Attiva o disattiva la ricerca in qualsiasi punto"
+    }
+  },
   "security": {
     "actions": "Azioni",
     "permissions": "Permessi",
@@ -196,7 +306,131 @@
     "users": "Utenti"
   },
   "selectLanguage": "Seleziona la Lingua",
+  "selected": "Selezionato",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "Conserva per impostazione predefinita le voci dello store di stato del Task quando pulisci le istanze di Task, invece di scartarle.",
+        "label": "Conserva lo stato del Task durante la pulizia"
+      },
+      "preventRunningTask": {
+        "helper": "Salta i Task in esecuzione quando pulisci le istanze di Task.",
+        "label": "Non pulire i Task in esecuzione"
+      },
+      "runSelection": {
+        "helper": "Opzioni selezionate per impostazione predefinita quando pulisci un run del Dag.",
+        "label": "Selezione predefinita per la pulizia del run"
+      },
+      "taskSelection": {
+        "helper": "Opzioni selezionate per impostazione predefinita quando pulisci le istanze di Task.",
+        "label": "Selezione predefinita per la pulizia dei Task"
+      },
+      "title": "Pulizia"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Mostra gli stati recenti dei Task di ogni Dag nella lista dei Dag. Disattivalo per non caricarli: può aiutare nelle installazioni con molti Dag.",
+        "label": "Mostra i Task recenti"
+      },
+      "title": "Lista dei Dag"
+    },
+    "description": "Queste preferenze sono salvate solo in questo browser e valgono in tutta l'applicazione.",
+    "general": {
+      "landingPage": {
+        "helper": "Pagina mostrata quando apri Airflow.",
+        "label": "Pagina iniziale",
+        "options": {
+          "dags": "Dag",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "Generale"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Direzione del layout per i grafici di Dag e Asset che non hai impostato singolarmente.",
+        "label": "Direzione predefinita del grafico"
+      },
+      "taskGroupsExpanded": {
+        "helper": "Espandi i gruppi di Task nei Dag in cui non hai salvato una selezione di gruppi. Le selezioni esistenti restano.",
+        "label": "Espandi i gruppi di Task per impostazione predefinita"
+      },
+      "title": "Grafico"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opzioni selezionate per impostazione predefinita quando marchi lo stato di un'istanza di Task.",
+        "label": "Selezione predefinita per la marcatura"
+      },
+      "title": "Marcatura"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Le scelte di ogni barra di ricerca e i link condivisi hanno comunque la precedenza.",
+        "label": "Corrispondenza ovunque per impostazione predefinita"
+      },
+      "title": "Ricerca"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Scheda mostrata per prima quando apri un'istanza di Task. I link a una scheda specifica aprono comunque quella scheda.",
+        "label": "Scheda predefinita dell'istanza di Task"
+      },
+      "title": "Istanza di Task"
+    },
+    "title": "Impostazioni"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Codice",
+      "dagView": "Vista del Dag",
+      "filters": "Filtri",
+      "global": "Globali",
+      "logs": "Log",
+      "navigation": "Navigazione",
+      "runActions": "Azioni su run e Task",
+      "search": "Ricerca"
+    },
+    "descriptions": {
+      "clearRun": "Pulisci $t(dagRun_one)",
+      "clearTaskInstance": "Pulisci $t(taskInstance_one)",
+      "downloadLogs": "Scarica i Log",
+      "focusFilterSearch": "Vai alla ricerca dei filtri",
+      "focusLogSearch": "Cerca nei Log",
+      "focusSearch": "Vai alla ricerca",
+      "markRunFailed": "Marca $t(dagRun_one) come fallito",
+      "markRunSuccess": "Marca $t(dagRun_one) come successo",
+      "markTaskFailed": "Marca $t(task_one) come fallito",
+      "markTaskGroupFailed": "Marca $t(taskGroup_one) come fallito",
+      "markTaskGroupSuccess": "Marca $t(taskGroup_one) come successo",
+      "markTaskSuccess": "Marca $t(task_one) come successo",
+      "navigateTasks": "Naviga $t(task_other)",
+      "openGraphFilters": "Apri i filtri del grafico",
+      "scrollBottom": "Vai in fondo",
+      "scrollTop": "Vai in cima",
+      "searchDags": "Cercare $t(dag_other)",
+      "selectGridCellRange": "Seleziona un intervallo di $t(taskInstance_other) o $t(taskGroup_other)",
+      "showHelp": "Mostra $t(shortcuts.title)",
+      "toggleExpand": "Espandi o comprimi tutti i gruppi",
+      "toggleFullscreen": "Attiva o disattiva la schermata intera",
+      "toggleGraphGrid": "Passa da grafico a griglia",
+      "toggleGridCellSelection": "Aggiungi o togli una $t(taskInstance_one) o un $t(taskGroup_one) dalla selezione",
+      "toggleLogLevel": "Attiva o disattiva i livelli di Log",
+      "toggleSource": "Attiva o disattiva la sorgente",
+      "toggleTaskGroup": "Espandi o comprimi $t(taskGroup_one)",
+      "toggleTimestamp": "Attiva o disattiva i timestamp",
+      "toggleWrap": "Attiva o disattiva $t(wrap.wrap)"
+    },
+    "empty": "In questa pagina non ci sono scorciatoie da tastiera.",
+    "title": "Scorciatoie da tastiera"
+  },
   "showDetailsPanel": "Mostra il Pannello dei Dettagli",
+  "signedInAs": "Accesso effettuato come",
+  "slot": "Slot",
+  "slot_many": "Slots",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
+  "slot_zero": "Nessuno slot",
   "source": {
     "hide": "Nascondi Sorgente",
     "hotkey": "s",
@@ -209,10 +443,13 @@
   "startDate": "Data di Inizio",
   "state": "Stato",
   "states": {
+    "awaiting_input": "In attesa di input",
     "deferred": "In Attesa",
     "failed": "Fallito",
     "no_status": "Nessun Stato",
     "none": "Nessun Stato",
+    "open": "Aperto",
+    "pending": "In sospeso",
     "planned": "Pianificato",
     "queued": "In Coda",
     "removed": "Rimosso",
@@ -225,6 +462,9 @@
     "up_for_retry": "Da Riavviare",
     "upstream_failed": "Upstream Fallito"
   },
+  "switchDag": "Cambia $t(dag_one)",
+  "switchDagRun": "Cambia $t(dagRun_one)",
+  "switchMapIndex": "Cambia $t(mapIndex)",
   "table": {
     "completedAt": "Completato il",
     "createdAt": "Creato il",
@@ -236,30 +476,49 @@
     "filterReset_zero": "Nessun filtro da resettare",
     "from": "Da",
     "maxActiveRuns": "Numero massimo di Runs attive",
+    "noResultsFound": "Nessun risultato",
     "noTagsFound": "Nessuna etichetta trovata",
+    "noTeamsFound": "Nessun Team trovato",
+    "ownerPlaceholder": "Filtra per proprietario",
     "tagMode": {
       "all": "Tutti",
       "any": "Qualunque"
     },
     "tagPlaceholder": "Filtra per etichetta",
-    "to": "A"
+    "to": "A",
+    "updatedAt": "Aggiornato il"
   },
   "task": {
+    "dependsOnPast": "Dipende dal passato",
     "documentation": "Documentazione del Task",
     "lastInstance": "Ultima Istanza",
     "operator": "Operatore",
-    "triggerRule": "Regola di Trigger"
+    "retries": "Tentativi",
+    "triggerRule": "Regola di Trigger",
+    "waitForDownstream": "Attendi il Downstream"
   },
   "task_many": "Tasks",
   "task_one": "Task",
   "task_other": "Tasks",
   "task_zero": "Nessun task",
+  "taskGroup": {
+    "documentation": "Documentazione del gruppo di Task"
+  },
+  "taskGroup_many": "Gruppi di Task",
+  "taskGroup_one": "Gruppo di Task",
+  "taskGroup_other": "Gruppi di Task",
+  "taskGroup_zero": "Nessun gruppo di Task",
   "taskId": "ID del Task",
   "taskInstance": {
+    "additionalAttributes": "Attributi aggiuntivi dell'istanza di Task",
     "dagVersion": "Versione del Dag",
     "executor": "Executor",
     "executorConfig": "Configurazione dell'Executor",
     "hostname": "Nome delHost",
+    "id": "ID",
+    "iteration": "Iterazione",
+    "loopDecision": "Decisione",
+    "loopIterations": "Iterazioni eseguite",
     "maxTries": "Numero massimo di Tentativi",
     "pid": "PID",
     "pool": "Pool",
@@ -267,12 +526,21 @@
     "priorityWeight": "Peso di Priorità",
     "queue": "Coda",
     "queuedWhen": "In Coda il",
+    "renderedMapIndex": "Map Index renderizzato",
+    "retryAt": "Riprova il",
     "scheduledWhen": "Programmato il",
+    "stateReason": "Motivo dello stato",
+    "stateReasonSummary": {
+      "failed": "Interrotto al tentativo {{tryNumber}} di {{totalTries}}",
+      "upForRetry": "Nuovo tentativo dopo il tentativo {{tryNumber}} di {{totalTries}}"
+    },
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Triggerer Assegnato",
       "class": "Classe del Trigger",
       "createdAt": "Creato il",
       "id": "ID del Trigger",
+      "job": "Job del Triggerer",
       "latestHeartbeat": "Ultimo Heartbeat del Trigger",
       "title": "Info del Trigger"
     },
@@ -282,10 +550,23 @@
   "taskInstance_one": "Istanza di Task",
   "taskInstance_other": "Istanze di Task",
   "taskInstance_zero": "Nessuna istanza di task",
+  "teams": {
+    "more_many": "e {{count, number}} di altri",
+    "more_one": "e {{count, number}} altro",
+    "more_other": "e {{count, number}} altri",
+    "more_zero": "e nessun altro",
+    "none": "Nessun Team",
+    "title": "Team"
+  },
   "timeRange": {
+    "anyTime": "Qualsiasi momento",
+    "in": "fra",
+    "last7Days": "Ultimi 7 giorni",
     "last12Hours": "Ultimi 12 Ore",
     "last24Hours": "Ultimi 24 Ore",
+    "last30Days": "Ultimi 30 giorni",
     "lastHour": "Ultima Ora",
+    "latestRun": "Ultimo run",
     "pastWeek": "Settimana Scorsa"
   },
   "timestamp": {
@@ -301,11 +582,25 @@
     "utc": "UTC (Tempo Coordinato Universale)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Pulizia in massa di {{resourceName}} fallita",
+      "success": {
+        "description": "{{count, number}} {{resourceName}} sono stati puliti con successo. Chiavi: {{keys}}",
+        "title": "Richiesta di pulizia in massa di {{resourceName}} inviata"
+      }
+    },
     "bulkDelete": {
       "error": "Eliminazione in Massa di {{resourceName}} Fallita",
       "success": {
         "description": "{{count, number}} {{resourceName}} sono stati eliminati con successo. Chiavi: {{keys}}",
         "title": "Eliminazione in Massa di {{resourceName}} Richiesta Inviata"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Aggiornamento in massa di {{resourceName}} fallito",
+      "success": {
+        "description": "{{count, number}} {{resourceName}} sono stati aggiornati con successo. Chiavi: {{keys}}",
+        "title": "Richiesta di aggiornamento in massa di {{resourceName}} inviata"
       }
     },
     "create": {
@@ -337,14 +632,33 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Token API",
+    "cliToken": "Token CLI",
+    "errorDescription": "Si è verificato un errore durante la generazione del token. Riprova.",
+    "errorTitle": "Generazione del token fallita",
+    "generate": "Genera",
+    "selectType": "Seleziona il tipo di token da generare.",
+    "title": "Genera token",
+    "tokenExpiresIn": "Questo token scade fra {{duration}}.",
+    "tokenGenerated": "Il token è stato generato.",
+    "tokenShownOnce": "Questo token viene mostrato una sola volta. Copialo ora."
+  },
   "total": "Totale {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Numero di Tentativo",
+  "unpause": "Riprendi",
   "user": "Utente",
+  "validation": {
+    "mustBeAtLeast": "Deve essere almeno {{min}}.",
+    "mustBeValidNumber": "Deve essere un numero valido."
+  },
+  "value": "Valore",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Premi {{hotkey}} per abilitare il wrap",
     "unwrap": "Disabilita il wrap",
     "wrap": "Abilita il wrap"
-  }
+  },
+  "yes": "Sì"
 }

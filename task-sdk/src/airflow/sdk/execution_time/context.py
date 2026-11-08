@@ -22,6 +22,7 @@ import contextlib
 import functools
 import inspect
 import json
+import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
@@ -53,6 +54,7 @@ from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
     AirflowSecretsBackendAccessDenied,
+    DeprecatedVariableNoneValueWarning,
     ErrorType,
 )
 from airflow.sdk.execution_time.comms import (
@@ -167,6 +169,33 @@ def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
 
 def _unwrap_external_ref(stored: dict) -> str | None:
     return stored.get(_EXTERNAL_STATE_REF_KEY)
+
+
+def _json_size_exceeds(value: JsonValue, limit: int) -> bool:
+    """
+    Whether ``len(json.dumps(value))`` exceeds ``limit``.
+
+    Encoding stops at the first piece that crosses the limit, so a large list or dict is never
+    encoded in full. Each string is still escaped whole before it is counted.
+    """
+    size = 0
+    for chunk in json.JSONEncoder().iterencode(value):
+        size += len(chunk)
+        if size > limit:
+            return True
+    return False
+
+
+def _warn_if_oversized(kind: str, key: str, stored: JsonValue) -> None:
+    limit = conf.getint("state_store", "max_value_storage_bytes")
+    if limit > 0 and _json_size_exceeds(stored, limit):
+        log.warning(
+            "%s state store value for key %r exceeds configured max_value_storage_bytes=%d. "
+            "Consider configuring [workers] state_store_backend to offload large payloads.",
+            kind,
+            key,
+            limit,
+        )
 
 
 T = TypeVar("T")
@@ -484,6 +513,13 @@ async def _async_get_variable_keys(prefix: str | None = None) -> list[str]:
     return all_keys
 
 
+_SET_VARIABLE_NONE_DEPRECATION = (
+    "Setting a Variable to None is deprecated and will be an error in a future release. "
+    "It stores the string 'None'. Pass that string explicitly to keep this behavior, "
+    "or use serialize_json=True to store a JSON null."
+)
+
+
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
@@ -525,6 +561,10 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
             value = json.dumps(value, indent=2)
     except Exception as e:
         log.exception(e)
+
+    if value is None:
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, DeprecatedVariableNoneValueWarning, stacklevel=3)
+        value = str(value)  # Keep storing "None", as Airflow always has.
 
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
@@ -578,6 +618,10 @@ async def _async_set_variable(
             value = json.dumps(value, indent=2)
     except Exception as e:
         log.exception(e)
+
+    if value is None:
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, DeprecatedVariableNoneValueWarning, stacklevel=3)
+        value = str(value)  # Keep storing "None", as Airflow always has.
 
     await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))
 
@@ -819,16 +863,7 @@ class TaskStateStoreAccessor:
 
         msg = SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
 
-        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            serialized_size = len(json.dumps(stored))
-            if serialized_size > limit:
-                log.warning(
-                    "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider configuring [workers] state_store_backend to offload large payloads.",
-                    key,
-                    serialized_size,
-                    limit,
-                )
+        _warn_if_oversized("Task", key, stored)
 
         return msg
 
@@ -991,16 +1026,7 @@ class AssetStateStoreAccessor:
             ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
 
-        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            serialized_size = len(json.dumps(stored))
-            if serialized_size > limit:
-                log.warning(
-                    "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider configuring [workers] state_store_backend to offload large payloads.",
-                    key,
-                    serialized_size,
-                    limit,
-                )
+        _warn_if_oversized("Asset", key, stored)
 
         msg: ToSupervisor
         if self._name:
