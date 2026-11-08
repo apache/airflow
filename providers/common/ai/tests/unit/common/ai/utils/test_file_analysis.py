@@ -434,7 +434,7 @@ class TestBuildFileAnalysisRequest:
         ],
     )
     @pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"])
-    def test_utf8_byte_order_mark_is_not_part_of_the_content(
+    def test_byte_order_mark_is_not_part_of_the_content(
         self, tmp_path, filename, content, expected, encoding
     ):
         # Excel's "CSV UTF-8" and Windows PowerShell's UTF-8 files start with a byte order mark.

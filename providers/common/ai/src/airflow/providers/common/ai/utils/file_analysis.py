@@ -649,8 +649,9 @@ def _read_limited_bytes(handle: io.BufferedIOBase, *, path: ObjectStoragePath, m
 
 
 def _decode_text(data: bytes) -> str:
-    # utf-8-sig drops the byte order mark Excel and Windows tools write, which json.loads
-    # refuses and which would otherwise be read as part of the first CSV column's name.
+    # Excel and Windows tools start files with a byte order mark, which json.loads refuses and
+    # which would otherwise be read as part of the first CSV column's name. A UTF-16 mark can't
+    # start a UTF-8 file, so check for it first; utf-8-sig drops the UTF-8 mark when present.
     if data.startswith((b"\xff\xfe", b"\xfe\xff")):
         return data.decode("utf-16", errors="replace")
     return data.decode("utf-8-sig", errors="replace")
