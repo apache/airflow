@@ -20,6 +20,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+from structlog.typing import FilteringBoundLogger
 
 from airflow.providers.common.ai.durable import storage as storage_module
 from airflow.providers.common.ai.durable.storage import DurableStorage
@@ -82,17 +83,26 @@ class TestSaveLoad:
     def test_missing_key_is_none(self, storage):
         assert storage.load_step("missing") is None
 
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
     @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
-    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, storage):
+    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, mock_log, storage):
         with pytest.raises(OSError, match="S3 is unavailable"):
             storage.load_step("k")
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not read the journal; failing this attempt so finished steps don't run again",
+            path=str(storage._get_path()),
+        )
 
     @pytest.mark.parametrize(
         ("contents", "expected_exception"),
         [(b'{"k":', json.JSONDecodeError), (b"\xff", UnicodeDecodeError)],
         ids=["truncated-json", "invalid-encoding"],
     )
-    def test_a_corrupt_journal_blocks_reads_and_writes(self, storage, tmp_path, contents, expected_exception):
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    def test_a_corrupt_journal_blocks_reads_and_writes(
+        self, mock_log, storage, tmp_path, contents, expected_exception
+    ):
         storage.save_step("k", ENTRY)
         journal = next(tmp_path.iterdir())
         journal.write_bytes(contents)
@@ -100,6 +110,11 @@ class TestSaveLoad:
 
         with pytest.raises(expected_exception):
             storage.load_step("k")
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+            path=str(storage._get_path()),
+        )
 
         with pytest.raises(expected_exception):
             storage.save_step("new", ENTRY)

@@ -96,11 +96,15 @@ class DurableStorage:
             self._cache = {}
         except OSError:
             log.warning(
-                "Durable: could not read the journal; failing this attempt so finished steps don't run again"
+                "Durable: could not read the journal; failing this attempt so finished steps don't run again",
+                path=str(path),
             )
             raise
         except (json.JSONDecodeError, ValueError):
-            log.warning("Durable: journal is corrupt; failing this attempt so finished steps don't run again")
+            log.warning(
+                "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+                path=str(path),
+            )
             raise
 
         return self._cache
