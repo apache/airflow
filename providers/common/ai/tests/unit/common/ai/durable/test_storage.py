@@ -84,17 +84,26 @@ class TestSaveLoad:
     def test_missing_key_is_none(self, storage):
         assert storage.load_step("missing") is None
 
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
     @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
-    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, storage):
+    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, mock_log, storage):
         with pytest.raises(OSError, match="S3 is unavailable"):
             storage.load_step("k")
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not read the journal; failing this attempt so finished steps don't run again",
+            path=str(storage._get_path()),
+        )
 
     @pytest.mark.parametrize(
         ("contents", "expected_exception"),
         [(b'{"k":', json.JSONDecodeError), (b"\xff", UnicodeDecodeError)],
         ids=["truncated-json", "invalid-encoding"],
     )
-    def test_a_corrupt_journal_blocks_reads_and_writes(self, storage, tmp_path, contents, expected_exception):
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    def test_a_corrupt_journal_blocks_reads_and_writes(
+        self, mock_log, storage, tmp_path, contents, expected_exception
+    ):
         storage.save_step("k", ENTRY)
         journal = next(tmp_path.iterdir())
         journal.write_bytes(contents)
@@ -102,6 +111,11 @@ class TestSaveLoad:
 
         with pytest.raises(expected_exception):
             storage.load_step("k")
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+            path=str(storage._get_path()),
+        )
 
         with pytest.raises(expected_exception):
             storage.save_step("new", ENTRY)
@@ -221,19 +235,24 @@ class TestStoreFailures:
 
 class TestJournalThatIsNotAnObject:
     @pytest.mark.parametrize(
-        "content",
+        ("content", "expected_exception"),
         [
-            pytest.param(b"{truncated", id="cut off mid-write"),
-            pytest.param(b'["not", "a", "journal"]', id="a JSON list"),
-            pytest.param(b"null", id="JSON null"),
+            pytest.param(b"{truncated", json.JSONDecodeError, id="cut off mid-write"),
+            pytest.param(b'["not", "a", "journal"]', ValueError, id="a JSON list"),
+            pytest.param(b"null", ValueError, id="JSON null"),
         ],
     )
-    def test_is_handled_like_a_journal_cut_off_mid_write(self, storage, content):
-        storage._get_path().write_bytes(content)
+    def test_is_not_treated_as_a_missing_journal(self, storage, content, expected_exception):
+        journal = storage._get_path()
+        journal.write_bytes(content)
 
-        assert storage.load_step("k") is None
-        assert storage.save_step("k", ENTRY)
-        assert storage.load_step("k") == ENTRY
+        with pytest.raises(expected_exception):
+            storage.load_step("k")
+
+        with pytest.raises(expected_exception):
+            storage.save_step("k", ENTRY)
+
+        assert journal.read_bytes() == content
 
 
 class TestMissingConfig:
