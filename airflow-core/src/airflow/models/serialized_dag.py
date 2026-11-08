@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
+    from sqlalchemy.sql.selectable import Exists
 
     from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -742,23 +743,30 @@ class SerializedDagModel(Base):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
-        wake_partition_dag_runs = serialized_dag_hash != new_dag_hash and cls._changes_partition_evaluation(
-            dag, dag_version, session=session
-        )
-
         has_task_instances: bool = False
+        has_pending_partition_dag_runs: bool | None = None
         if dag_version:
-            has_task_instances = bool(
-                session.scalar(
+            # Both lookups in one round trip: rewriting a Dag counts against the Dag processor's
+            # statement budget per file.
+            has_task_instances, has_pending_partition_dag_runs = (
+                bool(found)
+                for found in session.execute(
                     select(
                         exists().where(
                             # Using dag_id filter to speed up query via the composite index.
                             TaskInstance.dag_id == dag.dag_id,
                             TaskInstance.dag_version_id == dag_version.id,
-                        )
+                        ),
+                        cls._build_pending_partition_dag_runs_check(dag.dag_id),
                     )
-                )
+                ).one()
             )
+        wake_partition_dag_runs = serialized_dag_hash != new_dag_hash and cls._changes_partition_evaluation(
+            dag,
+            dag_version,
+            has_pending_partition_dag_runs=has_pending_partition_dag_runs,
+            session=session,
+        )
 
         if dag_version and not has_task_instances:
             # This is for dynamic DAGs that the hashes changes often. We should update
@@ -843,25 +851,36 @@ class SerializedDagModel(Base):
         )
         return True
 
+    @staticmethod
+    def _build_pending_partition_dag_runs_check(dag_id: str) -> Exists:
+        return exists().where(
+            AssetPartitionDagRun.target_dag_id == dag_id,
+            AssetPartitionDagRun.created_dag_run_id.is_(None),
+        )
+
     @classmethod
     def _changes_partition_evaluation(
-        cls, dag: LazyDeserializedDAG, dag_version: DagVersion | None, *, session: Session
+        cls,
+        dag: LazyDeserializedDAG,
+        dag_version: DagVersion | None,
+        *,
+        has_pending_partition_dag_runs: bool | None,
+        session: Session,
     ) -> bool:
         """
         Return whether writing *dag* can change the evaluation of its pending partition Dag runs.
 
         Evaluation and the stale-run cleanup read only the timetable, which holds the asset condition
         and the partition mappers, so a change anywhere else in the Dag cannot change their result.
+        Whether the Dag has pending runs is looked up here when the caller passes None.
         """
-        if not dag.timetable.partitioned and not session.scalar(
-            select(
-                exists().where(
-                    AssetPartitionDagRun.target_dag_id == dag.dag_id,
-                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+        if not dag.timetable.partitioned:
+            if has_pending_partition_dag_runs is None:
+                has_pending_partition_dag_runs = bool(
+                    session.scalar(select(cls._build_pending_partition_dag_runs_check(dag.dag_id)))
                 )
-            )
-        ):
-            return False
+            if not has_pending_partition_dag_runs:
+                return False
         if dag_version is None:
             return True
         previous = session.execute(
