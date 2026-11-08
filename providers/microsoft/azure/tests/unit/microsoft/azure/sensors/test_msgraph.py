@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from os.path import dirname
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -43,7 +44,7 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
 from unit.microsoft.azure.test_utils import mock_json_response, patch_hook_and_request_adapter
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
@@ -278,6 +279,20 @@ class TestMSGraphSensor:
                 "execute_complete", {"event": NOT_DONE, "sensor_started_at": T0.timestamp()}, {}
             )
 
+    def test_first_poll_from_the_triggerer_counts_from_the_start_of_the_try(self):
+        sensor = _sensor()
+        task_instance = SimpleNamespace(start_date=T0)
+
+        with _at(50), pytest.raises(TaskDeferred) as exc:
+            sensor.execute_complete(context={"ti": task_instance}, event=NOT_DONE)
+
+        assert exc.value.kwargs == {"sensor_started_at": T0.timestamp()}
+        assert exc.value.trigger.moment == T0 + timedelta(seconds=80)
+
+        # Counted from the start of the try, the 100 seconds are over, not from the first event.
+        with _at(150), pytest.raises(AirflowSensorTimeout):
+            sensor.execute_complete(context={"ti": task_instance}, event=NOT_DONE)
+
     def test_missing_started_at_falls_back_to_now(self):
         sensor = _sensor()
 
@@ -304,7 +319,7 @@ class TestMSGraphSensor:
         assert exc.value.timeout == timedelta(seconds=100)
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The triggerer renders templated fields from Airflow 3.3")
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="A task starts from the triggerer from Airflow 3.4")
 class TestMSGraphSensorStartFromTrigger:
     def test_start_from_trigger_builds_the_trigger_arguments(self):
         sensor = MSGraphSensor(
@@ -332,11 +347,13 @@ class TestMSGraphSensorStartFromTrigger:
             "headers": None,
             "data": None,
             "conn_id": "powerbi",
-            "timeout": 10,
+            "timeout": None,
             "proxies": None,
             "scopes": None,
             "api_version": None,
             "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
+            "pagination_link": False,
+            "rendered": False,
         }
 
     def test_start_from_trigger_defers_the_same_trigger_as_execute(self):
@@ -354,7 +371,10 @@ class TestMSGraphSensorStartFromTrigger:
 
         trigger = MSGraphTrigger(**sensor.start_trigger_args.trigger_kwargs)
 
-        assert trigger.serialize() == deferred.value.trigger.serialize()
+        trigger_cls, trigger_kwargs = deferred.value.trigger.serialize()
+        # The worker defers its trigger with rendered values, the triggerer renders the start trigger itself.
+        assert trigger_kwargs["rendered"] is True
+        assert trigger.serialize() == (trigger_cls, {**trigger_kwargs, "rendered": False})
         assert sensor.start_trigger_args.next_method == deferred.value.method_name
 
     def test_start_from_trigger_falls_back_to_the_worker(self):
@@ -438,9 +458,10 @@ class TestMSGraphSensorStartFromTrigger:
 
         with (
             patch_hook_and_request_adapter(response) as (*_, mock_get_http_response),
+            patch.object(MSGraphSensor, "execute", autospec=True) as mock_execute,
             patch.object(
-                MSGraphSensor, "execute", autospec=True, side_effect=MSGraphSensor.execute
-            ) as mock_execute,
+                MSGraphSensor, "retry_execute", autospec=True, side_effect=MSGraphSensor.retry_execute
+            ) as mock_retry_execute,
         ):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
@@ -456,8 +477,9 @@ class TestMSGraphSensorStartFromTrigger:
             results, events = execute_operator(sensor)
 
         # The first poll comes from the trigger the scheduler created, with the path parameters it
-        # rendered itself, so execute only runs for the poll which follows the retry delay.
-        mock_execute.assert_called_once()
+        # rendered itself, so execute never runs and retry_execute does the poll after the retry delay.
+        mock_execute.assert_not_called()
+        mock_retry_execute.assert_called_once()
         assert [call.args[0].url for call in mock_get_http_response.call_args_list] == [
             "myorg/admin/workspaces/scanStatus/check_workspaces_status",
             "myorg/admin/workspaces/scanStatus/check_workspaces_status",

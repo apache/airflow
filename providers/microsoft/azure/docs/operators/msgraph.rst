@@ -114,12 +114,13 @@ and to follow the pagination.
         start_from_trigger=True,
     )
 
-This needs Airflow 3.3 or later, on older versions the task starts on a worker as it does without the
+This needs Airflow 3.4 or later, on older versions the task starts on a worker as it does without the
 argument. It also starts on a worker when:
 
 * an argument which is passed on to the trigger is an ``XComArg``, a callable or a file-like object,
   as the triggerer cannot resolve or receive those;
-* the task is mapped with ``expand``.
+* the task is mapped with ``expand``;
+* ``durable=True`` is set, as a retry then resumes from the task state store on a worker.
 
 Keep the following in mind when you enable it:
 

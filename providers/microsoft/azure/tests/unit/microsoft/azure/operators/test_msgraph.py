@@ -46,7 +46,7 @@ from airflow.utils.state import TaskInstanceState
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator, run_trigger
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
@@ -790,7 +790,7 @@ class TestDurableMSGraphAsyncOperator:
         )
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The triggerer renders templated fields from Airflow 3.3")
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="A task starts from the triggerer from Airflow 3.4")
 class TestMSGraphAsyncOperatorStartFromTrigger:
     def test_start_from_trigger_builds_the_trigger_arguments(self):
         operator = MSGraphAsyncOperator(
@@ -833,6 +833,8 @@ class TestMSGraphAsyncOperatorStartFromTrigger:
             "scopes": ["https://graph.microsoft.com/.default"],
             "api_version": "beta",
             "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
+            "pagination_link": False,
+            "rendered": False,
         }
         # The enum itself would not survive the serialized Dag, its value does.
         assert type(operator.start_trigger_args.trigger_kwargs["api_version"]) is str
@@ -853,7 +855,10 @@ class TestMSGraphAsyncOperatorStartFromTrigger:
 
         trigger = MSGraphTrigger(**operator.start_trigger_args.trigger_kwargs)
 
-        assert trigger.serialize() == deferred.value.trigger.serialize()
+        trigger_cls, trigger_kwargs = deferred.value.trigger.serialize()
+        # The worker defers its trigger with rendered values, the triggerer renders the start trigger itself.
+        assert trigger_kwargs["rendered"] is True
+        assert trigger.serialize() == (trigger_cls, {**trigger_kwargs, "rendered": False})
         assert operator.start_trigger_args.next_method == deferred.value.method_name
 
     @pytest.mark.parametrize(
@@ -890,14 +895,40 @@ class TestMSGraphAsyncOperatorStartFromTrigger:
         assert operator.start_from_trigger is False
         assert operator.start_trigger_args is None
 
-    @mock.patch("airflow.providers.microsoft.azure.operators.msgraph.AIRFLOW_V_3_3_PLUS", False)
-    def test_start_from_trigger_needs_airflow_3_3(self):
+    @mock.patch("airflow.providers.microsoft.azure.operators.msgraph.AIRFLOW_V_3_4_PLUS", False)
+    def test_start_from_trigger_needs_airflow_3_4(self):
+        # Before 3.4 the XComs of an earlier try are not cleared for a task the scheduler deferred.
         operator = MSGraphAsyncOperator(
             task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
         )
 
         assert operator.start_from_trigger is False
         assert operator.start_trigger_args is None
+
+    def test_durable_task_starts_on_a_worker(self):
+        operator = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", durable=True, start_from_trigger=True
+        )
+
+        assert operator.start_from_trigger is False
+        assert operator.start_trigger_args is None
+
+    def test_triggers_deferred_by_the_worker_are_not_rendered_again(self):
+        operator = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
+        )
+
+        with pytest.raises(TaskDeferred) as first_page:
+            operator.execute(context=Context())
+        with pytest.raises(TaskDeferred) as next_page:
+            operator.defer_to_next_link(
+                url="https://graph.microsoft.com/v1.0/users?$skiptoken={{ x }}",
+                query_parameters=None,
+                method_name=operator.execute_complete.__name__,
+            )
+
+        assert first_page.value.trigger.rendered is True
+        assert next_page.value.trigger.rendered is True
 
     def test_start_trigger_args_are_not_shared_between_tasks(self):
         users = MSGraphAsyncOperator(

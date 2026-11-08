@@ -37,7 +37,8 @@ Starting from the triggerer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With ``start_from_trigger=True`` the scheduler defers the sensor itself, so the first poll is done without
-a worker being involved. The ``timeout`` of the sensor also applies to that first poll. The requirements
+a worker being involved. The ``timeout`` of the sensor counts from the moment the scheduler deferred the
+sensor, so it covers that first poll and the ones after it. The requirements
 and limitations are the same as for the operator, see
 :ref:`howto/operator:MSGraphAsyncOperator:start_from_trigger`.
 
