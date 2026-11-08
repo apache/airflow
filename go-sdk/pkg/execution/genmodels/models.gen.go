@@ -1662,6 +1662,15 @@ type SkipDownstreamTasks struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Start bounded task finalization without reporting a task outcome.
+type StartTaskFinalization struct {
+	// Retry corresponds to the JSON schema field "retry".
+	Retry RetryTask `msgpack:"retry"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 type StartupDetails struct {
 	// BundleInfo corresponds to the JSON schema field "bundle_info".
 	BundleInfo BundleInfo `msgpack:"bundle_info"`
