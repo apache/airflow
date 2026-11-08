@@ -483,7 +483,7 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
 
 
 class _GKEAsyncApiClient(async_client.ApiClient):
-    """Retry a rejected GKE token once with refreshed credentials."""
+    """Retry a rejected GKE token once if refreshing changes it."""
 
     def __init__(
         self,
@@ -494,12 +494,16 @@ class _GKEAsyncApiClient(async_client.ApiClient):
         self._refresh_token = refresh_token
 
     async def call_api(self, *args: Any, **kwargs: Any) -> Any:
+        authorization = self.default_headers.get("Authorization")
         try:
             return await super().call_api(*args, **kwargs)
         except async_client.ApiException as error:
             if error.status != 401:
                 raise
-        self.default_headers["Authorization"] = f"Bearer {await self._refresh_token()}"
+            refreshed_authorization = f"Bearer {await self._refresh_token()}"
+            if refreshed_authorization == authorization:
+                raise
+        self.default_headers["Authorization"] = refreshed_authorization
         return await super().call_api(*args, **kwargs)
 
 
@@ -510,6 +514,11 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
     This hook provides full set of the standard Kubernetes API provided by the AsyncKubernetesHook,
     and at the same time it provides a GKE authentication, so it makes it possible to KubernetesHook
     functionality against GKE clusters.
+
+    The API client is reused across ``get_conn()`` calls and is not closed when the context exits.
+    Direct hook users must call ``await hook.close()`` when finished. Built-in GKE pod and job
+    triggers close the hook during cleanup; subclasses overriding ``cleanup()`` must call
+    ``await super().cleanup()`` or close the hook themselves.
     """
 
     sync_hook_class = GKEKubernetesHook

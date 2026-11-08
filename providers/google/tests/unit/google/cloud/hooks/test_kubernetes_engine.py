@@ -34,6 +34,7 @@ from google.cloud.container_v1.types import Cluster
 from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.client.rest import RESTResponse
 
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
@@ -712,7 +713,7 @@ class TestGKEKubernetesAsyncHook:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("initial_status", "retry_status"),
-        [(401, 401), (401, 403), (403, None), (404, None)],
+        [(401, 401), (401, 403), (401, None), (403, None), (404, None)],
     )
     @time_machine.travel("2026-01-01 00:00:00+00:00", tick=False)
     @mock.patch("kubernetes_asyncio.client.rest.RESTClientObject.request", autospec=True)
@@ -740,10 +741,17 @@ class TestGKEKubernetesAsyncHook:
         mock_request.side_effect = responses
 
         await hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
-        with pytest.raises(async_client.ApiException) as error:
+        if retry_status is not None:
+            credentials.token = "refreshed-token"
+        permission_denied = (retry_status or initial_status) == 403
+        expected_exception = KubernetesApiPermissionError if permission_denied else async_client.ApiException
+        with pytest.raises(expected_exception) as error:
             await hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        assert error.value is final_error
+        if permission_denied:
+            assert error.value.__cause__ is final_error
+        else:
+            assert error.value is final_error
         assert mock_request.call_count == len(responses)
         assert credentials.refresh.call_count == (2 if initial_status == 401 else 1)
 
