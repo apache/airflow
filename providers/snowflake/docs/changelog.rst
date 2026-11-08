@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+.. note::
+
+    Python 3.14 and later now require ``snowflake-sqlalchemy>=2.1.0`` and
+    ``snowflake-connector-python>=5.1.0``, which allow SQLAlchemy 2.1.
+    Earlier Python versions retain the SQLAlchemy 2.0 upper bound because
+    Snowpark requires a connector version below 5, while the compatible dialect
+    requires connector 5.1 or later. Support for Airflow 2.11 is unchanged.
+
 6.21.0
 ......
 
