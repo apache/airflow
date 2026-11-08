@@ -56,6 +56,7 @@ to change the configuration of an existing warehouse. Pass its ``warehouse_id`` 
 ``json`` dictionary containing the request body for the
 `SQL Warehouses edit API <https://docs.databricks.com/api/warehouses/v1/edit-warehouse>`_.
 For example, you can set ``cluster_size``, ``auto_stop_mins``, or ``tags``.
+Settings omitted from ``json`` retain their current values.
 
 The connection ID, warehouse ID, and nested ``json`` values support templating.
 For numeric or boolean Jinja expressions,
