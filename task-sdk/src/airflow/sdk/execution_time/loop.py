@@ -31,6 +31,8 @@ from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from airflow.sdk.api.datamodels._generated import LoopContext
     from airflow.sdk.definitions._internal.loop import LoopGateOperator
     from airflow.sdk.definitions.context import Context
@@ -53,6 +55,22 @@ class LoopContextAccessor:
     @property
     def max_iterations(self) -> int:
         return self._descriptor.max_iterations
+
+    @property
+    def region_id(self) -> UUID:
+        return self._descriptor.region_id
+
+    @property
+    def trajectory(self) -> int:
+        return self._descriptor.trajectory
+
+    @property
+    def forked_from_region_id(self) -> UUID | None:
+        return self._descriptor.forked_from_region_id
+
+    @property
+    def resumes_from_index(self) -> int | None:
+        return self._descriptor.resumes_from_index
 
     @property
     def previous(self) -> Any:

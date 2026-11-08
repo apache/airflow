@@ -37,6 +37,8 @@ eleventyComputed:
   {% set sourceUrl = pv.provider.source_url %}
 {% endif %}
 
+{% set externalServiceConns = conns | getExternalServiceConnections %}
+
 {% set totalModules = 0 %}
 {% for t in types %}{% set totalModules = totalModules + (moduleCounts[t.id] or 0) %}{% endfor %}
 
@@ -257,30 +259,6 @@ eleventyComputed:
         </button>
         {% endfor %}
       </div>
-      {% set hasExternalServices = false %}
-      {% for conn in conns %}
-        {% if conn.external_services and conn.external_services.length > 0 %}{% set hasExternalServices = true %}{% endif %}
-      {% endfor %}
-      {% if hasExternalServices %}
-      <table class="conn-external-services-table">
-        <thead>
-          <tr class="conn-external-services-header">
-            <th>Connection type</th>
-            <th>External services (examples)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for conn in conns %}
-          {% if conn.external_services and conn.external_services.length > 0 %}
-          <tr class="conn-external-services-row">
-            <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
-            <td class="conn-external-services-list">{{ conn.external_services | join(", ") }}</td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
       <div class="conn-builder-panel" id="conn-builder-panel" hidden>
         <div class="conn-builder-header">
           <span class="conn-builder-title" id="conn-builder-title"></span>
@@ -307,6 +285,34 @@ eleventyComputed:
       <span class="no-connections">No connections</span>
     {% endif %}
   </section>
+
+  {% if externalServiceConns.length > 0 %}
+  <section class="external-services-card card">
+    <h3>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>
+      External Services
+    </h3>
+    <p>Services each connection type can reach, as declared by the provider. Examples only, not a complete list.</p>
+    <table class="external-services-table">
+      <thead>
+        <tr class="external-services-header">
+          <th>Connection type</th>
+          <th>External services (examples)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for conn in externalServiceConns %}
+        <tr class="external-services-row">
+          <td class="external-services-name"><code>{{ conn.conn_type or conn.connection_type }}</code></td>
+          <td class="external-services-list">{{ conn.external_services | join(", ") }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
 
   {# URI schemes grouped by the Airflow feature that routes them to the provider #}
   {% set schemeGroups = uriSchemes | uriSchemeGroups %}

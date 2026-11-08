@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import struct
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator, Mapping
 from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING, TypeVar
@@ -568,6 +568,23 @@ def loop_position(
             assert region.parent_region_index is not None
         coordinate_id, index = region.parent_region_id, region.parent_region_index
     return None
+
+
+def get_trajectory(region: DynamicRegion, regions: Mapping[UUID, DynamicRegion]) -> int:
+    """
+    Return the 1-based position of ``region`` in its family: 1 for the original, ``n + 1`` for its n-th fork.
+
+    ``forked_from_region_id`` is unique, so a family is one chain and the position orders its regions.
+    """
+    trajectory = 1
+    lineage: set[UUID] = set()
+    while region.forked_from_region_id is not None:
+        if region.id in lineage:
+            raise ValueError("Cyclic region lineage")
+        lineage.add(region.id)
+        region = regions[region.forked_from_region_id]
+        trajectory += 1
+    return trajectory
 
 
 def build_loop_family_legs(

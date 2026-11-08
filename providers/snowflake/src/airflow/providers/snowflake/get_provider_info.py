@@ -155,6 +155,11 @@ def get_provider_info():
                         "schema": {"type": ["boolean", "null"]},
                         "description": "Turns off OCSP certificate checks",
                     },
+                    "enable_server_session_keep_alive_auto_detection": {
+                        "label": "Keep session while async queries run",
+                        "schema": {"type": ["boolean", "null"], "default": True},
+                        "description": "Skip logout on close while async queries are running (snowflake-connector-python 5.0+)",
+                    },
                     "proxy_host": {"label": "Proxy Host", "schema": {"type": ["string", "null"]}},
                     "proxy_port": {"label": "Proxy Port", "schema": {"type": ["integer", "null"]}},
                     "proxy_user": {"label": "Proxy User", "schema": {"type": ["string", "null"]}},

@@ -33,6 +33,7 @@ class PowerBIDatasetRefreshFields(Enum):
     REQUEST_ID = "request_id"
     STATUS = "status"
     ERROR = "error"
+    REFRESH_TYPE = "refresh_type"
 
 
 class PowerBIDatasetRefreshStatus:
@@ -42,9 +43,12 @@ class PowerBIDatasetRefreshStatus:
     FAILED = "Failed"
     COMPLETED = "Completed"
     DISABLED = "Disabled"
+    TIMED_OUT = "TimedOut"
+    CANCELLED = "Cancelled"
 
-    TERMINAL_STATUSES = {FAILED, COMPLETED}
-    FAILURE_STATUSES = {FAILED, DISABLED}
+    TERMINAL_STATUSES = {FAILED, COMPLETED, DISABLED, TIMED_OUT, CANCELLED}
+    FAILURE_STATUSES = TERMINAL_STATUSES - {COMPLETED}
+    ACTIVE_EXTENDED_STATUSES = {"NotStarted", "InProgress"}
 
 
 class PowerBIDatasetRefreshException(AirflowException):
@@ -76,6 +80,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
     conn_name_attr: str = "conn_id"
     default_conn_name: str = "powerbi_default"
     hook_name: str = "Power BI"
+    VIA_ENHANCED_API = "ViaEnhancedApi"
 
     def __init__(
         self,
@@ -148,16 +153,20 @@ class PowerBIHook(KiotaRequestAdapterHook):
         """
         Convert raw refresh details into a dictionary containing required fields.
 
+        Refresh history entries retain their type for execution-detail polling.
+
         :param refresh_details: Raw object of refresh details.
         """
         return {
             PowerBIDatasetRefreshFields.REQUEST_ID.value: str(refresh_details.get("requestId")),
             PowerBIDatasetRefreshFields.STATUS.value: (
-                "In Progress"
-                if str(refresh_details.get("status")) == "Unknown"
+                PowerBIDatasetRefreshStatus.IN_PROGRESS
+                if refresh_details.get("status")
+                in PowerBIDatasetRefreshStatus.ACTIVE_EXTENDED_STATUSES | {"Unknown"}
                 else str(refresh_details.get("status"))
             ),
             PowerBIDatasetRefreshFields.ERROR.value: str(refresh_details.get("serviceExceptionJson")),
+            PowerBIDatasetRefreshFields.REFRESH_TYPE.value: str(refresh_details.get("refreshType")),
         }
 
     async def get_refresh_details_by_refresh_id(
@@ -186,6 +195,47 @@ class PowerBIHook(KiotaRequestAdapterHook):
             )
 
         refresh_details = refresh_histories[refresh_ids.index(refresh_id)]
+
+        if refresh_details.get(PowerBIDatasetRefreshFields.REFRESH_TYPE.value) == self.VIA_ENHANCED_API:
+            try:
+                execution_details = await self.run(
+                    url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{refresh_id}",
+                    path_parameters={
+                        "group_id": group_id,
+                        "dataset_id": dataset_id,
+                        "refresh_id": refresh_id,
+                    },
+                )
+            except AirflowException as error:
+                raise PowerBIDatasetRefreshException(
+                    "Failed to retrieve refresh execution details"
+                ) from error
+            status = execution_details.get("extendedStatus")
+            if status not in (
+                PowerBIDatasetRefreshStatus.TERMINAL_STATUSES
+                | PowerBIDatasetRefreshStatus.ACTIVE_EXTENDED_STATUSES
+            ):
+                status = execution_details.get("status")
+            errors = [
+                message["message"]
+                for message in execution_details.get("messages") or []
+                if message.get("message") and message.get("type") != "Warning"
+            ]
+            if execution_details.get("serviceExceptionJson"):
+                errors.append(execution_details["serviceExceptionJson"])
+            errors.extend(
+                attempt["serviceExceptionJson"]
+                for attempt in execution_details.get("refreshAttempts") or []
+                if attempt.get("serviceExceptionJson")
+            )
+            return self.raw_to_refresh_details(
+                {
+                    "requestId": refresh_id,
+                    "status": status,
+                    "refreshType": refresh_details[PowerBIDatasetRefreshFields.REFRESH_TYPE.value],
+                    "serviceExceptionJson": "; ".join(errors) if errors else None,
+                }
+            )
 
         return refresh_details
 

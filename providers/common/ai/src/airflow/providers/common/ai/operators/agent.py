@@ -241,6 +241,26 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
     )
 
 
+def _dump_unregistered_models(value: Any, registered: set[type]) -> Any:
+    """Return *value* with each model whose class is not in *registered* dumped to a JSON-compatible dict."""
+    if isinstance(value, BaseModel):
+        if type(value) in registered:
+            return value
+        # A python-mode model_dump() leaves values such as plain Enum members, HttpUrl and Path in the
+        # dict, and the default XCom serializer raises TypeError for those values.
+        return value.model_dump(mode="json")
+    # The default XCom serializer already pushes a subclass of list, tuple or dict, such as a NamedTuple
+    # or an OrderedDict, as the plain type. Building the plain type here does not change what a
+    # downstream task receives.
+    if isinstance(value, list):
+        return [_dump_unregistered_models(item, registered) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_dump_unregistered_models(item, registered) for item in value)
+    if isinstance(value, dict):
+        return {key: _dump_unregistered_models(item, registered) for key, item in value.items()}
+    return value
+
+
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
@@ -306,9 +326,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         ``agent_params`` still works, but stores each capability's repr
         in the serialized Dag, and cannot be combined with this argument (the
         task fails when it runs).
-    :param enable_tool_logging: When ``True`` (default), wraps the agent's
-        assembled function toolset in a ``LoggingToolset`` that logs tool calls
-        with timing at INFO level and arguments at DEBUG level. This includes
+    :param enable_tool_logging: When ``True`` (default), the operator appends a
+        ``ToolLoggingCapability``, whose ``get_wrapper_toolset`` wraps the agent's
+        assembled function toolset so that tool calls are logged
+        with timing at INFO level and arguments at DEBUG level. If ``capabilities``
+        already holds a ``ToolLoggingCapability``, the operator adds none and that
+        one's ``logger`` is used. Logging includes
         tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
         capabilities, but not output tools, provider-native tools that run
         server-side, or tools another capability adds through its own wrapper
@@ -760,8 +783,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             rendered = copy.copy(toolset)
             self._do_render_template_fields(rendered, fields, context, jinja_env, seen_oids)
             # The rendered connection is recorded nowhere else, so this line is the audit trail
-            # of which connection this task instance's agent was given. @task.agent renders a
-            # second time, when the id no longer changes, so this logs once per task instance.
+            # of which connection this task instance's agent was given.
             if rendered.id != toolset.id:
                 self.log.info("Rendered toolset %s", rendered.id)
             return rendered
@@ -1007,14 +1029,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise
 
     def execute(self, context: Context) -> Any:
-        if self.enable_hitl_review and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: enable_hitl_review=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The HITL session model requires a string prompt. Return a str "
-                f"prompt, or disable enable_hitl_review."
-            )
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
@@ -1105,22 +1119,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # The reviewer can approve, reject, or ask for a new answer, but cannot edit the answer text.
             # So the approved answer is the last answer the agent returned, and there is no need to parse
             # it back from that text.
-            output = self._output_under_review
-            if isinstance(output, BaseModel) and (
-                self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
-            ):
-                # A downstream task can load a model from XCom only if the worker registered the model's
-                # class. The worker registers the classes that iter_pydantic_models finds in output_type.
-                # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-                # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
-                # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
-                # condition above never reaches the iter_pydantic_models call.
-                output = output.model_dump()
+            output = self._convert_output_for_xcom(self._output_under_review)
             self._clear_usage_budget(context)
             return output
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            output = output.model_dump()
+        output = self._convert_output_for_xcom(output)
 
         # Clean up the durable journal only after the run and every post-run step
         # that can still fail (the run-metadata and message-history XCom pushes
@@ -1131,6 +1134,25 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             self._durable_journal.cleanup()
         self._clear_usage_budget(context)
         return output
+
+    def _convert_output_for_xcom(self, output: Any) -> Any:
+        """Return the XCom value, with dicts in place of models that a downstream task could not load."""
+        if not self.do_xcom_push:
+            return output
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            return output.model_dump()
+        if not _CORE_WALKER:
+            # iter_pydantic_models could not be imported, so the worker registers no class.
+            # _serialize_model_output is always True when that import fails, so a model at the top level was
+            # already dumped above. The class of a model inside a list, tuple or dict is not registered
+            # either, so this call passes an empty set of registered classes to dump that model too.
+            return _dump_unregistered_models(output, set())
+        # A downstream task can load a model from XCom only if the worker registered the model's class.
+        # The worker registers the classes that iter_pydantic_models finds in output_type.
+        # iter_pydantic_models finds no class in a list of output types, an output marker, an output
+        # function, a TypeAliasType or a NewType. For these output types the operator pushes each model
+        # as a dict, including models inside a list, tuple or dict.
+        return _dump_unregistered_models(output, set(iter_pydantic_models(self.output_type)))
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:
         """

@@ -31,3 +31,12 @@ class ModalError(Exception):
 
 class ModalConnectionError(ModalError):
     """A ``modal`` connection is misconfigured, for example only one of the two token fields is set."""
+
+
+class ModalSandboxError(ModalError):
+    """A ``@task.modal`` function did not finish successfully in its Modal sandbox."""
+
+    def __init__(self, message: str, *, sandbox_id: str, returncode: int | None) -> None:
+        super().__init__(message)
+        self.sandbox_id = sandbox_id
+        self.returncode = returncode

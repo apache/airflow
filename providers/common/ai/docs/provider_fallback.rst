@@ -68,9 +68,11 @@ Bedrock primary's native id reaches a Bedrock fallback but not an Azure one. For
 a Bedrock primary with ``fallback_conn_ids: ["bedrock_dr"]`` forwards
 ``"us.anthropic.claude-opus-4-6-v1:0"`` to ``bedrock_dr`` unchanged; the same primary with
 ``fallback_conn_ids: ["azure_dr"]`` does not forward it to ``azure_dr`` at all, and
-``azure_dr`` raises "no model specified" unless its own extra sets a ``model``. See
-:doc:`connections/pydantic_ai_azure`, :doc:`connections/pydantic_ai_bedrock` and
-:doc:`connections/pydantic_ai_vertex` for how each vendor connection resolves a bare name.
+``azure_dr`` raises "no model specified" unless its own extra sets a ``model``. A generic
+``pydanticai`` connection with Default Model Provider set counts as being on that platform. See
+:doc:`connections/pydantic_ai`, :doc:`connections/pydantic_ai_azure`,
+:doc:`connections/pydantic_ai_bedrock` and :doc:`connections/pydantic_ai_vertex` for how
+each connection type resolves a bare name.
 
 Configure it on the operator
 -----------------------------
@@ -198,16 +200,12 @@ Two checks, neither of which requires waiting for a real outage:
 
 *Test the connection.* ``test_connection`` on the primary resolves every connection in the
 chain, so a fallback with a missing ``model`` or an unknown connection ID is reported by name
-there rather than discovered mid-incident. Credential fields a provider class rejects with a
-``TypeError`` are caught by the hook, which retries with the env-var-based provider
-constructor and logs a warning either way; if the required env var is also missing, that
-retry raises ``pydantic_ai.exceptions.UserError``, which ``test_connection`` does surface
-since it wraps the whole resolution in a broad exception handler. What it cannot show is the
-opposite case: the env var *is* set on the worker, the retry quietly succeeds, and
-``test_connection`` reports success even though the credentials you configured on the
-connection were silently ignored -- check the logs for that warning rather than relying on
-``test_connection`` alone. It also does not call the provider, so a well-formed but revoked
-key still passes -- that is what the drill below is for.
+there rather than discovered mid-incident. Fields a provider class cannot be built from (a
+``TypeError``) fail the resolution with a ``ValueError`` naming the connection, the provider and
+the fields passed, with the provider's ``TypeError`` text -- the hook never falls back to
+environment-variable auth, which would authenticate as a different identity -- and
+``test_connection`` reports it as a failure. It does not call the provider, so a well-formed
+but revoked key still passes -- that is what the drill below is for.
 
 *Drill it.* Point the primary at an endpoint nothing listens on and run the Dag. The task
 should still succeed, and the run summary in its log names the model that answered:

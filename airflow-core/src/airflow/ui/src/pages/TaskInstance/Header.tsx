@@ -33,10 +33,13 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
+import { PluginActions } from "src/components/PluginActions";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
+import { useHasGridSelection } from "src/context/gridSelection";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useLoopSummary } from "src/queries/useLoopSummary";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
@@ -66,8 +69,11 @@ export const HistoryHeader = ({ taskInstance }: { readonly taskInstance: TaskIns
 };
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
+  // The grid's bulk actions replace these while task instances are selected there.
+  const hasGridSelection = useHasGridSelection();
   const { t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
+  const pluginActions = usePluginActions("task_instance");
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
   const loopIteration = taskInstance.loop_iteration;
@@ -163,14 +169,28 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       <HeaderCard
         actions={
           <>
-            <ClearTaskInstanceButton
-              bg="bg"
-              isHotkeyEnabled
-              onOpen={() => setClearOpen(true)}
-              taskInstance={taskInstance}
-              variant="outline"
+            {hasGridSelection ? undefined : (
+              <>
+                <ClearTaskInstanceButton
+                  bg="bg"
+                  isHotkeyEnabled
+                  onOpen={() => setClearOpen(true)}
+                  taskInstance={taskInstance}
+                  variant="outline"
+                />
+                <MarkTaskInstanceAsButton
+                  bg="bg"
+                  isHotkeyEnabled
+                  taskInstance={taskInstance}
+                  variant="outline"
+                />
+              </>
+            )}
+            <PluginActions
+              {...pluginActions}
+              buttonProps={{ bg: "bg", variant: "outline" }}
+              entity={{ destination: "task_instance", taskInstance }}
             />
-            <MarkTaskInstanceAsButton bg="bg" isHotkeyEnabled taskInstance={taskInstance} variant="outline" />
           </>
         }
         icon={<MdOutlineTask />}

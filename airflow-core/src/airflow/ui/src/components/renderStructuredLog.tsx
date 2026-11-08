@@ -33,6 +33,7 @@ import { isUserCodeFrame, LogLevel, logLevelColorMapping } from "src/utils/logs"
 
 type Frame = {
   filename: string;
+  line?: string;
   lineno: number;
   name: string;
 };
@@ -258,7 +259,9 @@ const renderStructuredLogImpl = ({
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => {
         if (renderingMode === "text") {
-          return `    ${translate("components:logs.file")} ${frame.filename}, ${translate("components:logs.location", { line: frame.lineno, name: frame.name })}\n`;
+          const sourceLine = frame.line === undefined ? "" : `      ${frame.line}\n`;
+
+          return `    ${translate("components:logs.file")} ${frame.filename}, ${translate("components:logs.location", { line: frame.lineno, name: frame.name })}\n${sourceLine}`;
         }
 
         // Highlight user-code frames (DAG bundle, plugins, local files) in the info blue,
@@ -276,6 +279,11 @@ const renderStructuredLogImpl = ({
               {JSON.stringify(frame.filename)}
             </chakra.span>
             , {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
+            {frame.line === undefined ? undefined : (
+              <chakra.span display="block" ps={4} whiteSpace="pre-wrap">
+                {frame.line}
+              </chakra.span>
+            )}
           </chakra.p>
         );
       });

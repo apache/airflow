@@ -18,70 +18,16 @@
  */
 import { useState } from "react";
 
-import { Box, Flex, Text, VStack } from "@chakra-ui/react";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useDebouncedCallback } from "use-debounce";
 
-import { useDagVersionServiceGetDagVersionDiff } from "openapi/queries";
-
-import { NumberInputField, NumberInputRoot, ProgressBar } from "src/system-components";
-
-import { ErrorAlert } from "src/components/ErrorAlert";
 import { VersionCompareSelect } from "src/components/VersionCompareSelect";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-import { VersionDiff } from "./VersionDiff";
-
-// Mirrors MAX_ALLOWED_CHANGES on the diff endpoint, which is the real guard: this only spares
-// the caller a rejected request, so a stale value costs a 422 the error alert explains.
-const MAX_CHANGES_LIMIT = 5000;
-// Every distinct bound is its own request, and each one re-reads and compares two whole serialized
-// Dags, so a keystroke is too cheap a trigger.
-const MAX_CHANGES_DEBOUNCE_MS = 400;
-
-type SelectedVersionsProps = {
-  readonly baseVersionNumber: number;
-  readonly dagId: string;
-  readonly maxChanges: number | undefined;
-  readonly targetVersionNumber: number;
-};
-
-/** Split out so the query only exists once both versions are chosen, rather than being disabled. */
-const SelectedVersionsDiff = ({
-  baseVersionNumber,
-  dagId,
-  maxChanges,
-  targetVersionNumber,
-}: SelectedVersionsProps) => {
-  const { data, error, isLoading } = useDagVersionServiceGetDagVersionDiff(
-    {
-      baseVersionNumber,
-      dagId,
-      maxChanges,
-      targetVersionNumber,
-    },
-    undefined,
-    // Changing the bound is a new query key; without this the table would blank out while it loads.
-    { placeholderData: (previous) => previous },
-  );
-
-  return (
-    <>
-      <ErrorAlert error={error} />
-      <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-      {data === undefined ? undefined : (
-        <VersionDiff
-          baseVersionNumber={baseVersionNumber}
-          diff={data}
-          maxChanges={maxChanges}
-          targetVersionNumber={targetVersionNumber}
-        />
-      )}
-    </>
-  );
-};
+import { MAX_CHANGES_LIMIT, MaxChangesField } from "./MaxChangesField";
+import { SelectedVersionsDiff } from "./SelectedVersionsDiff";
 
 const parsePositiveInt = (raw: string | null) => {
   const parsed = Number(raw);
@@ -101,16 +47,8 @@ export const Versions = () => {
   // request. An empty bound means the endpoint's own default applies.
   const maxChanges =
     requestedMaxChanges === undefined ? undefined : Math.min(requestedMaxChanges, MAX_CHANGES_LIMIT);
-  // The field keeps what was typed while the debounced write settles; the URL only ever holds a
-  // bound the endpoint accepts.
-  const [maxChangesDraft, setMaxChangesDraft] = useState(maxChanges === undefined ? "" : `${maxChanges}`);
-
-  // Explicit because the number input otherwise flags an empty field as out of range (an empty
-  // value parses to NaN), which drew an error border around the field's normal, unset state.
-  const draftNumber = Number(maxChangesDraft);
-  const maxChangesInvalid =
-    maxChangesDraft !== "" &&
-    (!Number.isInteger(draftNumber) || draftNumber < 1 || draftNumber > MAX_CHANGES_LIMIT);
+  // Only the comparison knows whether its bound cut it short, and only the field can lift it.
+  const [truncated, setTruncated] = useState(false);
 
   const updateParam = (key: string, value: string) =>
     setSearchParams(
@@ -128,14 +66,14 @@ export const Versions = () => {
       { replace: true },
     );
 
-  const writeMaxChanges = useDebouncedCallback((value: string) => {
+  const writeMaxChanges = (value: string) => {
     const parsed = parsePositiveInt(value);
 
     updateParam(
       SearchParamsKeys.MAX_CHANGES,
       parsed === undefined ? "" : `${Math.min(parsed, MAX_CHANGES_LIMIT)}`,
     );
-  }, MAX_CHANGES_DEBOUNCE_MS);
+  };
 
   return (
     <Box p={2}>
@@ -154,26 +92,7 @@ export const Versions = () => {
           }
           selectedVersionNumber={targetVersionNumber}
         />
-        <VStack alignItems="flex-start" gap={1}>
-          <Text fontSize="xs">{translate("versions.maxChanges")}</Text>
-          <NumberInputRoot
-            invalid={maxChangesInvalid}
-            max={MAX_CHANGES_LIMIT}
-            min={1}
-            onValueChange={({ value }) => {
-              setMaxChangesDraft(value);
-              writeMaxChanges(value);
-            }}
-            size="sm"
-            value={maxChangesDraft}
-            w={28}
-          >
-            <NumberInputField
-              aria-label={translate("versions.maxChanges")}
-              placeholder={translate("versions.maxChangesDefault")}
-            />
-          </NumberInputRoot>
-        </VStack>
+        <MaxChangesField maxChanges={maxChanges} onCommit={writeMaxChanges} truncated={truncated} />
       </Flex>
 
       {baseVersionNumber === undefined || targetVersionNumber === undefined ? (
@@ -183,6 +102,7 @@ export const Versions = () => {
           baseVersionNumber={baseVersionNumber}
           dagId={dagId}
           maxChanges={maxChanges}
+          onTruncatedChange={setTruncated}
           targetVersionNumber={targetVersionNumber}
         />
       )}

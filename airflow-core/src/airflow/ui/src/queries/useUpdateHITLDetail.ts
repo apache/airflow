@@ -36,7 +36,7 @@ import {
 
 import { toaster } from "src/system-components";
 
-import { createErrorToaster } from "src/utils";
+import { createErrorToaster, getApiErrorDetail, getErrorStatus } from "src/utils";
 import type { HITLResponseParams } from "src/utils/hitl";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
@@ -88,7 +88,19 @@ export const useUpdateHITLDetail = ({
   };
 
   const onError = async (apiError: unknown) => {
-    createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
+    const detail = getApiErrorDetail(apiError);
+
+    // The backend says why it refused the answer (e.g. the task stopped waiting); show that rather
+    // than the bare status text. 403 stays with the MutationCache handler, as in createErrorToaster.
+    if (detail !== undefined && getErrorStatus(apiError) !== 403) {
+      toaster.create({
+        description: Array.isArray(detail) ? detail.join(", ") : detail,
+        title: translate("response.error"),
+        type: "error",
+      });
+    } else {
+      createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
+    }
     // A refused answer (the request was replaced or already answered) leaves a stale request on
     // screen; reload it so the next answer goes to what is waiting now.
     await Promise.all(

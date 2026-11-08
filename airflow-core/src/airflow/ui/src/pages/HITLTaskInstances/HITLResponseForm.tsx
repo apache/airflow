@@ -79,6 +79,16 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
 
   const isPending = isHITLPending(hitlDetail.task_instance.state);
 
+  const chosenOptionsValue = paramsDict.chosen_options?.value;
+  const isChosenOptionsEmpty = Array.isArray(chosenOptionsValue)
+    ? chosenOptionsValue.length === 0
+    : chosenOptionsValue === undefined || chosenOptionsValue === null || chosenOptionsValue === "";
+  const isSelectionMissing =
+    !(shouldRenderOptionButton || isApprovalTask) &&
+    isPending &&
+    !hitlDetail.response_received &&
+    isChosenOptionsEmpty;
+
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
     dagRunId: hitlDetail.task_instance.dag_run_id,
@@ -90,7 +100,7 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
   });
 
   const handleSubmit = (option?: string) => {
-    if (errors || isSubmitting) {
+    if (errors || isSubmitting || isSelectionMissing) {
       return;
     }
 
@@ -150,13 +160,20 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
               </Button>
             ))
           ) : hitlDetail.response_received ? undefined : (
-            <Button
-              disabled={errors || isSubmitting || !isPending}
-              loading={isSubmitting}
-              onClick={() => handleSubmit()}
-            >
-              <FiSend /> {translate("response.respond")}
-            </Button>
+            <>
+              {isSelectionMissing ? (
+                <Text color="fg.muted" fontSize="sm">
+                  {translate("response.selectAtLeastOne")}
+                </Text>
+              ) : undefined}
+              <Button
+                disabled={errors || isSubmitting || !isPending || isSelectionMissing}
+                loading={isSubmitting}
+                onClick={() => handleSubmit()}
+              >
+                <FiSend /> {translate("response.respond")}
+              </Button>
+            </>
           )}
         </HStack>
       </Box>

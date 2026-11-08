@@ -25,6 +25,14 @@ inputs:
   platform:
     description: 'Platform for the build - linux/amd64 or linux/arm64'
     required: true
+  hooks:
+    description: >-
+      Set this input to the space-separated ids of the hooks that the job runs. When this input is set,
+      the action still restores the shared cache of hook environments, but it prepares only these hooks and
+      never saves the cache. A hook left out of the list still runs, but prek creates its environment when
+      the hook first runs.
+    required: false
+    default: ''
 runs:
   using: "composite"
   steps:
@@ -116,6 +124,8 @@ runs:
     - name: Validate and install prek hooks
       id: install-hooks
       shell: bash
+      env:
+        HOOKS: ${{ inputs.hooks }}
       # A successfully extracted archive can still contain a partial or unusable environment.
       # This is idempotent on a healthy hit; prek validates/reuses it and repairs misses normally.
       # Keep the existing bounded retries for transient toolchain download failures.
@@ -131,10 +141,16 @@ runs:
           change_detection_uncertain=true
         fi
 
+        # A YAML block scalar puts each hook id on its own line, and `read` stops at the first newline.
+        read -ra hook_selection <<< "${HOOKS//$'\n'/ }"
+        if [[ "${#hook_selection[@]}" -eq 0 ]]; then
+          hook_selection=(--skip run-skill-eval --skip run-skill-eval-codex --skip view-skill-eval)
+        fi
+
         started_at=${SECONDS}
         max_attempts=4
         for attempt in $(seq 1 "${max_attempts}"); do
-          if prek install-hooks --skip run-skill-eval --skip run-skill-eval-codex --skip view-skill-eval; then
+          if prek install-hooks "${hook_selection[@]}"; then
             installation_succeeded=true
             break
           fi
@@ -175,6 +191,7 @@ runs:
       env:
         EVENT_NAME: ${{ github.event_name }}
         SAVE_CACHE: ${{ inputs.save-cache }}
+        HOOKS: ${{ inputs.hooks }}
         STASH_HIT: ${{ steps.restore-prek-cache.outputs.stash-hit }}
         TAR_RESTORED: ${{ steps.restore-prek-tar.outputs.tar-restored }}
         CACHE_CHANGED: ${{ steps.install-hooks.outputs.cache-changed }}
@@ -182,7 +199,12 @@ runs:
       run: |
         SAVE=false
         REASON=unchanged
-        if [[ "${SAVE_CACHE}" != "true" ]]; then
+        # If this job saved its archive after a cache miss, the archive would hold only the selected
+        # environments under the cache key of the full archive. A later job that looks up that key could
+        # restore an archive that lacks most environments.
+        if [[ -n "${HOOKS//[[:space:]]/}" ]]; then
+          REASON=selected-hooks
+        elif [[ "${SAVE_CACHE}" != "true" ]]; then
           REASON=reader
         elif [[ "${STASH_HIT}" != "true" ]]; then
           SAVE=true

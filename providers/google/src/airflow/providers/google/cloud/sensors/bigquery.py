@@ -28,15 +28,18 @@ from google.api_core.exceptions import NotFound
 from google.cloud.bigquery import DatasetReference, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf, timezone
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -339,12 +342,13 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     streaming buffer`` errors.
 
     .. warning::
-        The sensor reads ``table.streaming_buffer`` from BigQuery's table
-        metadata, which is eventually consistent. For a short window right
-        after a streaming insert the buffer metadata is still absent, so the
-        sensor may report the buffer empty before it actually is. Known
-        limitation tracked at
-        https://github.com/apache/airflow/issues/66963
+        BigQuery's ``table.streaming_buffer`` metadata is eventually consistent.
+        The sensor mitigates this by requiring multiple consecutive empty
+        observations before reporting the buffer empty (configurable via
+        ``empty_confirmations``), but this may delay success by up to one
+        ``poke_interval`` compared to earlier releases. ``mode="reschedule"`` with
+        ``empty_confirmations > 1`` needs a running triggerer once an empty reading is seen;
+        ``empty_confirmations=1`` keeps the worker-only behaviour.
 
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
@@ -352,6 +356,9 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     :param gcp_conn_id: Airflow connection ID for GCP.
     :param impersonation_chain: Optional service account to impersonate, or a
         chained list of accounts. See the Google provider docs for details.
+    :param empty_confirmations: Number of consecutive empty readings required
+        before considering the streaming buffer empty. Must be at least 1.
+        Defaults to 2.
     :param deferrable: Run in deferrable mode using
         :class:`BigQueryStreamingBufferEmptyTrigger`.
     """
@@ -374,6 +381,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        empty_confirmations: int = 2,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -382,12 +390,17 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
+        if empty_confirmations < 1:
+            raise ValueError("empty_confirmations must be at least 1")
+
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.empty_confirmations = empty_confirmations
         self.deferrable = deferrable
+        self._consecutive_empty = 0
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
@@ -395,8 +408,11 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             return
         if self.poke(context=context):
             return
+        self._defer_to_trigger(timeout=self.timeout)
+
+    def _defer_to_trigger(self, timeout: float) -> None:
         self.defer(
-            timeout=timedelta(seconds=self.timeout),
+            timeout=timedelta(seconds=timeout),
             trigger=BigQueryStreamingBufferEmptyTrigger(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
@@ -404,6 +420,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
                 poll_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                empty_confirmations=self.empty_confirmations,
             ),
             method_name="execute_complete",
         )
@@ -432,4 +449,42 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             table = hook.get_client(project_id=self.project_id).get_table(table_ref)
         except NotFound as err:
             raise ValueError(f"Table {table_uri} not found") from err
-        return table.streaming_buffer is None
+
+        if table.streaming_buffer is not None:
+            self._consecutive_empty = 0
+            return False
+
+        self._consecutive_empty += 1
+        self.log.info(
+            "Streaming buffer reported empty (%s/%s confirmations) for table: %s",
+            self._consecutive_empty,
+            self.empty_confirmations,
+            table_uri,
+        )
+        if self._consecutive_empty >= self.empty_confirmations:
+            return True
+        if self.reschedule and not self.deferrable:
+            # A reschedule rebuilds the operator and Airflow 3 clears XComs on each run start, so the
+            # confirmation count cannot survive it; the trigger repeats the full confirmation count instead.
+            first_reschedule_date = self._get_first_reschedule_date(context)
+            elapsed = (
+                (timezone.utcnow() - first_reschedule_date).total_seconds() if first_reschedule_date else 0
+            )
+            if self.timeout - elapsed > 0:
+                self._defer_to_trigger(timeout=self.timeout - elapsed)
+        return False
+
+    def _get_first_reschedule_date(self, context: Context) -> datetime | None:
+        if AIRFLOW_V_3_0_PLUS:
+            return context["ti"].get_first_reschedule_date(context)
+        # Same lookup as the Airflow 2.11 BaseSensorOperator.execute; `_orig_start_date` only exists in Airflow 2.
+        from airflow.sensors.base import _orig_start_date  # type: ignore[attr-defined]
+
+        ti = context["ti"]
+        return _orig_start_date(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            try_number=(ti.max_tries or 0) - (self.retries or 0) + 1,
+        )

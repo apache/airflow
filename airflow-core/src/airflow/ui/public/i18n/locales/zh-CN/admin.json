@@ -34,6 +34,7 @@
     "form": {
       "connectionIdRequired": "连接 ID 是必填的",
       "connectionIdRequirement": "连接 ID 不能只包含空格",
+      "connectionTypeFields": "{{connectionType}} 字段",
       "connectionTypeRequired": "连接类型是必填的",
       "extraFieldsJson": "额外字段 JSON",
       "helperText": "找不到连接类型？请确保您已安装对应的 Airflow 整合套件。",

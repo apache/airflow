@@ -282,6 +282,53 @@ between two connections.
     :start-after: [START howto_operator_generic_transfer]
     :end-before: [END howto_operator_generic_transfer]
 
+.. _howto/sensor:SqlSensor:
+
+Wait for a SQL condition
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.sensors.sql.SqlSensor` to wait until a query returns a row
+whose first cell is truthy, for example until today's orders have landed. It works with any connection
+whose hook is a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`. The examples below use
+PostgreSQL; write ``sql`` and ``parameters`` in your database's dialect and placeholder style.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sql]
+    :end-before: [END howto_sensor_sql]
+
+For a condition you cannot write in SQL, pass ``success`` or ``failure`` callables. They receive the first
+cell of the first row, or whatever ``selector`` returns for that row. ``fail_on_empty=True`` fails the task
+when the query returns no rows instead of checking again.
+
+Deferrable mode
+---------------
+
+With ``deferrable=True``, the sensor checks once on the worker. If the condition is not met, it defers and
+the triggerer runs the query every ``poke_interval`` seconds, so the task holds no worker slot while it
+waits. ``timeout`` caps the time spent deferred.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sql_deferrable]
+    :end-before: [END howto_sensor_sql_deferrable]
+
+The triggerer only checks the default condition, that the first cell of the first row is truthy, so write
+the condition in SQL as above. The sensor logs a warning and runs in its usual ``mode`` instead of
+deferring when:
+
+- ``success``, ``failure`` or ``selector`` is set, because these Python callables only run on a worker;
+- ``silent_fail``, ``never_fail`` or ``exponential_backoff`` is set, because they only apply to pokes on a
+  worker;
+- a subclass overrides ``poke`` or ``_get_hook``, because the triggerer would not run that code;
+- it runs on Airflow 3 before 3.2.2, whose triggerer cannot safely look up connections from the thread
+  that runs the query. Deferring works on Airflow 2.11 and on 3.2.2 and later;
+- on Airflow 2, ``parameters`` holds values other than strings, numbers, booleans and ``None``.
+  Airflow 2 stores trigger arguments as JSON, so dates, datetimes and ``Decimal`` values would reach
+  the triggerer as strings.
+
 Analytics Operator
 ~~~~~~~~~~~~~~~~~~
 

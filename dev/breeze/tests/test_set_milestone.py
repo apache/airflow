@@ -25,7 +25,6 @@ import pytest
 
 from airflow_breeze.commands.ci_commands import (
     _determine_milestone_version,
-    _find_latest_milestone,
     _find_matching_milestone,
     _get_backport_version_from_labels,
     _get_mention,
@@ -34,7 +33,6 @@ from airflow_breeze.commands.ci_commands import (
     _get_milestone_prefix,
     _get_removed_backport_labels_from_events,
     _has_bug_fix_indicators,
-    _parse_milestone_version,
     _parse_version_from_backport_label,
     _parse_version_from_branch,
     _should_skip_milestone_tagging,
@@ -138,28 +136,6 @@ class TestGetMilestonePrefix:
     )
     def test_milestone_prefix(self, major, minor, expected):
         assert _get_milestone_prefix(major, minor) == expected
-
-
-class TestParseMilestoneVersion:
-    """Test cases for _parse_milestone_version."""
-
-    @pytest.mark.parametrize(
-        ("title", "expected"),
-        [
-            ("Airflow 3.1.8", (3, 1, 8)),
-            ("Airflow 3.2", (3, 2, 0)),
-            ("Airflow 2.10.5", (2, 10, 5)),
-        ],
-    )
-    def test_valid_milestone_version(self, title, expected):
-        assert _parse_milestone_version(title) == expected
-
-    @pytest.mark.parametrize(
-        "title",
-        ["Something else", "Airflow", "Airflow 3"],
-    )
-    def test_invalid_milestone_version(self, title):
-        assert _parse_milestone_version(title) is None
 
 
 class TestHasBugFixIndicators:
@@ -361,30 +337,6 @@ class TestFindMatchingMilestone:
         mock_repo.get_milestones.return_value = [mock_milestone]
 
         result = _find_matching_milestone(mock_repo, "Airflow 3.1")
-        assert result is None
-
-
-class TestFindLatestMilestone:
-    """Test cases for _find_latest_milestone."""
-
-    def test_find_latest_milestone(self):
-        mock_repo = MagicMock()
-        mock_milestone1 = MagicMock()
-        mock_milestone1.title = "Airflow 3.1.8"
-        mock_milestone2 = MagicMock()
-        mock_milestone2.title = "Airflow 3.2"
-        mock_milestone3 = MagicMock()
-        mock_milestone3.title = "Airflow 2.10.5"
-        mock_repo.get_milestones.return_value = [mock_milestone1, mock_milestone2, mock_milestone3]
-
-        result = _find_latest_milestone(mock_repo)
-        assert result.title == "Airflow 3.2"  # Should get the highest version
-
-    def test_no_milestone_found(self):
-        mock_repo = MagicMock()
-        mock_repo.get_milestones.return_value = []
-
-        result = _find_latest_milestone(mock_repo)
         assert result is None
 
 

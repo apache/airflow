@@ -34,9 +34,11 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { DrainingBadge } from "src/components/DrainingBadge";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
+import { PluginActions } from "src/components/PluginActions";
 import { TeamName } from "src/components/TeamName";
 
 import { DagIcon } from "src/assets/DagIcon";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { formatNumber } from "src/utils";
 
@@ -66,6 +68,7 @@ export const Header = ({
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
   const showTeam = useShowTeam(dag?.team_name);
+  const pluginActions = usePluginActions("dag");
   const isStale = dag?.is_stale;
 
   const nextRunStat = isStale
@@ -171,6 +174,11 @@ export const Header = ({
               dagDisplayName={dag.dag_display_name}
               dagId={dag.dag_id}
               variant="outline"
+            />
+            <PluginActions
+              {...pluginActions}
+              buttonProps={{ bg: "bg", variant: "outline" }}
+              entity={{ dag, dagDetails: dag, destination: "dag" }}
             />
           </>
         )
