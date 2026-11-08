@@ -64,11 +64,10 @@ import airflow.api_fastapi
 
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
-# Iterable and Generator are validated lazily. The other three raise
-# PydanticSchemaGenerationError at class definition unless the model sets
-# ``arbitrary_types_allowed``, and then Iterator is passed through unvalidated and
-# consumed during serialization, the same hazard; the async two cannot validate a sync
-# iterable at all. All five are listed to keep the rule one thing to remember.
+# Iterable and Generator are validated lazily. The other three are rejected unless a model
+# sets ``arbitrary_types_allowed``, and under that config Iterator is passed through and
+# iterated during serialization, the same hazard; the async two always error instead. All
+# five are listed to keep the rule one thing to remember.
 LAZY_ORIGINS = frozenset({Iterable, Iterator, Generator, AsyncIterable, AsyncIterator})
 
 PACKAGE_PREFIX = f"{airflow.api_fastapi.__name__}."
