@@ -316,6 +316,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.description = description
 
         self.job_id = job_id
+        self._job: BigQueryJob | UnknownJob | None = None
         self.deferrable = deferrable
         self.result_retry = result_retry
         self.result_timeout = result_timeout
@@ -486,6 +487,7 @@ class GCSToBigQueryOperator(BaseOperator):
                                 BigQueryTableLink.persist(**persist_kwargs)
 
             self.job_id = job.job_id
+            self._job = job
             context["ti"].xcom_push(key="job_id", value=self.job_id)
             if self.deferrable:
                 self.defer(
@@ -873,7 +875,9 @@ class GCSToBigQueryOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, location=self.location)  # type: ignore[union-attr]
+            # BigQuery finds a regional job only with its location, which the job object reports.
+            location = (self._job.location if self._job else None) or self.location
+            self.hook.cancel_job(job_id=self.job_id, location=location)  # type: ignore[union-attr]
         else:
             self.log.info("Skipping to cancel job: %s.%s", self.location, self.job_id)
 

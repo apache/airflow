@@ -147,6 +147,7 @@ class BigQueryToGCSOperator(BaseOperator):
         self.force_rerun = force_rerun
         self.reattach_states: set[str] = reattach_states or set()
         self.hook: BigQueryHook | None = None
+        self._job: BigQueryJob | UnknownJob | None = None
         self.deferrable = deferrable
         self.cancel_on_kill = cancel_on_kill
 
@@ -201,7 +202,7 @@ class BigQueryToGCSOperator(BaseOperator):
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
-            nowait=self.deferrable,
+            nowait=True,
         )
 
     def execute(self, context: Context):
@@ -258,6 +259,7 @@ class BigQueryToGCSOperator(BaseOperator):
             self._handle_job_error(job)
 
         self.job_id = job.job_id
+        self._job = job
         conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
         dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
         BigQueryTableLink.persist(
@@ -305,7 +307,9 @@ class BigQueryToGCSOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.hook and self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+            # BigQuery finds a regional job only with its location, which the job object reports.
+            location = (self._job.location if self._job else None) or self.location
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 
