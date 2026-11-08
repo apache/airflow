@@ -433,10 +433,14 @@ class TestBuildFileAnalysisRequest:
             pytest.param("notes.txt", "first line", "\nfirst line", id="txt"),
         ],
     )
-    def test_utf8_byte_order_mark_is_not_part_of_the_content(self, tmp_path, filename, content, expected):
+    @pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"])
+    def test_utf8_byte_order_mark_is_not_part_of_the_content(
+        self, tmp_path, filename, content, expected, encoding
+    ):
         # Excel's "CSV UTF-8" and Windows PowerShell's UTF-8 files start with a byte order mark.
+        # Windows PowerShell 5.1 ``>`` and ``Out-File`` write UTF-16LE with a byte order mark.
         path = tmp_path / filename
-        path.write_text(content, encoding="utf-8-sig")
+        path.write_text(content, encoding=encoding)
 
         request = build_file_analysis_request(
             file_path=str(path),
