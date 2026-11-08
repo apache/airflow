@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -474,6 +475,35 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert with_pending.json()["total_entries"] == 0
         assert without_pending.status_code == 200
         assert without_pending.json()["total_entries"] == 3
+
+    def test_pending_actions_count_a_running_task_only_while_it_waits(
+        self, test_client: TestClient, setup_hitl_data, session: Session
+    ):
+        details = session.scalars(select(HITLDetail).order_by(HITLDetail.subject)).all()
+        first_run, resumed_after_timeout, resumed_and_asked_again, finished, _ = (
+            detail.task_instance for detail in details
+        )
+        details[3].responded_at = None
+        finished.state = TaskInstanceState.SUCCESS
+        first_run.state = TaskInstanceState.RUNNING
+        # The server stamps scheduled_dttm when it resumes a task.
+        resumed_after_timeout.state = TaskInstanceState.RUNNING
+        resumed_after_timeout.next_method = "execute_complete"
+        resumed_after_timeout.scheduled_dttm = utcnow() + timedelta(minutes=5)
+        resumed_and_asked_again.state = TaskInstanceState.RUNNING
+        resumed_and_asked_again.next_method = "resume_after_tool_approval"
+        resumed_and_asked_again.scheduled_dttm = utcnow() - timedelta(minutes=5)
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_pending_actions": True})
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        pending_actions = [action for dag in response.json()["dags"] for action in dag["pending_actions"]]
+        assert sorted(action["subject"] for action in pending_actions) == [
+            "This is subject 0",
+            "This is subject 2",
+        ]
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})

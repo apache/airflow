@@ -67,6 +67,7 @@ Environment Variables
 
     This variable can be used to enable debug mode for the CLI.
     It disables some features such as keyring integration and save credentials to file.
+    A login in debug mode does not use the keyring, so log in again after you turn debug mode off.
     It is only meant to use if either you are developing airflowctl or running API integration tests.
     Please do not use this variable unless you know what you are doing.
 
