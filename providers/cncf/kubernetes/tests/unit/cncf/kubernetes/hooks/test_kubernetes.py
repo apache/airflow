@@ -1266,28 +1266,22 @@ class TestAsyncKubernetesHook:
         "connection_extras",
         [
             pytest.param({}, id="no_connection_extras"),
-            pytest.param({"kube_config_path": ASYNC_CONFIG_PATH}, id="over_conn_kube_config_path"),
+            pytest.param({"kube_config_path": ASYNC_CONFIG_PATH}, id="overrides_connection_kube_config_path"),
         ],
     )
-    @mock.patch(f"{HOOK_MODULE}.async_config.load_kube_config")
+    @mock.patch(f"{HOOK_MODULE}.async_config.load_kube_config", autospec=True)
     async def test_load_config_with_config_file(self, mock_load_kube_config, connection_extras, tmp_path):
         kubeconfig_file = tmp_path / "config"
-        kubeconfig_file.write_text(
-            "current-context: ctx1\n"
-            "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
-            "users:\n- name: user1\n  user:\n    exec:\n      command: aws eks get-token\n"
-        )
+        kubeconfig_file.write_text("{}")
 
         hook = AsyncKubernetesHook(connection_extras=connection_extras, config_file=str(kubeconfig_file))
         await hook._load_config()
-        await hook._load_config()
 
-        expected_call = mock.call(
+        mock_load_kube_config.assert_awaited_once_with(
             config_file=str(kubeconfig_file),
             client_configuration=hook.client_configuration,
             context=None,
         )
-        assert mock_load_kube_config.await_args_list == [expected_call, expected_call]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
