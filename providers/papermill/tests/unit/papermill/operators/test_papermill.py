@@ -199,6 +199,75 @@ class TestPapermillOperator:
         call_kwargs = mock_papermill.execute_notebook.call_args
         assert call_kwargs.kwargs["log_output"] is True
 
+    @pytest.mark.parametrize(
+        ("nbconvert_args", "expected_tail"),
+        [
+            pytest.param(None, [], id="no-extra-args"),
+            pytest.param(["--template", "lab"], ["--template", "lab"], id="extra-args-appended"),
+        ],
+    )
+    @patch("airflow.providers.papermill.operators.papermill.subprocess.run", autospec=True)
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_converts_the_output_notebook(
+        self, mock_papermill, mock_run, nbconvert_args, expected_tail
+    ):
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="/tmp/out.ipynb",
+            task_id="test_nbconvert",
+            nbconvert=True,
+            nbconvert_args=nbconvert_args,
+        )
+
+        op.execute(context={})
+
+        assert mock_run.call_args.args[0] == [
+            "jupyter",
+            "nbconvert",
+            "--to",
+            "html",
+            "--log-level",
+            "WARN",
+            "/tmp/out.ipynb",
+            *expected_tail,
+        ]
+
+    @patch("airflow.providers.papermill.operators.papermill.subprocess.run", autospec=True)
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_does_not_convert_unless_requested(self, mock_papermill, mock_run):
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="/tmp/out.ipynb",
+            task_id="test_no_nbconvert",
+        )
+
+        op.execute(context={})
+
+        mock_run.assert_not_called()
+
+    @patch("airflow.providers.papermill.operators.papermill.subprocess.run", autospec=True)
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_rejects_nbconvert_args_that_is_not_a_list(self, mock_papermill, mock_run):
+        """Jinja renders a templated list to a string, which must not be spliced per character."""
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="/tmp/out.ipynb",
+            task_id="test_nbconvert_args_string",
+            nbconvert=True,
+            nbconvert_args="--template lab",  # type: ignore[arg-type]
+        )
+
+        with pytest.raises(TypeError, match="nbconvert_args must be a list, got str"):
+            op.execute(context={})
+
+        mock_run.assert_not_called()
+
     @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         """Test rendering fields."""

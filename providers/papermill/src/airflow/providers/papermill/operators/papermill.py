@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Sequence
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 import attr
@@ -56,6 +58,10 @@ class PapermillOperator(BaseOperator):
         (ignores kernel name in the notebook document metadata)
     :param log_output: (optional) Log the notebook cell output to the task log.
         When True, the stdout/stderr of each cell execution is visible in the Airflow task log.
+    :param nbconvert: (optional) Convert the executed notebook to HTML, alongside the output
+        notebook, once it has run. (templated)
+    :param nbconvert_args: (optional) Extra command line arguments for ``jupyter nbconvert``,
+        appended after the output notebook. (templated)
     """
 
     # TODO: Remove this when provider drops 2.x support.
@@ -141,6 +147,28 @@ class PapermillOperator(BaseOperator):
             engine_name=engine_name,
             **remote_kernel_kwargs,
         )
+
+        if self.nbconvert:
+            # nbconvert_args is templated, and Jinja renders a templated collection to a string,
+            # which would otherwise be spliced into the command one character per argument.
+            if self.nbconvert_args is not None and not isinstance(self.nbconvert_args, list):
+                raise TypeError(f"nbconvert_args must be a list, got {type(self.nbconvert_args).__name__}")
+            command = [
+                "jupyter",
+                "nbconvert",
+                "--to",
+                "html",
+                "--log-level",
+                "WARN",
+                self.output_nb.url,
+                *(self.nbconvert_args or []),
+            ]
+            try:
+                subprocess.run(command, check=True, capture_output=True, text=True)
+            except subprocess.CalledProcessError as e:
+                self.log.error("nbconvert failed:\n%s\n%s", e.stdout, e.stderr)
+                raise
+            self.log.info("Output HTML: %s", Path(self.output_nb.url).with_suffix(".html"))
 
         return self.output_nb
 
