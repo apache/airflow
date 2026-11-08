@@ -22,10 +22,10 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
-import pyarrow.parquet as parquet
-from datasets import ClassLabel, Dataset, DatasetDict, Features, Sequence, Value
+if TYPE_CHECKING:
+    from datasets import Dataset, DatasetDict
 
 from airflow.providers.common.compat.sdk import Asset, BaseOperator, Context, ObjectStoragePath
 
@@ -58,9 +58,11 @@ def _sha256_path(uri: str, *, conn_id: str | None = None) -> str:
 
 def _validate_feature(feature: Any, field_name: str) -> None:
     """Allow Parquet-safe scalar, class-label, and nested sequence features."""
+    from datasets import ClassLabel, LargeList, Sequence, Value
+
     if isinstance(feature, (Value, ClassLabel)):
         return
-    if isinstance(feature, Sequence):
+    if isinstance(feature, (Sequence, LargeList)):
         _validate_feature(feature.feature, field_name)
         return
     if isinstance(feature, dict):
@@ -73,11 +75,13 @@ def _validate_feature(feature: Any, field_name: str) -> None:
         return
     raise ValueError(
         f"unsupported Parquet feature type for {field_name!r}: {type(feature).__name__}; "
-        "supported types are Value, ClassLabel, and nested Sequence features"
+        "supported types are Value, ClassLabel, and nested Sequence or LargeList features"
     )
 
 
 def _dataset_parts(dataset: Dataset | DatasetDict) -> list[tuple[str, Dataset]]:
+    from datasets import Dataset, DatasetDict
+
     if isinstance(dataset, DatasetDict):
         return list(dataset.items())
     if isinstance(dataset, Dataset):
@@ -93,6 +97,8 @@ def _save(
     storage_conn_id: str | None = None,
 ) -> dict[str, Any]:
     """Write split Parquet objects and a JSON manifest through ObjectStoragePath."""
+    import pyarrow.parquet as parquet
+
     parts = _dataset_parts(dataset)
     written: list[ObjectStoragePath] = []
     manifest_path = _path(uri, conn_id=storage_conn_id)
@@ -184,6 +190,8 @@ def _load_artifact(
     manifest: dict[str, Any] | None = None,
     storage_conn_id: str | None = None,
 ) -> Dataset | DatasetDict:
+    from datasets import Dataset, DatasetDict, Features
+
     uri, manifest = (
         _read_artifact_manifest(reference, storage_conn_id=storage_conn_id)
         if manifest is None

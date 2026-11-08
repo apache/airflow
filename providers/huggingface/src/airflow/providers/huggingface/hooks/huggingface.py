@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from datasets import load_dataset
 from huggingface_hub import HfApi
 from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
 
@@ -69,6 +68,8 @@ class HuggingFaceHook(BaseHook):
             return False, str(exc)
 
     def load_dataset(self, path: str, **kwargs: Any) -> Any:
+        from datasets import load_dataset
+
         token = self.get_token()
         if token is not None and "token" not in kwargs:
             kwargs["token"] = token

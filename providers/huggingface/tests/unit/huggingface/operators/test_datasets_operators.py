@@ -20,7 +20,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from datasets import ClassLabel, Dataset, DatasetDict, Features, Image, Value
+from datasets import ClassLabel, Dataset, DatasetDict, Features, Image, LargeList, Value
 from huggingface_hub import CommitInfo, GitCommitInfo
 
 from airflow.providers.huggingface.operators.datasets import (
@@ -78,7 +78,7 @@ def test_load_pins_and_records_resolved_revision_and_honors_download_mode(tmp_pa
     monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}')
     with (
         patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as hf_api,
-        patch("airflow.providers.huggingface.hooks.huggingface.load_dataset", autospec=True) as load_dataset,
+        patch("datasets.load_dataset", autospec=True) as load_dataset,
     ):
         hf_api.return_value.dataset_info.return_value.sha = "resolved-sha"
         load_dataset.return_value = dataset
@@ -98,7 +98,7 @@ def test_load_pins_and_records_resolved_revision_and_honors_download_mode(tmp_pa
 
 
 def test_non_hub_load_does_not_resolve_hub_revision(tmp_path):
-    with patch("airflow.providers.huggingface.hooks.huggingface.load_dataset", autospec=True) as load_dataset:
+    with patch("datasets.load_dataset", autospec=True) as load_dataset:
         load_dataset.return_value = Dataset.from_dict({"x": [1]})
         operator = LoadDatasetOperator(task_id="csv", path="csv", output_uri=(tmp_path / "csv.json").as_uri(),
                                        huggingface_conn_id=None)
@@ -188,6 +188,14 @@ def test_parquet_manifest_preserves_order_features_and_dataset_splits(tmp_path):
     assert reference["format"] == "parquet"
     assert reference["fingerprint"]
     assert reference["splits"]["train"]["rows"] == 1
+
+
+def test_parquet_accepts_large_list_features(tmp_path):
+    feature = LargeList(Value("int64"))
+    source = Dataset.from_dict({"values": [[1, 2], [3]]}, features=Features({"values": feature}))
+    reference = _save(source, (tmp_path / "large-list.json").as_uri())
+    restored = _load_artifact(reference)
+    assert restored["values"] == [[1, 2], [3]]
 
 
 def test_single_dataset_split_name_survives_artifact_round_trip(tmp_path):
@@ -424,7 +432,7 @@ def test_load_retry_reuses_resolved_revision_from_task_state_store(tmp_path, mon
     context = {"task_state_store": Store(), "ti": ti}
     with (
         patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api,
-        patch("airflow.providers.huggingface.hooks.huggingface.load_dataset", autospec=True) as load_dataset,
+        patch("datasets.load_dataset", autospec=True) as load_dataset,
     ):
         api.return_value.dataset_info.return_value = type("Info", (), {"sha": "pinned-sha"})()
         load_dataset.return_value = dataset
@@ -448,7 +456,7 @@ def test_load_durable_false_does_not_read_or_write_task_state(tmp_path, monkeypa
     monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}')
     with (
         patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api,
-        patch("airflow.providers.huggingface.hooks.huggingface.load_dataset", autospec=True) as load_dataset,
+        patch("datasets.load_dataset", autospec=True) as load_dataset,
     ):
         api.return_value.dataset_info.side_effect = [
             type("Info", (), {"sha": "first-sha"})(),

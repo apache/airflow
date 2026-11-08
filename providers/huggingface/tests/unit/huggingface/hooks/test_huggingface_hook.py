@@ -68,7 +68,7 @@ def test_empty_named_connection_disables_ambient_token_fallback(monkeypatch):
         hook.get_conn()
         api.assert_called_once_with(token=False)
 
-        with patch("airflow.providers.huggingface.hooks.huggingface.load_dataset", autospec=True) as load:
+        with patch("datasets.load_dataset", autospec=True) as load:
             hook.load_dataset("org/public")
         load.assert_called_once_with("org/public", token=False)
 
@@ -107,10 +107,8 @@ def test_explicit_invalid_connection_fails(monkeypatch):
 
 
 def test_load_dataset_passes_token_and_propagates_library_exception(connection_env):
-    from airflow.providers.huggingface.hooks import huggingface
-
     error = ValueError("invalid or gated dataset")
-    with patch.object(huggingface, "load_dataset", autospec=True, side_effect=error) as load:
+    with patch("datasets.load_dataset", autospec=True, side_effect=error) as load:
         hook = HuggingFaceHook("huggingface_test")
         with pytest.raises(type(error)) as raised:
             hook.load_dataset("org/private-data")
