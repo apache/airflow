@@ -156,7 +156,7 @@
     "logicalDateFrom": "逻辑日期起始",
     "logicalDateTo": "逻辑结束日期",
     "loop": "循环",
-    "loopAllIterations": "{{loop}} 全部",
+    "loopAllIterations": "{{loop}} 全部迭代",
     "loopIteration": "{{loop}} {{index}}",
     "loopPlaceholder": "选择循环",
     "maxActiveRunsFrom": "活跃执行数上限起始值",
@@ -344,7 +344,7 @@
     },
     "search": {
       "matchAnywhere": {
-        "helper": "$t(search.advanced.description) 各搜索框的设置和共享链接中的设置仍优先使用。",
+        "helper": "$t(search.advanced.description)各搜索框的设置和共享链接中的设置仍优先使用。",
         "label": "默认在任意位置匹配"
       },
       "title": "搜索"
@@ -376,8 +376,8 @@
       "focusFilterSearch": "聚焦筛选搜索框",
       "focusLogSearch": "搜索日志",
       "focusSearch": "聚焦搜索框",
-      "markRunFailed": "将 $t(dagRun_one) 标记为失败",
-      "markRunSuccess": "将 $t(dagRun_one) 标记为成功",
+      "markRunFailed": "将 $t(dagRun_one)标记为失败",
+      "markRunSuccess": "将 $t(dagRun_one)标记为成功",
       "markTaskFailed": "将$t(task_one)标记为失败",
       "markTaskGroupFailed": "将$t(taskGroup_one)标记为失败",
       "markTaskGroupSuccess": "将$t(taskGroup_one)标记为成功",
