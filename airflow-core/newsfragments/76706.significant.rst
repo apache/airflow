@@ -1,0 +1,28 @@
+Pending partition-driven Dag runs are evaluated only when their inputs change
+
+The scheduler no longer evaluates the oldest pending partition-driven Dag runs on every loop. It
+evaluates a pending run when an asset event reaches it, when its Dag's timetable changes, or when an
+asset that its Dag is scheduled on becomes active. Each scheduler also evaluates every pending run once
+when it starts, and then once every ``[scheduler] asset_partition_resync_interval`` (3600 seconds by
+default).
+
+The evaluation of a pending run must depend only on the Dag's timetable, the partition keys that reached
+the run, which assets are active, and how the Dag's asset references and aliases resolve. A custom
+partition mapper, rollup window or timetable that reads the clock, or that fails now and then, has its
+runs evaluated again only by the next pass. So do runs whose key logs are written in bulk rather than
+through a session, and runs that a new link from an alias to an asset that is already active satisfies.
+
+Upgrade the schedulers after the other components, or restart them once every component runs this
+version: components that run an older version do not ask for an evaluation, so their asset events are
+picked up by the next pass.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
