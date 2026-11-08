@@ -470,7 +470,7 @@ def clear_dag_runs(
             )
         )
     return DAGRunCollectionResponse(
-        dag_runs=cleared_runs,
+        dag_runs=[DAGRunResponse.model_validate(cleared_run) for cleared_run in cleared_runs],
         total_entries=len(cleared_runs),
     )
 

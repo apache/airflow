@@ -1,8 +1,0 @@
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/assets.py::AssetAliasCollectionResponse.asset_aliases
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/backfills.py::BackfillCollectionResponse.backfills
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/connections.py::ConnectionCollectionResponse.connections
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/dag_run.py::DAGRunCollectionResponse.dag_runs
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/dag_versions.py::DAGVersionCollectionResponse.dag_versions
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/dag_warning.py::DAGWarningCollectionResponse.dag_warnings
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/ui/deadline.py::DeadlineAlertCollectionResponse.deadline_alerts
-airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables.py::VariableCollectionResponse.variables
