@@ -2415,10 +2415,16 @@ class DagRun(Base, LoggingMixin):
                 if mapping_unresolved:
                     # The instance may have been removed because a producer shrank the list, not
                     # because the task left the Dag, and the resolved length is still unknown. Put
-                    # it back without counting a Dag re-add or allocating an attempt that may never
-                    # run; _revise_map_indexes_if_mapped removes it again if the list stays short.
+                    # it back without counting a Dag re-add; _revise_map_indexes_if_mapped removes
+                    # it again if the list stays short. A task that left the Dag and was added back
+                    # reaches this branch as well while its producer is pending, so it is restored
+                    # here too.
                     self.log.debug("Restoring mapped instance '%s' while its map length is unresolved", ti)
-                    ti.state = None
+                    # An attempt that never started keeps its try, so no history is kept for work
+                    # that may never run. An attempt that ran is archived, so the index does not
+                    # re-run on top of the dates and log of that run.
+                    restored = ti.prepare_db_for_next_try(session) if ti.start_date is not None else ti
+                    restored.state = None
                     continue
                 self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
                 stats.incr(
