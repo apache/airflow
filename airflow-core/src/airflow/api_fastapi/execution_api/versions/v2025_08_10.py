@@ -20,7 +20,7 @@ from __future__ import annotations
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
-from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams, GetXComSliceFilterParams
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams, GetXComSliceFilterParams
 
 
 class AddDagRunStateFieldAndPreviousEndpoint(VersionChange):

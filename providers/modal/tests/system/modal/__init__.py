@@ -14,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from cadwyn import VersionChange, schema
-
-# These models live next to the routes that use them, and the routes import this version package, so the
-# changes that touch them cannot sit in ``v2026_10_30`` without a circular import.
-from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams, GetXComSliceFilterParams
-
-
-class AddPreviousIterationToXComFilterParams(VersionChange):
-    """Add the `previous_iteration` field to GetXComSliceFilterParams and GetXcomFilterParams."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        schema(GetXComSliceFilterParams).field("previous_iteration").didnt_exist,
-        schema(GetXcomFilterParams).field("previous_iteration").didnt_exist,
-    )

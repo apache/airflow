@@ -58,7 +58,7 @@ jobs:
       # One job per framework, so a breaking release of one does not hide the others' results.
       fail-fast: false
       matrix:
-        framework: [strands-agents, google-adk, openai-agents]
+        framework: [strands-agents, google-adk, openai-agents, llama-index]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
