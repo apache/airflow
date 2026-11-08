@@ -106,6 +106,13 @@ def get_module_names(path: Path) -> set[str]:
                 names.update(alias.asname or alias.name.split(".")[0] for alias in node.names)
             elif isinstance(node, ast.If):
                 # Version-gated branches cannot be resolved statically, so either branch counts.
+                if (
+                    isinstance(node.test, ast.UnaryOp)
+                    and isinstance(node.test.op, ast.Not)
+                    and is_type_checking(node.test.operand)
+                ):
+                    collect(node.body)
+                    continue
                 if not is_type_checking(node.test):
                     collect(node.body)
                 collect(node.orelse)

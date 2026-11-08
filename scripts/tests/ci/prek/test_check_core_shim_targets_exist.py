@@ -54,6 +54,11 @@ def providers_root(tmp_path):
             class WaitSensor(Base): ...
 
             def helper(): ...
+
+            if not TYPE_CHECKING:
+                class Runtime: ...
+            else:
+                class TypingOnly: ...
             """
         )
     )
@@ -91,6 +96,8 @@ def test_find_provider_targets_skips_non_provider_targets(write_python_file):
         pytest.param("WaitSensorAsync", f"{MODULE}.WaitSensorAsync", False, id="removed-class"),
         pytest.param("*", "airflow.providers.acme.sensors.gone", False, id="removed-module"),
         pytest.param("TypeOnly", f"{MODULE}.TypeOnly", False, id="type-checking-only"),
+        pytest.param("Runtime", f"{MODULE}.Runtime", True, id="not-type-checking-body"),
+        pytest.param("TypingOnly", f"{MODULE}.TypingOnly", False, id="not-type-checking-else"),
         pytest.param("annotated_only", f"{MODULE}.annotated_only", False, id="annotation-without-value"),
         pytest.param("X", "airflow.providers.missing.hooks.X", False, id="missing-provider"),
     ],
