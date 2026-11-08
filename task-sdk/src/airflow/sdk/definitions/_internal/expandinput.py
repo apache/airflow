@@ -105,6 +105,10 @@ class MappedArgument(ResolveMixin):
         data, _ = self._input.resolve(context)
         return data[self._key]
 
+    def __str__(self) -> str:
+        # Lets the reference be embedded in a templated string, as XComArg.__str__ does.
+        return f"{{{{ mapped_args[{self._key!r}] }}}}"
+
 
 @attrs.define()
 class DictOfListsExpandInput(ResolveMixin):
