@@ -26,6 +26,7 @@ try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
         SQLSafetyError,
+        canonical_allowed_functions,
         canonical_allowed_tables,
         find_allowed_tables_violations,
         resolve_sqlglot_dialect,
@@ -48,6 +49,11 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
+
+# Distinguishes "allowed_tables not passed" (no restriction) from an explicit value, as in
+# SQLToolset: an explicit None is rejected like [], so an allow-list a Dag builds at parse
+# time (e.g. from a missing Variable) can never resolve to "allow every table".
+_UNSET: Any = object()
 
 
 def _last_sql_refusal(error: BaseException) -> SQLSafetyError | None:
@@ -113,8 +119,9 @@ class LLMSQLQueryOperator(LLMOperator):
         matches only unqualified references (``orders`` does not match ``sales.orders``)
         and catalog-qualified references never match. Not a template field, so the
         allow-list is fixed when the Dag is parsed rather than at run time. Requires
-        ``validate_sql=True`` and must name at least one table. Default ``None`` (no
-        restriction).
+        ``validate_sql=True`` and a SQL dialect (``dialect``, or ``db_conn_id`` to detect it),
+        and must name at least one table. Omit it for no restriction; an explicit ``None``
+        is rejected like an empty list.
     :param allowed_functions: Names of functions sqlglot does not recognize that are
         safe to run while ``allowed_tables`` is set, e.g. ``["json_build_object"]`` or a
         project UDF. Matching is case-insensitive. Only consulted when ``allowed_tables``
@@ -157,7 +164,7 @@ class LLMSQLQueryOperator(LLMOperator):
         schema_context: str | None = None,
         validate_sql: bool = True,
         allowed_sql_types: tuple[type[exp.Expr], ...] = DEFAULT_ALLOWED_TYPES,
-        allowed_tables: list[str] | None = None,
+        allowed_tables: list[str] = _UNSET,
         allowed_functions: list[str] | None = None,
         dialect: str | None = None,
         datasource_config: DataSourceConfig | None = None,
@@ -167,24 +174,33 @@ class LLMSQLQueryOperator(LLMOperator):
             raise TypeError(
                 "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
             )
-        if allowed_tables is not None:
+        if allowed_tables is not _UNSET:
             if not allowed_tables:
                 raise ValueError(
                     f"allowed_tables must name at least one table, got {allowed_tables!r}. Omit the "
-                    "argument to allow every table. An empty value is rejected rather than read as "
-                    "'no restriction' so that an allow-list built at runtime cannot silently widen."
+                    "argument to allow every table. An empty or missing value is rejected rather than "
+                    "read as 'no restriction' so that an allow-list built at runtime cannot silently widen."
                 )
             if not validate_sql:
                 raise ValueError(
                     "allowed_tables requires validate_sql=True; it is enforced on the parsed SQL."
                 )
+            if not dialect and not db_conn_id:
+                raise ValueError(
+                    "allowed_tables requires a SQL dialect so the query is parsed the way the database "
+                    "reads it: set dialect, or db_conn_id to detect it from the database hook."
+                )
+            # Called for validation only, so a malformed list fails when the Dag is parsed;
+            # _check_sql recomputes both from the attributes it enforces.
+            canonical_allowed_tables(allowed_tables)
+        canonical_allowed_functions(allowed_functions)
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
         self.schema_context = schema_context
         self.validate_sql = validate_sql
         self.allowed_sql_types = allowed_sql_types
-        self.allowed_tables = allowed_tables
+        self.allowed_tables: list[str] | None = None if allowed_tables is _UNSET else allowed_tables
         self.allowed_functions = allowed_functions
         self.dialect = dialect
         self.datasource_config = datasource_config
@@ -210,6 +226,9 @@ class LLMSQLQueryOperator(LLMOperator):
 
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
+
+        if self.allowed_tables is not None:
+            self._require_dialect()  # before any tokens are spent; _check_sql repeats it
 
         schema_info = self._get_schema_context()
 
@@ -267,10 +286,12 @@ class LLMSQLQueryOperator(LLMOperator):
         statements = _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         if self.allowed_tables is None:
             return
+        # Also reached when Human-in-the-Loop review resumes, possibly on another worker.
+        self._require_dialect()
         violations = find_allowed_tables_violations(
             statements,
             canonical_allowed_tables(self.allowed_tables),
-            allowed_functions=frozenset(f.casefold() for f in self.allowed_functions or ()),
+            allowed_functions=canonical_allowed_functions(self.allowed_functions),
         )
         if violations.unverifiable_sources:
             raise SQLSafetyError(
@@ -281,6 +302,14 @@ class LLMSQLQueryOperator(LLMOperator):
             raise SQLSafetyError(
                 "SQL references tables that are not in allowed_tables: "
                 f"{', '.join(violations.disallowed_tables)}. Allowed tables: {', '.join(self.allowed_tables)}."
+            )
+
+    def _require_dialect(self) -> None:
+        """Refuse to enforce ``allowed_tables`` without a dialect, which could misread the SQL."""
+        if self._resolved_dialect is None:
+            raise ValueError(
+                f"allowed_tables requires a SQL dialect, but none could be resolved from "
+                f"dialect={self.dialect!r} or the hook of db_conn_id={self.db_conn_id!r}. Set dialect."
             )
 
     @staticmethod

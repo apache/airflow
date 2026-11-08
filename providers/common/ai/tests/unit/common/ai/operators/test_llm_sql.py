@@ -756,20 +756,27 @@ def _make_context(ti_id=None):
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
+def _make_allowed_tables_operator(**overrides):
+    """Build an operator with an allow-list and the SQL dialect the allow-list requires."""
+    kwargs = {
+        "task_id": "t",
+        "prompt": "p",
+        "llm_conn_id": "c",
+        "schema_context": "Table: orders",
+        "allowed_tables": ["orders"],
+        "dialect": "postgres",
+        **overrides,
+    }
+    return LLMSQLQueryOperator(**kwargs)
+
+
 class TestLLMSQLQueryOperatorAllowedTables:
     @staticmethod
     def _execute(mock_hook_cls, make_mock_run_result, sql, allowed_tables, **kwargs):
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             sql, make_mock_run_result
         )
-        op = LLMSQLQueryOperator(
-            task_id="t",
-            prompt="p",
-            llm_conn_id="c",
-            schema_context="Table: orders",
-            allowed_tables=allowed_tables,
-            **kwargs,
-        )
+        op = _make_allowed_tables_operator(allowed_tables=allowed_tables, **kwargs)
         return op.execute(context=MagicMock())
 
     @staticmethod
@@ -777,14 +784,7 @@ class TestLLMSQLQueryOperatorAllowedTables:
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(respond), **kw
         )
-        op = LLMSQLQueryOperator(
-            task_id="t",
-            prompt="p",
-            llm_conn_id="c",
-            schema_context="Table: orders",
-            allowed_tables=["orders"],
-        )
-        return op.execute(context=MagicMock())
+        return _make_allowed_tables_operator().execute(context=MagicMock())
 
     @pytest.mark.parametrize(
         ("sql", "allowed_tables"),
@@ -834,9 +834,17 @@ class TestLLMSQLQueryOperatorAllowedTables:
             pytest.param(
                 "SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)", "postgres", id="dblink"
             ),
-            pytest.param("SELECT * FROM orders -- per customer", None, id="comment"),
-            pytest.param('SELECT * FROM "orders"', None, id="quoted-identifier"),
+            pytest.param("SELECT * FROM orders -- per customer", "postgres", id="comment"),
+            pytest.param('SELECT * FROM "orders"', "postgres", id="quoted-identifier"),
             pytest.param("SELECT age(created_at) FROM orders", "postgres", id="unrecognized-function"),
+            pytest.param("SELECT * FROM orders WHERE id IN secret", "sqlite", id="in-bare-name"),
+            # MySQL's backslash escape exposes a subquery on secret that no dialect would hide;
+            # the inline comment it leaves behind is what gets refused.
+            pytest.param(
+                "SELECT 'a\\' AS x, ' , (SELECT pw FROM secret) AS b -- '\nFROM orders",
+                "mysql",
+                id="mysql-backslash-escape",
+            ),
         ],
     )
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -906,21 +914,49 @@ class TestLLMSQLQueryOperatorAllowedTables:
     )
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_unrelated_model_failure_is_raised_unchanged(self, mock_hook_cls, mock_run_llm):
-        op = LLMSQLQueryOperator(
-            task_id="t",
-            prompt="p",
-            llm_conn_id="c",
-            schema_context="Table: orders",
-            allowed_tables=["orders"],
-        )
+        op = _make_allowed_tables_operator()
 
         with pytest.raises(UnexpectedModelBehavior, match="Empty model response"):
             op.execute(context=MagicMock())
 
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_unresolvable_dialect_is_rejected_before_calling_the_model(self, mock_hook_cls):
+        op = _make_allowed_tables_operator(dialect=None, db_conn_id="db")
+        db_hook = MagicMock(spec=["dialect_name"], dialect_name="not-a-dialect")
+
+        with patch.object(type(op), "db_hook", new_callable=PropertyMock, return_value=db_hook):
+            with pytest.raises(ValueError, match="none could be resolved"):
+                op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.return_value.create_agent.assert_not_called()
+
+    def test_allow_list_set_after_construction_is_enforced(self):
+        """A subclass or cluster policy may set allowed_tables later; the prompt and check must agree."""
+        op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", dialect="postgres")
+        op.allowed_tables = ["orders"]
+
+        with pytest.raises(SQLSafetyError, match="not in allowed_tables: salaries\\."):
+            op._check_sql("SELECT * FROM salaries")
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    def test_unresolvable_dialect_is_rejected_when_review_resumes(self):
+        """Reviewer-edited SQL is checked on resume, possibly on a worker that cannot resolve the dialect."""
+        op = _make_allowed_tables_operator(dialect=None, db_conn_id="db", allow_modifications=True)
+        db_hook = MagicMock(spec=["dialect_name"], dialect_name="not-a-dialect")
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "john"},
+            "params_input": {"output": "SELECT id FROM orders"},
+        }
+
+        with patch.object(type(op), "db_hook", new_callable=PropertyMock, return_value=db_hook):
+            with pytest.raises(ValueError, match="none could be resolved"):
+                op.execute_complete({}, generated_output="SELECT * FROM orders", event=event)
+
     def test_system_prompt_lists_allowed_tables_and_rules(self):
-        op = LLMSQLQueryOperator(
-            task_id="t", prompt="p", llm_conn_id="c", allowed_tables=["orders", "sales.items"]
-        )
+        op = _make_allowed_tables_operator(allowed_tables=["orders", "sales.items"])
 
         prompt = op._build_system_prompt("")
 
@@ -937,9 +973,7 @@ class TestLLMSQLQueryOperatorAllowedTables:
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
     def test_reviewer_modified_sql_is_checked(self):
-        op = LLMSQLQueryOperator(
-            task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True, allowed_tables=["orders"]
-        )
+        op = _make_allowed_tables_operator(allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": {"id": "u1", "name": "john"},
@@ -950,18 +984,40 @@ class TestLLMSQLQueryOperatorAllowedTables:
             op.execute_complete({}, generated_output="SELECT * FROM orders", event=event)
 
     @pytest.mark.parametrize(
-        ("kwargs", "match"),
+        ("kwargs", "error", "match"),
         [
-            pytest.param({"allowed_tables": []}, "must name at least one table", id="empty"),
+            pytest.param({"allowed_tables": []}, ValueError, "must name at least one table", id="empty"),
+            # e.g. Variable.get(..., default=None) when the Variable is missing.
+            pytest.param({"allowed_tables": None}, ValueError, "must name at least one table", id="none"),
             pytest.param(
                 {"allowed_tables": ["orders"], "validate_sql": False},
+                ValueError,
                 "requires validate_sql=True",
                 id="unvalidated",
             ),
+            pytest.param(
+                {"allowed_tables": ["orders"]}, ValueError, "requires a SQL dialect", id="no-dialect"
+            ),
+            pytest.param(
+                {"allowed_tables": ["orders"], "dialect": ""},
+                ValueError,
+                "requires a SQL dialect",
+                id="empty-dialect",
+            ),
+            pytest.param(
+                {"allowed_tables": "orders", "dialect": "postgres"}, TypeError, "not a string", id="string"
+            ),
+            pytest.param(
+                {"allowed_tables": ["db.sales.orders"], "dialect": "postgres"},
+                ValueError,
+                "'table' or 'schema.table'",
+                id="three-part-entry",
+            ),
+            pytest.param({"allowed_functions": "age"}, TypeError, "not a string", id="functions-string"),
         ],
     )
-    def test_invalid_configuration_is_rejected_at_construction(self, kwargs, match):
-        with pytest.raises(ValueError, match=match):
+    def test_invalid_configuration_is_rejected_at_construction(self, kwargs, error, match):
+        with pytest.raises(error, match=match):
             LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", **kwargs)
 
 

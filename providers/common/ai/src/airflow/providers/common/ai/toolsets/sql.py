@@ -28,6 +28,7 @@ try:
     from airflow.providers.common.ai.utils.sql_validation import (
         SQLSafetyError,
         TableKey,
+        canonical_allowed_functions,
         canonical_allowed_tables,
         canonical_table_key,
         find_allowed_tables_violations,
@@ -391,9 +392,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         self._db_conn_id = db_conn_id
         # Case-folded so matching a query's function names (also case-folded) is
         # case-insensitive, mirroring how allowed_tables is compared.
-        self._allowed_functions: frozenset[str] = (
-            frozenset(f.casefold() for f in allowed_functions) if allowed_functions else frozenset()
-        )
+        self._allowed_functions: frozenset[str] = canonical_allowed_functions(allowed_functions)
         self._schema = schema
         self._allow_writes = allow_writes
         self._max_rows = max_rows
@@ -417,7 +416,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         self._qualified_schemas: frozenset[str] = frozenset()
         self._include_default_schema: bool = True
         if self._allowed_tables is not None:
-            self._allowed_canonical = canonical_allowed_tables(self._allowed_tables, self._schema)
+            self._allowed_canonical = canonical_allowed_tables(allowed_tables, self._schema)
             self._qualified_schemas = frozenset(
                 entry.rpartition(".")[0] for entry in self._allowed_tables if "." in entry
             )
