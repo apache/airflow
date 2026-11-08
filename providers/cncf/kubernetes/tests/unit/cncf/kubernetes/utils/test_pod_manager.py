@@ -30,11 +30,13 @@ from kubernetes.client import (
     CoreV1Event,
     CoreV1EventList,
     V1ContainerState,
+    V1ContainerStateTerminated,
     V1ContainerStateWaiting,
     V1ContainerStatus,
     V1ObjectMeta,
     V1ObjectReference,
     V1Pod,
+    V1PodCondition,
     V1PodStatus,
 )
 from kubernetes.client.rest import ApiException
@@ -227,6 +229,41 @@ def _build_pod_with_waiting_container(reason: str, message: str, *, init: bool =
     )
 
 
+def _build_terminated_container_status(name: str) -> V1ContainerStatus:
+    return V1ContainerStatus(
+        name=name,
+        image="alpine",
+        image_id="1",
+        ready=False,
+        restart_count=0,
+        state=V1ContainerState(terminated=V1ContainerStateTerminated(exit_code=0)),
+    )
+
+
+def _build_pod_with_sidecar_pull_failure(*, initialized: bool) -> V1Pod:
+    """Build a pod whose native sidecar cannot pull its image.
+
+    With ``initialized=True`` the base container has already run, which keeps
+    ``Initialized`` true while the sidecar restarts.
+    """
+    return V1Pod(
+        status=V1PodStatus(
+            phase=PodPhase.RUNNING if initialized else PodPhase.PENDING,
+            conditions=[V1PodCondition(type="Initialized", status="True" if initialized else "False")],
+            init_container_statuses=[
+                _build_waiting_container_status(
+                    "sidecar", "ImagePullBackOff", 'Back-off pulling image "sidecar:latest"'
+                )
+            ],
+            container_statuses=[
+                _build_terminated_container_status("base")
+                if initialized
+                else _build_waiting_container_status("base", "PodInitializing")
+            ],
+        )
+    )
+
+
 @pytest.mark.parametrize(
     ("reason", "message"),
     [
@@ -272,6 +309,30 @@ def test_detect_pod_terminate_early_issues_returns_error_for_fatal_messages(reas
     assert error is not None
     assert reason in error
     assert message in error
+
+
+@pytest.mark.parametrize(
+    ("initialized", "expected_error_contains"),
+    [
+        pytest.param(False, "Image for container 'sidecar' cannot be pulled", id="still_initializing"),
+        pytest.param(True, None, id="already_initialized"),
+    ],
+)
+def test_detect_pod_terminate_early_issues_gates_sidecars_on_initialized(
+    initialized, expected_error_contains
+):
+    """A sidecar stuck pulling only justifies early termination while it gates start-up.
+
+    Once the pod is ``Initialized`` init containers no longer gate start-up, so a sidecar
+    failing a restart must not end the wait: the main container's work can still succeed.
+    """
+    pod = _build_pod_with_sidecar_pull_failure(initialized=initialized)
+    error = detect_pod_terminate_early_issues(pod)
+    if expected_error_contains is None:
+        assert error is None
+    else:
+        assert error is not None
+        assert expected_error_contains in error
 
 
 class TestPodManager:

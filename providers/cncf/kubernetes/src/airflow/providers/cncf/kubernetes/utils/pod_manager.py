@@ -257,10 +257,18 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     ERROR_MESSAGE = "Image for container '{name}' cannot be pulled, unable to start: {reason}\n{message}"
 
     pod_status = pod.status
-    # Init containers first: while one of them is stuck pulling, the main
-    # container only reports ``PodInitializing``, which matches no state below.
+    # ``init_container_statuses`` also lists native sidecars -- init containers with
+    # ``restartPolicy: Always`` -- which can fail a restart mid-run. Scan init containers
+    # only until ``Initialized`` is true: one that cannot pull keeps it false, and kubelet
+    # keeps it true once any main container has started, even while a sidecar restarts.
+    initialized = any(
+        condition.type == "Initialized" and condition.status == "True"
+        for condition in (pod_status.conditions or [])
+    )
     container_statuses = [
-        *(pod_status.init_container_statuses or []),
+        # Init containers first: while one of them is stuck pulling, the main
+        # container only reports ``PodInitializing``, which matches no state below.
+        *([] if initialized else (pod_status.init_container_statuses or [])),
         *(pod_status.container_statuses or []),
     ]
     for container_status in container_statuses:
