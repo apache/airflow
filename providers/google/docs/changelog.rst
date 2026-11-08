@@ -28,6 +28,13 @@ Changelog
 ---------
 
 .. note::
+    ``GKEKubernetesAsyncHook`` now reuses its API client across ``get_conn()`` calls.
+    Exiting the context no longer closes the client. Direct hook users must call
+    ``await hook.close()`` when finished to release the connection pool and SSL context.
+    Built-in GKE pod and job triggers close the hook during cleanup. Subclasses overriding
+    ``cleanup()`` must call ``await super().cleanup()`` or close the hook themselves.
+
+.. note::
     The provider no longer installs ``litellm``. It now depends on ``google-cloud-aiplatform`` and the
     dependencies of its ``evaluation`` extra except ``litellm``, which the extra caps below the fix for
     a critical advisory. If your tasks call ``vertexai.Client().evals`` with a model that LiteLLM
