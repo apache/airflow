@@ -56,6 +56,18 @@ English words, numbers, or symbols:
 "最近12小时"       // missing space around numbers
 ```
 
+### Nested translations (`$t(...)`)
+
+i18next inserts the referenced string verbatim, so space a `$t(...)` by what
+it resolves to: add a space when it resolves to English (e.g. `Dag 执行`),
+omit it when it resolves to Chinese (e.g. `任务实例`):
+
+```json
+"clearRun": "清除 $t(dagRun_one)"               // → 清除 Dag 执行
+"clearTaskInstance": "清除$t(taskInstance_one)" // → 清除任务实例
+"clearTaskInstance": "清除 $t(taskInstance_one)" // incorrect → 清除 任务实例
+```
+
 ## Punctuation
 
 - Use **full-width** punctuation for Chinese sentences: `，` `。` `：` `？` `！`
