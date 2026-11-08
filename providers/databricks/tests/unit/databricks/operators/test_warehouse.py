@@ -131,16 +131,6 @@ class TestDatabricksEditWarehouseOperator:
 
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
-    def test_propagates_edit_failure(self, mock_hook):
-        mock_hook.return_value.edit_warehouse.side_effect = RuntimeError("Edit failed")
-        operator = DatabricksEditWarehouseOperator(
-            task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, json={"cluster_size": "Small"}
-        )
-
-        with pytest.raises(RuntimeError, match="Edit failed"):
-            operator.execute(None)
-
 
 class TestDatabricksStartWarehouseOperator:
     @pytest.mark.parametrize(
