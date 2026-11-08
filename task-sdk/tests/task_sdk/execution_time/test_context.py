@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from datetime import UTC, datetime, timedelta
@@ -226,6 +227,22 @@ class TestAirflowContextHelpers:
             with pytest.raises(TypeError) as error:
                 context_to_airflow_vars({})
             assert str(error.value) == "key <1> must be string"
+
+
+@pytest.mark.parametrize(
+    "make_accessor",
+    [lambda: VariableAccessor(deserialize_json=False), ConnectionAccessor],
+    ids=["VariableAccessor", "ConnectionAccessor"],
+)
+def test_accessor_dunder_names_are_not_fetched(make_accessor, mock_supervisor_comms):
+    """Debuggers call ``hasattr(obj, "__iter__")`` on locals; that must not hit the Execution API."""
+    accessor = make_accessor()
+
+    assert not hasattr(accessor, "__iter__")
+    with pytest.raises(AttributeError, match="has no attribute '__iter__'"):
+        accessor.__iter__
+    assert copy.copy(accessor) is not accessor
+    mock_supervisor_comms.send.assert_not_called()
 
 
 class TestConnectionAccessor:
