@@ -24,7 +24,7 @@ import pytest
 from itsdangerous import URLSafeSerializer
 from sqlalchemy import insert, update
 
-from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagAccessEntity
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.models import DagModel
@@ -55,9 +55,8 @@ TEAM_NAME = "team_a"
 # ``dag_in_git_bundle`` is seeded at ``dag_0.py``, so this is a file with a registered Dag.
 REGISTERED_FILE = "dag_0.py"
 UNREGISTERED_FILE = "broken.py"
-# A file inside GIT_BUNDLE whose Dag the caller may NOT read. Registered, so the admin-gated
-# unregistered path cannot hide it -- only the readable-Dag filter excludes it.
-UNREADABLE_FILE = "secret.py"
+# A second registered file in GIT_BUNDLE, which also has an import error.
+SECOND_REGISTERED_FILE = "second.py"
 
 GIT_VERSION = "8f0e5b1c9a2d4e6f8a0b1c2d3e4f5a6b7c8d9e0f"
 REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
@@ -66,11 +65,10 @@ PARSE_DURATION = 0.125
 GONE_REFRESHED_AT = datetime(2026, 9, 1, 8, 30, tzinfo=UTC)
 
 WITH_DAGS = (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE, OTHER_TEAM_BUNDLE)
-# Everything except the Dag in OTHER_TEAM_BUNDLE.
 REMOVED_DAG_ID = "removed_from_dag_0"
-READABLE_DAG_IDS = {f"dag_in_{name}" for name in (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE)} | {REMOVED_DAG_ID}
 # Sorted by name, which is the endpoint's default order.
-READABLE_BUNDLES = [GIT_BUNDLE, GONE_BUNDLE, LOCAL_BUNDLE]
+ALL_BUNDLES = [DAGLESS_BUNDLE, GIT_BUNDLE, GONE_BUNDLE, LOCAL_BUNDLE, OTHER_TEAM_BUNDLE]
+GIT_BUNDLE_FILES = [UNREGISTERED_FILE, REGISTERED_FILE, SECOND_REGISTERED_FILE]
 
 
 def _sign(url_template: str, bundle_name: str) -> str:
@@ -134,8 +132,7 @@ def bundles() -> Generator[None, None, None]:
                 _make_bundle(LOCAL_BUNDLE, version=None, last_refreshed=REFRESHED_AT),
                 _make_bundle(GONE_BUNDLE, version="deadbeef", last_refreshed=GONE_REFRESHED_AT, active=False),
                 _make_bundle(OTHER_TEAM_BUNDLE, version="cafed00d", last_refreshed=REFRESHED_AT),
-                # No Dag has ever parsed from this one -- the documented blind spot of deriving
-                # visibility from readable Dags.
+                # No Dag has ever parsed from this one, as on a first deploy whose only file fails.
                 _make_bundle(DAGLESS_BUNDLE, version="0badcafe", last_refreshed=REFRESHED_AT),
             ]
         )
@@ -172,13 +169,12 @@ def bundles() -> Generator[None, None, None]:
                 last_parse_duration=PARSE_DURATION * 100,
             )
         )
-        # A co-located Dag in a visible bundle that the caller cannot read -- deliberately absent
-        # from READABLE_DAG_IDS.
+        # A second live Dag in GIT_BUNDLE, in a file of its own.
         session.add(
             DagModel(
-                dag_id="unreadable_in_git_bundle",
-                fileloc=UNREADABLE_FILE,
-                relative_fileloc=UNREADABLE_FILE,
+                dag_id="second_in_git_bundle",
+                fileloc=SECOND_REGISTERED_FILE,
+                relative_fileloc=SECOND_REGISTERED_FILE,
                 bundle_name=GIT_BUNDLE,
                 is_paused=False,
                 is_stale=False,
@@ -186,28 +182,24 @@ def bundles() -> Generator[None, None, None]:
         )
         session.add_all(
             [
-                # An error in the file the bundle's readable Dag comes from: visible to anyone who
-                # can read that Dag.
+                # An error in a file that also registered a Dag.
                 ParseImportError(
                     bundle_name=GIT_BUNDLE,
                     filename=REGISTERED_FILE,
                     stacktrace="boom",
                     timestamp=REFRESHED_AT,
                 ),
-                # An error in a file that never registered a Dag: admin-gated, because the file's
-                # existence is itself the disclosure.
+                # An error in a file that never registered a Dag.
                 ParseImportError(
                     bundle_name=GIT_BUNDLE,
                     filename=UNREGISTERED_FILE,
                     stacktrace="boom before any dag",
                     timestamp=REFRESHED_AT,
                 ),
-                # Registered to a Dag the caller cannot read: excluded by the readable-Dag filter
-                # alone, so it is what makes that half of the authorization testable.
                 ParseImportError(
                     bundle_name=GIT_BUNDLE,
-                    filename=UNREADABLE_FILE,
-                    stacktrace="not yours",
+                    filename=SECOND_REGISTERED_FILE,
+                    stacktrace="boom in a second file",
                     timestamp=REFRESHED_AT,
                 ),
             ]
@@ -219,73 +211,52 @@ def bundles() -> Generator[None, None, None]:
     _clear()
 
 
-@pytest.fixture
-def readable_dag_ids(test_client):
-    """
-    Restrict every caller in this module to ``READABLE_DAG_IDS``.
-
-    The client fixtures below share one auth manager instance, so the patch lives here: a test
-    asking for two of them would otherwise autospec-patch an attribute the first fixture already
-    replaced with a mock, which ``create_autospec`` rejects.
-    """
-    auth_manager = test_client.app.state.auth_manager
-    with mock.patch.object(
-        auth_manager,
-        "get_authorized_dag_ids",
-        autospec=True,
-        return_value=READABLE_DAG_IDS,
-    ):
-        yield
-
-
-@pytest.fixture
-def admin_client(test_client, readable_dag_ids):
-    """
-    An admin restricted to the same readable Dags.
-
-    ``test_client`` authenticates as an admin, which satisfies ``IMPORT_ERRORS_ALL`` under
-    SimpleAuthManager, so this is the caller that may also see a bundle holding no Dag at all.
-    """
-    return test_client
-
-
-@pytest.fixture
-def dag_scoped_client(test_client, readable_dag_ids):
-    """
-    A caller who may read every Dag except the one in ``OTHER_TEAM_BUNDLE``.
-
-    The list filter reads the Dag ids from the app's auth manager (``AuthManagerDep``), so the
-    real instance is patched rather than the ``get_auth_manager`` module lookup.
-
-    ``test_client`` authenticates as an admin, so ``IMPORT_ERRORS_ALL`` is denied here to keep Dag
-    scoping the only thing deciding which bundles are listed. A bundle holding no Dag rides on that
-    admin view instead, and has its own tests.
-    """
+def _patch_dag_bundles_view(test_client, is_authorized):
+    """Decide ``AccessView.DAG_BUNDLES`` with ``is_authorized(team_name)``; other views are left as they are."""
     auth_manager = test_client.app.state.auth_manager
     real_authorize_view = auth_manager.authorize_view
 
-    def deny_dagless_view(*, access_view, user, team_name=None):
-        if access_view is AccessView.IMPORT_ERRORS_ALL:
-            return False
+    def authorize_view(*, access_view, user, team_name=None):
+        if access_view is AccessView.DAG_BUNDLES:
+            return is_authorized(team_name)
         return real_authorize_view(access_view=access_view, user=user, team_name=team_name)
 
-    with mock.patch.object(auth_manager, "authorize_view", autospec=True, side_effect=deny_dagless_view):
+    return mock.patch.object(auth_manager, "authorize_view", autospec=True, side_effect=authorize_view)
+
+
+@pytest.fixture
+def no_dag_read_client(test_client):
+    """A caller who holds the bundle view but may read no Dag at all."""
+    with mock.patch.object(
+        test_client.app.state.auth_manager, "get_authorized_dag_ids", autospec=True, return_value=set()
+    ):
         yield test_client
 
 
 @pytest.fixture
-def viewer_headers(test_client, readable_dag_ids):
-    """
-    A viewer with the same readable Dags: may read import errors, but not the admin-gated view.
+def no_bundle_view_client(test_client):
+    """A caller who may read every Dag but is denied ``AccessView.DAG_BUNDLES``."""
+    with _patch_dag_bundles_view(test_client, lambda team_name: False):
+        yield test_client
 
-    ``test_client`` authenticates as an admin, which satisfies ``IMPORT_ERRORS_ALL`` under
-    SimpleAuthManager and so cannot distinguish the two import-error kinds on its own.
-    """
+
+def _headers_for(test_client, role: str) -> dict[str, str]:
     auth_manager = test_client.app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
-        auth_manager.serialize_user(SimpleAuthManagerUser(username="viewer", role="viewer"))
+        auth_manager.serialize_user(SimpleAuthManagerUser(username=role, role=role))
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def op_headers(test_client):
+    """
+    A SimpleAuthManager op, the lowest role holding the bundle view by default.
+
+    ``test_client`` authenticates as an admin, so this is the caller that shows the admin-only
+    import-error views do not narrow the bundle pages either.
+    """
+    return _headers_for(test_client, "op")
 
 
 class TestGetDagBundles:
@@ -295,64 +266,47 @@ class TestGetDagBundles:
     def test_should_raise_403_unauthorized(self, unauthorized_test_client):
         assert unauthorized_test_client.get("/dagBundles").status_code == 403
 
-    def test_lists_bundles_holding_a_readable_dag(self, dag_scoped_client):
-        response = dag_scoped_client.get("/dagBundles")
+    def test_should_raise_403_without_the_bundle_view(self, no_bundle_view_client):
+        """Reading every Dag does not grant the bundle view."""
+        assert no_bundle_view_client.get("/dagBundles").status_code == 403
+
+    @pytest.mark.parametrize("role", ["viewer", "user"])
+    def test_should_raise_403_below_op(self, test_client, role):
+        """Bundles list every deployed file, so SimpleAuthManager keeps them from viewers and users."""
+        response = test_client.get("/dagBundles", headers=_headers_for(test_client, role))
+
+        assert response.status_code == 403
+
+    def test_lists_every_bundle(self, test_client):
+        response = test_client.get("/dagBundles")
 
         assert response.status_code == 200
         body = response.json()
-        assert [bundle["name"] for bundle in body["dag_bundles"]] == READABLE_BUNDLES
-        assert body["total_entries"] == 3
+        assert [bundle["name"] for bundle in body["dag_bundles"]] == ALL_BUNDLES
+        assert body["total_entries"] == len(ALL_BUNDLES)
 
-    def test_excludes_a_bundle_whose_dags_are_not_readable(self, dag_scoped_client):
-        """The point of the Dag-derived filter: another team's bundle must not appear."""
-        body = dag_scoped_client.get("/dagBundles").json()
+    def test_lists_every_bundle_to_a_caller_who_may_read_no_dag(self, no_dag_read_client):
+        """Bundles are authorized on their own view, not derived from the Dags inside them."""
+        body = no_dag_read_client.get("/dagBundles").json()
 
-        assert OTHER_TEAM_BUNDLE not in [bundle["name"] for bundle in body["dag_bundles"]]
-        # Absent from the count too, so its existence does not leak through pagination.
-        assert body["total_entries"] == 3
+        assert [bundle["name"] for bundle in body["dag_bundles"]] == ALL_BUNDLES
 
-    def test_excludes_a_bundle_with_no_dags_without_the_admin_view(self, dag_scoped_client):
-        """A bundle nothing has parsed from has no Dag to authorize against, so Dag scoping alone
-        cannot show it."""
-        body = dag_scoped_client.get("/dagBundles").json()
-
-        assert DAGLESS_BUNDLE not in [bundle["name"] for bundle in body["dag_bundles"]]
-        assert body["total_entries"] == 3
-
-    def test_hides_a_bundle_with_no_dags_from_a_viewer(self, viewer_headers, test_client):
+    def test_import_error_count_covers_the_whole_bundle_for_an_op(self, op_headers, test_client):
         """
-        The bundle name and its version are the disclosure, so a viewer must not get them.
+        Every error recorded against the bundle is counted, whoever the caller is.
 
-        Same reasoning as the admin gate on import errors for a file that never registered a Dag:
-        with no Dag to authorize against, there is nothing weaker than the admin view to fall back
-        on.
+        ``GIT_BUNDLE`` holds an error in a file with a Dag, one in a file that never registered a
+        Dag, and one in a file holding another Dag. A count narrowed to what the caller may read
+        reads as "nothing is wrong" when something is.
         """
-        body = test_client.get("/dagBundles", headers=viewer_headers).json()
+        body = test_client.get("/dagBundles", headers=op_headers).json()
+        bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
 
-        assert DAGLESS_BUNDLE not in [bundle["name"] for bundle in body["dag_bundles"]]
-        # Absent from the count too, so its existence does not leak through pagination.
-        assert body["total_entries"] == 3
+        assert bundle["import_error_count"] == 3
 
-    def test_lists_a_bundle_with_no_dags_for_an_admin(self, admin_client):
-        """
-        The case the page exists for: a first deploy whose only file fails to import.
-
-        Deriving visibility from readable Dags alone would hide the bundle precisely when its
-        import-error count is the thing worth reading, so ``IMPORT_ERRORS_ALL`` opens it up.
-        """
-        body = admin_client.get("/dagBundles").json()
-        names = [bundle["name"] for bundle in body["dag_bundles"]]
-
-        assert DAGLESS_BUNDLE in names
-        # The Dag-scoped rows are unchanged, and the other team's bundle is still excluded: the
-        # admin view adds the Dag-less bundles, it does not bypass Dag scoping.
-        assert names == sorted([*READABLE_BUNDLES, DAGLESS_BUNDLE])
-        assert OTHER_TEAM_BUNDLE not in names
-        assert body["total_entries"] == 4
-
-    def test_dagless_bundle_reports_its_fields(self, admin_client):
+    def test_dagless_bundle_reports_its_fields(self, test_client):
         """A Dag-less bundle is a real row, not a name-only placeholder."""
-        body = admin_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles").json()
         bundle = next(b for b in body["dag_bundles"] if b["name"] == DAGLESS_BUNDLE)
 
         assert bundle["version"] == "0badcafe"
@@ -360,41 +314,12 @@ class TestGetDagBundles:
         assert bundle["last_refreshed"].startswith("2026-09-10T12:00:00")
         assert bundle["import_error_count"] == 0
 
-    def test_lists_a_bundle_whose_dags_are_all_stale(self, dag_scoped_client, session):
-        """
-        The other side of deriving visibility from Dags: deleting them must not hide the bundle.
-
-        A bundle whose Dags have all been removed is exactly when an operator wants to watch it
-        still being refreshed, and ``get_authorized_dag_ids`` does not filter on ``is_stale``
-        either, so the stale row keeps the bundle visible.
-        """
-        session.execute(update(DagModel).where(DagModel.bundle_name == GIT_BUNDLE).values(is_stale=True))
-        session.commit()
-
-        body = dag_scoped_client.get("/dagBundles").json()
-
-        assert GIT_BUNDLE in [bundle["name"] for bundle in body["dag_bundles"]]
-
-    def test_returns_nothing_when_no_dag_is_readable(self, viewer_headers, test_client):
-        # The fixture already patched this attribute, so retarget its mock rather than nesting a
-        # second autospec patch over it.
-        test_client.app.state.auth_manager.get_authorized_dag_ids.return_value = set()
-
-        body = test_client.get("/dagBundles", headers=viewer_headers).json()
-
-        assert body == {"dag_bundles": [], "total_entries": 0}
-
-    def test_returns_only_dagless_bundles_when_an_admin_can_read_no_dag(self, test_client):
-        """The admin view is additive: it never brings back a bundle whose Dags are unreadable."""
-        auth_manager = test_client.app.state.auth_manager
-        with mock.patch.object(auth_manager, "get_authorized_dag_ids", autospec=True, return_value=set()):
-            body = test_client.get("/dagBundles").json()
-
-        assert [bundle["name"] for bundle in body["dag_bundles"]] == [DAGLESS_BUNDLE]
-        assert body["total_entries"] == 1
-
-    def test_versioned_bundle_fields(self, admin_client):
-        body = admin_client.get("/dagBundles").json()
+    def test_versioned_bundle_fields(self, no_dag_read_client):
+        """The bundle url is part of the bundle, so it needs no Dag or Dag version read."""
+        with mock.patch.object(
+            no_dag_read_client.app.state.auth_manager, "is_authorized_dag", autospec=True, return_value=False
+        ):
+            body = no_dag_read_client.get("/dagBundles").json()
         bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
 
         assert bundle["version"] == GIT_VERSION
@@ -402,39 +327,10 @@ class TestGetDagBundles:
         assert bundle["last_refreshed"].startswith("2026-09-10T12:00:00")
         # Rendered from the signed template with the stored template params filled in.
         assert bundle["bundle_url"] == f"https://github.com/example/repo/tree/{GIT_VERSION}/dags"
-        # The admin client may read import errors for files with no Dag, so it sees both.
-        assert bundle["import_error_count"] == 2
 
-    def test_withholds_the_url_without_dag_version_access(self, dag_scoped_client):
-        """
-        A rendered bundle url needs Dag *version* read, which is a separate grant.
-
-        The same url is otherwise only reachable through ``GET /dags/{dag_id}/dagVersions``, so a
-        caller who may read the Dag but not its versions must still see the bundle -- the row is
-        the point of the page -- with the link withheld rather than the row dropped.
-        """
-        auth_manager = dag_scoped_client.app.state.auth_manager
-        real_is_authorized_dag = auth_manager.is_authorized_dag
-
-        def deny_version(*, method, access_entity=None, details=None, user):
-            if access_entity is DagAccessEntity.VERSION:
-                return False
-            return real_is_authorized_dag(
-                method=method, access_entity=access_entity, details=details, user=user
-            )
-
-        with mock.patch.object(auth_manager, "is_authorized_dag", autospec=True, side_effect=deny_version):
-            body = dag_scoped_client.get("/dagBundles").json()
-
-        bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
-        assert bundle["bundle_url"] is None
-        # Still listed, and the rest of the row is intact.
-        assert bundle["version"] == GIT_VERSION
-        assert [b["name"] for b in body["dag_bundles"]] == READABLE_BUNDLES
-
-    def test_non_versioned_bundle_has_no_version_but_keeps_a_timestamp(self, dag_scoped_client):
+    def test_non_versioned_bundle_has_no_version_but_keeps_a_timestamp(self, test_client):
         """A bundle that does not support versioning still reports when it was last refreshed."""
-        body = dag_scoped_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles").json()
         bundle = next(b for b in body["dag_bundles"] if b["name"] == LOCAL_BUNDLE)
 
         assert bundle["version"] is None
@@ -442,7 +338,7 @@ class TestGetDagBundles:
         assert bundle["last_refreshed"].startswith("2026-09-10T12:00:00")
         assert bundle["import_error_count"] == 0
 
-    def test_reports_a_refresh_that_did_not_change_the_version(self, dag_scoped_client, session):
+    def test_reports_a_refresh_that_did_not_change_the_version(self, test_client, session):
         """
         The behaviour the whole feature rests on, guarded on the read side.
 
@@ -453,7 +349,7 @@ class TestGetDagBundles:
         ``test_manager.py::TestDagFileProcessorManager::test_refresh_dag_bundles_versioned_version_unchanged_calls_update_bundle_state``;
         this pins that the endpoint actually surfaces it.
         """
-        before = dag_scoped_client.get("/dagBundles").json()
+        before = test_client.get("/dagBundles").json()
         was = next(b for b in before["dag_bundles"] if b["name"] == GIT_BUNDLE)
 
         later = REFRESHED_AT + timedelta(minutes=5)
@@ -462,50 +358,20 @@ class TestGetDagBundles:
         )
         session.commit()
 
-        after = dag_scoped_client.get("/dagBundles").json()
+        after = test_client.get("/dagBundles").json()
         now = next(b for b in after["dag_bundles"] if b["name"] == GIT_BUNDLE)
 
         assert now["last_refreshed"] != was["last_refreshed"]
         assert now["last_refreshed"].startswith("2026-09-10T12:05:00")
         assert now["version"] == was["version"] == GIT_VERSION
 
-    def test_deactivated_bundle_is_still_listed(self, dag_scoped_client):
+    def test_deactivated_bundle_is_still_listed(self, test_client):
         """A bundle dropped from the config stays visible and flagged, rather than vanishing."""
-        body = dag_scoped_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles").json()
         bundle = next(b for b in body["dag_bundles"] if b["name"] == GONE_BUNDLE)
 
         assert bundle["active"] is False
         assert bundle["version"] == "deadbeef"
-
-    def test_import_error_count_authorizes_on_the_same_terms_as_import_errors(
-        self, viewer_headers, test_client
-    ):
-        """
-        Count on the same terms as ``GET /importErrors``, not "every row for this bundle".
-
-        ``GIT_BUNDLE`` carries three errors, and a viewer may be told about exactly one:
-
-        * ``REGISTERED_FILE`` holds a Dag this viewer can read, so it counts.
-        * ``UNREGISTERED_FILE`` has no ``DagModel`` row, so it needs the admin-by-default
-          ``IMPORT_ERRORS_ALL``. Counting it would hand a viewer the existence of a file that
-          failed before defining anything, on a page that polls.
-        * ``UNREADABLE_FILE`` *is* registered, in this same bundle, but to a Dag outside
-          ``READABLE_DAG_IDS``, so only the ``dag_id IN readable_dag_ids`` restriction excludes it.
-
-        Dropping either restriction takes the count to 2, so one assertion pins both halves.
-        """
-        body = test_client.get("/dagBundles", headers=viewer_headers).json()
-        bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
-
-        assert bundle["import_error_count"] == 1
-
-    def test_import_error_count_is_withheld_without_permission(self, admin_client):
-        auth_manager = admin_client.app.state.auth_manager
-        with mock.patch.object(auth_manager, "authorize_view", autospec=True, return_value=False):
-            body = admin_client.get("/dagBundles").json()
-
-        # ``None``, not 0: "you may not see this" must not read as "nothing is wrong".
-        assert {bundle["import_error_count"] for bundle in body["dag_bundles"]} == {None}
 
     @pytest.mark.parametrize(
         "template",
@@ -514,192 +380,140 @@ class TestGetDagBundles:
             pytest.param("https://example.com/{version.foo}", id="attribute-placeholder"),
         ],
     )
-    def test_a_malformed_url_template_does_not_fail_the_collection(
-        self, dag_scoped_client, template, session
-    ):
+    def test_a_malformed_url_template_does_not_fail_the_collection(self, test_client, template, session):
         """``render_url`` guards only KeyError/ValueError, so a bad template must degrade to null."""
         bundle = session.get(DagBundleModel, GIT_BUNDLE)
         bundle.signed_url_template = _sign(template, GIT_BUNDLE)
         session.commit()
 
-        response = dag_scoped_client.get("/dagBundles")
+        response = test_client.get("/dagBundles")
 
         assert response.status_code == 200
         body = response.json()
         assert next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)["bundle_url"] is None
         # Every other row is unaffected.
-        assert body["total_entries"] == 3
+        assert body["total_entries"] == len(ALL_BUNDLES)
 
     @pytest.mark.parametrize(
         ("params", "expected"),
         [
-            pytest.param({"limit": 2}, [GIT_BUNDLE, GONE_BUNDLE], id="limit"),
-            pytest.param({"limit": 2, "offset": 2}, [LOCAL_BUNDLE], id="offset"),
-            pytest.param({"order_by": "-name"}, [LOCAL_BUNDLE, GONE_BUNDLE, GIT_BUNDLE], id="name-desc"),
-            pytest.param(
-                {"order_by": "last_refreshed"},
-                [GONE_BUNDLE, GIT_BUNDLE, LOCAL_BUNDLE],
-                id="last-refreshed-asc",
-            ),
+            pytest.param({"limit": 2}, [DAGLESS_BUNDLE, GIT_BUNDLE], id="limit"),
+            pytest.param({"limit": 2, "offset": 2}, [GONE_BUNDLE, LOCAL_BUNDLE], id="offset"),
+            pytest.param({"order_by": "-name"}, list(reversed(ALL_BUNDLES)), id="name-desc"),
+            # GONE_BUNDLE alone was refreshed earlier; the rest tie on REFRESHED_AT.
+            pytest.param({"order_by": "last_refreshed", "limit": 1}, [GONE_BUNDLE], id="last-refreshed-asc"),
         ],
     )
-    def test_pagination_and_sorting(self, dag_scoped_client, params, expected):
-        response = dag_scoped_client.get("/dagBundles", params=params)
+    def test_pagination_and_sorting(self, test_client, params, expected):
+        response = test_client.get("/dagBundles", params=params)
 
         assert response.status_code == 200
         body = response.json()
         assert [bundle["name"] for bundle in body["dag_bundles"]] == expected
         # total_entries counts the whole permitted set, not the page.
-        assert body["total_entries"] == 3
+        assert body["total_entries"] == len(ALL_BUNDLES)
 
-    def test_rejects_an_unsupported_sort_column(self, dag_scoped_client):
-        response = dag_scoped_client.get("/dagBundles", params={"order_by": "signed_url_template"})
+    def test_rejects_an_unsupported_sort_column(self, test_client):
+        response = test_client.get("/dagBundles", params={"order_by": "signed_url_template"})
 
         assert response.status_code == 400
 
-    def test_never_exposes_the_signed_url_template(self, dag_scoped_client):
+    def test_never_exposes_the_signed_url_template(self, test_client):
         """The template is signed with the fernet key; only the rendered url may leave."""
-        body = dag_scoped_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles").json()
 
         for bundle in body["dag_bundles"]:
             assert "signed_url_template" not in bundle
             assert "template_params" not in bundle
 
     @conf_vars({("core", "multi_team"): "False"})
-    def test_team_name_is_null_when_multi_team_is_off(self, dag_scoped_client):
-        body = dag_scoped_client.get("/dagBundles").json()
+    def test_team_name_is_null_when_multi_team_is_off(self, test_client):
+        body = test_client.get("/dagBundles").json()
 
         assert {bundle["team_name"] for bundle in body["dag_bundles"]} == {None}
 
-    @conf_vars({("core", "multi_team"): "True"})
-    def test_reports_the_owning_team_in_multi_team_mode(self, dag_scoped_client, session):
-        """
-        Exercise the branch that reads teams at all.
 
-        Without ``multi_team`` on -- which is the shipped default, and so what every other test
-        here runs under -- the ``get_team_names`` call is skipped entirely, leaving the batched
-        read that exists to avoid a per-row lazy load uncovered.
-        """
-        session.add(Team(name=TEAM_NAME))
-        session.commit()
-        session.execute(
-            insert(dag_bundle_team_association_table).values(dag_bundle_name=GIT_BUNDLE, team_name=TEAM_NAME)
-        )
-        session.commit()
-
-        body = dag_scoped_client.get("/dagBundles").json()
-
-        by_name = {bundle["name"]: bundle for bundle in body["dag_bundles"]}
-        assert by_name[GIT_BUNDLE]["team_name"] == TEAM_NAME
-        # Bundles with no team mapping still report null rather than inheriting one.
-        assert by_name[LOCAL_BUNDLE]["team_name"] is None
-
-
-class TestDaglessBundleTeamScoping:
-    """
-    A Dag-less bundle is authorized per team, not by one unscoped check standing in for all.
-
-    Deciding it once without a ``team_name`` fails in both directions under a team-aware policy:
-    a caller granted the unscoped view sees every team's Dag-less bundles, and a caller granted
-    only their own team's sees none. Both are covered below.
-    """
+class TestDagBundleTeamScoping:
+    """In multi-team mode the bundle view is checked against each bundle's own team."""
 
     OTHER_TEAM = "team_b"
-    DAGLESS_IN_TEAM = "dagless_team_a_bundle"
-    DAGLESS_IN_OTHER_TEAM = "dagless_team_b_bundle"
 
-    @pytest.fixture
+    @pytest.fixture(autouse=True)
     def team_bundles(self, session) -> None:
-        """Two bundles with no Dag at all, owned by different teams."""
         session.add_all([Team(name=TEAM_NAME), Team(name=self.OTHER_TEAM)])
-        session.add_all(
-            [
-                _make_bundle(self.DAGLESS_IN_TEAM, version="aaaaaaa", last_refreshed=REFRESHED_AT),
-                _make_bundle(self.DAGLESS_IN_OTHER_TEAM, version="bbbbbbb", last_refreshed=REFRESHED_AT),
-            ]
-        )
         session.commit()
         session.execute(
             insert(dag_bundle_team_association_table).values(
                 [
-                    {"dag_bundle_name": self.DAGLESS_IN_TEAM, "team_name": TEAM_NAME},
-                    {"dag_bundle_name": self.DAGLESS_IN_OTHER_TEAM, "team_name": self.OTHER_TEAM},
+                    {"dag_bundle_name": GIT_BUNDLE, "team_name": TEAM_NAME},
+                    {"dag_bundle_name": OTHER_TEAM_BUNDLE, "team_name": self.OTHER_TEAM},
                 ]
             )
         )
         session.commit()
 
-    @staticmethod
-    def _client_granting(test_client, permitted_teams: set[str | None]):
-        """
-        A caller whose ``IMPORT_ERRORS_ALL`` is granted only for ``permitted_teams``.
-
-        ``IMPORT_ERRORS`` stays granted throughout so the import-error counts are still computed;
-        only the admin-gated view is scoped, which is what a team-aware manager varies.
-        """
-        auth_manager = test_client.app.state.auth_manager
-
-        def team_aware_authorize_view(*, access_view, user, team_name=None):
-            if access_view is AccessView.IMPORT_ERRORS_ALL:
-                return team_name in permitted_teams
-            return True
-
-        return mock.patch.object(
-            auth_manager, "authorize_view", autospec=True, side_effect=team_aware_authorize_view
-        )
-
-    def test_does_not_expose_another_teams_dagless_bundle(self, team_bundles, admin_client):
-        """
-        Granting the unscoped view must not hand over a team the policy denies.
-
-        The caller holds ``IMPORT_ERRORS_ALL`` unscoped and for their own team, but not for
-        ``team_b``. Deciding the disjunct from the unscoped answer alone would admit every
-        Dag-less bundle, ``team_b``'s included.
-        """
-        with self._client_granting(admin_client, {None, TEAM_NAME}):
-            body = admin_client.get("/dagBundles").json()
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_lists_only_the_bundles_of_permitted_teams(self, test_client):
+        # ``None`` authorizes the team-less bundles.
+        with _patch_dag_bundles_view(test_client, lambda team_name: team_name in (None, TEAM_NAME)):
+            body = test_client.get("/dagBundles").json()
 
         names = [bundle["name"] for bundle in body["dag_bundles"]]
-        assert self.DAGLESS_IN_TEAM in names
-        assert self.DAGLESS_IN_OTHER_TEAM not in names
-        # Filtered in the query, so the denied bundle is absent from the count as well.
+        assert OTHER_TEAM_BUNDLE not in names
+        assert names == [DAGLESS_BUNDLE, GIT_BUNDLE, GONE_BUNDLE, LOCAL_BUNDLE]
+        assert next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)["team_name"] == TEAM_NAME
+        # Filtered in the query, so the other team's bundle is absent from the count as well.
         assert body["total_entries"] == len(names)
 
-    def test_does_not_hide_a_dagless_bundle_the_caller_holds(self, team_bundles, admin_client):
-        """
-        Denying the unscoped view must not hide a team the policy grants.
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_authorizes_a_team_less_bundle_without_a_team(self, test_client):
+        with _patch_dag_bundles_view(test_client, lambda team_name: team_name is None):
+            body = test_client.get("/dagBundles").json()
 
-        The caller holds ``IMPORT_ERRORS_ALL`` for ``team_a`` only, so the unscoped check returns
-        False. Deciding the disjunct from that answer would hide their own team's bundle.
-        """
-        with self._client_granting(admin_client, {TEAM_NAME}):
-            body = admin_client.get("/dagBundles").json()
+        assert [bundle["name"] for bundle in body["dag_bundles"]] == [
+            DAGLESS_BUNDLE,
+            GONE_BUNDLE,
+            LOCAL_BUNDLE,
+        ]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_admits_a_caller_granted_the_view_for_only_one_team(self, test_client):
+        with _patch_dag_bundles_view(test_client, lambda team_name: team_name == TEAM_NAME):
+            response = test_client.get("/dagBundles")
+
+        assert response.status_code == 200
+        assert [bundle["name"] for bundle in response.json()["dag_bundles"]] == [GIT_BUNDLE]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_raise_403_without_the_view_for_any_team(self, no_bundle_view_client):
+        assert no_bundle_view_client.get("/dagBundles").status_code == 403
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_hides_another_teams_bundles_when_the_view_ignores_the_team(self, test_client):
+        """An auth manager may grant the view whatever ``team_name`` is; team membership still applies."""
+        with (
+            _patch_dag_bundles_view(test_client, lambda team_name: True),
+            mock.patch.object(
+                test_client.app.state.auth_manager,
+                "filter_authorized_teams",
+                autospec=True,
+                side_effect=lambda *, teams_names, user, method="GET": teams_names & {TEAM_NAME},
+            ),
+        ):
+            body = test_client.get("/dagBundles").json()
 
         names = [bundle["name"] for bundle in body["dag_bundles"]]
-        assert self.DAGLESS_IN_TEAM in names
-        assert self.DAGLESS_IN_OTHER_TEAM not in names
-        # The team-less Dag-less bundle is authorized with team_name=None, which this caller
-        # does not hold.
-        assert DAGLESS_BUNDLE not in names
+        assert names == [DAGLESS_BUNDLE, GIT_BUNDLE, GONE_BUNDLE, LOCAL_BUNDLE]
         assert body["total_entries"] == len(names)
 
-    def test_grants_a_team_less_bundle_only_on_the_unscoped_view(self, team_bundles, admin_client):
-        """A bundle mapped to no team is authorized with ``team_name=None``."""
-        with self._client_granting(admin_client, {None}):
-            body = admin_client.get("/dagBundles").json()
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize("path", ["", "/files"])
+    def test_404_for_a_bundle_of_another_team(self, test_client, path):
+        """A 404 rather than a 403, so the response does not confirm the bundle exists."""
+        with _patch_dag_bundles_view(test_client, lambda team_name: team_name in (None, TEAM_NAME)):
+            response = test_client.get(f"/dagBundles/{OTHER_TEAM_BUNDLE}{path}")
 
-        names = [bundle["name"] for bundle in body["dag_bundles"]]
-        assert DAGLESS_BUNDLE in names
-        assert self.DAGLESS_IN_TEAM not in names
-        assert self.DAGLESS_IN_OTHER_TEAM not in names
-
-    def test_hides_every_dagless_bundle_without_the_view(self, team_bundles, admin_client):
-        with self._client_granting(admin_client, set()):
-            body = admin_client.get("/dagBundles").json()
-
-        names = [bundle["name"] for bundle in body["dag_bundles"]]
-        assert names == READABLE_BUNDLES
-        assert body["total_entries"] == len(READABLE_BUNDLES)
+        assert response.status_code == 404
 
 
 class TestGetDagBundle:
@@ -709,8 +523,11 @@ class TestGetDagBundle:
     def test_should_raise_403_unauthorized(self, unauthorized_test_client):
         assert unauthorized_test_client.get(f"/dagBundles/{GIT_BUNDLE}").status_code == 403
 
-    def test_returns_the_bundle(self, dag_scoped_client):
-        response = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}")
+    def test_should_raise_403_without_the_bundle_view(self, no_bundle_view_client):
+        assert no_bundle_view_client.get(f"/dagBundles/{GIT_BUNDLE}").status_code == 403
+
+    def test_returns_the_bundle(self, test_client):
+        response = test_client.get(f"/dagBundles/{GIT_BUNDLE}")
 
         assert response.status_code == 200
         body = response.json()
@@ -719,97 +536,30 @@ class TestGetDagBundle:
         assert body["last_refreshed"] == "2026-09-10T12:00:00Z"
         assert body["active"] is True
         assert body["bundle_url"] == f"https://github.com/example/repo/tree/{GIT_VERSION}/dags"
+        assert body["import_error_count"] == 3
 
-    def test_dag_count_excludes_dags_the_caller_may_not_read(self, dag_scoped_client):
-        """``GIT_BUNDLE`` holds two Dags, one of them absent from ``READABLE_DAG_IDS``."""
-        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
+    def test_counts_every_live_dag_whatever_the_caller_may_read(self, no_dag_read_client):
+        """``GIT_BUNDLE`` holds two live Dags and one stale one."""
+        body = no_dag_read_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
 
-        assert body["dag_count"] == 1
+        assert body["dag_count"] == 2
 
-    def test_404_for_a_bundle_whose_dags_are_not_readable(self, dag_scoped_client):
-        """A 404 rather than a 403, so the response does not confirm the bundle exists."""
-        assert dag_scoped_client.get(f"/dagBundles/{OTHER_TEAM_BUNDLE}").status_code == 404
-
-    def test_404_for_a_bundle_with_no_dags_without_the_admin_view(self, dag_scoped_client):
-        """``dag_scoped_client`` is denied ``IMPORT_ERRORS_ALL``, so Dag scoping alone decides."""
-        assert dag_scoped_client.get(f"/dagBundles/{DAGLESS_BUNDLE}").status_code == 404
-        assert dag_scoped_client.get(f"/dagBundles/{DAGLESS_BUNDLE}/files").status_code == 404
-
-    def test_shows_a_bundle_with_no_dags_to_a_caller_holding_the_admin_view(self, admin_client):
-        """
-        The first-deploy-is-broken case: a bundle whose only file fails before defining a Dag.
-
-        It has no Dag to authorize against, so it rides on ``IMPORT_ERRORS_ALL`` the way the
-        collection route does; the detail route must not re-derive a stricter rule and hide it.
-        """
-        response = admin_client.get(f"/dagBundles/{DAGLESS_BUNDLE}")
+    def test_shows_a_bundle_with_no_dags(self, op_headers, test_client):
+        """The first-deploy-is-broken case: a bundle whose only file fails before defining a Dag."""
+        response = test_client.get(f"/dagBundles/{DAGLESS_BUNDLE}", headers=op_headers)
 
         assert response.status_code == 200
         assert response.json()["dag_count"] == 0
-        assert admin_client.get(f"/dagBundles/{DAGLESS_BUNDLE}/files").status_code == 200
 
-    def test_404_for_an_unknown_bundle(self, dag_scoped_client):
-        assert dag_scoped_client.get("/dagBundles/no_such_bundle").status_code == 404
+    def test_404_for_an_unknown_bundle(self, test_client):
+        assert test_client.get("/dagBundles/no_such_bundle").status_code == 404
 
-    def test_import_error_count_is_gated_like_the_collection(self, admin_client, viewer_headers):
-        """
-        The admin sees the unregistered-file error as well; the viewer sees only the registered one.
-
-        Same two-part authorization as ``GET /importErrors``, asserted here so the detail route
-        cannot drift from the collection route it shares a helper with.
-        """
-        assert admin_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["import_error_count"] == 2
-        assert (
-            admin_client.get(f"/dagBundles/{GIT_BUNDLE}", headers=viewer_headers).json()["import_error_count"]
-            == 1
-        )
-
-    def test_import_error_count_is_withheld_without_permission(self, admin_client):
-        auth_manager = admin_client.app.state.auth_manager
-        with mock.patch.object(auth_manager, "authorize_view", autospec=True, return_value=False):
-            body = admin_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
-
-        assert body["import_error_count"] is None
-
-    @conf_vars({("core", "multi_team"): "True"})
-    def test_reports_the_owning_team_in_multi_team_mode(self, dag_scoped_client, session):
-        """Without ``multi_team`` on -- the shipped default -- the team lookup is skipped entirely."""
-        session.add(Team(name=TEAM_NAME))
-        session.commit()
-        session.execute(
-            insert(dag_bundle_team_association_table).values(dag_bundle_name=GIT_BUNDLE, team_name=TEAM_NAME)
-        )
-        session.commit()
-
-        assert dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["team_name"] == TEAM_NAME
-
-    def test_bundle_url_is_withheld_without_dag_version_read(self, dag_scoped_client):
-        """
-        A rendered bundle url is otherwise only reachable through ``GET /dags/{dag_id}/dagVersions``.
-
-        That route additionally requires Dag *version* read, so a role that grants Dag read and
-        withholds version read must not get the repository address here instead.
-        """
-        auth_manager = dag_scoped_client.app.state.auth_manager
-        real = auth_manager.is_authorized_dag
-
-        def _deny_versions(*args, **kwargs):
-            if kwargs.get("access_entity") is DagAccessEntity.VERSION:
-                return False
-            return real(*args, **kwargs)
-
-        with mock.patch.object(auth_manager, "is_authorized_dag", autospec=True, side_effect=_deny_versions):
-            body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
-
-        assert body["version"] == GIT_VERSION
-        assert body["bundle_url"] is None
-
-    def test_dag_count_excludes_stale_dags(self, dag_scoped_client, session):
+    def test_dag_count_excludes_stale_dags(self, test_client, session):
         """``GIT_BUNDLE``'s Dags all go stale, so nothing live is left to count."""
         session.execute(update(DagModel).where(DagModel.bundle_name == GIT_BUNDLE).values(is_stale=True))
         session.commit()
 
-        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
 
         assert body["dag_count"] == 0
 
@@ -821,33 +571,29 @@ class TestGetDagBundleFiles:
     def test_should_raise_403_unauthorized(self, unauthorized_test_client):
         assert unauthorized_test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").status_code == 403
 
-    def test_lists_files_ordered_by_path(self, admin_client):
-        response = admin_client.get(f"/dagBundles/{GIT_BUNDLE}/files")
+    def test_should_raise_403_without_the_bundle_view(self, no_bundle_view_client):
+        assert no_bundle_view_client.get(f"/dagBundles/{GIT_BUNDLE}/files").status_code == 403
+
+    def test_lists_files_ordered_by_path(self, test_client):
+        response = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files")
 
         assert response.status_code == 200
         body = response.json()
-        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [
-            UNREGISTERED_FILE,
-            REGISTERED_FILE,
-        ]
-        assert body["total_entries"] == 2
+        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == GIT_BUNDLE_FILES
+        assert body["total_entries"] == len(GIT_BUNDLE_FILES)
 
-    def test_reports_parse_time_and_duration(self, dag_scoped_client):
-        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+    def test_lists_every_file_to_a_caller_who_may_read_no_dag(self, no_dag_read_client):
+        """The list is the bundle's, so it is not narrowed to the files of readable Dags."""
+        body = no_dag_read_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
 
         by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
-        assert by_path[REGISTERED_FILE]["dag_count"] == 1
-        assert by_path[REGISTERED_FILE]["last_parsed_time"] == "2026-09-10T12:01:00Z"
-        assert by_path[REGISTERED_FILE]["last_parse_duration"] == PARSE_DURATION
+        assert list(by_path) == GIT_BUNDLE_FILES
+        assert by_path[SECOND_REGISTERED_FILE]["dag_count"] == 1
+        assert by_path[SECOND_REGISTERED_FILE]["import_error_count"] == 1
 
-    def test_a_file_that_registered_no_dag_is_listed_with_its_error(self, admin_client):
-        """
-        The case the page most needs to show: a file that failed before defining a Dag.
-
-        It has no Dag to authorize on, so it is admin-gated, and without it a brand new broken
-        file would be invisible on the very page someone opens to find out why.
-        """
-        body = admin_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+    def test_an_op_sees_a_file_that_registered_no_dag(self, op_headers, test_client):
+        """The case the page most needs to show: a file that failed before defining a Dag."""
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=op_headers).json()
 
         by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
         assert by_path[UNREGISTERED_FILE]["dag_count"] == 0
@@ -855,30 +601,15 @@ class TestGetDagBundleFiles:
         assert by_path[UNREGISTERED_FILE]["last_parsed_time"] is None
         assert by_path[UNREGISTERED_FILE]["last_parse_duration"] is None
 
-    def test_excludes_a_file_whose_dag_is_not_readable(self, admin_client, viewer_headers):
-        """``UNREADABLE_FILE`` is registered, so only the readable-Dag filter keeps it out."""
-        for headers in ({}, viewer_headers):
-            body = admin_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=headers).json()
-            assert UNREADABLE_FILE not in {file["relative_fileloc"] for file in body["dag_bundle_files"]}
+    def test_reports_parse_time_and_duration(self, test_client):
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
 
-    def test_viewer_does_not_see_the_unregistered_file(self, viewer_headers, test_client):
-        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=viewer_headers).json()
+        by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
+        assert by_path[REGISTERED_FILE]["dag_count"] == 1
+        assert by_path[REGISTERED_FILE]["last_parsed_time"] == "2026-09-10T12:01:00Z"
+        assert by_path[REGISTERED_FILE]["last_parse_duration"] == PARSE_DURATION
 
-        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [REGISTERED_FILE]
-        assert body["total_entries"] == 1
-
-    def test_import_error_count_is_withheld_without_permission(self, admin_client):
-        """``None``, not 0: "you may not see this" must not read as "nothing is wrong"."""
-        auth_manager = admin_client.app.state.auth_manager
-        with mock.patch.object(auth_manager, "authorize_view", autospec=True, return_value=False):
-            body = admin_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
-
-        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [REGISTERED_FILE]
-        assert body["dag_bundle_files"][0]["import_error_count"] is None
-
-    def test_a_file_whose_dags_went_stale_stays_listed_while_it_has_an_error(
-        self, dag_scoped_client, session
-    ):
+    def test_a_file_whose_dags_went_stale_stays_listed_while_it_has_an_error(self, test_client, session):
         """Marking a file's Dags stale must not hide the row that explains the breakage."""
         session.execute(
             update(DagModel)
@@ -887,37 +618,37 @@ class TestGetDagBundleFiles:
         )
         session.commit()
 
-        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
 
         by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
         assert by_path[REGISTERED_FILE]["dag_count"] == 0
         assert by_path[REGISTERED_FILE]["import_error_count"] == 1
 
-    def test_parse_duration_ignores_a_stale_dag_from_an_older_parse(self, dag_scoped_client):
+    def test_parse_duration_ignores_a_stale_dag_from_an_older_parse(self, test_client):
         """
         A Dag removed from a file keeps its row, frozen at the parse it was last seen in.
 
         Aggregating the two columns independently would pair that older, slower duration with the
         newer timestamp and report a parse time that never happened.
         """
-        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
 
         by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
         assert by_path[REGISTERED_FILE]["last_parsed_time"] == "2026-09-10T12:01:00Z"
         assert by_path[REGISTERED_FILE]["last_parse_duration"] == PARSE_DURATION
 
-    def test_a_file_with_no_live_dag_and_no_error_is_dropped(self, dag_scoped_client, session):
+    def test_a_file_with_no_live_dag_and_no_error_is_dropped(self, test_client, session):
         """A file whose Dags are all stale and which has no error is one the bundle no longer has."""
         session.execute(update(DagModel).where(DagModel.bundle_name == LOCAL_BUNDLE).values(is_stale=True))
         session.commit()
 
-        body = dag_scoped_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
+        body = test_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
 
         assert body["dag_bundle_files"] == []
         assert body["total_entries"] == 0
 
-    def test_a_file_with_no_error_reports_zero(self, dag_scoped_client):
-        body = dag_scoped_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
+    def test_a_file_with_no_error_reports_zero(self, test_client):
+        body = test_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
 
         assert [file["import_error_count"] for file in body["dag_bundle_files"]] == [0]
 
@@ -925,22 +656,86 @@ class TestGetDagBundleFiles:
         ("params", "expected"),
         [
             pytest.param({"limit": 1}, [UNREGISTERED_FILE], id="limit"),
-            pytest.param({"offset": 1}, [REGISTERED_FILE], id="offset"),
+            pytest.param({"offset": 1}, [REGISTERED_FILE, SECOND_REGISTERED_FILE], id="offset"),
             pytest.param({"limit": 1, "offset": 1}, [REGISTERED_FILE], id="limit-and-offset"),
             # ``limit`` is a non-negative int, and ``Select.limit(0)`` returns nothing, so zero
             # has to mean nothing here too rather than being read as "unlimited".
             pytest.param({"limit": 0}, [], id="limit-zero"),
         ],
     )
-    def test_pagination(self, admin_client, params, expected):
-        body = admin_client.get(f"/dagBundles/{GIT_BUNDLE}/files", params=params).json()
+    def test_pagination(self, test_client, params, expected):
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files", params=params).json()
 
         assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == expected
         # The total is the whole file list, not the page.
-        assert body["total_entries"] == 2
+        assert body["total_entries"] == len(GIT_BUNDLE_FILES)
 
-    def test_404_for_a_bundle_whose_dags_are_not_readable(self, dag_scoped_client):
-        assert dag_scoped_client.get(f"/dagBundles/{OTHER_TEAM_BUNDLE}/files").status_code == 404
+    def test_404_for_an_unknown_bundle(self, test_client):
+        assert test_client.get("/dagBundles/no_such_bundle/files").status_code == 404
 
-    def test_404_for_an_unknown_bundle(self, dag_scoped_client):
-        assert dag_scoped_client.get("/dagBundles/no_such_bundle/files").status_code == 404
+    def test_an_admin_may_read_every_import_error(self, test_client):
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        assert {
+            file["relative_fileloc"]: file["can_read_import_error"] for file in body["dag_bundle_files"]
+        } == {
+            UNREGISTERED_FILE: True,
+            REGISTERED_FILE: True,
+            SECOND_REGISTERED_FILE: True,
+        }
+
+    def test_a_file_with_no_error_has_nothing_to_read(self, test_client):
+        body = test_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
+
+        assert [file["can_read_import_error"] for file in body["dag_bundle_files"]] == [False]
+
+    def test_an_op_may_not_read_the_error_of_a_file_that_registered_no_dag(self, op_headers, test_client):
+        """Such errors sit behind ``IMPORT_ERRORS_ALL``, which an op does not hold."""
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=op_headers).json()
+
+        assert {
+            file["relative_fileloc"]: file["can_read_import_error"] for file in body["dag_bundle_files"]
+        } == {
+            UNREGISTERED_FILE: False,
+            REGISTERED_FILE: True,
+            SECOND_REGISTERED_FILE: True,
+        }
+
+    def test_follows_the_dags_the_caller_may_read(self, test_client):
+        """
+        One readable Dag is enough, even beside an unreadable one, as the error is then redacted.
+
+        ``dag_0.py`` also holds a stale Dag outside the readable set; ``second.py`` holds none
+        the caller may read.
+        """
+        with mock.patch.object(
+            test_client.app.state.auth_manager,
+            "get_authorized_dag_ids",
+            autospec=True,
+            return_value={f"dag_in_{GIT_BUNDLE}"},
+        ):
+            body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        by_path = {
+            file["relative_fileloc"]: file["can_read_import_error"] for file in body["dag_bundle_files"]
+        }
+        assert by_path[REGISTERED_FILE] is True
+        assert by_path[SECOND_REGISTERED_FILE] is False
+
+    def test_no_import_error_is_readable_without_the_import_errors_view(self, test_client):
+        auth_manager = test_client.app.state.auth_manager
+        real_is_authorized_view = auth_manager.is_authorized_view
+
+        def is_authorized_view(*, access_view, user, team_name=None):
+            if access_view is AccessView.IMPORT_ERRORS:
+                return False
+            return real_is_authorized_view(access_view=access_view, user=user, team_name=team_name)
+
+        with mock.patch.object(
+            auth_manager, "is_authorized_view", autospec=True, side_effect=is_authorized_view
+        ):
+            body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        assert [file["can_read_import_error"] for file in body["dag_bundle_files"]] == [False, False, False]
+        # The counts are the bundle's and stay put.
+        assert [file["import_error_count"] for file in body["dag_bundle_files"]] == [1, 1, 1]

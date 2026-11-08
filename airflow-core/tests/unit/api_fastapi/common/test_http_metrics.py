@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 import structlog.testing
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from starlette.responses import PlainTextResponse
 from starlette.testclient import TestClient
 
@@ -75,6 +75,16 @@ def test_app() -> FastAPI:
     @app.get("/api/v2/monitor/health")
     async def health():
         return PlainTextResponse("healthy")
+
+    dags_router = APIRouter(prefix="/dags")
+
+    @dags_router.get("/{dag_id}")
+    async def included_dag(dag_id: str):
+        return PlainTextResponse("ok")
+
+    public_router = APIRouter(prefix="/api/v2")
+    public_router.include_router(dags_router)
+    app.include_router(public_router)
 
     app.mount("/execution", _make_execution_app())
     app.add_middleware(HttpMetricsMiddleware)
@@ -160,6 +170,7 @@ def test_request_duration_is_emitted_in_milliseconds():
             id="route-template-with-parameters",
         ),
         pytest.param("/ui/items/42", "/ui/items/{item_id}", id="ui"),
+        pytest.param("/api/v2/dags/example", "/api/v2/dags/{dag_id}", id="included-router-keeps-prefixes"),
         pytest.param(
             "/execution/task-instances/abc/run",
             "/execution/task-instances/{task_instance_id}/run",

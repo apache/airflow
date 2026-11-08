@@ -19,7 +19,7 @@
 
 package org.apache.airflow.example
 
-import org.apache.airflow.sdk.{Bundle, BundleBuilder, Client, Context, DagDef, Server, Task}
+import org.apache.airflow.sdk.{Bundle, Client, Context, Server, Task}
 import org.apache.logging.log4j.{LogManager, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.sum
@@ -60,13 +60,11 @@ private object SparkEtl {
       .config("spark.driver.bindAddress", "127.0.0.1")
       .getOrCreate()
 
-  // 3-arg getXCom(key, dagId, taskId) reads the upstream return value; wire
-  // integers arrive boxed.
-  def readUpstreamLong(client: Client, context: Context, taskId: String): Long =
-    client.getXCom("return_value", context.dagRun.dagId, taskId).asInstanceOf[Number].longValue()
+  def readUpstreamLong(client: Client, taskId: String): Long =
+    client.getXCom(taskId).asInstanceOf[Number].longValue()
 
   def pushLong(client: Client, value: Long): Unit =
-    client.setXCom("return_value", java.lang.Long.valueOf(value))
+    client.setXCom(java.lang.Long.valueOf(value))
 }
 
 /** Builds the Spark DataFrame and reports how many records were extracted. */
@@ -95,7 +93,7 @@ class SparkTransform extends Task {
   override def execute(context: Context, client: Client): Unit = {
     // Read the upstream count only to demonstrate XCom passing between JVM
     // tasks; the aggregation below recomputes from the source dataset.
-    val extractedCount = SparkEtl.readUpstreamLong(client, context, SparkEtl.ExtractTaskId)
+    val extractedCount = SparkEtl.readUpstreamLong(client, SparkEtl.ExtractTaskId)
     log.info("Transform received {} records from extract", java.lang.Long.valueOf(extractedCount))
 
     val spark = SparkEtl.newSession("scala-spark-etl-transform")
@@ -116,7 +114,7 @@ class SparkLoad extends Task {
   private val log: Logger = LogManager.getLogger(classOf[SparkLoad])
 
   override def execute(context: Context, client: Client): Unit = {
-    val total = SparkEtl.readUpstreamLong(client, context, SparkEtl.TransformTaskId)
+    val total = SparkEtl.readUpstreamLong(client, SparkEtl.TransformTaskId)
     log.info("Loading aggregated revenue {}", java.lang.Long.valueOf(total))
 
     val spark = SparkEtl.newSession("scala-spark-etl-load")
@@ -132,18 +130,19 @@ class SparkLoad extends Task {
   }
 }
 
+/**
+ * Task handlers for the `scala_spark_example` Dag declared in `dags/scala_spark_examples.py`.
+ */
 object ScalaSparkExample {
-  def build(): DagDef =
-    new DagDef(SparkEtl.DagId)
-      .addTask(SparkEtl.ExtractTaskId, classOf[SparkExtract])
-      .addTask(SparkEtl.TransformTaskId, classOf[SparkTransform])
-      .addTask(SparkEtl.LoadTaskId, classOf[SparkLoad])
+  def build(): Bundle =
+    new Bundle()
+      .register(SparkEtl.DagId, SparkEtl.ExtractTaskId, classOf[SparkExtract])
+      .register(SparkEtl.DagId, SparkEtl.TransformTaskId, classOf[SparkTransform])
+      .register(SparkEtl.DagId, SparkEtl.LoadTaskId, classOf[SparkLoad])
 }
 
 /** Bundle entry point served to Airflow's Java coordinator. */
-object ScalaSparkBundleBuilder extends BundleBuilder {
-  override def getDags(): java.lang.Iterable[DagDef] = java.util.List.of(ScalaSparkExample.build())
-
+object ScalaSparkBundleBuilder {
   def main(args: Array[String]): Unit =
-    Server.create(args).serve(new Bundle(getDags()))
+    Server.create(args).serve(ScalaSparkExample.build())
 }

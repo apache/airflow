@@ -1,0 +1,308 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_locked_emit": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_locked_task_events": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_locked_extract": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_dag_level_blocked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_locked_full": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_floor": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_blocked_up": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_blocked": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$absent": "locked emit false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_emit"
+        }
+    },
+    {
+        "$absent": "locked emit false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_emit"
+        }
+    },
+    {
+        "$absent": "locked emit false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_emit"
+        }
+    },
+    {
+        "$absent": "locked emit_task_events false",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_task_events"
+        }
+    },
+    {
+        "$absent": "locked emit_task_events false",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_task_events"
+        }
+    },
+    {
+        "$absent": "locked emit_task_events false",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_task_events"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_extract",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_extract",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_hook",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_hook",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_full",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "echo full_info"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_locked_full",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_floor",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_floor",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'file://host1/in.txt' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_blocked_up",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_blocked_up",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_blocked"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_blocked"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_dag_level_blocked"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/authored_a_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_conf_locked_controls_dag.t_dag_level_blocked"
+        }
+    }
+]

@@ -17,14 +17,16 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createModelApi } from "src/model-api";
-import type { UsageInfo } from "src/types/model";
+import { regionOf, type TaskRegion } from "src/region";
+import type { SkillInfo, UsageInfo } from "src/types/model";
 
 interface UseModelInfoReturn {
   modelName: string | null;
   usage: UsageInfo | null;
+  skills: SkillInfo[] | null;
   loading: boolean;
   error: string | null;
 }
@@ -39,29 +41,46 @@ export function useModelInfo(
   runId: string,
   taskId: string,
   mapIndex: number,
+  region?: TaskRegion,
 ): UseModelInfoReturn {
   const [modelName, setModelName] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [skills, setSkills] = useState<SkillInfo[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Built fresh on every call (not memoized via a ref) so a switch to another task or map
-  // index -- which changes these props without remounting the panel -- is reflected here too.
-  const fetchInfo = useCallback(async () => {
-    setLoading(true);
-    const api = createModelApi(dagId, runId, taskId, mapIndex);
-    // allSettled, not all: one XCom missing or erroring must not hide a model name or usage
-    // the other call did resolve.
-    const [nameResult, usageResult] = await Promise.allSettled([api.fetchModelName(), api.fetchUsage()]);
-    setModelName(nameResult.status === "fulfilled" ? nameResult.value : null);
-    setUsage(usageResult.status === "fulfilled" ? usageResult.value : null);
-    setError(describeFailure(nameResult) ?? describeFailure(usageResult));
-    setLoading(false);
-  }, [dagId, runId, taskId, mapIndex]);
+  const regionId = region?.region_id;
+  const regionIndex = region?.region_index;
 
+  // Keyed on the region's fields, not the object, which the caller rebuilds on every render.
+  // The host keeps the panel mounted when only the loop pass (a search param) changes, so a
+  // read for the previous pass can still be in flight; its result is dropped.
   useEffect(() => {
-    void fetchInfo();
-  }, [fetchInfo]);
+    let current = true;
+    setLoading(true);
+    const api = createModelApi(
+      dagId,
+      runId,
+      taskId,
+      mapIndex,
+      regionOf({ region_id: regionId, region_index: regionIndex }),
+    );
+    // allSettled, not all: one XCom missing or erroring must not hide what the other calls
+    // did resolve.
+    void Promise.allSettled([api.fetchModelName(), api.fetchUsage(), api.fetchSkills()]).then(
+      ([nameResult, usageResult, skillsResult]) => {
+        if (!current) return;
+        setModelName(nameResult.status === "fulfilled" ? nameResult.value : null);
+        setUsage(usageResult.status === "fulfilled" ? usageResult.value : null);
+        setSkills(skillsResult.status === "fulfilled" ? skillsResult.value : null);
+        setError(describeFailure(nameResult) ?? describeFailure(usageResult) ?? describeFailure(skillsResult));
+        setLoading(false);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [dagId, runId, taskId, mapIndex, regionId, regionIndex]);
 
-  return { modelName, usage, loading, error };
+  return { modelName, usage, skills, loading, error };
 }

@@ -28,6 +28,8 @@ from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook imp
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
+
 TASK_ID = "test_notebook_run"
 NOTEBOOK_ID = "nb-1234567890"
 DOMAIN_ID = "dzd_example"
@@ -308,7 +310,7 @@ class TestSageMakerUnifiedStudioNotebookOperator:
 
     @patch(HOOK_PATH, new_callable=PropertyMock)
     def test_execute_deferrable_overrides_wait_for_completion(self, mock_hook_prop):
-        """Deferrable takes precedence over wait_for_completion=False."""
+        """Deferrable still takes precedence over wait_for_completion=False, with a deprecation warning."""
         mock_hook = MagicMock()
         mock_hook_prop.return_value = mock_hook
         mock_hook.start_notebook_run.return_value = {"id": NOTEBOOK_RUN_ID}
@@ -322,7 +324,10 @@ class TestSageMakerUnifiedStudioNotebookOperator:
             wait_for_completion=False,
         )
 
-        with pytest.raises(TaskDeferred):
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=False),
+            pytest.raises(TaskDeferred),
+        ):
             op.execute(_make_context())
 
         mock_hook.wait_for_notebook_run.assert_not_called()

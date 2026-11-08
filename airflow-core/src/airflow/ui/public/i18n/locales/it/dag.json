@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Tutti i Map Index",
   "allRuns": "Tutti i Run",
   "blockingDeps": {
     "dependency": "Dipendenza",
@@ -6,6 +7,7 @@
     "title": "Dipendenze che bloccano la Task da essere pianificata"
   },
   "calendar": {
+    "backfill": "Backfill",
     "daily": "Giornaliero",
     "hourly": "Orario",
     "legend": {
@@ -34,23 +36,79 @@
       "wednesday": "Mer"
     }
   },
+  "callbacks": {
+    "callback_many": "Callbacks",
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "callback_zero": "Nessun Callback",
+    "columns": {
+      "alertName": "Avviso di scadenza",
+      "callback": "Callback",
+      "deadlineTime": "Ora della scadenza",
+      "missedBy": "Scostamento",
+      "type": "Tipo"
+    },
+    "types": {
+      "executor": "Sincrono",
+      "triggerer": "Asincrono"
+    }
+  },
   "code": {
     "bundleUrl": "URL del Bundle",
     "noCode": "Nessun Codice Trovato",
     "parseDuration": "Durata del parsing",
     "parsedAt": "Parsato il:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Deve completarsi entro {{interval}} da {{reference}}",
+    "completionRuleDynamic": "Deve completarsi entro un intervallo variabile misurato da {{reference}}",
+    "count_many": "{{count, number}} di scadenze",
+    "count_one": "{{count, number}} scadenza",
+    "count_other": "{{count, number}} scadenze",
+    "count_zero": "Nessuna scadenza",
+    "referenceType": {
+      "AverageRuntimeDeadline": "runtime medio",
+      "DagRunLogicalDateDeadline": "data logica",
+      "DagRunQueuedAtDeadline": "ora di messa in coda"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Effettivo",
+    "expected": "Atteso",
+    "finishedEarly": "Terminato {{duration}} prima della scadenza",
+    "finishedLate": "Terminato {{duration}} dopo la scadenza",
+    "label": "Scadenza",
+    "met": "Rispettata",
+    "missed": "Non rispettata",
+    "missedCount_many": "{{count, number}} di scadenze non rispettate",
+    "missedCount_one": "{{count, number}} scadenza non rispettata",
+    "missedCount_other": "{{count, number}} scadenze non rispettate",
+    "missedCount_zero": "Nessuna scadenza non rispettata",
+    "mixedCount": "{{missedCount, number}} non rispettate, {{upcomingCount, number}} imminenti",
+    "stillRunning": "Ancora in esecuzione",
+    "upcoming": "Imminenti",
+    "upcomingCount_many": "{{count, number}} di scadenze imminenti",
+    "upcomingCount_one": "{{count, number}} scadenza imminente",
+    "upcomingCount_other": "{{count, number}} scadenze imminenti",
+    "upcomingCount_zero": "Nessuna scadenza imminente"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
+      "newerRuns": "Run più recenti",
+      "olderRuns": "Run più vecchi",
       "resetToLatest": "Resetta al più recente",
       "toggleGroup": "Attiva/Disattiva gruppo"
-    }
+    },
+    "runTypeLegend": "Legenda dei tipi di run"
   },
   "header": {
     "buttons": {
       "advanced": "Avanzato",
       "dagDocs": "Documentazione sul Dag"
+    },
+    "status": {
+      "deactivated": "Disattivato"
     }
   },
   "logs": {
@@ -59,19 +117,59 @@
     "critical": "CRITICO",
     "debug": "DEBUG",
     "error": "ERRORE",
-    "fullscreen": {
-      "button": "Schermo Intero",
-      "tooltip": "Premi {{hotkey}} per schermo intero"
-    },
     "info": "INFO",
     "noTryNumber": "Nessun numero di tentativo",
+    "search": {
+      "matchCount": "{{current, number}} di {{total, number}}",
+      "nextMatch": "Corrispondenza successiva",
+      "noMatches": "Nessuna corrispondenza",
+      "placeholder": "Cercare nei Log...",
+      "previousMatch": "Corrispondenza precedente"
+    },
     "settings": "Impostazioni Log",
+    "tryNotStarted": "Questo tentativo non è ancora iniziato.",
+    "viewFailedTry": "Vedi i Log del tentativo fallito {{tryNumber}}",
     "viewInExternal": "Visualizza i logs in {{name}} (tentativo {{attempt}})",
+    "viewPreviousTry": "Vedi i Log del tentativo precedente {{tryNumber}}",
+    "waitingToRetry": "Il tentativo {{tryNumber}} è in attesa di un nuovo tentativo.",
     "warning": "AVVISO"
   },
-  "navigation": {
-    "navigation": "Navigazione: Shift+{{arrow}}",
-    "toggleGroup": "Attiva/Disattiva gruppo: Spazio"
+  "loop": {
+    "history": {
+      "capLabel": "Limite: {{max}}",
+      "iterationsAxis": "Iterazioni",
+      "stats": {
+        "capHits": "Hanno raggiunto il limite",
+        "medianIterations": "Mediana delle iterazioni"
+      },
+      "title": "Iterazioni per run"
+    },
+    "iterationLabel": "Iterazione {{index}}",
+    "iterations": "Iterazioni",
+    "outcome": "Esito",
+    "reason": {
+      "cap_reached": "Ha raggiunto il limite di iterazioni ({{max}})",
+      "failed": "Fallito all'iterazione {{index}}",
+      "iteration_failed": "L'iterazione {{index}} è fallita in {{taskId}}",
+      "ran_to_cap": "Ha eseguito tutte le {{max}} iterazioni consentite",
+      "removed": "Rimosso",
+      "running": "In esecuzione",
+      "skipped": "Saltato",
+      "stopped_early": "Si è fermato prima, all'iterazione {{index}}"
+    },
+    "rules": {
+      "behaviour": "Comportamento",
+      "boundedFor": "Esegue un numero fisso di iterazioni",
+      "exitCriteria": "Criterio di uscita",
+      "maxIterations": "Numero massimo di iterazioni",
+      "whileUntil": "Si ripete finché {{criteria}}"
+    }
+  },
+  "notFound": {
+    "back": "Indietro",
+    "backToDags": "Torna ai Dag",
+    "message": "Il Dag \"{{dagId}}\" non esiste.",
+    "title": "Dag non trovato"
   },
   "overview": {
     "buttons": {
@@ -94,6 +192,10 @@
       "assetEvent_other": "Eventi di Asset Creati",
       "assetEvent_zero": "Nessun evento di asset creato"
     },
+    "deadlines": {
+      "showAll": "Mostra tutte",
+      "title": "Scadenze"
+    },
     "failedLogs": {
       "hideLogs": "Nascondi Logs",
       "showLogs": "Mostra Logs",
@@ -112,16 +214,49 @@
       "label": "Numero di Runs del Dag"
     },
     "dependencies": {
-      "label": "Dipendenze",
-      "options": {
-        "allDagDependencies": "Tutte le Dipendenze del Dag",
-        "externalConditions": "Condizioni Esterne",
-        "onlyTasks": "Solo le Task"
-      },
-      "placeholder": "Dipendenze"
+      "allDagDependencies": "Tutte le dipendenze del Dag"
     },
     "graphDirection": {
       "label": "Direzione del Grafico"
+    },
+    "graphFilters": {
+      "clearFilters": "Pulisci i filtri",
+      "durationGte": "Durata minima (s)",
+      "durationGteHint": "Per i Task mappati misura l'intervallo totale di tutte le istanze",
+      "mapIndex": "Map index minimo",
+      "mapIndexHint": "Mostra i Task mappati espansi almeno fino a questo indice",
+      "selectStatus": "Seleziona lo stato",
+      "selectTaskGroup": "Seleziona il gruppo di Task",
+      "title": "Filtri dei Task"
+    },
+    "showVersionIndicator": {
+      "label": "Mostra l'indicatore di versione",
+      "options": {
+        "hideAll": "Nascondi tutto",
+        "showAll": "Mostra tutto",
+        "showBundleVersion": "Mostra la versione del Bundle",
+        "showDagVersion": "Mostra la versione del Dag"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtro attivo",
+      "clearFilter": "Pulisci il filtro",
+      "clickTask": "Fai clic su un Task per usarlo come radice del filtro",
+      "depth": "Profondità",
+      "direction": "Direzione",
+      "label": "Filtro",
+      "mode": "Modalità",
+      "modeTooltip": "La modalità statica mantiene la vista corrente quando passi ad altri Task. La modalità di attraversamento aggiorna il filtro attivo sul Task su cui fai clic, per seguire il Dag più facilmente.",
+      "modes": {
+        "static": "Statica",
+        "traverse": "Attraversamento"
+      },
+      "options": {
+        "both": "Sia upstream sia downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Task selezionato"
     }
   },
   "paramsFailed": "Impossibile caricare i parametri",
@@ -142,6 +277,7 @@
     "auditLog": "Registro di Controllo (Logs)",
     "backfills": "Backfills",
     "calendar": "Calendario",
+    "callbacks": "Callbacks",
     "code": "Codice",
     "details": "Dettagli",
     "logs": "Logs",
@@ -154,11 +290,112 @@
     "requiredActions": "Azioni Richieste",
     "runs": "Run",
     "taskInstances": "Istanze di Task",
+    "taskStateStore": "Store di stato del Task",
     "tasks": "Tasks",
+    "versions": "Versioni",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Collassa tutti i gruppi di task",
     "expandAll": "Espandi tutti i gruppi di task"
+  },
+  "taskStateStore": {
+    "add": "Aggiungi store di stato del Task",
+    "clearAll": {
+      "resource": "tutto lo store di stato dei Task",
+      "title": "Cancella tutto lo store di stato dei Task",
+      "warning": "Lo store di stato dei Task verrà azzerato. I Task che lo usano per seguire lavoro esterno non potranno riprenderlo senza rieseguire dall'inizio."
+    },
+    "delete": "Elimina lo store di stato del Task",
+    "deleteWarning": "Il Task perderà questa memoria persistente. Se usa questa chiave per seguire lavoro esterno (per esempio un ID di lavoro esterno), non potrà riprenderlo.",
+    "edit": "Modifica lo store di stato del Task",
+    "emptyStore": "Lo store di stato del Task memorizza valori che restano tra un tentativo e l'altro. I worker possono scrivere nello store di stato del Task tramite il Task SDK.",
+    "entry_many": "Voci",
+    "entry_one": "Voce",
+    "entry_other": "Voci",
+    "entry_zero": "Nessuna voce",
+    "expiresAt": {
+      "column": "Scade il",
+      "custom": "Personalizzata",
+      "default": "Predefinita ({{interval}})",
+      "label": "Scadenza",
+      "never": "Mai"
+    },
+    "title": "Store di stato del Task"
+  },
+  "versions": {
+    "base": "Confronta da",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorizzazione",
+      "callback": "Callback",
+      "deadline": "Scadenza",
+      "dependency": "Dipendenza",
+      "metadata": "Metadati",
+      "param": "Parametro",
+      "provenance": "Provenienza",
+      "schedule": "Programmazione",
+      "task": "Task",
+      "unknown": "Sconosciuto"
+    },
+    "codeAccess": "I valori richiedono l'accesso al codice del Dag",
+    "columns": {
+      "after": "Dopo",
+      "before": "Prima",
+      "category": "Categoria",
+      "impact": "Impatto",
+      "operation": "Operazione",
+      "path": "Percorso"
+    },
+    "heading": "Versione {{base}} → Versione {{target}}",
+    "impacts": {
+      "authorization": "Autorizzazione",
+      "execution": "Esecuzione",
+      "metadata": "Metadati",
+      "provenance": "Provenienza",
+      "unknown": "Sconosciuto"
+    },
+    "limitReached": {
+      "description": "Ci sono più modifiche di quante ne consenta il limite Massimo di modifiche. Alza il limite per vedere il resto.",
+      "descriptionDefault": "Ci sono più modifiche di quante ne consenta il limite predefinito. Alza Massimo di modifiche per vedere il resto.",
+      "title": "Sono mostrate solo le prime {{limit, number}} modifiche"
+    },
+    "maxChanges": "Massimo di modifiche",
+    "maxChangesDefault": "Predefinito",
+    "noChanges": "Queste versioni hanno lo stesso stato.",
+    "operations": {
+      "added": "Aggiunto",
+      "changed": "Modificato",
+      "removed": "Rimosso"
+    },
+    "pathOccurrences_many": "{{count, number}} di modifiche condividono questo percorso",
+    "pathOccurrences_one": "{{count, number}} modifica condivide questo percorso",
+    "pathOccurrences_other": "{{count, number}} modifiche condividono questo percorso",
+    "pathOccurrences_zero": "Nessuna modifica condivide questo percorso",
+    "pathOccurrencesAtLeast_many": "Almeno {{count, number}} di modifiche condividono questo percorso",
+    "pathOccurrencesAtLeast_one": "Almeno {{count, number}} modifica condivide questo percorso",
+    "pathOccurrencesAtLeast_other": "Almeno {{count, number}} modifiche condividono questo percorso",
+    "pathOccurrencesAtLeast_zero": "Nessuna modifica condivide questo percorso",
+    "record_many": "Record",
+    "record_one": "Record",
+    "record_other": "Record",
+    "record_zero": "Nessun record",
+    "schemaChange": "Schema serializzato {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Seleziona due versioni per vedere che cosa è cambiato.",
+    "summary_many": "{{count, number}} di modifiche",
+    "summary_one": "{{count, number}} modifica",
+    "summary_other": "{{count, number}} modifiche",
+    "summary_zero": "Nessuna modifica",
+    "summaryAtLeast_many": "Almeno {{count, number}} di modifiche",
+    "summaryAtLeast_one": "Almeno {{count, number}} modifica",
+    "summaryAtLeast_other": "Almeno {{count, number}} modifiche",
+    "summaryAtLeast_zero": "Nessuna modifica",
+    "target": "Confronta con",
+    "unavailable": {
+      "description": "Non è stato possibile confrontare queste versioni. Motivo:",
+      "title": "Confronto non disponibile",
+      "withoutReason": "Non è stato possibile confrontare queste versioni."
+    },
+    "valuesHidden": "Valori nascosti"
   }
 }

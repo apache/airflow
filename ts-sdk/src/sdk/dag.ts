@@ -111,6 +111,7 @@ export interface DagSpec extends GeneratedDagFields {
    * A native Dag's tasks are executed by the Node coordinator, which the
    * deployment's `queue_to_coordinator` maps a queue to, so this is what
    * routes them there. `queue` on a {@link TaskSpec} wins for that task.
+   * A `queue` that is set cannot be blank.
    */
   readonly queue?: string;
 }
@@ -1122,6 +1123,7 @@ export class Dag {
       }
       spec[key] = value[key];
     }
+    rejectBlankQueue(spec["queue"], `Dag "${this.dagId}" task "${taskId}"`);
     return spec as TaskSpec;
   }
 
@@ -1539,6 +1541,13 @@ function validateDagSpec(dagId: string, spec: DagSpec): void {
     if (typeof key !== "string" || !DAG_SPEC_KEYS.has(key)) {
       throw new Error(`Unknown option "${String(key)}" in the spec for Dag "${dagId}"`);
     }
+  }
+  rejectBlankQueue(value["queue"], `Dag "${dagId}"`);
+}
+
+function rejectBlankQueue(queue: unknown, owner: string): void {
+  if (typeof queue === "string" && queue.trim() === "") {
+    throw new Error(`queue in the spec for ${owner} must not be blank`);
   }
 }
 

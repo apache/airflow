@@ -119,7 +119,7 @@ def get_provider_info():
                 "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
                 "options": {
                     "durable_cache_path": {
-                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True`` on Airflow\n**< 3.3**. Each task execution writes a single JSON file under this\npath containing its cached model responses and tool results, so that\non retry the agent can replay completed steps instead of re-issuing\nLLM calls and tool invocations. The file is deleted on successful task\ncompletion.\n\nRequired for ``durable=True`` only on Airflow < 3.3. On Airflow >= 3.3\nthe cache is stored in the AIP-103 task state store and this option is\nignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is\naccepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).\n",
+                        "description": "ObjectStorage URI used to persist per-step caches for durable execution\non Airflow **< 3.3**. Each task execution writes a single JSON file under this\npath containing its cached model responses and tool results, so that\non retry the agent can replay completed steps instead of re-issuing\nLLM calls and tool invocations. The file is deleted on successful task\ncompletion.\n\nRequired for durable execution only on Airflow < 3.3. On Airflow >= 3.3\nthe cache is stored in the AIP-103 task state store and this option is\nignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is\naccepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).\n",
                         "version_added": "0.1.0",
                         "type": "string",
                         "example": "file:///tmp/airflow_durable_cache",
@@ -165,6 +165,7 @@ def get_provider_info():
                     "Heroku",
                     "Hugging Face",
                     "LiteLLM",
+                    "Meta",
                     "Mistral AI",
                     "Moonshot AI",
                     "Nebius",
@@ -195,8 +196,28 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
+                        "description": "Model as provider:name (e.g. openai:gpt-5), or bare with a Default Model Provider",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "model_provider": {
+                        "label": "Default Model Provider",
+                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat). Any provider the installed pydantic-ai recognizes works.\n",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "examples": [
+                                "openai-chat",
+                                "openai",
+                                "anthropic",
+                                "ollama",
+                                "litellm",
+                                "openrouter",
+                                "groq",
+                                "mistral",
+                                "deepseek",
+                                "together",
+                                "fireworks",
+                            ],
+                        },
                     },
                     "fallback_conn_ids": {
                         "label": "Fallback Connections",
@@ -341,7 +362,7 @@ def get_provider_info():
                     },
                     "vertexai": {
                         "label": "Force Vertex AI Mode",
-                        "description": "Ignored (kept for compatibility); mode is now selected via the Model field's prefix.",
+                        "description": "Deprecated and ignored; the Model field's prefix selects the mode.",
                         "schema": {"type": ["boolean", "null"]},
                     },
                     "api_key": {

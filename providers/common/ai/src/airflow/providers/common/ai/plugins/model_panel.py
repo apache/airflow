@@ -80,16 +80,24 @@ class ModelPanelPlugin(AirflowPlugin):
                 "bundle_url": get_bundle_url(_PLUGIN_PREFIX, "model.umd.cjs"),
                 "destination": "task_instance",
                 "url_route": "ai-model",
-                # Only LLMOperator and AgentOperator (and their @task.llm/@task.agent
-                # TaskFlow forms) push model_name/usage; other operators would show
-                # a permanently-empty tab. `operator_name` alone covers both the raw
+                # Only AgentOperator, LLMOperator and its subclasses (and their TaskFlow
+                # forms) push model_name/usage; other operators would show a
+                # permanently-empty tab. `operator_name` alone covers both the raw
                 # class name and the decorator's display name, since TaskInstance falls
                 # back to the class name when there's no custom_operator_name.
                 "applies_to": {
                     "operator_name": [
                         "LLMOperator",
+                        "LLMBranchOperator",
+                        "LLMSQLQueryOperator",
+                        "LLMSchemaCompareOperator",
+                        "LLMFileAnalysisOperator",
                         "AgentOperator",
                         "@task.llm",
+                        "@task.llm_branch",
+                        "@task.llm_sql",
+                        "@task.llm_schema_compare",
+                        "@task.llm_file_analysis",
                         "@task.agent",
                     ],
                 },

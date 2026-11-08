@@ -19,7 +19,6 @@
 import { Badge, Box, Heading, Text } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { LuInfo } from "react-icons/lu";
 
 import type { DagVersionDiffChangeResponse, DagVersionDiffResponse } from "openapi/requests/types.gen";
 
@@ -151,23 +150,14 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
       hideRowCountHeading
       modelName="dag:versions.record"
       noRowsMessage={translate("versions.noChanges")}
+      // The hover says what grants values, since the viewer cannot grant it here: the server
+      // decides from the caller's access to Dag code.
       presentationActions={
-        <>
-          {/* The hover says what grants values, since the viewer cannot grant it here: the server
-                decides from the caller's access to Dag code. */}
-          {valuesShown ? undefined : (
-            <Tooltip content={translate("versions.codeAccess")} portalled>
-              <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
-            </Tooltip>
-          )}
-          {/* Above the table rather than below it: a long diff would otherwise push the caveat
-                off-screen exactly when it matters most. */}
-          <Tooltip content={translate("versions.observedStateBoundary")} portalled>
-            <Box aria-label={translate("versions.aboutThisComparison")} as="button" color="fg.muted" p={1}>
-              <LuInfo />
-            </Box>
+        valuesShown ? undefined : (
+          <Tooltip content={translate("versions.codeAccess")} portalled>
+            <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
           </Tooltip>
-        </>
+        )
       }
       total={diff.changes.length}
     />

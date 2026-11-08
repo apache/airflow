@@ -43,6 +43,13 @@
   "dagWarnings": {
     "error_one": "1 ข้อผิดพลาด",
     "errorAndWarning": "1 ข้อผิดพลาดและ {{warningText}}",
+    "types": {
+      "asset conflict": "ความขัดแย้งของ Asset",
+      "duplicate dag id": "Dag ID ซ้ำ",
+      "non-existent pool": "ไม่พบพูล",
+      "runtime varying value": "ค่าที่เปลี่ยนแปลงขณะรันไทม์",
+      "task group cycle": "วงวนในกลุ่มงาน"
+    },
     "warning_one": "1 คำเตือน",
     "warning_other": "{{count, number}} คำเตือน"
   },
