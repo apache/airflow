@@ -20,6 +20,7 @@ package airflow
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"slices"
@@ -210,7 +211,7 @@ var dagSpecRules = specRules{
 	fields: dagSpecFields,
 	set:    map[string]bool{"Tags": true},
 	skip: map[string]bool{
-		// serializeTaskLocked writes Queue as the queue of each Go task whose TaskSpec sets no Queue.
+		// serializeTaskLocked writes Queue as the queue of each task whose TaskSpec sets no Queue.
 		"Queue": true,
 		// serializeTimetable writes Schedule as the timetable.
 		"Schedule": true,
@@ -330,6 +331,17 @@ func jsonNumber(value any) (float64, bool) {
 // to the microsecond. A Python datetime holds nothing finer than a microsecond.
 func encodeTime(t time.Time) float64 { return float64(t.UnixMicro()) / 1e6 }
 
+// pythonStr returns t as Python's str(datetime) writes it in UTC, such as
+// "2026-09-30 00:00:00+00:00". It writes the microseconds, six digits, only when they are not zero.
+func pythonStr(t time.Time) string {
+	t = t.UTC()
+	layout := "2006-01-02 15:04:05"
+	if t.Nanosecond()/1000 != 0 {
+		layout += ".000000"
+	}
+	return t.Format(layout) + "+00:00"
+}
+
 // checkTime returns an error for a time that a Python datetime cannot hold, which is a time whose
 // year in UTC is not from 1 to 9999. Airflow would reject a serialized Dag with such a time when it
 // loads the Dag. field names the field that holds t. The zero Time passes, because it means that
@@ -339,6 +351,20 @@ func checkTime(field string, t time.Time) error {
 		return fmt.Errorf(
 			"%s is %s in UTC; Airflow takes a time only from year 1 to year 9999",
 			field, t.UTC().Format(time.RFC3339Nano),
+		)
+	}
+	return nil
+}
+
+// checkPriorityWeight returns an error for a weight that the 32-bit priority_weight column of
+// task_instance cannot hold. Python's BaseOperator caps such a weight instead. A nil weight passes,
+// because it means that the field is unset.
+func checkPriorityWeight(weight *int) error {
+	if weight != nil && (*weight < math.MinInt32 || *weight > math.MaxInt32) {
+		return fmt.Errorf(
+			"airflow.TaskSpec.PriorityWeight is %d; Airflow takes a priority weight only "+
+				"from %d to %d",
+			*weight, math.MinInt32, math.MaxInt32,
 		)
 	}
 	return nil
@@ -413,9 +439,6 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 		// Python writes template_fields for every operator. A Go task has no template fields, so the list
 		// is empty.
 		data["template_fields"] = []string{}
-		// is_stub makes the API server send the task its arguments from _arg_bindings when the
-		// task runs, as it does for a @task.stub task of a Python Dag.
-		data["is_stub"] = true
 		if len(task.inputs) > 0 {
 			data["_arg_bindings"] = serializeArgBindings(task.inputs)
 		}
@@ -425,9 +448,14 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 			// condition.
 			data["_can_skip_downstream"] = true
 		}
-		if spec.Queue == "" {
-			spec.Queue = d.spec.Queue
-		}
+	}
+	// The Go runtime runs every task of a Go Dag, a task from TriggerDagRun included, so every one of
+	// them is a stub. is_stub makes the API server send the task its arguments from _arg_bindings when
+	// the task runs, as it does for a @task.stub task of a Python Dag.
+	data["is_stub"] = true
+	// The worker picks a runtime by queue, so a task from TriggerDagRun takes the queue of the Dag too.
+	if spec.Queue == "" {
+		spec.Queue = d.spec.Queue
 	}
 	writeSpecFields(data, spec, taskSpecRules)
 	if len(task.downstreams) > 0 {
@@ -461,12 +489,12 @@ func serializeArgBindings(inputs []taskInput) []any {
 }
 
 // writeTriggerDagRun writes a task from TriggerDagRun as Python's serializer writes a
-// TriggerDagRunOperator, because a Python worker runs the task.
+// TriggerDagRunOperator, so that the Airflow UI and the Dag dependencies treat it as one.
 //
 // For a Python Dag, Python's serializer writes the template fields of the operator and leaves out
-// its other parameters. A Python worker gets those other parameters by parsing the Python Dag file
-// again. A Go Dag has no Python Dag file, so writeTriggerDagRun also writes each other parameter
-// that spec sets, under the name that TriggerDagRunOperator gives the parameter.
+// its other parameters. A Go Dag has no Python Dag file, so writeTriggerDagRun also writes each
+// other parameter that spec sets, under the name that TriggerDagRunOperator gives the parameter.
+// The Go runtime runs the task from its own copy of spec and reads none of this.
 func writeTriggerDagRun(data map[string]any, spec TriggerDagRunSpec) {
 	data["task_type"] = triggerDagRunTaskType
 	data["_task_module"] = triggerDagRunTaskModule
@@ -481,8 +509,12 @@ func writeTriggerDagRun(data map[string]any, spec TriggerDagRunSpec) {
 	}
 	// Python leaves out a template field that is None, but the default logical_date is NOTSET, a
 	// sentinel that lets TriggerDagRunOperator pick the logical date. Python writes the sentinel as
-	// the string NOTSET, and Airflow loads the string as it is.
-	data["logical_date"] = cmp.Or(spec.LogicalDate, "NOTSET")
+	// the string NOTSET, and Airflow loads the string as it is. Python writes a datetime in a
+	// template field as str(datetime), not as a {"__type": "datetime"} object.
+	data["logical_date"] = "NOTSET"
+	if !spec.LogicalDate.IsZero() {
+		data["logical_date"] = pythonStr(spec.LogicalDate)
+	}
 	if spec.Conf != nil {
 		data["conf"] = copyJSON(spec.Conf)
 	}

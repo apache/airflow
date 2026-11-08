@@ -51,22 +51,31 @@ else:
                 use_external_connection = True
 
             connection = hook.get_connection(conn_id)
-            try:
-                database_info = hook.get_openlineage_database_info(connection)
-            except AttributeError:
-                log.debug("%s has no database info provided", hook)
-                database_info = None
+            database_info = None
+            get_database_info = getattr(hook, "get_openlineage_database_info", None)
+            if get_database_info is not None:
+                try:
+                    database_info = get_database_info(connection)
+                except Exception as e:
+                    log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+                    log.debug("OpenLineage failure details:", exc_info=True)
 
             if database_info is None:
+                log.debug("%s has no database info provided", conn_id)
                 return None
 
+            get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
+            get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
+            if get_dialect is None or get_default_schema is None:
+                log.debug("%s has no database dialect or default schema provided", conn_id)
+                return None
             try:
-                sql_parser = SQLParser(
-                    dialect=hook.get_openlineage_database_dialect(connection),
-                    default_schema=hook.get_openlineage_default_schema(),
+                sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
+            except Exception as e:
+                log.warning(
+                    "Failed to get OpenLineage database dialect or default schema for %s: %s", conn_id, e
                 )
-            except AttributeError:
-                log.debug("%s failed to get database dialect", hook)
+                log.debug("OpenLineage failure details:", exc_info=True)
                 return None
 
             try:

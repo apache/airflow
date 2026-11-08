@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"runtime/debug"
 	"time"
 
@@ -36,7 +37,8 @@ import (
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
 // calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, executes
 // the task, and returns the terminal body to ship as the final response frame:
-// one of genmodels.SucceedTask, TaskState, or RetryTask. When RunTask cannot
+// one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from airflow.TriggerDagRun
+// is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
 // delete an XCom, or arg_bindings is invalid, the task fails without running.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
@@ -71,14 +73,12 @@ func RunTask(
 	// context is a placeholder, because binding reads only the task instance
 	// and Dag run from this value and builds the airflow.Context around the
 	// live task context.
-	ti := sdk.TaskInstance{
-		DagID:     details.TI.DagID,
-		RunID:     details.TI.RunID,
-		TaskID:    details.TI.TaskID,
-		MapIndex:  mapIndexPtr(details.TI.MapIndex),
-		TryNumber: details.TI.TryNumber,
-	}
+	ti := taskInstanceOf(details)
 	dagRun := details.TIContext.DagRun
+	var conf map[string]any
+	if dagRun.Conf != nil {
+		conf = normalizeDagRunConf(*dagRun.Conf)
+	}
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
 		ti,
@@ -88,6 +88,9 @@ func RunTask(
 			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
 			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
 			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			RunAfter:          dagRun.RunAfter.UTC(), // msgpack decodes it in the local zone.
+			RunType:           dagRun.RunType,
+			Conf:              conf,
 		},
 	)
 
@@ -112,6 +115,11 @@ func RunTask(
 		}
 	}
 
+	// The runtime runs a TriggerDagRun task itself. It has no Go function to bind arguments to.
+	if trigger, ok := task.(*bundle.TriggerTask); ok {
+		return runTriggerDagRun(ctx, details, trigger.Spec, client, logger, defaultTriggerEnv)
+	}
+
 	args, err := convertArgBindings(details.TIContext.ArgBindings)
 	if err != nil {
 		logger.Error("Invalid arg_bindings spec from supervisor",
@@ -123,6 +131,68 @@ func RunTask(
 	}
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
+}
+
+func normalizeDagRunConf(conf map[string]any) map[string]any {
+	if conf == nil {
+		return nil
+	}
+	normalized := make(map[string]any, len(conf))
+	for key, value := range conf {
+		normalized[key] = normalizeDagRunConfValue(value)
+	}
+	return normalized
+}
+
+func normalizeDagRunConfValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return normalizeDagRunConf(v)
+	case []any:
+		if v == nil {
+			return v
+		}
+		normalized := make([]any, len(v))
+		for i, item := range v {
+			normalized[i] = normalizeDagRunConfValue(item)
+		}
+		return normalized
+	case int:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case uint:
+		return normalizeDagRunConfValue(uint64(v))
+	case uint8:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint64:
+		if v <= math.MaxInt64 {
+			return int64(v)
+		}
+		return v
+	case float32:
+		return float64(v)
+	default:
+		return value
+	}
+}
+
+func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
+	return sdk.TaskInstance{
+		DagID:     details.TI.DagID,
+		RunID:     details.TI.RunID,
+		TaskID:    details.TI.TaskID,
+		MapIndex:  mapIndexPtr(details.TI.MapIndex),
+		TryNumber: details.TI.TryNumber,
+	}
 }
 
 // failTask returns the terminal body for a task that fails before it runs: RetryTask when
@@ -282,10 +352,14 @@ func executeTask(
 		}
 	}
 
-	// task_outlets / outlet_events must be sent as empty lists, not omitted:
-	// the supervisor's SucceedTask validation rejects a null/absent value
-	// ("Input should be a valid list"). A task that emits no asset events
-	// reports empty collections rather than None.
+	return succeedTask()
+}
+
+// succeedTask returns the terminal body of a task that succeeded. task_outlets / outlet_events must
+// be sent as empty lists, not omitted: the supervisor's SucceedTask validation rejects a
+// null/absent value ("Input should be a valid list"). A task that emits no asset events reports
+// empty collections rather than None.
+func succeedTask() genmodels.SucceedTask {
 	return genmodels.SucceedTask{
 		EndDate:      time.Now().UTC(),
 		TaskOutlets:  &genmodels.TaskOutlets{},

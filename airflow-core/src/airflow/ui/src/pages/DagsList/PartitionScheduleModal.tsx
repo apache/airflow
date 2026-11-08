@@ -67,6 +67,7 @@ const getColumns = (
     cell: ({ row }) => (
       <AssetProgressCell
         dagId={dagId}
+        partitionedDagRunId={row.original.id}
         partitionKey={row.original.partition_key}
         totalReceived={row.original.total_received}
         totalRequired={row.original.total_required}
@@ -90,7 +91,7 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
   } satisfies TableState;
   const { pagination } = tableState;
 
-  const { data, error, isFetching, isLoading } = usePartitionedDagRunServiceGetPartitionedDagRuns(
+  const { data, error, isLoading } = usePartitionedDagRunServiceGetPartitionedDagRuns(
     {
       dagId,
       hasCreatedDagRunId: false,
@@ -132,7 +133,6 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
         data={partitionedDagRuns}
         hideRowCountHeading
         initialState={tableState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="partitionedDagRun"
         onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}

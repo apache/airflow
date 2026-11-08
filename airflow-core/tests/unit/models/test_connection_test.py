@@ -55,7 +55,7 @@ class TestConnectionTestKey:
     def test_is_frozen(self):
         key = ConnectionTestKey(id="abc")
         with pytest.raises(dataclasses.FrozenInstanceError):
-            key.id = "xyz"  # type: ignore[misc]
+            key.id = "xyz"
 
     def test_not_a_str_instance(self):
         assert not isinstance(ConnectionTestKey(id="abc"), str)
@@ -261,11 +261,12 @@ class TestCommitToConnectionTable:
             host="new-host.example.com",
             login="new_user",
             password="new_secret",
+            commit_allows_update=True,
         )
         session.add(ct)
         session.flush()
 
-        ct.commit_to_connection_table(session=session)
+        assert ct.commit_to_connection_table(session=session) is True
         session.flush()
         session.refresh(conn)
 
@@ -273,3 +274,32 @@ class TestCommitToConnectionTable:
         assert conn.host == "new-host.example.com"
         assert conn.login == "new_user"
         assert conn.password == "new_secret"
+
+    def test_does_not_update_existing_connection_without_commit_allows_update(self, session):
+        """A create-only commit leaves a connection that appeared after enqueue untouched."""
+        conn = Connection(conn_id="existing_conn", conn_type="http", host="old-host.example.com")
+        session.add(conn)
+        session.flush()
+
+        ct = ConnectionTestRequest(
+            connection_id="existing_conn",
+            conn_type="postgres",
+            host="new-host.example.com",
+            login="new_user",
+            password="new_secret",
+        )
+        session.add(ct)
+        session.flush()
+
+        assert ct.commit_to_connection_table(session=session) is False
+        session.flush()
+        session.refresh(conn)
+
+        assert conn.conn_type == "http"
+        assert conn.host == "old-host.example.com"
+        assert conn.login is None
+        assert conn.password is None
+
+    def test_commit_allows_update_defaults_to_false(self):
+        ct = ConnectionTestRequest(connection_id="test_conn", conn_type="postgres", commit_on_success=True)
+        assert ct.commit_allows_update is False

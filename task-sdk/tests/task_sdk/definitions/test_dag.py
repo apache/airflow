@@ -33,13 +33,21 @@ from airflow.sdk import (
     Param,
     PartitionedAtRuntime,
     TaskGroup,
+    TriggerRule,
     dag as dag_decorator,
     task,
+    task_group,
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.param import DagParam, ParamsDict
-from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
+    DuplicateTaskIdFound,
+    RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
+)
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=UTC)
@@ -79,6 +87,19 @@ class TestDag:
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         assert dag.topological_sort() == ()
+
+    def test_dag_topological_sort_task_group_cycle(self):
+        """A TaskGroup that depends on a sibling in a cycle, which check_cycle only warns about, still sorts."""
+        with DAG("dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            bridge = BaseOperator(task_id="bridge")
+            with TaskGroup("group"):
+                a = BaseOperator(task_id="a")
+                b = BaseOperator(task_id="b")
+            a >> bridge >> b
+        with pytest.warns(TaskGroupCycleDeprecationWarning):
+            dag.check_cycle()
+
+        assert [task.task_id for task in dag.topological_sort()] == ["bridge", "group.a", "group.b"]
 
     def test_dag_naive_start_date_string(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01"})
@@ -459,7 +480,6 @@ class TestDag:
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
-        from airflow.sdk import TriggerRule
         from airflow.sdk.exceptions import FailFastDagInvalidTriggerRule
 
         class CustomOperator(BaseOperator):
@@ -693,6 +713,110 @@ def test_continuous_schedule_interval_limits_max_active_runs_error():
         DAG(dag_id="continuous", schedule="@continuous", max_active_runs=2)
 
 
+def _build_dag_with_loop_and_outside_task():
+    @task_group
+    def body():
+        @task
+        def inner():
+            return 1
+
+        inner()
+
+    @task
+    def outside():
+        return 2
+
+    with DAG("result_with_loop", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+        outside()
+    return dag
+
+
+def test_add_result_rejects_task_inside_a_loop():
+    dag = _build_dag_with_loop_and_outside_task()
+    inner = dag.get_task("body.inner")
+
+    with pytest.raises(ValueError, match="'body.inner' is inside a loop"):
+        dag.add_result(inner.output)
+
+    assert inner.returns_dag_result is False
+
+
+def test_add_result_accepts_task_outside_a_loop():
+    dag = _build_dag_with_loop_and_outside_task()
+    outside = dag.get_task("outside")
+
+    dag.add_result(outside.output)
+
+    assert outside.returns_dag_result is True
+
+
+@task
+def _consume(value):
+    return value
+
+
+@task_group
+def produce_body():
+    @task
+    def produce():
+        return [1, 2]
+
+    produce()
+
+
+def _expand_task_outside(dag):
+    _consume.expand(value=dag.get_task("produce_body.produce").output)
+
+
+def _expand_group_outside(dag):
+    @task_group
+    def outside_group(value):
+        _consume(value)
+
+    outside_group.expand(value=dag.get_task("produce_body.produce").output)
+
+
+def _expand_in_another_loop(dag):
+    @task_group
+    def other_body():
+        _consume.expand(value=dag.get_task("produce_body.produce").output)
+
+    create_loop(other_body, max_iterations=2)
+
+
+@pytest.mark.parametrize(
+    ("build_consumer", "consumer_id"),
+    [
+        pytest.param(_expand_task_outside, "_consume", id="mapped-task"),
+        pytest.param(_expand_group_outside, "outside_group", id="mapped-task-group"),
+        pytest.param(_expand_in_another_loop, "other_body._consume", id="other-loop"),
+    ],
+)
+def test_validate_rejects_expansion_over_a_loop_task_from_outside_the_loop(build_consumer, consumer_id):
+    with DAG("expand_loop_output", schedule=None) as dag:
+        create_loop(produce_body, max_iterations=2)
+        build_consumer(dag)
+
+    with pytest.raises(ValueError, match=f"'{consumer_id}' cannot expand over 'produce_body.produce'"):
+        dag.validate()
+
+
+def test_validate_accepts_expansion_over_a_loop_task_in_the_same_loop():
+    @task_group
+    def body():
+        @task
+        def produce():
+            return [1, 2]
+
+        _consume.expand(value=produce())
+
+    with DAG("expand_inside_loop", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+
+    dag.validate()
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
@@ -870,6 +994,134 @@ class DoNothingOperator(BaseOperator):
         pass
 
 
+def _add_sibling_groups_cycle():
+    with TaskGroup("group1"):
+        a1 = DoNothingOperator(task_id="a1")
+        a2 = DoNothingOperator(task_id="a2")
+    with TaskGroup("group2"):
+        b1 = DoNothingOperator(task_id="b1")
+        b2 = DoNothingOperator(task_id="b2")
+    a1 >> b1
+    b2 >> a2
+    return [a1, b2], [a2, b1]
+
+
+def _make_sibling_groups_cycle_dag():
+    with DAG("dag", schedule=None) as dag:
+        firsts, lasts = _add_sibling_groups_cycle()
+        DoNothingOperator(task_id="start") >> firsts
+        lasts >> DoNothingOperator(task_id="end")
+    return dag
+
+
+def _make_group_bridged_by_outside_task_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group"):
+            a = DoNothingOperator(task_id="a")
+            b = DoNothingOperator(task_id="b")
+        a >> DoNothingOperator(task_id="bridge") >> b
+    return dag
+
+
+def _make_group_reentered_after_in_group_upstream_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group"):
+            a = DoNothingOperator(task_id="a")
+            b = DoNothingOperator(task_id="b")
+            a >> b
+        a >> DoNothingOperator(task_id="bridge") >> b
+    return dag
+
+
+def _make_sibling_groups_cycle_through_non_roots_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group1"):
+            a1 = DoNothingOperator(task_id="a1")
+            a2 = DoNothingOperator(task_id="a2")
+            a1 >> a2
+        with TaskGroup("group2"):
+            b1 = DoNothingOperator(task_id="b1")
+            b2 = DoNothingOperator(task_id="b2")
+            b1 >> b2
+        a1 >> b2
+        b1 >> a2
+    return dag
+
+
+def _make_three_group_ring_dag():
+    with DAG("dag", schedule=None) as dag:
+        tasks = {}
+        for group_id in ("g0", "g1", "g2"):
+            with TaskGroup(group_id):
+                tasks[group_id] = (DoNothingOperator(task_id="first"), DoNothingOperator(task_id="second"))
+        tasks["g1"][0] >> tasks["g0"][1]
+        tasks["g2"][0] >> tasks["g1"][1]
+        tasks["g0"][0] >> tasks["g2"][1]
+    return dag
+
+
+def _make_two_cycles_dag():
+    with DAG("dag", schedule=None) as dag:
+        _add_sibling_groups_cycle()
+        with TaskGroup("outer"):
+            _add_sibling_groups_cycle()
+    return dag
+
+
+def _make_setup_teardown_dag(*, work_in_group: bool):
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("cluster") as cluster:
+            create = DoNothingOperator(task_id="create")
+            delete = DoNothingOperator(task_id="delete")
+        work = DoNothingOperator(task_id="work", task_group=cluster if work_in_group else None)
+        create >> work >> delete.as_teardown(setups=create)
+    return dag
+
+
+def _make_setup_teardown_around_many_tasks_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("cluster"):
+            create = DoNothingOperator(task_id="create")
+            delete = DoNothingOperator(task_id="delete")
+        work = [DoNothingOperator(task_id=f"work_{i}") for i in range(100)]
+        create >> work >> delete.as_teardown(setups=create)
+    return dag
+
+
+def _make_many_bridged_groups_dag(count: int):
+    with DAG("dag", schedule=None) as dag:
+        for i in range(count):
+            with TaskGroup(f"group_{i}"):
+                a = DoNothingOperator(task_id="a")
+                b = DoNothingOperator(task_id="b")
+            a >> DoNothingOperator(task_id=f"bridge_{i}") >> b
+    return dag
+
+
+def _make_group_with_bridge_inside_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group"):
+            a = DoNothingOperator(task_id="a")
+            b = DoNothingOperator(task_id="b")
+            a >> DoNothingOperator(task_id="bridge") >> b
+    return dag
+
+
+def _make_mapped_group_with_always_task_dag():
+    with DAG("dag", schedule=None) as dag:
+
+        @task(trigger_rule=TriggerRule.ALWAYS)
+        def work(value):
+            return value
+
+        @task_group
+        def group(value):
+            work(value)
+
+        group.expand(value=[1, 2, 3])
+    return dag
+
+
 class TestCycleTester:
     def test_cycle_empty(self):
         # test empty
@@ -1010,6 +1262,92 @@ class TestCycleTester:
                 op1 >> Label("label") >> op2
 
         assert not dag.check_cycle()
+
+    @pytest.mark.parametrize(
+        ("make_dag", "expected_cycles"),
+        [
+            pytest.param(_make_sibling_groups_cycle_dag, "group1 and group2", id="sibling-groups"),
+            pytest.param(_make_group_bridged_by_outside_task_dag, "group and bridge", id="bridged-group"),
+            pytest.param(
+                _make_group_reentered_after_in_group_upstream_dag,
+                "group and bridge",
+                id="group-reentered-after-in-group-upstream",
+            ),
+            pytest.param(
+                _make_sibling_groups_cycle_through_non_roots_dag,
+                "group1 and group2",
+                id="sibling-groups-through-non-roots",
+            ),
+            pytest.param(_make_three_group_ring_dag, "g0, g1 and g2", id="three-group-ring"),
+            pytest.param(
+                _make_two_cycles_dag,
+                "group1 and group2; outer.group1 and outer.group2",
+                id="root-and-nested-cycles",
+            ),
+            pytest.param(
+                lambda: _make_setup_teardown_dag(work_in_group=False),
+                "cluster and work",
+                id="setup-teardown-around-outside-task",
+            ),
+        ],
+    )
+    def test_task_group_cycle_warns(self, make_dag, expected_cycles):
+        dag = make_dag()
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning) as record:
+            dag.check_cycle()
+
+        assert len(record) == 1
+        assert str(record[0].message).startswith(
+            f"Dag 'dag': {expected_cycles} depend on each other in a cycle. "
+        )
+
+    @pytest.mark.parametrize(
+        ("make_dag", "expected_start"),
+        [
+            pytest.param(
+                _make_setup_teardown_around_many_tasks_dag,
+                "Dag 'dag': cluster, work_0, work_1, work_2, work_3 and 96 more depend on each other in a "
+                "cycle. ",
+                id="cycle-members",
+            ),
+            pytest.param(
+                lambda: _make_many_bridged_groups_dag(11),
+                f"Dag 'dag': {'; '.join(f'group_{i} and bridge_{i}' for i in range(10))} depend on each "
+                "other in a cycle (1 more cycle not listed). ",
+                id="one-unlisted-cycle",
+            ),
+            pytest.param(
+                lambda: _make_many_bridged_groups_dag(12),
+                f"Dag 'dag': {'; '.join(f'group_{i} and bridge_{i}' for i in range(10))} depend on each "
+                "other in a cycle (2 more cycles not listed). ",
+                id="unlisted-cycles",
+            ),
+        ],
+    )
+    def test_task_group_cycle_warning_caps_listed_ids(self, make_dag, expected_start):
+        dag = make_dag()
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning) as record:
+            dag.check_cycle()
+
+        assert len(record) == 1
+        assert str(record[0].message).startswith(expected_start)
+
+    @pytest.mark.parametrize(
+        "make_dag",
+        [
+            pytest.param(_make_group_with_bridge_inside_dag, id="bridge-inside-group"),
+            pytest.param(lambda: _make_setup_teardown_dag(work_in_group=True), id="setup-teardown-in-group"),
+            pytest.param(_make_mapped_group_with_always_task_dag, id="mapped-group-with-always-task"),
+        ],
+    )
+    def test_acyclic_task_groups_do_not_warn(self, make_dag):
+        dag = make_dag()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", TaskGroupCycleDeprecationWarning)
+            dag.check_cycle()
 
 
 class TestDagGetItem:

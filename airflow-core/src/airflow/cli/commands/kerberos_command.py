@@ -25,7 +25,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def kerberos(args):
     """Start a kerberos ticket renewer."""

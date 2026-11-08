@@ -20,6 +20,116 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+.. note::
+    Airflow 3.4.1 gives Dag bundles their own ``Dag Bundles`` resource, which only ``Op`` and
+    ``Admin`` get by default, so ``Viewer`` and ``User`` lose the Dag bundle pages and API they
+    reached through Dag read access. Upgrade this provider together with Airflow 3.4.1: older
+    releases deny the Dag bundle pages and API to every role, including ``Admin``, while still
+    showing the Browse menu entry. Custom roles need ``can read`` and ``menu access`` on
+    ``Dag Bundles`` added by hand.
+
+    ``POST /auth/token`` and ``POST /auth/token/cli`` now check a username and password only against
+    the configured ``AUTH_TYPE``: with ``AUTH_LDAP`` they no longer fall back to database passwords, and
+    with other authentication types (OAuth, remote user) they no longer issue tokens for a username and
+    password; use that type's own login flow instead. Passwords made only of NUL bytes are rejected.
+
+Features
+~~~~~~~~
+
+* ``Give Dag bundles their own read permission, on Airflow 3.4.1+ (#76329)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep the Dag bundles menu entry on Dag access on Airflow 3.4.0 (#76474)``
+* ``Use only the configured auth type when creating tokens in the FAB auth manager (#76231)``
+* ``Honor next when an authenticated user reaches the FAB login page (#75665)``
+
+Misc
+~~~~
+
+* ``Bump @babel/core to 8.0.9 and webpack to 5.112.2 in the FAB UI (#75807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the permissions for GET /api/v2/triggers (#76260)``
+* ``Document the public GET /api/v2/auth/cli/metadata endpoint (#75672)``
+* ``Document the permission for GET /api/v2/providers/{provider_name} (#68854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Add unit tests for auth manager login datamodels (#72265) (#75544)``
+   * ``Remove unused FAB test log assertion helpers (#75876)``
+
+3.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Distinguish invalid Dag access control from FAB backend failures (#74788)``
+* ``Check all names before airflow roles import writes anything (#74711)``
+* ``Keep the /auth mount path when ProxyFix applies X-Forwarded-Prefix (#74603)``
+* ``Sync Dag permissions for CustomAuthManager (#74022)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.13.0 and webpack to 5.112.0 (#75234)``
+* ``Support SQLAlchemy 2.1 typing in permission sorting (#75075)``
+* ``Bump prettier to 3.9.10 (#74765)``
+* ``Bump @babel/core, @babel/eslint-parser and @babel/preset-env to 8.0.7 (#74670)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix missing and incorrect endpoints in the API permission reference (#74871)``
+* ``Remove the asset-wide queued event deletion row from the API permission reference (#74839)``
+* ``Update remaining FAB Website permissions rows for Airflow 3 (#74653)``
+* ``Update FAB Website permissions rows for Airflow 3 views (#74630)``
+* ``Fix FAB Website permissions rows for the Grid and Graph views (#74599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Require Python 3.11+ for permission doc generators and fail on parse errors (#74654)``
+
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop rebuilding the FAB app on every users and roles API call (#73104)``
+* ``Set 'SameSite' on the fab auth manager session cookie (#73894)``
+
+Misc
+~~~~
+
+* ``Update eslint to 10.12.0 and moment-timezone to 0.6.5 (#74418)``
+* ``Drop support for Python 3.10 (#74157)``
+* ``Bump stylelint to 17.16.0 (#74252)``
+* ``Bump prettier to 3.9.9 (#73857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Add an API endpoint and UI tab comparing two stored Dag versions (#73322)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``UI: Add bulk pause, drain and unpause actions to the Dags list (#73055)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 3.10.0
 ......
 

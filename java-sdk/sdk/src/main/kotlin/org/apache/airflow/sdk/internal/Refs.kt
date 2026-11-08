@@ -22,12 +22,13 @@ package org.apache.airflow.sdk.internal
 import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskRef
 
 /**
  * @suppress
  *
- * The recorder behind a `@Builder.Deps` wiring class. Public so that
+ * The recorder behind an `@Airflow.Deps` wiring class. Public so that
  * processor-generated wiring views can call it; not user-facing API.
  *
  * A wiring view's methods are `default` methods on an interface, so they hold
@@ -49,6 +50,10 @@ object Refs {
    * Runs one `depends()` call with [dag] in scope, then returns the Dag the
    * wiring built.
    *
+   * @param groupIds Full ID of every task group, parents before the groups
+   *    nested in them. All are created before `depends()` runs, so the wiring
+   *    can order a group before calling any of its tasks, and a group holding
+   *    no tasks still exists.
    * @throws IllegalArgumentException if the wiring left a declared task
    *    unregistered.
    */
@@ -56,9 +61,11 @@ object Refs {
   fun record(
     dag: DagDef,
     taskIds: List<String>,
+    groupIds: List<String>,
     depends: Runnable,
   ): DagDef {
     check(recording.get() == null) { "Dag wiring is already being recorded on this thread" }
+    groupIds.forEach { createGroup(dag, it) }
     recording.set(Recording(dag))
     try {
       depends.run()
@@ -68,7 +75,7 @@ object Refs {
     val missing = taskIds.filterNot { it in dag.tasks }
     require(missing.isEmpty()) {
       "Wiring for Dag '${dag.id}' did not register task(s) ${missing.joinToString { "'$it'" }}: " +
-        "every @Builder.Task method must be called in the @Builder.Deps class"
+        "every @Airflow.Task method must be called in the @Airflow.Deps class"
     }
     return dag
   }
@@ -76,15 +83,24 @@ object Refs {
   /**
    * Records a task that takes no data arguments.
    *
+   * @param groupId Full ID of the task group holding it, empty when it sits in
+   *    none. The generated wiring view knows which it is.
    * @return The handle representing this task, memoized by [TaskDef.id] so every call
    *    yields the same one.
    */
   @JvmStatic
-  fun <T> node(def: TaskDef): TaskRef<T> = call(def)
+  fun <T> node(
+    groupId: String,
+    def: TaskDef,
+  ): TaskRef<T> = call(groupId, def, emptyList())
 
   /**
-   * Records a task and the data edge for every [TaskRef] among [args]; a
-   * literal argument records a baked value and no edge.
+   * Records a task called with named arguments, as a generated wiring view
+   * does. [names] is the task parameter each argument feeds, in the same
+   * order, and is what the serialized Dag carries as the task's binding spec.
+   *
+   * @param groupId Full ID of the task group holding it, empty when it sits in
+   *    none. The generated wiring view knows which it is.
    *
    * @return The handle representing this task, memoized by [TaskDef.id] so a result
    *    held in a local and reused refers to one node.
@@ -94,9 +110,14 @@ object Refs {
   @JvmStatic
   @Suppress("UNCHECKED_CAST", "SpreadOperator")
   fun <T> call(
+    groupId: String,
     def: TaskDef,
+    names: List<String>,
     vararg args: Arg<*>?,
   ): TaskRef<T> {
+    require(names.isEmpty() || names.size == args.size) {
+      "Task '${def.id}' was wired with ${args.size} argument(s) under ${names.size} name(s)"
+    }
     val inputs =
       args.mapIndexed { i, arg ->
         requireNotNull(arg) {
@@ -105,7 +126,7 @@ object Refs {
       }
     val active =
       checkNotNull(recording.get()) {
-        "Task '${def.id}' was wired outside a @Builder.Deps class; the wiring view's methods " +
+        "Task '${def.id}' was wired outside an @Airflow.Deps class; the wiring view's methods " +
           "only record while the generated builder is running depends()"
       }
     active.byTaskId[def.id]?.let { existing ->
@@ -116,7 +137,45 @@ object Refs {
     }
     inputs.filterIsInstance<TaskRef<*>>().forEach { def.dependsOn(it.def) }
     def.inputs += inputs
-    active.dag.addTask(def)
+    def.inputNames += names
+    if (groupId.isEmpty()) {
+      active.dag.addTask(def)
+    } else {
+      active.dag.groups
+        .getValue(groupId)
+        .adopt(def)
+    }
     return TaskRef<T>(def).also { active.byTaskId[def.id] = it }
+  }
+
+  /**
+   * The task group with this full ID in the Dag being recorded. Public so the
+   * generated wiring view can resolve the group it stands for.
+   */
+  @JvmStatic
+  fun group(id: String): TaskGroupRef {
+    val active =
+      checkNotNull(recording.get()) {
+        "Task group '$id' was looked up outside an @Airflow.Deps class"
+      }
+    return requireNotNull(active.dag.groups[id]) {
+      "Dag '${active.dag.id}' has no task group '$id'"
+    }
+  }
+
+  /**
+   * Creates the group with full ID [id] in [dag]. Its enclosing group already
+   * exists, because [record] takes parents before the groups nested in them.
+   */
+  private fun createGroup(
+    dag: DagDef,
+    id: String,
+  ) {
+    val parentId = id.substringBeforeLast('.', "")
+    if (parentId.isEmpty()) {
+      dag.taskGroup(id)
+    } else {
+      dag.groups.getValue(parentId).taskGroup(id.substringAfterLast('.'))
+    }
   }
 }

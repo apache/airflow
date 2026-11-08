@@ -22,37 +22,37 @@
 procs:
   scheduler:
     shell: airflow scheduler
-    restart: always
+    autorestart: true
     scrollback: 100000
 
   api_server:
     shell: airflow api-server
-    restart: always
+    autorestart: true
     scrollback: 100000
 
   triggerer:
     shell: airflow triggerer
-    restart: always
+    autorestart: true
     scrollback: 100000
 
   dag_processor:
     shell: airflow dag-processor
-    restart: always
+    autorestart: true
     scrollback: 100000
 
   shell:
     shell: bash
-    restart: always
+    autorestart: true
     scrollback: 100000
 
     # # Optional: Uncomment to enable Celery worker (requires CeleryExecutor)
     # celery_worker:
     #   shell: airflow celery worker
-    #   restart: always
+    #   autorestart: true
     #   scrollback: 100000
 
     # # Optional: Uncomment to enable Flower (requires Celery)
     # flower:
     #   shell: airflow celery flower
-    #   restart: always
+    #   autorestart: true
     #   scrollback: 100000

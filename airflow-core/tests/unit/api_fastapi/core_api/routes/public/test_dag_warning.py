@@ -115,9 +115,9 @@ class TestGetDagWarnings:
         response = test_client.get("/dagWarnings", params={"warning_type": "invalid"})
         response_json = response.json()
         assert response.status_code == 422
-        assert (
-            response_json["detail"][0]["msg"]
-            == "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool' or 'runtime varying value'"
+        assert response_json["detail"][0]["msg"] == (
+            "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool', "
+            "'runtime varying value' or 'task group cycle'"
         )
 
     def test_get_dag_warnings_non_matching_type(self, test_client):

@@ -64,11 +64,14 @@ def import_all_models():
     import airflow.models.backfill
     import airflow.models.connection_test
     import airflow.models.dag_favorite
+    import airflow.models.dag_processor_publication_receipt
+    import airflow.models.dag_processor_work_claim
     import airflow.models.dag_version
     import airflow.models.dagbag
     import airflow.models.dagbundle
     import airflow.models.dagwarning
     import airflow.models.deadline_alert
+    import airflow.models.dynamic_region
     import airflow.models.errors
     import airflow.models.revoked_token
     import airflow.models.serialized_dag
