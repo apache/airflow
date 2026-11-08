@@ -2263,6 +2263,22 @@ def test_periodic_sync_batches_bundle_team_queries(clear_db, session, bundle_cou
             manager.sync_bundles_to_db(bundle_instances={}, session=session)
 
 
+@pytest.mark.db_test
+@conf_vars({("core", "load_examples"): "False"})
+def test_periodic_sync_deletes_import_errors_only_for_deactivated_bundles(clear_db, session):
+    inactive = DagBundleModel(name="inactive-bundle")
+    inactive.active = False
+    session.add_all([inactive, DagBundleModel(name="removed-bundle")])
+    session.add_all(
+        ParseImportError(bundle_name=name, filename="dag.py", stacktrace="error")
+        for name in ("inactive-bundle", "removed-bundle")
+    )
+    session.flush()
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
+        DagBundlesManager().sync_bundles_to_db(bundle_instances={}, session=session)
+    assert session.scalars(select(ParseImportError.bundle_name)).all() == ["inactive-bundle"]
+
+
 @pytest.mark.parametrize("multi_team", [False, True])
 @pytest.mark.parametrize("lookup", [get_configured_bundle_names, get_configured_bundle_team_names])
 @mock.patch(

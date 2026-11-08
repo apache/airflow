@@ -96,6 +96,10 @@ Processors started with ``--bundle-name`` stop processing removed bundles locall
 mark missing bundles inactive globally because their configuration may be partial. A processor
 that sees the complete list is needed for global deactivation.
 
+Import errors of a removed bundle are deleted when the bundle is marked inactive. Errors published
+afterwards by a processor that has not seen the removal yet remain until an unfiltered Dag
+processor restarts.
+
 Keep the command or secrets backend available to all components that resolve bundles, including
 workers. The Dag processor passes accepted importer settings and team ownership to its parsing
 processes, so they do not read the bundle configuration source again. Other components cache their

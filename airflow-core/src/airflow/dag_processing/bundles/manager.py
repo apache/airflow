@@ -607,6 +607,9 @@ class DagBundlesManager(LoggingMixin):
         from airflow.models.errors import ParseImportError
 
         for name, bundle in stored.items():
+            if bundle.active is False and bundle_instances is not None:
+                # Periodic syncs skip bundles that were already inactive.
+                continue
             if bundle.active is not False:
                 bundle.active = False
                 bundle.teams = []
