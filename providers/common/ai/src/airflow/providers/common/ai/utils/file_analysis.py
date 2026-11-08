@@ -649,7 +649,9 @@ def _read_limited_bytes(handle: io.BufferedIOBase, *, path: ObjectStoragePath, m
 
 
 def _decode_text(data: bytes) -> str:
-    return data.decode("utf-8", errors="replace")
+    # utf-8-sig drops the byte order mark Excel and Windows tools write, which json.loads
+    # refuses and which would otherwise be read as part of the first CSV column's name.
+    return data.decode("utf-8-sig", errors="replace")
 
 
 def _apply_text_budget(*, prepared_files: list[_PreparedFile], max_text_chars: int) -> bool:
