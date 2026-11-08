@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import smtplib
@@ -795,13 +796,16 @@ class TestSmtpHookAsync:
 
     @pytest.mark.parametrize("failed_step", ["auth_login", "auth_xoauth2"])
     @pytest.mark.parametrize("cleanup_fails", [False, True])
-    async def test_discards_failed_setup(self, mock_get_connection, failed_step, cleanup_fails):
+    @pytest.mark.parametrize("setup_error_type", [OSError, asyncio.CancelledError])
+    async def test_discards_failed_setup(
+        self, mock_get_connection, failed_step, cleanup_fails, setup_error_type
+    ):
         failed_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
         healthy_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
         for client in (failed_client, healthy_client):
             client.auth_login = AsyncMock()
             client.auth_xoauth2 = AsyncMock()
-        setup_error = OSError("setup failed")
+        setup_error = setup_error_type("setup failed")
         getattr(failed_client, failed_step).side_effect = setup_error
         if cleanup_fails:
             failed_client.close.side_effect = OSError("cleanup failed")
@@ -811,7 +815,7 @@ class TestSmtpHookAsync:
         with mock.patch.object(
             SmtpHook, "_abuild_client", autospec=True, side_effect=[failed_client, healthy_client]
         ) as build_client:
-            with pytest.raises(OSError, match="setup failed") as exc:
+            with pytest.raises(setup_error_type, match="setup failed") as exc:
                 await hook.aget_conn()
 
             assert exc.value is setup_error
@@ -829,9 +833,12 @@ class TestSmtpHookAsync:
 
     @pytest.mark.parametrize("failed_step", ["connect", "ehlo"])
     @pytest.mark.parametrize("cleanup_fails", [False, True])
-    async def test_abuild_client_closes_failed_setup(self, mock_get_connection, failed_step, cleanup_fails):
+    @pytest.mark.parametrize("setup_error_type", [OSError, asyncio.CancelledError])
+    async def test_abuild_client_closes_failed_setup(
+        self, mock_get_connection, failed_step, cleanup_fails, setup_error_type
+    ):
         failed_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
-        setup_error = OSError("setup failed")
+        setup_error = setup_error_type("setup failed")
         getattr(failed_client, failed_step).side_effect = setup_error
         if cleanup_fails:
             failed_client.close.side_effect = OSError("cleanup failed")
@@ -839,7 +846,7 @@ class TestSmtpHookAsync:
         hook.smtp_connection = await hook.aget_connection(CONN_ID_NONSSL)
 
         with mock.patch("airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP", return_value=failed_client):
-            with pytest.raises(OSError, match="setup failed") as exc:
+            with pytest.raises(setup_error_type, match="setup failed") as exc:
                 await hook._abuild_client()
 
         assert exc.value is setup_error
