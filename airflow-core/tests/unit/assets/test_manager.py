@@ -49,6 +49,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
+from airflow.models.trigger import Trigger
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 from airflow.partition_mappers.window import WeekWindow
@@ -351,12 +352,43 @@ class TestAssetManager:
         asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
 
-        asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
+        asset_event = asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset, session=session
+        )
         session.flush()
 
         # Ensure the listener was notified
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
+        assert len(asset_listener.emitted) == 1
+        emitted = asset_listener.emitted[0]
+        assert emitted.id == asset_event.id
+        assert emitted.timestamp == asset_event.timestamp
+        assert emitted.source_watcher_name is None
+        assert emitted.source_trigger_id is None
+        assert emitted.source_trigger_classpath is None
+
+    def test_register_asset_change_passes_source_asset_watcher_to_listener(self, session, listener_manager):
+        asset_listener.clear()
+        listener_manager(asset_listener)
+
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+        asm = AssetModel(uri="test://asset1/", name="test_asset_1", group="asset")
+        asm.add_trigger(trigger, "my_watcher")
+        session.add(asm)
+        session.flush()
+
+        AssetManager.register_asset_change(
+            asset=asm.to_serialized(), source_asset_watcher=asm.watchers[0], session=session
+        )
+
+        assert len(asset_listener.emitted) == 1
+        emitted = asset_listener.emitted[0]
+        assert emitted.source_watcher_name == "my_watcher"
+        assert emitted.source_trigger_id == trigger.id
+        assert emitted.source_trigger_classpath == "airflow.triggers.testing.SuccessTrigger"
 
     def test_register_asset_change_defers_notifications_to_callback_sink(
         self, session, mock_task_instance, testing_dag_bundle, listener_manager

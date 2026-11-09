@@ -109,8 +109,15 @@ Asset Events
 - ``on_asset_created``
 - ``on_asset_alias_created``
 - ``on_asset_changed``
+- ``on_asset_event_emitted``
 
 Asset events occur when Asset management operations are run.
+
+``on_asset_event_emitted`` receives an ``airflow.listeners.types.AssetEvent``. Besides the asset, ``extra``,
+partition and producing task information, it carries the ``id`` and ``timestamp`` of the stored asset event.
+When an asset watcher emitted the event, ``source_watcher_name``, ``source_trigger_id`` and
+``source_trigger_classpath`` identify the watcher and its trigger; otherwise they are ``None``.
+Trigger kwargs are not included, as they may contain secrets.
 
 
 Dag Import Error Events
