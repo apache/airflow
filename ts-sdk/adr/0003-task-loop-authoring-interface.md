@@ -42,8 +42,9 @@ This ADR records the TypeScript spelling of them.
    decision 6). It is awaited, because reading the previous iteration is a round trip.
 5. **`index`, `maxIterations` and `previous` are fields**, and `getPrevious<T>()` is the typed view.
    That is `client.getXCom`'s split between a value and the type the caller names.
-6. **A body task returns a `LoopTaskRef<T>`**, accepted where either `TaskRef<T>` or
-   `TaskRef<XComSequence<T>>` is wanted, so `tsc` checks whichever reading the consumer declares.
+6. **A body task returns a `LoopTaskRef<T>`**, a `TaskRef<T>` that records the loop it came from.
+   `TaskInputs` accepts any `TaskRef` for any argument, so `tsc` checks neither reading; the SDK
+   picks the reading from where the consumer sits.
 7. **`LoopRef` carries `before` and `after`.** An order-only edge from a body ref to a task outside is
    rejected when the Dag is read.
 
@@ -89,7 +90,7 @@ refinement.before(cleanup()); // order only: the whole loop, not one iteration
 
 `evaluated` is written twice and means two things. Inside the loop it is one iteration's `Metrics`,
 which is what the gate takes. Outside it is an `XComSequence<Metrics>`, which is what `report` takes.
-Decision 6 is what makes both type-check.
+Decision 6 is what lets one ref serve both.
 
 A loop that only counts needs no handler:
 
@@ -114,14 +115,39 @@ interface LoopDecision {
 }
 
 /**
- * The gate's handler. `A` is its wired inputs, one key per argument, exactly as a task handler
- * takes its own. Nothing of the SDK's is in `A`; the loop context comes from `getLoop()`.
+ * The gate's handler. `TArgs` is its own arguments, one key each, exactly as a task handler takes
+ * its own. Nothing of the SDK's is in `TArgs`; the loop context comes from `getLoop()`.
  */
-type UntilCallable<A> = (args: A) => Promise<LoopDecision | boolean>;
+type UntilCallable<TArgs extends object> = (
+  args: TArgs,
+) => LoopDecision | boolean | Promise<LoopDecision | boolean>;
 
 interface TaskGroupRef {
   loop(options: LoopOptions): LoopRef;
-  loop<A>(until: UntilCallable<A>, inputs: A, options: LoopOptions): LoopRef;
+  /**
+   * `NoInfer` keeps `TArgs` coming from the handler alone, so `inputs` is checked key by key against
+   * it rather than widening it. `dag.if` takes its inputs the same way.
+   */
+  loop<TArgs extends object>(
+    until: UntilCallable<TArgs>,
+    inputs: TaskInputs<NoInfer<TArgs>>,
+    options: LoopOptions,
+  ): LoopRef;
+}
+
+/** What `loop()` returns: the whole loop as one node, which is what an ordering edge leaves from. */
+interface LoopRef extends Node {
+  readonly groupId: string;
+  before(...downstream: readonly Node[]): LoopRef;
+  after(...upstream: readonly Node[]): LoopRef;
+}
+
+/**
+ * What a loop body task returns. It is a `TaskRef<T>`, so it goes wherever one goes; the loop it
+ * records is what lets the SDK tell a body ref from an ordinary one when the Dag is read.
+ */
+interface LoopTaskRef<T> extends TaskRef<T> {
+  readonly loopId: string;
 }
 
 /**
