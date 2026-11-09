@@ -75,6 +75,7 @@
 - Document HTTP statuses that route helpers raise (#74027)
 - Keep OpenAPI error responses in sync with the statuses routes raise (#71647)
 - Document favorite Dag's 409 and return a readable conflict message (#73411)
+- Make `latest_dag_version` a required field on the Dag details response (#74247)
 
 ## Bug Fixes:
 
