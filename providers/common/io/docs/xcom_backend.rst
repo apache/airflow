@@ -74,21 +74,6 @@ For example, an ``HttpOperator`` pushes a large JSON array of invoices from a RE
 straight from object storage, flattens it and inserts the rows into the target database. The rows are never
 deserialized in Python between the two tasks:
 
-.. code-block:: sql
-
-    -- sql/flatten_invoices.sql, run by DuckDB
-    SELECT *
-    FROM read_json(
-        '{{ macros.common_io.xcom_path(ti, "extract_invoices") }}',
-        format = 'array',
-        columns = {
-            invoice_id: 'BIGINT',
-            customer: 'VARCHAR',
-            invoice_date: 'TIMESTAMP',
-            amount: 'DOUBLE'
-        }
-    )
-
 .. code-block:: python
 
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
@@ -110,8 +95,20 @@ deserialized in Python between the two tasks:
         source_conn_id="duckdb_default",
         destination_conn_id="postgres_default",
         destination_table="invoices",
-        sql="sql/flatten_invoices.sql",
-        preoperator="sql/create_invoices.sql",
+        # Read by DuckDB straight from where the backend stored the XCom value.
+        sql="""
+            SELECT *
+            FROM read_json(
+                '{{ macros.common_io.xcom_path(ti, "extract_invoices") }}',
+                format = 'array',
+                columns = {
+                    invoice_id: 'BIGINT',
+                    customer: 'VARCHAR',
+                    invoice_date: 'TIMESTAMP',
+                    amount: 'DOUBLE'
+                }
+            )
+        """,
     )
     extract_invoices >> load_invoices
 
