@@ -44,6 +44,7 @@
   "dagBundle_other": "डैग बंडल्स",
   "dagDetails": {
     "activeRuns": "सक्रिय रन्स",
+    "bundleVersion": "बंडल संस्करण",
     "catchup": "पकड़ना",
     "dagRunTimeout": "डैग रन टाइमआउट",
     "defaultArgs": "डिफ़ॉल्ट तर्क",
@@ -117,6 +118,7 @@
     "home": "मुख्य पृष्ठ",
     "invalidUrl": "पेज नहीं मिला। कृपया URL जांचें और पुनः प्रयास करें।",
     "notFound": "पेज नहीं मिला",
+    "reload": "पेज फिर से लोड करें",
     "title": "त्रुटि"
   },
   "errors": {
@@ -138,6 +140,7 @@
     "all": "सभी",
     "and": "और",
     "any": "कोई भी",
+    "hiddenAsset": "छिपा हुआ एसेट",
     "or": "या"
   },
   "filter": "फ़िल्टर",
@@ -265,7 +268,8 @@
   "search": {
     "advanced": {
       "description": "मान में कहीं भी मिलान करें (सबस्ट्रिंग खोज)। बड़े डिप्लॉयमेंट पर धीमा क्योंकि यह डिफ़ॉल्ट B-tree इंडेक्स का उपयोग नहीं कर सकता। विवरण के लिए कस्टम मेटाडेटा इंडेक्स पर दस्तावेज़ अनुभाग देखें।",
-      "title": "कहीं भी मिलान करें"
+      "title": "कहीं भी मिलान करें",
+      "toggleLabel": "कहीं भी मिलान वाली खोज टॉगल करें"
     }
   },
   "security": {
@@ -379,10 +383,12 @@
       "scrollBottom": "नीचे तक स्क्रॉल करें",
       "scrollTop": "ऊपर तक स्क्रॉल करें",
       "searchDags": "$t(dag_other) खोजें",
+      "selectGridCellRange": "$t(taskInstance_other) या $t(taskGroup_other) की एक श्रेणी चुनें",
       "showHelp": "$t(shortcuts.title) दिखाएं",
       "toggleExpand": "सभी ग्रुप्स को विस्तृत या संकुचित करें",
       "toggleFullscreen": "फ़ुलस्क्रीन टॉगल करें",
       "toggleGraphGrid": "ग्राफ़ / ग्रिड व्यू टॉगल करें",
+      "toggleGridCellSelection": "चयन में $t(taskInstance_one) या $t(taskGroup_one) जोड़ें या हटाएं",
       "toggleLogLevel": "लॉग स्तर टॉगल करें",
       "toggleSource": "स्रोत टॉगल करें",
       "toggleTaskGroup": "$t(taskGroup_one) को विस्तृत या संकुचित करें",
@@ -485,6 +491,7 @@
     "queue": "कतार",
     "queuedWhen": "कब कतार में",
     "renderedMapIndex": "रेंडर किया गया Map Index",
+    "retryAt": "पुनः प्रयास का समय",
     "scheduledWhen": "कब निर्धारित",
     "stateReason": "स्थिति का कारण",
     "stateReasonSummary": {
@@ -613,5 +620,9 @@
     "unwrap": "अनरैप",
     "wrap": "रैप"
   },
-  "yes": "हां"
+  "yes": "हां",
+  "pagination": {
+    "nextPage": "अगला पेज",
+    "previousPage": "पिछला पेज"
+  }
 }

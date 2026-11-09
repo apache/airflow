@@ -30,6 +30,7 @@
       "firstConfirmMessage_other": "आप निम्नलिखित कनेक्शन्स को हटाने वाले हैं:",
       "title": "कनेक्शन हटाएं"
     },
+    "duplicate": "$t(connections.connection_one) डुप्लिकेट करें",
     "edit": "कनेक्शन संपादित करें",
     "form": {
       "connectionIdRequired": "कनेक्शन ID आवश्यक है",
@@ -38,6 +39,7 @@
       "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
       "extraFieldsJson": "अतिरिक्त फ़ील्ड JSON",
       "helperText": "कनेक्शन प्रकार गायब है? सुनिश्चित करें कि आपने संबंधित Airflow Providers Package इंस्टॉल किया है।",
+      "helperTextForDuplicatedRedactedFields": "संपादित फ़ील्ड ('***') कॉपी नहीं किए जाते। नए कनेक्शन के लिए इन्हें भरें।",
       "helperTextForRedactedFields": "संपादित फ़ील्ड ('***') अपरिवर्तित रहेंगे यदि संशोधित नहीं किए गए।",
       "selectConnectionType": "कनेक्शन प्रकार चुनें",
       "standardFields": "मानक फ़ील्ड"

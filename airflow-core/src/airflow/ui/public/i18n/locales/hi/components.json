@@ -5,6 +5,7 @@
     "affectedNone": "चयनित मापदंड से मेल खाने वाले कोई रन्स नहीं।",
     "allRuns": "सभी रन्स",
     "backwards": "पीछे की ओर चलाएं",
+    "completed": "पूर्ण",
     "dateRange": "तिथि रेंज",
     "errorStartDateBeforeEndDate": "प्रारंभ तिथि समाप्ति तिथि से पहले होनी चाहिए",
     "exceptionReason": {
@@ -24,10 +25,12 @@
     "permissionDenied": "ड्राई रन विफल: उपयोगकर्ता के पास बैकफ़िल बनाने की अनुमति नहीं है।",
     "reprocessBehavior": "पुनः प्रक्रिया व्यवहार",
     "run": "बैकफ़िल चलाएं",
+    "running": "चल रहा है",
     "scheduleNotBackfillable": "इस Dag का शेड्यूल बैकफिल का समर्थन नहीं करता",
     "schedulerPriorityHint": "प्रत्येक शेड्यूलर चक्र में बैकफिल Dag रन को गैर-बैकफिल Dag रन के बाद क्रमित किया जाता है। यदि अन्य गैर-बैकफिल रन मौजूद हों तो बैकफिल रन अधिक समय तक कतार में रह सकते हैं।",
     "selectDescription": "तिथियों की रेंज के लिए इस डैग को चलाएं",
     "selectLabel": "बैकफ़िल",
+    "status": "स्थिति",
     "title": "बैकफ़िल चलाएं",
     "toaster": {
       "success": {
@@ -96,6 +99,7 @@
     "placeholderArray": "प्रत्येक स्ट्रिंग को नई लाइन में दर्ज करें",
     "placeholderExamples": "विकल्प देखने के लिए टाइप करना शुरू करें",
     "placeholderMulti": "एक या एकाधिक मान चुनें",
+    "validationErrorArrayElement": "अमान्य {{type}} मान: {{values}}",
     "validationErrorArrayNotArray": "मान एक array होना चाहिए।",
     "validationErrorArrayNotNumbers": "Array के सभी तत्व संख्या होने चाहिए।",
     "validationErrorArrayNotObject": "Array के सभी तत्व ऑब्जेक्ट होने चाहिए।",
@@ -153,6 +157,7 @@
     "empty": "इस रेंज में कोई पूर्ण टास्क इंस्टेंस नहीं",
     "title": "सबसे धीमे टास्क इंस्टेंस"
   },
+  "sort": "सॉर्ट करें",
   "sortMultiColumnHint": "कई कॉलम के आधार पर क्रमबद्ध करने के लिए Shift-क्लिक करें",
   "sortedAscending": "आरोही क्रम में सॉर्ट किया गया",
   "sortedDescending": "अवरोही क्रम में सॉर्ट किया गया",
@@ -196,7 +201,13 @@
       }
     },
     "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें",
-    "triggerOptions": "ट्रिगर विकल्प"
+    "triggerOptions": "ट्रिगर विकल्प",
+    "dagStartEndDate": {
+      "both": "डैग प्रारंभ तिथि: {{startDate}}, समाप्ति तिथि: {{endDate}}",
+      "end": "डैग समाप्ति तिथि: {{endDate}}",
+      "noTaskWillRun": "कोई कार्य नहीं चलेगा।",
+      "start": "डैग प्रारंभ तिथि: {{startDate}}"
+    }
   },
   "trimText": {
     "details": "विवरण",
