@@ -529,6 +529,8 @@ What every SDK implements, in order. Nothing here is language-specific.
 ## Consequences
 
 - **`map()` over a Python callable costs a Dag-file import per consuming task instance.** Only tasks that consume a `map()` pay it; every other stub TaskHandler keeps the no-parse path bindings were built to give it. The sidecar executes Dag-file Python on the worker for a task whose body is not Python — the same trust boundary as any Python task there, but a new one for a stub TaskHandler.
+- **A worker running a Python `map()` for a stub TaskHandler needs the Dag file's Python dependencies.** The sidecar imports the Dag file, so every provider and library it imports must be installed on the workers serving that queue,
+  which a Lang-SDK worker image did not need before. A missing one fails only the instances that consume a `map()`, at run time.
 - **`map()` callables are serialized as source text for display only.** Core deliberately does not deserialize them ([`SchedulerMapXComArg`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/airflow-core/src/airflow/serialization/definitions/xcom_arg.py#L105-L115)), so an SDK emits its own source the same way and no language has to read another's.
 
 ## Rejected alternatives
