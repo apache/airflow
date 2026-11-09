@@ -18,6 +18,7 @@
 package genmodels
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -129,6 +130,49 @@ func TestTimeString(t *testing.T) {
 
 	assert.Equal(t, want.String(), Time(want).String())
 	assert.Equal(t, want.String(), fmt.Sprint(Time(want)))
+}
+
+func TestTimeMarshalJSON(t *testing.T) {
+	v := Time(time.Date(2026, 1, 2, 3, 4, 5, 6, time.UTC))
+
+	got, err := json.Marshal(struct {
+		Value    Time  `json:"value"`
+		Nullable *Time `json:"nullable"`
+	}{Value: v, Nullable: &v})
+
+	require.NoError(t, err)
+	assert.JSONEq(
+		t,
+		`{"value": "2026-01-02T03:04:05.000000006Z", "nullable": "2026-01-02T03:04:05.000000006Z"}`,
+		string(got),
+	)
+}
+
+func TestTimeUnmarshalJSON(t *testing.T) {
+	withLocalZone(t)
+	want := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	tests := map[string]struct {
+		wire    string
+		wantErr bool
+	}{
+		"RFC 3339 Z":       {wire: `"2026-01-02T03:04:05Z"`},
+		"offset +08:00":    {wire: `"2026-01-02T11:04:05+08:00"`},
+		"naive is refused": {wire: `"2026-01-02T03:04:05"`, wantErr: true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var got Time
+			err := json.Unmarshal([]byte(tc.wire), &got)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, want, time.Time(got))
+			assert.Equal(t, time.UTC, time.Time(got).Location())
+		})
+	}
 }
 
 func TestTimeEncodeMsgpack_Timestamp(t *testing.T) {

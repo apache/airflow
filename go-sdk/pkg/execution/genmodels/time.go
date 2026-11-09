@@ -33,7 +33,8 @@ import (
 // A defined type inherits none of time.Time's methods, so Time restates the
 // ones it needs: EncodeMsgpack (else it encodes as an empty map), IsZero (so
 // omitempty treats Time and *Time as it does time.Time: without it a Time is
-// always dropped and a *Time to the zero time is kept) and String (for fmt).
+// always dropped and a *Time to the zero time is kept), String (for fmt) and
+// MarshalText/UnmarshalText (else encoding/json renders it as {}).
 type Time time.Time
 
 // EncodeMsgpack encodes t as a msgpack timestamp.
@@ -49,6 +50,21 @@ func (t Time) IsZero() bool {
 // String formats t as time.Time.String does.
 func (t Time) String() string {
 	return time.Time(t).String()
+}
+
+// MarshalText formats t as RFC 3339, as time.Time.MarshalText does.
+func (t Time) MarshalText() ([]byte, error) {
+	return time.Time(t).MarshalText()
+}
+
+// UnmarshalText parses an RFC 3339 string into t in UTC.
+func (t *Time) UnmarshalText(data []byte) error {
+	var v time.Time
+	if err := v.UnmarshalText(data); err != nil {
+		return err
+	}
+	*t = Time(v.UTC())
+	return nil
 }
 
 // DecodeMsgpack decodes a msgpack timestamp into t in UTC.

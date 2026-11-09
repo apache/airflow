@@ -410,6 +410,15 @@ func findNullableDateTimes(
 	for defName, def := range doc.Defs {
 		structName, ok := structByKey[strings.ToUpper(defName)]
 		if !ok {
+			for propName, prop := range def.Properties {
+				if prop.hasDateTime() {
+					return nil, fmt.Errorf(
+						"%s.%s: date-time in a $def with no generated struct",
+						defName,
+						propName,
+					)
+				}
+			}
 			continue
 		}
 		for propName, prop := range def.Properties {
@@ -418,7 +427,9 @@ func findNullableDateTimes(
 			}
 			value, nullable := prop.nonNullBranch()
 			switch {
-			case prop.isDateTime(), nullable && value.Items != nil && value.Items.isDateTime():
+			case prop.isDateTime(),
+				prop.Items != nil && prop.Items.isDateTime(),
+				nullable && value.Items != nil && value.Items.isDateTime():
 				continue
 			case nullable && value.isDateTime():
 				if set[structName] == nil {

@@ -47,7 +47,8 @@ func TestFindNullableDateTimes(t *testing.T) {
 		"value":         `+dateTimeJSON+`,
 		"nullable":      {"anyOf": [`+dateTimeJSON+`, `+nullJSON+`]},
 		"null_first":    {"anyOf": [`+nullJSON+`, `+dateTimeJSON+`]},
-		"list":          {"anyOf": [`+dateTimeListJSON+`, `+nullJSON+`]},
+		"list":          `+dateTimeListJSON+`,
+		"nullable_list": {"anyOf": [`+dateTimeListJSON+`, `+nullJSON+`]},
 		"nullable_text": {"anyOf": [{"type": "string"}, `+nullJSON+`]}
 	}}}`)
 	structByKey := map[string]string{"GETASSETBYURI": "GetAssetByURI"}
@@ -64,7 +65,6 @@ func TestFindNullableDateTimes_RejectsUnsupportedShape(t *testing.T) {
 	tests := map[string]string{
 		"date-time or string":      `{"anyOf": [` + dateTimeJSON + `, {"type": "string"}]}`,
 		"three branches":           `{"anyOf": [` + dateTimeJSON + `, {"type": "string"}, ` + nullJSON + `]}`,
-		"non-nullable list":        dateTimeListJSON,
 		"date-time nested in list": `{"anyOf": [{"type": "array", "items": {"anyOf": [` + dateTimeJSON + `, ` + nullJSON + `]}}, ` + nullJSON + `]}`,
 	}
 	for name, prop := range tests {
@@ -76,6 +76,17 @@ func TestFindNullableDateTimes_RejectsUnsupportedShape(t *testing.T) {
 			require.ErrorContains(t, err, "DagRun.end_date: unsupported date-time schema shape")
 		})
 	}
+}
+
+func TestFindNullableDateTimes_RejectsDefWithoutStruct(t *testing.T) {
+	doc := loadTestSchema(t, `{
+		"DagRunState": {"type": "string", "enum": ["queued", "running"]},
+		"DagRun": {"properties": {"end_date": {"anyOf": [`+dateTimeJSON+`, `+nullJSON+`]}}}
+	}`)
+
+	_, err := findNullableDateTimes(doc, map[string]string{"DAGRUNINFO": "DagRunInfo"})
+
+	require.ErrorContains(t, err, "DagRun.end_date: date-time in a $def with no generated struct")
 }
 
 const unretypedModels = `package genmodels
