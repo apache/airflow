@@ -105,6 +105,10 @@ func report(actx airflow.Context, history airflow.XComSequence) error {
     actx.Logger().Info("settled", "iterations", n, "error", last.Error)
     return nil
 }
+
+func cleanup(actx airflow.Context) error {
+    return nil
+}
 ```
 
 ```go

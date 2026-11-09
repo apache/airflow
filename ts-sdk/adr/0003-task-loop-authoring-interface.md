@@ -79,6 +79,8 @@ const report = dag.task(async function report({ history }: { history: XComSequen
   console.log(`settled after ${await history.length()} iterations`);
 });
 
+const cleanup = dag.task(async function cleanup() {});
+
 const estimate = improve();
 const evaluated = evaluate({ estimate });
 
