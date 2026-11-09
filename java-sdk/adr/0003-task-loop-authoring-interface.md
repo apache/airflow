@@ -271,6 +271,9 @@ public interface LoopTaskRef<T> extends TaskRef<T> {}
 - **A mapped terminal needs no second accessor.** `loop.previous` holds ADR-0016's lazy sequence when
   `terminal_is_mapped` is true and a plain value otherwise, which is what Python's one
   `loop.previous` property does. The mapped spelling is the declaration, `Loop<XComSequence<Metrics>>`.
+- **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
+  outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
+  Dag is read rather than failing partway through the run.
 
 ## Alternatives
 

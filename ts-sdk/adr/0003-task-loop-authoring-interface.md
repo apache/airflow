@@ -155,6 +155,9 @@ interface LoopContext {
 - **`getLoop()` throws outside a loop**, so a handler moved out of a group fails where it was moved.
 - **A mapped terminal needs no new call.** `getPrevious<XComSequence<Metrics>>()` names the sequence
   type, and `terminal_is_mapped` tells the runtime which to build.
+- **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
+  outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
+  Dag is read rather than failing partway through the run.
 - **`loop()` runs once per group.** A group already on an edge can still become one, since `LoopRef`
   takes its edges over.
 

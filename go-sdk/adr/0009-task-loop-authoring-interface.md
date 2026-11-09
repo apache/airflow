@@ -200,6 +200,9 @@ type XComSequence[T any] interface {
   `terminal_is_mapped` is true and a plain value otherwise, which is what Python's one
   `loop.previous` property does. The mapped spelling is a type assertion,
   `loop.Previous.(airflow.XComSequence[Metrics])`, since a sequence is not something to decode into.
+- **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
+  outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
+  Dag is read rather than failing partway through the run.
 - **`Previous` is untyped where `XComSequence[T]` is typed.** A declared parameter type is something
   the SDK reads by reflection, so a sequence carries its element type. A struct field carries nothing,
   and a Go method cannot take a type parameter, so `Previous` keeps `GetXCom`'s shape.
