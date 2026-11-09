@@ -44,6 +44,36 @@ Changelog
   with ``result.to_state()`` and ``state.approve()`` after ``run_durably_sync()`` should call
   ``Runner.run`` and handle ``result.interruptions`` itself.
 
+.. note::
+  **Significant change: output serialization of the LLM operators**
+
+  ``LLMOperator``, ``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent``
+  now share one helper, ``dump_output_for_xcom``, to decide which models they push to XCom as
+  dicts. When the worker cannot register a model class (``output_type`` is a list of output types
+  such as ``[Summary, int]``, an output marker, an output function, a ``TypeAliasType`` or a
+  ``NewType``), every model in the output is pushed as a JSON-compatible dict, including models
+  inside a list, tuple, set or dict. ``LLMOperator`` and ``LLMFileAnalysisOperator`` pushed such
+  models as instances in 1.1.0, so for them this is a change.
+
+  On Airflow < 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
+  class at all, so ``list[MyModel]`` and other containers of models are pushed as dicts for all
+  five. ``AgentOperator`` and ``@task.agent`` already did this in 1.1.0; ``LLMOperator``,
+  ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed instances there and now push dicts. A
+  top-level model is still dumped with ``model_dump()`` as before. A downstream task reads
+  ``result["field"]`` and needs no entry in ``[core] allowed_deserialization_classes``.
+
+  For ``AgentOperator`` and ``@task.agent`` with a list of output types such as ``[Summary, int]``
+  on Airflow >= 3.3, compared with 1.1.0: a model with ``serialize_by_alias=True`` now arrives with
+  its field names (``full_name``, not ``fullName``); a tuple next to the model arrives as a list;
+  a ``date`` next to the model arrives as a string.
+
+.. note::
+  **Signature change: MCP ``tool_prefix``**
+
+  The ``tool_prefix`` parameter of ``MCPHook`` and ``MCPToolset`` now defaults to ``""`` and is
+  typed ``str``; in 1.1.0 it defaulted to ``None`` and was typed ``str | None``. This changes
+  only the signature and the annotated type, not the behaviour.
+
 1.1.0
 .....
 
@@ -53,16 +83,17 @@ Changelog
   The worker cannot register a model class for XCom deserialization when ``output_type`` is a
   list of output types such as ``[Summary, int]``, an output marker such as
   ``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a ``NewType``. For these
-  output types, ``LLMOperator``, ``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and
-  ``@task.agent`` now push each model in the output as a JSON-compatible dict, including models
-  inside a list, tuple or dict. On Airflow < 3.3, the worker registers no model class at all, so
-  all of them still push ``list[MyModel]`` as instances there. A top-level model is still dumped
-  with plain ``model_dump()`` when ``serialize_output=True`` is set or on Airflow < 3.3.
+  output types, ``AgentOperator`` and ``@task.agent`` now push each model in the output as a
+  JSON-compatible dict (``model_dump(mode="json")``), including models inside a list, tuple or
+  dict. On Airflow < 3.3, the worker registers no model class at all, so a model inside a list,
+  tuple or dict is now pushed as a JSON-compatible dict for every ``output_type``. A top-level
+  model is still dumped with plain ``model_dump()`` when ``serialize_output=True`` is set or on
+  Airflow < 3.3.
 
   The new behaviour changes the type that a downstream task receives after an upgrade.
-  Version 1.0.0 pushed these models as model instances for all of these operators. It dumped
-  a top-level model with plain ``model_dump()`` only in HITL review, with
-  ``serialize_output=True`` or on Airflow < 3.3. A downstream task loaded a model instance when the model's class was listed in
+  Version 1.0.0 pushed these models as model instances. It dumped a top-level model with
+  plain ``model_dump()`` only in HITL review, with ``serialize_output=True`` or on
+  Airflow < 3.3. A downstream task loaded a model instance when the model's class was listed in
   ``[core] allowed_deserialization_classes``, or on Airflow >= 3.3 when another task in the
   same Dag declared the class as its ``output_type``. That downstream task now gets a dict and
   must read ``result["field"]`` instead of ``result.field``. In HITL review on Airflow >= 3.3

@@ -47,8 +47,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Sends the prompt to the model from ``llm_conn_id`` and returns the output as the
        task's return value: a string by default, or an instance of ``output_type``,
        dumped to a dict when ``serialize_output=True``. Before Airflow 3.3 an instance that is
-       itself the output is always dumped to a dict, while a ``list[MyModel]`` is pushed as
-       instances (before Airflow 3.3 only). An instance of a class the worker cannot register, such as
+       itself the output is always dumped to a dict, and so is a model inside a list, tuple,
+       set or dict. An instance of a class the worker cannot register, such as
        ``output_type=[MyModel, int]``, is dumped to dicts whatever ``serialize_output`` says,
        also inside a list, tuple, set or dict. ``decision_policy`` is experimental; see below.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`

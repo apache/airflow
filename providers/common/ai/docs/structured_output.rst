@@ -74,17 +74,16 @@ condition is enough. A plain ``Enum`` member (one that does not also subclass
 ``str`` or ``int``), an ``HttpUrl`` or a ``Path`` in that model then stays a
 Python object. The default XCom backend cannot serialize these objects, so the
 XCom push fails with ``TypeError``. Before Airflow 3.3 the worker registers no
-model class, and all five operators and decorators push ``list[MyModel]`` and
-other containers of models as instances.
+model class, so all five operators and decorators push a model inside a list,
+tuple or dict as a JSON-compatible dict for every ``output_type``, not only for
+the output types listed above.
 
 Upgrading from common.ai 1.0.0 to 1.1.0 can change the type that a downstream
 task receives:
 
 * On Airflow 3.3 and later, common.ai 1.0.0 pushed each model in the
   output as a model instance when ``output_type`` was one of the output types
-  listed above. This applies to ``LLMOperator``, ``@task.llm``,
-  ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent``. It
-  dumped a top-level model with plain ``model_dump()`` only
+  listed above. It dumped a top-level model with plain ``model_dump()`` only
   when ``serialize_output=True`` was set or in HITL review. A downstream task
   loaded the instance when the class was listed in
   ``[core] allowed_deserialization_classes`` or when another task in the same
@@ -96,9 +95,27 @@ task receives:
   ``datetime``, ``date``, ``timedelta``, ``UUID`` and ``Decimal`` in that model
   now arrive as strings, for example ``"PT1M30S"`` for a ``timedelta``. Tuples
   and sets in that model now arrive as lists.
-* Before Airflow 3.3, a top-level model is dumped with plain ``model_dump()``
-  and ``list[MyModel]`` is pushed as instances, as in common.ai 1.0.0.
-  This is the same for all five operators and decorators.
+* Before Airflow 3.3, common.ai 1.0.0 pushed a model inside a list,
+  tuple or dict as a model instance, for every ``output_type``. A downstream
+  task that loaded the instance because the class was listed in
+  ``[core] allowed_deserialization_classes`` now gets a dict.
+
+Behaviour of the LLM operators after 1.1.0
+-------------------------------------------
+
+The changelog note above 1.1.0 describes changes made after that release. ``LLMOperator``,
+``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent`` share one
+helper, ``dump_output_for_xcom``, and behave as follows:
+
+* A model whose class the worker registers is left for the XCom serializer, in a container or not.
+  A top-level model is dumped with ``model_dump()`` when ``serialize_output=True`` is set.
+* A model whose class the worker cannot register is dumped to JSON values, also inside a list,
+  tuple, set or dict.
+* Before Airflow 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
+  class. A top-level model is dumped with ``model_dump()``, and a model inside a list, tuple, set
+  or dict is dumped to JSON values. ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator``
+  pushed ``list[MyModel]`` as instances there in 1.1.0 and now push dicts; ``AgentOperator`` and
+  ``@task.agent`` already did.
 
 The Airflow UI's XCom viewer renders Pydantic instances via the
 ``stringify`` path, which produces a representation like
@@ -119,8 +136,8 @@ instead of as an instance. Whether it does depends on ``serialize_output``:
 * With ``serialize_output=True``, an output that is itself a model is dumped with ``model_dump()``, so
   field types such as ``date`` and ``Decimal`` are kept.
 * A model inside a list, tuple, set or dict is not dumped when the worker registers its class
-  (``output_type=list[MyModel]``). The XCom serializer pushes it as an instance, with or without
-  ``serialize_output``.
+  (``output_type=list[MyModel]`` on Airflow 3.3 and later). The XCom serializer pushes it as an
+  instance, with or without ``serialize_output``.
 * A model whose class the worker cannot register is dumped to JSON values, whatever ``serialize_output``
   says. The one exception is a model that is itself the output when ``serialize_output=True``: it is
   still dumped, but in Python mode as the first bullet describes. The worker registers the classes it
