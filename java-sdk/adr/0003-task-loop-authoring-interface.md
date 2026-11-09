@@ -44,12 +44,13 @@ This ADR records the Java spelling of them, on both surfaces
    task or the gate. On the interface surface, where `Task.execute(Context, Client)` is fixed, it is
    `context.loop()`. The processor injects it only where it is declared, so nothing else pays for the
    read.
-5. **`index`, `maxIterations` and `previous` are public final fields**, as `Context.conf` and
-   `context.runId` already are. `previous` is `null` at iteration 1.
+5. **`index`, `maxIterations` and `previous` are public final fields**, as `DagRun.conf` and
+   `DagRun.runId` already are. `previous` is `null` at iteration 1.
 6. **`Loop<T>` is generic over the terminal task's result**, so `Loop<Metrics>` gives a typed
    `previous` with nothing to cast. The interface surface has no declaration to read, so
-   `context.loop()` is a `Loop<Object>` and `getPrevious(Metrics.class)` names the type at the read,
-   as `Client.getXCom` does.
+   `context.loop()` is a `Loop<Object>` and `getPrevious(Metrics.class)` names the type at the read.
+   `Client.getXCom` gains that same overload, so naming the type at the read is one shape across the
+   surface rather than something the loop invents.
 7. **A body task's wiring method returns `LoopTaskRef<T>`.** The processor generates every wiring
    parameter of type `XComSequence<E>` as an overloaded pair, one taking `Arg<XComSequence<E>>` and
    one taking `LoopTaskRef<E>`, so `javac` checks whichever reading the consumer declares.
@@ -155,7 +156,7 @@ improve.before(evaluate);
 refine.until("accurate_enough", AccurateEnough.class); // terminal: the body's single leaf
 
 TaskRef report = dag.task("report", Report.class);
-evaluate.before(report); // data edge out of the body, through the gate
+refine.before(report); // the whole loop: this surface wires no data out of the body
 refine.before(dag.task("cleanup", Cleanup.class));
 ```
 
@@ -174,6 +175,14 @@ public static class AccurateEnough implements UntilTask {
   public LoopDecision decide(Context context, Client client) {
     Metrics result = context.loop().getResult(Metrics.class);
     return new LoopDecision(result.error() < 1e-6, "error %.2g".formatted(result.error()));
+  }
+}
+
+public static class Report implements Task {
+  @Override
+  public void execute(Context context, Client client) {
+    XComSequence<Metrics> history = client.getXComSequence(Metrics.class, "refine.evaluate");
+    System.getLogger("report").log(INFO, "settled after {0} iterations", history.length());
   }
 }
 ```
@@ -219,6 +228,14 @@ public final class Loop<T> {
 
   public <R> R getResult(Class<R> type);
 }
+
+// Added to Client. getXCom returns Object today, so naming the type at the read is new; these are
+// the overloads getPrevious and getResult are modelled on. Both take the rest of getXCom's
+// parameters, which keep their defaults.
+public <T> T getXCom(Class<T> type, String taskId);
+
+// A Class cannot carry XComSequence<Metrics>, so the sequence read names the element type instead.
+public <E> XComSequence<E> getXComSequence(Class<E> elementType, String taskId);
 
 /** The lazy sequence of ADR-0016, reached as a declared parameter type or as Loop's T. */
 public interface XComSequence<E> {
@@ -271,6 +288,15 @@ public interface LoopTaskRef<T> extends TaskRef<T> {}
 - **A mapped terminal needs no second accessor.** `loop.previous` holds ADR-0016's lazy sequence when
   `terminal_is_mapped` is true and a plain value otherwise, which is what Python's one
   `loop.previous` property does. The mapped spelling is the declaration, `Loop<XComSequence<Metrics>>`.
+  A `Class` cannot carry that type, so the interface surface reads the sequence with
+  `client.getXComSequence(Metrics.class, taskId)`.
+- **The interface surface reads the terminal off `Loop`, where ADR-0017 rule 3 reads it as wired
+  data.** The deviation is the surface, not the loop: `Task.execute(Context, Client)` is fixed, so
+  there is no wiring to bind the terminal with, and `loop.getResult(Metrics.class)` is that surface's
+  spelling of the same read. Core pins it to the gate's iteration either way.
+- **The interface surface wires no data out of the body**, so ADR-0017 decision 3 has nothing to
+  rewire there: a consumer outside the loop orders itself after the loop and reads the sequence
+  through `Client`.
 - **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
   outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
   Dag is read rather than failing partway through the run.
