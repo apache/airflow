@@ -503,6 +503,10 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
         completing execution. If `do_xcom_push` is True, results are fetched automatically,
         making this parameter redundant.  (default: False).
+    :param validate_sql: (optional) if True, validates SQL syntax locally before execution (default: False).
+    :param check_partition_filters: (optional) if True, checks for partition filters and unbounded queries (default: False).
+    :param partition_columns: (optional) column names or mapping of table to column names required in WHERE clauses.
+    :param dialect: (optional) SQL dialect name to use for validation. If None, detected from hook.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -534,6 +538,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         requires_result_fetch: bool = False,
+        validate_sql: bool = False,
+        check_partition_filters: bool = False,
+        partition_columns: Sequence[str] | set[str] | Mapping[str, Sequence[str] | set[str]] | None = None,
+        allow_unbounded: bool = False,
+        dialect: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -546,6 +555,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
+        self.validate_sql = validate_sql
+        self.check_partition_filters = check_partition_filters
+        self.partition_columns = partition_columns
+        self.allow_unbounded = allow_unbounded
+        self.dialect = dialect
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -573,8 +587,31 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
 
+    def _validate_sql_query(self) -> None:
+        from airflow.providers.common.sql.utils.sql_validation import validate_query
+
+        dialect = self.dialect
+        if dialect is None:
+            try:
+                hook = self.get_db_hook()
+                dialect = getattr(hook, "dialect_name", None) or getattr(hook, "conn_type", None)
+                if callable(dialect):
+                    dialect = dialect()
+            except Exception:
+                dialect = None
+
+        validate_query(
+            sql=self.sql,
+            dialect=dialect,
+            check_partition_filters=self.check_partition_filters,
+            partition_columns=self.partition_columns,
+            allow_unbounded=self.allow_unbounded,
+        )
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
+        if self.validate_sql or self.check_partition_filters:
+            self._validate_sql_query()
         hook = self.get_db_hook()
         if self.split_statements is not None:
             extra_kwargs = {"split_statements": self.split_statements}
