@@ -276,30 +276,34 @@ class TestStubTaskflowArgs:
         with pytest.raises(SerializationError, match="nested inside"):
             _to_dict(dag)
 
-    @pytest.mark.parametrize(
-        ("make_value", "expected"),
-        [
-            pytest.param(lambda out, vals: out.map(str), {"kind": "unresolved"}, id="map"),
-            pytest.param(lambda out, vals: out.zip(vals), {"kind": "unresolved"}, id="zip"),
-            pytest.param(lambda out, vals: out.concat(vals), {"kind": "unresolved"}, id="concat"),
-            pytest.param(
-                lambda out, vals: vals, {"kind": "sequence", "task_id": "fn_produce"}, id="mapped-upstream"
-            ),
-        ],
-    )
-    def test_upstream_output_beyond_a_plain_xcom_binds(self, make_value, expected):
+    def test_mapped_upstream_output_binds_as_sequence(self):
         def fn_produce(n: int): ...
 
         with DAG(dag_id="d") as dag:
-            out = stub(fn_extract)()
             vals = stub(fn_produce).expand(n=[1, 2])
-            stub(fn_transform)("uk", make_value(out, vals))
+            stub(fn_transform)("uk", vals)
 
         assert _round_trip(dag).task_dict["fn_transform"].arg_bindings[1] == {
             "name": "extracted",
             "value_schema": {"type": "object", "additionalProperties": True},
-            **expected,
+            "kind": "sequence",
+            "task_id": "fn_produce",
         }
+
+    @pytest.mark.parametrize(
+        "make_value",
+        [
+            pytest.param(lambda out: out.map(str), id="map"),
+            pytest.param(lambda out: out.zip(out), id="zip"),
+            pytest.param(lambda out: out.concat(out), id="concat"),
+        ],
+    )
+    def test_whole_map_zip_concat_result_rejected(self, make_value):
+        with DAG(dag_id="d") as dag:
+            stub(fn_transform)("uk", make_value(stub(fn_extract)()))
+
+        with pytest.raises(SerializationError, match="whole map"):
+            _to_dict(dag)
 
     def test_expand_builds_mapped_stub_with_param_bindings(self):
         """A mapped stub's bindings are all ``param`` entries: values resolve per map index."""

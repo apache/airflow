@@ -19,15 +19,15 @@ Derive the arg bindings of a stub task whose arguments differ per map index.
 
 That is a mapped stub, or an unmapped one inside a mapped task group. The server picks this map
 index's element of every argument, mirroring how the Python task runner resolves the same Dag,
-so no lang-SDK runtime re-implements the mapping arithmetic. An argument the server cannot finish
-(``map()`` callables, or a nesting no single binding can hold) is sent as an ``unresolved`` binding.
+so no lang-SDK runtime re-implements the mapping arithmetic. The server sends coordinates, never
+values: the supervisor reads each XCom binding, and the runtime applies any ``map()`` callables.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
@@ -35,10 +35,11 @@ from pydantic import ValidationError
 
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
     LiteralArgBinding,
+    LiteralValue,
     TaskArgBinding,
     TupleArgBinding,
-    UnresolvedArgBinding,
     XComArgBinding,
+    XComRef,
     XComSequenceArgBinding,
     get_arg_bindings_adapter,
 )
@@ -53,6 +54,7 @@ from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.definitions.xcom_arg import (
     SchedulerConcatXComArg,
+    SchedulerMapXComArg,
     SchedulerPlainXComArg,
     SchedulerXComArg,
     SchedulerZipXComArg,
@@ -76,10 +78,6 @@ if TYPE_CHECKING:
 
 class UndeliverableMappedArgBindingsError(ValueError):
     """The stub task's arguments cannot be delivered at this map index."""
-
-
-class _NeedsWorker(Exception):
-    """The argument is sent as an ``unresolved`` binding for the coordinator to resolve."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -177,14 +175,7 @@ class _MappedArgBindingDeriver:
         return count
 
     def derive(self, entries: list[dict[str, Any]]) -> list[TaskArgBinding]:
-        bindings: list[TaskArgBinding] = []
-        for entry in entries:
-            param = _ArgParam.from_entry(entry)
-            try:
-                bindings.append(self._bind_entry(param, entry))
-            except _NeedsWorker:
-                bindings.append(param.build(UnresolvedArgBinding, kind="unresolved"))
-        return bindings
+        return [self._bind_entry(_ArgParam.from_entry(entry), entry) for entry in entries]
 
     def _bind_entry(self, param: _ArgParam, entry: dict[str, Any]) -> TaskArgBinding:
         match entry["kind"]:
@@ -213,7 +204,7 @@ class _MappedArgBindingDeriver:
                 index = self._get_sub_indexes(expand_input)[param.name]
                 return self._bind_element(param, expand_input.value[param.name], index)
         elif binding := self._bind_mapping_entry(
-            param, expand_input, param.name, required=False, known_keys_only=param.name in partial_kwargs
+            param, expand_input, param.name, fallback=lambda: self._get_fallback(param, partial_kwargs)
         ):
             return binding
         if param.name in partial_kwargs:
@@ -226,9 +217,9 @@ class _MappedArgBindingDeriver:
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
             index = self._get_sub_indexes(expand_input)[group_arg.key]
             return self._bind_element(param, expand_input.value[group_arg.key], index)
-        return cast(
-            "TaskArgBinding", self._bind_mapping_entry(param, expand_input, group_arg.key, required=True)
-        )
+        if binding := self._bind_mapping_entry(param, expand_input, group_arg.key, fallback=lambda: None):
+            return binding
+        raise UndeliverableMappedArgBindingsError(f"expand_kwargs() mapping has no key {group_arg.key!r}")
 
     @staticmethod
     def _bind_default(param: _ArgParam) -> LiteralArgBinding:
@@ -256,22 +247,17 @@ class _MappedArgBindingDeriver:
         expand_input: SchedulerListOfDictsExpandInput,
         key: str,
         *,
-        required: bool,
-        known_keys_only: bool = False,
+        fallback: Callable[[], XComRef | LiteralValue | None],
     ) -> TaskArgBinding | None:
         """
         Bind entry *key* of this map index's ``expand_kwargs()`` mapping; None if it has no such entry.
 
-        A mapping entry overrides a ``partial()`` value, as in Python. With *known_keys_only*, an
-        upstream output's mapping, whose keys are unknown until it runs, yields None so that the
-        ``partial()`` value is used.
+        A mapping read from an upstream output has keys unknown until it runs, so its binding names
+        the key in ``kwarg`` and carries the value to use when the key is missing in ``fallback``.
         """
         if isinstance(expand_input.value, SchedulerXComArg):
-            if known_keys_only:
-                return None
-            return self._select_mapping_key(
-                self._bind_element(param, expand_input.value, self.map_index), key
-            )
+            binding = self._bind_element(param, expand_input.value, self.map_index)
+            return self._select_kwarg(binding, key, fallback())
         try:
             mapping = expand_input.value[self.map_index]
         except IndexError:
@@ -279,24 +265,45 @@ class _MappedArgBindingDeriver:
                 f"expand_kwargs() has no mapping at map index {self.map_index}"
             )
         match mapping:
-            case _XComRef() | SchedulerXComArg() if known_keys_only:
-                return None
             case _XComRef() | SchedulerXComArg():
-                return self._select_mapping_key(self._bind_whole(param, mapping), key)
+                return self._select_kwarg(self._bind_whole(param, mapping), key, fallback())
             case Mapping() if key in mapping:
                 return self._bind_whole(param, mapping[key])
-            case Mapping() if required:
-                raise UndeliverableMappedArgBindingsError(f"expand_kwargs() mapping has no key {key!r}")
             case Mapping():
                 return None
             case _:
                 raise UndeliverableMappedArgBindingsError("expand_kwargs() expects a list of dicts")
 
     @staticmethod
-    def _select_mapping_key(binding: TaskArgBinding, key: str) -> XComArgBinding:
+    def _select_kwarg(
+        binding: TaskArgBinding, key: str, fallback: XComRef | LiteralValue | None
+    ) -> TaskArgBinding:
         if not isinstance(binding, XComArgBinding):
             raise UndeliverableMappedArgBindingsError("expand_kwargs() expects a list of dicts")
-        return binding.model_copy(update={"mapping_key": key})
+        update: dict[str, Any] = {"kwarg": key}
+        if fallback is not None:
+            update["fallback"] = fallback
+        return binding.model_copy(update=update)
+
+    def _get_fallback(
+        self, param: _ArgParam, partial_kwargs: Mapping[str, Any]
+    ) -> XComRef | LiteralValue | None:
+        """Get the value of a parameter this index's ``expand_kwargs()`` mapping may lack."""
+        if param.name not in partial_kwargs:
+            return (
+                None if not is_arg_set(param.default) else LiteralValue(kind="literal", value=param.default)
+            )
+        match self._bind_whole(param, partial_kwargs[param.name]):
+            case XComArgBinding() as binding:
+                return XComRef.model_validate(
+                    binding.model_dump(include=set(XComRef.model_fields), exclude_unset=True)
+                )
+            case LiteralArgBinding(value=value):
+                return LiteralValue(kind="literal", value=value)
+            case _:
+                raise UndeliverableMappedArgBindingsError(
+                    f"parameter {param.name!r} cannot fall back to a mapped task's whole output"
+                )
 
     def _bind_whole(self, param: _ArgParam, value: Any) -> TaskArgBinding:
         """Bind *value* as it is, for an argument this map index does not expand over."""
@@ -306,7 +313,10 @@ class _MappedArgBindingDeriver:
             case SchedulerPlainXComArg(operator=producer):
                 return self._bind_upstream(param, producer)
             case SchedulerXComArg():
-                raise _NeedsWorker
+                # Parse time rejects this shape, so only a Dag serialized by an older core reaches it.
+                raise UndeliverableMappedArgBindingsError(
+                    f"parameter {param.name!r} receives a whole map(), zip() or concat() result"
+                )
             case _:
                 return self._bind_literal(param, value)
 
@@ -320,13 +330,20 @@ class _MappedArgBindingDeriver:
             case int(map_index):
                 return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, map_index=map_index)
             case _:
-                raise _NeedsWorker
+                # Parse time rejects this shape, so only a Dag serialized by an older core reaches it.
+                raise UndeliverableMappedArgBindingsError(
+                    f"parameter {param.name!r} reads task {producer.task_id!r}, which is mapped again "
+                    "inside the mapped task group they share"
+                )
 
     def _bind_element(self, param: _ArgParam, value: Any, index: int) -> TaskArgBinding:
         """Bind element *index* of *value*, for an argument this map index expands over."""
         if isinstance(value, _XComRef):
             value = value.deref(self.dag)
         match value:
+            case SchedulerMapXComArg(arg=arg):
+                # map() is elementwise, so it moves no index: pick the element, then apply the callables.
+                return self._locate(param, arg, index).model_copy(update={"apply_map": True})
             case SchedulerXComArg():
                 return self._locate(param, value, index)
             case Mapping():
@@ -344,36 +361,49 @@ class _MappedArgBindingDeriver:
     ) -> XComArgBinding | TupleArgBinding:
         """Locate element *index* of an upstream output, following ``zip()`` and ``concat()``."""
         match arg:
-            # An expanded output is never narrowed to a common mapped ancestor's row first: the SDK
-            # forbids expanding inside a mapped task group, and a group expands only over outputs
-            # of tasks outside it.
-            case SchedulerPlainXComArg(operator=producer) if producer.get_needs_expansion():
-                return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, map_index=index)
-            case SchedulerPlainXComArg(operator=producer):
-                return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, element_index=index)
             case SchedulerZipXComArg():
-                # The parameter's schema describes the whole tuple, not a part of it.
-                part_param = dataclasses.replace(param, value_schema=None)
-                parts: list[XComArgBinding | LiteralArgBinding] = []
+                parts: list[XComRef | LiteralValue] = []
                 for zipped in arg.args:
                     if index < self._get_length(zipped):
-                        if not isinstance(part := self._locate(part_param, zipped, index), XComArgBinding):
-                            raise _NeedsWorker
-                        parts.append(part)
+                        parts.append(self._locate_ref(zipped, index))
                     elif is_arg_set(arg.fillvalue):
-                        parts.append(self._bind_literal(part_param, arg.fillvalue))
+                        parts.append(LiteralValue(kind="literal", value=self._ensure_json(arg.fillvalue)))
                     else:
                         raise UndeliverableMappedArgBindingsError(f"zip() has no element at index {index}")
                 return param.build(TupleArgBinding, kind="tuple", parts=parts)
             case SchedulerConcatXComArg():
-                offset = index
-                for concatenated in arg.args:
-                    if offset < (length := self._get_length(concatenated)):
-                        return self._locate(param, concatenated, offset)
-                    offset -= length
-                raise UndeliverableMappedArgBindingsError(f"concat() has no element at index {index}")
+                concatenated, offset = self._find_concatenated(arg, index)
+                return self._locate(param, concatenated, offset)
             case _:
-                raise _NeedsWorker
+                ref = self._locate_ref(arg, index)
+                return param.build(XComArgBinding, **ref.model_dump(exclude_unset=True))
+
+    def _locate_ref(self, arg: SchedulerXComArg, index: int) -> XComRef:
+        """Locate element *index* of an upstream output that holds no ``zip()``."""
+        match arg:
+            # An expanded output is never narrowed to a common mapped ancestor's row first: the SDK
+            # forbids expanding inside a mapped task group, and a group expands only over outputs
+            # of tasks outside it.
+            case SchedulerPlainXComArg(operator=producer) if producer.get_needs_expansion():
+                return XComRef(kind="xcom", task_id=producer.task_id, map_index=index)
+            case SchedulerPlainXComArg(operator=producer):
+                return XComRef(kind="xcom", task_id=producer.task_id, element_index=index)
+            case SchedulerConcatXComArg():
+                return self._locate_ref(*self._find_concatenated(arg, index))
+            case _:
+                # Parse time rejects this shape, so only a Dag serialized by an older core reaches it.
+                raise UndeliverableMappedArgBindingsError(
+                    "a map() must be outermost and a zip() cannot be inside another zip()"
+                )
+
+    def _find_concatenated(self, arg: SchedulerConcatXComArg, index: int) -> tuple[SchedulerXComArg, int]:
+        """Find the concatenated argument owning element *index*, and the element's offset in it."""
+        offset = index
+        for concatenated in arg.args:
+            if offset < (length := self._get_length(concatenated)):
+                return concatenated, offset
+            offset -= length
+        raise UndeliverableMappedArgBindingsError(f"concat() has no element at index {index}")
 
     def _get_length(self, arg: SchedulerXComArg) -> int:
         length = get_task_map_length(
@@ -396,12 +426,16 @@ class _MappedArgBindingDeriver:
             producer_contexts=self.producer_contexts,
         )
 
+    @classmethod
+    def _bind_literal(cls, param: _ArgParam, value: Any) -> LiteralArgBinding:
+        return param.build(LiteralArgBinding, kind="literal", value=cls._ensure_json(value))
+
     @staticmethod
-    def _bind_literal(param: _ArgParam, value: Any) -> LiteralArgBinding:
+    def _ensure_json(value: Any) -> Any:
         try:
             json.dumps(value, allow_nan=False)
         except (TypeError, ValueError):
             raise UndeliverableMappedArgBindingsError(
                 f"a {type(value).__name__} value cannot cross the language boundary"
             )
-        return param.build(LiteralArgBinding, kind="literal", value=value)
+        return value

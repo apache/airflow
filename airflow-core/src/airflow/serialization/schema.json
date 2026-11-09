@@ -147,7 +147,7 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "kind": { "type": "string", "enum": [ "xcom", "literal", "sequence", "unresolved", "param" ] },
+        "kind": { "type": "string", "enum": [ "xcom", "literal", "sequence", "param" ] },
         "value_schema": { "type": "object" },
         "task_id": { "type": "string" },
         "value": {},
