@@ -38,6 +38,7 @@ import structlog
 from structlog.typing import FilteringBoundLogger
 
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleParseContext
 from airflow.dag_processing.lang_sdk_processor import (
     _EXIT_GRACE_PERIOD,
     LangSDKDagFileProcessorProcess,
@@ -60,7 +61,6 @@ from airflow.sdk.importers import (
     get_importer_registry,
     reset_importer_registry,
 )
-from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
@@ -550,15 +550,15 @@ class TestLangSDKDagFileProcessorProcess:
 def test_native_parser_uses_accepted_importers_when_source_is_unavailable(
     use_exec, tmp_path, monkeypatch, mocker
 ):
-    config = {
-        "importers": [
+    config = BundleParseContext(
+        importers=[
             {
                 "classpath": f"{FakeCoordinatorDagImporter.__module__}.FakeCoordinatorDagImporter",
                 "kwargs": {"bundle_name": "testing"},
             }
         ]
-    }
-    registry = DagImporterRegistry.from_config("testing", bundle_importers=config["importers"])
+    )
+    registry = DagImporterRegistry.from_config("testing", bundle_importers=config.importers)
     registry.warm_importers()
     mocker.patch.object(
         DagImporterRegistry,
@@ -922,8 +922,15 @@ def test_a_dag_with_an_unavailable_executor_is_an_import_error(mock_lookup):
 
 @conf_vars({("core", "multi_team"): "True"})
 @patch("airflow.dag_processing.bundles.manager.DagBundlesManager", autospec=True)
-@pytest.mark.parametrize("ownership", [NOTSET, None, "team_a"])
-def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager, ownership):
+@pytest.mark.parametrize(
+    ("bundle_config", "pool"),
+    [
+        pytest.param(None, "default_pool_team_a", id="looked-up"),
+        pytest.param(BundleParseContext(), "default_pool", id="accepted-without-team"),
+        pytest.param(BundleParseContext(team_name="team_a"), "default_pool_team_a", id="accepted-team"),
+    ],
+)
+def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager, bundle_config, pool):
     mock_bundles_manager.return_value._bundle_config = {"testing": MagicMock(team_name="team_a")}
     with DAG("team_dag", schedule=None) as dag:
         BaseOperator(task_id="extract")
@@ -934,8 +941,8 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager, 
 
         fan_out.expand(x=[1, 2])
     proc = _make_process()
-    if ownership is not NOTSET:
-        proc.team_name = ownership
+    if bundle_config is not None:
+        proc.bundle_config = bundle_config
         mock_bundles_manager.side_effect = OSError("configuration source unavailable")
 
     proc._handle_request(
@@ -949,7 +956,6 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager, 
     [stored] = proc.parsing_result.serialized_dags
     assert proc.parsing_result.import_errors is None
     tasks = DagSerialization.from_dict(copy.deepcopy(stored.data)).tasks
-    pool = "default_pool" if ownership is None else "default_pool_team_a"
     assert {t.task_id: t.pool for t in tasks} == {
         "extract": pool,
         "load": "custom",

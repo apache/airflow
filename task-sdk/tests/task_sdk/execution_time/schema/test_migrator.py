@@ -52,6 +52,7 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.dag_processing.bundles.base import BundleParseContext
 from airflow.dag_processing.processor import DagFileParseRequest
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.api.datamodels._generated import (
@@ -97,14 +98,14 @@ def test_parser_bundle_settings_follow_supervisor_version(version):
         file="dag.py",
         bundle_path="/bundles/payments",
         bundle_name="payments",
-        bundle_config={"importers": None, "team_name": "payments"},
+        bundle_config=BundleParseContext(team_name="payments"),
     )
     result = get_schema_version_migrator().downgrade(message, version).model_dump()
     assert result["bundle_name"] == "payments"
     if version != "2027-02-28":
         assert "bundle_config" not in result
     else:
-        assert result["bundle_config"] == message.bundle_config
+        assert result["bundle_config"] == {"importers": None, "team_name": "payments"}
 
 
 @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])

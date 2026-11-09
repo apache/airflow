@@ -102,10 +102,13 @@ processor restarts.
 
 Keep the command or secrets backend available to all components that resolve bundles, including
 workers. The Dag processor passes accepted importer settings and team ownership to its parsing
-processes, so they do not read the bundle configuration source again. Other components cache their
+processes, so parsing uses the list the Dag processor accepted rather than a newer read. As with any
+``_cmd`` or ``_secret`` option, each process that starts a new Python interpreter, including
+parsing and task processes on macOS, still runs the command or reads the secret once at startup to
+mask its value in logs. Other components cache their
 own last accepted list; there is no shared configuration snapshot. A worker looking up an unknown
-bundle attempts one fresh read, even before
-the normal refresh interval expires. Names and team lookups do not require bundle classes to be
+bundle attempts one fresh read, even before the normal refresh interval expires; further lookups of
+that name in the same process wait for the interval. Names and team lookups do not require bundle classes to be
 installed locally. Finish existing runs before removing a bundle when
 those runs must complete: tasks and callbacks can still need its definition, and stale Dags do
 not continue normal scheduling. Literal configuration and edits to ``airflow.cfg`` retain their

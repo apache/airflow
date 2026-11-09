@@ -211,8 +211,6 @@ type AwaitInputTask struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type BundleConfig map[string]interface{}
-
 // Schema for telling task which bundle to run with.
 type BundleInfo struct {
 	// Name corresponds to the JSON schema field "name".
@@ -223,6 +221,15 @@ type BundleInfo struct {
 
 	// VersionData corresponds to the JSON schema field "version_data".
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
+}
+
+// The accepted settings that the files of a Dag bundle are parsed with.
+type BundleParseContext struct {
+	// Importers corresponds to the JSON schema field "importers".
+	Importers interface{} `msgpack:"importers,omitempty"`
+
+	// TeamName corresponds to the JSON schema field "team_name".
+	TeamName interface{} `msgpack:"team_name,omitempty"`
 }
 
 type ChosenOptions []string
@@ -390,7 +397,7 @@ type DagCallbackRequest struct {
 // any other necessary metadata.
 type DagFileParseRequest struct {
 	// BundleConfig corresponds to the JSON schema field "bundle_config".
-	BundleConfig *BundleConfig `msgpack:"bundle_config,omitempty"`
+	BundleConfig *BundleParseContext `msgpack:"bundle_config,omitempty"`
 
 	// BundleName corresponds to the JSON schema field "bundle_name".
 	BundleName string `msgpack:"bundle_name"`
@@ -1949,21 +1956,6 @@ type TaskStatesResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type Warnings []interface{}
-
-type TriggerKwargs map[string]interface{}
-
-type VersionData map[string]interface{}
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value string `msgpack:"value"`
-}
-
 type TriggerDagRun struct {
 	// Conf corresponds to the JSON schema field "conf".
 	Conf *Conf `msgpack:"conf,omitempty"`
@@ -1993,6 +1985,8 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type TriggerKwargs map[string]interface{}
+
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note"`
@@ -2002,6 +1996,19 @@ type UpdateDagRunNote struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
+}
+
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value string `msgpack:"value"`
 }
 
 // Update the response content part of an existing Human-in-the-loop response.

@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any
 
 import pendulum
 from pendulum.parsing import ParserError
+from pydantic import BaseModel
 
 from airflow.configuration import conf
 
@@ -272,6 +273,16 @@ def unpack_bundle_version(
             stacklevel=2,
         )
     return result, None
+
+
+class BundleParseContext(BaseModel):
+    """The accepted settings that the files of a Dag bundle are parsed with."""
+
+    importers: Any = None
+    """The bundle's ``importers`` entry, checked when the importer registry is built so that a
+    malformed entry fails only the parsing of this bundle."""
+
+    team_name: str | None = None
 
 
 class DagBundleRefreshError(RuntimeError):

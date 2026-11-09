@@ -40,7 +40,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import BundleVersionLock
+from airflow.dag_processing.bundles.base import BundleParseContext, BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
@@ -121,7 +121,7 @@ class DagFileParseRequest(BaseModel):
     bundle_name: str
     """Bundle name for team-specific executor validation."""
 
-    bundle_config: dict[str, Any] | None = None
+    bundle_config: BundleParseContext | None = None
     """Accepted importer settings and team ownership, when supplied by the processor."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
@@ -263,11 +263,9 @@ def _parse_file(
     if msg.bundle_config is not None:
         if importer_registry is None:
             importer_registry = DagImporterRegistry.from_config(
-                bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.get("importers")
+                bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.importers
             )
-        team_name = msg.bundle_config.get("team_name")
-    else:
-        importer_registry = None
+        team_name = msg.bundle_config.team_name
 
     bag = BundleDagBag(
         dag_folder=msg.file,
@@ -828,7 +826,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
-        bundle_config: dict[str, Any] | None = None,
+        bundle_config: BundleParseContext | None = None,
         importer_registry: DagImporterRegistry | None = None,
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
@@ -869,7 +867,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_path: Path,
         bundle_name: str,
         *,
-        bundle_config: dict[str, Any] | None = None,
+        bundle_config: BundleParseContext | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),

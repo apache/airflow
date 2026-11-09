@@ -27,7 +27,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_token_command
-from airflow.dag_processing.bundles.manager import _get_cached_bundle_config_snapshot
+from airflow.dag_processing.bundles.manager import _get_bundle_config_source
 
 from tests_common.test_utils.config import conf_vars
 
@@ -56,9 +56,9 @@ def provisioning_config():
             ("core", "load_examples"): "False",
         }
     ):
-        _get_cached_bundle_config_snapshot.cache_clear()
+        _get_bundle_config_source.cache_clear()
         yield
-    _get_cached_bundle_config_snapshot.cache_clear()
+    _get_bundle_config_source.cache_clear()
 
 
 class TestDagProcessorTokenCommand:

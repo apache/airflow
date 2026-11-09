@@ -100,13 +100,14 @@ from airflow.sdk.importers import (
     get_importer_registry,
 )
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.serialization.definitions.notset import NOTSET
 from airflow.typing_compat import assert_never
 from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.process_utils import kill_child_processes_by_pids
+from airflow.utils.process_utils import (
+    kill_child_processes_by_pids,
+)
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -486,10 +487,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        manager = self._dag_bundle_manager
-        bundles = list(manager.get_all_dag_bundles())
-        self._bundle_importer_registries.clear()
-        return bundles
+        return list(self._dag_bundle_manager.get_all_dag_bundles())
 
     def run(self):
         """
@@ -543,7 +541,7 @@ class DagFileProcessorManager(LoggingMixin):
             return self._bundle_importer_registries[bundle_name]
         if not is_bundle_config_reload_enabled():
             return get_importer_registry(bundle_name)
-        importers = self._dag_bundle_manager.get_bundle_parse_config(bundle_name)["importers"]
+        importers = self._dag_bundle_manager.get_bundle_parse_context(bundle_name).importers
         registry = DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=importers)
         self._bundle_importer_registries[bundle_name] = registry
         return registry
@@ -2351,34 +2349,37 @@ class DagFileProcessorManager(LoggingMixin):
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
 
         importer_registry = self._bundle_importer_registries.get(dag_file.bundle_name)
-        native = get_claiming_importer(
-            dag_file.absolute_path,
-            dag_file.bundle_name,
-            registry=importer_registry,
-        )
         bundle_config = None
         if is_bundle_config_reload_enabled():
-            bundle_config = self._dag_bundle_manager.get_bundle_parse_config(dag_file.bundle_name)
+            bundle_config = self._dag_bundle_manager.get_bundle_parse_context(dag_file.bundle_name)
 
-        start_process: Callable[..., BaseDagFileProcessorProcess]
-        if native is not None:
-            start_process = functools.partial(
-                LangSDKDagFileProcessorProcess.start,
-                team_name=bundle_config["team_name"] if bundle_config is not None else NOTSET,
+        if (
+            get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name, registry=importer_registry)
+            is not None
+        ):
+            return LangSDKDagFileProcessorProcess.start(
+                id=id,
+                path=dag_file.absolute_path,
+                bundle_path=cast("Path", dag_file.bundle_path),
+                bundle_name=dag_file.bundle_name,
+                dag_file_rel_path=str(dag_file.rel_path),
+                selector=self.selector,
+                logger=logger,
+                logger_filehandle=logger_filehandle,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                client=self.client,
+                bundle_config=bundle_config,
+                importer_registry=importer_registry,
+                parse_source=source,
             )
-        else:
-            start_process = functools.partial(
-                DagFileProcessorProcess.start, callbacks=callback_to_execute_for_file
-            )
-            if bundle_config is None:
-                importer_registry = None
 
-        return start_process(
+        return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
             bundle_name=dag_file.bundle_name,
             dag_file_rel_path=str(dag_file.rel_path),
+            callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,

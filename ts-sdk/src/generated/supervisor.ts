@@ -82,6 +82,7 @@ export type Version = string | null;
 export type VersionData = {
   [k: string]: unknown;
 } | null;
+export type TeamName = string | null;
 export type Name5 = string;
 export type Type6 = "ClearAssetStateStoreByName";
 export type Uri3 = string;
@@ -182,7 +183,7 @@ export type ConsumedAssetEvents = AssetEventDagRunReference[];
 export type PartitionKey3 = string | null;
 export type PartitionDate = string | null;
 export type Note = string | null;
-export type TeamName = string | null;
+export type TeamName1 = string | null;
 export type Id2 = string;
 export type TaskId = string;
 export type DagId3 = string;
@@ -202,9 +203,6 @@ export type Type12 = "DagCallbackRequest";
 export type File = string;
 export type BundlePath = string;
 export type BundleName1 = string;
-export type BundleConfig = {
-  [k: string]: unknown;
-} | null;
 export type Filepath1 = string;
 export type BundleName2 = string;
 export type BundleVersion1 = string | null;
@@ -327,7 +325,7 @@ export type ConsumedAssetEvents1 = AssetEventDagRunReference[];
 export type PartitionKey4 = string | null;
 export type PartitionDate1 = string | null;
 export type Note1 = string | null;
-export type TeamName1 = string | null;
+export type TeamName2 = string | null;
 export type Type18 = "DagRunResult";
 export type Type19 = "DagRunStateResult";
 export type State2 = "deferred";
@@ -826,6 +824,19 @@ export interface BundleInfo {
   version_data?: VersionData;
 }
 /**
+ * The accepted settings that the files of a Dag bundle are parsed with.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "BundleParseContext".
+ */
+export interface BundleParseContext {
+  importers?: Importers;
+  team_name?: TeamName;
+}
+export interface Importers {
+  [k: string]: unknown;
+}
+/**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "ClearAssetStateStoreByName".
  */
@@ -969,7 +980,7 @@ export interface DagRun {
   partition_key: PartitionKey3;
   partition_date?: PartitionDate;
   note?: Note;
-  team_name?: TeamName;
+  team_name?: TeamName1;
 }
 /**
  * Schema for AssetEvent model used in DagRun.
@@ -1038,7 +1049,7 @@ export interface DagFileParseRequest {
   file: File;
   bundle_path: BundlePath;
   bundle_name: BundleName1;
-  bundle_config?: BundleConfig;
+  bundle_config?: BundleParseContext | null;
   callback_requests?: CallbackRequests;
   type?: Type15;
 }
@@ -1246,7 +1257,7 @@ export interface DagRunResult {
   partition_key: PartitionKey4;
   partition_date?: PartitionDate1;
   note?: Note1;
-  team_name?: TeamName1;
+  team_name?: TeamName2;
   type?: Type18;
 }
 /**

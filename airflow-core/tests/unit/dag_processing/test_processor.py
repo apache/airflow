@@ -55,6 +55,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.dag_processing.api_client import DagProcessorAPIClient
+from airflow.dag_processing.bundles.base import BundleParseContext
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
@@ -559,11 +560,11 @@ def test_parser_uses_accepted_importers_and_team_when_source_is_unavailable(
     use_exec, team_name, tmp_path, monkeypatch, mocker, inprocess_client
 ):
     monkeypatch.setattr(supervisor, "_should_use_exec", lambda: use_exec)
-    config = {
-        "importers": [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}],
-        "team_name": team_name,
-    }
-    registry = DagImporterRegistry.from_config("payments", bundle_importers=config["importers"])
+    config = BundleParseContext(
+        importers=[{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}],
+        team_name=team_name,
+    )
+    registry = DagImporterRegistry.from_config("payments", bundle_importers=config.importers)
     registry.warm_importers()
     mocker.patch.object(
         DagImporterRegistry,

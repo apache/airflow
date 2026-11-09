@@ -26,7 +26,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast
 
 import attrs
 import msgspec
@@ -36,6 +36,7 @@ from uuid6 import uuid7
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleParseContext  # noqa: TC001
 from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_executor_fields
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.processor import (
@@ -57,7 +58,6 @@ from airflow.sdk.execution_time.supervisor import (
     register_request_method,
 )
 from airflow.sdk.importers import DagImporterRegistry, DagSourceCode, FilesystemDagDefinition
-from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
@@ -88,7 +88,7 @@ class StartLangSDKRuntime(BaseModel):
     bundle_path: Path
     bundle_name: str
     dag_file_rel_path: str
-    bundle_config: dict[str, Any] | None = None
+    bundle_config: BundleParseContext | None = None
     comm_address: tuple[str, int]
     logs_address: tuple[str, int]
     type: Literal["StartLangSDKRuntime"] = "StartLangSDKRuntime"
@@ -138,7 +138,7 @@ def _start_runtime_entrypoint(*, importer_registry: DagImporterRegistry | None =
         import_timeout = _get_import_timeout(msg.file)
         if msg.bundle_config is not None and importer_registry is None:
             importer_registry = DagImporterRegistry.from_config(
-                bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.get("importers")
+                bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.importers
             )
         if (importer := get_claiming_importer(msg.file, msg.bundle_name, registry=importer_registry)) is None:
             raise RuntimeError(f"No coordinator Dag importer claims {msg.file}")
@@ -176,7 +176,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
 
     decoder: ClassVar[TypeAdapter[LangSDKToManager]] = TypeAdapter[LangSDKToManager](LangSDKToManager)
 
-    team_name: str | None | ArgNotSet = NOTSET
+    bundle_config: BundleParseContext | None = None
     importer_registry: DagImporterRegistry | None = None
 
     _listeners: dict[_Channel, socket]
@@ -196,8 +196,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_path: Path,
         bundle_name: str,
         dag_file_rel_path: str,
-        bundle_config: dict[str, Any] | None = None,
-        team_name: str | None | ArgNotSet = NOTSET,
+        bundle_config: BundleParseContext | None = None,
         importer_registry: DagImporterRegistry | None = None,
         **kwargs,
     ) -> Self:
@@ -220,7 +219,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
                 dag_file_rel_path=dag_file_rel_path,
                 listeners=listeners,
                 parse_request=parse_request,
-                team_name=team_name,
+                bundle_config=bundle_config,
                 importer_registry=importer_registry,
                 **kwargs,
             )
@@ -479,7 +478,10 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
 
         :raises UnknownExecutorException: if a task's executor is not available to the team or globally.
         """
-        team_name = self.team_name if is_arg_set(self.team_name) else _get_bundle_team_name(self.bundle_name)
+        if self.bundle_config is not None:
+            team_name = self.bundle_config.team_name
+        else:
+            team_name = _get_bundle_team_name(self.bundle_name)
         _validate_executor_fields(dag, self.bundle_name, team_name=team_name)
         if not team_name:
             return

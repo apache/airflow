@@ -67,9 +67,14 @@ from airflow.dag_processing.api_client import (
     DagProcessorAPIClient,
     DagProcessorSecretsComms,
 )
-from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion, DagBundleRefreshError
+from airflow.dag_processing.bundles.base import (
+    BaseDagBundle,
+    BundleParseContext,
+    BundleVersion,
+    DagBundleRefreshError,
+)
 from airflow.dag_processing.bundles.local import LocalDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _get_cached_bundle_config_snapshot
+from airflow.dag_processing.bundles.manager import DagBundlesManager, _get_bundle_config_source
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -616,10 +621,8 @@ class TestDagFileProcessorManager:
             )
             mock_start.assert_called_once()
             kwargs = mock_start.call_args.kwargs
-            assert kwargs["bundle_config"] == {"importers": None, "team_name": "team-a"}
+            assert kwargs["bundle_config"] == BundleParseContext(team_name="team-a")
             assert kwargs["importer_registry"] is processor._get_importer_registry("bundle-a")
-            if native:
-                assert kwargs["team_name"] == "team-a"
             assert processor._dag_bundle_manager.get_bundle("bundle-a").path == bundle_path
             assert "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" not in os.environ
 
@@ -658,7 +661,7 @@ class TestDagFileProcessorManager:
             file = DagFileInfo(bundle_name="bundle-a", bundle_path=tmp_path, rel_path=Path("dag.py"))
             for _ in range(2):
                 processor._create_process(file, source=DagParseSource())
-                assert mock_start.call_args.kwargs["bundle_config"]["team_name"] == "team-a"
+                assert mock_start.call_args.kwargs["bundle_config"].team_name == "team-a"
                 processor._reconcile_bundles(known_files={})
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").teams[0].name == "team-a"
@@ -711,6 +714,32 @@ class TestDagFileProcessorManager:
                 if remove_all:
                     assert session.get(DagBundleModel, "bundle-b").active is bool(bundle_names_to_parse)
             assert [bundle.name for bundle in processor._dag_bundles] == ([] if remove_all else ["bundle-b"])
+
+    def test_startup_parses_only_synced_bundles(self, tmp_path):
+        configs = [
+            {
+                "name": f"bundle-{name}",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(tmp_path / name)},
+            }
+            for name in ("a", "b")
+        ]
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(json.dumps(configs[:1]))
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                ("dag_processor", "bundle_refresh_check_interval"): "0",
+            }
+        ):
+            processor = DagFileProcessorManager(max_runs=1)
+            processor.sync_bundles()
+            config_file.write_text(json.dumps(configs))
+            processor.load_dag_bundles()
+            assert [bundle.name for bundle in processor._dag_bundles] == ["bundle-a"]
+            with create_session() as session:
+                assert session.get(DagBundleModel, "bundle-b") is None
 
     def mock_processor(self, start_time: float | None = None) -> tuple[DagFileProcessorProcess, socket]:
         proc = MagicMock()
@@ -7500,9 +7529,9 @@ class TestDagFileProcessorManagerWithAPIClient:
                 ("core", "load_examples"): "False",
             }
         ):
-            _get_cached_bundle_config_snapshot.cache_clear()
+            _get_bundle_config_source.cache_clear()
             yield
-        _get_cached_bundle_config_snapshot.cache_clear()
+        _get_bundle_config_source.cache_clear()
 
     @staticmethod
     def _get_connection_bundles(api_requests: list[httpx2.Request]) -> list[str]:

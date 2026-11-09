@@ -455,6 +455,29 @@
       "title": "BundleInfo",
       "type": "object"
     },
+    "BundleParseContext": {
+      "description": "The accepted settings that the files of a Dag bundle are parsed with.",
+      "properties": {
+        "importers": {
+          "default": null,
+          "title": "Importers"
+        },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        }
+      },
+      "title": "BundleParseContext",
+      "type": "object"
+    },
     "ClearAssetStateStoreByName": {
       "properties": {
         "name": {
@@ -936,15 +959,13 @@
         "bundle_config": {
           "anyOf": [
             {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/$defs/BundleParseContext"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Bundle Config"
+          "default": null
         },
         "callback_requests": {
           "items": {

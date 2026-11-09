@@ -55,8 +55,8 @@ def get_bundle_importer_registry(bundle_name: str) -> DagImporterRegistry:
     """Use accepted bundle settings for worker importer discovery when reload is enabled."""
     if not is_bundle_config_reload_enabled():
         return get_importer_registry(bundle_name)
-    config = DagBundlesManager().get_bundle_parse_config(bundle_name)
-    return DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=config["importers"])
+    importers = DagBundlesManager().get_bundle_parse_context(bundle_name).importers
+    return DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=importers)
 
 
 def initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
