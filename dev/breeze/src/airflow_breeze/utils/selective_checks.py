@@ -205,6 +205,7 @@ class FileGroupForCi(Enum):
     DOCS_PUBLISH_FILES = auto()
     SHARED_DISTRIBUTION_FILES = auto()
     UI_I18N_FILES = auto()
+    COMPAT_TESTS_HIDDEN_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -722,6 +723,17 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.UI_I18N_FILES: [
             r"^airflow-core/src/airflow/ui/public/i18n/",
+        ],
+        # The provider compatibility tests install the released Airflow and Task SDK from PyPI and run with
+        # the two source trees hidden (scripts/ci/docker-compose/remove-sources.yml). They do not collect the
+        # Task SDK tests or read these docs. On the host, Breeze reads the version files and non-Python files
+        # of the source trees, and prek reads any nested config, so the docs match by document type only.
+        FileGroupForCi.COMPAT_TESTS_HIDDEN_FILES: [
+            r"^airflow-core/src/(?!airflow/__init__\.py$).*\.py$",
+            r"^task-sdk/src/(?!airflow/sdk/__init__\.py$).*\.py$",
+            r"^task-sdk/tests/.*\.py$",
+            r"^(airflow-core|task-sdk)/docs/.*\.(rst|md|txt|png|gif|svg|jpe?g|puml|md5sum|csv)$",
+            r"^airflow-core/newsfragments/[^/]+\.rst$",
         ],
     }
 )
@@ -2695,6 +2707,24 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_providers_compatibility_tests(self) -> bool:
+        """False when every changed file is hidden from the provider compatibility tests.
+
+        A Task SDK change selects all providers, but the compatibility tests run them against released
+        Airflow and Task SDK distributions, so the result cannot differ from the last canary run.
+        """
+        if self.full_tests_needed or self.upgrade_to_newer_dependencies:
+            return True
+        hidden_files = self._matching_files(FileGroupForCi.COMPAT_TESTS_HIDDEN_FILES, CI_FILE_GROUP_MATCHES)
+        if self._files and set(hidden_files) == set(self._files):
+            console_print(
+                "[warning]Provider compatibility tests skipped: every changed file is hidden from them[/]"
+            )
+            return False
+        return True
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:

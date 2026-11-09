@@ -6286,3 +6286,74 @@ def test_image_rebuild_check_files_select_the_image_build_time_check():
         assert any(re.match(regexp, file) for group in groups for regexp in CI_FILE_GROUP_MATCHES[group]), (
             file
         )
+
+
+TASK_SDK_SOURCE = "task-sdk/src/airflow/sdk/bases/operator.py"
+
+
+@pytest.mark.parametrize(
+    ("files", "pr_labels", "expected"),
+    [
+        pytest.param((TASK_SDK_SOURCE,), (), False, id="task-sdk-source"),
+        pytest.param(
+            ("task-sdk/tests/task_sdk/bases/test_operator.py", "airflow-core/src/airflow/models/dag.py"),
+            (),
+            False,
+            id="task-sdk-tests-and-core-source",
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "task-sdk/docs/index.rst", "airflow-core/newsfragments/12345.significant.rst"),
+            (),
+            False,
+            id="task-sdk-source-and-docs",
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "airflow-core/docs/img/diagram_task_lifecycle.png"),
+            (),
+            False,
+            id="task-sdk-source-and-core-docs-image",
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "airflow-core/docs/.pre-commit-config.yaml"), (), True, id="config-in-docs"
+        ),
+        pytest.param(("task-sdk/src/airflow/sdk/__init__.py",), (), True, id="task-sdk-version-file"),
+        pytest.param(
+            (TASK_SDK_SOURCE, "airflow-core/src/airflow/__init__.py"), (), True, id="airflow-version-file"
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "airflow-core/src/airflow/provider_info.schema.json"),
+            (),
+            True,
+            id="non-python-core-source",
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "shared/module_loading/src/airflow_shared/module_loading/__init__.py"),
+            (),
+            True,
+            id="shared-distribution",
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "airflow-core/tests/unit/models/test_dag.py"), (), True, id="core-tests"
+        ),
+        pytest.param(
+            (TASK_SDK_SOURCE, "providers/http/src/airflow/providers/http/hooks/http.py"),
+            (),
+            True,
+            id="provider-source",
+        ),
+        pytest.param((TASK_SDK_SOURCE,), ("full tests needed",), True, id="full-tests-label"),
+        pytest.param((TASK_SDK_SOURCE,), ("upgrade to newer dependencies",), True, id="upgrade-label"),
+    ],
+)
+def test_provider_compatibility_tests_skip_only_changes_hidden_from_them(
+    files: tuple[str, ...], pr_labels: tuple[str, ...], expected: bool
+):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+        default_branch="main",
+    )
+    assert checks.skip_providers_tests is False
+    assert checks.run_providers_compatibility_tests is expected
