@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import marshal
 import tempfile
@@ -226,11 +227,14 @@ def _load_artifact(
             feature_data = item["features"]
             feature_order = item.get("feature_order", list(feature_data))
             features = Features.from_dict({key: feature_data[key] for key in feature_order})
-            restored = Dataset.from_parquet(
-                str(local_path),
-                features=features,
-                cache_dir=resolved_cache_dir,
-            )
+            if item.get("rows") == 0:
+                restored = Dataset.from_dict({key: [] for key in features}, features=features)
+            else:
+                restored = Dataset.from_parquet(
+                    str(local_path),
+                    features=features,
+                    cache_dir=resolved_cache_dir,
+                )
             # Parquet readers may return fields in physical/file order; restore the
             # manifest's declared feature order for stable downstream transforms.
             parts[name] = restored.select_columns(list(features))
@@ -281,8 +285,32 @@ def _commit_details(commit: Any, repo_id: str, hook: HuggingFaceHook) -> tuple[s
 
 
 def _is_hub_repo(path: str) -> bool:
-    """Match a Hub dataset repo ID without treating an existing local path as remote."""
-    return path.count("/") == 1 and not path.startswith((".", "/")) and not Path(path).exists()
+    """Treat non-local paths as Hub IDs unless they name a packaged builder."""
+    if Path(path).exists():
+        return False
+    if "/" in path:
+        return True
+    try:
+        return importlib.util.find_spec(f"datasets.packaged_modules.{path}") is None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return True
+
+
+def _publication_outlets(
+    repo_id: str, outlets: Any, push_kwargs: dict[str, Any]
+) -> tuple[Asset | None, list[Any]]:
+    declared_outlets = list(outlets) if isinstance(outlets, (list, tuple)) else ([outlets] if outlets else [])
+    if push_kwargs.get("create_pr") or push_kwargs.get("revision", "main") not in (None, "main"):
+        return None, declared_outlets
+
+    asset_uri = f"hf://datasets/{repo_id}"
+    existing_asset = next(
+        (outlet for outlet in declared_outlets if getattr(outlet, "uri", None) == asset_uri), None
+    )
+    asset = existing_asset or Asset(uri=asset_uri)
+    if existing_asset is None:
+        declared_outlets.append(asset)
+    return asset, declared_outlets
 
 
 class LoadDatasetOperator(BaseOperator):
@@ -356,6 +384,22 @@ class StreamDatasetOperator(BaseOperator):
 
     template_fields = ("path", "name", "split", "revision", "config", "commit_message")
 
+    @classmethod
+    def partial(cls, **kwargs: Any) -> Any:
+        repo_id = kwargs.get("repo_id")
+        if not isinstance(repo_id, str):
+            raise ValueError(
+                "repo_id must be fixed in partial() so its publication asset is known at Dag parse time"
+            )
+        if "{{" in repo_id:
+            raise ValueError(
+                "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
+            )
+        _, kwargs["outlets"] = _publication_outlets(
+            repo_id, kwargs.get("outlets"), kwargs.get("push_kwargs") or {}
+        )
+        return super().partial(**kwargs)
+
     def __init__(
         self,
         *,
@@ -391,13 +435,10 @@ class StreamDatasetOperator(BaseOperator):
         self.push_kwargs = push_kwargs or {}
         self.huggingface_conn_id = huggingface_conn_id
         self.durable = durable
-        self.published_asset = Asset(uri=f"hf://datasets/{repo_id}")
-        user_outlets = kwargs.pop("outlets", None)
-        if user_outlets is None:
-            user_outlets = []
-        elif not isinstance(user_outlets, (list, tuple)):
-            user_outlets = [user_outlets]
-        super().__init__(outlets=[*user_outlets, self.published_asset], **kwargs)
+        self.published_asset, declared_outlets = _publication_outlets(
+            repo_id, kwargs.pop("outlets", None), self.push_kwargs
+        )
+        super().__init__(outlets=declared_outlets, **kwargs)
 
     def execute(self, context: Context) -> dict[str, Any]:
         hook = HuggingFaceHook(self.huggingface_conn_id)
@@ -524,7 +565,7 @@ class StreamDatasetOperator(BaseOperator):
 
     def _emit_asset_event(self, context: Context, publication: dict[str, Any]) -> None:
         events = context.get("outlet_events")
-        if events is not None:
+        if events is not None and self.published_asset is not None:
             events[self.published_asset].extra = {
                 "repository_id": self.repo_id,
                 "commit_sha": publication["commit_sha"],
@@ -580,6 +621,22 @@ class PushToHubOperator(BaseOperator):
 
     template_fields = ("input_uri", "config", "commit_message")
 
+    @classmethod
+    def partial(cls, **kwargs: Any) -> Any:
+        repo_id = kwargs.get("repo_id")
+        if not isinstance(repo_id, str):
+            raise ValueError(
+                "repo_id must be fixed in partial() so its publication asset is known at Dag parse time"
+            )
+        if "{{" in repo_id:
+            raise ValueError(
+                "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
+            )
+        _, kwargs["outlets"] = _publication_outlets(
+            repo_id, kwargs.get("outlets"), kwargs.get("push_kwargs") or {}
+        )
+        return super().partial(**kwargs)
+
     def __init__(
         self,
         *,
@@ -603,13 +660,10 @@ class PushToHubOperator(BaseOperator):
         self.huggingface_conn_id, self.push_kwargs = huggingface_conn_id, push_kwargs or {}
         self.storage_conn_id = storage_conn_id
         self.durable = durable
-        self.published_asset = Asset(uri=f"hf://datasets/{repo_id}")
-        user_outlets = kwargs.pop("outlets", None)
-        if user_outlets is None:
-            user_outlets = []
-        elif not isinstance(user_outlets, (list, tuple)):
-            user_outlets = [user_outlets]
-        super().__init__(outlets=[*user_outlets, self.published_asset], **kwargs)
+        self.published_asset, declared_outlets = _publication_outlets(
+            repo_id, kwargs.pop("outlets", None), self.push_kwargs
+        )
+        super().__init__(outlets=declared_outlets, **kwargs)
 
     def execute(self, context: Context) -> dict[str, Any]:
         source = self.input_uri if isinstance(self.input_uri, dict) else {}
@@ -698,7 +752,7 @@ class PushToHubOperator(BaseOperator):
 
     def _emit_asset_event(self, context: Context, publication: dict[str, Any]) -> None:
         events = context.get("outlet_events")
-        if events is not None:
+        if events is not None and self.published_asset is not None:
             events[self.published_asset].extra = {
                 "repository_id": self.repo_id,
                 "commit_sha": publication["commit_sha"],

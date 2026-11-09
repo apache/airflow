@@ -37,6 +37,8 @@ whitelist before writing: only ``Value`` and ``ClassLabel`` features,
 recursively nested in ``Sequence``, list/tuple, and dictionary structures,
 are supported. ``Image``, ``Audio``, ``Video``, ``Array2D`` and other array
 features, and every other feature class are rejected with ``ValueError``.
+Empty splits are restored from their declared feature schema, since some
+Datasets versions cannot read zero-row Parquet files with ``from_parquet``.
 
 The format is designed for ``file://``, ``s3://``, and ``gs://`` paths through
 Airflow ``ObjectStoragePath``. Remote schemes need their matching Airflow

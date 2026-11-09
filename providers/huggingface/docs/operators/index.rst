@@ -37,7 +37,10 @@ differs between supported Airflow versions. It
 persists the result and returns the
 artifact URI plus source ID, resolved revision, configuration, split, row
 counts, and feature descriptions. It resolves a Hub source to a commit before
-loading; pin a commit SHA in ``revision`` for reproducible inputs.
+loading; pin a commit SHA in ``revision`` for reproducible inputs. Unnamespaced
+IDs such as ``imdb`` are treated as Hub repositories unless they name an
+existing local path or a packaged Datasets builder such as ``csv`` or
+``parquet``.
 
 With ``durable=True``, the operator stores the resolved source revision in
 Airflow's task state store so retries use the same Hub commit. Set it to
@@ -104,6 +107,13 @@ branch or pull request refs only when task state says a prior attempt may have
 started a push. Recovery accepts the latest commit on the target ref only when
 it carries this marker and has no multipart suffix. Intermediate upload parts
 and older historical commits do not count as completed publication.
+Mapping is supported when ``repo_id`` is fixed in ``partial()``; the mapped
+Dag then declares the same repository-level asset as an ordinary task. A
+``repo_id`` supplied through ``expand()`` is not supported because the asset
+must be known when the Dag is serialized. Pull request publications and pushes
+to revisions other than ``main`` do not emit this repo-level asset event,
+because it would schedule consumers against ``main`` rather than the published
+revision.
 
 Execution proceeds in this order:
 
@@ -186,7 +196,9 @@ after the branch has advanced. The task
 emits an asset event with the same commit SHA and URL only after successful
 publication. Publication uses Datasets ``push_to_hub``, which rewrites the
 README's YAML card metadata, including ``dataset_info`` and ``configs``, in the
-push commit.
+push commit. Only a publication to ``main`` without ``create_pr`` emits the
+repo-level asset event; pull request and non-main revision pushes do not change
+the revision referenced by ``hf://datasets/<repo_id>``.
 
 Example
 -------
