@@ -1262,7 +1262,7 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_pushes_nested_models_as_instances_without_the_worker_walk(
+    def test_execute_pushes_nested_models_as_dicts_without_the_worker_walk(
         self, mock_hook_cls, make_mock_run_result, output_type
     ):
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
@@ -1274,8 +1274,8 @@ class TestAgentOperatorExecute:
 
         result = op.execute(context=MagicMock())
 
-        assert result == [Summary(text="ok")]
-        assert type(result[0]) is Summary
+        assert result == [{"text": "ok", "score": 0.0}]
+        assert type(result[0]) is dict
 
     @pytest.mark.parametrize(
         ("output_type", "output", "serialize_output"),

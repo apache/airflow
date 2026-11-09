@@ -55,11 +55,10 @@ def is_model_dump_required(output: Any, output_type: Any) -> bool:
     registered the model's class, and the worker registers the classes ``iter_pydantic_models`` finds in
     ``output_type``. It finds none in a list of output types, an output marker, an output function, a
     ``TypeAliasType`` or a ``NewType``, so an instance of a class it did not find is dumped. Without
-    ``iter_pydantic_models`` there is no evidence that a class is unregistered, so nothing is dumped.
+    ``iter_pydantic_models`` (Airflow < 3.3 or an older task-sdk) the worker registers no class, so every
+    model in the output counts as unregistered and is dumped.
     """
-    if iter_pydantic_models is None:
-        return False
-    registered = set(iter_pydantic_models(output_type))
+    registered = set() if iter_pydantic_models is None else set(iter_pydantic_models(output_type))
     return any(type(model) not in registered for model in _iter_models_in_output(output))
 
 

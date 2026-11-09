@@ -257,8 +257,10 @@ class TestIsModelDumpRequired:
         assert result is expected
 
     @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
-    def test_is_false_without_the_sdk_walker(self):
-        assert is_model_dump_required(A(x=1), [A, int]) is False
+    def test_requires_a_dump_without_the_sdk_walker(self):
+        assert is_model_dump_required(A(x=1), [A, int]) is True
+        assert is_model_dump_required([A(x=1)], list[A]) is True
+        assert is_model_dump_required(5, list[A]) is False
 
 
 class TestIsModelDumpRequiredForContainerOutputs:
@@ -350,11 +352,14 @@ class TestDumpOutputForXcom:
         assert dumped == json.loads(dump_output_to_json(model))
 
     @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
-    def test_keeps_a_container_without_the_sdk_walker(self):
+    def test_dumps_a_container_without_the_sdk_walker(self):
         output = [A(x=1)]
 
-        assert dump_output_for_xcom(output, list[A], serialize_output=True) is output
-        assert dump_output_for_xcom(output, list[A], serialize_output=False) is output
+        for serialize_output in (True, False):
+            dumped = dump_output_for_xcom(output, list[A], serialize_output=serialize_output)
+
+            assert dumped == [{"x": 1}]
+            assert dumped is not output
 
     def test_serialize_output_keeps_python_field_types(self):
         dumped = dump_output_for_xcom(STAMPED, Stamped, serialize_output=True)
