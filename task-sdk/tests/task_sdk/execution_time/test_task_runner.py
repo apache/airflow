@@ -204,6 +204,7 @@ from airflow.sdk.execution_time.task_runner import (
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.importers import DagSourceCode
 from airflow.sdk.serde import deserialize
+from airflow.sdk.state import BaseStoreBackend
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.callback import CallbackTrigger
 from airflow.triggers.testing import SuccessTrigger
@@ -7520,38 +7521,135 @@ class TestTaskInstanceStateOperations:
         ]
         assert ClearTaskStateStore not in sent_types
 
+    @staticmethod
+    @contextlib.contextmanager
+    def _patch_state_backend(backend):
+        # Both modules resolve the backend independently, so both lookups need patching.
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=backend,
+            ),
+        ):
+            yield backend
+
+    @staticmethod
+    def _run_and_finalize(runtime_ti, log):
+        # The clear lives at the tail of finalize(), so run() alone would not reach it.
+        context = runtime_ti.get_template_context()
+        state, msg, error = run(runtime_ti, context=context, log=log)
+        finalize(runtime_ti, state, context, log, error)
+        return state, msg, error
+
     @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_clears_backend_without_comms_roundtrip(
-        self, create_runtime_ti, mock_supervisor_comms
-    ):
-        """clear_on_success calls backend.clear() directly without sending ClearTaskStateStore comms."""
-        mock_backend = mock.MagicMock()
+    def test_clear_on_success_clears_db_refs_before_backend(self, create_runtime_ti, mock_supervisor_comms):
+        """clear_on_success sends ClearTaskStateStore before deleting from the backend."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        order = []
+        mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
+        backend.clear.side_effect = lambda *a, **kw: order.append("clear")
 
         class MyOperator(BaseOperator):
             def execute(self, context):
                 pass
 
-        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+
+        with self._patch_state_backend(backend):
+            self._run_and_finalize(runtime_ti, mock.MagicMock())
+
+        backend.clear.assert_called_once()
+        assert order.index("ClearTaskStateStore") < order.index("clear")
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_runs_after_success_is_reported(self, create_runtime_ti, mock_supervisor_comms):
+        """The backend is cleared only after SucceedTask is reported and the success callbacks have run."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        order = []
+        mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
+        backend.clear.side_effect = lambda *a, **kw: order.append("clear")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t", on_success_callback=lambda context: order.append("callback"))
         runtime_ti = create_runtime_ti(task=task)
 
-        with (
-            mock.patch(
-                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
-                return_value=mock_backend,
-            ),
-            mock.patch(
-                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
-                return_value=mock_backend,
-            ),
-        ):
-            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+        with self._patch_state_backend(backend):
+            state, _, _ = self._run_and_finalize(runtime_ti, mock.MagicMock())
 
-        mock_backend.clear.assert_called_once()
-        sent_types = [
-            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
-            for call in mock_supervisor_comms.send.call_args_list
-        ]
-        assert ClearTaskStateStore not in sent_types
+        assert state == TaskInstanceState.SUCCESS
+        assert order.index("SucceedTask") < order.index("callback") < order.index("clear")
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_failure_does_not_fail_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        """A backend that cannot be cleared leaves the task successful and logs where the orphans are."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        backend.clear.side_effect = ConnectionError("object storage is down")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+        log = mock.MagicMock()
+
+        with self._patch_state_backend(backend):
+            state, msg, error = self._run_and_finalize(runtime_ti, log)
+
+        backend.clear.assert_called_once()
+        assert state == TaskInstanceState.SUCCESS
+        assert error is None
+        assert isinstance(msg, SucceedTask)
+        assert runtime_ti._terminal_state_send_failed is False
+        log.exception.assert_called_once()
+        scope = runtime_ti.get_template_context()["task_state_store"]._scope
+        log.info.assert_any_call(
+            "Clearing task state as clear_on_success is enabled.",
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            region_id=str(scope.region_id),
+            region_index=scope.region_index,
+        )
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    @pytest.mark.parametrize("outcome", ["task_raised", "success_send_raised"])
+    def test_clear_on_success_skipped_when_success_was_not_delivered(
+        self, outcome, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A task that did not report success keeps its state, so its retry can resume from it."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                if outcome == "task_raised":
+                    raise RuntimeError("training blew up")
+
+        if outcome == "success_send_raised":
+
+            def send(msg, **kwargs):
+                if isinstance(msg, SucceedTask):
+                    raise ConnectionError("supervisor socket gone")
+                return None
+
+            mock_supervisor_comms.send.side_effect = send
+
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+
+        with self._patch_state_backend(backend):
+            state, _, _ = self._run_and_finalize(runtime_ti, mock.MagicMock())
+
+        assert state == (
+            TaskInstanceState.SUCCESS if outcome == "success_send_raised" else TaskInstanceState.FAILED
+        )
+        assert runtime_ti._state_store_clear_owed is False
+        backend.clear.assert_not_called()
 
 
 class _WalkerModelA(BaseModel):
