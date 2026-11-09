@@ -31,7 +31,7 @@ import kubernetes
 import pytest
 import pytest_asyncio
 import yaml
-from aiohttp import ClientConnectionError
+from aiohttp import ClientPayloadError, ServerDisconnectedError
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
@@ -1667,7 +1667,9 @@ class TestAsyncKubernetesHook:
         "exception",
         [
             pytest.param(async_client.ApiException(status=503), id="transient_status"),
-            pytest.param(ClientConnectionError("socket reset"), id="dropped_connection"),
+            pytest.param(ServerDisconnectedError("before headers"), id="dropped_connection"),
+            pytest.param(ClientPayloadError("stream truncated"), id="truncated_payload"),
+            pytest.param(TimeoutError("read timeout"), id="half_open_connection"),
         ],
     )
     @mock.patch(HOOK_MODULE + ".asyncio.sleep", new_callable=mock.AsyncMock)
