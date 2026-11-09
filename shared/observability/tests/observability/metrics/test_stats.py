@@ -732,16 +732,17 @@ class TestLegacyExport:
             tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
 
-    def test_gauge_emits_both_when_legacy_name_exists(self, mock_backend):
+    @pytest.mark.parametrize("stat", ["ti.scheduled", "ti.awaiting_input"])
+    def test_gauge_emits_both_when_legacy_name_exists(self, mock_backend, stat):
         airflow_shared.observability.metrics.stats.gauge(
-            "ti.scheduled",
+            stat,
             42,
             tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
         )
         assert mock_backend.gauge.call_count == 2
-        mock_backend.gauge.assert_any_call("ti.scheduled.default.test_dag.test_task", 42)
+        mock_backend.gauge.assert_any_call(f"{stat}.default.test_dag.test_task", 42)
         mock_backend.gauge.assert_any_call(
-            "ti.scheduled",
+            stat,
             42,
             tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
         )
