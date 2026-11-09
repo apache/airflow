@@ -56,3 +56,53 @@ The local filesystem scheme can also be used as it's the same as file show above
 .. note::
 
   Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip, gzip and bz2 work out of the box.
+
+Reading a large value where it is stored
+----------------------------------------
+
+A value stored in object storage still travels through the task that pulls it: ``xcom_pull`` reads the file,
+deserializes it and hands the Python object over. For a large extract (a JSON array of millions of rows
+pushed by an extraction task, for example) that is unnecessary when the next step is a tool that can read the
+file itself, such as a query engine reading JSON or Parquet from object storage: the task only needs to tell it
+where the file is.
+
+``XComObjectStorageBackend.get_path`` returns that location, an :class:`~airflow.sdk.ObjectStoragePath`,
+without reading the file. In templates, the provider's ``xcom_path`` macro does the same and returns a string:
+
+.. code-block:: sql
+
+    -- flatten_invoices.sql, rendered by an SQL operator running on DuckDB
+    SELECT *
+    FROM read_json(
+        '{{ macros.common_io.xcom_path(ti, "extract_invoices") }}',
+        format = 'array'
+    )
+
+.. code-block:: python
+
+    @task
+    def extract_invoices() -> list[dict]:
+        return fetch_all_invoices()  # large: written to object storage by the backend
+
+
+    flatten = SQLExecuteQueryOperator(
+        task_id="flatten_invoices",
+        conn_id="duckdb_default",
+        sql="flatten_invoices.sql",
+    )
+    extract_invoices() >> flatten
+
+Only values written to object storage have a path, so ``xcom_objectstorage_threshold`` decides which ones do;
+a threshold of ``0`` writes every value to object storage. ``protocol=False`` returns the path without its
+scheme (``bucket/key/...`` instead of ``s3://bucket/key/...``), for a tool that is given the file system
+separately. Compression applies to the file as it does to any other value: give the reading tool the matching
+option, or leave ``xcom_objectstorage_compression`` unset for the values it reads.
+
+``get_path`` returns ``None`` when there is no such XCom or when its value is stored in the database. The macro
+raises instead, since a ``None`` rendered into a query fails later with a less helpful error:
+
+* ``TypeError`` when the configured XCom backend is not ``XComObjectStorageBackend``;
+* ``LookupError`` when there is no such XCom;
+* ``ValueError`` when the value is stored in the database (smaller than the threshold).
+
+Looking up the path requires Airflow 3.

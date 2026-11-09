@@ -116,6 +116,9 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.common.io.get_provider_info:get_provider_info"
 
+[project.entry-points."airflow.plugins"]
+common_io = "airflow.providers.common.io.plugins.common_io:CommonIOPlugin"
+
 [tool.flit.module]
 name = "airflow.providers.common.io"
 
