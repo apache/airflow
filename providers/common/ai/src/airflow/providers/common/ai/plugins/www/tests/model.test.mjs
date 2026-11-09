@@ -195,3 +195,21 @@ test("a skill badge is a button, so its details are reachable from the keyboard"
   const badge = document.querySelector('button[aria-label="About the sql-review skill"]');
   assert.equal(badge?.textContent, "sql-review");
 });
+
+test("values kept in external storage are listed by their reference instead of rendered", async (t) => {
+  const reference = "s3://aws_default@bucket/xcom/dag/run/refine.agent/0d6e.json";
+  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ value: reference }), { status: 200 }));
+  const plugin = mountPlugin(t);
+
+  await plugin.render(taskProps);
+
+  assert.deepEqual(
+    [...document.querySelectorAll("li")].map((item) => [item.firstChild.textContent, item.querySelector("code").textContent]),
+    [
+      ["Model name", reference],
+      ["Usage", reference],
+      ["Skills", reference],
+    ],
+  );
+  assert.doesNotMatch(plugin.text(), /Requests|No AI Model Info|No skills found/);
+});
