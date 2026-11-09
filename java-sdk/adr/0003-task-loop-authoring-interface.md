@@ -51,9 +51,10 @@ This ADR records the Java spelling of them, on both surfaces
    `context.loop()` is a `Loop<Object>` and `getPrevious(Metrics.class)` names the type at the read.
    `Client.getXCom` gains that same overload, so naming the type at the read is one shape across the
    surface rather than something the loop invents.
-7. **A body task's wiring method returns `LoopTaskRef<T>`.** The processor generates every wiring
-   parameter of type `XComSequence<E>` as an overloaded pair, one taking `Arg<XComSequence<E>>` and
-   one taking `LoopTaskRef<E>`, so `javac` checks whichever reading the consumer declares.
+7. **A body task's wiring method returns `LoopTaskRef<T>`.** The processor generates a wiring
+   parameter of type `XComSequence<E>` as an overloaded pair — one taking `Arg<XComSequence<E>>`, one
+   taking `LoopTaskRef<E>` — where some loop body task in the Dag returns `E`, so `javac` checks
+   whichever reading the consumer declares.
 8. **`LoopRef` carries `before` and `after`.** An order-only edge from a body ref to a task outside is
    rejected when the Dag is read.
 
@@ -283,8 +284,11 @@ public class LoopTaskRef<T> extends TaskRef<T> {}
 - **A wrong `Loop<T>` is caught when the Dag is read.** The processor knows the terminal task's return
   type, so `Loop<String>` over a `Metrics` terminal is named as an error rather than failing as a cast
   at run time. `Loop<Object>` is always accepted.
-- **The overload pair of decision 7 is generated for every `XComSequence<E>` parameter**, used or not.
-  It costs one default method and saves the author a lift at the call site.
+- **The overload pair of decision 7 is generated only where both readings exist**, that is for an
+  `XComSequence<E>` parameter whose `E` some loop body task returns. A sequence fed only by a mapped
+  task keeps the one `Arg<XComSequence<E>>` method. The narrowing is what keeps the pair from
+  multiplying: a task reading two loop sequences would otherwise need four methods and one reading
+  three would need eight, where in practice almost every such parameter has a single reading.
 - **`context.loop()` throws outside a loop**, so a task class moved out of a group fails where it was
   moved.
 - **A mapped terminal needs no second accessor.** `loop.previous` holds ADR-0016's lazy sequence when
