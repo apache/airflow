@@ -77,15 +77,21 @@ export const NavTabs = ({ tabs }: Props) => {
   // same path looking different, so the tab for the page you are on reads as inactive.
   const current = trimTrailingSlash(decodeURIComponent(pathname));
   const lastSegment = current.split("/").pop() ?? "";
-  const activeIndex = tabs.findIndex(
-    ({ matchPaths, value }) =>
-      current === trimTrailingSlash(decodeURIComponent(resolvePath(value, basePath).pathname)) ||
-      (matchPaths ?? []).includes(lastSegment),
-  );
+  const activeIndex = tabs.findIndex(({ matchPaths, value }) => {
+    const target = trimTrailingSlash(decodeURIComponent(resolvePath(value, basePath).pathname));
+
+    // A plugin's React app is mounted at "plugin/:page/*", so its tab stays active on the app's own
+    // sub-routes. Other tabs match exactly: the index tab's "" would otherwise match every page.
+    return (
+      current === target ||
+      (value.startsWith("plugin/") && current.startsWith(`${target}/`)) ||
+      (matchPaths ?? []).includes(lastSegment)
+    );
+  });
   const showLabels = containerWidth > 600;
   const getTabContent = ({ icon, label }: NavTab) => (showLabels || !Boolean(icon) ? label : icon);
   const moreLabel = showLabels ? (
-    <HStack gap={1}>
+    <HStack as="span" gap={1}>
       {translate("moreTabs")}
       <FiChevronDown />
     </HStack>
@@ -97,7 +103,7 @@ export const NavTabs = ({ tabs }: Props) => {
   // bold, as the active tab is, so a tab never grows once it is selected.
   useLayoutEffect(() => {
     const measured = [...(measureRef.current?.children ?? [])].map(
-      (child) => (child as HTMLElement).offsetWidth,
+      (child) => child.getBoundingClientRect().width,
     );
     const more = measured.pop() ?? 0;
 
@@ -112,7 +118,8 @@ export const NavTabs = ({ tabs }: Props) => {
   // stays in the row, so the page being viewed is never hidden in the menu.
   const visibleIndexes = new Set(tabs.map((_, index) => index));
 
-  if (widths.tabs.reduce((total, width) => total + width, 0) > containerWidth) {
+  // Until the panel has been measured its width is 0, and every tab would move to the menu.
+  if (containerWidth > 0 && widths.tabs.reduce((total, width) => total + width, 0) > containerWidth) {
     let available = containerWidth - widths.more - (widths.tabs[activeIndex] ?? 0);
     let isFull = false;
 
@@ -167,9 +174,12 @@ export const NavTabs = ({ tabs }: Props) => {
           </Menu.Trigger>
           <Menu.Content>
             {overflowTabs.map((tab) => (
-              <Menu.Item asChild key={tab.value} value={tab.value}>
+              // The index tabs' value is "", which the menu treats as no item, so keyboard
+              // navigation could not move off them.
+              <Menu.Item asChild key={tab.value} value={`tab:${tab.value}`}>
                 <NavLink to={{ pathname: tab.value, search: tab.search }}>
-                  {tab.icon}
+                  {/* The label names the item; a plugin icon's alt text would repeat it. */}
+                  <span aria-hidden>{tab.icon}</span>
                   {tab.label}
                 </NavLink>
               </Menu.Item>

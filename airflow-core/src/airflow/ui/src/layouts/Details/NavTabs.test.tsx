@@ -32,15 +32,20 @@ vi.mock("src/utils", async () => {
   return { ...actual, useContainerWidth: vi.fn() };
 });
 
-// Every tab, and the "More" trigger, measures 100px.
+// Every tab, and the "More" trigger, measures 100px, except a tab labelled "Wide".
 const TAB_WIDTH = 100;
+const WIDE_TAB_WIDTH = 300;
 
 const TABS: Array<NavTab> = Array.from({ length: 9 }, (_, index) => ({
   label: `Tab ${index}`,
   value: `tab${index}`,
 }));
 
-const CurrentPath = () => <div data-testid="current-path">{useLocation().pathname}</div>;
+const CurrentPath = () => {
+  const { pathname, search } = useLocation();
+
+  return <div data-testid="current-path">{`${pathname}${search}`}</div>;
+};
 
 const renderTabs = (initialPath: string, tabs: Array<NavTab> = TABS) =>
   render(
@@ -57,6 +62,7 @@ const renderTabs = (initialPath: string, tabs: Array<NavTab> = TABS) =>
             path="/dag"
           >
             <Route element={<CurrentPath />} path=":tab" />
+            <Route element={<CurrentPath />} path="plugin/:page/*" />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -71,7 +77,11 @@ const getRowLabels = () =>
 
 describe("NavTabs", () => {
   beforeEach(() => {
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(TAB_WIDTH);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function getRect(
+      this: HTMLElement,
+    ) {
+      return { width: this.textContent === "Wide" ? WIDE_TAB_WIDTH : TAB_WIDTH } as DOMRect;
+    });
   });
 
   afterEach(() => {
@@ -85,6 +95,14 @@ describe("NavTabs", () => {
 
     expect(getRowLabels()).toEqual(TABS.map(({ label }) => label));
     expect(screen.queryByTestId("nav-tabs-more")).not.toBeInTheDocument();
+  });
+
+  it("keeps every tab in the row until the panel has been measured", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(0);
+
+    renderTabs("/dag/tab0");
+
+    expect(getRowLabels()).toEqual(TABS.map(({ label }) => label));
   });
 
   it("moves the tabs that do not fit to the More menu", async () => {
@@ -107,6 +125,53 @@ describe("NavTabs", () => {
     fireEvent.click(within(menu).getByText("Tab 7"));
 
     expect(screen.getByTestId("current-path")).toHaveTextContent("/dag/tab7");
+  });
+
+  it("moves every tab after the first one that does not fit to the menu", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(450);
+
+    renderTabs("/dag/tab0", [
+      { label: "Tab 0", value: "tab0" },
+      { label: "Wide", value: "wide" },
+      { label: "Tab 2", value: "tab2" },
+      { label: "Tab 3", value: "tab3" },
+    ]);
+
+    // Tab 2 and Tab 3 would fit after Tab 0, but the row fills in order and stops at Wide.
+    expect(getRowLabels()).toEqual(["Tab 0"]);
+  });
+
+  it("keeps a tab active through matchPaths in the row", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(700);
+
+    renderTabs("/dag/logs", [...TABS.slice(0, 8), { label: "Tab 8", matchPaths: ["logs"], value: "tab8" }]);
+
+    expect(getRowLabels()).toEqual(["Tab 0", "Tab 1", "Tab 2", "Tab 3", "Tab 4", "Tab 8"]);
+  });
+
+  it("keeps a plugin tab active on the plugin's sub-routes", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(700);
+
+    renderTabs("/dag/plugin/my-view/details", [
+      ...TABS.slice(0, 8),
+      { label: "My View", value: "plugin/my-view" },
+    ]);
+
+    expect(getRowLabels()).toEqual(["Tab 0", "Tab 1", "Tab 2", "Tab 3", "Tab 4", "My View"]);
+  });
+
+  it("keeps the search of a tab opened from the menu", async () => {
+    vi.mocked(useContainerWidth).mockReturnValue(700);
+
+    renderTabs("/dag/tab0", [
+      ...TABS.slice(0, 8),
+      { label: "Tab 8", search: "?try_number=2", value: "tab8" },
+    ]);
+
+    fireEvent.click(screen.getByTestId("nav-tabs-more"));
+    fireEvent.click(within(await screen.findByRole("menu")).getByText("Tab 8"));
+
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/dag/tab8?try_number=2");
   });
 
   it("keeps the active tab in the row when it would overflow", () => {
@@ -137,6 +202,6 @@ describe("NavTabs", () => {
     fireEvent.click(more);
     const menu = await screen.findByRole("menu");
 
-    expect(within(menu).getByRole("menuitem", { name: "icon tab3 Tab 3" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Tab 3" })).toBeInTheDocument();
   });
 });
