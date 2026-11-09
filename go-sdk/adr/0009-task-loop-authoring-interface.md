@@ -43,7 +43,8 @@ This ADR records the Go spelling of them.
    leaf in is what gets the decision checked against what the body produces, since registration
    already checks a parameter against the recorded output type of whatever `Inputs` names.
 4. **`actx.Loop()` supplies the loop context**, beside `Logger`, `Client`, `TaskInstance` and
-   `DagRun`. It returns a value and an error, because reading the previous iteration is a round trip.
+   `DagRun`. It returns a value and an error, because reading the previous iteration is a round trip,
+   and outside a loop that error is `airflow.NotInLoop`.
 5. **`Index`, `MaxIterations` and `Previous` are struct fields**, as `DagRun`'s are, and
    `UnmarshalPrevious(out)` binds the raw one. That is the split `GetXCom` declares, whose `value`
    parameter is reserved for exactly this decoding and ignored today.
@@ -160,9 +161,13 @@ type LoopDecision struct {
 // LoopRef is a Node, so Before and After carry edges for the whole loop.
 type LoopRef struct{ /* unexported */ }
 
-// Loop reads the previous iteration's result once and caches it. It panics outside a loop body or
-// gate, as the other accessors do on a zero Context, and returns an error when the read fails.
+// Loop reads the previous iteration's result once and caches it. Outside a loop body or its gate it
+// reports NotInLoop, and it reports the read's own error when that fails.
 func (c Context) Loop() (Loop, error)
+
+// NotInLoop is what Loop reports for a handler that is not in a loop. Spelled like the SDK's other
+// sentinels, sdk.XComNotFound among them: errors.Is(err, airflow.NotInLoop).
+var NotInLoop = errors.New("not in a loop")
 
 // Loop is handed back by value, as DagRun is: the fields are the runtime's answer, not state for
 // a handler to write.
@@ -207,8 +212,9 @@ type XComSequence interface {
 - **The body's single leaf is checked twice**: at registration, for the faster message, and by the Dag
   processor, which decides (ADR-0017 decision 3). A nested loop and a loop inside a mapped task group
   are rejected the same way.
-- **`actx.Loop()` panics outside a loop**, as the other accessors do on a zero `Context`, so a handler
-  moved out of a group fails where it was moved.
+- **`actx.Loop()` reports `NotInLoop` outside a loop** rather than panicking. The other accessors
+  hand back a stored field and never panic; only `NewContext` panics, and only on a nil argument. A
+  handler moved out of a group still fails where it was moved, through the error it already checks.
 - **A mapped terminal needs no second accessor.** `Previous` holds an `airflow.XComSequence` when
   `terminal_is_mapped` is true and a plain value otherwise, which is what Python's one
   `loop.previous` property does. The mapped spelling is a type assertion,
