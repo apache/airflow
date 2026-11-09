@@ -608,32 +608,27 @@ class DagRun(Base, LoggingMixin):
 
         if not run_keys:
             return {}
-        rows = session.execute(
-            select(TI.dag_id, TI.run_id, TI.dag_version_id.label("dag_version_id"))
+        # Distinct on the id only. DagVersion.version_data is JSON, which PostgreSQL cannot DISTINCT.
+        distinct_versions = (
+            select(TI.dag_id, TI.run_id, TI.dag_version_id)
             .where(TI.dag_version_id.is_not(None), tuple_(TI.dag_id, TI.run_id).in_(list(run_keys)))
             .distinct()
+            .subquery()
+        )
+        rows = session.execute(
+            select(distinct_versions.c.dag_id, distinct_versions.c.run_id, DagVersion)
+            .join(DagVersion, DagVersion.id == distinct_versions.c.dag_version_id)
+            .options(joinedload(DagVersion.bundle))
             .execution_options(include_all_attempts=True)
         ).all()
-        version_ids = {r.dag_version_id for r in rows}
-        versions_by_id: dict[UUID, DagVersion] = {}
-        if version_ids:
-            versions_by_id = {
-                dv.id: dv
-                for dv in session.scalars(
-                    select(DagVersion)
-                    .where(DagVersion.id.in_(version_ids))
-                    .options(joinedload(DagVersion.bundle))
-                )
-            }
         out: dict[tuple[str, str], dict[UUID, DagVersion]] = defaultdict(dict)
-        for r in rows:
-            if dv := versions_by_id.get(r.dag_version_id):
-                out[(r.dag_id, r.run_id)][dv.id] = dv
+        for dag_id, run_id, dv in rows:
+            out[(dag_id, run_id)][dv.id] = dv
         return out
 
     @property
     def dag_versions(self) -> list[DagVersion]:
-        """Return the DAG versions used by any attempt of this DagRun, current or archived."""
+        """Return the Dag versions used by any attempt of this DagRun, current or archived."""
         versions: Iterable[DagVersion | None]
         if self._prefetched_dag_version_ids is not None:
             versions = self._prefetched_dag_version_ids.values()

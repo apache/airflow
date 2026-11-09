@@ -1905,12 +1905,15 @@ class TestDagRun:
         assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
 
     def test_dag_run_dag_versions_transient_run_uses_relationships(self):
-        """A DagRun not attached to a session reads versions from in-memory relationships."""
+        """A bundled DagRun not attached to a session reads versions from in-memory relationships.
+
+        bundle_version is set so this fails if the property falls back to created_dag_version.
+        """
         dag_id = "test_transient_dag_versions"
         with DAG(dag_id=dag_id, schedule=None, start_date=DEFAULT_DATE):
             task = EmptyOperator(task_id="empty")
         v1 = DagVersion(id=uuid6.uuid7(), dag_id=dag_id, version_number=1, bundle_name="testing")
-        dag_run = DagRun(dag_id=dag_id, run_id="manual", run_type=DagRunType.MANUAL)
+        dag_run = DagRun(dag_id=dag_id, run_id="manual", run_type=DagRunType.MANUAL, bundle_version="v1")
         ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=v1.id)
         ti.dag_version = v1
         dag_run.task_instances.append(ti)
