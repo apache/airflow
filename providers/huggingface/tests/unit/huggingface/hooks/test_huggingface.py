@@ -15,22 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection-backed authentication tests for HuggingFaceHook."""
-from datetime import datetime, timezone
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
-from airflow.exceptions import AirflowNotFoundException
-
-from airflow.providers.huggingface.hooks.huggingface import HuggingFaceHook
 from huggingface_hub import GitCommitInfo
+
+from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.huggingface.hooks.huggingface import HuggingFaceHook
 
 
 def git_commit_info(commit_id, title, message=""):
     return GitCommitInfo(
         commit_id=commit_id,
         authors=["unit-test"],
-        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
         title=title,
         message=message,
         formatted_title=None,
@@ -124,22 +127,35 @@ def test_connection_extra_token_is_ignored(monkeypatch):
     assert HuggingFaceHook("huggingface_extra_test").get_token() is False
 
 
-def test_find_commit_by_marker_matches_title_and_only_returns_final_upload_part():
+def test_find_commit_by_marker_matches_unsuffixed_final_commit_and_rejects_parts():
     marker = "airflow-artifact-sha256:abc:target:def"
-    partial = git_commit_info("a" * 40, f"Publish [{marker}] (part 1-of-2)")
-    final = git_commit_info("b" * 40, f"Publish [{marker}] (part 2-of-2)")
+    partial = git_commit_info("a" * 40, f"Publish [{marker}] (part 00001-of-00002)")
+    final = git_commit_info("b" * 40, f"Publish [{marker}]")
     with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api_type:
-        api_type.return_value.list_repo_commits.return_value = [final, partial]
+        api_type.return_value.list_repo_commits.return_value = [partial, final]
         hook = HuggingFaceHook(None)
         commit = hook.find_commit_by_marker("org/data", marker, revision="release")
 
     assert commit is final
     assert not HuggingFaceHook._commit_is_complete(
-        SimpleNamespace(title=f"Publish [{marker}] (part 2)")
+        SimpleNamespace(title=f"Publish [{marker}] (part 00002-of-00003)")
     )
+    assert HuggingFaceHook._commit_is_complete(SimpleNamespace(title=f"Publish [{marker}]"))
     api_type.return_value.list_repo_commits.assert_called_once_with(
         "org/data", repo_type="dataset", revision="release"
     )
+
+
+def test_find_commit_by_marker_does_not_reuse_historical_commit():
+    marker = "airflow-artifact-sha256:abc:target:def"
+    old_commit = git_commit_info("a" * 40, f"Publish [{marker}]")
+    latest_commit = git_commit_info("b" * 40, "Publish newer artifact")
+    with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api_type:
+        api_type.return_value.list_repo_commits.return_value = [old_commit, latest_commit]
+        hook = HuggingFaceHook(None)
+        commit = hook.find_commit_by_marker("org/data", marker, revision="release")
+
+    assert commit is None
 
 
 def test_find_commit_by_marker_scans_pull_request_refs_when_requested():

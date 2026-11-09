@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Regression coverage for durable load/map/publish behavior."""
-from datetime import datetime, timezone
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -29,8 +32,8 @@ from airflow.providers.huggingface.operators.datasets import (
     PushToHubOperator,
     StreamDatasetOperator,
     _is_hub_repo,
-    _publication_marker,
     _load_artifact,
+    _publication_marker,
     _save,
 )
 
@@ -48,13 +51,12 @@ def git_commit_info(commit_id, title, message=""):
     return GitCommitInfo(
         commit_id=commit_id,
         authors=["unit-test"],
-        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
         title=title,
         message=message,
         formatted_title=None,
         formatted_message=None,
     )
-
 
 
 @pytest.fixture
@@ -75,7 +77,9 @@ def hub_dependencies(monkeypatch):
 def test_load_pins_and_records_resolved_revision_and_honors_download_mode(tmp_path, monkeypatch):
     output = (tmp_path / "loaded.json").as_uri()
     dataset = Dataset.from_dict({"value": [1, 2]})
-    monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}')
+    monkeypatch.setenv(
+        "AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}'
+    )
     with (
         patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as hf_api,
         patch("datasets.load_dataset", autospec=True) as load_dataset,
@@ -83,14 +87,21 @@ def test_load_pins_and_records_resolved_revision_and_honors_download_mode(tmp_pa
         hf_api.return_value.dataset_info.return_value.sha = "resolved-sha"
         load_dataset.return_value = dataset
         operator = LoadDatasetOperator(
-            task_id="load", path="org/data", revision="release-tag", output_uri=output,
-            download_mode="force_redownload", cache_dir=str(tmp_path / "cache"),
+            task_id="load",
+            path="org/data",
+            revision="release-tag",
+            output_uri=output,
+            download_mode="force_redownload",
+            cache_dir=str(tmp_path / "cache"),
             huggingface_conn_id="huggingface_test",
         )
         reference = operator.execute({})
     hf_api.return_value.dataset_info.assert_called_once_with("org/data", revision="release-tag")
     load_dataset.assert_called_once_with(
-        "org/data", revision="resolved-sha", download_mode="force_redownload", cache_dir=str(tmp_path / "cache"),
+        "org/data",
+        revision="resolved-sha",
+        download_mode="force_redownload",
+        cache_dir=str(tmp_path / "cache"),
         token="operator-test-token",
     )
     assert reference["revision"] == "resolved-sha"
@@ -100,8 +111,9 @@ def test_load_pins_and_records_resolved_revision_and_honors_download_mode(tmp_pa
 def test_non_hub_load_does_not_resolve_hub_revision(tmp_path):
     with patch("datasets.load_dataset", autospec=True) as load_dataset:
         load_dataset.return_value = Dataset.from_dict({"x": [1]})
-        operator = LoadDatasetOperator(task_id="csv", path="csv", output_uri=(tmp_path / "csv.json").as_uri(),
-                                       huggingface_conn_id=None)
+        operator = LoadDatasetOperator(
+            task_id="csv", path="csv", output_uri=(tmp_path / "csv.json").as_uri(), huggingface_conn_id=None
+        )
         result = operator.execute({})
     load_dataset.assert_called_once_with("csv", download_mode="reuse_dataset_if_exists")
     assert result["revision"] is None
@@ -114,7 +126,9 @@ def test_stream_operator_lazily_transforms_filters_and_publishes_with_asset_even
     stream.map.return_value = stream
     stream.filter.return_value = stream
     commit = commit_info("org/streamed", message="Stream dataset from Airflow")
-    with patch("airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True) as hook_type:
+    with patch(
+        "airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True
+    ) as hook_type:
         hook = hook_type.return_value
         hook.get_dataset_info.return_value.sha = "pinned-stream-sha"
         hook.load_dataset.return_value = stream
@@ -134,7 +148,9 @@ def test_stream_operator_lazily_transforms_filters_and_publishes_with_asset_even
             huggingface_conn_id=None,
         )
         event = SimpleNamespace(extra=None)
-        result = operator.execute({"run_id": "scheduled__2026-10-31", "outlet_events": {operator.published_asset: event}})
+        result = operator.execute(
+            {"run_id": "scheduled__2026-10-31", "outlet_events": {operator.published_asset: event}}
+        )
 
     hook.get_dataset_info.assert_called_once_with("org/source", "main")
     hook.load_dataset.assert_called_once_with(
@@ -156,7 +172,9 @@ def test_stream_operator_lazily_transforms_filters_and_publishes_with_asset_even
 
 def test_stream_operator_recovers_prior_commit_without_reloading_stream():
     commit = commit_info("org/streamed")
-    with patch("airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True) as hook_type:
+    with patch(
+        "airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True
+    ) as hook_type:
         hook = hook_type.return_value
         hook.find_commit_by_marker.return_value = commit
         operator = StreamDatasetOperator(
@@ -165,7 +183,15 @@ def test_stream_operator_recovers_prior_commit_without_reloading_stream():
             repo_id="org/streamed",
             huggingface_conn_id=None,
         )
-        result = operator.execute({"run_id": "scheduled__2026-10-31"})
+        state = type(
+            "Store",
+            (),
+            {
+                "get": lambda self, key: True if key.startswith("stream-publication-pending:") else None,
+                "set": lambda self, key, value: None,
+            },
+        )()
+        result = operator.execute({"run_id": "scheduled__2026-10-31", "task_state_store": state})
 
     hook.load_dataset.assert_not_called()
     hook.push_to_hub.assert_not_called()
@@ -173,12 +199,21 @@ def test_stream_operator_recovers_prior_commit_without_reloading_stream():
 
 
 def test_parquet_manifest_preserves_order_features_and_dataset_splits(tmp_path):
-    features = Features({"z_first": Value("int64"), "a_second": Value("string"),
-                         "kind": ClassLabel(names=["first", "second"])})
-    source = DatasetDict({
-        "train": Dataset.from_dict({"z_first": [1], "a_second": ["one"], "kind": [0]}, features=features),
-        "validation": Dataset.from_dict({"z_first": [2], "a_second": ["two"], "kind": [1]}, features=features),
-    })
+    features = Features(
+        {
+            "z_first": Value("int64"),
+            "a_second": Value("string"),
+            "kind": ClassLabel(names=["first", "second"]),
+        }
+    )
+    source = DatasetDict(
+        {
+            "train": Dataset.from_dict({"z_first": [1], "a_second": ["one"], "kind": [0]}, features=features),
+            "validation": Dataset.from_dict(
+                {"z_first": [2], "a_second": ["two"], "kind": [1]}, features=features
+            ),
+        }
+    )
     reference = _save(source, (tmp_path / "splits.json").as_uri(), {"revision": "abc"})
     restored = _load_artifact(reference)
     assert list(restored) == ["train", "validation"]
@@ -212,26 +247,35 @@ def test_parquet_rejects_media_feature_types(tmp_path):
 
 
 def test_map_uses_parse_time_callable_and_persists_reference(tmp_path):
-    source = _save(Dataset.from_dict({"value": [1, 2]}), (tmp_path / "input.json").as_uri(),
-                   {"repository_id": "org/data", "revision": "source-sha"})
+    source = _save(
+        Dataset.from_dict({"value": [1, 2]}),
+        (tmp_path / "input.json").as_uri(),
+        {"repository_id": "org/data", "revision": "source-sha"},
+    )
     source.update(repository_id="org/data", revision="source-sha")
-    operator = MapDatasetOperator(task_id="map", input_uri=source,
-                                  output_uri=(tmp_path / "mapped.json").as_uri(), transform=add_one)
+    operator = MapDatasetOperator(
+        task_id="map", input_uri=source, output_uri=(tmp_path / "mapped.json").as_uri(), transform=add_one
+    )
     reference = operator.execute({})
     assert _load_artifact(reference)["value"] == [2, 3]
     assert reference["revision"] == "source-sha"
     assert "transform" not in operator.template_fields
     with pytest.raises(TypeError, match="callable"):
-        MapDatasetOperator(task_id="bad", input_uri=source, output_uri="file:///tmp/out.json", transform="x:y")
+        MapDatasetOperator(
+            task_id="bad", input_uri=source, output_uri="file:///tmp/out.json", transform="x:y"
+        )
 
 
 def test_map_transform_exception_propagates(tmp_path):
     source = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())
     error = LookupError("transform failed")
+
     def fail(example):
         raise error
-    operator = MapDatasetOperator(task_id="map_fail", input_uri=source,
-                                  output_uri=(tmp_path / "mapped.json").as_uri(), transform=fail)
+
+    operator = MapDatasetOperator(
+        task_id="map_fail", input_uri=source, output_uri=(tmp_path / "mapped.json").as_uri(), transform=fail
+    )
     with pytest.raises(LookupError) as raised:
         operator.execute({})
     assert raised.value is error
@@ -253,20 +297,25 @@ def test_push_returns_commit_info_and_emits_matching_asset_event(tmp_path, hub_d
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())
     commit = commit_info()
     push_to_hub.return_value = commit
-    operator = PushToHubOperator(task_id="publish", input_uri=reference, repo_id="org/data",
-                                 commit_message="publish source", huggingface_conn_id="huggingface_test")
+    operator = PushToHubOperator(
+        task_id="publish",
+        input_uri=reference,
+        repo_id="org/data",
+        commit_message="publish source",
+        huggingface_conn_id="huggingface_test",
+    )
     event = type("Event", (), {"extra": None})()
+
     class Events:
         def __getitem__(self, asset):
             assert asset.uri == "hf://datasets/org/data"
             return event
+
     result = operator.execute({"outlet_events": Events()})
     push_to_hub.assert_called_once()
     kwargs = push_to_hub.call_args.kwargs
     assert reference["fingerprint"] in kwargs["commit_message"]
-    hf_api.return_value.list_repo_commits.assert_called_once_with(
-        "org/data", repo_type="dataset", revision="main"
-    )
+    hf_api.return_value.list_repo_commits.assert_not_called()
     assert result["commit_sha"] == commit.oid
     assert result["commit_url"] == commit.commit_url
     assert event.extra["commit_sha"] == result["commit_sha"]
@@ -278,12 +327,16 @@ def test_push_failure_propagates_and_emits_no_event(tmp_path, hub_dependencies):
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())
     error = ValueError("publication denied")
     push_to_hub.side_effect = error
-    operator = PushToHubOperator(task_id="failed", input_uri=reference, repo_id="org/data",
-                                 huggingface_conn_id="huggingface_test")
+    operator = PushToHubOperator(
+        task_id="failed", input_uri=reference, repo_id="org/data", huggingface_conn_id="huggingface_test"
+    )
     event = type("Event", (), {"extra": None})()
+
     class Events:
-        def __getitem__(self, asset): return event
-    with pytest.raises(ValueError) as raised:
+        def __getitem__(self, asset):
+            return event
+
+    with pytest.raises(ValueError, match="publication denied") as raised:
         operator.execute({"outlet_events": Events()})
     assert raised.value is error
     assert event.extra is None
@@ -295,13 +348,15 @@ def test_push_requires_reference_and_validates_fingerprint(tmp_path):
     with pytest.raises(ValueError, match="requires an artifact reference"):
         operator.execute({})
     reference["fingerprint"] = "bad"
-    operator = PushToHubOperator(task_id="publish_bad", input_uri=reference, repo_id="org/data", durable=False)
+    operator = PushToHubOperator(
+        task_id="publish_bad", input_uri=reference, repo_id="org/data", durable=False
+    )
     with pytest.raises(ValueError, match="artifact fingerprint"):
         operator.execute({})
 
 
 def test_airflow_30_path_without_state_store_and_retry_with_store(tmp_path, hub_dependencies):
-    hf_api, _ = hub_dependencies
+    hf_api, push_to_hub = hub_dependencies
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())
     target_marker = _publication_marker(
         "target", {"repo_id": "org/data", "config_name": "default", "revision": "main", "create_pr": False}
@@ -309,15 +364,21 @@ def test_airflow_30_path_without_state_store_and_retry_with_store(tmp_path, hub_
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("a" * 40, f"Publish [{marker}]")
     hf_api.return_value.list_repo_commits.return_value = [commit]
-    operator = PushToHubOperator(task_id="legacy", input_uri=reference, repo_id="org/data",
-                                 huggingface_conn_id="huggingface_test")
+    push_to_hub.return_value = commit_info(oid="a" * 40)
+    operator = PushToHubOperator(
+        task_id="legacy", input_uri=reference, repo_id="org/data", huggingface_conn_id="huggingface_test"
+    )
     result = operator.execute({})
     assert result["commit_sha"] == "a" * 40
-    store = type("Store", (), {"get": lambda self, key: result,
-                                "set": lambda self, key, value: None})()
+    hf_api.return_value.list_repo_commits.assert_not_called()
+    push_to_hub.assert_called_once()
+    store = type("Store", (), {"get": lambda self, key: result, "set": lambda self, key, value: None})()
     event = type("Event", (), {"extra": None})()
+
     class Events:
-        def __getitem__(self, asset): return event
+        def __getitem__(self, asset):
+            return event
+
     assert operator.execute({"task_state_store": store, "outlet_events": Events()}) == result
     assert event.extra["commit_sha"] == result["commit_sha"]
 
@@ -337,10 +398,21 @@ def test_push_reuses_hub_commit_before_loading_missing_artifact(tmp_path, hub_de
     commit = git_commit_info("b" * 40, f"Publish [{marker}]")
     hf_api.return_value.list_repo_commits.return_value = [commit]
     operator = PushToHubOperator(
-        task_id="recover_missing", input_uri=reference, repo_id="org/data", huggingface_conn_id="huggingface_test"
+        task_id="recover_missing",
+        input_uri=reference,
+        repo_id="org/data",
+        huggingface_conn_id="huggingface_test",
     )
+    state = type(
+        "Store",
+        (),
+        {
+            "get": lambda self, key: True if key.startswith("publication-pending:") else None,
+            "set": lambda self, key, value: None,
+        },
+    )()
     with patch("airflow.providers.huggingface.operators.datasets._load_artifact") as load:
-        result = operator.execute({})
+        result = operator.execute({"task_state_store": state})
     load.assert_not_called()
     push_to_hub.assert_not_called()
     assert result["commit_sha"] == "b" * 40
@@ -354,18 +426,36 @@ def test_state_store_write_failure_retry_does_not_push_twice(tmp_path, hub_depen
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("a" * 40, f"Publish [{marker}]")
-    hf_api.return_value.list_repo_commits.side_effect = [[], [commit]]
+    hf_api.return_value.list_repo_commits.return_value = [commit]
     push_to_hub.return_value = commit
-    operator = PushToHubOperator(task_id="retry_after_push", input_uri=reference, repo_id="org/data",
-                                 huggingface_conn_id="huggingface_test")
+    operator = PushToHubOperator(
+        task_id="retry_after_push",
+        input_uri=reference,
+        repo_id="org/data",
+        huggingface_conn_id="huggingface_test",
+    )
+    store_data = {}
+
     class FailingStore:
-        def get(self, key): return None
-        def set(self, key, value): raise RuntimeError("worker failed after Hub commit")
+        def get(self, key):
+            return store_data.get(key)
+
+        def set(self, key, value):
+            if key.startswith("publication-pending:"):
+                store_data[key] = value
+                return
+            raise RuntimeError("worker failed after Hub commit")
+
     with pytest.raises(RuntimeError, match="worker failed"):
         operator.execute({"task_state_store": FailingStore()})
+
     class Store:
-        def get(self, key): return None
-        def set(self, key, value): pass
+        def get(self, key):
+            return store_data.get(key)
+
+        def set(self, key, value):
+            store_data[key] = value
+
     retry_result = operator.execute({"task_state_store": Store()})
     push_to_hub.assert_called_once()
     assert retry_result["commit_sha"] == "a" * 40
@@ -379,15 +469,26 @@ def test_push_does_not_treat_intermediate_upload_part_as_published(tmp_path, hub
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     hf_api.return_value.list_repo_commits.return_value = [
-        git_commit_info("a" * 40, f"Publish [{marker}] (part 1-of-2)")
+        git_commit_info("a" * 40, f"Publish [{marker}] (part 00000-of-00002)")
     ]
     pushed_commit = commit_info(oid="b" * 40)
     push_to_hub.return_value = pushed_commit
 
     operator = PushToHubOperator(
-        task_id="partial_upload", input_uri=reference, repo_id="org/data", huggingface_conn_id="huggingface_test"
+        task_id="partial_upload",
+        input_uri=reference,
+        repo_id="org/data",
+        huggingface_conn_id="huggingface_test",
     )
-    result = operator.execute({})
+    state = type(
+        "Store",
+        (),
+        {
+            "get": lambda self, key: True if key.startswith("publication-pending:") else None,
+            "set": lambda self, key, value: None,
+        },
+    )()
+    result = operator.execute({"task_state_store": state})
 
     push_to_hub.assert_called_once()
     assert result["commit_sha"] == pushed_commit.oid
@@ -396,7 +497,9 @@ def test_push_does_not_treat_intermediate_upload_part_as_published(tmp_path, hub
 def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_path):
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "targets.json").as_uri())
     commits = [commit_info(oid=f"{index:040x}") for index in range(1, 4)]
-    with patch("airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True) as hook_type:
+    with patch(
+        "airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True
+    ) as hook_type:
         hook = hook_type.return_value
         hook.find_commit_by_marker.return_value = None
         hook.push_to_hub.side_effect = commits
@@ -416,18 +519,28 @@ def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_
             )
             operator.execute({})
 
-    markers = [call.args[1] for call in hook.find_commit_by_marker.call_args_list]
+    markers = [
+        call.kwargs["commit_message"].split("[")[-1].split("]")[0] for call in hook.push_to_hub.call_args_list
+    ]
     assert len(set(markers)) == 3
-    assert hook.find_commit_by_marker.call_args_list[2].kwargs["include_pull_requests"] is True
+    assert len(hook.push_to_hub.call_args_list) == 3
+    assert hook.push_to_hub.call_args_list[2].kwargs["create_pr"] is True
 
 
 def test_load_retry_reuses_resolved_revision_from_task_state_store(tmp_path, monkeypatch):
-    monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}')
+    monkeypatch.setenv(
+        "AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}'
+    )
     dataset = Dataset.from_dict({"value": [1]})
     store_data = {}
+
     class Store:
-        def get(self, key): return store_data.get(key)
-        def set(self, key, value): store_data[key] = value
+        def get(self, key):
+            return store_data.get(key)
+
+        def set(self, key, value):
+            store_data[key] = value
+
     ti = type("TaskInstance", (), {"dag_id": "d", "task_id": "load"})()
     context = {"task_state_store": Store(), "ti": ti}
     with (
@@ -437,7 +550,9 @@ def test_load_retry_reuses_resolved_revision_from_task_state_store(tmp_path, mon
         api.return_value.dataset_info.return_value = type("Info", (), {"sha": "pinned-sha"})()
         load_dataset.return_value = dataset
         operator = LoadDatasetOperator(
-            task_id="load", path="org/data", revision="main",
+            task_id="load",
+            path="org/data",
+            revision="main",
             output_uri=(tmp_path / "first.json").as_uri(),
             huggingface_conn_id="huggingface_test",
         )
@@ -453,7 +568,9 @@ def test_load_retry_reuses_resolved_revision_from_task_state_store(tmp_path, mon
 
 
 def test_load_durable_false_does_not_read_or_write_task_state(tmp_path, monkeypatch):
-    monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}')
+    monkeypatch.setenv(
+        "AIRFLOW_CONN_HUGGINGFACE_TEST", '{"conn_type":"huggingface","password":"operator-test-token"}'
+    )
     with (
         patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api,
         patch("datasets.load_dataset", autospec=True) as load_dataset,
@@ -464,9 +581,12 @@ def test_load_durable_false_does_not_read_or_write_task_state(tmp_path, monkeypa
         ]
         load_dataset.return_value = Dataset.from_dict({"value": [1]})
         operator = LoadDatasetOperator(
-            task_id="load", path="org/data", revision="main",
+            task_id="load",
+            path="org/data",
+            revision="main",
             output_uri=(tmp_path / "first.json").as_uri(),
-            huggingface_conn_id="huggingface_test", durable=False,
+            huggingface_conn_id="huggingface_test",
+            durable=False,
         )
         store = MagicMock()
         context = {"task_state_store": store}
@@ -496,8 +616,13 @@ def test_push_preserves_user_outlets_and_changes_commit_for_new_fingerprint(tmp_
         def set(self, key, value):
             state_data[key] = value
 
-    operator = PushToHubOperator(task_id="publish", input_uri=reference, repo_id="org/data",
-                                 huggingface_conn_id="huggingface_test", outlets=[caller_asset])
+    operator = PushToHubOperator(
+        task_id="publish",
+        input_uri=reference,
+        repo_id="org/data",
+        huggingface_conn_id="huggingface_test",
+        outlets=[caller_asset],
+    )
     assert caller_asset in operator.outlets
     assert operator.published_asset in operator.outlets
     operator.execute({"task_state_store": Store()})
@@ -537,9 +662,10 @@ def test_existing_local_path_is_not_treated_as_hub_repo(tmp_path):
 
 @pytest.fixture
 def attached_memory_filesystem(monkeypatch):
+    from fsspec.implementations.memory import MemoryFileSystem
+
     from airflow.sdk.io import attach
     from airflow.sdk.io.store import _STORE_CACHE
-    from fsspec.implementations.memory import MemoryFileSystem
 
     store = attach("memory", fs=MemoryFileSystem())
     yield store

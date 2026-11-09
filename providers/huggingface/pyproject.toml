@@ -60,7 +60,7 @@ requires-python = ">=3.11"
 dependencies = [
   "apache-airflow>=3.0,<4",
   "apache-airflow-providers-common-compat>=1.8.0",
-  "datasets>=4.0.0",
+  "datasets>=5.0.0",
   "huggingface-hub>=0.24",
 ]
 

@@ -34,7 +34,7 @@ Install into an Airflow environment with Python 3.11 through 3.14:
 
    pip install apache-airflow-providers-huggingface
 
-The provider requires Apache Airflow 3.0 or later, ``datasets>=4.0.0,<5``,
+The provider requires Apache Airflow 3.0 or later, ``datasets>=5.0.0``,
 and ``huggingface-hub>=0.24,<2``. For ``s3://`` and ``gs://`` artifacts,
 install the corresponding storage provider and filesystem dependency. Select
 the matching Airflow connection in the URI's user-info section, for example
@@ -132,7 +132,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0,<4``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``datasets``                                ``>=4.0.0``
+``datasets``                                ``>=5.0.0``
 ``huggingface-hub``                         ``>=0.24``
 ==========================================  ==================
 

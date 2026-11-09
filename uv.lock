@@ -6372,7 +6372,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "datasets", specifier = ">=4.0.0" },
+    { name = "datasets", specifier = ">=5.0.0" },
     { name = "huggingface-hub", specifier = ">=0.24" },
 ]
 

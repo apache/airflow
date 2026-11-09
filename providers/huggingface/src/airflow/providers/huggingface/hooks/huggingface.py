@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection and client helpers for Hugging Face services."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -27,7 +28,8 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 
 class HuggingFaceHook(BaseHook):
-    """Access Hugging Face Datasets and Hub APIs using an Airflow connection.
+    """
+    Access Hugging Face Datasets and Hub APIs using an Airflow connection.
 
     If ``huggingface_default`` is absent, or no connection ID is configured,
     huggingface_hub may use ``HF_TOKEN`` or a cached worker login. A missing
@@ -87,12 +89,7 @@ class HuggingFaceHook(BaseHook):
         import re
 
         title = getattr(commit, "title", "") or ""
-        part = re.search(r"\(part\s+(\d+)(?:\s*(?:-of-|of|-)\s*(\d+))?\)\s*$", title, re.IGNORECASE)
-        if part is None:
-            return not re.search(r"\(part\b.*\)\s*$", title, re.IGNORECASE)
-        # Some upload clients only report "part N" without the total. That
-        # cannot prove that this is the final part, so do not recover from it.
-        return part.group(2) is not None and part.group(1) == part.group(2)
+        return re.search(r"\(part\b.*\)\s*$", title, re.IGNORECASE) is None
 
     def find_commit_by_marker(
         self,
@@ -102,7 +99,7 @@ class HuggingFaceHook(BaseHook):
         revision: str | None = None,
         include_pull_requests: bool = False,
     ) -> Any | None:
-        """Find the final upload commit matching a marker on the requested ref."""
+        """Find the latest complete commit matching a marker on the requested ref."""
         api = self.get_conn()
         revisions = [revision] if revision else ["main"]
         if include_pull_requests:
@@ -123,17 +120,21 @@ class HuggingFaceHook(BaseHook):
                 return None
             except RevisionNotFoundError:
                 continue
-            for commit in commits:
-                # GitCommitInfo carries title/message/commit_id; CommitInfo
-                # carries commit_message/commit_description/oid.
-                fields = (
-                    getattr(commit, "title", ""),
-                    getattr(commit, "message", ""),
-                    getattr(commit, "commit_message", ""),
-                    getattr(commit, "commit_description", ""),
-                )
-                if any(marker in (field or "") for field in fields) and self._commit_is_complete(commit):
-                    return commit
+            # Hub returns commits oldest first. A historical match is stale if
+            # a later publication has advanced this ref since the push attempt.
+            commit = commits[-1] if commits else None
+            if commit is None:
+                continue
+            # GitCommitInfo carries title/message/commit_id; CommitInfo carries
+            # commit_message/commit_description/oid.
+            fields = (
+                getattr(commit, "title", ""),
+                getattr(commit, "message", ""),
+                getattr(commit, "commit_message", ""),
+                getattr(commit, "commit_description", ""),
+            )
+            if any(marker in (field or "") for field in fields) and self._commit_is_complete(commit):
+                return commit
         return None
 
     def push_to_hub(self, dataset: Any, repo_id: str, **kwargs: Any) -> Any:

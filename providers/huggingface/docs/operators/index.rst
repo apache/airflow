@@ -100,8 +100,10 @@ commit SHA and URL, source revision, configuration, split, and
 ``streaming=True``. After a successful push it emits the matching
 ``hf://datasets/<repo_id>`` asset event. A run marker in the commit message
 identifies the source and target for this DAG run. A retry searches the target
-branch or pull request refs and accepts only a final upload commit; intermediate
-parts of a multi-commit upload do not count as completed publication.
+branch or pull request refs only when task state says a prior attempt may have
+started a push. Recovery accepts the latest commit on the target ref only when
+it carries this marker and has no multipart suffix. Intermediate upload parts
+and older historical commits do not count as completed publication.
 
 Execution proceeds in this order:
 
@@ -158,14 +160,14 @@ fingerprint) and ``repo_id``. ``config``, ``private``, ``commit_message``,
 publication. ``storage_conn_id`` selects the connection used to read the
 artifact. The
 operator accepts ``durable`` (default ``True``) in addition to its publication
-options. Task state store support for revision pinning and result caching requires
-Airflow 3.3 or later; older versions log a warning. Hub marker lookup can still
-recover a completed artifact publication on retry.
-It verifies the manifest fingerprint and per-split checksums before
-uploading. With durability enabled it checks Airflow task state and the target
-Hub revision for a completed publication before loading Parquet data; a retry
-can therefore return the prior result even if the artifact is no longer on the
-worker. Set ``durable=False`` to always load and push the artifact without
+options. Task state store support for result caching and retry recovery requires
+Airflow 3.3 or later; older versions log a warning. It verifies the manifest
+fingerprint and per-split checksums before uploading. With durability enabled,
+it checks task state and searches the latest target-ref commit only when task
+state records that an earlier attempt may have started the push. A retry can
+therefore return the prior result even if the artifact is no longer on the
+worker, provided the completed commit is still latest on the target ref. Set
+``durable=False`` to always load and push the artifact without
 state or Hub-marker reuse. It returns ``repository_id``, the Hub commit identifier as
 ``commit_sha``, the commit URL as ``commit_url``, the artifact fingerprint,
 and source provenance. Both live ``CommitInfo`` and recovered
@@ -176,10 +178,10 @@ The commit message includes an artifact fingerprint and target marker. The
 marker distinguishes repository configuration, revision, and pull request
 target, so publishing the same artifact to another target is a separate
 publication. Airflow 3.3 and later task state store support caches the result
-when that facility is available. Otherwise a retry searches the intended
-branch or pull request refs and only reuses the final part of a multi-commit
-upload. This lets it recover a completed push if the worker exited before
-saving task state without treating an intermediate part as complete. The task
+and records that a push may have started. A retry searches the intended branch
+or pull request ref only after that record exists, and only reuses the latest
+unsuffixed commit carrying the marker. This avoids reusing an older publication
+after the branch has advanced. The task
 emits an asset event with the same commit SHA and URL only after successful
 publication. Publication uses Datasets ``push_to_hub``, which rewrites the
 README's YAML card metadata, including ``dataset_info`` and ``configs``, in the

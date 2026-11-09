@@ -53,7 +53,7 @@ Requirements
 PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=3.0,<4``
-``datasets``         ``>=3.4.0,<5``
+``datasets``         ``>=5.0.0``
 ``huggingface-hub``  ``>=0.24,<2``
 ===================  ==================
 

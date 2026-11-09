@@ -624,6 +624,7 @@ class PushToHubOperator(BaseOperator):
         state = context.get("task_state_store") if self.durable else None
         _warn_missing_task_state(self, state)
         state_key = _state_key("publication", marker)
+        pending_key = _state_key("publication-pending", marker)
         if state is not None:
             prior_result = state.get(state_key)
             if prior_result:
@@ -633,7 +634,8 @@ class PushToHubOperator(BaseOperator):
 
         hook = HuggingFaceHook(self.huggingface_conn_id)
         commit = None
-        if self.durable:
+        recovery_pending = state is not None and bool(state.get(pending_key))
+        if recovery_pending:
             commit = hook.find_commit_by_marker(
                 self.repo_id,
                 marker,
@@ -643,6 +645,8 @@ class PushToHubOperator(BaseOperator):
             if commit is not None:
                 self.log.info("Reusing existing completed publication to %s", self.repo_id)
         if commit is None:
+            if state is not None:
+                state.set(pending_key, True)
             with tempfile.TemporaryDirectory(prefix="airflow-hf-cache-") as cache_dir:
                 dataset = _load_artifact(
                     self.input_uri,
