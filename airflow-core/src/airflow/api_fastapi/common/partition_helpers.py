@@ -102,42 +102,24 @@ def suggest_partition_key_for_dag(
     """
     Suggest a partition key to pre-fill the manual-trigger form for *dag_id*.
 
-    This is a **guess** used only to pre-fill the UI form field; it is not a
-    validation and callers must still accept ``None`` from
-    ``validate_partition_key``. Returns ``None`` immediately for a timetable
-    that is neither ``partitioned`` nor ``partitioned_at_runtime`` (no query is
-    issued in that case). Otherwise, tries in order and returns the first
-    non-``None`` result:
+    This is a **guess**, not a validation: callers must still accept ``None``
+    from ``validate_partition_key``. Sources, first non-``None`` wins:
 
-    1. The oldest pending ``AssetPartitionDagRun`` for *dag_id*
-       (``created_dag_run_id IS NULL``) — an asset event has already arrived
-       for this partition and is only waiting for the run to be created. Only
-       asset-driven timetables have any rows here. The ordering mirrors the
-       scheduler's FIFO claim order in
-       ``SchedulerJobRunner._create_partition_dag_runs``, so the suggestion
-       names the same partition the scheduler would create next rather than a
-       newer one that will not run until the backlog drains.
-    2. ``timetable.suggest_partition_key(now)`` — a purely time-based guess
-       that needs no history, so even a brand-new Dag with no runs or asset
-       events gets a suggestion (asset-driven timetables only; see
-       :meth:`~airflow.timetables.base.Timetable.suggest_partition_key`).
-    3. The ``partition_key`` of the most recent successful ``DagRun`` for
-       *dag_id*. This is the only source available to
-       ``partitioned_at_runtime`` timetables, which have no asset and no
-       temporal anchor of their own. Only the single most recent successful
-       run is consulted — if its ``partition_key`` is ``None`` (an
-       unpartitioned run), this returns ``None`` rather than searching
+    1. The oldest pending ``AssetPartitionDagRun``, in the scheduler's FIFO
+       order. That partition may still be waiting for other events, so it is
+       not guaranteed to be satisfied.
+    2. ``timetable.suggest_partition_key(now)``, a purely time-based guess.
+    3. The ``partition_key`` of the single most recent successful ``DagRun``;
+       if that key is ``None`` this returns ``None`` rather than searching
        further back.
 
-    Source 3 can name a partition that has already run, and nothing rejects a
-    second ``DagRun`` for the same ``(dag_id, partition_key)`` — re-running a
-    partition is a legitimate re-materialization, so this deliberately neither
-    de-duplicates nor blocks it. The trigger form's help text warns the user
-    that the pre-filled key may already have run.
+    ``models.dag.get_last_dagrun`` is intentionally not reused: it filters
+    ``logical_date.is_not(None)`` and excludes ``MANUAL`` runs by default,
+    which would drop exactly the partitioned runs this needs.
 
-    ``models.dag.get_last_dagrun`` is intentionally not reused here: it
-    filters ``logical_date.is_not(None)`` and excludes ``MANUAL`` runs by
-    default, which would drop exactly the partitioned runs this needs.
+    Source 3 can name a partition that already ran. This neither de-duplicates
+    nor blocks it: re-running a partition is a legitimate re-materialization,
+    and the trigger form's help text warns that the key may already have run.
     """
     if not timetable.partitioned and not timetable.partitioned_at_runtime:
         return None

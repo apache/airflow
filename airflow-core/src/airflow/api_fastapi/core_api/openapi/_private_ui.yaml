@@ -3904,6 +3904,8 @@ components:
           - type: string
           - type: 'null'
           title: Suggested Partition Key
+          description: Partition key suggested for a manual trigger. Only computed
+            by the single-Dag GET endpoints; list endpoints always return null.
         asset_expression:
           anyOf:
           - oneOf:

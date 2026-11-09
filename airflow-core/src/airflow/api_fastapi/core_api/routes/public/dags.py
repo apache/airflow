@@ -105,14 +105,10 @@ dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 def attach_suggested_partition_key(dag_model: DagModel, dag: SerializedDAG, *, session: Session) -> None:
     """
-    Attach the manual-trigger partition key suggestion to *dag_model* for serialization.
+    Attach the manual-trigger partition key suggestion to *dag_model*.
 
-    ``suggested_partition_key`` is computed per request from live pending
-    partitions and run history, so it cannot be a ``DagModel`` column. Setting a
-    non-mapped attribute leaves the SQLAlchemy identity map untouched — nothing
-    is persisted by a later ``flush()``. Only single-Dag routes carry it; the
-    collection routes leave it at its ``None`` default rather than issue a query
-    per Dag.
+    A non-mapped attribute is never flushed. Collection routes deliberately do
+    not call this, to avoid an N+1 query.
     """
     setattr(
         dag_model,

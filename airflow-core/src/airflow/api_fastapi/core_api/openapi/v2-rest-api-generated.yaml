@@ -15042,6 +15042,8 @@ components:
           - type: string
           - type: 'null'
           title: Suggested Partition Key
+          description: Partition key suggested for a manual trigger. Only computed
+            by the single-Dag GET endpoints; list endpoints always return null.
         catchup:
           type: boolean
           title: Catchup
@@ -15370,6 +15372,8 @@ components:
           - type: string
           - type: 'null'
           title: Suggested Partition Key
+          description: Partition key suggested for a manual trigger. Only computed
+            by the single-Dag GET endpoints; list endpoints always return null.
         is_backfillable:
           type: boolean
           title: Is Backfillable

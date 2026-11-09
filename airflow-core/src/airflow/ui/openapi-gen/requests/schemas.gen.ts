@@ -3443,7 +3443,8 @@ export const $DAGDetailsResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Suggested Partition Key'
+            title: 'Suggested Partition Key',
+            description: 'Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.'
         },
         catchup: {
             type: 'boolean',
@@ -3971,7 +3972,8 @@ export const $DAGResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Suggested Partition Key'
+            title: 'Suggested Partition Key',
+            description: 'Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.'
         },
         is_backfillable: {
             type: 'boolean',
@@ -12492,7 +12494,8 @@ export const $DAGWithLatestDagRunsResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Suggested Partition Key'
+            title: 'Suggested Partition Key',
+            description: 'Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.'
         },
         asset_expression: {
             anyOf: [
