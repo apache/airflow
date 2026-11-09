@@ -258,7 +258,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             cluster_identifier=cluster_identifier,
             workgroup_name=workgroup_name,
             db_user=db_user,
-            parameters=[{"name": "schema", "value": schema}, {"name": "table", "value": table}],
+            parameters=[{"name": "schema", "value": schema or "public"}, {"name": "table", "value": table}],
             secret_arn=secret_arn,
             statement_name=statement_name,
             with_event=with_event,
