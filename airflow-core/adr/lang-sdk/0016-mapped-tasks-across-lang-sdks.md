@@ -45,8 +45,9 @@ Proposed.
 3. **A Lang-SDK producer's map length is computed once in the supervisor, instead of in each SDK.** The server tells the supervisor whether the length is needed; the supervisor measures the return value and rejects one that is absent or not mappable.
    A Python task keeps measuring in its own runtime, so its `ti_run` still loads no Dag, and both apply the same `is_mappable_value` rule.
 4. **Every Python mapping primitive is in scope, and the server resolves all of them.** A primitive an SDK has not implemented yet is a capability flag, not a core limit.
-5. **A runtime always consumes delivered bindings; it never resolves the expand input itself.** The server picks this index's element in both authoring modes, so no SDK re-implements element selection or cross-product arithmetic.
-6. **Only `map()` callables run outside the server, applied on top of the element it picked.** Selection and transformation separate: [`_MapResult`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L398) indexes first, then applies the callables.
+5. **A runtime always consumes delivered bindings; it never resolves the expand input itself.** The server works out which row and element this index reads, and the supervisor reads that value through the XCom backend and hands it to the runtime, in both authoring modes.
+   No SDK re-implements element selection or cross-product arithmetic, and the server never reads an XCom value.
+6. **Only `map()` callables run outside the server and supervisor, applied on top of the element they picked.** Selection and transformation separate: [`_MapResult`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L398) indexes first, then applies the callables.
    A Dag definition's callables belong to its own SDK and are applied by that runtime, which reads them from its own bundle. A Python Dag's callables are Python, so the helper applies them and the binding arrives as a plain literal.
    No language reads another's callable.
 7. **The map-index label is a runtime call, not a template.** `map_index_template` is Jinja and no other language renders it; an SDK sends `SetRenderedMapIndex` instead.
@@ -74,8 +75,8 @@ The coordinator only starts the SDK runtime subprocess; the supervisor handles e
 | Process | Language | Its share of mapping |
 |---|---|---|
 | Scheduler | Python | Counts the expansion and turns the `-1` placeholder into N instances. |
-| API server, Execution API | Python | Picks this index's element and builds the bindings for `ti_run`. |
-| Supervisor | Python, in the worker process | Measures a Lang-SDK producer's map length; forwards every XCom request. |
+| API server, Execution API | Python | Works out which row and element each binding reads, and builds the bindings for `ti_run`. Never reads an XCom value. |
+| Supervisor | Python, in the worker process | Measures a Lang-SDK producer's map length; reads each bound value and narrows it to this index; forwards every XCom request. |
 | Python sidecar | Python, one per Lang-SDK task instance, started on the first request that needs it | Runs `[core] xcom_backend`, so a runtime only sends and receives plain values. |
 | `map()` helper | Python, one per consuming task instance | Imports a Python Dag file and applies its `map()` callables. |
 | SDK runtime | the SDK's own language | Runs the handler, applies the SDK's own `map()` callables, holds the reduce sequence. |
@@ -86,6 +87,7 @@ The coordinator only starts the SDK runtime subprocess; the supervisor handles e
 - A mapped task returns the same reference type as any other task, so an edge or a later `expand` treats it identically.
 - `zip`, `concat` and `map` are methods on a reference, not free functions, so they chain in declaration order.
 - A reduce consumer receives a sequence of the element type, not the element type.
+- Expanding over a list of `T` gives each instance a `T`; expanding over a dict gives each instance a `[key, value]` pair, as a Python task gets `(key, value)`.
 
 The running example, in the TypeScript SDK. Every later section follows this same `extract →
 transform → report`.
@@ -193,17 +195,72 @@ Two kinds appear on one side only. `param` never reaches the runtime, the server
 `tuple`, the `zip()` element below, is never in the Dag, since only the server knows which rows meet
 at this index. Nor is the kind in the Dag always the kind on the wire: an argument naming a task in
 the same mapped group is `sequence`, that producer being expanded itself, and the server narrows it
-to this index's row.
+to this index's row. A runtime never sees `xcom` or `tuple` either: the supervisor reads them and sends a `literal`.
 
 With no `_arg_bindings` at all, a stub task keeps its older behaviour of ignoring call arguments.
 
 ## What the Execution API sends
 
-An XCom binding carries the coordinate of this index's element: `map_index` for a row of a mapped
-upstream, `element_index` for one element of an unmapped upstream's output. Three further kinds
-complete the set:
+The server sends coordinates, never values: an XCom binding names a row, and for an unmapped upstream the element of it this index reads.
+The supervisor reads each one through the XCom backend, narrows it, and passes the runtime a `literal`, so a runtime receives only `literal` and `sequence`.
+`XComRef` and `LiteralValue` carry no parameter name, so a `zip` part can be either:
 
 ```python
+class XComRef(BaseModel):
+    """One upstream value, read by the supervisor."""
+
+    kind: Literal["xcom"]
+
+    task_id: str
+    """Task whose ``return_value`` is read."""
+
+    map_index: int | None = None
+    """The row of a mapped upstream. Unset reads an unmapped upstream's only row."""
+
+    element_index: int | None = None
+    """Then this element of the row: a list item, or a dict's ``(key, value)`` pair in stored order."""
+
+
+class LiteralValue(BaseModel):
+    """One inline value."""
+
+    kind: Literal["literal"]
+
+    value: JsonValue | None = None
+
+
+ArgPart = Annotated[XComRef | LiteralValue, Field(discriminator="kind")]
+
+
+class _ArgBindingBase(BaseModel):
+    name: str
+    value_schema: ArgValueSchema | None = None
+
+    kwarg: str | None = None
+    """``expand_kwargs()`` only: take this key of the value."""
+
+    fallback: ArgPart | None = None
+    """The value when ``kwarg`` is missing: the ``partial()`` value or the signature default."""
+
+
+class XComArgBinding(_ArgBindingBase, XComRef):
+    """An argument read from an upstream task."""
+
+
+class LiteralArgBinding(_ArgBindingBase, LiteralValue):
+    from_default: bool = False
+
+
+class TupleArgBinding(_ArgBindingBase):
+    """One ``zip`` element: several values gathered into a single argument."""
+
+    kind: Literal["tuple"]
+
+    parts: list[ArgPart]
+    """One part per zipped argument, in zip order. A ``fillvalue`` standing in at this index
+    is a ``LiteralValue``."""
+
+
 class XComSequenceArgBinding(_ArgBindingBase):
     """A producing task's whole output, as a lazy sequence (decision 8)."""
 
@@ -226,16 +283,6 @@ class UnresolvedArgBinding(_ArgBindingBase):
     kind: Literal["unresolved"]
 
 
-class TupleArgBinding(_ArgBindingBase):
-    """One ``zip`` element: several rows gathered into a single argument."""
-
-    kind: Literal["tuple"]
-
-    parts: list[XComArgBinding | LiteralArgBinding]
-    """One part per zipped argument, in the order they were zipped. A ``fillvalue`` standing
-    in at this index arrives as a ``LiteralArgBinding`` part."""
-
-
 TaskArgBinding = TypeAliasType(
     "TaskArgBinding",
     Annotated[
@@ -245,7 +292,17 @@ TaskArgBinding = TypeAliasType(
 )
 ```
 
-and one field on the run context:
+Before the runtime starts, the supervisor turns every binding into what the runtime receives:
+
+| From the server | The supervisor | The runtime receives |
+|---|---|---|
+| `literal` | passes it on | `literal` |
+| `xcom` | GETs the row through the XCom backend, then takes `element_index` when set | `literal` |
+| `tuple` | reads every part and puts them in one array, in zip order | `literal` |
+| any of these with `kwarg` | then takes that key, else reads `fallback`; with neither, fails the task | `literal` |
+| `sequence` | passes it on | `sequence` |
+
+The run context gains one field:
 
 ```python
 class TIRunContext(BaseModel):
@@ -295,35 +352,41 @@ delegates to the argument it wraps, because it is elementwise and cannot change 
 
 ## Read path
 
-One path for both authoring modes: every binding is already narrowed to this map index before the
-runtime starts.
+One path for both authoring modes: the supervisor narrows every binding to this map index's value before the runtime starts.
 
 ```
  API SERVER   ti_run ──▶ TIRunContext{ ti.map_index, expanded_ti_count, arg_bindings }
+                │          each xcom binding a coordinate: task_id, map_index, element_index
                 │
- COORDINATOR    ├─ map() callables written in Python? ──▶ helper applies them, binding becomes literal
+ SUPERVISOR     ├─ read each value through the XCom backend, narrow it to this index
+                ├─ map() callables written in Python? ──▶ helper applies them
+                └─ rewrite the binding to a literal
                 │
  SDK RUNTIME    ├─ map() callables written in this SDK? ──▶ runtime applies them
                 └─ transform({ region: "eu", row: … })
 ```
 
-What the server puts in each binding, per authoring form.
+What the server sends for each authoring form, and what the runtime receives after the supervisor.
 
-| Authoring form | Binding | What the SDK runtime does |
+| Authoring form | Binding from the server | The runtime receives |
 |---|---|---|
-| `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | use it |
-| `.expand({ row: rows })` | `xcom`, `task_id`, `map_index=-1`, `element_index=i` | GET the one row, take `value[element_index]` |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | GET that row |
-| `.expand({ a: …, b: … })` | one binding per argument, each already decomposed | use each |
-| `.partial({ region: … })` | `literal`, or `xcom` with no index | same value every index |
-| `.expandKwargs(…)` | one binding per parameter of this index's mapping | use each |
-| `.zip(a, b)` | `tuple`, `parts` — one binding per zipped argument | pull each part, assemble |
-| `.concat(a, b)` | `xcom` for whichever argument owns this index | GET that row |
+| `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | that `literal` |
+| `.expand({ row: rows })` | `xcom`, `task_id`, `element_index=i` | `literal`: element `i` of the row |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | `literal`: that row |
+| `.expand({ a: …, b: … })` | one binding per argument, each with its own coordinate | one `literal` per argument |
+| `.partial({ region: … })` | `literal`, or `xcom` with no index | the same value at every index |
+| `.expandKwargs(rows)` | per parameter: `xcom` with `element_index=i`, `kwarg` and `fallback` | `literal`: that key of element `i`, else the fallback |
+| `.zip(a, b)` | `tuple`, one part per zipped argument | `literal`: the parts as one array |
+| `.concat(a, b)` | `xcom` for whichever argument owns this index | `literal`: that element |
 | `.map(f)` | the wrapped form's binding, or `unresolved` | see below |
-| Mapped task group | the member's binding, taken through the innermost common mapped ancestor | use it |
-| Reduce, in a downstream task | `sequence`, `task_id` | build a lazy handle, fetch nothing yet |
+| Mapped task group | the member's binding, taken through the innermost common mapped ancestor | `literal` |
+| Reduce, in a downstream task | `sequence`, `task_id` | `sequence`, from which it builds a lazy handle and fetches nothing yet |
 
-A Dag definition and a Python Dag with stub TaskHandler differ in nothing else.
+An element of a dict is its `(key, value)` pair in the stored value's order, the pair a Python task reading the same XCom gets.
+A runtime receives it as a two-item array, such as `["uk", 3]`.
+With `.expandKwargs(…)`, a parameter missing from this index's dict takes its `partial()` value or its default, and fails the task with neither, as a missing argument does in Python.
+
+A Dag definition and a Python Dag with stub TaskHandler differ only in who applies `map()` callables.
 
 ### Acting on `expanded_ti_count`
 
@@ -426,7 +489,7 @@ A Python task keeps running the backend in its own process.
 What every SDK implements, in order. Nothing here is language-specific.
 
 1. Read `ti.map_index` and `ti_context.expanded_ti_count` from `StartupDetails`. A `map_index` of `-1` means the task is not mapped.
-2. Take the delivered binding for this map index. A binding naming a primitive the SDK does not implement fails the task before the handler runs.
+2. Take the delivered binding for this map index: a `literal`, or a `sequence` for a reduce. A kind the SDK does not implement fails the task before the handler runs.
 3. Apply the SDK's own `map()` callables, if the Dag definition declared any.
 4. Optionally send `SetRenderedMapIndex` to label the instance.
 5. Run the handler with that one element.
@@ -453,6 +516,12 @@ there is no key to record. A `map()`, `zip()` or `concat()` argument is `unresol
 payload. Every `value` and `default` is checked JSON-serializable when it is written, so it crosses
 the language boundary as it stands. Plain JSON also keeps the stored Dag readable, where the encoded
 form wrapped every `value_schema` and every dict-valued `default` in a second object.
+
+**The server reads the XCom to pick an element.** Under an offloading XCom backend the row holds only a storage path,
+and every `ti_run` of a mapped Lang-SDK task would read XCom values. The supervisor already reads through the backend.
+
+**Each runtime picks its own element.** Every SDK would re-implement list indexing, dict pairs, `zip` assembly and the `expand_kwargs` split,
+and Go cannot recover a JSON object's key order once it decodes one into a map.
 
 ## Related work, out of scope
 
