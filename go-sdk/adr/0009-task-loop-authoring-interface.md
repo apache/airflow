@@ -45,10 +45,11 @@ This ADR records the Go spelling of them.
 4. **`actx.Loop()` supplies the loop context**, beside `Logger`, `Client`, `TaskInstance` and
    `DagRun`. It returns a value and an error, because reading the previous iteration is a round trip.
 5. **`Index`, `MaxIterations` and `Previous` are struct fields**, as `DagRun`'s are, and
-   `UnmarshalPrevious(out)` binds the raw one. That is `GetXCom`'s split between the value it returns
-   and the `out` it decodes into.
+   `UnmarshalPrevious(out)` binds the raw one. That is the split `GetXCom` declares, whose `value`
+   parameter is reserved for exactly this decoding and ignored today.
 6. **A body ref is read from outside the loop unchanged.** The consuming handler declares `T` for one
-   iteration or `airflow.XComSequence[T]` for every iteration, checked at registration.
+   iteration or `airflow.XComSequence` for every iteration, and registration checks which it asked
+   for against where it sits.
 7. **`*LoopRef` is the `Node` that carries edges.** An order-only edge from a body ref to a task
    outside is rejected when it is declared.
 
@@ -91,12 +92,16 @@ func accurateEnough(actx airflow.Context, result Metrics) (airflow.LoopDecision,
     }, nil
 }
 
-func report(actx airflow.Context, history airflow.XComSequence[Metrics]) error {
+func report(actx airflow.Context, history airflow.XComSequence) error {
     n, err := history.Len()
     if err != nil {
         return err
     }
-    actx.Logger().Info("settled", "iterations", n)
+    var last Metrics
+    if err := history.UnmarshalAt(n-1, &last); err != nil {
+        return err
+    }
+    actx.Logger().Info("settled", "iterations", n, "error", last.Error)
     return nil
 }
 ```
@@ -115,7 +120,7 @@ refinement.Before(dag.Task(cleanup))        // order only: the whole loop, not o
 ```
 
 `evaluated` is written twice and means two things. Inside the loop it is one iteration's `Metrics`,
-which is what the gate takes. Outside it is an `airflow.XComSequence[Metrics]`, which is what
+which is what the gate takes. Outside it is an `airflow.XComSequence`, which is what
 `report` takes. Decision 6 is what makes registration accept both.
 
 A loop that only counts needs no callable:
@@ -175,11 +180,19 @@ type Loop struct {
 func (l Loop) UnmarshalPrevious(out any) error
 
 // XComSequence is the lazy sequence of ADR-0016: every iteration of a loop task read from outside
-// the loop, or every instance of a mapped task. It is generic because it is reached as a declared
-// parameter type, which the SDK reads by reflection as it does any other parameter.
-type XComSequence[T any] interface {
+// the loop, or every instance of a mapped task.
+//
+// It is not generic. The SDK builds it by reflection from a handler registered as fn any, and Go
+// reflection instantiates no generic type and synthesizes no method set, so an XComSequence[T] is
+// one the runtime could never hand to a handler. The element type is named at the read instead.
+type XComSequence interface {
     Len() (int, error)
-    At(offset int) (T, error)
+
+    // At returns one element as it arrived, as GetXCom returns a stored value.
+    At(offset int) (any, error)
+
+    // UnmarshalAt decodes one element into a DTO, as UnmarshalPrevious decodes Previous.
+    UnmarshalAt(offset int, out any) error
 }
 ```
 
@@ -196,16 +209,17 @@ type XComSequence[T any] interface {
   are rejected the same way.
 - **`actx.Loop()` panics outside a loop**, as the other accessors do on a zero `Context`, so a handler
   moved out of a group fails where it was moved.
-- **A mapped terminal needs no second accessor.** `Previous` holds an `airflow.XComSequence[T]` when
+- **A mapped terminal needs no second accessor.** `Previous` holds an `airflow.XComSequence` when
   `terminal_is_mapped` is true and a plain value otherwise, which is what Python's one
   `loop.previous` property does. The mapped spelling is a type assertion,
-  `loop.Previous.(airflow.XComSequence[Metrics])`, since a sequence is not something to decode into.
+  `loop.Previous.(airflow.XComSequence)`, since a sequence is not something to decode into.
 - **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
   outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
   Dag is read rather than failing partway through the run.
-- **`Previous` is untyped where `XComSequence[T]` is typed.** A declared parameter type is something
-  the SDK reads by reflection, so a sequence carries its element type. A struct field carries nothing,
-  and a Go method cannot take a type parameter, so `Previous` keeps `GetXCom`'s shape.
+- **Nothing in Go carries the element type.** `Previous` is a struct field and `XComSequence` is
+  built by reflection, and neither can be generic, so both name the type at the read:
+  `UnmarshalPrevious` for one value, `UnmarshalAt` for one element. Go is the only one of the three
+  SDKs where the signature does not say it.
 
 ## Alternatives
 
@@ -213,5 +227,9 @@ type XComSequence[T any] interface {
   writing to them. `DagRun()` hands back a value for the same reason.
 - **A `Loop` parameter on the handler**, as the Java SDK injects one. Rejected: a Go handler already
   takes `airflow.Context` first, and everything else Airflow gives a task hangs off it.
+- **A generic `XComSequence[T]`**, so the element type sits in the handler's signature. Rejected
+  because it cannot be built: handlers register as `fn any`, and Go reflection instantiates no
+  generic type, so the runtime has nothing to pass for such a parameter and nothing to assert
+  `Previous` to.
 - **Fetching `Previous` before every body handler runs**, which would drop the error from `Loop()`.
   Rejected: a handler that never reads it would pay a round trip from iteration 2 on.
