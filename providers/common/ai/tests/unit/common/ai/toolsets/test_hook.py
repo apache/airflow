@@ -814,6 +814,23 @@ class TestParseParamDocs:
         )
         assert result["routine_id"] == "The routine identifier."
 
+    def test_sphinx_description_continues_after_a_blank_line(self):
+        # Shaped like S3Hook.copy_object, whose source_bucket_key has an indented second paragraph.
+        docstring = """Copy an object.
+
+        :param source_bucket_key: The key of the source object.
+
+            It can be either full s3:// style url or relative path from root level.
+        :param dest_bucket_key: The key of the object to copy to.
+        """
+        assert _parse_param_docs(docstring) == {
+            "source_bucket_key": (
+                "The key of the source object. "
+                "It can be either full s3:// style url or relative path from root level."
+            ),
+            "dest_bucket_key": "The key of the object to copy to.",
+        }
+
     def test_sphinx_param_without_description_is_left_out(self):
         # Shaped like GKEHook._append_label, whose val was described as ":return: The cluster proto ...".
         docstring = """Append a label.
