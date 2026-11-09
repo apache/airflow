@@ -1747,6 +1747,14 @@
                                     "items": {
                                         "type": "string"
                                     }
+                                },
+                                "terminationGracePeriodSeconds": {
+                                    "description": "Grace period, in seconds, for a kill triggered by this probe. Overrides the pod's `terminationGracePeriodSeconds` for liveness kills only.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
                                 }
                             }
                         },

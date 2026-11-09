@@ -729,6 +729,29 @@ class TestWorker:
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe is None
 
+    def test_livenessprobe_termination_grace_period_unset_by_default(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.terminationGracePeriodSeconds", docs[0]
+            )
+            is None
+        )
+
+    def test_livenessprobe_termination_grace_period(self):
+        docs = render_chart(
+            values={"workers": {"celery": {"livenessProbe": {"terminationGracePeriodSeconds": 120}}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.terminationGracePeriodSeconds", docs[0]
+            )
+            == 120
+        )
+
     def test_extra_init_container_restart_policy_is_configurable(self):
         docs = render_chart(
             values={

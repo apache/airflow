@@ -646,6 +646,12 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+      # Grace period for a kill triggered by this probe. Unset, the pod's
+      # `terminationGracePeriodSeconds` applies, which workers often set to hours
+      # so that a rolling update drains running tasks; a worker killed because it
+      # stopped answering is not draining anything, so a shorter period here
+      # restarts it sooner.
+      terminationGracePeriodSeconds: ~
 
     # Enable the default workers defined by the root `workers` and `workers.celery`
     # configurations to be created.
