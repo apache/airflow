@@ -22,7 +22,7 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PINNED_RUN_BUTTONS_WIDTH_PX, ROW_HEIGHT } from "./constants";
+import { PINNED_RUN_BUTTONS_WIDTH_PX, ROW_HEIGHT, SCROLLBAR_SPACER_WIDTH_PX } from "./constants";
 import { useGridScrollRestore } from "./useGridScrollRestore";
 import type { GridTask } from "./utils";
 
@@ -130,7 +130,7 @@ const makeTask = (id: string): GridTask => ({ id }) as unknown as GridTask;
 const makeTasks = (count: number) => Array.from({ length: count }, (_, index) => makeTask(`task_${index}`));
 
 type HookArgs = Parameters<typeof useGridScrollRestore>[0];
-type Defaulted = "headerPad" | "isRtl" | "pinnedButtonsWidth" | "sharesScroller" | "taskNameColumnRef";
+type Defaulted = "headerPad" | "isRtl" | "reservedEndWidth" | "sharesScroller" | "taskNameColumnRef";
 type RestoreArgs = Omit<HookArgs, Defaulted> & Partial<Pick<HookArgs, Defaulted>>;
 
 const renderRestore = (args: RestoreArgs) =>
@@ -139,7 +139,7 @@ const renderRestore = (args: RestoreArgs) =>
       useGridScrollRestore({
         headerPad: HEADER_PAD,
         isRtl: false,
-        pinnedButtonsWidth: 0,
+        reservedEndWidth: 0,
         sharesScroller: false,
         taskNameColumnRef,
         ...props,
@@ -342,40 +342,49 @@ describe("useGridScrollRestore", () => {
 
   // The buttons float over the inline end of the scrollport, which is exactly where `nearest` parks
   // a run that was cut off there. RTL moves them to the left edge along with the scrollbar.
+  // Flush against the scrollport leaves the column under whatever is pinned there: a click on its
+  // bar hits "Reset to latest", or an overlay scrollbar covers it, since those sit inside
+  // clientWidth rather than outside it. RTL moves that edge, and the reserve, to the left.
   it.each([
-    { dagId: "dag_buttons_ltr", isRtl: false, label: "right", runColumnLeft: 800 },
-    { dagId: "dag_buttons_rtl", isRtl: true, label: "left", runColumnLeft: -50 },
-  ])(
-    "stops a nudged run short of the pinned pager buttons on the $label",
-    ({ dagId, isRtl, runColumnLeft }) => {
-      const scrollEl = makeScrollEl({ rtl: isRtl, runColumnLeft });
-      const { rowVirtualizer } = makeVirtualizer(scrollEl);
-      const args = {
-        dagId,
-        flatNodes: makeTasks(5),
-        isRtl,
-        pinnedButtonsWidth: PINNED_RUN_BUTTONS_WIDTH_PX,
-        rowVirtualizer,
-        runIds: ["run_1"],
-        selectedRunId: "run_1",
-        selectedTaskId: "task_0",
-      };
-      const rendered = renderRestore(args);
-
-      // A scroll of the user's own, so the reveal below nudges instead of centring.
-      scrollEl.scrollLeft = 0;
-      scrollEl.dispatchScroll();
-
-      rendered.rerender({ ...args, selectedTaskId: "task_1" });
-
-      // Flush against the scrollport would leave the column under the buttons, where a click on its
-      // bar hits "Reset to latest" instead.
-      const columnLeft = runColumnLeft - scrollEl.scrollLeft;
-      const gapToPinnedEdge = isRtl ? columnLeft : VIEWPORT_WIDTH - (columnLeft + RUN_COLUMN_WIDTH);
-
-      expect(gapToPinnedEdge).toBe(PINNED_RUN_BUTTONS_WIDTH_PX);
+    {
+      dagId: "dag_reserve_pager",
+      isRtl: false,
+      label: "the pager buttons",
+      reservedEndWidth: PINNED_RUN_BUTTONS_WIDTH_PX,
+      runColumnLeft: 800,
     },
-  );
+    {
+      dagId: "dag_reserve_rtl_scrollbar",
+      isRtl: true,
+      label: "an RTL overlay scrollbar",
+      reservedEndWidth: SCROLLBAR_SPACER_WIDTH_PX,
+      runColumnLeft: -50,
+    },
+  ])("stops a nudged run short of $label", ({ dagId, isRtl, reservedEndWidth, runColumnLeft }) => {
+    const scrollEl = makeScrollEl({ rtl: isRtl, runColumnLeft });
+    const { rowVirtualizer } = makeVirtualizer(scrollEl);
+    const args = {
+      dagId,
+      flatNodes: makeTasks(5),
+      isRtl,
+      reservedEndWidth,
+      rowVirtualizer,
+      runIds: ["run_1"],
+      selectedRunId: "run_1",
+      selectedTaskId: "task_0",
+    };
+    const rendered = renderRestore(args);
+
+    // A scroll of the user's own, so the reveal below nudges instead of centring.
+    scrollEl.scrollLeft = 0;
+    scrollEl.dispatchScroll();
+
+    rendered.rerender({ ...args, selectedTaskId: "task_1" });
+
+    const columnLeft = runColumnLeft - scrollEl.scrollLeft;
+
+    expect(isRtl ? columnLeft : VIEWPORT_WIDTH - (columnLeft + RUN_COLUMN_WIDTH)).toBe(reservedEndWidth);
+  });
 
   it("leaves the scroll position alone when the selected run is already visible", () => {
     const scrollEl = makeScrollEl({ runColumnLeft: 300 });

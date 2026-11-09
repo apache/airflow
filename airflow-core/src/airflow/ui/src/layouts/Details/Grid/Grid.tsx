@@ -49,6 +49,7 @@ import {
   GRID_HEADER_PADDING_PX,
   PINNED_RUN_BUTTONS_WIDTH_PX,
   ROW_HEIGHT,
+  SCROLLBAR_SPACER_WIDTH_PX,
   TASK_NAME_COLUMN_MIN_WIDTH_PX,
 } from "./constants";
 import { useGridPagination } from "./useGridPagination";
@@ -77,7 +78,7 @@ type Props = {
 
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
 // Reserves right-edge space for the scrollbar, and widens to fit the newer/reset pager buttons when shown.
-const ScrollbarSpacer = ({ width = "16px" }: { readonly width?: string }) => (
+const ScrollbarSpacer = ({ width }: { readonly width: string }) => (
   <Box aria-hidden flexShrink={0} minWidth={width} width={width} />
 );
 
@@ -129,10 +130,12 @@ export const Grid = ({
   const { handleNewerRuns, handleOlderRuns, hasNewerRuns, hasOlderRuns, latestNotVisible } =
     useGridPagination({ gridRuns: dataGridRuns, limit, offset, setOffset });
 
-  // The buttons float over the run columns, so the spacer keeps the newest run clear of them once
-  // the Grid is scrolled to the end; the reveal below keeps every other run clear of them too.
-  const hasPinnedNewerButtons = hasNewerRuns || latestNotVisible;
-  const scrollbarSpacerWidth = hasPinnedNewerButtons ? `${PINNED_RUN_BUTTONS_WIDTH_PX}px` : "16px";
+  // The scrollbar and the pager buttons both cover the run columns at this edge. The spacer keeps
+  // the newest run clear of them once the Grid is scrolled to the end; the reveal below keeps every
+  // other run clear of them too, off the same width.
+  const reservedEndWidth =
+    hasNewerRuns || latestNotVisible ? PINNED_RUN_BUTTONS_WIDTH_PX : SCROLLBAR_SPACER_WIDTH_PX;
+  const scrollbarSpacerWidth = `${reservedEndWidth}px`;
 
   const runIds = gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [];
 
@@ -243,7 +246,7 @@ export const Grid = ({
     flatNodes,
     headerPad,
     isRtl: i18n.dir() === "rtl",
-    pinnedButtonsWidth: hasPinnedNewerButtons ? PINNED_RUN_BUTTONS_WIDTH_PX : 0,
+    reservedEndWidth,
     rowVirtualizer,
     runIds,
     selectedGroupId,
