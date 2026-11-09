@@ -42,7 +42,7 @@ const TABS: Array<NavTab> = Array.from({ length: 9 }, (_, index) => ({
 
 const CurrentPath = () => <div data-testid="current-path">{useLocation().pathname}</div>;
 
-const renderTabs = (initialPath: string) =>
+const renderTabs = (initialPath: string, tabs: Array<NavTab> = TABS) =>
   render(
     <ChakraProvider value={defaultSystem}>
       <MemoryRouter initialEntries={[initialPath]}>
@@ -50,7 +50,7 @@ const renderTabs = (initialPath: string) =>
           <Route
             element={
               <>
-                <NavTabs tabs={TABS} />
+                <NavTabs tabs={tabs} />
                 <Outlet />
               </>
             }
@@ -119,5 +119,24 @@ describe("NavTabs", () => {
       "aria-current",
       "page",
     );
+  });
+
+  it("shows icons and an icon-only More trigger in a narrow panel", async () => {
+    vi.mocked(useContainerWidth).mockReturnValue(400);
+
+    renderTabs(
+      "/dag/tab0",
+      TABS.map((tab) => ({ ...tab, icon: <span>{`icon ${tab.value}`}</span> })),
+    );
+
+    expect(getRowLabels()).toEqual(["icon tab0", "icon tab1", "icon tab2"]);
+    const more = screen.getByRole("button", { name: "moreTabs" });
+
+    expect(more).not.toHaveTextContent("moreTabs");
+
+    fireEvent.click(more);
+    const menu = await screen.findByRole("menu");
+
+    expect(within(menu).getByRole("menuitem", { name: "icon tab3 Tab 3" })).toBeInTheDocument();
   });
 });

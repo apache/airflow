@@ -20,7 +20,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { Box, Center, type CenterProps, Flex, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown } from "react-icons/fi";
+import { FiChevronDown, FiMoreHorizontal } from "react-icons/fi";
 import { NavLink, resolvePath, useLocation, useResolvedPath } from "react-router-dom";
 
 import { Menu } from "src/system-components";
@@ -85,11 +85,13 @@ export const NavTabs = ({ tabs }: Props) => {
   );
   const showLabels = containerWidth > 600;
   const getTabContent = ({ icon, label }: NavTab) => (showLabels || !Boolean(icon) ? label : icon);
-  const moreLabel = (
+  const moreLabel = showLabels ? (
     <HStack gap={1}>
       {translate("moreTabs")}
       <FiChevronDown />
     </HStack>
+  ) : (
+    <FiMoreHorizontal />
   );
 
   // Measure every tab in a hidden copy, including the ones moved to the menu. The copy is rendered
@@ -154,7 +156,14 @@ export const NavTabs = ({ tabs }: Props) => {
       {overflowTabs.length > 0 ? (
         <Menu.Root positioning={{ placement: "bottom-end" }}>
           <Menu.Trigger asChild>
-            <TabContent active={false} as="button" cursor="pointer" data-testid="nav-tabs-more">
+            <TabContent
+              active={false}
+              aria-label={translate("moreTabs")}
+              as="button"
+              cursor="pointer"
+              data-testid="nav-tabs-more"
+              title={translate("moreTabs")}
+            >
               {moreLabel}
             </TabContent>
           </Menu.Trigger>
