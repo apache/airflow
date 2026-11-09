@@ -463,7 +463,7 @@ class DagProcessorAPIClient(Client):
             content=body.model_dump_json(),
             headers=_JOB_API_HEADERS,
             retry=False,
-            timeout=self._get_bounded_timeout(),
+            timeout=self._get_response_timeout(),
         )
         work = [ProcessorWorkItem.model_validate(item) for item in response.json()]
         self._claim_sequences[kind] = body.claim_sequence
@@ -478,7 +478,7 @@ class DagProcessorAPIClient(Client):
             content=body.model_dump_json(),
             headers=_JOB_API_HEADERS,
             retry=False,
-            timeout=self._get_bounded_timeout(),
+            timeout=self._get_response_timeout(),
         )
 
     def publish_inventory(self, bundle_name: str, body: DagBundleInventoryBody) -> DagBundleInventoryResponse:

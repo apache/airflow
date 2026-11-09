@@ -29,7 +29,6 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagBundleInventoryResponse,
     DagBundleStateResponse,
     DagParseResultBody,
-    ProcessorWorkItem,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -46,17 +45,7 @@ from airflow.dag_processing.manager import (
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 
 from tests_common.test_utils.config import conf_vars
-from unit.dag_processing.requested_work_helpers import get_api_work_source
-
-
-def _make_work(bundle_name, relative_fileloc="a.py", *, callback=None):
-    return ProcessorWorkItem(
-        id=str(uuid7()),
-        claim_id=uuid7(),
-        bundle_name=bundle_name,
-        relative_fileloc=relative_fileloc,
-        callback=callback,
-    )
+from unit.dag_processing.requested_work_helpers import get_api_work_source, make_work
 
 
 @pytest.fixture
@@ -98,7 +87,7 @@ def test_callback_queued_behind_running_callback_dispatches_and_acknowledges(
     prepare.return_value = bundle
     get_logger.return_value = (mock.Mock(spec=[]), mock.Mock(spec=[]))
     source = get_api_work_source(manager)
-    priority_work = _make_work(bundle.name, "priority.py")
+    priority_work = make_work(bundle.name, "priority.py")
     client.claim_work.return_value = [priority_work]
     [priority_file] = manager.claim_priority_files()
     priority_claim = source._priority_claims[priority_work.id, priority_work.claim_id]
@@ -121,7 +110,7 @@ def test_callback_queued_behind_running_callback_dispatches_and_acknowledges(
         )
         for run in ("first", "second")
     ]
-    work = [_make_work(bundle.name, callback=request) for request in requests]
+    work = [make_work(bundle.name, callback=request) for request in requests]
     for item in work:
         client.claim_work.return_value = [item]
         for request in manager.fetch_callbacks():
@@ -221,7 +210,7 @@ def test_callbacks_run_again_after_api_failure_only_when_none_ran(
         )
         for i in range(callback_count)
     ]
-    work = [_make_work(bundle.name, callback=request) for request in requests]
+    work = [make_work(bundle.name, callback=request) for request in requests]
     client.claim_work.return_value = work
     complete = manager._collect_results if completion == "exit" else manager._kill_timed_out_processors
 
@@ -320,7 +309,7 @@ def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(
     for filename in ("a.py", "b.py"):
         (broken.path / filename).write_text("from airflow.sdk import DAG\ndag = DAG('broken')\n")
     (ready.path / "ready.py").write_text("from airflow.sdk import DAG\ndag = DAG('ready')\n")
-    work = [_make_work(broken.name, filename) for filename in ("a.py", "b.py")]
+    work = [make_work(broken.name, filename) for filename in ("a.py", "b.py")]
     client.claim_work.return_value = work
     manager._queue_requested_files_for_parsing()
     discover = find_files.side_effect
@@ -345,7 +334,7 @@ def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(
     assert manager._bundles_needing_refresh == {broken.name}
     assert len(get_api_work_source(manager)._priority_claims) == 2
     assert not get_api_work_source(manager)._pending_work_acks
-    healthy_work = _make_work(ready.name, "ready.py")
+    healthy_work = make_work(ready.name, "ready.py")
     client.claim_work.return_value = [healthy_work]
     manager._queue_requested_files_for_parsing()
     client.claim_work.assert_called_with("priority", [ready.name], 2)
@@ -412,7 +401,7 @@ def test_failed_listings_keep_claims_while_the_listing_backs_off(find_files, clo
     clock.monotonic.return_value = 100.0
     for filename in ("a.py", "b.py"):
         (bundle.path / filename).write_text("from airflow.sdk import DAG\ndag = DAG('a')\n")
-    client.claim_work.return_value = [_make_work(bundle.name, filename) for filename in ("a.py", "b.py")]
+    client.claim_work.return_value = [make_work(bundle.name, filename) for filename in ("a.py", "b.py")]
     assert len(manager.claim_priority_files()) == 2
 
     for now, retry_at in ((100.0, 105.0), (105.0, 115.0)):
@@ -427,7 +416,7 @@ def test_failed_listings_keep_claims_while_the_listing_backs_off(find_files, clo
 
 def test_priority_claims_waiting_for_fresh_inventory_keep_the_budget_bounded(api_manager):
     manager, client, bundle = api_manager
-    client.claim_work.return_value = [_make_work(bundle.name, filename) for filename in ("a.py", "b.py")]
+    client.claim_work.return_value = [make_work(bundle.name, filename) for filename in ("a.py", "b.py")]
     manager._queue_requested_files_for_parsing()
 
     assert manager.claim_priority_files() == []
@@ -465,7 +454,7 @@ def test_priority_claims_on_an_archive_with_a_dropped_member_are_settled(
         }
     )
     known_files = {bundle.name: {archive}}
-    work = _make_work(bundle.name, claimed)
+    work = make_work(bundle.name, claimed)
     client.claim_work.return_value = [work]
     manager._queue_requested_files_for_parsing()
     source = get_api_work_source(manager)
@@ -524,7 +513,7 @@ def test_failed_bundle_only_suspends_priority_claims_without_active_attempts(api
     manager._parallelism = 1
     manager._bundles_needing_refresh.add(bundle.name)
     file = DagFileInfo(bundle_name=bundle.name, bundle_path=bundle.path, rel_path=Path("a.py"))
-    work = _make_work(bundle.name)
+    work = make_work(bundle.name)
     attempt_id = uuid7()
     if stage == "acknowledging":
         get_api_work_source(manager)._pending_work_acks.append(("priority", work))
@@ -574,12 +563,12 @@ def test_claim_failure_preserves_deferred_callbacks_and_claims(api_manager, kind
     )
     deferred = [request, request.model_copy(deep=True)]
     source._deferred_api_callbacks = deferred.copy()
-    claims = {id(callback): _make_work(bundle.name, callback=callback) for callback in deferred}
+    claims = {id(callback): make_work(bundle.name, callback=callback) for callback in deferred}
     source._callback_claims = claims.copy()
     retries = {id(request): DeferredCallback(expires_at=100, next_attempt_time=10, attempts=2)}
     source._deferred_callback_retries = retries.copy()
     if kind == "priority":
-        client.claim_work.return_value = [_make_work(bundle.name)]
+        client.claim_work.return_value = [make_work(bundle.name)]
         manager._queue_requested_files_for_parsing()
     priority_claims = source._priority_claims.copy()
     priority_files = manager._priority_files.copy()
@@ -627,7 +616,7 @@ def test_callback_preparation_logs_retry_and_identifies_expired_work(
             ),
         )
         target = "dag_id=dag run_id=run task_id=task"
-    work = _make_work(bundle.name, callback=request)
+    work = make_work(bundle.name, callback=request)
     get_api_work_source(manager)._callback_claims[id(request)] = work
     get_api_work_source(manager)._deferred_api_callbacks.append(request)
     create_bundle_manager.return_value.get_bundle.side_effect = OSError("version unavailable")

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
@@ -81,6 +82,7 @@ from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time import comms, supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     GetConnection,
@@ -836,6 +838,36 @@ def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
     else:
         assert _parse_file(msg, log=structlog.get_logger()) is None
     assert calls == expected_calls
+
+
+@pytest.mark.parametrize(
+    "send",
+    [
+        pytest.param(lambda comms_decoder, msg: comms_decoder.send(msg), id="send"),
+        pytest.param(lambda comms_decoder, msg: asyncio.run(comms_decoder.asend(msg)), id="asend"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("error", "api_request_failed"),
+    [
+        pytest.param(ErrorType.API_SERVER_ERROR, True, id="api-request-failed"),
+        pytest.param(ErrorType.GENERIC_ERROR, False, id="unhandled-request"),
+    ],
+)
+def test_comms_decoder_records_only_failed_api_requests(send, error, api_request_failed):
+    reader, writer = socketpair()
+    with reader, writer:
+        writer.sendall(
+            comms._ResponseFrame(id=0, error=comms.ErrorResponse(error=error).model_dump()).as_bytes()
+        )
+        comms_decoder = _DagParseCommsDecoder(
+            socket=reader, body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor)
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            send(comms_decoder, GetVariable(key="key"))
+
+    assert comms_decoder.api_request_failed is api_request_failed
 
 
 @conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})

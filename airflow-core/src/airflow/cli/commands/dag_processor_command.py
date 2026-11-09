@@ -90,9 +90,10 @@ def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
         run_job(job=job_runner.job, execute_callable=job_runner._execute)
         return
 
-    # Create the connection pool after the daemon or hot-reload fork.
+    # The client loads FastAPI and the Execution API versions, which database mode does not need.
     from airflow.dag_processing.api_client import DagProcessorAPIClient
 
+    # Create the connection pool after the daemon or hot-reload fork.
     with DagProcessorAPIClient(
         base_url=get_execution_api_server_url(),
         token_file=token_file,

@@ -23,7 +23,6 @@ import httpx2
 import pytest
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance, TIRunContext
 from airflow.callbacks.callback_requests import DagCallbackRequest, EmailRequest, TaskCallbackRequest
 from airflow.dag_processing.api_client import DagProcessorAPIClient
@@ -31,23 +30,7 @@ from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
 from airflow.dag_processing.bundles.local import LocalDagBundle
 
 from tests_common.test_utils.config import conf_vars
-
-
-def _make_work(bundle_name, relative_fileloc="a.py", *, callback=None):
-    return ProcessorWorkItem(
-        id=str(uuid7()),
-        claim_id=uuid7(),
-        bundle_name=bundle_name,
-        relative_fileloc=relative_fileloc,
-        callback=callback,
-    )
-
-
-def _make_status_error(status_code):
-    request = httpx2.Request("POST", "http://api.invalid/ack")
-    return httpx2.HTTPStatusError(
-        "acknowledgment failed", request=request, response=httpx2.Response(status_code, request=request)
-    )
+from unit.dag_processing.requested_work_helpers import make_status_error, make_work
 
 
 @pytest.fixture
@@ -74,7 +57,7 @@ def _claim_callback(source, client, bundle):
     request = DagCallbackRequest(
         filepath="a.py", bundle_name=bundle.name, bundle_version=None, dag_id="test", run_id="run"
     )
-    work = _make_work(bundle.name, callback=request)
+    work = make_work(bundle.name, callback=request)
     client.claim_work.return_value = [work]
     return source.fetch_callbacks([bundle], limit=1)[0], work
 
@@ -118,7 +101,7 @@ def test_callback_lifecycle_preserves_equal_payload_claim_identity(api_source, c
                 }
             ),
         )
-    work = [_make_work(bundle.name, callback=request) for _ in range(2)]
+    work = [make_work(bundle.name, callback=request) for _ in range(2)]
     client.claim_work.return_value = work
     first, second = source.fetch_callbacks([bundle], limit=2)
 
@@ -163,7 +146,7 @@ def test_callback_finish_does_not_acknowledge_priority_claim_for_same_attempt(ap
     source, client, bundle = api_source
     request, callback_work = _claim_callback(source, client, bundle)
     source.callback_queued(request)
-    priority_work = _make_work(bundle.name)
+    priority_work = make_work(bundle.name)
     client.claim_work.return_value = [priority_work]
     file = _claim_priority(source, bundle)[0]
     attempt_id = uuid7()
@@ -189,7 +172,7 @@ def test_callback_finish_does_not_acknowledge_priority_claim_for_same_attempt(ap
 
 def test_priority_finish_keeps_newer_claim_for_same_file(api_source):
     source, client, bundle = api_source
-    first, second = [_make_work(bundle.name) for _ in range(2)]
+    first, second = [make_work(bundle.name) for _ in range(2)]
     client.claim_work.return_value = [first]
     file = _claim_priority(source, bundle)[0]
     assert source.has_outstanding_work()
@@ -221,13 +204,13 @@ def test_priority_finish_keeps_newer_claim_for_same_file(api_source):
 
 @pytest.mark.parametrize(
     "failure",
-    [httpx2.ConnectError("unavailable"), *(_make_status_error(status) for status in (408, 429, 503))],
+    [httpx2.ConnectError("unavailable"), *(make_status_error(status) for status in (408, 429, 503))],
 )
 def test_flush_retries_mixed_kinds_in_fifo_order(api_source, caplog, failure):
     source, client, bundle = api_source
     request, callback_work = _claim_callback(source, client, bundle)
     source.callback_discarded(request)
-    priority_work = _make_work(bundle.name)
+    priority_work = make_work(bundle.name)
     client.claim_work.return_value = [priority_work]
     _claim_priority(source, bundle)
     source.bundle_unusable(bundle.name, active_attempts=set())
@@ -251,16 +234,16 @@ def test_flush_retries_mixed_kinds_in_fifo_order(api_source, caplog, failure):
     assert not source.has_outstanding_work()
 
 
-@pytest.mark.parametrize("status_code", [400, 403, 409])
+@pytest.mark.parametrize("status_code", [400, 403, 404, 409])
 def test_flush_discards_permanent_refusal_and_continues(api_source, status_code):
     source, client, bundle = api_source
     request, callback_work = _claim_callback(source, client, bundle)
     source.callback_discarded(request)
-    priority_work = _make_work(bundle.name)
+    priority_work = make_work(bundle.name)
     client.claim_work.return_value = [priority_work]
     _claim_priority(source, bundle)
     source.bundle_unusable(bundle.name, active_attempts=set())
-    client.acknowledge_work.side_effect = [_make_status_error(status_code), None]
+    client.acknowledge_work.side_effect = [make_status_error(status_code), None]
 
     source.flush()
 
@@ -367,7 +350,7 @@ def test_inventory_reconciles_only_authoritative_missing_files(
     api_source, sequence, files, failed_sources, acknowledged
 ):
     source, client, bundle = api_source
-    work = _make_work(bundle.name)
+    work = make_work(bundle.name)
     client.claim_work.return_value = [work]
     file = _claim_priority(source, bundle)[0]
 
@@ -384,7 +367,7 @@ def test_inventory_reconciles_only_authoritative_missing_files(
 
 def test_unusable_bundle_keeps_active_claim_until_attempt_finishes(api_source):
     source, client, bundle = api_source
-    work = [_make_work(bundle.name, path) for path in ("a.py", "missing.py")]
+    work = [make_work(bundle.name, path) for path in ("a.py", "missing.py")]
     client.claim_work.return_value = work
     first, second = _claim_priority(source, bundle)
     attempt_id = uuid7()
@@ -407,7 +390,7 @@ def test_unusable_bundle_keeps_active_claim_until_attempt_finishes(api_source):
 
 def test_priority_capacity_retains_unavailable_claims_without_blocking_healthy_bundles(api_source):
     source, client, bundle = api_source
-    work = [_make_work(bundle.name, path) for path in ("a.py", "missing.py")]
+    work = [make_work(bundle.name, path) for path in ("a.py", "missing.py")]
     client.claim_work.return_value = work
     first, _ = _claim_priority(source, bundle)
     attempt_id = uuid7()
@@ -434,7 +417,7 @@ def test_deferred_callbacks_do_not_take_other_bundles_capacity(api_source, defer
     source, client, bundle = api_source
     healthy = LocalDagBundle(name="healthy", path=str(bundle.path), refresh_interval=0)
     client.claim_work.return_value = [
-        _make_work(
+        make_work(
             bundle.name,
             callback=DagCallbackRequest(
                 filepath="a.py", bundle_name=bundle.name, bundle_version="v1", dag_id="dag", run_id=str(run)
@@ -455,13 +438,13 @@ def test_deferred_callbacks_do_not_take_other_bundles_capacity(api_source, defer
 
 
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
-@pytest.mark.parametrize("failure", [httpx2.ConnectError("unavailable"), _make_status_error(503)])
+@pytest.mark.parametrize("failure", [httpx2.ConnectError("unavailable"), make_status_error(503)])
 def test_claim_failure_retains_outstanding_work(api_source, caplog, kind, failure):
     source, client, bundle = api_source
     if kind == "callbacks":
         request, _ = _claim_callback(source, client, bundle)
     else:
-        client.claim_work.return_value = [_make_work(bundle.name)]
+        client.claim_work.return_value = [make_work(bundle.name)]
         file = _claim_priority(source, bundle)[0]
     client.claim_work.reset_mock()
     client.claim_work.side_effect = failure
@@ -485,7 +468,7 @@ def test_claim_failure_retains_outstanding_work(api_source, caplog, kind, failur
 @mock.patch("airflow.dag_processing.api_requested_work.find_enclosing_file", autospec=True)
 def test_unreadable_priority_path_keeps_its_claim_for_the_next_inventory(find_enclosing_file, api_source):
     source, client, bundle = api_source
-    unreadable, readable = [_make_work(bundle.name, path) for path in ("locked/dag.py", "a.py")]
+    unreadable, readable = [make_work(bundle.name, path) for path in ("locked/dag.py", "a.py")]
     client.claim_work.return_value = [unreadable, readable]
     find_enclosing_file.side_effect = [PermissionError(13, "Permission denied"), bundle.path / "a.py"]
 
@@ -502,7 +485,7 @@ def test_unreadable_priority_path_keeps_its_claim_for_the_next_inventory(find_en
 
 def test_callback_claim_without_a_request_is_rejected(api_source):
     source, client, bundle = api_source
-    client.claim_work.return_value = [_make_work(bundle.name)]
+    client.claim_work.return_value = [make_work(bundle.name)]
 
     with pytest.raises(ValueError, match="Callback claim returned no request"):
         source.fetch_callbacks([bundle], limit=1)

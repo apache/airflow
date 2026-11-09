@@ -26,10 +26,9 @@ from typing import TYPE_CHECKING, Literal
 import attrs
 import httpx2
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.collection import is_source_discovery_failed
-from airflow.dag_processing.requested_work import RequestedWorkSource
+from airflow.dag_processing.requested_work import RequestedWorkSource, get_callback_target
 from airflow.utils.file import find_enclosing_file
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.dag_processing.manager import DagFileInfo
@@ -46,7 +46,7 @@ _API_SEND_BUDGET_SECONDS = 1.0
 _MAX_CALLBACK_RETRY_DELAY = 60.0
 
 
-def _get_status_code(error: httpx2.HTTPError) -> int | None:
+def get_status_code(error: httpx2.HTTPError) -> int | None:
     return error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
 
 
@@ -96,6 +96,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         inventory_sequence: int,
     ) -> list[DagFileInfo]:
         """Claim priority files within the capacity left by active and retained work."""
+        # Manager imports stay local: the manager imports this module.
         from airflow.dag_processing.manager import DagFileInfo
 
         bundles_by_name = {bundle.name: bundle for bundle in bundles}
@@ -119,7 +120,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
             self.log.warning(
                 "Unable to claim priority parses; retrying on a later loop",
                 error_type=type(error).__name__,
-                status_code=_get_status_code(error),
+                status_code=get_status_code(error),
             )
             return []
         files = []
@@ -176,7 +177,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
             self.log.warning(
                 "Unable to claim callbacks; retrying on a later loop",
                 error_type=type(error).__name__,
-                status_code=_get_status_code(error),
+                status_code=get_status_code(error),
             )
             return list(self._deferred_api_callbacks)
         for item in work:
@@ -241,9 +242,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
             try:
                 self.client.acknowledge_work(kind, item)
             except httpx2.HTTPError as error:
-                status_code = (
-                    error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
-                )
+                status_code = get_status_code(error)
                 if is_transient_api_error(error):
                     self.log.warning(
                         "Unable to acknowledge requested work; retaining the claim",
@@ -327,18 +326,13 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
         retry = self._deferred_callback_retries.setdefault(id(request), DeferredCallback(now + timeout))
         if now >= retry.expires_at:
-            if isinstance(request, DagCallbackRequest):
-                target = f"dag_id={request.dag_id} run_id={request.run_id}"
-            else:
-                ti = request.ti
-                target = f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
             self.log.error(
                 "Dropping callback after its retries timed out",
                 callback_type=type(request).__name__,
                 filepath=request.filepath,
                 bundle_name=request.bundle_name,
                 bundle_version=request.bundle_version,
-                target=target,
+                target=get_callback_target(request),
                 timeout=timeout,
                 timeout_setting="[dag_processor] job_heartbeat_timeout",
             )

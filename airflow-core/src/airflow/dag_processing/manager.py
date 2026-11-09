@@ -62,9 +62,8 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
 )
 from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
-from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource, get_status_code
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     DagBundleRefreshError,
@@ -81,7 +80,11 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     DagParseSource,
 )
-from airflow.dag_processing.requested_work import DatabaseRequestedWorkSource, RequestedWorkSource
+from airflow.dag_processing.requested_work import (
+    DatabaseRequestedWorkSource,
+    RequestedWorkSource,
+    get_callback_target,
+)
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -118,6 +121,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
@@ -126,6 +130,7 @@ if TYPE_CHECKING:
 _API_SEND_BUDGET_SECONDS = 1.0
 _MAX_REJECTION_REASON_LENGTH = 1024
 _REJECTED_CONTENT_REASONS = frozenset({"dag_owned_by_another_bundle", "plugin_not_granted"})
+_SOCKET_HEARTBEAT_INTERVAL_SECONDS = 1.0
 
 
 def _is_rejected_content(status_code: int, reason: str | None) -> bool:
@@ -793,6 +798,9 @@ class DagFileProcessorManager(LoggingMixin):
         All the parsing processes socket handlers are registered into a single Selector
         """
         events = self.selector.select(timeout=timeout)
+        # A request handler can wait up to [workers] execution_api_timeout for the API, so the health file is
+        # refreshed between handlers, not only once per loop. Most events are log chunks, so not after each one.
+        heartbeat_at = time.monotonic() + _SOCKET_HEARTBEAT_INTERVAL_SECONDS
         for key, _ in events:
             socket_handler, on_close = key.data
 
@@ -806,6 +814,9 @@ class DagFileProcessorManager(LoggingMixin):
                 sock: socket = key.fileobj  # type: ignore[assignment]
                 on_close(sock)
                 sock.close()
+            if time.monotonic() >= heartbeat_at:
+                self.heartbeat()
+                heartbeat_at = time.monotonic() + _SOCKET_HEARTBEAT_INTERVAL_SECONDS
 
     def _queue_requested_files_for_parsing(self) -> None:
         """Queue any files requested for parsing as requested by users via UI/API."""
@@ -962,6 +973,7 @@ class DagFileProcessorManager(LoggingMixin):
                     bundle.initialize()
             except Exception as error:
                 if self.api_client is not None:
+                    # Runtime API-client imports stay local so managers using the in-process API do not load it.
                     from airflow.dag_processing.api_client import DagProcessorRegistrationRetired
 
                     if isinstance(error, DagProcessorRegistrationRetired):
@@ -975,7 +987,7 @@ class DagFileProcessorManager(LoggingMixin):
                         "Unable to prepare callback bundle; retrying",
                         bundle_name=request.bundle_name,
                         bundle_version=request.bundle_version,
-                        target=self._get_callback_target(request),
+                        target=get_callback_target(request),
                         error=str(error),
                     )
                 else:
@@ -1012,19 +1024,12 @@ class DagFileProcessorManager(LoggingMixin):
         team_name = self._get_team_name(file_info.bundle_name)
         stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
 
-    @staticmethod
-    def _get_callback_target(request: CallbackRequest) -> str:
-        if isinstance(request, DagCallbackRequest):
-            return f"dag_id={request.dag_id} run_id={request.run_id}"
-        ti = request.ti
-        return f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
-
     def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
         self.log.warning(
             "Dropping %s for %s (%s): Lang-SDK runtimes do not run callbacks",
             type(request).__name__,
             request.filepath,
-            self._get_callback_target(request),
+            get_callback_target(request),
         )
 
     @provide_session
@@ -1082,7 +1087,7 @@ class DagFileProcessorManager(LoggingMixin):
         try:
             receipt = self.api_client.publish_inventory(bundle_name, pending.body)
         except httpx2.HTTPError as error:
-            status_code = error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+            status_code = get_status_code(error)
             if is_transient_api_error(error):
                 pending.attempts += 1
                 pending.next_attempt_time = time.monotonic() + _compute_retry_delay(pending.attempts)

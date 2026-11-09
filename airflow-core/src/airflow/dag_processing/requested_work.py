@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.callbacks.callback_requests import DagCallbackRequest
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
     from uuid import UUID
@@ -26,6 +28,13 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.dag_processing.manager import DagFileInfo
+
+
+def get_callback_target(request: CallbackRequest) -> str:
+    if isinstance(request, DagCallbackRequest):
+        return f"dag_id={request.dag_id} run_id={request.run_id}"
+    ti = request.ti
+    return f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
 
 
 class RequestedWorkSource:

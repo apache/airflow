@@ -198,9 +198,10 @@ class _DagParseCommsDecoder(CommsDecoder[ToDagProcessor, ToManager]):
     api_request_failed: bool = attrs.field(default=False, init=False)
     """Whether the Dag processor could not answer a request of this process through the Execution API."""
 
-    def send(self, msg: ToManager) -> ToDagProcessor | None:
+    def _from_frame(self, frame) -> ToDagProcessor | None:
+        # Both send() and asend() decode their response here.
         try:
-            return super().send(msg)
+            return super()._from_frame(frame)
         except AirflowRuntimeError as error:
             if error.error.error == ErrorType.API_SERVER_ERROR:
                 self.api_request_failed = True

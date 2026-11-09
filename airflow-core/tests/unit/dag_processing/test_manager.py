@@ -133,7 +133,7 @@ from unit.dag_processing.fake_lang_sdk import (
     play_runtime,
     write_native_file,
 )
-from unit.dag_processing.requested_work_helpers import get_api_work_source
+from unit.dag_processing.requested_work_helpers import get_api_work_source, make_status_error
 from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
@@ -6507,7 +6507,7 @@ class TestDagFileProcessorManager:
         error = (
             httpx2.ReadTimeout("Lost acknowledgment")
             if status_code is None
-            else _make_status_error(status_code)
+            else make_status_error(status_code)
         )
         client.publish_parse_result.side_effect = [error, None, None]
         heartbeat_observations = []
@@ -6643,6 +6643,38 @@ class TestDagFileProcessorManager:
         manager._add_callback_to_queue(request)
 
         assert events == ["heartbeat", "prepare"]
+
+    @pytest.mark.parametrize(
+        ("durations", "expected"),
+        [
+            pytest.param([0.3, 0.3, 0.3], ["request", "request", "request"], id="fast-handlers"),
+            pytest.param([0.3, 5, 0.3], ["request", "request", "heartbeat", "request"], id="slow-handler"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.time", autospec=True)
+    def test_servicing_sockets_heartbeats_once_handlers_take_a_second(self, clock, durations, expected):
+        clock.monotonic.return_value = 100.0
+        events = []
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.heartbeat = lambda: events.append("heartbeat")
+
+        def make_handler(duration):
+            def handle_request(sock):
+                events.append("request")
+                clock.monotonic.return_value += duration
+                return True
+
+            return handle_request
+
+        manager.selector = mock.create_autospec(selectors.BaseSelector, instance=True)
+        manager.selector.select.return_value = [
+            (selectors.SelectorKey(fd, fd, selectors.EVENT_READ, (make_handler(duration), mock.Mock())), None)
+            for fd, duration in enumerate(durations)
+        ]
+
+        manager._service_processor_sockets(timeout=0)
+
+        assert events == expected
 
     @mock.patch("airflow.dag_processing.manager.time", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "_get_observed_filelocs", autospec=True)
@@ -7714,7 +7746,7 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
     client.get_bundles.return_value = [ready_state]
     if catalog_failed:
         client.get_bundles.side_effect = httpx2.ConnectError("Catalog unavailable")
-    client.publish_inventory.side_effect = _make_status_error(503)
+    client.publish_inventory.side_effect = make_status_error(503)
 
     manager._refresh_dag_bundles(files)
 
@@ -7859,7 +7891,7 @@ def test_pending_inventory_retries_back_off(clock, status_code, tmp_path):
         )
     ]
     client.publish_inventory.side_effect = (
-        httpx2.ConnectError("API unavailable") if status_code is None else _make_status_error(status_code)
+        httpx2.ConnectError("API unavailable") if status_code is None else make_status_error(status_code)
     )
     clock.monotonic.return_value = 100
     manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=3600)
@@ -7931,7 +7963,7 @@ def test_oversized_inventory_preserves_previous_inventory_and_other_bundle_progr
     def publish(bundle_name, body):
         if bundle_name == "oversized":
             assert rejection == "server_limit", "The oversized inventory must be rejected before sending"
-            raise _make_status_error(413)
+            raise make_status_error(413)
         return DagBundleInventoryResponse(
             attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=uuid7()
         )
@@ -8008,7 +8040,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     manager._pending_inventories["oversized"] = PendingBundleInventory(
         body, set(), DagParseSource(refresh_generation=1)
     )
-    client.publish_inventory.side_effect = _make_status_error(413)
+    client.publish_inventory.side_effect = make_status_error(413)
 
     manager._publish_bundle_inventory("oversized", {})
 
@@ -8086,30 +8118,9 @@ def test_oversized_inventory_byte_boundary_preserves_auth_failures(auth_status):
     assert not manager._pending_inventories
     assert not manager._bundle_parse_sources
     manager._pending_inventories["testing"] = pending
-    client.publish_inventory.side_effect = _make_status_error(auth_status)
+    client.publish_inventory.side_effect = make_status_error(auth_status)
     with pytest.raises(httpx2.HTTPStatusError):
         manager._publish_bundle_inventory("testing", {})
-
-
-@pytest.mark.parametrize("status_code", [403, 404, 409, 503])
-def test_requested_work_ack_retains_only_retryable_failures(status_code):
-    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client)
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
-    )
-    get_api_work_source(manager)._pending_work_acks.append(("callbacks", work))
-    response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/ack"))
-    client.acknowledge_work.side_effect = httpx2.HTTPStatusError(
-        "Unavailable", request=response.request, response=response
-    )
-    manager.work_source.flush()
-    assert bool(get_api_work_source(manager)._pending_work_acks) == (status_code == 503)
-    if status_code == 503:
-        client.acknowledge_work.side_effect = None
-        manager.work_source.flush()
-        assert not get_api_work_source(manager)._pending_work_acks
-        assert client.acknowledge_work.call_args.args == ("callbacks", work)
 
 
 def test_api_inventory_cleanup_preserves_claimed_callbacks():
@@ -8487,7 +8498,7 @@ def test_rejected_inventory_releases_priority_attempt_discarded_after_source_cha
     manager._pending_publications[file] = PendingDagPublication(
         body=body, stat=DagFileStat(), refresh_generation=0
     )
-    client.publish_parse_result.side_effect = _make_status_error(409, "source_changed")
+    client.publish_parse_result.side_effect = make_status_error(409, "source_changed")
 
     manager._publish_pending_results()
 
@@ -8501,7 +8512,7 @@ def test_rejected_inventory_releases_priority_attempt_discarded_after_source_cha
         {file},
         DagParseSource(refresh_generation=1),
     )
-    client.publish_inventory.side_effect = _make_status_error(413)
+    client.publish_inventory.side_effect = make_status_error(413)
 
     manager._publish_bundle_inventory(file.bundle_name, {})
 
@@ -8681,17 +8692,6 @@ def _make_pending_publication(
     )
 
 
-def _make_status_error(
-    status_code: int, reason: str | None = None, *, message: str | None = None
-) -> httpx2.HTTPStatusError:
-    response = httpx2.Response(
-        status_code,
-        json={"detail": {"reason": reason, "message": message}} if reason else None,
-        request=httpx2.Request("POST", "http://api/parse-results"),
-    )
-    return httpx2.HTTPStatusError("Rejected", request=response.request, response=response)
-
-
 def test_publication_sends_every_ready_result_within_the_loop_budget():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
@@ -8713,12 +8713,12 @@ def test_publication_sends_every_ready_result_within_the_loop_budget():
 @pytest.mark.parametrize(
     ("error", "message"),
     [
-        (_make_status_error(409, "dag_owned_by_another_bundle"), "HTTP 409: dag_owned_by_another_bundle"),
-        (_make_status_error(403, "plugin_not_granted"), "HTTP 403: plugin_not_granted"),
-        (_make_status_error(413), "HTTP 413"),
-        (_make_status_error(422), "HTTP 422"),
+        (make_status_error(409, "dag_owned_by_another_bundle"), "HTTP 409: dag_owned_by_another_bundle"),
+        (make_status_error(403, "plugin_not_granted"), "HTTP 403: plugin_not_granted"),
+        (make_status_error(413), "HTTP 413"),
+        (make_status_error(422), "HTTP 422"),
         (
-            _make_status_error(422, "invalid_dag", message="Unknown role: missing_role"),
+            make_status_error(422, "invalid_dag", message="Unknown role: missing_role"),
             "HTTP 422: invalid_dag: Unknown role: missing_role",
         ),
     ],
@@ -8758,7 +8758,7 @@ def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
 @conf_vars({("workers", "execution_api_retries"): "1"})
 def test_server_failure_after_publication_retries_preserves_previous_result():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    client.publish_parse_result.side_effect = [_make_status_error(500), None]
+    client.publish_parse_result.side_effect = [make_status_error(500), None]
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
     work = _claim_priority_parse(manager, file)
@@ -8781,7 +8781,7 @@ def test_server_failure_after_publication_retries_preserves_previous_result():
 
 def test_rejected_result_with_unrepresentable_diagnostic_does_not_stop_other_files():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    client.publish_parse_result.side_effect = [_make_status_error(422), None]
+    client.publish_parse_result.side_effect = [make_status_error(422), None]
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     long_file, short_file = _get_file_infos(["directory/" * 110 + "a.py", "b.py"])
     manager._file_stats[long_file] = DagFileStat(num_dags=2, last_finish_time=DEFAULT_DATE)
@@ -8828,7 +8828,7 @@ def test_retry_delay_doubles_within_the_configured_bounds(attempts, expected_del
 @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
 def test_transient_publication_retries_preserve_identity_until_terminal_outcome(clock, status_code, recovers):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    error = _make_status_error(status_code)
+    error = make_status_error(status_code)
     client.publish_parse_result.side_effect = [error, error, None if recovers else error]
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     manager._dispatch_sequence = 7
@@ -8872,7 +8872,7 @@ def test_transient_publication_retries_preserve_identity_until_terminal_outcome(
 def test_rejection_report_discards_oversized_parse_metadata(oversized_field):
     limit = 32 * 1024
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    client.publish_parse_result.side_effect = [_make_status_error(413), None]
+    client.publish_parse_result.side_effect = [make_status_error(413), None]
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
     original = _make_pending_publication(file)
@@ -8905,7 +8905,7 @@ def test_rejection_report_discards_oversized_parse_metadata(oversized_field):
 def test_rejection_report_bounds_server_validation_message():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     message = "Unknown role: " + "é" * (32 * 1024)
-    client.publish_parse_result.side_effect = [_make_status_error(422, "invalid_dag", message=message), None]
+    client.publish_parse_result.side_effect = [make_status_error(422, "invalid_dag", message=message), None]
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
     manager._pending_publications[file] = _make_pending_publication(file)
@@ -8941,7 +8941,7 @@ def test_direct_manager_does_not_import_api_client(monkeypatch, mocker):
 @pytest.mark.parametrize("reason", ["bundle_inactive", "publication_superseded", None])
 def test_refusal_unrelated_to_content_is_not_reported_as_an_import_error(reason):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    client.publish_parse_result.side_effect = _make_status_error(409, reason)
+    client.publish_parse_result.side_effect = make_status_error(409, reason)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
     manager._pending_publications[file] = _make_pending_publication(file)
@@ -8954,7 +8954,7 @@ def test_refusal_unrelated_to_content_is_not_reported_as_an_import_error(reason)
 
 def test_refused_import_error_report_is_not_replaced_again():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    client.publish_parse_result.side_effect = _make_status_error(413)
+    client.publish_parse_result.side_effect = make_status_error(413)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
     manager._pending_publications[file] = _make_pending_publication(file)
