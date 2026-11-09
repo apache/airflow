@@ -232,34 +232,6 @@ class XComObjectStorageBackend(BaseXCom):
             (smaller than ``xcom_objectstorage_threshold``).
         :raises TypeError: if the configured XCom backend is not this one, so no value has a path.
         """
-        stored = cls._get_stored_value(
-            key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index
-        )
-        if stored is None:
-            return None
-        try:
-            return cls._get_full_path(stored)
-        except (TypeError, ValueError):  # Stored in the database.
-            return None
-
-    @classmethod
-    def _get_stored_value(
-        cls,
-        *,
-        key: str,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int | None,
-    ) -> Any:
-        """
-        Return the XCom value as kept in the database: the path of a value written to object storage.
-
-        ``BaseXCom.get_one`` loads with ``BaseXCom``'s own deserialization, which stops at the database value
-        instead of opening the file it names.
-
-        :raises TypeError: if the configured XCom backend is not this one.
-        """
         if not AIRFLOW_V_3_0_PLUS:
             raise NotImplementedError("Looking up where an XCom value is stored requires Airflow 3")
 
@@ -271,7 +243,15 @@ class XComObjectStorageBackend(BaseXCom):
                 f"in object storage; set [core] xcom_backend to "
                 f"{XComObjectStorageBackend.__module__}.{XComObjectStorageBackend.__qualname__}"
             )
-        return BaseXCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index)
+        # BaseXCom's own deserialization stops at the value as kept in the database: the path of a value
+        # written to object storage, instead of the file's content.
+        stored = BaseXCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index)
+        if stored is None:
+            return None
+        try:
+            return cls._get_full_path(stored)
+        except (TypeError, ValueError):  # Stored in the database.
+            return None
 
     @staticmethod
     def purge(xcom: XComResult, session: Session | None = None) -> None:

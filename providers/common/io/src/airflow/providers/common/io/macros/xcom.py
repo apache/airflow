@@ -53,24 +53,20 @@ def xcom_path(
     :param protocol: Whether to return the full URL (``s3://bucket/...``, the default) or only the path
         (``bucket/...``, for a tool given the file system separately).
     :raises TypeError: if the configured XCom backend is not ``XComObjectStorageBackend``.
-    :raises LookupError: if there is no such XCom.
-    :raises ValueError: if the value is stored in the database (smaller than
-        ``[common.io] xcom_objectstorage_threshold``), so it has no path.
+    :raises ValueError: if the XCom has no path: it does not exist, or its value is stored in the database
+        (smaller than ``[common.io] xcom_objectstorage_threshold``). A *None* rendered into a query would
+        fail later with a less helpful error.
     """
-    dag_id = dag_id or ti.dag_id
-    run_id = run_id or ti.run_id
-    stored = XComObjectStorageBackend._get_stored_value(
-        key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index
+    path = XComObjectStorageBackend.get_path(
+        key=key,
+        dag_id=dag_id or ti.dag_id,
+        task_id=task_id,
+        run_id=run_id or ti.run_id,
+        map_index=map_index,
     )
-    if stored is None:
-        raise LookupError(
-            f"No XCom {key!r} from task {task_id!r} (map index {map_index}) in Dag {dag_id!r}, run {run_id!r}"
-        )
-    try:
-        path = XComObjectStorageBackend._get_full_path(stored)
-    except (TypeError, ValueError):
+    if path is None:
         raise ValueError(
-            f"The XCom {key!r} from task {task_id!r} is stored in the database, not in object storage: it is "
-            "smaller than [common.io] xcom_objectstorage_threshold, so it has no path"
-        ) from None
+            f"The XCom {key!r} from task {task_id!r} has no path: it does not exist, or it is stored in the "
+            "database (smaller than [common.io] xcom_objectstorage_threshold)"
+        )
     return str(path) if protocol else path.path

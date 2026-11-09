@@ -74,17 +74,17 @@ def test_another_dag_run_and_map_index(object_storage_backend, mock_supervisor_c
     assert (request.key, request.dag_id, request.run_id, request.map_index) == ("rows", "other", "run", 3)
 
 
-def test_no_such_xcom_fails_the_rendering(mock_supervisor_comms):
-    mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=None)
+@pytest.mark.parametrize(
+    "stored",
+    [
+        pytest.param(None, id="no such XCom"),
+        pytest.param({"small": True}, id="stored in the database"),
+    ],
+)
+def test_an_xcom_without_a_path_fails_the_rendering(mock_supervisor_comms, stored):
+    mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=stored)
 
-    with pytest.raises(LookupError, match="No XCom 'return_value' from task 'extract'"):
-        xcom_path(TI, "extract")
-
-
-def test_a_value_in_the_database_fails_the_rendering(mock_supervisor_comms):
-    mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value={"small": True})
-
-    with pytest.raises(ValueError, match="stored in the database"):
+    with pytest.raises(ValueError, match="has no path"):
         xcom_path(TI, "extract")
 
 

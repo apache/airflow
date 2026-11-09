@@ -102,7 +102,7 @@ option, or leave ``xcom_objectstorage_compression`` unset for the values it read
 raises instead, since a ``None`` rendered into a query fails later with a less helpful error:
 
 * ``TypeError`` when the configured XCom backend is not ``XComObjectStorageBackend``;
-* ``LookupError`` when there is no such XCom;
-* ``ValueError`` when the value is stored in the database (smaller than the threshold).
+* ``ValueError`` when the XCom has no path: it does not exist, or its value is stored in the database
+  (smaller than the threshold).
 
 Looking up the path requires Airflow 3.
