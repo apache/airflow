@@ -233,6 +233,16 @@ describe("dag.if", () => {
     expect(skipDownstreamTasks).toHaveBeenCalledWith(["load_fallback"]);
   });
 
+  it("names the group method when a group's condition is awaited", async () => {
+    const gate = new Dag("d")
+      .taskGroup("checks")
+      .if(async () => true, undefined, { taskId: "has_rows" });
+
+    await expect(Promise.resolve(gate as unknown as Promise<void>)).rejects.toThrow(
+      /taskGroup\("checks"\)\.if\(\.\.\.\) of Dag "d" was awaited/,
+    );
+  });
+
   it("takes another condition as a branch", () => {
     const { dag, ifReady, gated } = gatedDag();
     const inner = dag.if(async () => true, undefined, { taskId: "is_weekday" });
