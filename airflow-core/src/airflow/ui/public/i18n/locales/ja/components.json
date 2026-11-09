@@ -43,6 +43,13 @@
   "dagWarnings": {
     "error_one": "1 件のエラー",
     "errorAndWarning": "1 件のエラーと {{warningText}}",
+    "types": {
+      "asset conflict": "アセットの競合",
+      "duplicate dag id": "Dag ID の重複",
+      "non-existent pool": "存在しないプール",
+      "runtime varying value": "実行時に変化する値",
+      "task group cycle": "タスクグループの循環"
+    },
     "warning_one": "1 件の警告",
     "warning_other": "{{count, number}} 件の警告"
   },

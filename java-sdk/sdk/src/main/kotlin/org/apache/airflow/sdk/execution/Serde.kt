@@ -102,6 +102,7 @@ internal fun serializeDag(
     }
   }
 
+  val dagQueue = dag.dagConfig["queue"] as String?
   val result =
     linkedMapOf<String, Any?>(
       "dag_id" to dag.id,
@@ -109,7 +110,7 @@ internal fun serializeDag(
       "relative_fileloc" to relativeFileloc,
       "timezone" to dagTimezone(dag.dagConfig),
       "timetable" to serializeTimetable(dag.id, dag.dagConfig),
-      "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
+      "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId], dagQueue) },
       "dag_dependencies" to serializeDagDependencies(dag),
       "task_group" to serializeTaskGroups(dag, expansion),
       "edge_info" to serializeEdgeInfo(dag, expansion),
@@ -124,11 +125,13 @@ internal fun serializeDag(
 /**
  * Converts one task to the Airflow serialization format. `downstream` is the
  * inverted view of the Dag's upstream edges, sorted for stable JSON.
+ * `dagQueue` is the Dag's queue, which the task takes unless it sets its own.
  */
 private fun serializeTask(
   taskId: String,
   def: TaskDef,
   downstream: List<String>?,
+  dagQueue: String?,
 ): Map<String, Any?> {
   val data = linkedMapOf<String, Any?>("task_id" to taskId)
   val trigger = def.trigger
@@ -142,21 +145,25 @@ private fun serializeTask(
     // value never matches the tuple default it is compared against), so it
     // is unconditional here too. Java tasks have no template fields.
     data["template_fields"] = emptyList<Any?>()
-    // What marks a task whose arguments Airflow resolves per instance for a
-    // runtime outside Python, as `@task.stub` does on the Python side.
-    // `get_arg_bindings` reads nothing without it.
-    data["is_stub"] = true
     argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
   }
+  // The Java runtime runs every task of a Java Dag, a trigger task included, so
+  // every one of them is a stub. is_stub marks a task whose arguments Airflow
+  // resolves per instance for a runtime outside Python, as `@task.stub` does on
+  // the Python side. `get_arg_bindings` reads nothing without it.
+  data["is_stub"] = true
   // Lets NotPreviouslySkippedDep re-skip a cleared downstream, as Python's SkipMixin does.
   if (def.decider != null) data["_can_skip_downstream"] = true
+  // The worker picks a runtime by queue, so a trigger task takes the Dag's queue too.
+  val config =
+    if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
   // Emit only config entries that differ from their schema default, mirroring
   // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
   // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
   // __type encoding is stripped. If core grows a task-level fill_config_defaults,
   // every SDK has to keep explicitly set values instead, or an explicit retries=0
   // reads as unset and picks up the configured default.
-  def.configValues.forEach { (key, value) ->
+  config.forEach { (key, value) ->
     if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
     }

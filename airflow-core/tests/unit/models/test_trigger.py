@@ -26,8 +26,9 @@ import pendulum
 import pytest
 import pytz
 import sqlalchemy as sa
+import time_machine
 from cryptography.fernet import Fernet
-from sqlalchemy import delete, event, func, insert, select, update
+from sqlalchemy import delete, event, func, insert, select, text, update
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
@@ -37,13 +38,14 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.dag_version import DagVersion
-from airflow.models.trigger import handle_event_submit
+from airflow.models.trigger import RecordedFailure, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
+    AssetTriggerEvent,
     BaseEventTrigger,
     BaseTrigger,
     TaskFailedEvent,
@@ -54,7 +56,7 @@ from airflow.triggers.base import (
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
@@ -122,6 +124,20 @@ def test_fetch_trigger_ids_with_non_task_associations(session):
     session.commit()
     results = Trigger.fetch_trigger_ids_with_non_task_associations()
     assert results == {asset_trigger.id, callback_trigger.id}
+
+
+@pytest.mark.backend("sqlite")
+def test_clean_unused_callback_lookup_uses_callback_trigger_index(session):
+    with capture_orm_selects("trigger") as statements:
+        Trigger._delete_unused_batch(500, session=session)
+    plan = [
+        row[-1]
+        for statement in statements
+        for row in session.execute(text(f"EXPLAIN QUERY PLAN {statement.removesuffix(' FOR UPDATE')}")).all()
+    ]
+
+    assert statements
+    assert any("callback" in row and "idx_callback_trigger_id" in row for row in plan), plan
 
 
 def test_fetch_assignments_maps_surviving_rows_to_their_triggerer(session):
@@ -440,6 +456,85 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
+def test_submit_asset_event_to_shared_task_and_asset_watcher(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.datetime(2026, 10, 16), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {"resume_arg": "kept"}
+    asset = AssetModel("shared-trigger-asset")
+    asset.add_trigger(trigger, "shared-trigger-watcher")
+    session.add(asset)
+    session.commit()
+    payload = {"partition_key": "payload-only", "changed": True}
+
+    Trigger.submit_event(trigger.id, AssetTriggerEvent(payload, partition_key="2026-10-16"), session=session)
+    session.flush()
+    session.refresh(task_instance)
+
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == {"event": payload, "resume_arg": "kept"}
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset.id))
+    assert asset_event.partition_key == "2026-10-16"
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
+
+
+@pytest.mark.parametrize("owner", ["task", "asset_watcher", "callback", "none"])
+def test_submit_event_records_the_event_time_for_every_kind(session, create_task_instance, owner):
+    t0 = timezone.datetime(2026, 10, 21, 12, 0, 0)
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    if owner == "task":
+        task_instance = create_task_instance(session=session, logical_date=t0, state=State.DEFERRED)
+        task_instance.trigger_id = trigger.id
+    elif owner == "asset_watcher":
+        asset = AssetModel("event_time")
+        asset.add_trigger(trigger, "w")
+        session.add(asset)
+    elif owner == "callback":
+        callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+        callback.trigger = trigger
+        session.add(callback)
+    session.commit()
+
+    with time_machine.travel(t0, tick=False), patch.object(TriggererCallback, "handle_event"):
+        Trigger.submit_event(trigger.id, TriggerEvent("payload"), session=session)
+    session.commit()
+
+    session.expire_all()
+    assert session.get(Trigger, trigger.id).last_event_at == t0
+
+
+@pytest.mark.parametrize("partition_key", [None, "2026-10-16", " region-west ", "x" * 250])
+def test_submit_event_preserves_native_asset_partition(session, partition_key):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    assets = [AssetModel("partitioned-first"), AssetModel("partitioned-second")]
+    for asset in assets:
+        asset.add_trigger(trigger, f"partition_watcher_{asset.name}")
+    session.add_all(assets)
+    session.flush()
+    payload = {"partition_key": "payload-only", "changed": True}
+
+    Trigger.submit_event(trigger.id, AssetTriggerEvent(payload, partition_key=partition_key), session=session)
+    session.flush()
+    session.expire_all()
+
+    asset_events = session.scalars(
+        select(AssetEvent).where(AssetEvent.asset_id.in_([a.id for a in assets]))
+    ).all()
+    assert len(asset_events) == 2
+    assert {event.asset_id for event in asset_events} == {asset.id for asset in assets}
+    for asset_event in asset_events:
+        assert asset_event.partition_key == partition_key
+        assert asset_event.extra == {"from_trigger": True, "payload": payload}
+
+
 @pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])
 @patch("airflow.models.trigger.AssetManager.register_asset_change")
 def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected_query_count):
@@ -624,6 +719,110 @@ def test_submit_failure(
     updated_task_instance = session.scalar(select(TaskInstance))
     assert updated_task_instance.state == expected_state
     assert updated_task_instance.next_method == expected_next_method
+
+
+def _watcher_trigger(session, triggerer_id=1, **columns):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger.triggerer_id = triggerer_id
+    for name, value in columns.items():
+        setattr(trigger, name, value)
+    session.add(trigger)
+    session.flush()
+    asset = AssetModel("watched")
+    asset.add_trigger(trigger, "watcher")
+    session.add(asset)
+    session.commit()
+    return trigger
+
+
+def _failure_state(session, trigger_id):
+    session.expire_all()
+    trigger = session.get(Trigger, trigger_id)
+    return (
+        trigger.consecutive_failures,
+        trigger.first_failed_at,
+        trigger.last_failed_at,
+        trigger.last_error,
+    )
+
+
+@pytest.mark.parametrize(
+    ("caller_triggerer_id", "recorded"),
+    [
+        pytest.param(None, True, id="unguarded"),
+        pytest.param(1, True, id="owning-triggerer"),
+        pytest.param(2, False, id="previous-owner"),
+    ],
+)
+def test_submit_failure_records_the_failure_on_the_row(session, caller_triggerer_id, recorded):
+    t0 = timezone.datetime(2026, 10, 21, 12, 0, 0)
+    trigger = _watcher_trigger(session)
+
+    with time_machine.travel(t0, tick=False):
+        Trigger.submit_failure(
+            trigger.id,
+            triggerer_id=caller_triggerer_id,
+            failure=RecordedFailure(1, "ConnectionError: expired"),
+            session=session,
+        )
+    with time_machine.travel(t0 + datetime.timedelta(seconds=6), tick=False):
+        Trigger.submit_failure(
+            trigger.id,
+            triggerer_id=caller_triggerer_id,
+            failure=RecordedFailure(2, "ConnectionError: still"),
+            session=session,
+        )
+    session.commit()
+
+    expected = (
+        2,
+        t0,  # the start of the streak is kept
+        t0 + datetime.timedelta(seconds=6),
+        "ConnectionError: still",
+    )
+    assert _failure_state(session, trigger.id) == (expected if recorded else (None,) * 4)
+
+
+def test_a_trigger_without_an_owner_stores_sql_null(session):
+    # An asset watcher's trigger: its owners are the asset_watcher rows, and rows the migration did not fill
+    # in are NULL too.
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.owner_ref.is_(None))) == 1
+
+
+def test_submit_failure_starts_a_new_streak_at_the_first_failure(session):
+    t0 = timezone.datetime(2026, 10, 21, 12, 0, 0)
+    trigger = _watcher_trigger(session, first_failed_at=t0)
+
+    with time_machine.travel(t0 + datetime.timedelta(hours=1), tick=False):
+        Trigger.submit_failure(trigger.id, failure=RecordedFailure(1, "E: x"), session=session)
+    session.commit()
+
+    assert _failure_state(session, trigger.id)[1] == t0 + datetime.timedelta(hours=1)
+
+
+@pytest.mark.parametrize(
+    ("caller_triggerer_id", "cleared"),
+    [pytest.param(1, True, id="owning-triggerer"), pytest.param(2, False, id="previous-owner")],
+)
+def test_clear_recorded_failures_keeps_the_last_error(session, caller_triggerer_id, cleared):
+    t0 = timezone.datetime(2026, 10, 21, 12, 0, 0)
+    failing = {
+        "consecutive_failures": 3,
+        "first_failed_at": t0,
+        "last_failed_at": t0,
+        "last_error": "E: x",
+    }
+    trigger = _watcher_trigger(session, **failing)
+
+    Trigger.clear_recorded_failures({trigger.id}, triggerer_id=caller_triggerer_id, session=session)
+    session.commit()
+
+    assert _failure_state(session, trigger.id) == (
+        (None, None, t0, "E: x") if cleared else (3, t0, t0, "E: x")
+    )
 
 
 @pytest.mark.parametrize(
@@ -823,7 +1022,6 @@ def test_submit_event_task_end_failed_respects_retries(
 
     assert ti.next_method is None
     assert ti.next_kwargs is None
-    assert ti.end_date is not None
 
     tih = session.scalars(
         select(TaskInstance)
@@ -840,9 +1038,12 @@ def test_submit_event_task_end_failed_respects_retries(
         assert ti.id != old_ti_id
         assert tih[0].id == old_ti_id
         assert tih[0].try_number == 1
+        assert tih[0].end_date is not None
         assert ti.try_number == 2
+        assert ti.end_date is None
     else:
         assert tih == []
+        assert ti.end_date is not None
         assert ti.id == old_ti_id
         assert ti.try_number == 1
 
@@ -1915,3 +2116,79 @@ def test_team_and_queue_combined(session, create_task_instance, testing_team):
     )
     ids = [row[0] for row in result]
     assert ids == [trigger_team_q1.id]
+
+
+@pytest.mark.parametrize(
+    ("owner", "consecutive_failures", "expected"),
+    [
+        pytest.param(None, None, "pending", id="unassigned"),
+        pytest.param(None, 3, "pending", id="unassigned-after-failures"),
+        pytest.param("alive", None, "running", id="running"),
+        pytest.param("alive", 0, "running", id="running-zero"),
+        pytest.param("alive", 1, "failing", id="failing"),
+        pytest.param("alive", 5, "failing", id="failing-again"),
+        pytest.param("stale", None, "orphaned", id="stale-heartbeat"),
+        pytest.param("stale", 2, "orphaned", id="stale-heartbeat-failing"),
+        pytest.param("ended", None, "orphaned", id="ended"),
+        pytest.param("gone", None, "orphaned", id="job-row-gone"),
+        pytest.param("no-heartbeat", None, "orphaned", id="never-heartbeated"),
+    ],
+)
+def test_status_is_the_same_in_sql_and_python(session, owner, consecutive_failures, expected):
+    now = timezone.utcnow()
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger.consecutive_failures = consecutive_failures
+    if owner is not None:
+        job = Job(job_type="TriggererJob")
+        job.latest_heartbeat = (
+            None
+            if owner == "no-heartbeat"
+            else now - datetime.timedelta(seconds=600 if owner == "stale" else 1)
+        )
+        if owner == "ended":
+            job.end_date = now
+        session.add(job)
+        session.flush()
+        trigger.triggerer_id = job.id + 1000 if owner == "gone" else job.id
+    session.add(trigger)
+    session.commit()
+
+    sql_status = session.scalar(
+        select(Trigger.status_expression())
+        .select_from(Trigger)
+        .outerjoin(Trigger.triggerer_job)
+        .where(Trigger.id == trigger.id)
+    )
+    session.expire_all()
+
+    assert sql_status == expected
+    assert session.get(Trigger, trigger.id).status().value == expected
+
+
+@pytest.mark.parametrize(
+    ("owner_ref", "watched", "expected"),
+    [
+        pytest.param({"ti_id": "0199f3a8-0000-7000-8000-000000000001"}, False, "task", id="task"),
+        pytest.param(
+            {"callback_id": "0199f3a8-0000-7000-8000-000000000002"}, False, "callback", id="callback"
+        ),
+        pytest.param(None, True, "asset_watcher", id="asset-watcher"),
+        pytest.param(None, False, None, id="no-owner"),
+    ],
+)
+def test_kind_is_the_same_in_sql_and_python(session, owner_ref, watched, expected):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, owner_ref=owner_ref)
+    session.add(trigger)
+    session.flush()
+    if watched:
+        asset = AssetModel("watched")
+        asset.add_trigger(trigger, "watcher")
+        session.add(asset)
+    session.commit()
+
+    sql_kind = session.scalar(select(Trigger.kind_expression()).where(Trigger.id == trigger.id))
+    session.expire_all()
+
+    assert sql_kind == expected
+    kind = session.get(Trigger, trigger.id).kind
+    assert (kind.value if kind else None) == expected

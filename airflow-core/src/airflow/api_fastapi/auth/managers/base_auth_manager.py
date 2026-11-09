@@ -46,7 +46,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.api_fastapi.common.types import CliLoginMethods, ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
@@ -185,6 +185,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return []
 
+    def get_jwt_refresh_middleware(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return the JWTRefreshMiddleware to refresh the Airflow JWT token.
+
+        Middlewares added by this method will be initialised before middleware from
+        ``get_fastapi_middlewares()``. To disable JWT refresh return an empty list.
+        To add more middleware, simply add more tuples here in the same format as
+        ``get_fastapi_middlewares()``.
+        """
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+        from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
+
+        return [(JWTRefreshMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
+
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:
@@ -222,6 +236,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session.
         """
         return None
+
+    def get_cli_login_methods(self) -> CliLoginMethods:
+        """
+        Return the login methods offered to command-line clients such as airflowctl.
+
+        Clients read them before logging in, so they can tell which flows the server supports.
+        By default, no method is advertised.
+        """
+        return CliLoginMethods()
 
     def refresh_user(self, *, user: T) -> T | None:
         """

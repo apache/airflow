@@ -25,6 +25,21 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Write common.io state store values in chunks instead of one bytes copy (#76108)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+1.11.0
+......
+
 .. note::
     On Airflow 3.4 and later, ``XComObjectStorageBackend`` implements ``store_value``, which Dags that use
     task loops require, and writes objects to
@@ -34,6 +49,21 @@ Changelog
     SHA-256 digest when it is longer than 200 characters, and a compression suffix is appended when
     compression is configured. A subclass that overrides ``serialize_value`` keeps it, but cannot be used
     with task loops until it implements ``store_value`` as well.
+
+Features
+~~~~~~~~
+
+* ``Let XCom backends tell loop iterations apart through store_value (#74858)``
+* ``Separate object storage task state by dynamic region on Airflow 3.4 (#74275)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document region_index in task state storage paths (#74346)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
 
 1.10.1
 ......

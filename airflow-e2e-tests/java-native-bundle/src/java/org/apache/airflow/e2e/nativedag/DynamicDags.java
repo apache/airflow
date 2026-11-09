@@ -65,8 +65,9 @@ public class DynamicDags {
       var dag =
           new DagDef(dagId)
               .config("catchup", false)
-              .config("tags", List.of("java-sdk", "java_dynamic"));
-      dag.task("greet", Greet.class).config("queue", QUEUE);
+              .config("tags", List.of("java-sdk", "java_dynamic"))
+              .config("queue", QUEUE);
+      dag.task("greet", Greet.class);
       dags.add(dag);
     }
     return dags;

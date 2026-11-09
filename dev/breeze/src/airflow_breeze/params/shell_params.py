@@ -99,6 +99,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
@@ -194,6 +195,7 @@ class ShellParams:
     excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
+    fail_on_pending_provider_candidates: bool = False
     force_build: bool = False
     force_sa_warnings: bool = True
     force_lowest_dependencies: bool = False
@@ -241,6 +243,7 @@ class ShellParams:
     skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
+    sphinx_airflow_theme_path: str = ""
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
@@ -262,6 +265,8 @@ class ShellParams:
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
+        # The clone runs this one test type: kept, the list would make it select every test type's folders.
+        new_params.parallel_test_types_list = []
         return new_params
 
     @cached_property
@@ -442,6 +447,8 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH)
         if self.mount_ui_dist:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH)
+        if self.sphinx_airflow_theme_path:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH)
         if self.forward_credentials:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
@@ -704,6 +711,7 @@ services:
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
+        _set_var(_env, "FAIL_ON_PENDING_PROVIDER_CANDIDATES", self.fail_on_pending_provider_candidates)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -755,6 +763,7 @@ services:
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "SKIP_ASSETS_COMPILATION", self.skip_assets_compilation)
+        _set_var(_env, "SPHINX_AIRFLOW_THEME_PATH", self.sphinx_airflow_theme_path)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "TERMINAL_MULTIPLEXER", self.terminal_multiplexer)

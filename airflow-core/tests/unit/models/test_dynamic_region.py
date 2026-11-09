@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import struct
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -36,6 +35,7 @@ from airflow.models.dynamic_region import (
     ProducerContext,
     build_loop_family_legs,
     build_loop_sequence_order,
+    get_trajectory,
     resolve_current_producers,
     select_loop_producer_ids,
 )
@@ -51,9 +51,6 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.db import clear_db_runs
-
-if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
 
 pytestmark = pytest.mark.db_test
 
@@ -434,7 +431,7 @@ def test_mapping_revision_only_changes_selected_expansion(dag_maker, session):
     regional = TaskInstance(task, version, run_id=dr.run_id, map_index=3, region_id=uuid4())
     session.add_all([ordinary, regional])
     session.flush()
-    added = dr._revise_map_indexes_if_mapped(regional, session=session)
+    added, _ = dr._revise_map_indexes_if_mapped(regional, session=session)
     assert [(ti.region_id, ti.region_index) for ti in added] == [
         (regional.region_id, 0),
         (regional.region_id, 1),
@@ -1114,3 +1111,15 @@ def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, ses
         (True, 4, 0),
         (True, 4, 1),
     ]
+
+
+@pytest.mark.parametrize("forks", [0, 1, 2])
+def test_trajectory_counts_the_forks_a_region_descends_from(forks):
+    dag_run = DagRun(dag_id="dag", run_id="run")
+    region = make_region(dag_run, id=uuid4())
+    regions = {region.id: region}
+    for _ in range(forks):
+        region = make_region(dag_run, id=uuid4(), forked_from_region_id=region.id)
+        regions[region.id] = region
+
+    assert get_trajectory(region, regions) == forks + 1
