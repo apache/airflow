@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* eslint-disable max-lines */
 import type { ComponentProps } from "react";
 
 import "@testing-library/jest-dom/vitest";
@@ -115,7 +116,7 @@ vi.mock("../JsonEditor", () => ({
 
 const prefillConfig = { conf: { key: "value" }, logicalDate: undefined, runId: "prior_run" };
 
-const renderForm = (props: Partial<ComponentProps<typeof TriggerDAGForm>>) => (
+const buildForm = (props: Partial<ComponentProps<typeof TriggerDAGForm>>) => (
   <TriggerDAGForm
     dagId="example_partitioned_dag"
     error={undefined}
@@ -129,6 +130,14 @@ const renderForm = (props: Partial<ComponentProps<typeof TriggerDAGForm>>) => (
     {...props}
   />
 );
+
+const RECENT_CONF = JSON.stringify({ message: "From recent" }, undefined, 2);
+
+const selectRecentConfig = async () => {
+  fireEvent.click(within(screen.getByTestId("recent-config-select")).getByRole("combobox"));
+  await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+  fireEvent.click(screen.getByText("run_recent"));
+};
 
 describe("TriggerDAGForm", () => {
   beforeEach(() => {
@@ -546,35 +555,79 @@ describe("TriggerDAGForm", () => {
 
   it("applies a suggested partition key that arrives after the form first rendered", async () => {
     // The Dag query resolves after mount, so defaultValues captured no suggestion.
-    const { rerender } = render(renderForm({ prefillConfig }), { wrapper: Wrapper });
+    const { rerender } = render(buildForm({ prefillConfig }), { wrapper: Wrapper });
 
-    rerender(renderForm({ prefillConfig, suggestedPartitionKey: "2024-01-01" }));
+    rerender(buildForm({ prefillConfig, suggestedPartitionKey: "2024-01-01" }));
 
     await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
   });
 
   it("replaces a suggested partition key with an updated suggestion when the user has not edited it", async () => {
-    const { rerender } = render(renderForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
+    const { rerender } = render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
 
     await waitFor(() => expect(screen.getByDisplayValue("a")).toBeInTheDocument());
 
-    rerender(renderForm({ suggestedPartitionKey: "b" }));
+    rerender(buildForm({ suggestedPartitionKey: "b" }));
 
     await waitFor(() => expect(screen.getByDisplayValue("b")).toBeInTheDocument());
   });
 
   it("keeps the user's partition key and conf when a new suggestion arrives", async () => {
-    const { rerender } = render(renderForm({ prefillConfig, suggestedPartitionKey: "a" }), {
+    const { rerender } = render(buildForm({ prefillConfig, suggestedPartitionKey: "a" }), {
       wrapper: Wrapper,
     });
 
     fireEvent.change(await screen.findByDisplayValue("a"), { target: { value: "mine" } });
     await waitFor(() => expect(screen.getByDisplayValue("mine")).toBeInTheDocument());
 
-    rerender(renderForm({ prefillConfig, suggestedPartitionKey: "b" }));
+    rerender(buildForm({ prefillConfig, suggestedPartitionKey: "b" }));
 
     await waitFor(() => expect(screen.getByDisplayValue("mine")).toBeInTheDocument());
     expect(screen.queryByDisplayValue("b")).not.toBeInTheDocument();
     expect(screen.getByLabelText<HTMLTextAreaElement>("Configuration JSON").value).toContain('"value"');
+  });
+
+  it.each([
+    {
+      changeConf: async () => {
+        await selectRecentConfig();
+        await waitFor(() => expect(screen.getByLabelText("Configuration JSON")).toHaveValue(RECENT_CONF));
+      },
+      scenario: "a recent configuration is selected",
+    },
+    {
+      changeConf: async () => {
+        const configJson = screen.getByLabelText("Configuration JSON");
+
+        fireEvent.change(configJson, { target: { value: '{"message": "edited"}' } });
+        fireEvent.blur(configJson);
+        await waitFor(() =>
+          expect(screen.getByLabelText<HTMLTextAreaElement>("Configuration JSON").value).toContain("edited"),
+        );
+      },
+      scenario: "the conf is edited and the editor loses focus",
+    },
+  ])("keeps the user's partition key when $scenario", async ({ changeConf }) => {
+    render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
+
+    fireEvent.change(await screen.findByDisplayValue("a"), { target: { value: "mine" } });
+    await waitFor(() => expect(screen.getByDisplayValue("mine")).toBeInTheDocument());
+
+    await changeConf();
+
+    expect(screen.getByDisplayValue("mine")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("a")).not.toBeInTheDocument();
+  });
+
+  it("keeps following the suggestion after the conf changes when the user has not edited the field", async () => {
+    const { rerender } = render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByDisplayValue("a")).toBeInTheDocument());
+    await selectRecentConfig();
+    await waitFor(() => expect(screen.getByLabelText("Configuration JSON")).toHaveValue(RECENT_CONF));
+
+    rerender(buildForm({ suggestedPartitionKey: "b" }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("b")).toBeInTheDocument());
   });
 });

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
@@ -97,14 +97,9 @@ const TriggerDAGForm = ({
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const {
-    control,
-    formState: { dirtyFields },
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-  } = useForm<DagRunTriggerParams>({
+  const appliedSuggestionRef = useRef<string | undefined>(undefined);
+
+  const { control, getValues, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -177,19 +172,20 @@ const TriggerDAGForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
 
-  // The suggestion can arrive or change after mount; apply it unless the user edited the field.
-  const isPartitionKeyDirty = Boolean(dirtyFields.partitionKey);
-
+  // The suggestion can arrive or change after mount. Apply it only while the field is empty or still
+  // holds the previous suggestion. RHF's dirtyFields cannot tell whether the user edited the field,
+  // because reset() (run when conf changes) makes the current values the new baseline.
   useEffect(() => {
-    if (
-      open &&
-      suggestedPartitionKey !== undefined &&
-      suggestedPartitionKey !== null &&
-      !isPartitionKeyDirty
-    ) {
+    if (!open || suggestedPartitionKey === undefined || suggestedPartitionKey === null) {
+      return;
+    }
+    const current = getValues("partitionKey");
+
+    if (current === undefined || current === "" || current === appliedSuggestionRef.current) {
       setValue("partitionKey", suggestedPartitionKey);
     }
-  }, [open, suggestedPartitionKey, isPartitionKeyDirty, setValue]);
+    appliedSuggestionRef.current = suggestedPartitionKey;
+  }, [open, suggestedPartitionKey, getValues, setValue]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
