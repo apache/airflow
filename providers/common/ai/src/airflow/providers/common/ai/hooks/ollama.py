@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import httpx2
 
 
@@ -28,9 +30,12 @@ class OllamaBackend:
     """
     Load control for a model served by Ollama, through its native ``/api/generate`` endpoint.
 
-    :param base_url: Ollama URL; a trailing ``/v1`` is dropped to reach the native API.
+    :param base_url: Ollama URL; a trailing ``/v1`` is dropped to reach the native API. When ``None``
+        or empty, the ``OLLAMA_BASE_URL`` environment variable is used.
     :param model_name: Model name without the ``ollama:`` prefix.
     :param transport: Optional httpx2 transport, mainly to stub the server in tests.
+
+    :raises ValueError: If *base_url* is not given and ``OLLAMA_BASE_URL`` is not set.
 
     Known limitation: the connection password is not sent, so no ``Authorization`` header is
     added and servers behind authentication are not supported.
@@ -38,12 +43,16 @@ class OllamaBackend:
 
     def __init__(
         self,
-        base_url: str,
+        base_url: str | None,
         model_name: str,
         *,
         transport: httpx2.BaseTransport | None = None,
     ) -> None:
-        self.root = build_ollama_native_root(base_url)
+        if not (resolved_url := base_url or os.getenv("OLLAMA_BASE_URL")):
+            raise ValueError(
+                "OllamaBackend needs a base_url or the OLLAMA_BASE_URL environment variable; neither is set"
+            )
+        self.root = build_ollama_native_root(resolved_url)
         self.model_name = model_name
         self._transport = transport
 

@@ -44,6 +44,28 @@ class TestBuildNativeRoot:
         assert build_ollama_native_root(base_url) == "http://h:11434"
 
 
+class TestOllamaBackendBaseUrl:
+    def test_none_base_url_falls_back_to_ollama_base_url_env(self, monkeypatch):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+
+        assert OllamaBackend(base_url=None, model_name="llama3").root == "http://env-ollama:11434"
+
+    def test_explicit_base_url_wins_over_ollama_base_url_env(self, monkeypatch):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+
+        assert OllamaBackend(base_url="http://h:11434", model_name="llama3").root == "http://h:11434"
+
+    @pytest.mark.parametrize("base_url", [None, ""], ids=["base-url-none", "base-url-empty"])
+    @pytest.mark.parametrize("env_value", [None, ""], ids=["env-unset", "env-empty"])
+    def test_missing_base_url_and_env_raises_value_error(self, monkeypatch, base_url, env_value):
+        monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+        if env_value is not None:
+            monkeypatch.setenv("OLLAMA_BASE_URL", env_value)
+
+        with pytest.raises(ValueError, match="OLLAMA_BASE_URL environment variable"):
+            OllamaBackend(base_url=base_url, model_name="llama3")
+
+
 class TestOllamaBackendLoad:
     def test_posts_only_model_and_stream_to_generate_with_the_given_timeout(self):
         requests: list[httpx2.Request] = []

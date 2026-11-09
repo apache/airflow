@@ -336,7 +336,9 @@ as is.
 The prefix is not used to detect the server, because ``openai:<model>`` can
 point at Ollama's ``/v1`` endpoint as well as at any other OpenAI-compatible
 server. When it points at Ollama, pass ``OllamaBackend`` as the factory
-(``base_url`` may keep its ``/v1`` suffix):
+(``base_url`` may keep its ``/v1`` suffix). When the connection has no host,
+``OllamaBackend`` uses the ``OLLAMA_BASE_URL`` environment variable, and raises
+``ValueError`` if that is not set either:
 
 .. code-block:: python
 
