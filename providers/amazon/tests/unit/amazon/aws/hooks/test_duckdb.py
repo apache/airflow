@@ -159,10 +159,11 @@ class TestAwsDuckDBHookCredentials:
     ):
         conn = Connection(conn_id="aws_default", conn_type="aws", **aws_conn) if aws_conn else None
         aws_base_hook.conn_config = AwsConnectionWrapper(conn)
+        hook = AwsDuckDBHook(**hook_kwargs)
         with mock.patch.object(AwsDuckDBHook, "log") as mock_log:
-            statement = secret_statement(AwsDuckDBHook(**hook_kwargs))
-        warnings = [c for c in mock_log.warning.call_args_list if "own credential chain" in c.args[0]]
-        assert warnings == ([mock.call(mock.ANY, "aws_default")] if warns else [])
+            statement = secret_statement(hook)
+            secret_statement(hook)  # As a second get_conn() would: the warning is once per hook.
+        assert mock_log.warning.call_args_list == ([mock.call(mock.ANY, "aws_default")] if warns else [])
         if "credential_strategy" not in hook_kwargs:  # The secret is the same as before the warning.
             assert statement == (
                 "CREATE OR REPLACE SECRET airflow_aws "

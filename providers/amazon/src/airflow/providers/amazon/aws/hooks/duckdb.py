@@ -148,6 +148,7 @@ class AwsDuckDBHook(DuckDBHook):
         self._s3_endpoint_url = s3_endpoint_url
         self._secret_name = secret_name
         self._aws_identity_looked_up = False
+        self._ignored_credentials_checked = False
 
     @property
     def aws_conn_id(self) -> str | None:
@@ -246,7 +247,10 @@ class AwsDuckDBHook(DuckDBHook):
         self._log_aws_identity(strategy, region, endpoint_url)
 
     def _warn_if_connection_credentials_are_ignored(self) -> None:
-        """Warn when the default ``credential_chain`` leaves credentials in the AWS connection unused."""
+        """Warn once per hook when ``credential_chain`` leaves the AWS connection's credentials unused."""
+        if self._ignored_credentials_checked:
+            return
+        self._ignored_credentials_checked = True
         explicit = self._credential_strategy or self.connection_extra.get("credential_strategy")
         if explicit or self.aws_conn_id is None:
             return
