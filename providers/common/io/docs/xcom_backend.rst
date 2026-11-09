@@ -67,36 +67,57 @@ file itself, such as a query engine reading JSON or Parquet from object storage:
 where the file is.
 
 ``XComObjectStorageBackend.get_path`` returns that location, an :class:`~airflow.sdk.ObjectStoragePath`,
-without reading the file. In templates, the provider's ``xcom_path`` macro does the same and returns a string:
+without reading the file. In templates, the provider's ``xcom_path`` macro does the same and returns a string.
+
+For example, an extraction task pushes a large JSON array of invoices, and a
+:class:`~airflow.providers.common.sql.operators.generic_transfer.GenericTransfer` with a DuckDB source reads it
+straight from object storage, flattens it and inserts the rows into the target database. The rows are never
+deserialized in Python between the two tasks:
 
 .. code-block:: sql
 
-    -- flatten_invoices.sql, rendered by an SQL operator running on DuckDB
+    -- sql/flatten_invoices.sql, run by DuckDB
     SELECT *
     FROM read_json(
         '{{ macros.common_io.xcom_path(ti, "extract_invoices") }}',
-        format = 'array'
+        format = 'array',
+        columns = {
+            invoice_id: 'BIGINT',
+            customer: 'VARCHAR',
+            invoice_date: 'TIMESTAMP',
+            amount: 'DOUBLE'
+        }
     )
 
 .. code-block:: python
+
+    from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
+    from airflow.sdk import task
+
 
     @task
     def extract_invoices() -> list[dict]:
         return fetch_all_invoices()  # large: written to object storage by the backend
 
 
-    flatten = SQLExecuteQueryOperator(
-        task_id="flatten_invoices",
-        conn_id="duckdb_default",
-        sql="flatten_invoices.sql",
+    load_invoices = GenericTransfer(
+        task_id="load_invoices",
+        source_conn_id="duckdb_default",
+        destination_conn_id="postgres_default",
+        destination_table="invoices",
+        sql="sql/flatten_invoices.sql",
+        preoperator="sql/create_invoices.sql",
     )
-    extract_invoices() >> flatten
+    extract_invoices() >> load_invoices
+
+DuckDB reads ``.gz`` files transparently, so ``xcom_objectstorage_compression = gzip`` needs no extra option;
+for object storage other than the local file system, give DuckDB access to it (its ``httpfs`` extension and a
+secret, for example).
 
 Only values written to object storage have a path, so ``xcom_objectstorage_threshold`` decides which ones do;
 a threshold of ``0`` writes every value to object storage. ``protocol=False`` returns the path without its
 scheme (``bucket/key/...`` instead of ``s3://bucket/key/...``), for a tool that is given the file system
-separately. Compression applies to the file as it does to any other value: give the reading tool the matching
-option, or leave ``xcom_objectstorage_compression`` unset for the values it reads.
+separately.
 
 ``get_path`` returns ``None`` when there is no such XCom or when its value is stored in the database. The macro
 raises instead, since a ``None`` rendered into a query fails later with a less helpful error:
