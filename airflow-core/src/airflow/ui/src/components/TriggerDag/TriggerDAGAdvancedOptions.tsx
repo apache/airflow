@@ -39,15 +39,12 @@ const TriggerDAGAdvancedOptions = ({
   const { t: translate } = useTranslation(["common", "components"]);
   const { t: rootTranslate } = useTranslation();
 
-  // The suggestion is a guess from whichever source answered first — a pending
-  // partition, a time-based inference, or the last successful run — and the API
-  // does not say which. One warning that holds for all three is honest; picking
-  // wording from isPartitionedAtRuntime would mislabel an asset-driven Dag that
-  // fell through to its last successful run.
+  // The API does not say which source produced the suggestion, so one warning that holds for all
+  // three is used.
   const partitionKeyHelpText =
-    suggestedPartitionKey === undefined || suggestedPartitionKey === null
-      ? translate("components:triggerDag.partitionKeyHelp")
-      : translate("components:triggerDag.partitionKeySuggestedHelp");
+    suggestedPartitionKey !== undefined && suggestedPartitionKey !== null
+      ? translate("components:triggerDag.partitionKeySuggestedHelp")
+      : translate("components:triggerDag.partitionKeyHelp");
 
   return (
     <>

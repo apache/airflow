@@ -97,7 +97,14 @@ const TriggerDAGForm = ({
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const {
+    control,
+    formState: { dirtyFields },
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+  } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -140,11 +147,10 @@ const TriggerDAGForm = ({
     [reset, syncConfToStore],
   );
 
-  // Pre-fill form when prefillConfig is provided. This runs on open, before any user input, so
-  // the whole form is reset. Only 'conf' is copied from the prior run; its runId and logicalDate
-  // are deliberately dropped, because POST /dagRuns rejects a run whose id or logical date
-  // already exists with 409 Conflict. partitionKey instead gets the suggested value (a guess, not a
-  // restore of the prior attempt).
+  // Pre-fill form when prefillConfig is provided. Only 'conf' is copied from the prior run; its
+  // runId and logicalDate are deliberately dropped, because POST /dagRuns rejects a run whose id
+  // or logical date already exists with 409 Conflict. partitionKey instead gets the suggested value
+  // (a guess, not a restore of the prior attempt).
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
@@ -166,7 +172,24 @@ const TriggerDAGForm = ({
     } else if (!open) {
       setHasAppliedPrefill(false);
     }
-  }, [prefillConfig, open, isPartitioned, reset, suggestedPartitionKey, syncConfToStore]);
+    // suggestedPartitionKey is deliberately not a dependency: a changed suggestion must not reset
+    // the other fields. It is applied by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
+
+  // The suggestion can arrive or change after mount; apply it unless the user edited the field.
+  const isPartitionKeyDirty = Boolean(dirtyFields.partitionKey);
+
+  useEffect(() => {
+    if (
+      open &&
+      suggestedPartitionKey !== undefined &&
+      suggestedPartitionKey !== null &&
+      !isPartitionKeyDirty
+    ) {
+      setValue("partitionKey", suggestedPartitionKey);
+    }
+  }, [open, suggestedPartitionKey, isPartitionKeyDirty, setValue]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
