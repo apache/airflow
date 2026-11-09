@@ -1999,6 +1999,7 @@ class TestValidateResponseTolerance:
                 timetable_summary=None,
                 timetable_description=None,
                 timetable_partitioned=False,
+                timetable_partitioned_at_runtime=False,
                 timetable_periodic=True,
                 tags=[],
                 max_active_tasks=1,

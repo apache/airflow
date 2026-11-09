@@ -127,6 +127,7 @@ class TestDagCommands:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_partitioned_at_runtime=False,
         timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
