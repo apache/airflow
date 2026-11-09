@@ -23,10 +23,10 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UseDagServiceGetDagKeyFn } from "openapi/queries";
+import { UseDagServiceGetDagDetailsKeyFn } from "openapi/queries";
 import { CancelablePromise } from "openapi/requests/core/CancelablePromise";
 import { BackfillService, DagRunService, DagService } from "openapi/requests/services.gen";
-import type { DAGResponse, TriggerDagRunResponse } from "openapi/requests/types.gen";
+import type { DAGDetailsResponse, TriggerDagRunResponse } from "openapi/requests/types.gen";
 
 import type * as Ui from "src/system-components";
 
@@ -78,7 +78,7 @@ const dag = {
   is_paused: true,
   timetable_partitioned: false,
   timetable_summary: null,
-} as DAGResponse;
+} as DAGDetailsResponse;
 
 const renderModal = (queryClient: QueryClient, onClose = vi.fn()) =>
   render(
@@ -95,7 +95,7 @@ const createQueryClient = () =>
 
 describe("TriggerDAGModal", () => {
   beforeEach(() => {
-    vi.spyOn(DagService, "getDag").mockResolvedValue(dag);
+    vi.spyOn(DagService, "getDagDetails").mockResolvedValue(dag);
     vi.spyOn(BackfillService, "listBackfillsUi").mockResolvedValue({ backfills: [], total_entries: 0 });
     vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({ dag_runs: [], total_entries: 0 });
     vi.spyOn(DagRunService, "triggerDagRun").mockResolvedValue({
@@ -108,22 +108,22 @@ describe("TriggerDAGModal", () => {
   it("passes the paused state it fetches on open to the form", async () => {
     renderModal(createQueryClient());
     expect(await screen.findByText("pausedDag.title")).toBeVisible();
-    expect(DagService.getDag).toHaveBeenCalledWith({ dagId: DAG_ID });
+    expect(DagService.getDagDetails).toHaveBeenCalledWith({ dagId: DAG_ID });
   });
 
   it.each([false, true])(
     "blocks submission until the cached paused=%s state is refreshed",
     async (cachedPaused) => {
-      let resolveDag: ((value: DAGResponse) => void) | undefined;
+      let resolveDag: ((value: DAGDetailsResponse) => void) | undefined;
 
-      vi.mocked(DagService.getDag).mockReturnValue(
+      vi.mocked(DagService.getDagDetails).mockReturnValue(
         new CancelablePromise((resolve) => {
           resolveDag = resolve;
         }),
       );
       const queryClient = createQueryClient();
 
-      queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), {
+      queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), {
         ...dag,
         is_paused: cachedPaused,
       });
@@ -159,16 +159,16 @@ describe("TriggerDAGModal", () => {
   );
 
   it("also blocks backfill submission while refreshing the Dag", async () => {
-    let resolveDag: ((value: DAGResponse) => void) | undefined;
+    let resolveDag: ((value: DAGDetailsResponse) => void) | undefined;
 
-    vi.mocked(DagService.getDag).mockReturnValue(
+    vi.mocked(DagService.getDagDetails).mockReturnValue(
       new CancelablePromise((resolve) => {
         resolveDag = resolve;
       }),
     );
     const queryClient = createQueryClient();
 
-    queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), dag);
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), dag);
     renderModal(queryClient);
     fireEvent.click(screen.getByText("backfill.selectLabel"));
     expect(await screen.findByText("submit backfill")).toBeDisabled();
@@ -179,10 +179,10 @@ describe("TriggerDAGModal", () => {
   });
 
   it("does not allow a cached Dag to be submitted after its refresh fails", async () => {
-    vi.mocked(DagService.getDag).mockRejectedValue(new Error("Unavailable"));
+    vi.mocked(DagService.getDagDetails).mockRejectedValue(new Error("Unavailable"));
     const queryClient = createQueryClient();
 
-    queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), dag);
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), dag);
     renderModal(queryClient);
     expect(await screen.findByText("triggerDag.loadingFailed")).toBeVisible();
     expect(screen.queryByTestId("trigger-dag-submit")).not.toBeInTheDocument();
