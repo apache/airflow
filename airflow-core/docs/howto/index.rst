@@ -52,6 +52,7 @@ configuring an Airflow environment.
     connection
     variable
     setup-and-teardown
+    task-group
     run-behind-proxy
     run-with-systemd
     define-extra-link
@@ -61,4 +62,3 @@ configuring an Airflow environment.
     run-with-self-signed-certificate
     performance
     memory-profiling
-    task-group

@@ -24,12 +24,10 @@ lets you organize tasks into logical sections, including nested groups.
 
 .. exampleinclude:: /../src/airflow/example_dags/example_task_group.py
     :language: python
-    :start-after: [START howto_task_group_section_1]
-    :end-before: [END howto_task_group_section_1]
+    :start-after: [START howto_task_group]
+    :end-before: [END howto_task_group]
 
-TaskGroups can also be nested inside one another:
-
-.. exampleinclude:: /../src/airflow/example_dags/example_task_group.py
-    :language: python
-    :start-after: [START howto_task_group_section_2]
-    :end-before: [END howto_task_group_section_2]
+A dependency set on a group applies to the group's root and leaf tasks. In
+this Dag, ``start >> section_1`` makes ``start`` run before the root tasks
+of ``section_1``, and ``section_1 >> section_2`` makes the leaf tasks of
+``section_1`` run before the root tasks of ``section_2``.
