@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Unit tests for dev/registry/fill_durable_versions.py."""
 
 from __future__ import annotations
 
 import json
+import subprocess
 from unittest import mock
 
 import pytest
 from fill_durable_versions import (
+    GitCommandError,
     build_source_path,
     durable_group,
     find_first_releases,
     get_released_tags,
     main,
+    run_git,
 )
 
 POD_PATH = "providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py"
@@ -44,7 +46,7 @@ def clear_tag_cache():
 def fake_git(tags=(), matches=()):
     """Stand in for run_git: `tag --list` returns tags, `grep` returns tag:path lines."""
 
-    def run(*args):
+    def run(*args, **kwargs):
         if args[0] == "tag":
             return list(tags)
         if args[0] == "grep":
@@ -52,6 +54,21 @@ def fake_git(tags=(), matches=()):
         raise AssertionError(f"unexpected git call: {args}")
 
     return run
+
+
+class TestRunGit:
+    @mock.patch("fill_durable_versions.subprocess.run", autospec=True)
+    def test_unexpected_exit_code_is_raised_with_stderr(self, run):
+        run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=128, stdout="", stderr="fatal: not a git repository"
+        )
+        with pytest.raises(GitCommandError, match="fatal: not a git repository"):
+            run_git("tag", "--list")
+
+    @mock.patch("fill_durable_versions.subprocess.run", autospec=True)
+    def test_allowed_exit_code_is_an_empty_answer(self, run):
+        run.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+        assert run_git("grep", "-l", "x", allowed_returncodes=(0, 1)) == []
 
 
 class TestBuildSourcePath:
@@ -191,6 +208,16 @@ class TestMain:
         with mock.patch("fill_durable_versions.run_git", fake_git([], [])):
             assert main_with_args(path) == 0
         assert path.read_text() == before
+
+    def test_broken_checkout_is_not_mistaken_for_a_tagless_one(self, tmp_path):
+        path = self.write_catalog(tmp_path, [])
+
+        def exploding_git(*args, **kwargs):
+            raise GitCommandError("fatal: not a git repository")
+
+        with mock.patch("fill_durable_versions.run_git", exploding_git):
+            with pytest.raises(GitCommandError):
+                main_with_args(path)
 
     def test_missing_file_is_skipped_without_failing(self, tmp_path, capsys):
         with mock.patch("fill_durable_versions.run_git", fake_git(["providers-amazon/1.0.0"], [])):

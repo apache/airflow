@@ -21,7 +21,7 @@ Runs on the host rather than in Breeze with the rest of the module extraction, b
 the ``providers-<id>/<version>`` git tags and Breeze does not mount ``.git``.
 
 Usage:
-    python dev/registry/fill_durable_versions.py --modules dev/registry/output/modules.json
+    python dev/registry/fill_durable_versions.py --modules dev/registry/modules.json
 """
 
 from __future__ import annotations
@@ -47,11 +47,19 @@ DURABLE_TOKENS = {
 }
 
 
-def run_git(*args: str) -> list[str]:
+class GitCommandError(RuntimeError):
+    """A git call failed for a reason other than one the caller expected."""
+
+
+def run_git(*args: str, allowed_returncodes: tuple[int, ...] = (0,)) -> list[str]:
     try:
-        result = subprocess.run(["git", *args], capture_output=True, text=True, cwd=AIRFLOW_ROOT, check=True)
-    except (subprocess.CalledProcessError, OSError):
-        return []
+        result = subprocess.run(["git", *args], capture_output=True, text=True, cwd=AIRFLOW_ROOT, check=False)
+    except OSError as exc:
+        raise GitCommandError(f"Could not run git {' '.join(args)}: {exc}") from exc
+    if result.returncode not in allowed_returncodes:
+        raise GitCommandError(
+            f"git {' '.join(args)} failed with exit code {result.returncode}: {result.stderr.strip()}"
+        )
     return [line for line in result.stdout.splitlines() if line]
 
 
@@ -83,7 +91,8 @@ def find_first_releases(provider_id: str, token: str, paths: set[str]) -> dict[s
     tags = get_released_tags(provider_id)
     if not tags:
         return {}
-    matches = run_git("grep", "-l", token, *tags, "--", *sorted(paths))
+    # git grep exits 1 when nothing matches, which is an ordinary answer here.
+    matches = run_git("grep", "-l", token, *tags, "--", *sorted(paths), allowed_returncodes=(0, 1))
     earliest: dict[str, Version] = {}
     for line in matches:
         tag, _, path = line.partition(":")
@@ -150,4 +159,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except GitCommandError as error:
+        print(error, file=sys.stderr)
+        sys.exit(1)

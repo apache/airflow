@@ -160,7 +160,7 @@ def extract_data(python: str, provider: str | None, allow_unreleased: bool):
                 "python",
                 str(DEV_REGISTRY_DIR / "fill_durable_versions.py"),
                 "--modules",
-                str(DEV_REGISTRY_DIR / "output" / "modules.json"),
+                str(DEV_REGISTRY_DIR / "modules.json"),
                 str(AIRFLOW_ROOT_PATH / "registry" / "src" / "_data" / "modules.json"),
             ],
             check=False,
