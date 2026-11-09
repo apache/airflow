@@ -48,7 +48,8 @@ a `.map()`, `.zip()` or `.concat()` result as an expand argument, a mapped upstr
 3. **A Lang-SDK producer's map length is computed once in the supervisor, instead of in each SDK.** The server tells the supervisor whether the length is needed; the supervisor measures the return value and rejects one that is absent or not mappable.
    A Python task keeps measuring in its own runtime, so its `ti_run` still loads no Dag, and both apply the same `is_mappable_value` rule.
 4. **Every Python mapping primitive is in scope, and the server resolves all of them.** A primitive an SDK has not implemented yet is a capability flag, not a core limit.
-   For a Lang-SDK task, three shapes fail at parse time in both authoring modes: a `map()` that is not the outermost call of an expand argument, a `zip()` inside a `zip()`, and a `map()`, `zip()` or `concat()` result passed whole to a task that is not mapped.
+   For a Lang-SDK task, four shapes fail at parse time in both authoring modes: a `map()` that is not the outermost call of an expand argument, a `zip()` inside a `zip()`,
+   a `map()`, `zip()` or `concat()` result passed whole, to an unmapped task or through `partial()` to a mapped one, and an argument that a task in a mapped task group takes from a task in a more deeply nested mapped group.
 5. **A runtime always consumes delivered bindings; it never resolves the expand input itself.** The server works out which row and element this index reads, and the supervisor reads that value through the XCom backend and hands it to the runtime, in both authoring modes.
    No SDK re-implements element selection or cross-product arithmetic, and the server never reads an XCom value.
 6. **Only `map()` callables run outside the server and supervisor, applied on top of the element they picked.** Selection and transformation separate: [`_MapResult`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L398) indexes first, then applies the callables.
@@ -570,4 +571,5 @@ The runtime already knows its own mode, and a request reuses the sidecar the XCo
 - **Moving Python tasks onto the supervisor path.** A Python task could send plain values and let the supervisor measure, store and narrow them,
   as it does for a Lang-SDK task, so one implementation serves every runtime. It changes Python task behaviour, so it is a separate follow-up.
 - **The shapes decision 4 rejects for a Lang-SDK task.** A `map()` inside a `zip()` or `concat()`, a `zip()` inside a `zip()`,
-  and a `map()`, `zip()` or `concat()` result passed whole to a task that is not mapped. Each needs a binding that nests, or a resolver for the whole argument.
+  and a `map()`, `zip()` or `concat()` result passed whole, to an unmapped task or through `partial()` to a mapped one. Each needs a binding that nests, or a resolver for the whole argument.
+  An argument from a task in a more deeply nested mapped group reads a range of that producer's rows, and no binding carries a subset of a producer's rows.

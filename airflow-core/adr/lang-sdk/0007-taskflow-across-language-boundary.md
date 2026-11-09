@@ -32,7 +32,7 @@ Accepted
 >
 > **Amended by [ADR-0016](0016-mapped-tasks-across-lang-sdks.md):** it defines the bindings of a mapped stub task, and supports three forms rejected below,
 > a `.map()`, `.zip()` or `.concat()` result as an expand argument, a mapped upstream's aggregated output, and a stub task with arguments inside a mapped task group.
-> Passing a `.map()`, `.zip()` or `.concat()` result whole to a task that is not mapped stays rejected.
+> Passing a `.map()`, `.zip()` or `.concat()` result whole, to an unmapped task or through `partial()` to a mapped one, stays rejected.
 
 ## Context
 
