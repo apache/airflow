@@ -155,6 +155,7 @@ class AzureContainerAppsJobOperator(BaseOperator):
 
         if timeout_seconds is not None and timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be greater than zero")
+        
 
         self.resource_group = resource_group
         self.job_name = job_name
