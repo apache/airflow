@@ -766,6 +766,7 @@ def mirror_base_images_before_upgrade(target_branch: str, github_token: str | No
         hint="Or skip it with --no-mirror-base-images.",
         # The mirror would otherwise start a second main upgrade next to this one.
         trigger_upgrade_check=target_branch != "main",
+        build_os_deps_images=False,
     )
 
 

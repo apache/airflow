@@ -389,7 +389,9 @@ def test_python_image_digests_are_written_to_the_pins_file(monkeypatch, tmp_path
     assert json.loads(pins_file.read_text()) == {"3.13.17-debian13-dev": NEW_DIGEST}
 
 
-@pytest.mark.parametrize("path_name", ["PYTHON_IMAGE_DIGESTS_PATH", "LEGACY_PYTHON_VERSIONS_PATH"])
+@pytest.mark.parametrize(
+    "path_name", ["PYTHON_IMAGE_DIGESTS_PATH", "LEGACY_PYTHON_VERSIONS_PATH", "OS_DEPS_IMAGE_DIGESTS_PATH"]
+)
 def test_pins_file_is_the_one_breeze_reads(path_name):
     from ci.prek import upgrade_important_versions as uiv
 
@@ -491,6 +493,116 @@ def test_python_image_digest_exits_when_the_tag_is_not_mirrored(monkeypatch):
 
     with pytest.raises(SystemExit):
         uiv.get_mirrored_python_image_digest("3.13.17-debian13-dev")
+
+
+OS_DEPS_DIGEST = "sha256:" + "ab" * 32
+CURRENT_OS_DEPS_DIGEST = "sha256:" + "cd" * 32
+
+
+@pytest.mark.parametrize(
+    ("built", "current_pins", "expected"),
+    [
+        pytest.param(
+            {"ci", "dev", "runtime"},
+            {},
+            {
+                "ci-3.13.17-debian13-dev": OS_DEPS_DIGEST,
+                "dev-3.13.17-debian13-dev": OS_DEPS_DIGEST,
+                "runtime-3.13.17-debian13-dev": OS_DEPS_DIGEST,
+            },
+            id="all-built",
+        ),
+        pytest.param(
+            {"ci"},
+            {"dev-3.13.17-debian13-dev": CURRENT_OS_DEPS_DIGEST, "ci-3.13.16-debian13-dev": OLD_DIGEST},
+            {
+                "ci-3.13.17-debian13-dev": OS_DEPS_DIGEST,
+                "dev-3.13.17-debian13-dev": CURRENT_OS_DEPS_DIGEST,
+            },
+            id="not-published-keeps-the-current-pin-and-drops-old-patchlevels",
+        ),
+        pytest.param(
+            set(),
+            {"ci-3.13.16-debian13-dev": OLD_DIGEST},
+            {},
+            id="new-patchlevel-not-published-stays-unpinned",
+        ),
+    ],
+)
+def test_os_deps_image_digests_pin_the_latest_published_images(monkeypatch, built, current_pins, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    looked_up = []
+
+    def get_ghcr_image_digest(repository, tag):
+        looked_up.append((repository, tag))
+        return OS_DEPS_DIGEST if tag.split("-", 1)[0] in built else None
+
+    monkeypatch.setattr(uiv, "get_ghcr_image_digest", get_ghcr_image_digest)
+
+    pins = uiv.fetch_os_deps_image_digests(
+        {"3.13.17-debian13-dev": NEW_DIGEST, "3.13.17-debian12-dev": OLD_DIGEST}, current_pins
+    )
+
+    assert pins == expected
+    assert looked_up == [
+        ("apache/airflow/base/os-deps", f"{image_type}-3.13.17-debian13-dev")
+        for image_type in ("ci", "dev", "runtime")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("branch", "expected"),
+    [
+        pytest.param("main", {"ci-3.13.17-debian13-dev": OS_DEPS_DIGEST}, id="main-pins"),
+        pytest.param("v3-4-test", {}, id="release-branch-pins-nothing"),
+    ],
+)
+def test_only_main_pins_os_deps_images(monkeypatch, branch, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    fetch = mock.create_autospec(uiv.fetch_os_deps_image_digests, return_value=expected)
+    monkeypatch.setattr(uiv, "fetch_os_deps_image_digests", fetch)
+
+    pins = uiv.compute_os_deps_image_pins(
+        {"3.13.17-debian13-dev": NEW_DIGEST}, {"ci-3.13.17-debian13-dev": OLD_DIGEST}, branch
+    )
+
+    assert pins == expected
+    assert fetch.called is (branch == "main")
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param('    AIRFLOW_BRANCH = "v2-2-test"\nAIRFLOW_BRANCH = "main"\n', "main", id="main"),
+        pytest.param('AIRFLOW_BRANCH = "v3-4-test"\n', "v3-4-test", id="release-branch"),
+    ],
+)
+def test_airflow_branch_is_read_from_branch_defaults(monkeypatch, tmp_path, content, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    branch_defaults = tmp_path / "branch_defaults.py"
+    branch_defaults.write_text(content)
+    monkeypatch.setattr(uiv, "BRANCH_DEFAULTS_PATH", branch_defaults)
+
+    assert uiv.get_airflow_branch() == expected
+
+
+def test_airflow_branch_of_this_checkout_is_found():
+    from ci.prek import upgrade_important_versions as uiv
+
+    assert uiv.get_airflow_branch()
+
+
+def test_ghcr_image_digest_is_none_for_a_missing_tag(monkeypatch):
+    from ci.prek import upgrade_important_versions as uiv
+
+    get, head = _ghcr_responses(uiv, 404)
+    monkeypatch.setattr(uiv.requests, "get", get)
+    monkeypatch.setattr(uiv.requests, "head", head)
+
+    assert uiv.get_ghcr_image_digest("apache/airflow/base/os-deps", "ci-3.13.17-debian13-dev") is None
 
 
 def test_legacy_python_version_fails_on_a_server_error_instead_of_picking_an_older_release():

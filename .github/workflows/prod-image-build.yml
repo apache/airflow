@@ -105,6 +105,13 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      use-pinned-os-deps-images:
+        description: >-
+          Start from the pinned OS-dependencies images (true/false) - false with the "disable image cache"
+          label. A retry with the cache disabled does not change it.
+        required: false
+        default: "true"
+        type: string
       disable-airflow-repo-cache:
         description: "Disable airflow repo cache read from main."
         required: true
@@ -275,6 +282,7 @@ jobs:
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
+          USE_PINNED_OS_DEPS_IMAGES: ${{ inputs.use-pinned-os-deps-images }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
           IMAGE_FLAVOR: ${{ inputs.image-flavor }}

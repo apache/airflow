@@ -1341,6 +1341,78 @@ Example usage:
 Without ``--python`` every currently supported Python version is mirrored.
 
 
+Build the OS-dependencies images
+""""""""""""""""""""""""""""""""
+
+Pinning the base image to a digest does not pin the ``dhi.io`` apt repository the OS dependencies are
+installed from: it moves on - and drops the package versions it replaced - whenever Docker rebuilds its
+images, so the same commit could build today and fail tomorrow. The CI image and the PROD images built
+by CI and the release workflows therefore start from images in which ``install_os_dependencies.sh``
+already ran, one per installation type (``ci``, ``dev`` and ``runtime``). They are built from the
+``ci-os-deps``, ``dev-os-deps`` and ``runtime-os-deps`` stages of the Dockerfiles, on the base images the
+mirror serves, and pinned in ``dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json``
+by the same upgrade that moves the base image pins. Only ``main`` carries pins: the images are built from
+``main``'s script and Dockerfiles, so on a release branch they would not match its own installation - the
+upgrade leaves the file empty on any other branch until there are images per branch.
+
+The "Mirror hardened base images" workflow runs this command daily, natively on an AMD and an ARM runner,
+after it mirrored the base images - also for a newer Python patch release the mirror already copied, so
+its images are published by the time the upgrade moves the base image pin to it. Its six-hourly runs only
+mirror, and the run the upgrade check dispatches
+(``breeze workflow-run mirror-base-images --no-build-os-deps-images``) builds nothing either. Every input
+of an image - the base image digest, the script, its Dockerfile stage and its build args - is part of its
+tag, so an image is built only when one of them changed.
+
+These are all available flags of ``release-management build-os-deps-images`` command:
+
+.. image:: ./images/output_release-management_build-os-deps-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_build-os-deps-images.svg
+  :width: 100%
+  :alt: Breeze build OS-dependencies images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management build-os-deps-images --platform linux/arm64 --python 3.13
+
+In the workflow, the build and publish jobs get the base image digests the run's own mirror job mirrored
+(``--base-image-digests``), so a mirror-only run moving the tags meanwhile does not change what they
+build and publish - the OS-dependencies jobs have concurrency groups of their own and do not hold up the
+mirror runs.
+
+The script records what it installed with in the image, and a build on it installs nothing when nothing
+differs. When a PR changes the variables the script installs with (such as the Go or Node.js versions),
+the installation runs again on top of the pinned image, so the change is still exercised; a PR that
+changes the script, the client scripts or the keys builds from ``BASE_IMAGE`` in CI instead. Builds with
+another base image, Debian version or apt dependencies do not use the pinned images at all and install
+from the apt repositories.
+
+
+Publish the OS-dependencies images
+""""""""""""""""""""""""""""""""""
+
+Once both platforms are built, this command merges them into a multi-platform image and moves the tag
+the upgrade check pins - the latest published OS-dependencies image of a Python patch release - to it.
+The merged image keeps its own tag, which has every input in it and never moves, so a pinned digest
+stays tagged. When it moves a tag, the workflow triggers the upgrade check, which pins the latest image
+of each Python patch release whatever base image digest it was built on: the image carries its own
+Python, so it need not share the digest of the base image pin, which moves several times a day.
+
+These are all available flags of ``release-management publish-os-deps-images`` command:
+
+.. image:: ./images/output_release-management_publish-os-deps-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-os-deps-images.svg
+  :width: 100%
+  :alt: Breeze publish OS-dependencies images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management publish-os-deps-images --python 3.13
+
+
 -----
 
 Next step: Follow the `UI Tasks <10_ui_tasks.rst>`_ to learn more about UI tasks.
