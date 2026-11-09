@@ -1506,7 +1506,7 @@ export class Dag {
       if (branches.whenTrue === undefined) {
         throw new Error(
           `Condition "${taskId}" of Dag "${this.dagId}" names no branch, so it decides nothing; ` +
-            "give it one with dag.if(handler, inputs).then(task)",
+            "give it one with .then(task)",
         );
       }
     }
@@ -1514,7 +1514,7 @@ export class Dag {
       if (cases.length === 0) {
         throw new Error(
           `Branch "${taskId}" of Dag "${this.dagId}" has no cases, so it decides nothing; ` +
-            "give it the tasks to choose between with dag.switch(handler, inputs).case(task)",
+            "give it the tasks to choose between with .case(task)",
         );
       }
     }

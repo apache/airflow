@@ -252,7 +252,7 @@ describe("triggerDagRun", () => {
 
     it.each(["if", "switch"] as const)("a trigger task given to a task group's %s", (decider) => {
       const group = new Dag("d").taskGroup("routing");
-      const declare = group[decider].bind(group) as (...args: unknown[]) => unknown;
+      const declare = group[decider] as (...args: unknown[]) => unknown;
 
       expect(() =>
         declare(triggerDagRun({ dagId: "downstream_etl" }), undefined, {
