@@ -79,8 +79,11 @@ spelling.
 1. **A loop is a task group with a bound.** No SDK adds a second kind of group.
 2. **The gate is an ordinary task**, declared with the group and carrying the same task options as any
    other.
-3. **The gate reads the terminal task as wired data**, not off the loop context. The terminal is named
-   once, and the compiler checks the decision against what the body produces.
+3. **The terminal task is the body's single leaf**, never something the gate names. The SDK orders the
+   leaf before the gate, so a gate that binds another task still runs after the terminal. The gate's
+   own data arguments are ordinary task wiring, so wiring the terminal into them is what gets the
+   decision checked against what the body produces. A surface with no data wiring reads the terminal
+   off the loop context instead, in the shape that SDK's `getXCom` has.
 4. **The loop context arrives the way `Client` and `Context` already do** in that SDK. It is never
    mixed into a handler's data arguments.
 5. **`previous` is one accessor**, in the shape that SDK's `getXCom` has. A mapped terminal makes it
