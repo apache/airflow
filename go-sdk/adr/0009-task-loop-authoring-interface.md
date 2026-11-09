@@ -38,8 +38,10 @@ This ADR records the Go spelling of them.
    ([ADR 8](0008-native-dag-interface.md)).
 2. **`maxIterations` is positional and `Until` is an option.** Every loop has a bound; only some add a
    callable. `airflow.Until(fn, opts...)` is the one `LoopOption`, sealed as `TaskOption` is.
-3. **The gate is a task handler wired with `airflow.Inputs`.** Registration checks its parameter
-   against the terminal task's recorded output type, as it already does for `Inputs`.
+3. **The gate is a task handler wired with `airflow.Inputs`**, which is its own data, as any task's
+   is. The terminal task is the body's single leaf, which the SDK orders before the gate. Wiring the
+   leaf in is what gets the decision checked against what the body produces, since registration
+   already checks a parameter against the recorded output type of whatever `Inputs` names.
 4. **`actx.Loop()` supplies the loop context**, beside `Logger`, `Client`, `TaskInstance` and
    `DagRun`. It returns a value and an error, because reading the previous iteration is a round trip.
 5. **`Index`, `MaxIterations` and `Previous` are struct fields**, as `DagRun`'s are, and
@@ -187,7 +189,8 @@ type XComSequence[T any] interface {
   completes without a worker (ADR-0017 decision 4).
 - **The gate is an ordinary task.** `airflow.Until` takes `TaskOption`, so `airflow.TaskSpec{Queue: ...}`
   lands on it, and its task_id defaults to the Go function name under the group's prefix.
-  `TaskSpec{TaskID: "accurate_enough"}` is how it gets a snake_case id, as for any task.
+  `TaskSpec{TaskID: "accurate_enough"}` is how it gets a snake_case id, as for any task. A loop with
+  no `airflow.Until` has no name to take, so its gate is `__loop_gate`, as Python's is.
 - **The body's single leaf is checked twice**: at registration, for the faster message, and by the Dag
   processor, which decides (ADR-0017 decision 3). A nested loop and a loop inside a mapped task group
   are rejected the same way.

@@ -34,14 +34,17 @@ This ADR records the TypeScript spelling of them.
 
 1. **`refine.loop(...)` closes a group.** `dag.taskGroup("refine")` builds and fills it as usual.
 2. **The gate is a handler wired in one call**: `loop(until, inputs, spec)`, the shape
-   `dag.if(handler, inputs, spec)` already has ([ADR-0002](0002-native-dag-interface.md)).
-3. **`getLoop()` supplies the loop context**, beside `getContext()` and `getClient()` (ADR-0002
+   `dag.if(handler, inputs, spec)` already has ([ADR-0002](0002-native-dag-interface.md)). `inputs` is
+   the gate's own data, as any task's is.
+3. **The terminal task is the body's single leaf**, which the SDK orders before the gate. Wiring the
+   leaf into `inputs` is what gets the decision checked against what the body produces.
+4. **`getLoop()` supplies the loop context**, beside `getContext()` and `getClient()` (ADR-0002
    decision 6). It is awaited, because reading the previous iteration is a round trip.
-4. **`index`, `maxIterations` and `previous` are fields**, and `getPrevious<T>()` is the typed view.
+5. **`index`, `maxIterations` and `previous` are fields**, and `getPrevious<T>()` is the typed view.
    That is `client.getXCom`'s split between a value and the type the caller names.
-5. **A body task returns a `LoopTaskRef<T>`**, accepted where either `TaskRef<T>` or
+6. **A body task returns a `LoopTaskRef<T>`**, accepted where either `TaskRef<T>` or
    `TaskRef<XComSequence<T>>` is wanted, so `tsc` checks whichever reading the consumer declares.
-6. **`LoopRef` carries `before` and `after`.** An order-only edge from a body ref to a task outside is
+7. **`LoopRef` carries `before` and `after`.** An order-only edge from a body ref to a task outside is
    rejected when the Dag is read.
 
 ## Example
@@ -86,7 +89,7 @@ refinement.before(cleanup()); // order only: the whole loop, not one iteration
 
 `evaluated` is written twice and means two things. Inside the loop it is one iteration's `Metrics`,
 which is what the gate takes. Outside it is an `XComSequence<Metrics>`, which is what `report` takes.
-Decision 5 is what makes both type-check.
+Decision 6 is what makes both type-check.
 
 A loop that only counts needs no handler:
 
@@ -144,7 +147,8 @@ interface LoopContext {
 - **A fixed-count loop needs no runtime support.** `loop({ maxIterations })` emits `has_until: false`,
   which core completes without a worker (ADR-0017 decision 4).
 - **The gate is an ordinary task.** `LoopOptions` extends `TaskSpec`, so `queue` and `retries` land on
-  it, and its id defaults to the handler's function name under the group's prefix.
+  it, and its id defaults to the handler's function name under the group's prefix. A fixed-count loop
+  has no handler to take a name from, so its gate is `__loop_gate`, as Python's is.
 - **The body's single leaf is checked twice**: by the SDK when the Dag is read, for the faster
   message, and by the Dag processor, which decides (ADR-0017 decision 3). A nested loop and a loop
   inside a mapped task group are rejected the same way.

@@ -36,8 +36,10 @@ This ADR records the Java spelling of them, on both surfaces
 1. **`@Airflow.Loop` is `@Airflow.TaskGroup` with a bound.** On the interface surface,
    `dag.loop(groupId, maxIterations)` stands where `dag.taskGroup(groupId)` does.
 2. **`@Airflow.Until` marks the gate's method** inside that class. Its absence is a fixed-count loop.
-3. **The gate's data parameter is the terminal task**, bound in `depends()` like any other argument.
-   The interface surface has no typed refs, so `refine.until(id, class)` takes the body's single leaf.
+3. **The terminal task is the body's single leaf**, which the SDK orders before the gate. The gate's
+   data parameters are bound in `depends()` like any other task's, so binding the leaf is what gets
+   the decision checked against what the body produces. The interface surface binds nothing and reads
+   the terminal off `Loop` (decision 6).
 4. **`Loop` is injected as a method argument**, beside `Client` and `Context` (ADR-0002), into a body
    task or the gate. On the interface surface, where `Task.execute(Context, Client)` is fixed, it is
    `context.loop()`. The processor injects it only where it is declared, so nothing else pays for the
@@ -250,9 +252,12 @@ public interface LoopTaskRef<T> extends TaskRef<T> {}
 
 - **A fixed-count loop needs no runtime support.** A `@Airflow.Loop` with no `@Airflow.Until` emits
   `has_until: false`, which core completes without a worker (ADR-0017 decision 4).
-- **The two surfaces name the terminal differently.** The annotation surface binds it and gets a
-  compile-time check; the interface surface infers the body's single leaf. Both serialize the same
-  `terminal_task_id`.
+- **Neither surface names the terminal.** Both take the body's single leaf and serialize the same
+  `terminal_task_id`. The annotation surface binds it into the gate as well, which is what buys the
+  compile-time check; the interface surface has no wiring to bind it with.
+- **A fixed-count loop's gate is `__loop_gate`.** `@Airflow.Until` carries the gate's id, and a loop
+  with no gate method has none to carry, so the id falls back under the group's prefix as Python's
+  does.
 - **The body's single leaf is checked twice**: by the SDK when the Dag is read, for the faster
   message, and by the Dag processor, which decides (ADR-0017 decision 3). A nested loop and a loop
   inside a mapped task group are rejected the same way.
