@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from ftplib import FTP_TLS
+from ftplib import FTP_TLS, error_perm
 from io import StringIO
 from unittest import mock
 
@@ -40,6 +40,12 @@ class TestFTPHook:
 
     def teardown_method(self):
         fh.FTPHook.get_conn = self.get_conn_orig
+
+    @pytest.fixture
+    def ftp_default(self, create_connection_without_db):
+        from airflow.models import Connection
+
+        create_connection_without_db(Connection(conn_id="ftp_default", conn_type="ftp", host="localhost"))
 
     def test_close_conn(self):
         ftp_hook = fh.FTPHook()
@@ -146,12 +152,34 @@ class TestFTPHook:
                     ftp_hook.store_file(self.path, "/local/path")
         handle.close.assert_called_once_with()
 
+    @pytest.mark.usefixtures("ftp_default")
     def test_connection_success(self):
         with fh.FTPHook() as ftp_hook:
             status, msg = ftp_hook.test_connection()
             assert status is True
             assert msg == "Connection successfully tested"
+        self.conn_mock.pwd.assert_called_once_with()
 
+    @pytest.mark.usefixtures("ftp_default")
+    def test_connection_failure_when_server_rejects_command(self):
+        self.conn_mock.pwd.side_effect = error_perm("530 Log in with USER and PASS first.")
+        with fh.FTPHook() as ftp_hook:
+            status, msg = ftp_hook.test_connection()
+            assert status is False
+            assert msg == "530 Log in with USER and PASS first."
+
+    def test_connection_failure_without_host(self, create_connection_without_db):
+        from airflow.models import Connection
+
+        create_connection_without_db(Connection(conn_id="ftp_no_host", conn_type="ftp"))
+
+        status, msg = fh.FTPHook(ftp_conn_id="ftp_no_host").test_connection()
+
+        assert status is False
+        assert msg == "Connection has no host to connect to"
+        self.conn_mock.pwd.assert_not_called()
+
+    @pytest.mark.usefixtures("ftp_default")
     def test_connection_failure(self):
         self.conn_mock = mock.MagicMock(name="conn_mock", side_effect=Exception("Test"))
         fh.FTPHook.get_conn = self.conn_mock
