@@ -400,7 +400,10 @@ class _MapResult(Sequence):
     callables: MapCallables
 
     def __getitem__(self, index: Any) -> Any:
-        value = self.value[index]
+        if isinstance(self.value, dict):
+            value = list(self.value.items())[index]
+        else:
+            value = self.value[index]
 
         for f in self.callables:
             value = f(value)

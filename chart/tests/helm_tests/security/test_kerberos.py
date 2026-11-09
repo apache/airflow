@@ -60,6 +60,70 @@ class TestKerberos:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
+    def test_kerberos_sidecar_is_native_sidecar(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+
+    def test_kerberos_sidecar_disabled(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "persistence": {"enabled": True, "fixPermissions": True},
+                        "kerberosSidecar": {"enabled": False},
+                        "extraInitContainers": [{"name": "custom-init", "image": "custom-image"}],
+                    }
+                },
+                "dags": {"gitSync": {"enabled": True}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.initContainers[].name", docs[0]) == [
+            "volume-permissions",
+            "wait-for-airflow-migrations",
+            "git-sync-init",
+            "custom-init",
+        ]
+
+    def test_kerberos_sidecar_enabled(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "persistence": {"enabled": True, "fixPermissions": True},
+                        "kerberosSidecar": {"enabled": True},
+                        "extraInitContainers": [{"name": "custom-init", "image": "custom-image"}],
+                    }
+                },
+                "dags": {"gitSync": {"enabled": True}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.initContainers[].name", docs[0]) == [
+            "volume-permissions",
+            "worker-kerberos",
+            "wait-for-airflow-migrations",
+            "git-sync-init",
+            "custom-init",
+        ]
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar["args"] == ["kerberos"]
+        assert sidecar["restartPolicy"] == "Always"
+
     def test_kerberos_sidecar_resources(self):
         docs = render_chart(
             values={
@@ -76,9 +140,9 @@ class TestKerberos:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[2].resources", docs[0]) == {
-            "requests": {"cpu": "200m", "memory": "200Mi"}
-        }
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].resources", docs[0]
+        ) == {"requests": {"cpu": "200m", "memory": "200Mi"}}
 
     def test_keberos_sidecar_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -183,9 +247,8 @@ class TestKerberos:
                     "failureThreshold": 14,
                 },
             ),
-            ({"enabled": False}, None),
         ],
-        ids=["default", "custom", "disabled"],
+        ids=["default", "custom"],
     )
     def test_kerberos_sidecar_startup_probe(self, override, expected):
         docs = render_chart(
@@ -196,12 +259,29 @@ class TestKerberos:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
-            )
-            == expected
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
         )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert sidecar["startupProbe"] == expected
+
+    def test_kerberos_sidecar_startup_probe_disabled(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {"kerberosSidecar": {"enabled": True, "startupProbe": {"enabled": False}}}
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert "startupProbe" not in sidecar
 
     @pytest.mark.parametrize(
         "override",
