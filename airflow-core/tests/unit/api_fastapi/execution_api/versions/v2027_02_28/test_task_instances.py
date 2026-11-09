@@ -89,7 +89,7 @@ def test_xcom_arg_binding_schema_by_version(client, version):
     response = client.get(f"/execution/openapi.json?version={version}")
     assert response.status_code == 200
     binding = response.json()["components"]["schemas"]["XComArgBinding"]["properties"]
-    for field in ("map_index", "element_index", "mapping_key"):
+    for field in ("map_index", "element_index", "apply_map", "kwarg", "fallback"):
         assert (field in binding) == (version == "2027-02-28")
 
 

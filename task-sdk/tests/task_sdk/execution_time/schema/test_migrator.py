@@ -632,9 +632,8 @@ class TestRealBundleArgBindingsDowngrade:
         "binding",
         [
             pytest.param({"name": "totals", "kind": "sequence", "task_id": "transform"}, id="sequence"),
-            pytest.param({"name": "row", "kind": "unresolved"}, id="unresolved"),
             pytest.param(
-                {"name": "row", "kind": "tuple", "parts": [{"name": "row", "kind": "literal", "value": 1}]},
+                {"name": "row", "kind": "tuple", "parts": [{"kind": "literal", "value": 1}]},
                 id="tuple",
             ),
             pytest.param(
@@ -643,9 +642,18 @@ class TestRealBundleArgBindingsDowngrade:
             pytest.param(
                 {"name": "row", "kind": "xcom", "task_id": "extract", "element_index": 1}, id="element-index"
             ),
+            pytest.param({"name": "row", "kind": "xcom", "task_id": "extract", "kwarg": "row"}, id="kwarg"),
             pytest.param(
-                {"name": "row", "kind": "xcom", "task_id": "extract", "mapping_key": "row"}, id="mapping-key"
+                {
+                    "name": "row",
+                    "kind": "xcom",
+                    "task_id": "extract",
+                    "kwarg": "row",
+                    "fallback": {"kind": "literal", "value": 1},
+                },
+                id="fallback",
             ),
+            pytest.param({"name": "row", "kind": "literal", "value": 1, "apply_map": True}, id="apply-map"),
         ],
     )
     def test_downgrade_strips_mapped_arg_bindings_for_previous_version(

@@ -38,10 +38,13 @@ from cadwyn import (
 )
 
 from airflow.sdk.api.datamodels._generated import (
+    LiteralArgBinding,
     TIRunContext,
     TISuccessStatePayload,
+    TupleArgBinding,
     VariableResponse,
     XComArgBinding,
+    XComSequenceArgBinding,
 )
 from airflow.sdk.execution_time.comms import PutVariable, StartupDetails
 
@@ -82,12 +85,6 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
 
     The supervisor-schema mirror of the execution API's ``MakeVariableValueNonNullable``,
     named apart so the two migrations are not confused.
-class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
-    """
-    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``unresolved`` kinds, and the XCom element fields.
-
-    The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
-    the two migrations are not confused.
     """
 
     description = __doc__
@@ -104,9 +101,27 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
         """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
         if "value" in request.body and request.body["value"] is None:
             request.body["value"] = "None"
+
+
+class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
+    """
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
+
+    The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
+    the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
         schema(XComArgBinding).field("map_index").didnt_exist,
         schema(XComArgBinding).field("element_index").didnt_exist,
-        schema(XComArgBinding).field("mapping_key").didnt_exist,
+        # The generated client flattens the bindings' shared base, so each binding drops these itself.
+        *(
+            schema(binding).field(field).didnt_exist
+            for binding in (XComArgBinding, LiteralArgBinding, XComSequenceArgBinding, TupleArgBinding)
+            for field in ("apply_map", "kwarg", "fallback")
+        ),
     )
 
     @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
@@ -118,10 +133,8 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
 
 
 def _is_mapped_binding(binding: dict[str, Any]) -> bool:
-    if binding["kind"] in ("sequence", "tuple", "unresolved"):
+    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
         return True
-    return binding["kind"] == "xcom" and (
-        binding.get("map_index", -1) != -1
-        or binding.get("element_index") is not None
-        or binding.get("mapping_key") is not None
+    return any(
+        binding.get(field) is not None for field in ("map_index", "element_index", "kwarg", "fallback")
     )

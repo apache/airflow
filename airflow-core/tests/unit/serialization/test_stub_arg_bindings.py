@@ -288,16 +288,25 @@ class TestMappedStubArgBindings:
         with pytest.raises(ValueError, match="does not bind to its signature"):
             self.get_hook_fields(result.operator)
 
+    def test_partial_kwarg_over_mapped_upstream_allowed(self):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            result = stub(fn_transform).partial(extracted=vals).expand(country=["uk"])
+
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
+        assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
+
     @pytest.mark.parametrize(
         "make_value",
         [
-            pytest.param(lambda vals, out: vals, id="mapped-upstream"),
             pytest.param(lambda vals, out: out.map(str), id="map"),
             pytest.param(lambda vals, out: out.zip(vals), id="zip"),
             pytest.param(lambda vals, out: out.concat(vals), id="concat"),
         ],
     )
-    def test_partial_kwarg_over_any_upstream_output_allowed(self, make_value):
+    def test_partial_kwarg_over_whole_map_zip_concat_rejected(self, make_value):
         def fn_produce(n: int): ...
 
         with DAG(dag_id="d"):
@@ -305,8 +314,52 @@ class TestMappedStubArgBindings:
             out = stub(fn_extract)()
             result = stub(fn_transform).partial(extracted=make_value(vals, out)).expand(country=["uk"])
 
+        with pytest.raises(ValueError, match=r"receives a whole map\(\), zip\(\) or concat\(\) result"):
+            self.get_hook_fields(result.operator)
+
+    @pytest.mark.parametrize(
+        ("make_value", "match"),
+        [
+            pytest.param(
+                lambda a, b: a.map(str).zip(b), r"map\(\) inside a zip\(\) or concat\(\)", id="map-in-zip"
+            ),
+            pytest.param(
+                lambda a, b: a.map(str).concat(b),
+                r"map\(\) inside a zip\(\) or concat\(\)",
+                id="map-in-concat",
+            ),
+            pytest.param(lambda a, b: a.zip(b).zip(b), r"zip\(\) inside a zip\(\)", id="zip-in-zip"),
+            pytest.param(
+                lambda a, b: a.concat(b.zip(a)).zip(b), r"zip\(\) inside a zip\(\)", id="zip-in-concat-in-zip"
+            ),
+        ],
+    )
+    def test_expand_shape_no_binding_carries_rejected(self, make_value, match):
+        with DAG(dag_id="d"):
+            a = stub(fn_extract)()
+            b = stub(fn_extract)()
+            result = stub(fn_transform).partial(country="uk").expand(extracted=make_value(a, b))
+
+        with pytest.raises(ValueError, match=match):
+            self.get_hook_fields(result.operator)
+
+    @pytest.mark.parametrize(
+        "make_value",
+        [
+            pytest.param(lambda a, b: a.map(str), id="map"),
+            pytest.param(lambda a, b: a.zip(b).map(str), id="map-over-zip"),
+            pytest.param(lambda a, b: a.zip(b).concat(a), id="zip-in-concat"),
+            pytest.param(lambda a, b: a.concat(b).zip(b), id="concat-in-zip"),
+        ],
+    )
+    def test_expand_shape_with_outermost_map_allowed(self, make_value):
+        with DAG(dag_id="d"):
+            a = stub(fn_extract)()
+            b = stub(fn_extract)()
+            result = stub(fn_transform).partial(country="uk").expand(extracted=make_value(a, b))
+
         params = self.get_hook_fields(result.operator)["_arg_bindings"]
-        assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
+        assert [p["kind"] for p in params] == ["param", "param", "param"]
 
     def test_custom_xcom_key_inside_partial_zip_rejected(self):
         with DAG(dag_id="d"):
@@ -404,3 +457,80 @@ class TestTaskGroupMemberArgBindings:
             group.expand(country=["uk"])
 
         assert build_arg_bindings(captured["op"].operator) is None
+
+    def test_member_reading_task_mapped_again_inside_shared_group_rejected(self):
+        captured = {}
+
+        def fn_produce(n: int): ...
+
+        @task_group
+        def inner(m):
+            captured["producer"] = stub(fn_produce)(m)
+
+        @task_group
+        def outer(n):
+            inner.expand(m=[1, 2])
+            captured["op"] = stub(fn_transform)("uk", captured["producer"])
+
+        with DAG(dag_id="d"):
+            outer.expand(n=[1, 2])
+
+        with pytest.raises(ValueError, match="mapped again inside the mapped task group they share"):
+            build_arg_bindings(captured["op"].operator)
+
+    @pytest.mark.parametrize(
+        ("make_value", "match"),
+        [
+            pytest.param(lambda a, b: a.map(str).zip(b), r"map\(\) inside a zip\(\)", id="map-in-zip"),
+            pytest.param(lambda a, b: a.zip(b).zip(b), r"zip\(\) inside a zip\(\)", id="zip-in-zip"),
+        ],
+    )
+    def test_group_expand_shape_no_binding_carries_rejected(self, make_value, match):
+        captured = {}
+
+        @task_group
+        def group(country):
+            captured["op"] = stub(fn_transform)(country, {})
+
+        with DAG(dag_id="d"):
+            group.expand(country=make_value(stub(fn_extract)(), stub(fn_extract)()))
+
+        with pytest.raises(ValueError, match=match):
+            build_arg_bindings(captured["op"].operator)
+
+    def test_group_expand_over_outermost_map_is_param(self):
+        captured = {}
+
+        @task_group
+        def group(country):
+            captured["op"] = stub(fn_transform)(country, {})
+
+        with DAG(dag_id="d"):
+            group.expand(country=stub(fn_extract)().map(str))
+
+        (country, *_) = build_arg_bindings(captured["op"].operator)
+        assert country["kind"] == "param"
+
+
+@pytest.mark.parametrize(
+    "make_value",
+    [
+        pytest.param(lambda a, b: a.map(str), id="map"),
+        pytest.param(lambda a, b: a.zip(b), id="zip"),
+        pytest.param(lambda a, b: a.concat(b), id="concat"),
+    ],
+)
+def test_unmapped_stub_whole_map_zip_concat_rejected(make_value):
+    with DAG(dag_id="d"):
+        result = stub(fn_transform)("uk", make_value(stub(fn_extract)(), stub(fn_extract)()))
+
+    with pytest.raises(ValueError, match=r"receives a whole map\(\), zip\(\) or concat\(\) result"):
+        build_arg_bindings(result.operator)
+
+
+def test_expand_kwargs_whole_map_mapping_rejected():
+    with DAG(dag_id="d"):
+        result = stub(fn_transform).expand_kwargs([stub(fn_extract)().map(dict)])
+
+    with pytest.raises(ValueError, match=r"receives a whole map\(\), zip\(\) or concat\(\) result"):
+        build_mapped_arg_bindings(result.operator)

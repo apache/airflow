@@ -28,7 +28,7 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import XComArgBinding
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import XComRef, _ArgBindingBase
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 
@@ -81,12 +81,6 @@ class MakeVariableValueNonNullable(VersionChange):
 
     A Variable read never returned null; a missing Variable is a 404. Setting a Variable to null
     stored the string ``"None"``. Older clients may still send null, which keeps doing that.
-class AddMappedStubArgBindings(VersionChangeWithSideEffects):
-    """
-    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``unresolved`` kinds, and the XCom element fields.
-
-    Older clients keep the earlier behavior: a mapped stub gets no ``arg_bindings``, and a run context
-    holding any of the new shapes drops ``arg_bindings`` entirely.
     """
 
     description = __doc__
@@ -110,9 +104,25 @@ class AddCallbackStateEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
-        schema(XComArgBinding).field("map_index").didnt_exist,
-        schema(XComArgBinding).field("element_index").didnt_exist,
-        schema(XComArgBinding).field("mapping_key").didnt_exist,
+    )
+
+
+class AddMappedStubArgBindings(VersionChangeWithSideEffects):
+    """
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
+
+    Older clients keep the earlier behavior: a mapped stub gets no ``arg_bindings``, and a run context
+    holding any of the new shapes drops ``arg_bindings`` entirely.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(XComRef).field("map_index").didnt_exist,
+        schema(XComRef).field("element_index").didnt_exist,
+        schema(_ArgBindingBase).field("apply_map").didnt_exist,
+        schema(_ArgBindingBase).field("kwarg").didnt_exist,
+        schema(_ArgBindingBase).field("fallback").didnt_exist,
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
@@ -123,10 +133,8 @@ class AddCallbackStateEndpoint(VersionChange):
 
 
 def _is_mapped_binding(binding: dict) -> bool:
-    if binding["kind"] in ("sequence", "tuple", "unresolved"):
+    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
         return True
-    return binding["kind"] == "xcom" and (
-        binding.get("map_index", -1) != -1
-        or binding.get("element_index") is not None
-        or binding.get("mapping_key") is not None
+    return any(
+        binding.get(field) is not None for field in ("map_index", "element_index", "kwarg", "fallback")
     )

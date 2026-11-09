@@ -20,6 +20,8 @@ package genmodels
 
 type ArgBindings []TaskArgBinding
 
+type ArgPart map[string]interface{}
+
 type ArgValueSchema map[string]JsonValue
 
 // Schema for AssetAliasModel used in AssetEventDagRunReference.
@@ -1335,13 +1337,22 @@ type LazyDeserializedDAG struct {
 	LastLoaded *Time `msgpack:"last_loaded,omitempty"`
 }
 
-// One positional stub-task argument carrying an inline literal from the Dag file.
+// An argument carrying an inline value from the Dag file.
 type LiteralArgBinding struct {
+	// ApplyMap corresponds to the JSON schema field "apply_map".
+	ApplyMap bool `msgpack:"apply_map,omitempty"`
+
+	// Fallback corresponds to the JSON schema field "fallback".
+	Fallback *ArgPart `msgpack:"fallback,omitempty"`
+
 	// FromDefault corresponds to the JSON schema field "from_default".
 	FromDefault bool `msgpack:"from_default,omitempty"`
 
 	// Kind corresponds to the JSON schema field "kind".
 	Kind string `msgpack:"kind"`
+
+	// Kwarg corresponds to the JSON schema field "kwarg".
+	Kwarg interface{} `msgpack:"kwarg,omitempty"`
 
 	// Name corresponds to the JSON schema field "name".
 	Name string `msgpack:"name"`
@@ -1351,6 +1362,15 @@ type LiteralArgBinding struct {
 
 	// ValueSchema corresponds to the JSON schema field "value_schema".
 	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
+}
+
+// One inline value.
+type LiteralValue struct {
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value,omitempty"`
 }
 
 type LogicalDates []Time
@@ -2008,6 +2028,45 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value string `msgpack:"value"`
+}
+
+type TriggerKwargs map[string]interface{}
+
+type Warnings []interface{}
+
+// One “zip()“ element: several values gathered into a single argument.
+type TupleArgBinding struct {
+	// ApplyMap corresponds to the JSON schema field "apply_map".
+	ApplyMap bool `msgpack:"apply_map,omitempty"`
+
+	// Fallback corresponds to the JSON schema field "fallback".
+	Fallback *ArgPart `msgpack:"fallback,omitempty"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// Kwarg corresponds to the JSON schema field "kwarg".
+	Kwarg interface{} `msgpack:"kwarg,omitempty"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
+	// Parts corresponds to the JSON schema field "parts".
+	Parts []ArgPart `msgpack:"parts"`
+
+	// ValueSchema corresponds to the JSON schema field "value_schema".
+	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
+}
+
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note"`
@@ -2064,10 +2123,25 @@ type VariableResult struct {
 	Value string `msgpack:"value"`
 }
 
-// One positional stub-task argument pulled from an upstream task's XCom.
+// An argument read from an upstream task.
 type XComArgBinding struct {
+	// ApplyMap corresponds to the JSON schema field "apply_map".
+	ApplyMap bool `msgpack:"apply_map,omitempty"`
+
+	// ElementIndex corresponds to the JSON schema field "element_index".
+	ElementIndex interface{} `msgpack:"element_index,omitempty"`
+
+	// Fallback corresponds to the JSON schema field "fallback".
+	Fallback *ArgPart `msgpack:"fallback,omitempty"`
+
 	// Kind corresponds to the JSON schema field "kind".
 	Kind string `msgpack:"kind"`
+
+	// Kwarg corresponds to the JSON schema field "kwarg".
+	Kwarg interface{} `msgpack:"kwarg,omitempty"`
+
+	// MapIndex corresponds to the JSON schema field "map_index".
+	MapIndex interface{} `msgpack:"map_index,omitempty"`
 
 	// Name corresponds to the JSON schema field "name".
 	Name string `msgpack:"name"`
@@ -2087,6 +2161,21 @@ type XComCountResponse struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// One upstream value, read by the supervisor.
+type XComRef struct {
+	// ElementIndex corresponds to the JSON schema field "element_index".
+	ElementIndex interface{} `msgpack:"element_index,omitempty"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// MapIndex corresponds to the JSON schema field "map_index".
+	MapIndex interface{} `msgpack:"map_index,omitempty"`
+
+	// TaskID corresponds to the JSON schema field "task_id".
+	TaskID string `msgpack:"task_id"`
+}
+
 // Response to ReadXCom request.
 type XComResult struct {
 	// Key corresponds to the JSON schema field "key".
@@ -2097,6 +2186,30 @@ type XComResult struct {
 
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
+}
+
+// A mapped task's whole output, read as a lazy sequence.
+type XComSequenceArgBinding struct {
+	// ApplyMap corresponds to the JSON schema field "apply_map".
+	ApplyMap bool `msgpack:"apply_map,omitempty"`
+
+	// Fallback corresponds to the JSON schema field "fallback".
+	Fallback *ArgPart `msgpack:"fallback,omitempty"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// Kwarg corresponds to the JSON schema field "kwarg".
+	Kwarg interface{} `msgpack:"kwarg,omitempty"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
+	// TaskID corresponds to the JSON schema field "task_id".
+	TaskID string `msgpack:"task_id"`
+
+	// ValueSchema corresponds to the JSON schema field "value_schema".
+	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
 }
 
 type XComSequenceIndexResult struct {
