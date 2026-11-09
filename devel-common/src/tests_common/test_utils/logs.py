@@ -152,7 +152,6 @@ class StructlogCapture:
                 return e["event"] == target
         elif isinstance(target, dict):
             # Partial comparison -- only check keys passed in
-
             def predicate(e):
                 try:
                     return all(

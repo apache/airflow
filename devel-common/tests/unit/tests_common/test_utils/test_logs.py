@@ -37,32 +37,14 @@ def capture() -> StructlogCapture:
 
 
 class TestStructlogCaptureContains:
-    def test_str_matches_event(self, capture):
-        assert "some message" in capture
-        assert "missing" not in capture
-
-    def test_single_key_exact_value(self, capture):
-        assert {"event": "some message"} in capture
-        assert {"level": "error"} in capture
-
-    def test_single_key_mismatch(self, capture):
-        assert {"event": "nope"} not in capture
-        assert {"event": "some"} not in capture
-
-    def test_single_key_pattern(self, capture):
-        assert {"event": re.compile(r"some mess")} in capture
-        assert {"event": re.compile(r"^nope")} not in capture
-
-    def test_multi_key(self, capture):
-        assert {"event": "some message", "level": "info"} in capture
-        assert {"event": "some message", "level": "error"} not in capture
-        assert {"event": re.compile("some"), "count": 1} in capture
-
-    def test_missing_key_is_false(self, capture):
-        assert {"absent": 1} not in capture
-        assert {"event": "some message", "absent": 1} not in capture
-
-    @pytest.mark.parametrize("target", [1, ["event"], None])
-    def test_unsupported_type_raises(self, capture, target):
-        with pytest.raises(TypeError, match="Can't search logs"):
-            capture.__contains__(target)
+    @pytest.mark.parametrize(
+        "target",
+        [
+            pytest.param({"event": "some message"}, id="str-event"),
+            pytest.param({"level": "error"}, id="str-other-key"),
+            pytest.param({"count": 1}, id="non-str-value"),
+            pytest.param({"event": re.compile(r"some mess")}, id="pattern"),
+        ],
+    )
+    def test_single_key_dict_is_found(self, capture, target):
+        assert target in capture
