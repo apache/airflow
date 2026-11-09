@@ -69,7 +69,7 @@ where the file is.
 ``XComObjectStorageBackend.get_path`` returns that location, an :class:`~airflow.sdk.ObjectStoragePath`,
 without reading the file. In templates, the provider's ``xcom_path`` macro does the same and returns a string.
 
-For example, an extraction task pushes a large JSON array of invoices, and a
+For example, an ``HttpOperator`` pushes a large JSON array of invoices from a REST API, and a
 :class:`~airflow.providers.common.sql.operators.generic_transfer.GenericTransfer` with a DuckDB source reads it
 straight from object storage, flattens it and inserts the rows into the target database. The rows are never
 deserialized in Python between the two tasks:
@@ -92,13 +92,18 @@ deserialized in Python between the two tasks:
 .. code-block:: python
 
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
-    from airflow.sdk import task
+    from airflow.providers.http.operators.http import HttpOperator
 
-
-    @task
-    def extract_invoices() -> list[dict]:
-        return fetch_all_invoices()  # large: written to object storage by the backend
-
+    # Every invoice changed in the last year, as one JSON array: tens of MB, written to object storage
+    # by the backend.
+    extract_invoices = HttpOperator(
+        task_id="extract_invoices",
+        http_conn_id="invoicing_api",
+        method="GET",
+        endpoint="invoices",
+        data={"changed_since": "{{ (data_interval_start - macros.timedelta(days=365)) | ts }}"},
+        response_filter=lambda response: response.json(),
+    )
 
     load_invoices = GenericTransfer(
         task_id="load_invoices",
@@ -108,7 +113,7 @@ deserialized in Python between the two tasks:
         sql="sql/flatten_invoices.sql",
         preoperator="sql/create_invoices.sql",
     )
-    extract_invoices() >> load_invoices
+    extract_invoices >> load_invoices
 
 DuckDB reads ``.gz`` files transparently, so ``xcom_objectstorage_compression = gzip`` needs no extra option;
 for object storage other than the local file system, give DuckDB access to it (its ``httpfs`` extension and a
