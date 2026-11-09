@@ -64,14 +64,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.3.2"
+defaultAirflowTag: "3.4.0"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 3.1.0 and above is supported.
-airflowVersion: "3.3.2"
+airflowVersion: "3.4.0"
 
 images:
   airflow:
@@ -376,6 +376,8 @@ priorityClasses: []
 #    preemptionPolicy: PreemptLowerPriority
 #    value: 10000
 #  - name: class2
+#    annotations:
+#      class2.annotation.key: class2_annotation_value
 #    preemptionPolicy: Never
 #    value: 100000
 
@@ -2886,6 +2888,9 @@ pgbouncer:
 
   # Launch additional containers into PgBouncer pod.
   extraContainers: []
+
+  # Add additional init containers into PgBouncer pod (templated).
+  extraInitContainers: []
 
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
