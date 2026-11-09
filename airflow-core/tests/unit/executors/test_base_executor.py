@@ -78,7 +78,7 @@ def test_invalid_slotspool():
 
 def test_get_health_default_value():
     """An executor that doesn't override get_health() reports nothing, not failure."""
-    assert BaseExecutor().get_health() is None
+    assert BaseExecutor().get_health(timeout=5.0) is None
 
 
 def test_get_task_log():

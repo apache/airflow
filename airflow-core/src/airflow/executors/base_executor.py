@@ -506,7 +506,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    def get_health(self) -> bool | None:
+    def get_health(self, timeout: float) -> bool | None:
         """
         Report whether this executor's backend is reachable, for the scheduler's health check.
 
@@ -515,6 +515,13 @@ class BaseExecutor(LoggingMixin):
         in-memory task-tracking state alone. Return ``True`` if the dependency check succeeded,
         ``False`` if it explicitly failed, or ``None`` (the default) if this executor has nothing
         useful to report.
+
+        ``timeout`` is in seconds and is always comfortably below the scheduler's own check interval,
+        so an implementation that honours it, passing it through to its own client's connect/read
+        timeout (``Celery.inspect(timeout=...)``, botocore's ``Config(connect_timeout=..., read_timeout=...)``,
+        etc.), always finishes before the next check is due. One that ignores it risks its slot
+        looking hung indefinitely, which the scheduler reports as a stalled check rather than silently
+        skipping forever, but still can't be reclaimed until the call actually returns.
 
         This is called from a worker thread with no open database session, on its own schedule
         independent of :meth:`heartbeat`, so it must not assume either. The scheduler records an

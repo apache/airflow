@@ -341,6 +341,19 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+def _executor_health_key(executor: BaseExecutor) -> str:
+    """
+    Return the key an executor's health is tracked and recorded under.
+
+    ``ExecutorName.__repr__()`` is the identity ``ExecutorName`` itself already uses for equality and
+    hashing, so using it here too keeps this side and ``_configured_executor_keys()`` in
+    ``airflow_health.py`` from drifting apart: an executor configured by a bare module path has no
+    alias, and comparing ``alias or module_path`` against ``alias or class name`` doesn't agree on
+    one for that case.
+    """
+    return repr(executor.name) if executor.name is not None else type(executor).__name__
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -412,7 +425,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._executor_health_check_pool = ThreadPoolExecutor(
             max_workers=max(1, len(self.executors)), thread_name_prefix="executor-health-check"
         )
-        self._executor_health_check_futures: dict[str, Future] = {}
+        self._executor_health_check_futures: dict[str, tuple[Future, float]] = {}
+        # A probe that ignores the timeout passed to it would otherwise occupy its slot forever: once
+        # a pending future has been sitting this many intervals, it's reported as stalled instead of
+        # silently skipped on every later tick (see _check_executor_health).
+        self._executor_health_check_stall_after_intervals = 3
+        self._stalled_health_checks: set[str] = set()
+
+        self._executor_health_check_interval = conf.getfloat(
+            "scheduler", "executor_health_check_interval", fallback=30.0
+        )
+        # Must be comfortably below the check interval so a probe that honours it always finishes
+        # before the next tick fires; half the interval is the starting point.
+        self._executor_health_check_timeout = self._executor_health_check_interval / 2
 
         # Only executors that actually override get_health() get a Job row at all: one that was never
         # going to report anything isn't a gap in coverage (see _configured_executor_keys in
@@ -420,9 +445,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         from airflow.executors.base_executor import BaseExecutor as _BaseExecutor
 
         self._executor_health_keys: dict[str, str | None] = {
-            (executor.name.alias if executor.name and executor.name.alias else type(executor).__name__): (
-                executor.team_name
-            )
+            _executor_health_key(executor): executor.team_name
             for executor in self.executors
             if type(executor).get_health is not _BaseExecutor.get_health
         }
@@ -457,26 +480,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         A new check for a given executor is skipped while its previous check is still running, so a
         slow or hung dependency can only ever delay that executor's own health being updated, never
         pile up work or block this (or any other) scheduler tick.
+
+        ``get_health()`` is passed a timeout, but an implementation that ignores it can still leave its
+        future pending forever. That future's own worker slot is never reclaimed -- the pool is sized
+        one worker per executor, so a stuck probe can only ever cost that executor's own slot -- but
+        without this check it would silently stop being checked again, with no sign anything was
+        wrong. Once a pending future is a few intervals old, it's reported as stalled instead.
         """
         for executor in self.executors:
-            key = executor.name.alias if executor.name and executor.name.alias else type(executor).__name__
+            key = _executor_health_key(executor)
             if key not in self._executor_health_keys:
                 # Doesn't override get_health(); there's nothing to check or record.
                 continue
-            future = self._executor_health_check_futures.get(key)
+            future, started = self._executor_health_check_futures.get(key, (None, 0.0))
             if future is not None and not future.done():
-                self.log.debug(
-                    "Skipping health check for executor %s, the previous check hasn't finished", key
+                stall_after = (
+                    self._executor_health_check_interval * self._executor_health_check_stall_after_intervals
                 )
+                if time.monotonic() - started > stall_after and key not in self._stalled_health_checks:
+                    self._stalled_health_checks.add(key)
+                    self.log.warning("Health check for executor %s has stopped responding", key)
+                    stats.incr("scheduler.executor_health_check.stalled", tags={"executor": key})
+                else:
+                    self.log.debug(
+                        "Skipping health check for executor %s, the previous check hasn't finished", key
+                    )
                 continue
-            self._executor_health_check_futures[key] = self._executor_health_check_pool.submit(
-                self._run_executor_health_check, executor, key
-            )
+            self._stalled_health_checks.discard(key)
+            future = self._executor_health_check_pool.submit(self._run_executor_health_check, executor, key)
+            self._executor_health_check_futures[key] = (future, time.monotonic())
 
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
         """Run one executor's get_health() off the scheduler thread and record an explicit result."""
         try:
-            healthy = executor.get_health()
+            healthy = executor.get_health(timeout=self._executor_health_check_timeout)
         except Exception:
             self.log.exception("Health check for executor %s raised an exception", key)
             self._record_executor_health_result(key, executor.team_name, HealthCheckResult.UNKNOWN)
@@ -2235,7 +2272,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
-            delay=conf.getfloat("scheduler", "executor_health_check_interval", fallback=30.0),
+            delay=self._executor_health_check_interval,
             action=self._check_executor_health,
             non_fatal=True,
         )

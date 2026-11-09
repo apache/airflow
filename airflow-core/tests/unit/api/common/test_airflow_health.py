@@ -670,7 +670,7 @@ def _patch_live_scheduler_ids(ids: set[int]):
 class _HealthCheckingExecutor(BaseExecutor):
     """A stand-in for a concrete executor (e.g. Celery) that has implemented get_health()."""
 
-    def get_health(self) -> bool | None:
+    def get_health(self, timeout: float) -> bool | None:
         return True
 
 
@@ -696,7 +696,23 @@ class TestConfiguredExecutorKeys:
                 return_value=(_HealthCheckingExecutor, None),
             ),
         ):
-            assert _configured_executor_keys() == {"Celery"}
+            assert _configured_executor_keys() == {repr(names[0])}
+
+    def test_module_path_configured_executor_has_no_alias_but_still_matches(self):
+        """The key must agree with the scheduler side even when the executor has no alias at all."""
+        names = [
+            ExecutorName(
+                module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+            )
+        ]
+        with (
+            patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=names),
+            patch(
+                "airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls",
+                return_value=(_HealthCheckingExecutor, None),
+            ),
+        ):
+            assert _configured_executor_keys() == {repr(names[0])}
 
     def test_survives_unreadable_executor_config(self):
         with patch(

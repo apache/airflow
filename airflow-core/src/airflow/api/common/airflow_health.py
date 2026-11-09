@@ -216,7 +216,7 @@ def _configured_executor_keys() -> set[str]:
             log.warning("Could not import configured executor %s", name.module_path, exc_info=True)
             continue
         if executor_cls.get_health is not BaseExecutor.get_health:
-            keys.add(name.alias or name.module_path)
+            keys.add(repr(name))
     return keys
 
 
