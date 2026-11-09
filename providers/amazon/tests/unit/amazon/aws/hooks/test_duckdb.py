@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import json
+import sys
 from unittest import mock
 
 import duckdb
@@ -26,6 +28,7 @@ from botocore.exceptions import EndpointConnectionError
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.duckdb import AwsDuckDBHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.duckdb.hooks.duckdb import DuckDBHook
 from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
 
@@ -109,6 +112,17 @@ class TestAwsDuckDBHookConnectionType:
 
 
 @pytest.mark.usefixtures("no_duckdb_connection")
+class TestAwsDuckDBHookImport:
+    def test_duckdb_is_not_imported_without_the_duckdb_provider(self):
+        """Importing duckdb starts a thread pool that crashes forked processes, like gunicorn workers."""
+        with mock.patch.dict(sys.modules, {"airflow.providers.duckdb.hooks.duckdb": None}):
+            del sys.modules["duckdb"]
+            del sys.modules["airflow.providers.amazon.aws.hooks.duckdb"]
+            with pytest.raises(AirflowOptionalProviderFeatureException):
+                importlib.import_module("airflow.providers.amazon.aws.hooks.duckdb")
+            assert "duckdb" not in sys.modules
+
+
 class TestAwsDuckDBHookExtensions:
     def test_httpfs_and_aws_extensions_are_required(self, aws_base_hook):
         assert AwsDuckDBHook().get_extensions() == ["httpfs", "aws"]
