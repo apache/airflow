@@ -132,6 +132,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
     def conn_config(self) -> AwsConnectionWrapper:
         """Get the Airflow Connection object and wrap it in helper (cached)."""
         athena_conn = self.get_connection(self.athena_conn_id)
+        connection = None
         if self.aws_conn_id:
             try:
                 connection = self.get_connection(self.aws_conn_id)
@@ -147,12 +148,11 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                         f"Encountered non-JSON in `extra` field for connection {self.aws_conn_id!r}."
                     )
             except AirflowNotFoundException:
-                connection = athena_conn
-                connection.conn_type = "aws"
                 self.log.warning(
                     "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )
-        else:
+
+        if connection is None:
             connection = athena_conn
             connection.conn_type = "aws"
 
