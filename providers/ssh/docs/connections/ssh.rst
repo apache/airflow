@@ -51,8 +51,9 @@ Extra (optional)
     * ``timeout`` - Deprecated - use conn_timeout instead.
     * ``cmd_timeout`` - Timeout (in seconds) for executing the command. The default is 10 seconds. `null` value means no timeout.
     * ``compress`` - ``true`` to ask the remote client/server to compress traffic; ``false`` to refuse compression. Default is ``true``.
-      The async hook ignores ``Compression`` from ``~/.ssh/config``, and each compressed connection holds about 0.3 MB of zlib state;
-      set ``false`` on triggerers running many SSH remote job triggers.
+      Neither hook reads ``Compression`` from ``~/.ssh/config``. Each compressed connection holds about 0.3 MB of zlib state while open,
+      which adds up on a triggerer running many ``SSHRemoteJobOperator`` jobs; to avoid it, set ``false`` on the connection those
+      operators use, knowing it also turns compression off for every other task using that connection.
     * ``no_host_key_check`` - Set to ``true`` to connect to hosts that have no entry in ``~/.ssh/known_hosts`` (Hosts file), accepting unknown host keys without requiring a known-hosts entry. Default is ``false``, which restricts connecting to hosts already present in the known hosts file. The default provides maximum protection against trojan horse attacks, but can be troublesome when the ``/etc/ssh/ssh_known_hosts`` file is poorly maintained or connections to new hosts are frequently made, because it forces the user to manually add all new hosts.
     * ``allow_host_key_change`` - Set to ``true`` if you want to allow connecting to hosts that has host key changed or when you get 'REMOTE HOST IDENTIFICATION HAS CHANGED' error.  This won't protect against Man-In-The-Middle attacks. Other possible solution is to remove the host entry from ``~/.ssh/known_hosts`` file. Default is ``false``.
     * ``look_for_keys`` - Set to ``false`` if you want to disable searching for discoverable private key files in ``~/.ssh/``
