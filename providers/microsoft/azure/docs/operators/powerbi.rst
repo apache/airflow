@@ -60,6 +60,17 @@ Set ``durable=False`` to keep the earlier behaviour: the trigger starts the refr
 talks to Power BI, every try starts a new refresh, and it is cancelled when polling fails. Below Airflow
 3.3 the operator behaves as with ``durable=False``.
 
+Waiting for a refresh that is already in progress
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A dataset has at most one refresh running at a time, so a refresh started manually in Power BI can make the
+one this operator starts fail. Set ``wait_for_current_refresh=True`` to check the dataset's refresh history
+first: when a refresh is already in progress, the task waits for it to finish and then starts its own. The
+wait counts towards ``timeout`` and applies whether the operator is durable or not.
+
+The refresh the task waits for does not have to succeed, it only has to finish: once it reaches any terminal
+state the task starts its own refresh. If the wait times out, the task fails.
+
 .. _howto/operator:PowerBIDatasetListOperator:
 
 PowerBIDatasetListOperator
