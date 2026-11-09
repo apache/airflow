@@ -22,7 +22,7 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ROW_HEIGHT } from "./constants";
+import { PINNED_RUN_BUTTONS_WIDTH_PX, ROW_HEIGHT } from "./constants";
 import { useGridScrollRestore } from "./useGridScrollRestore";
 import type { GridTask } from "./utils";
 
@@ -130,7 +130,7 @@ const makeTask = (id: string): GridTask => ({ id }) as unknown as GridTask;
 const makeTasks = (count: number) => Array.from({ length: count }, (_, index) => makeTask(`task_${index}`));
 
 type HookArgs = Parameters<typeof useGridScrollRestore>[0];
-type Defaulted = "headerPad" | "isRtl" | "sharesScroller" | "taskNameColumnRef";
+type Defaulted = "headerPad" | "isRtl" | "pinnedButtonsWidth" | "sharesScroller" | "taskNameColumnRef";
 type RestoreArgs = Omit<HookArgs, Defaulted> & Partial<Pick<HookArgs, Defaulted>>;
 
 const renderRestore = (args: RestoreArgs) =>
@@ -139,6 +139,7 @@ const renderRestore = (args: RestoreArgs) =>
       useGridScrollRestore({
         headerPad: HEADER_PAD,
         isRtl: false,
+        pinnedButtonsWidth: 0,
         sharesScroller: false,
         taskNameColumnRef,
         ...props,
@@ -293,38 +294,20 @@ describe("useGridScrollRestore", () => {
     expect(scrollToIndex).not.toHaveBeenCalled();
   });
 
-  it("centers the selected run when it sits past the right edge on a fresh visit", () => {
-    const scrollEl = makeScrollEl({ runColumnLeft: 800 });
+  // "Behind the names" is the case a bare left >= 0 check would call visible and leave there: the
+  // column is inside the scrollport but under the sticky task name column.
+  it.each([
+    { dagId: "dag_run_right", from: 0, label: "past the right edge", runColumnLeft: 800 },
+    { dagId: "dag_run_behind_names", from: 550, label: "behind the names", runColumnLeft: 600 },
+  ])("centers a run sitting $label on a fresh visit", ({ dagId, from, runColumnLeft }) => {
+    const scrollEl = makeScrollEl({ runColumnLeft });
     const { rowVirtualizer } = makeVirtualizer(scrollEl);
 
-    renderRestore({
-      dagId: "dag_run_right",
-      flatNodes: [],
-      rowVirtualizer,
-      runIds: ["run_1"],
-      selectedRunId: "run_1",
-    });
+    scrollEl.scrollLeft = from;
 
-    expect(scrollEl.scrollLeft).toBe(centeredScrollLeft(800));
-  });
+    renderRestore({ dagId, flatNodes: [], rowVirtualizer, runIds: ["run_1"], selectedRunId: "run_1" });
 
-  it("counts a run behind the sticky task name column as hidden", () => {
-    const scrollEl = makeScrollEl({ runColumnLeft: 600 });
-    const { rowVirtualizer } = makeVirtualizer(scrollEl);
-
-    // Left of the scrollport but behind the task name column, so a bare left >= 0 check would call
-    // it visible and leave it there.
-    scrollEl.scrollLeft = 550;
-
-    renderRestore({
-      dagId: "dag_run_behind_names",
-      flatNodes: [],
-      rowVirtualizer,
-      runIds: ["run_1"],
-      selectedRunId: "run_1",
-    });
-
-    expect(scrollEl.scrollLeft).toBe(centeredScrollLeft(600));
+    expect(scrollEl.scrollLeft).toBe(centeredScrollLeft(runColumnLeft));
   });
 
   it("nudges rather than centers the selected run once a position has been saved", () => {
@@ -356,6 +339,43 @@ describe("useGridScrollRestore", () => {
     expect(second.scrollLeft).toBe(490 - TASK_NAME_COLUMN_WIDTH);
     expect(second.scrollLeft).not.toBe(centeredScrollLeft(490));
   });
+
+  // The buttons float over the inline end of the scrollport, which is exactly where `nearest` parks
+  // a run that was cut off there. RTL moves them to the left edge along with the scrollbar.
+  it.each([
+    { dagId: "dag_buttons_ltr", isRtl: false, label: "right", runColumnLeft: 800 },
+    { dagId: "dag_buttons_rtl", isRtl: true, label: "left", runColumnLeft: -50 },
+  ])(
+    "stops a nudged run short of the pinned pager buttons on the $label",
+    ({ dagId, isRtl, runColumnLeft }) => {
+      const scrollEl = makeScrollEl({ rtl: isRtl, runColumnLeft });
+      const { rowVirtualizer } = makeVirtualizer(scrollEl);
+      const args = {
+        dagId,
+        flatNodes: makeTasks(5),
+        isRtl,
+        pinnedButtonsWidth: PINNED_RUN_BUTTONS_WIDTH_PX,
+        rowVirtualizer,
+        runIds: ["run_1"],
+        selectedRunId: "run_1",
+        selectedTaskId: "task_0",
+      };
+      const rendered = renderRestore(args);
+
+      // A scroll of the user's own, so the reveal below nudges instead of centring.
+      scrollEl.scrollLeft = 0;
+      scrollEl.dispatchScroll();
+
+      rendered.rerender({ ...args, selectedTaskId: "task_1" });
+
+      // Flush against the scrollport would leave the column under the buttons, where a click on its
+      // bar hits "Reset to latest" instead.
+      const columnLeft = runColumnLeft - scrollEl.scrollLeft;
+      const gapToPinnedEdge = isRtl ? columnLeft : VIEWPORT_WIDTH - (columnLeft + RUN_COLUMN_WIDTH);
+
+      expect(gapToPinnedEdge).toBe(PINNED_RUN_BUTTONS_WIDTH_PX);
+    },
+  );
 
   it("leaves the scroll position alone when the selected run is already visible", () => {
     const scrollEl = makeScrollEl({ runColumnLeft: 300 });

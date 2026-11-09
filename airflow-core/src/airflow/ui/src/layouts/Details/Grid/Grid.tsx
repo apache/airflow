@@ -47,6 +47,7 @@ import {
   GANTT_ROW_OFFSET_PX,
   GRID_HEADER_HEIGHT_PX,
   GRID_HEADER_PADDING_PX,
+  PINNED_RUN_BUTTONS_WIDTH_PX,
   ROW_HEIGHT,
   TASK_NAME_COLUMN_MIN_WIDTH_PX,
 } from "./constants";
@@ -128,7 +129,10 @@ export const Grid = ({
   const { handleNewerRuns, handleOlderRuns, hasNewerRuns, hasOlderRuns, latestNotVisible } =
     useGridPagination({ gridRuns: dataGridRuns, limit, offset, setOffset });
 
-  const scrollbarSpacerWidth = hasNewerRuns || latestNotVisible ? "32px" : "16px";
+  // The buttons float over the run columns, so the spacer keeps the newest run clear of them once
+  // the Grid is scrolled to the end; the reveal below keeps every other run clear of them too.
+  const hasPinnedNewerButtons = hasNewerRuns || latestNotVisible;
+  const scrollbarSpacerWidth = hasPinnedNewerButtons ? `${PINNED_RUN_BUTTONS_WIDTH_PX}px` : "16px";
 
   const runIds = gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [];
 
@@ -239,6 +243,7 @@ export const Grid = ({
     flatNodes,
     headerPad,
     isRtl: i18n.dir() === "rtl",
+    pinnedButtonsWidth: hasPinnedNewerButtons ? PINNED_RUN_BUTTONS_WIDTH_PX : 0,
     rowVirtualizer,
     runIds,
     selectedGroupId,

@@ -40,6 +40,8 @@ type Params = {
   // Height of the sticky header above the rows (also the virtualizer's scrollPaddingStart).
   headerPad: number;
   isRtl: boolean;
+  // Width the pinned newer/reset buttons cover at the inline end, or 0 while they are hidden.
+  pinnedButtonsWidth: number;
   rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
   runIds: Array<string>;
   selectedGroupId?: string;
@@ -55,16 +57,20 @@ type Params = {
 // Run columns scroll beneath the sticky task name column, so a column tucked behind it is as hidden
 // as one past the far edge. The visible scrollport is clientWidth wide (unlike the bounding rect, it
 // excludes the vertical scrollbar), minus that column: on the left in LTR, on the right in RTL, where
-// the scrollbar also moves to the left. Returns whether the run's column was found.
+// the scrollbar also moves to the left. The pinned pager buttons float over the opposite end, so
+// their width comes off it too, or `nearest` would park a run underneath them and swallow the click.
+// Returns whether the run's column was found.
 const scrollRunIntoView = ({
   align,
   isRtl,
+  pinnedButtonsWidth,
   scrollEl,
   selectedRunId,
   taskNameColumn,
 }: {
   align: "center" | "nearest";
   isRtl: boolean;
+  pinnedButtonsWidth: number;
   scrollEl: HTMLElement;
   selectedRunId: string | undefined;
   taskNameColumn: HTMLDivElement | null;
@@ -84,8 +90,12 @@ const scrollRunIntoView = ({
   const columnRect = column.getBoundingClientRect();
   const viewRect = scrollEl.getBoundingClientRect();
   const nameColumnWidth = taskNameColumn?.getBoundingClientRect().width ?? 0;
-  const visibleStart = isRtl ? viewRect.right - scrollEl.clientWidth : viewRect.left + nameColumnWidth;
-  const visibleEnd = isRtl ? viewRect.right - nameColumnWidth : viewRect.left + scrollEl.clientWidth;
+  const visibleStart = isRtl
+    ? viewRect.right - scrollEl.clientWidth + pinnedButtonsWidth
+    : viewRect.left + nameColumnWidth;
+  const visibleEnd = isRtl
+    ? viewRect.right - nameColumnWidth
+    : viewRect.left + scrollEl.clientWidth - pinnedButtonsWidth;
 
   if (columnRect.left >= visibleStart && columnRect.right <= visibleEnd) {
     return true;
@@ -118,6 +128,7 @@ export const useGridScrollRestore = ({
   flatNodes,
   headerPad,
   isRtl,
+  pinnedButtonsWidth,
   rowVirtualizer,
   runIds,
   selectedGroupId,
@@ -185,6 +196,7 @@ export const useGridScrollRestore = ({
         // vertical offset says nothing about the runs, so only a horizontal one counts as one.
         align: saved?.left === undefined ? "center" : "nearest",
         isRtl,
+        pinnedButtonsWidth,
         scrollEl,
         selectedRunId,
         taskNameColumn: taskNameColumnRef.current,
@@ -214,6 +226,7 @@ export const useGridScrollRestore = ({
     flatNodes,
     headerPad,
     isRtl,
+    pinnedButtonsWidth,
     rowVirtualizer,
     runIdsKey,
     selectedGroupId,
