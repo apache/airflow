@@ -57,7 +57,6 @@ const TabContent = ({ active, children, ...rest }: { readonly active: boolean } 
     mb={`-${INDICATOR_HEIGHT}`}
     px={4}
     transition="all 0.2s ease"
-    whiteSpace="nowrap"
     {...rest}
   >
     {children}
@@ -138,7 +137,6 @@ export const NavTabs = ({ tabs }: Props) => {
       borderBottomColor="border.emphasized"
       borderBottomWidth={INDICATOR_HEIGHT}
       mb={2}
-      position="relative"
       ref={containerRef}
     >
       {tabs.map((tab, index) =>
@@ -179,7 +177,7 @@ export const NavTabs = ({ tabs }: Props) => {
           </Menu.Content>
         </Menu.Root>
       ) : undefined}
-      <Box aria-hidden height={0} left={0} overflow="hidden" position="absolute" top={0} width={0}>
+      <Box overflow="hidden" position="absolute" width={0}>
         <Flex ref={measureRef} visibility="hidden" width="max-content">
           {tabs.map((tab) => (
             <TabContent active key={tab.value}>
