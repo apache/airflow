@@ -68,7 +68,7 @@ SDK's own, and is recorded in that SDK's own ADR directory.
 | Dag processor | Python | Validates the loop and rewires the edges out of the body. |
 | Scheduler | Python | Creates iteration 1, and completes a fixed-count gate with no worker. |
 | API server, Execution API | Python | Sends `TIRunContext.loop`; on the gate's success, validates the decision and creates the next iteration in the same transaction. |
-| Supervisor / coordinator | Python, in the worker process | Masks the reason; forwards every XCom request with the caller's iteration already pinned by its token. |
+| Supervisor | Python, in the worker process | Masks the reason; forwards every XCom request with the caller's iteration already pinned by its token. |
 | SDK runtime | the SDK's own language | Runs the body handlers and the `until` callable, and returns the decision. |
 
 ## Authoring interface
