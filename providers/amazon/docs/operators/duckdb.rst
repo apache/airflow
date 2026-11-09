@@ -69,7 +69,7 @@ says which DuckDB database to open and with what settings, and an
 :ref:`AWS connection <howto/connection:aws>` that gives the region and endpoint. The AWS connection's
 credentials are used only when ``credential_strategy`` is ``config``; by default DuckDB takes
 credentials from the worker's environment, see :ref:`howto/operator:duckdb_aws:credentials`. The
-DuckDB on AWS connection can be empty, though it must exist.
+DuckDB on AWS connection can be empty, but the operator needs it to exist.
 
 Given that connection, the hook loads the ``httpfs`` and ``aws`` extensions and creates the S3 secret,
 so the task supplies only SQL:
@@ -97,8 +97,11 @@ an in-memory database, which suits a task that reads from S3 and writes back to 
 
     ``aws_conn_id`` resolves on whether the key is present, not on its value, because ``None`` is a
     valid choice for it rather than the absence of one. Set it to ``null`` in the ``extra`` (or
-    ``None`` in ``hook_params``) to use no Airflow AWS connection at all and let the AWS SDK find
-    credentials in the environment, such as environment variables or an instance role.
+    ``None`` in ``hook_params``) to use no Airflow AWS connection at all. The secret then gets a
+    region and endpoint only from the DuckDB connection's own keys, such as ``region_name`` and
+    ``s3_endpoint_url``, and ``config`` takes credentials from boto3's default chain, such as
+    environment variables or an instance role. ``credential_chain`` takes credentials from the
+    environment either way.
 
 Using the hook directly
 =======================

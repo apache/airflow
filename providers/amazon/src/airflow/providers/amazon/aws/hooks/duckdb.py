@@ -88,8 +88,9 @@ class AwsDuckDBHook(DuckDBHook):
 
     :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` the S3 secret's region and
         endpoint come from, and its credentials too with the ``config`` strategy. Defaults to
-        ``aws_default``. Set to ``None`` to use no Airflow connection and let the AWS SDK resolve
-        credentials from the environment instead.
+        ``aws_default``. Set to ``None`` to use no Airflow AWS connection: the region and endpoint
+        then come only from this hook's own parameters, and ``config`` takes credentials from
+        boto3's default chain. ``credential_chain`` takes credentials from the environment either way.
     :param region_name: region for the S3 secret. Defaults to the region from ``aws_conn_id``.
     :param credential_strategy: ``credential_chain``, ``config``, or ``none`` to create no secret at
         all (for a DuckDB database that never touches S3).
@@ -102,7 +103,8 @@ class AwsDuckDBHook(DuckDBHook):
 
     As with :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook`, every parameter may also be set
     in the DuckDB connection ``extra``, and an explicit argument wins. ``aws_conn_id`` resolves on
-    whether the key is present, so ``{"aws_conn_id": null}`` selects the ambient AWS environment.
+    whether the key is present, so ``{"aws_conn_id": null}`` selects no AWS connection rather than
+    ``aws_default``.
     """
 
     #: ``httpfs`` provides the S3 filesystem; ``aws`` provides the credential chain secret provider.
