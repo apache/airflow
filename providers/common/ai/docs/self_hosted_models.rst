@@ -257,6 +257,8 @@ model doesn't have to guess a path. That matters because ``HttpHook`` raises
 on any response outside the 2xx/3xx range: if the model guessed wrong, the
 task would fail outright rather than the agent recovering gracefully.
 
+.. _self_hosted_models_ensure_model_ready:
+
 Waiting for an Ollama model to load
 -------------------------------------
 
@@ -311,6 +313,8 @@ default with the ``OLLAMA_KEEP_ALIVE`` environment variable.
 Nothing is retried, so a wrong host, a server error or a request timing out is
 raised right away.
 
+.. _self_hosted_models_readiness_backend:
+
 Using your own readiness backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -321,7 +325,8 @@ object with a keyword-only ``load(*, timeout)`` method, described by
 :class:`~airflow.providers.common.ai.hooks.pydantic_ai.ModelReadinessBackend`.
 ``load`` should return once the model is available. With ``backend_factory=``,
 the model prefix and the connection host are not checked, and errors are raised
-as is.
+as is. The ``base_url`` the factory receives is only the connection's host, never
+``OLLAMA_BASE_URL``; the factory decides what to do when it is ``None``.
 
 .. code-block:: python
 

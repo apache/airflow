@@ -55,11 +55,8 @@ class ModelReadinessBackend(Protocol):
 
     Any object with this method works; it does not need to subclass this class.
 
-    ``load`` returns once the model is available, waiting at most *timeout* seconds.
-
-    Raise ``TimeoutError`` when the call exceeds *timeout*. Every exception (``TimeoutError``,
-    ``httpx2.TransportError``, ``httpx2.HTTPStatusError`` or any other) is raised out of
-    ``ensure_model_ready`` as is, and nothing is retried.
+    ``load`` returns once the model is available, waiting at most *timeout* seconds, and raises
+    ``TimeoutError`` when it exceeds *timeout*. See :ref:`self_hosted_models_readiness_backend`.
     """
 
     def load(self, *, timeout: float) -> None: ...
@@ -69,8 +66,9 @@ class ModelReadinessBackendFactory(Protocol):
     """
     Builds the :class:`ModelReadinessBackend` for :meth:`PydanticAIHook.ensure_model_ready`.
 
-    Called with the unprefixed ``model_name`` and the connection host as ``base_url``, which is
-    ``None`` when the connection has no host. ``OllamaBackend`` is one.
+    Called with the ``model_name`` without its provider prefix and the connection host as
+    ``base_url`` (``None`` when the connection has no host). ``OllamaBackend`` is one.
+    See :ref:`self_hosted_models_readiness_backend`.
     """
 
     def __call__(self, *, model_name: str, base_url: str | None) -> ModelReadinessBackend: ...
@@ -629,27 +627,15 @@ class PydanticAIHook(BaseHook):
         """
         Block until this connection's local model is loaded, asking the server to load it if needed.
 
-        Sends a load request and waits for it to return; a model that is already loaded answers
-        right away. Any error from the server is raised as is.
-
-        Ollama is built in; for any other server pass *backend_factory*. Only this hook's own
-        connection is loaded -- connections in ``fallback_conn_ids`` are not, so a fallback model
-        is never loaded ahead of need.
-
-        The built-in Ollama backend does not send the connection password, so a server behind
-        authentication is not supported.
-
-        Blocks and holds the worker slot for the whole wait.
+        Opt-in, blocks the worker slot, and loads only this hook's own connection. Details and
+        limits: :ref:`self_hosted_models_ensure_model_ready`.
 
         :param timeout: Seconds to wait for the load request, passed to the backend as is.
         :param backend_factory: Callable that takes the keyword arguments ``model_name`` (the
             resolved name without its provider prefix) and ``base_url`` (the connection host, or
-            ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). The
-            ``base_url`` it receives is only the connection host, never ``OLLAMA_BASE_URL``; the
-            factory decides what to do when it is ``None`` (``OllamaBackend`` falls back to
-            ``OLLAMA_BASE_URL``). When given, the model prefix and connection host checks are
-            skipped. The model name is still resolved from the hook argument or the connection,
-            and a missing model still raises ``ValueError``.
+            ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). When
+            given, the model prefix and connection host checks are skipped; a missing model still
+            raises ``ValueError``. See :ref:`self_hosted_models_readiness_backend`.
         :raises ValueError: If *timeout* is not a positive finite number or no model is configured;
             also from the default ``OllamaBackend`` when neither the connection host nor the
             ``OLLAMA_BASE_URL`` environment variable is set.
