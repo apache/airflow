@@ -52,6 +52,7 @@ from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    ExternalClearTargetPayload,
     LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
@@ -74,7 +75,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import render_template_to_string
-from airflow.sdk.definitions.external_clear import EXTERNAL_CLEAR_TARGET_XCOM_KEY, SupportsExternalClearTarget
+from airflow.sdk.definitions.external_clear import SupportsExternalClearTarget
 from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
@@ -248,6 +249,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     _loop_decision: LoopDecisionPayload | None = None
     """A loop gate's evaluation of ``until``, reported with its terminal state."""
+
+    _external_clear_target: ExternalClearTargetPayload | None = None
+    """The cross-Dag clear target resolved after a successful run, reported with its success."""
 
     max_tries: int = 0
     """The maximum number of retries for the task."""
@@ -1703,7 +1707,7 @@ def _run_task_and_map_outcome(
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
-        _record_external_clear_target(context, ti, log)
+        _resolve_external_clear_target(context, ti, log)
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
@@ -1919,6 +1923,7 @@ def _handle_current_task_success(
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
         loop_decision=ti._loop_decision,
+        external_clear_target=ti._external_clear_target,
     )
     return msg, TaskInstanceState.SUCCESS
 
@@ -2526,15 +2531,21 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     return rendered_map_index
 
 
-def _record_external_clear_target(context: Context, ti: RuntimeTaskInstance, log: Logger) -> None:
-    """Record the task's resolved cross-Dag clear target, so the API server can follow it on clear."""
+def _resolve_external_clear_target(context: Context, ti: RuntimeTaskInstance, log: Logger) -> None:
+    """Resolve the task's cross-Dag clear target for this run, to report with its success."""
     if not isinstance(ti.task, SupportsExternalClearTarget):
         return
     if (target := ti.task.get_external_clear_target(context)) is None:
         return
-    log.debug("Recording external clear target", target=target)
-    # Straight to the metadata DB, like operator extra links: the API server reads it there.
-    _xcom_push_to_db(ti, key=EXTERNAL_CLEAR_TARGET_XCOM_KEY, value=target.serialize())
+    if (logical_date := target.logical_date or context.get("logical_date")) is None:
+        log.debug("Not recording an external clear target in a run without a logical date")
+        return
+    ti._external_clear_target = ExternalClearTargetPayload(
+        dag_id=target.dag_id,
+        task_id=target.task_id,
+        logical_date=logical_date,
+        recursion_depth=target.recursion_depth,
+    )
 
 
 def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):

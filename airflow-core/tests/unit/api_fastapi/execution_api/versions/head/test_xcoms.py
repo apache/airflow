@@ -42,7 +42,14 @@ from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerE
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
+from airflow.models.xcom import (
+    EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+    XCOM_RETURN_KEY,
+    XComModel,
+    XComModelV1,
+    XComModelV2,
+    xcom_entity,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
@@ -697,6 +704,17 @@ def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_insta
         f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/_airflow_loop_decision_reason", json="forged"
     )
     assert response.status_code == 400
+
+
+def test_normal_xcom_push_rejects_the_external_clear_target_key(client, create_task_instance):
+    ti = create_task_instance()
+    forged = {"dag_id": "other", "task_id": "t", "logical_date": "2026-10-01T00:00:00Z", "recursion_depth": 1}
+
+    response = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{EXTERNAL_CLEAR_TARGET_XCOM_KEY}", json=forged
+    )
+
+    assert (response.status_code, response.json()["detail"]) == (400, "Reserved XCom key")
 
 
 def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client, authenticate_as):

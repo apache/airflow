@@ -50,10 +50,9 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import clear_loop_task_instances, clear_task_instances, uuid7
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XComModel, XComModelV2
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, XComModelV2
 from airflow.sdk import BaseOperator, ExternalClearTarget, TaskGroup, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.definitions.external_clear import EXTERNAL_CLEAR_TARGET_XCOM_KEY
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -5560,7 +5559,6 @@ class TestPostClearTaskInstancesDependentDags(TestTaskInstanceEndpoint):
             task_instance_id=ti.id,
             key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
             value=target.serialize(),
-            serialize=False,
             session=session,
         )
 
@@ -5622,6 +5620,43 @@ class TestPostClearTaskInstancesDependentDags(TestTaskInstanceEndpoint):
         session.expire_all()
         child_states = {ti.task_id: ti.state for ti in child_run.get_task_instances(session=session)}
         assert child_states == {"wait": None, "load": None}
+
+    def test_second_clear_before_the_marker_reruns_still_clears_dependent_dag_tasks(
+        self, test_client, linked_runs, session
+    ):
+        parent_run, child_run = linked_runs
+        first = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+        assert first.status_code == 200, first.text
+        session.expire_all()
+        # The child reruns, but the cleared marker has not run again, so its new attempt reported nothing.
+        for ti in child_run.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        second = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+
+        assert second.status_code == 200, second.text
+        assert {ti["dag_id"] for ti in second.json()["task_instances"]} == {"parent", "child"}
+
+    def test_marker_that_reran_without_reporting_a_target_clears_only_its_own_dag(
+        self, test_client, linked_runs, session
+    ):
+        parent_run, child_run = linked_runs
+        first = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+        assert first.status_code == 200, first.text
+        session.expire_all()
+        # The marker reran and succeeded, but this time reported no target.
+        for ti in [
+            *child_run.get_task_instances(session=session),
+            *parent_run.get_task_instances(session=session),
+        ]:
+            ti.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        second = self._clear(test_client, parent_run, dry_run=True, include_downstream=True)
+
+        assert second.status_code == 200, second.text
+        assert {ti["dag_id"] for ti in second.json()["task_instances"]} == {"parent"}
 
     def test_locks_source_and_dependent_runs_in_one_batch(self, test_client, linked_runs):
         parent_run, child_run = linked_runs

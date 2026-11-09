@@ -5628,7 +5628,7 @@ export type GetXcomEntriesData = {
     dagId: string;
     dagRunId: string;
     /**
-     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
      */
     excludeInternalKeys?: boolean;
     limit?: number;

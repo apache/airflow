@@ -254,7 +254,6 @@ class OperatorPartial:
             template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
-            # Read the class attribute, like an unmapped operator does, so a subclass can opt out.
             is_empty=self.operator_class.inherits_from_empty_operator is True,
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
             can_skip_downstream=issubclass(self.operator_class, SkipMixin),

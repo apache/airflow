@@ -7494,11 +7494,11 @@ paths:
         schema:
           type: boolean
           description: Leave out XComs whose keys Airflow reserves for itself, such
-            as loop decision reasons.
+            as loop decision reasons and cross-Dag clear targets.
           default: false
           title: Exclude Internal Keys
         description: Leave out XComs whose keys Airflow reserves for itself, such
-          as loop decision reasons.
+          as loop decision reasons and cross-Dag clear targets.
       - name: limit
         in: query
         required: false

@@ -332,6 +332,20 @@ class EmailType(str, Enum):
     RETRY = "retry"
 
 
+class ExternalClearTargetPayload(BaseModel):
+    """
+    A task in another Dag that clearing the reporting task also clears, as resolved when it ran.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(min_length=1, title="Dag Id")]
+    task_id: Annotated[str, Field(min_length=1, title="Task Id")]
+    logical_date: Annotated[AwareDatetime, Field(title="Logical Date")]
+    recursion_depth: Annotated[int, Field(gt=0, title="Recursion Depth")]
+
+
 class HITLUser(BaseModel):
     """
     Schema for a Human-in-the-loop users.
@@ -672,6 +686,7 @@ class TISuccessStatePayload(BaseModel):
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
     loop_decision: LoopDecisionPayload | None = None
+    external_clear_target: ExternalClearTargetPayload | None = None
 
 
 class TITargetStatePayload(BaseModel):

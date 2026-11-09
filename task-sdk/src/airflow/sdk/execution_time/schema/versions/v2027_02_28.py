@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for, schema
 
-from airflow.sdk.api.datamodels._generated import TIRunContext, VariableResponse
+from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
 from airflow.sdk.execution_time.comms import PutVariable
 
 
@@ -44,6 +44,21 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+
+class AddExternalClearTargetToSucceedTask(VersionChange):
+    """
+    Add the ``external_clear_target`` a task reports with its success, for cross-Dag clears.
+
+    The supervisor-schema mirror of the execution API's ``AddExternalClearTargetField``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        # SucceedTask inherits the field, and Cadwyn only removes a field from the class that declares it.
+        schema(TISuccessStatePayload).field("external_clear_target").didnt_exist,
     )
 
 

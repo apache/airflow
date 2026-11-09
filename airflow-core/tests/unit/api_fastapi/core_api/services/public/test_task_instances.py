@@ -31,7 +31,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     ClearTaskInstancesBody,
 )
 from airflow.api_fastapi.core_api.services.public.task_instances import (
-    EXTERNAL_CLEAR_TARGET_XCOM_KEY as CORE_RECORD_KEY,
     BulkTaskInstanceService,
     ExternalClearDepthExceeded,
     clear_dependent_runs,
@@ -41,12 +40,12 @@ from airflow.models import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
 from airflow.sdk import ExternalClearTarget, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.definitions.external_clear import EXTERNAL_CLEAR_TARGET_XCOM_KEY
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils.db import (
@@ -451,15 +450,15 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
 CLEAR_DATE = timezone.datetime(2026, 10, 1)
 
 
-def _record(ti, value, session) -> None:
-    """Store a target the way the execution API stores the task runner's push."""
+def _record(ti, value, session, *, serialize: bool = True) -> None:
+    """Store a target the way the execution API stores one a task reports with its success."""
     if isinstance(value, ExternalClearTarget):
         value = value.serialize()
     XComModel.set_for_attempt(
         task_instance_id=ti.id,
         key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
         value=value,
-        serialize=False,
+        serialize=serialize,
         session=session,
     )
     session.flush()
@@ -609,7 +608,8 @@ def test_task_without_a_recorded_target_pulls_in_nothing(dag_maker, session):
 def test_ignores_a_record_that_does_not_validate(dag_maker, session, value):
     _make_child(dag_maker, "child", CLEAR_DATE)
     (mark,) = _make_parent(dag_maker, "parent")
-    _record(mark, value, session)
+    # Stored as is, since the XCom encoder refuses the envelope's reserved key.
+    _record(mark, value, session, serialize=False)
 
     assert _find([mark], session) == []
 
@@ -619,6 +619,7 @@ def test_skips_a_target_run_with_no_serialized_dag(dag_maker, session):
     (mark,) = _make_parent(dag_maker, "parent")
     _record(mark, _target("child"), session)
     dag_bag = mock.create_autospec(DBDagBag, instance=True)
+    dag_bag.get_dag.return_value = None
     dag_bag.get_dag_for_run.return_value = None
 
     assert _find([mark], session, dag_bag=dag_bag) == []
@@ -758,5 +759,25 @@ def test_cycle_back_into_a_partly_selected_mapped_task_clears_its_other_instance
     assert ("parent", "mark", mark_0.map_index) not in found
 
 
-def test_core_reads_the_key_the_task_sdk_writes():
-    assert CORE_RECORD_KEY == EXTERNAL_CLEAR_TARGET_XCOM_KEY
+def test_follows_a_target_stored_with_the_dag_version_without_a_report(dag_maker, session):
+    (child_run,) = _make_child(dag_maker, "child", CLEAR_DATE)
+    with dag_maker("parent"):
+        ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+    mark = dag_maker.create_dagrun(logical_date=CLEAR_DATE).get_task_instance("mark")
+
+    assert _keys(_find([mark], session)) == [
+        ("child", child_run.run_id, "load"),
+        ("child", child_run.run_id, "wait"),
+    ]
+
+
+def test_a_target_stored_with_the_dag_version_needs_a_logical_date(dag_maker, session):
+    with dag_maker("child"):
+        EmptyOperator(task_id="wait")
+    # A child run without a logical date either, which a missing date must not match.
+    dag_maker.create_dagrun(run_id="undated", logical_date=None)
+    with dag_maker("parent"):
+        ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+    mark = dag_maker.create_dagrun(logical_date=None).get_task_instance("mark")
+
+    assert _find([mark], session) == []
