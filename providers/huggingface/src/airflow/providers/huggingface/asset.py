@@ -21,33 +21,33 @@ from __future__ import annotations
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 
-def sanitize_uri(uri: str | SplitResult) -> str | SplitResult:
+def sanitize_uri(uri: SplitResult) -> SplitResult:
     """Normalize dataset URIs and leave other Hub paths unchanged."""
-    parsed = uri if isinstance(uri, SplitResult) else urlsplit(uri)
-    if parsed.scheme != "hf":
+    if uri.scheme != "hf":
         raise ValueError(f"Invalid Hugging Face dataset asset URI: {uri}")
-    if parsed.netloc != "datasets":
-        return parsed if isinstance(uri, SplitResult) else uri
-    if not parsed.path.strip("/"):
+    if uri.netloc != "datasets":
+        return uri
+    if not uri.path.strip("/"):
         raise ValueError(f"Invalid Hugging Face dataset asset URI: {uri}")
-    normalized = parsed._replace(
-        scheme="hf", netloc="datasets", path=f"/{parsed.path.strip('/')}", query="", fragment=""
-    )
-    if isinstance(uri, SplitResult):
-        return normalized
-    return urlunsplit(normalized)
+    return uri._replace(scheme="hf", netloc="datasets", path=f"/{uri.path.strip('/')}", query="", fragment="")
+
+
+def _sanitize_uri_string(uri: str) -> str:
+    parsed = urlsplit(uri)
+    normalized = sanitize_uri(parsed)
+    return uri if normalized == parsed else urlunsplit(normalized)
 
 
 def create_asset(*, repo_id: str, extra: dict | None = None):
     """Build a dataset asset from the repo ID supplied by Airflow's URI factory."""
     from airflow.sdk import Asset
 
-    return Asset(uri=sanitize_uri(f"hf://datasets/{repo_id}"), extra=extra)
+    return Asset(uri=_sanitize_uri_string(f"hf://datasets/{repo_id}"), extra=extra)
 
 
 def convert_asset_to_openlineage(asset, lineage_context):
     """Convert an Airflow Hugging Face dataset asset to an OpenLineage dataset."""
     from airflow.providers.common.compat.openlineage.facet import Dataset
 
-    canonical = sanitize_uri(asset.uri)
+    canonical = _sanitize_uri_string(asset.uri)
     return Dataset(namespace="https://huggingface.co", name=canonical.removeprefix("hf://"), facets={})

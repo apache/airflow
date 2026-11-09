@@ -14,12 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest.mock import patch
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 
 from airflow.providers.huggingface.asset import (
+    _sanitize_uri_string,
     convert_asset_to_openlineage,
     create_asset,
     sanitize_uri,
@@ -28,7 +31,7 @@ from airflow.providers.huggingface.asset import (
 
 def test_sanitize_dataset_asset_uri_string_and_airflow_split_result():
     uri = "hf://datasets/org/example/"
-    assert sanitize_uri(uri) == "hf://datasets/org/example"
+    assert _sanitize_uri_string(uri) == "hf://datasets/org/example"
     normalized = sanitize_uri(urlsplit(uri))
     assert urlunsplit(normalized) == "hf://datasets/org/example"
     asset = create_asset(repo_id="org/example", extra={"source": "test"})
@@ -37,7 +40,7 @@ def test_sanitize_dataset_asset_uri_string_and_airflow_split_result():
 
 @pytest.mark.parametrize("uri", ["hf://org/model", "hf://spaces/org/app"])
 def test_non_dataset_hub_asset_uris_pass_through(uri):
-    assert sanitize_uri(uri) == uri
+    assert _sanitize_uri_string(uri) == uri
     normalized = sanitize_uri(urlsplit(uri))
     assert urlunsplit(normalized) == uri
 
@@ -59,5 +62,5 @@ def test_airflow_asset_factory_and_openlineage_converter_signatures():
 
 
 def test_rejects_malformed_dataset_asset_uri():
-    with pytest.raises(ValueError):
-        sanitize_uri("hf://datasets/")
+    with pytest.raises(ValueError, match="Invalid Hugging Face dataset asset URI"):
+        sanitize_uri(urlsplit("hf://datasets/"))

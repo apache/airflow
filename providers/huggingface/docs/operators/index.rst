@@ -175,9 +175,10 @@ and source provenance. Both live ``CommitInfo`` and recovered
 wrapping.
 
 The commit message includes an artifact fingerprint and target marker. The
-marker distinguishes repository configuration, revision, and pull request
-target, so publishing the same artifact to another target is a separate
-publication. Airflow 3.3 and later task state store support caches the result
+marker distinguishes repository configuration, revision, pull request target,
+and all ``push_kwargs`` (including ``split`` and ``data_dir``), so publishing
+the same artifact to another target is a separate publication. Airflow 3.3 and
+later task state store support caches the result
 and records that a push may have started. A retry searches the intended branch
 or pull request ref only after that record exists, and only reuses the latest
 unsuffixed commit carrying the marker. This avoids reusing an older publication

@@ -50,12 +50,21 @@ def _reference(reference: str | dict[str, Any]) -> str:
     return reference
 
 
-def _sha256_path(uri: str, *, conn_id: str | None = None) -> str:
-    digest = hashlib.sha256()
-    with _path(uri, conn_id=conn_id).open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+class _HashingWriter:
+    def __init__(self, stream: Any) -> None:
+        self._stream = stream
+        self._digest = hashlib.sha256()
+
+    def write(self, data: bytes) -> int:
+        written = self._stream.write(data)
+        self._digest.update(data[:written])
+        return written
+
+    def get_hexdigest(self) -> str:
+        return self._digest.hexdigest()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
 
 
 def _validate_feature(feature: Any, field_name: str) -> None:
@@ -113,7 +122,8 @@ def _save(
             split_path = _path(split_uri, conn_id=storage_conn_id)
             split_path.parent.mkdir(parents=True, exist_ok=True)
             with split_path.open("wb") as stream:
-                parquet.write_table(part.data.table, stream)
+                hashing_stream = _HashingWriter(stream)
+                parquet.write_table(part.data.table, hashing_stream)
             written.append(split_path)
             split_manifest[name] = {
                 "uri": split_uri,
@@ -125,7 +135,7 @@ def _save(
                     if getattr(part, "split", None) is not None
                     else (name if name != "dataset" else None)
                 ),
-                "sha256": _sha256_path(split_uri, conn_id=storage_conn_id),
+                "sha256": hashing_stream.get_hexdigest(),
             }
 
         manifest = {
@@ -620,6 +630,7 @@ class PushToHubOperator(BaseOperator):
                 "config_name": kwargs.get("config_name", "default"),
                 "revision": target_revision or "main",
                 "create_pr": create_pr,
+                "push_kwargs": {key: value for key, value in kwargs.items() if key != "commit_message"},
             },
         )
         marker = f"airflow-artifact-sha256:{fingerprint}:{target_marker}"

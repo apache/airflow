@@ -359,7 +359,14 @@ def test_airflow_30_path_without_state_store_and_retry_with_store(tmp_path, hub_
     hf_api, push_to_hub = hub_dependencies
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())
     target_marker = _publication_marker(
-        "target", {"repo_id": "org/data", "config_name": "default", "revision": "main", "create_pr": False}
+        "target",
+        {
+            "repo_id": "org/data",
+            "config_name": "default",
+            "revision": "main",
+            "create_pr": False,
+            "push_kwargs": {},
+        },
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("a" * 40, f"Publish [{marker}]")
@@ -392,7 +399,14 @@ def test_push_reuses_hub_commit_before_loading_missing_artifact(tmp_path, hub_de
         "revision": "source-sha",
     }
     target_marker = _publication_marker(
-        "target", {"repo_id": "org/data", "config_name": "default", "revision": "main", "create_pr": False}
+        "target",
+        {
+            "repo_id": "org/data",
+            "config_name": "default",
+            "revision": "main",
+            "create_pr": False,
+            "push_kwargs": {},
+        },
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("b" * 40, f"Publish [{marker}]")
@@ -422,7 +436,14 @@ def test_state_store_write_failure_retry_does_not_push_twice(tmp_path, hub_depen
     hf_api, push_to_hub = hub_dependencies
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "retry_after_push.json").as_uri())
     target_marker = _publication_marker(
-        "target", {"repo_id": "org/data", "config_name": "default", "revision": "main", "create_pr": False}
+        "target",
+        {
+            "repo_id": "org/data",
+            "config_name": "default",
+            "revision": "main",
+            "create_pr": False,
+            "push_kwargs": {},
+        },
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("a" * 40, f"Publish [{marker}]")
@@ -465,7 +486,14 @@ def test_push_does_not_treat_intermediate_upload_part_as_published(tmp_path, hub
     hf_api, push_to_hub = hub_dependencies
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "partial.json").as_uri())
     target_marker = _publication_marker(
-        "target", {"repo_id": "org/data", "config_name": "default", "revision": "main", "create_pr": False}
+        "target",
+        {
+            "repo_id": "org/data",
+            "config_name": "default",
+            "revision": "main",
+            "create_pr": False,
+            "push_kwargs": {},
+        },
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     hf_api.return_value.list_repo_commits.return_value = [
@@ -507,6 +535,9 @@ def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_
             ("config-a", {"revision": "branch-a"}),
             ("config-b", {"revision": "branch-a"}),
             ("config-b", {"revision": "branch-b", "create_pr": True}),
+            ("config-c", {"split": "train"}),
+            ("config-c", {"split": "validation"}),
+            ("config-c", {"data_dir": "data/train"}),
         ]
         for index, (config, push_kwargs) in enumerate(configs):
             operator = PushToHubOperator(
@@ -522,8 +553,8 @@ def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_
     markers = [
         call.kwargs["commit_message"].split("[")[-1].split("]")[0] for call in hook.push_to_hub.call_args_list
     ]
-    assert len(set(markers)) == 3
-    assert len(hook.push_to_hub.call_args_list) == 3
+    assert len(set(markers)) == 6
+    assert len(hook.push_to_hub.call_args_list) == 6
     assert hook.push_to_hub.call_args_list[2].kwargs["create_pr"] is True
 
 
