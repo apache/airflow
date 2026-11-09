@@ -36,7 +36,9 @@ Two connections are involved:
 
 With the default ``credential_strategy`` of ``credential_chain``, DuckDB takes credentials from the
 worker's environment, such as environment variables or the worker's role, rather than from the AWS
-connection. See :ref:`howto/operator:duckdb_aws:credentials`.
+connection. If ``credential_strategy`` is not set and the AWS connection has credentials, the hook logs
+a warning; set it to ``config`` to use them, or to ``credential_chain`` to silence the warning. See
+:ref:`howto/operator:duckdb_aws:credentials`.
 
 The ``duckdb_aws`` connection can be empty (though it must exist) and often will be with DuckDB's
 ability to use in-memory databases. Create it, name it whatever you like, and leave every field blank
