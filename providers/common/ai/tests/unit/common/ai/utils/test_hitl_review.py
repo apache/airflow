@@ -23,7 +23,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import ValidationError
 
@@ -61,9 +61,9 @@ class TestConversationEntry:
         assert isinstance(entry.timestamp, datetime)
 
     def test_timestamp_defaults_to_utc_now(self):
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         entry = ConversationEntry(role="human", content="Hi", iteration=2)
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
         assert before <= entry.timestamp <= after
 
 

@@ -45,6 +45,9 @@ const BUNDLE_FILENAME = "bundle.min.mjs";
 const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+const ESM_REQUIRE_BANNER =
+  'import{createRequire as __airflowCreateRequire}from"node:module";' +
+  "const require=__airflowCreateRequire(import.meta.url);";
 
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>]
 
@@ -315,6 +318,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       // that two modules both declare, so the name the SDK reads is pinned to
       // the one the author wrote.
       keepNames: true,
+      // esbuild's require shim in an ESM bundle throws `Dynamic require of "process" is not
+      // supported` for a CommonJS dependency's Node built-in unless a `require` is in scope.
+      banner: { js: ESM_REQUIRE_BANNER },
       // Tags each author-owned file with its own path before its `new Dag(...)`
       // constructor runs, so the encoder gets one Dag-defining file per source
       // region.

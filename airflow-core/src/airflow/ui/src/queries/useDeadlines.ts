@@ -48,7 +48,7 @@ export const useDeadlines = ({ dagId, enabled, limit, offset = 0 }: UseDeadlines
         // Stop polling only when every deadline in the full result set is missed
         const allMissed = data.total_entries > 0 && data.deadlines.every((deadline) => deadline.missed);
 
-        return allMissed ? false : refetchInterval;
+        return !allMissed && refetchInterval;
       },
     },
   );

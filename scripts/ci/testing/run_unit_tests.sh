@@ -143,7 +143,7 @@ function go_sdk_tests() {
     echo "${COLOR_BLUE}Running Go SDK tests${COLOR_RESET}"
     set -x
     cd go-sdk
-    go test -v ./...
+    go test -v -race ./...
     set +x
     echo "${COLOR_BLUE}Go SDK tests completed${COLOR_RESET}"
 }

@@ -52,7 +52,7 @@ def _provider(provider_id: str, name: str, last_updated: str) -> dict:
         "module_counts": {"operator": 1},
         "categories": [],
         "connection_types": [],
-        "requires_python": ">=3.10",
+        "requires_python": ">=3.11",
         "dependencies": [],
         "optional_extras": {},
         "dependents": [],

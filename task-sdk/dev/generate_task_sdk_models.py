@@ -20,8 +20,9 @@ import json
 import os
 import sys
 from pathlib import Path
+from tomllib import load as load_tomllib
 
-import httpx
+import httpx2
 from datamodel_code_generator import (
     DataModelType,
     DatetimeClassType,
@@ -47,11 +48,6 @@ task_sdk_root = Path(__file__).parents[1]
 
 
 def load_config():
-    try:
-        from tomllib import load as load_tomllib
-    except ImportError:
-        from tomli import load as load_tomllib
-
     pyproject = AIRFLOW_TASK_SDK_ROOT_PATH / "pyproject.toml"
     # Simulate what `datamodel-code-generator` does on the CLI
     with pyproject.open("rb") as fh:
@@ -81,7 +77,7 @@ def generate_file():
     app = InProcessExecutionAPI()
 
     latest_version = app.app.versions.version_values[0]
-    client = httpx.Client(transport=app.transport)
+    client = httpx2.Client(transport=app.transport)
     openapi_schema = (
         client.get(f"http://localhost/openapi.json?version={latest_version}").raise_for_status().text
     )

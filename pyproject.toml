@@ -17,12 +17,11 @@
 
 [build-system]
 requires = [
-    "hatchling==1.32.4",
+    "hatchling==1.33.0",
     "packaging==26.3",
     "pathspec==1.1.1",
-    "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
-    "tomlkit==0.15.1",
+    "pluggy==1.7.0",
+    "tomlkit==0.15.2",
     "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
@@ -33,7 +32,7 @@ description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -48,7 +47,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -57,11 +55,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.4.0"
+version = "3.5.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.5.0,>=1.4.0",
-    "apache-airflow-core==3.4.0",
+    "apache-airflow-task-sdk<1.6.0,>=1.5.0",
+    "apache-airflow-core==3.5.0",
 ]
 
 packages = []
@@ -121,7 +119,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-cassandra>=3.7.0"
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -163,7 +161,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\""
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -433,7 +431,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-arrow>=0.1.0",
     "apache-airflow-providers-apache-beam>=5.8.1",
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
@@ -447,7 +445,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -587,7 +585,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.12.18",
+    "uv>=0.13.6",
 ]
 
 [project.urls]
@@ -600,8 +598,15 @@ Homepage = "https://airflow.apache.org/"
 "Source Code" = "https://github.com/apache/airflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
-Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+Bluesky = "https://bsky.app/profile/airflow.apache.org"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[tool.hatch.build]
+# Prune .gitignore'd directories (node_modules, .venv, ...) during the file walk instead of only
+# filtering their files: an editable build of this root package otherwise descends into
+# ts-sdk/node_modules and crashes with FileNotFoundError when a concurrent `pnpm install`
+# (ts-sdk prek hooks run alongside root ones) swaps the pnpm symlinks under it.
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
@@ -746,6 +751,11 @@ ignore = [
     # in flight silently drops the traceback, while leaving `.exception()` where none is
     # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
     "LOG004", # `.exception()` outside an exception handler; 13 sites
+    # Both became reportable once the baseline moved to Python 3.11. Neither is a mechanical
+    # change: StrEnum alters what ``str()`` and ``format()`` return for serialized enum values,
+    # and ``asyncio.timeout`` means dropping the public ``timeout`` parameter from async APIs.
+    "UP042", # Class inherits from both `str` and `enum.Enum`; 98 sites
+    "ASYNC109", # Async function with a `timeout` parameter; 49 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -1455,26 +1465,24 @@ ci-image = [
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.11.8"
+required-version = ">=0.13.4"
 no-build-isolation-package = ["sphinx-redoc"]
-# pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
-# llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
-# google-cloud-aiplatform[evaluation]) still cap openai below 3. Without this override the
-# workspace lock cannot move pydantic-ai-slim past 2.31, which is incompatible with anthropic
-# 1.x, so the Anthropic path could not run in the CI image at all. Holding openai on 2.x is the
-# pairing constraints-main already ships and the one `pip check` in the image build accepts
-# (pip ignores extra-gated requirements, but not llama-index's unconditional cap). pydantic-ai's
-# OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
-# move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
-# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and google-cloud-aiplatform
-# lifts its litellm cap (<1.86 below Python 3.14) far enough to reach the fixed litellm.
-override-dependencies = ["openai>=2.47.0,<3"]
-# The override replaces every package's openai requirement, not only pydantic-ai-slim's, so the
-# resolver no longer rejects a release that needs openai>=3 unconditionally, and only `pip check`
-# in the image build catches it. Cap each such package here at its last openai 2.x release, which
-# is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
-# openai>=3.0.0; the Azure provider needs >=2.2.0.
-constraint-dependencies = ["azure-ai-projects<2.5"]
+# Common AI's "llamaindex" extra cannot be installed alongside its "openai" extra:
+# llama-index-llms-openai (up to 0.8.3) caps openai below 3, and pydantic-ai-slim[openai]>=2.33
+# needs openai>=3. Declaring them as conflicting lets uv.lock resolve each one on its own, so the
+# CI image gets openai 3 and the LlamaIndex tests run in the agent framework job instead, with
+# the openai 2.x that llama-index pulls in. Remove this once run-llama/llama_index#22939 is
+# released and the llama-index packages are back in Common AI's dev group, together with the
+# workarounds that exist only because of it: LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS in
+# scripts/docker/entrypoint_ci.sh (otherwise the "llamaindex" extra silently stays out of the
+# lowest-dependency sync), the llama-index entry in the agent framework CI matrix and in breeze's
+# verification plan, and released=(openai) in scripts/in_container/run_agent_framework_tests.sh.
+conflicts = [
+    [
+        { package = "apache-airflow-providers-common-ai", extra = "llamaindex" },
+        { package = "apache-airflow-providers-common-ai", extra = "openai" },
+    ],
+]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
@@ -1624,24 +1632,22 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-# Temporary: pydantic-ai-skills 1.2.0 (adds exclude_resources, required by the
-# apache-airflow-providers-common-ai[skills] floor) was published 2026-07-15,
-# inside the "4 days" exclude-newer window. This pins the per-package cutoff just
-# past that release so 1.2.0 resolves while any later release stays quarantined.
-# Remove once the rolling window advances past 2026-07-15.
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
 # allows the litellm versions that carry the Python 3.14 security fixes, and it was published
 # 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: typesafe-sdk>=0.6.0 (required by the apache-airflow-providers-common-ai[typesafe]
-# extra) first shipped on 2026-09-18, inside the "4 days" exclude-newer window. This pins the
-# per-package cutoff just past that release so it resolves while any later release stays
-# quarantined.
-# Remove once the rolling window advances past 2026-09-18.
-typesafe-sdk = "2026-09-19T00:00:00Z"
+
+# Package managers bypass the cooldown so a fix (e.g. a security or trust-store fix) can be
+# picked up as soon as it is released; keep in sync with `[tool.uv.pip.exclude-newer-package]`
+# and dev/breeze/pyproject.toml.
+pip = false
+uv = false
+
+# pypdf 6.21.4 fixes GHSA-mfr5-77xh-9j7h, GHSA-cggf-277g-3q54 and GHSA-5849-834g-hvw5 (high).
+# Remove this `exclude-newer-package` after 2026-11-02, when that release has been out for 4 days.
+pypdf = "2026-10-29T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1673,7 +1679,6 @@ qdrant-client = "Capped (#62193)"
 airbyte-api = "1.x breaks provider tests (#69081)"
 mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
 anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
-azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1825,12 +1830,13 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
-typesafe-sdk = "2026-09-19T00:00:00Z"
+# Package managers bypass the cooldown — see `[tool.uv.exclude-newer-package]`.
+pip = false
+uv = false
+# Temporary: see the pypdf note in `[tool.uv.exclude-newer-package]`.
+pypdf = "2026-10-29T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

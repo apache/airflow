@@ -22,7 +22,7 @@ package org.apache.airflow.sdk.internal
 /**
  * @suppress
  *
- * Names the registrar generated for a class of `@Builder.TaskHandler`
+ * Names the registrar generated for a class of `@Airflow.TaskHandler`
  * methods: a top-level class in the handler class's package, named after that
  * class and any class enclosing it, so `Outer.Inner` is served by
  * `Outer_InnerHandlers`.
@@ -34,3 +34,26 @@ package org.apache.airflow.sdk.internal
  *    returns it.
  */
 fun registrarName(binaryName: String): String = "${binaryName.replace('$', '_')}Handlers"
+
+/**
+ * @suppress
+ *
+ * Names the builder generated for an `@Airflow.Dag` class: a top-level class
+ * in the Dag class's package, named by the annotation's `to` or, when that is
+ * blank, `<Class>Builder`.
+ *
+ * Public so the annotation processor emits the name the runtime looks up; not
+ * user-facing API.
+ *
+ * @param packageName Package of the Dag class; empty for the default package.
+ * @param simpleName Simple name of the Dag class.
+ * @param to The annotation's `to` attribute.
+ */
+fun builderName(
+  packageName: String,
+  simpleName: String,
+  to: String,
+): String {
+  val name = to.ifBlank { "${simpleName}Builder" }
+  return if (packageName.isEmpty()) name else "$packageName.$name"
+}

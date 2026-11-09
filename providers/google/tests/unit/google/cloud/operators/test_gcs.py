@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -484,7 +484,7 @@ class TestGCSFileTransformOperator:
 
 class TestGCSTimeSpanFileTransformOperatorDateInterpolation:
     def test_execute(self):
-        interp_dt = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
+        interp_dt = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=UTC)
 
         assert GCSTimeSpanFileTransformOperator.interpolate_prefix(None, interp_dt) is None
 
@@ -551,7 +551,7 @@ class TestGCSTimeSpanFileTransformOperator:
         file1 = "file1"
         file2 = "file2"
 
-        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
 
         mock_ti = mock.Mock()
@@ -754,7 +754,7 @@ class TestGCSTimeSpanFileTransformOperator:
         file1 = "file1"
         file2 = "file2"
 
-        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
 
         context = dict(
@@ -824,7 +824,7 @@ class TestGCSTimeSpanFileTransformOperator:
     def test_parallel_download_worker_behavior(
         self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, workers, should_raise
     ):
-        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
 
         context = {
@@ -892,7 +892,7 @@ class TestGCSTimeSpanFileTransformOperator:
     def test_parallel_download_failure_behavior(
         self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, mock_as_completed, continue_on_fail
     ):
-        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
 
         context = {
@@ -973,7 +973,7 @@ class TestGCSTimeSpanFileTransformOperator:
     def test_parallel_upload_worker_behavior(
         self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, workers, should_raise
     ):
-        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
 
         context = {
@@ -1050,7 +1050,7 @@ class TestGCSTimeSpanFileTransformOperator:
     def test_parallel_upload_failure_behavior(
         self, mock_hook, mock_subprocess, mock_tempdir, mock_executor, mock_as_completed, continue_on_fail
     ):
-        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
 
         context = {
@@ -1133,7 +1133,7 @@ class TestGCSTimeSpanFileTransformOperator:
         directory (CWE-22) — exploitable when the source bucket is shared with
         untrusted writers.
         """
-        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=UTC)
         timespan_end = timespan_start + timedelta(hours=1)
         context = dict(
             logical_date=timespan_start,
@@ -1184,7 +1184,7 @@ class TestGCSTimeSpanFileTransformOperator:
         succeeds,
         expected_sleeps,
     ):
-        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, tzinfo=UTC)
         context = {
             "logical_date": timespan_start,
             "data_interval_start": timespan_start,
@@ -1246,7 +1246,7 @@ class TestGCSTimeSpanFileTransformOperator:
         succeeds,
         expected_sleeps,
     ):
-        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_start = datetime(2015, 2, 1, tzinfo=UTC)
         context = {
             "logical_date": timespan_start,
             "data_interval_start": timespan_start,

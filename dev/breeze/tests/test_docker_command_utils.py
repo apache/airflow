@@ -48,12 +48,32 @@ from airflow_breeze.utils.docker_command_utils import (
 
 
 @pytest.mark.parametrize("listing_failed", [False, True])
-def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_paths(tmp_path, listing_failed):
-    existing = tmp_path / "existing worktree"
-    existing.mkdir()
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+@mock.patch(
+    "airflow_breeze.utils.docker_command_utils.socket.gethostname", autospec=True, return_value="host-name"
+)
+def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_paths(
+    _host_name, _host_id, tmp_path, make_worktree, listing_failed
+):
+    existing = make_worktree(tmp_path / "existing worktree")
+    leftover = tmp_path / "leftover bind mounts"
+    (leftover / "devel-common").mkdir(parents=True)
+    unlinked = make_worktree(tmp_path / "unlinked worktree")
+    (tmp_path / "main-checkout" / ".git" / "worktrees" / unlinked.name).rmdir()
     missing = tmp_path / "deleted worktree"
     listing = "\n".join(
-        [f"stale\t{missing}", f"active\t{existing}", "primary\t", "legacy\t<no value>", "relative\trelative"]
+        [
+            f"stale\t{missing}\tthis-host",
+            f"unlabelled-host\t{missing}\t<no value>",
+            f"host-name-fallback\t{missing}\thost-name",
+            f"other-host\t{missing}\tother-host",
+            f"leftover\t{leftover}\tthis-host",
+            f"unlinked\t{unlinked}\tthis-host",
+            f"active\t{existing}\tthis-host",
+            "primary\t\t",
+            "legacy\t<no value>\t<no value>",
+            "relative\trelative\tthis-host",
+        ]
     )
     with mock.patch("airflow_breeze.utils.docker_command_utils.run_command", autospec=True) as run:
         run.return_value = subprocess.CompletedProcess([], int(listing_failed), stdout=listing, stderr="")
@@ -66,23 +86,26 @@ def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_pa
         "--filter",
         "label=org.apache.airflow.breeze=true",
         "--format",
-        '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}',
+        '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}\t{{.Label "org.apache.airflow.breeze.host"}}',
     ]
     removals = [c.args[0] for c in run.call_args_list if c.args[0][:2] == ["docker", "rm"]]
-    assert removals == ([] if listing_failed else [["docker", "rm", "--force", "--volumes", "stale"]])
+    assert removals == (
+        []
+        if listing_failed
+        else [
+            ["docker", "rm", "--force", "--volumes", "stale"],
+            ["docker", "rm", "--force", "--volumes", "unlabelled-host"],
+            ["docker", "rm", "--force", "--volumes", "host-name-fallback"],
+            ["docker", "rm", "--force", "--volumes", "leftover"],
+            ["docker", "rm", "--force", "--volumes", "unlinked"],
+        ]
+    )
 
 
 def test_stale_worktree_cleanup_keeps_containers_when_path_cannot_be_checked(tmp_path):
-    original_stat = Path.stat
-
-    def stat(path, **kwargs):
-        if path == tmp_path:
-            raise PermissionError("unreadable")
-        return original_stat(path, **kwargs)
-
     with (
         mock.patch("airflow_breeze.utils.docker_command_utils.run_command", autospec=True) as run,
-        mock.patch.object(Path, "stat", autospec=True, side_effect=stat),
+        mock.patch.object(Path, "read_text", autospec=True, side_effect=PermissionError("unreadable")),
     ):
         run.return_value = subprocess.CompletedProcess([], 0, stdout=f"container\t{tmp_path}\n", stderr="")
         docker_command_utils.remove_stale_worktree_containers()
@@ -442,7 +465,17 @@ def docker_resources():
         (
             {"all_worktrees": True},
             True,
-            {"breeze", "breeze-docs", "main-tests", "stale", "foobar", "foobar-tests", "relative", "other"},
+            {
+                "breeze",
+                "breeze-docs",
+                "main-tests",
+                "stale",
+                "stale-other-host",
+                "foobar",
+                "foobar-tests",
+                "relative",
+                "other",
+            },
         ),
         ({"only_project": "foobar"}, True, {"foobar"}),
         ({"only_project": "breeze-thirdparty"}, True, {"breeze-thirdparty"}),
@@ -451,12 +484,13 @@ def docker_resources():
     ],
 )
 @pytest.mark.parametrize("preserve_volumes", [False, True])
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
 def test_down_selects_checkout_stale_or_explicit_projects(
-    docker_resources, tmp_path, kwargs, linked, expected, preserve_volumes
+    _host_id, docker_resources, tmp_path, make_worktree, kwargs, linked, expected, preserve_volumes
 ):
     resources, run = docker_resources
-    other = tmp_path / "other"
-    other.mkdir()
+    make_worktree(tmp_path)
+    other = make_worktree(tmp_path / "other")
     projects = {
         "breeze": {},
         "breeze-docs": {},
@@ -473,6 +507,12 @@ def test_down_selects_checkout_stale_or_explicit_projects(
         "stale": {
             "org.apache.airflow.breeze": "true",
             "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+            "org.apache.airflow.breeze.host": "this-host",
+        },
+        "stale-other-host": {
+            "org.apache.airflow.breeze": "true",
+            "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+            "org.apache.airflow.breeze.host": "other-host",
         },
         "relative": {
             "org.apache.airflow.breeze": "true",
@@ -539,6 +579,9 @@ def test_environment_checks_reap_stale_resources(
             )
             if name == "check_docker_is_running" and not docker_available:
                 check.side_effect = SystemExit(1)
+        start_watcher = stack.enter_context(
+            mock.patch.object(docker_command_utils, "start_worktree_watcher_if_needed", autospec=True)
+        )
         if docker_available:
             docker_command_utils.perform_environment_checks.__wrapped__(
                 cleanup_stale_worktrees=cleanup_stale_worktrees
@@ -553,8 +596,125 @@ def test_environment_checks_reap_stale_resources(
             call(["docker", "volume", "rm", "stale-db"], check=False, capture_output=True)
             in run.call_args_list
         )
+        start_watcher.assert_called_once_with()
     else:
         run.assert_not_called()
+        start_watcher.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+def test_find_other_worktree_projects_lists_existing_worktrees_only(
+    _host_id, docker_resources, tmp_path, make_worktree
+):
+    resources, _ = docker_resources
+    current = make_worktree(tmp_path / "current")
+    other = make_worktree(tmp_path / "other")
+    remote = tmp_path / "remote"
+
+    def labels(project, worktree, host="this-host", owned="true"):
+        return {
+            "com.docker.compose.project": project,
+            "org.apache.airflow.breeze": owned,
+            "org.apache.airflow.breeze.worktree": str(worktree) if worktree else "",
+            "org.apache.airflow.breeze.host": host,
+        }
+
+    resources["container"] = [
+        {"Id": "current", "Config": {"Labels": labels("breeze-current-1", current)}},
+        {"Id": "other", "Config": {"Labels": labels("breeze-other-2", other)}},
+        {"Id": "primary", "Config": {"Labels": labels("breeze", None)}},
+        {"Id": "deleted", "Config": {"Labels": labels("breeze-deleted-3", tmp_path / "deleted")}},
+    ]
+    resources["volume"] = [
+        {"Name": "other-tests-db", "Labels": labels("breeze-other-2-tests", other)},
+        {"Name": "remote-db", "Labels": labels("breeze-remote-4", remote, host="other-host")},
+        {"Name": "not-owned", "Labels": labels("breeze-not-owned", other, owned="false")},
+    ]
+
+    assert docker_command_utils.find_other_worktree_projects(str(current)) == {
+        str(other): ["breeze-other-2", "breeze-other-2-tests"],
+        str(remote): ["breeze-remote-4"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("linked", "dry_run", "ci", "running", "started"),
+    [
+        pytest.param(True, False, False, False, True, id="starts"),
+        pytest.param(False, False, False, False, False, id="not-isolated"),
+        pytest.param(True, True, False, False, False, id="dry-run"),
+        pytest.param(True, False, True, False, False, id="ci"),
+        pytest.param(True, False, False, True, False, id="already-running"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.subprocess.Popen", autospec=True)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+def test_start_worktree_watcher_if_needed(
+    _host_id, popen, tmp_path, monkeypatch, linked, dry_run, ci, running, started
+):
+    if ci:
+        monkeypatch.setenv("CI", "true")
+    else:
+        monkeypatch.delenv("CI", raising=False)
+    with (
+        mock.patch.object(
+            docker_command_utils,
+            "get_isolated_worktree_path",
+            autospec=True,
+            return_value=tmp_path if linked else None,
+        ),
+        mock.patch.object(docker_command_utils, "get_dry_run", autospec=True, return_value=dry_run),
+        mock.patch.object(
+            docker_command_utils.worktree_watcher, "is_watcher_running", autospec=True, return_value=running
+        ),
+    ):
+        docker_command_utils.start_worktree_watcher_if_needed()
+
+    if not started:
+        popen.assert_not_called()
+        return
+    popen.assert_called_once()
+    command = popen.call_args.args[0]
+    assert command[1:3] == ["-I", docker_command_utils.worktree_watcher.__file__]
+    assert command[3:] == [
+        "--worktree",
+        str(tmp_path),
+        "--host",
+        "this-host",
+        "--lock-file",
+        str(tmp_path / ".build" / "worktree-watcher.lock"),
+    ]
+    assert popen.call_args.kwargs["start_new_session"] is True
+    assert popen.call_args.kwargs["cwd"] == "/"
+
+
+@pytest.mark.parametrize("failing", ["lock", "popen"])
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print", autospec=True)
+@mock.patch("airflow_breeze.utils.docker_command_utils.subprocess.Popen", autospec=True)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+def test_start_worktree_watcher_if_needed_does_not_fail_the_command(
+    _host_id, popen, console_print, tmp_path, monkeypatch, failing
+):
+    monkeypatch.delenv("CI", raising=False)
+    if failing == "popen":
+        popen.side_effect = OSError("cannot start")
+    with (
+        mock.patch.object(
+            docker_command_utils, "get_isolated_worktree_path", autospec=True, return_value=tmp_path
+        ),
+        mock.patch.object(docker_command_utils, "get_dry_run", autospec=True, return_value=False),
+        mock.patch.object(
+            docker_command_utils.worktree_watcher,
+            "is_watcher_running",
+            autospec=True,
+            side_effect=PermissionError("root-owned lock") if failing == "lock" else None,
+            return_value=False,
+        ),
+    ):
+        docker_command_utils.start_worktree_watcher_if_needed()
+
+    console_print.assert_called_once()
+    assert "Cannot start the worktree watcher" in console_print.call_args.args[0]
 
 
 @pytest.mark.parametrize("all_worktrees", [False, True])
@@ -873,7 +1033,7 @@ def test_enter_shell_openlineage_rejects_non_postgres_backend(
     mock_run_command.assert_not_called()
 
 
-CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10:latest"
+CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.11:latest"
 
 
 def _fake_docker_calls(present_images: set[str], failing_pulls: dict[str, int]):

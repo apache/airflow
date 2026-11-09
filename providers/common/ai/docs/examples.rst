@@ -100,6 +100,10 @@ Agents & tools
      - A LangChain ReAct agent that decides its own tool calls, composed with ``LLMOperator`` for
        report formatting and AIP-90 HITL review
        (`example_langchain_tool_agent.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_tool_agent.py>`__).
+   * - :doc:`use_cases/refine_a_draft_within_a_budget`
+     - An agent and a judge in a task loop that stops when the draft passes or a dollar or token
+       budget is spent
+       (`example_agent_loop_budget.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_agent_loop_budget.py>`__).
 
 Retrieval & document processing
 --------------------------------
@@ -165,14 +169,14 @@ Reliability
      - What it shows
    * - :doc:`retry_policies`
      - Classifying task failures with an LLM into categories you define, then deriving
-       retry, fail, or delay from the category; and the same on a classifier model with a
+       retry, fail, or delay from the category; and the same on a decision model with a
        confidence bar. Source:
        `example_llm_retry_policy.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py>`__.
    * - :doc:`provider_fallback`
      - Failing over to another vendor inside one task attempt, and drilling the chain
        without waiting for an outage. Source:
        `example_llm_fallback.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_fallback.py>`__.
-   * - :doc:`classifier_models`
+   * - :doc:`decision_models`
      - Routing a failure with a model that answers typed questions instead of writing
        text, and escalating when its confidence is low. Source:
-       `example_classifier_model.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_classifier_model.py>`__.
+       `example_decision_model.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_decision_model.py>`__.

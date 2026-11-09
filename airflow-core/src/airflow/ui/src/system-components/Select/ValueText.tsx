@@ -44,11 +44,10 @@ export const ValueText = forwardRef<HTMLSpanElement, ValueTextProps>((props, ref
           if (children) {
             return children(items);
           }
-          if (items.length === 1) {
-            return select.collection.stringifyItem(items[0]);
-          }
 
-          return `${formatNumber(items.length, i18n.language)} selected`;
+          return items.length === 1
+            ? select.collection.stringifyItem(items[0])
+            : `${formatNumber(items.length, i18n.language)} selected`;
         }}
       </ChakraSelect.Context>
     </ChakraSelect.ValueText>

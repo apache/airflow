@@ -95,6 +95,11 @@ func collectManifest(b bundle.EnumerableBundle) airflowmetadata.Manifest {
 		dag.Tasks = append(dag.Tasks, handler.TaskID)
 		meta.Dags[handler.DagID] = dag
 	}
+	if lister, ok := b.(bundle.DagSourceLister); ok {
+		if files := lister.ListDagSourceFiles(); len(files) > 0 {
+			meta.DagSourceFiles = files
+		}
+	}
 	return meta
 }
 

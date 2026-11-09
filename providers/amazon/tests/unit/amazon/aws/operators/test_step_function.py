@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import boto3
@@ -147,7 +147,7 @@ class TestStepFunctionGetExecutionOutputOperator:
                 {
                     "executionArn": EXECUTION_ARN,
                     "stateMachineArn": STATE_MACHINE_ARN,
-                    "startDate": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    "startDate": datetime(2026, 1, 1, tzinfo=UTC),
                     "status": "FAILED",
                     "error": error,
                 },

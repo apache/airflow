@@ -235,11 +235,11 @@ class SFTPHook(SSHHook):
             auth_timeout=self.auth_timeout,
             host_proxy_cmd=self.host_proxy_cmd,
             conn_retry_attempts=self.conn_retry_attempts,
+            no_host_key_check=self.no_host_key_check,
         )
         # These have no constructor parameter and are only ever resolved from the
         # connection's `extra` field or left at their class default, so copy the
         # parent's already-resolved values across explicitly.
-        worker_hook.no_host_key_check = self.no_host_key_check
         worker_hook.allow_host_key_change = self.allow_host_key_change
         worker_hook.host_key = self.host_key
         worker_hook.look_for_keys = self.look_for_keys
@@ -879,6 +879,9 @@ class SFTPHookAsync(BaseHook):
     :param known_hosts: path to the known_hosts file on the local file system. Defaults to ``~/.ssh/known_hosts``.
     :param key_file: path to the client key file used for authentication to SFTP server
     :param passphrase: passphrase used with the key_file for authentication to SFTP server
+    :param no_host_key_check: Set to ``True`` to skip host key verification. Overrides the
+        connection's ``no_host_key_check`` extra. Defaults to ``None``, meaning the value is
+        taken from the connection (and host keys are verified when the connection does not set it).
     """
 
     conn_name_attr = "ssh_conn_id"
@@ -898,6 +901,7 @@ class SFTPHookAsync(BaseHook):
         key_file: str = "",
         passphrase: str = "",
         private_key: str = "",
+        no_host_key_check: bool | None = None,
     ) -> None:
         self.sftp_conn_id = sftp_conn_id
         self.host = host
@@ -908,6 +912,7 @@ class SFTPHookAsync(BaseHook):
         self.key_file = key_file
         self.passphrase = passphrase
         self.private_key = private_key
+        self.no_host_key_check = no_host_key_check
         self.conn: asyncssh.SFTPClient | None = None
         self._conn_count = 0
         self._conn_lock = asyncio.Lock()
@@ -931,8 +936,20 @@ class SFTPHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
+        if nhkc_raw is None and "ignore_hostkey_verification" in extra_options:
+            warnings.warn(
+                "The `ignore_hostkey_verification` connection extra is deprecated; "
+                "use `no_host_key_check` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            nhkc_raw = extra_options["ignore_hostkey_verification"]
+        no_host_key_check = False if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
+        if self.no_host_key_check is not None:
+            no_host_key_check = self.no_host_key_check
 
+        # Validated on the effective value, so the constructor argument can resolve a connection
+        # that sets both `host_key` and `no_host_key_check` -- the same rule as `SSHHook`.
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")
 
@@ -949,7 +966,16 @@ class SFTPHookAsync(BaseHook):
                 )
             if len(host_key_parts) >= 2:
                 host_key = " ".join(host_key_parts[:2])
-            self.known_hosts = f"{conn.host} {host_key}".encode()
+            else:
+                # A bare key is RSA, as on the sync hook; asyncssh needs the type spelled out.
+                host_key = f"ssh-rsa {host_key}"
+            self.known_hosts = f"{self.host or conn.host} {host_key}".encode()
+
+    def _should_use_known_hosts(self) -> bool:
+        """Leave a missing default file unset so AsyncSSH reports an untrusted host."""
+        if self.known_hosts == os.path.expanduser(self.default_known_hosts):
+            return os.path.isfile(self.known_hosts)
+        return True
 
     async def _get_conn(self) -> asyncssh.SSHClientConnection:
         """
@@ -963,8 +989,8 @@ class SFTPHookAsync(BaseHook):
         - passphrase
         """
         conn = await get_async_connection(self.sftp_conn_id)
-        if conn.extra is not None:
-            self._parse_extras(conn)  # type: ignore[arg-type]
+        # Parsed even without extras: a constructor `no_host_key_check` still has to be applied.
+        self._parse_extras(conn)  # type: ignore[arg-type]
 
         def _get_value(self_val, conn_val, default=None):
             """Return the first non-None value among self, conn, default."""
@@ -985,7 +1011,7 @@ class SFTPHookAsync(BaseHook):
         if self.known_hosts:
             if self.known_hosts.lower() == "none":
                 conn_config.update(known_hosts=None)
-            else:
+            elif self._should_use_known_hosts():
                 conn_config.update(known_hosts=self.known_hosts)
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)

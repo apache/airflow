@@ -265,17 +265,17 @@ it is equally important to understand scenarios where one may **not** be appropr
   If your workflow is better suited for deferring but no operator exists yet,
   consider implementing a custom deferred operator rather than defaulting to async.
 
-Comparison with Dynamic Task Mapping
-------------------------------------
+Comparison with task mapping
+----------------------------
 
-Async operators and Dynamic Task Mapping solve different problems and have different trade-offs.
+Async operators and task mapping solve different problems and have different trade-offs.
 
 .. list-table::
    :header-rows: 1
 
    * - Aspect
      - Async ``@task``
-     - Dynamic Task Mapping (deferrable)
+     - Task mapping (deferrable)
    * - Worker slots
      - 1 worker slot (shared event loop)
      - N worker slots (one per mapped task instance)
@@ -292,5 +292,5 @@ Async operators and Dynamic Task Mapping solve different problems and have diffe
      - Minimal
      - Scheduler must manage N task instances
 
-For more details about Dynamic Task Mapping, see the
-:ref:`dynamic task mapping <sdk-dynamic-task-mapping>` page.
+For more details about task mapping, see the
+:ref:`task mapping <sdk-dynamic-task-mapping>` page.

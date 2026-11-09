@@ -444,6 +444,27 @@ class TestCli:
         args = parser.parse_args([])
         assert args.test == 0
 
+    @pytest.mark.parametrize(
+        ("argv", "expected"),
+        [
+            # None, not a bool: the parser must not bake ``[scheduler] only_idle`` in at import time.
+            ([], None),
+            (["--only-idle"], True),
+            (["--no-only-idle"], False),
+        ],
+    )
+    def test_only_idle_flag_is_tri_state(self, argv, expected):
+        args = cli_parser.get_parser().parse_args(["scheduler", *argv])
+        assert args.only_idle is expected
+
+    def test_only_idle_help_survives_rich_markup_rendering(self):
+        """The help formatter renders Rich markup, which silently swallows ``[section]`` text."""
+        stdout = StringIO()
+        with contextlib.redirect_stdout(stdout), pytest.raises(SystemExit):
+            cli_parser.get_parser().parse_args(["scheduler", "--help"])
+
+        assert "scheduler.only_idle" in stdout.getvalue()
+
     def test_commands_and_command_group_sections(self):
         parser = cli_parser.get_parser()
 
@@ -479,6 +500,19 @@ class TestCli:
         for cmd_args in all_command_as_args:
             with pytest.raises(SystemExit):
                 parser.parse_args([*cmd_args, "--help"])
+
+    def test_backfill_reprocess_behavior_help_uses_user_facing_names(self):
+        parser = cli_parser.get_parser()
+
+        with contextlib.redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
+            parser.parse_args(["backfill", "create", "--help"])
+
+        normalized_help = " ".join(stdout.getvalue().split())
+        assert "--reprocess-behavior {none,failed,completed}" in normalized_help
+        assert (
+            "'none' (Missing Runs), 'failed' (Missing and Errored Runs), or 'completed' (All Runs)"
+            in normalized_help
+        )
 
     def test_dag_cli_should_display_help(self):
         parser = cli_parser.get_parser(dag_parser=True)

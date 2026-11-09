@@ -26,7 +26,6 @@ import textwrap
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
-from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -85,6 +84,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions.deadline import AsyncCallback, BaseDeadlineReference, DeadlineAlert
 from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule, PartitionedAssetTimetable
 from airflow.sdk.importers import DagSourceCode
+from airflow.serialization.decoders import decode_timetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -105,9 +105,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from unit.plugins.priority_weight_strategy import StaticTestPriorityWeightStrategy
-
-if TYPE_CHECKING:
-    from kgb import SpyAgency
 
 mark_fab_auth_manager_test = pytest.mark.skipif(
     condition="FabAuthManager" not in conf.get("core", "auth_manager"),
@@ -712,11 +709,52 @@ class TestUpdateDagParsingResults:
         yield dag_import_error_listener
         dag_import_error_listener.clear()
 
+    @patch("airflow.api_fastapi.app._AuthManagerState.instance", None)
+    @patch.object(SerializedDagModel, "write_dag", return_value=True, autospec=True)
+    @patch("airflow.api_fastapi.app.get_auth_manager_cls", autospec=True)
+    def test_sync_perms_for_fab_auth_manager_subclass(
+        self, mock_get_auth_manager_cls, mock_write_dag, session
+    ):
+        FabAuthManager = pytest.importorskip(
+            "airflow.providers.fab.auth_manager.fab_auth_manager"
+        ).FabAuthManager
+
+        class CustomAuthManager(FabAuthManager):
+            pass
+
+        mock_get_auth_manager_cls.return_value = CustomAuthManager
+        dag = DAG(dag_id="test")
+
+        with patch.object(FabAuthManager, "sync_dag_perms", autospec=True) as mock_sync_dag_perms:
+            assert (
+                airflow.dag_processing.collection._serialize_dag_capturing_errors(
+                    dag, "testing", session=session, bundle_version=None
+                )
+                == []
+            )
+            mock_sync_dag_perms.assert_called_once_with(dag, session=session)
+
+    @patch.object(SerializedDagModel, "write_dag", return_value=True, autospec=True)
+    @patch("airflow.api_fastapi.app.get_auth_manager_cls", autospec=True)
+    def test_serialize_without_auth_manager_sync_hook(
+        self, mock_get_auth_manager_cls, mock_write_dag, session
+    ):
+        mock_get_auth_manager_cls.return_value = object
+        dag = DAG(dag_id="test")
+
+        assert (
+            airflow.dag_processing.collection._serialize_dag_capturing_errors(
+                dag, "testing", session=session, bundle_version=None
+            )
+            == []
+        )
+
     @mark_fab_auth_manager_test
     @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
+    @patch("airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.sync_dag_perms", autospec=True)
     def test_sync_perms_syncs_dag_specific_perms_on_update(
-        self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
+        self, mock_sync_dag_perms, monkeypatch, session, time_machine, testing_dag_bundle
     ):
         """Test DAG-specific permissions are synced when a DAG is new or updated"""
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
@@ -726,29 +764,28 @@ class TestUpdateDagParsingResults:
 
         dag = DAG(dag_id="test")
 
-        sync_perms_spy = spy_agency.spy_on(
-            airflow.dag_processing.collection._sync_dag_perms,
-            call_original=False,
-        )
-
         def _sync_to_db():
-            sync_perms_spy.reset_calls()
+            mock_sync_dag_perms.reset_mock()
             time_machine.shift(20)
 
-            update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session)
+            import_errors = {}
+            update_dag_parsing_results_in_db(
+                "testing", None, [dag], import_errors, None, set(), session=session
+            )
+            assert not import_errors
 
         _sync_to_db()
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         # DAG isn't updated
         _sync_to_db()
-        # `_sync_dag_perms` should be called even the DAG isn't updated. Otherwise, any import error will not show up until DAG is updated.
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        # `sync_dag_perms` should be called even the DAG isn't updated. Otherwise, any import error will not show up until DAG is updated.
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         # DAG is updated
         dag.tags = {"new_tag"}
         _sync_to_db()
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
 
@@ -784,9 +821,9 @@ class TestUpdateDagParsingResults:
         # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
         mock_bulk_write_to_db.assert_has_calls(
             [
-                mock.call("testing", None, mock.ANY, None, session=mock.ANY),
-                mock.call("testing", None, mock.ANY, None, session=mock.ANY),
-                mock.call("testing", None, mock.ANY, None, session=mock.ANY),
+                mock.call("testing", None, mock.ANY, None, enforce_bundle_ownership=False, session=mock.ANY),
+                mock.call("testing", None, mock.ANY, None, enforce_bundle_ownership=False, session=mock.ANY),
+                mock.call("testing", None, mock.ANY, None, enforce_bundle_ownership=False, session=mock.ANY),
             ]
         )
         # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
@@ -956,18 +993,44 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
-            dag_source_codes={dag.fileloc: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
         )
 
         dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)
         assert (dag_code.source_code, dag_code.language) == ("dag_id: yaml_dag\n", "yaml")
+
+    def test_task_group_cycle_warning_is_removed_when_dag_is_fixed(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="fixed_dag")
+        session.add(DagModel(dag_id="fixed_dag", bundle_name="testing", is_stale=False))
+        session.add(
+            DagWarning(
+                dag_id="fixed_dag",
+                warning_type=DagWarningType.TASK_GROUP_CYCLE,
+                message="Dag 'fixed_dag': group and bridge depend on each other in a cycle.",
+            )
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        assert session.scalar(select(DagWarning).where(DagWarning.dag_id == "fixed_dag")) is None
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
 
         parse_duration = 1.25
         dag = DAG(dag_id="test")
-        update_dag_parsing_results_in_db("testing", None, [dag], dict(), parse_duration, set(), session)
+        update_dag_parsing_results_in_db(
+            "testing", None, [dag], dict(), parse_duration, set(), session=session
+        )
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.last_parse_duration == parse_duration
@@ -991,7 +1054,7 @@ class TestUpdateDagParsingResults:
             {},
             None,
             set(),
-            session,
+            session=session,
         )
 
         assert session.get(DagModel, gated_dag.dag_id).timetable_asset_gated is True
@@ -1016,7 +1079,14 @@ class TestUpdateDagParsingResults:
 
         import_errors = {}
         update_dag_parsing_results_in_db(
-            "testing", None, [dag], import_errors, None, set(), session, files_parsed={("testing", "abc.py")}
+            "testing",
+            None,
+            [dag],
+            import_errors,
+            None,
+            set(),
+            session=session,
+            files_parsed={("testing", "abc.py")},
         )
         assert "SerializationError" in caplog.text
 
@@ -1037,6 +1107,49 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 0
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
+
+    @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_timetable_that_fails_to_load_is_an_import_error(
+        self, mock_full_path, session, testing_dag_bundle
+    ):
+        """
+        A timetable that raises when rebuilt (for example a custom timetable reading a missing Variable
+        in ``__init__``) is reported as an import error for its file, and only that Dag is skipped.
+        """
+        mock_full_path.return_value = "abc.py"
+        dags = []
+        for dag_id, cron in (("good_dag", "0 0 * * *"), ("bad_dag", "0 1 * * *")):
+            dag = DAG(dag_id=dag_id, schedule=CronTriggerTimetable(cron, timezone="UTC"))
+            dag.fileloc = dag.relative_fileloc = "abc.py"
+            dags.append(LazyDeserializedDAG.from_dag(dag))
+
+        def fail_for_bad_dag(var):
+            if var["__var"]["expression"] == "0 1 * * *":
+                raise RuntimeError("Variable something not found")
+            return decode_timetable(var)
+
+        import_errors: dict[tuple[str, str], str] = {}
+        with patch("airflow.serialization.serialized_objects.decode_timetable", side_effect=fail_for_bad_dag):
+            update_dag_parsing_results_in_db(
+                "testing",
+                None,
+                dags,
+                import_errors,
+                None,
+                set(),
+                session=session,
+                files_parsed={("testing", "abc.py")},
+            )
+
+        assert session.get(DagModel, ("good_dag",)) is not None
+        assert session.get(DagModel, ("bad_dag",)) is None
+        error = import_errors[("testing", "abc.py")]
+        assert "bad_dag" in error
+        assert "Traceback (most recent call last)" in error
+        assert "RuntimeError: Variable something not found" in error
+        [stored] = session.scalars(select(ParseImportError)).all()
+        assert stored.filename == "abc.py"
 
     @patch.object(ParseImportError, "full_file_path")
     @mark_fab_auth_manager_test
@@ -1074,7 +1187,7 @@ class TestUpdateDagParsingResults:
         # the DAG processor should raise an import error when processing the DAG above.
         import_errors = {}
         # run the DAG parsing.
-        update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session=session)
         # expect to get an error with "role does not exist" message.
         err = import_errors.get(("testing", dag.relative_fileloc))
         assert "AirflowException" in err
@@ -1104,7 +1217,7 @@ class TestUpdateDagParsingResults:
 
         # run the update again. Even though the DAG is not updated, the processor should raise import error since the access control is not fixed.
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 5), tick=False)
-        update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session=session)
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         # the DAG should contain an import error.
@@ -1134,7 +1247,7 @@ class TestUpdateDagParsingResults:
         # run the update again, but the incorrect access control configuration is removed.
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 10), tick=False)
         dag.access_control = None
-        update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session=session)
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         # the import error should be cleared.
@@ -1482,13 +1595,13 @@ class TestUpdateDagParsingResults:
     def test_existing_dag_is_paused_upon_creation(self, testing_dag_bundle, session, dag_maker):
         with dag_maker("dag_paused", schedule=None) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
         with dag_maker("dag_paused", schedule=None, is_paused_upon_creation=True) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
         # Since the dag existed before, it should not follow the pause flag upon creation
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
@@ -1496,7 +1609,7 @@ class TestUpdateDagParsingResults:
     def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session, dag_maker):
         with dag_maker("mydag", schedule=None) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", "1.0", [dag], {}, 0.1, set(), session)
+        update_dag_parsing_results_in_db("testing", "1.0", [dag], {}, 0.1, set(), session=session)
         orm_dag = session.get(DagModel, "mydag")
         assert orm_dag.bundle_name == "testing"
         assert orm_dag.bundle_version == "1.0"
@@ -1504,7 +1617,7 @@ class TestUpdateDagParsingResults:
     def test_max_active_tasks_explicit_value_is_used(self, testing_dag_bundle, session, dag_maker):
         with dag_maker("dag_max_tasks", schedule=None, max_active_tasks=5) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
         orm_dag = session.get(DagModel, "dag_max_tasks")
         assert orm_dag.max_active_tasks == 5
 
@@ -1513,14 +1626,14 @@ class TestUpdateDagParsingResults:
         with conf_vars({("core", "max_active_tasks_per_dag"): "7"}):
             with dag_maker("dag_max_tasks_default", schedule=None) as dag:
                 ...
-            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
             orm_dag = session.get(DagModel, "dag_max_tasks_default")
             assert orm_dag.max_active_tasks == 7
 
     def test_max_active_runs_explicit_value_is_used(self, testing_dag_bundle, session, dag_maker):
         with dag_maker("dag_max_runs", schedule=None, max_active_runs=3) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
         orm_dag = session.get(DagModel, "dag_max_runs")
         assert orm_dag.max_active_runs == 3
 
@@ -1538,7 +1651,7 @@ class TestUpdateDagParsingResults:
         with conf_vars({("core", cfg_key): "1"}):
             with dag_maker(f"dag_{field}_schema_default", schedule=None, **{field: schema_default}) as dag:
                 ...
-            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
             orm_dag = session.get(DagModel, f"dag_{field}_schema_default")
             assert getattr(orm_dag, field) == schema_default
 
@@ -1546,7 +1659,7 @@ class TestUpdateDagParsingResults:
         with conf_vars({("core", "max_active_runs_per_dag"): "4"}):
             with dag_maker("dag_max_runs_default", schedule=None) as dag:
                 ...
-            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
             orm_dag = session.get(DagModel, "dag_max_runs_default")
             assert orm_dag.max_active_runs == 4
 
@@ -1555,7 +1668,7 @@ class TestUpdateDagParsingResults:
     ):
         with dag_maker("dag_max_failed_runs", schedule=None, max_consecutive_failed_dag_runs=2) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+        update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
         orm_dag = session.get(DagModel, "dag_max_failed_runs")
         assert orm_dag.max_consecutive_failed_dag_runs == 2
 
@@ -1565,7 +1678,7 @@ class TestUpdateDagParsingResults:
         with conf_vars({("core", "max_consecutive_failed_dag_runs_per_dag"): "6"}):
             with dag_maker("dag_max_failed_runs_default", schedule=None) as dag:
                 ...
-            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session=session)
             orm_dag = session.get(DagModel, "dag_max_failed_runs_default")
             assert orm_dag.max_consecutive_failed_dag_runs == 6
 

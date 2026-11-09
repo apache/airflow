@@ -24,6 +24,8 @@ repos:
     hooks:
       - id: mypy-shared-module_loading
         name: Run mypy for shared-module_loading
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/module_loading
         pass_filenames: false

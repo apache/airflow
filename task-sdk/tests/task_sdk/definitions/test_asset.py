@@ -46,6 +46,22 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
 
 @pytest.mark.parametrize(
+    ("condition", "requires_batching"),
+    [
+        (Asset("a"), False),
+        (AssetAll(), False),
+        (AssetAll(Asset("a")), False),
+        (Asset("a") | Asset("b"), False),
+        (Asset("a") & Asset("b"), True),
+        (Asset("a") | (Asset("b") & Asset("c")), True),
+        (AssetAll(Asset("a") | (Asset("b") & Asset("c"))), True),
+    ],
+)
+def test_asset_condition_requires_batching(condition, requires_batching):
+    assert condition.requires_batching is requires_batching
+
+
+@pytest.mark.parametrize(
     ("sql_conn_value", "name", "should_raise"),
     [
         pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),

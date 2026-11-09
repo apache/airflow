@@ -25,6 +25,77 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+.. note::
+  ``@task.sql`` and ``@task.analytics`` now render only the SQL returned by the decorated function
+  inside ``execute()``. Their other template fields (``parameters``, ``op_args``, ``op_kwargs``, ...)
+  are rendered once before ``execute()`` and are no longer rendered a second time.
+
+.. warning::
+  The deprecated ``DbApiHook.get_pandas_df`` and ``DbApiHook.get_pandas_df_by_chunks`` methods have been removed. Use ``DbApiHook.get_df(..., df_type="pandas")`` and ``DbApiHook.get_df_by_chunks(..., df_type="pandas")`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated get_pandas_df methods from SQL hooks (#76130)``
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'SqlSensor' (#76270)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Surface errors from OpenLineage database info lookups without losing lineage (#74805)``
+* ``Fix ''DbApiHook.inspector'' keeping a database connection open until process exit (#75327)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support 'abfs://' and 'abfss://' URIs in DataFusion Azure Blob Storage (#74228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Blob Storage support to the DataFusion object storage layer (#73374)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
 2.2.0
 .....
 

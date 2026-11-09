@@ -17,15 +17,26 @@
 
 from __future__ import annotations
 
+import hashlib
+import threading
+import uuid
+from typing import Any
 from unittest import mock
 
 import pytest
 
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk import BaseOperator
+from airflow.sdk.bases.xcom import (
+    BaseXCom,
+    XComCoordinate,
+    _current_trigger_ti,
+    _is_legacy_xcom_backend,
+)
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
     GetXComSequenceSlice,
+    SetXCom,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -77,6 +88,22 @@ class TestBaseXCom:
             assert sent_message.task_id == "test_task"
             assert sent_message.run_id == "test_run"
             assert sent_message.map_index == map_index
+
+    def test_delete_does_not_purge_when_delete_is_rejected(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = [
+            XComResult(key="key", value="remote://original"),
+            RuntimeError("DELETE rejected: 410"),
+        ]
+
+        with mock.patch.object(BaseXCom, "purge", autospec=True) as purge:
+            with pytest.raises(RuntimeError, match="DELETE rejected: 410"):
+                BaseXCom.delete(key="key", task_id="task", dag_id="dag", run_id="run")
+
+        purge.assert_not_called()
+        assert mock_supervisor_comms.send.call_args_list == [
+            mock.call(GetXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
+            mock.call(DeleteXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
+        ]
 
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):
@@ -272,3 +299,369 @@ class TestBaseXCom:
                 include_prior_dates=False,
             )
         )
+
+
+class LegacyXCom(BaseXCom):
+    @staticmethod
+    def serialize_value(value, *, key=None, task_id=None, dag_id=None, run_id=None, map_index=None):
+        return f"legacy://{dag_id}/{run_id}/{task_id}/{map_index}/{key}"
+
+    @staticmethod
+    def deserialize_value(result):
+        return f"deserialized {result.value}"
+
+
+class StoreXCom(BaseXCom):
+    @classmethod
+    def store_value(cls, coordinate, key, value):
+        return f"store://{coordinate.ti_id}/{key}"
+
+    @classmethod
+    def load_value(cls, stored):
+        return f"loaded {stored}"
+
+
+class CompatXCom(BaseXCom):
+    store_value = StoreXCom.__dict__["store_value"]
+    load_value = StoreXCom.__dict__["load_value"]
+    serialize_value = LegacyXCom.__dict__["serialize_value"]
+    deserialize_value = LegacyXCom.__dict__["deserialize_value"]
+
+
+class SubclassOverridingOldHooks(StoreXCom):
+    serialize_value = LegacyXCom.__dict__["serialize_value"]
+    deserialize_value = LegacyXCom.__dict__["deserialize_value"]
+
+
+class StoreMixin:
+    @classmethod
+    def store_value(cls, coordinate, key, value):
+        return "mixin"
+
+
+@pytest.mark.parametrize(
+    ("backend", "expected"),
+    [
+        pytest.param(BaseXCom, False, id="base"),
+        pytest.param(
+            type("ReadOnly", (BaseXCom,), {"deserialize_value": staticmethod(str)}), False, id="read-only"
+        ),
+        pytest.param(LegacyXCom, True, id="serialize-only"),
+        pytest.param(type("LegacySubclass", (LegacyXCom,), {}), True, id="inherits-serialize-only"),
+        pytest.param(StoreXCom, False, id="store"),
+        pytest.param(CompatXCom, False, id="store-and-serialize-in-one-class"),
+        pytest.param(SubclassOverridingOldHooks, True, id="serialize-overridden-below-store"),
+        pytest.param(
+            type("StoreBelowLegacy", (LegacyXCom,), {"store_value": StoreXCom.__dict__["store_value"]}),
+            False,
+            id="store-overridden-below-serialize",
+        ),
+        pytest.param(type("MixinStore", (StoreMixin, LegacyXCom), {}), False, id="store-from-mixin"),
+    ],
+)
+def test_is_legacy_xcom_backend(backend, expected):
+    assert _is_legacy_xcom_backend(backend) is expected
+
+
+class TestStoreAndLoadValue:
+    @pytest.mark.parametrize(
+        ("backend", "expected_value"),
+        [
+            pytest.param(StoreXCom, "store://{ti_id}/key", id="store"),
+            pytest.param(CompatXCom, "store://{ti_id}/key", id="store-and-serialize-in-one-class"),
+            pytest.param(LegacyXCom, "legacy://test_dag/test_run/task/-1/key", id="legacy"),
+            pytest.param(
+                SubclassOverridingOldHooks,
+                "legacy://test_dag/test_run/task/-1/key",
+                id="serialize-overridden-below-store",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_push_stores_value_for_the_task_instance(
+        self, backend, expected_value, use_async, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=BaseOperator(task_id="task"))
+        mock_supervisor_comms.asend = mock.AsyncMock()
+
+        if use_async:
+            await backend._apush(ti, "key", 1, dag_result=True)
+            sent = mock_supervisor_comms.asend.call_args.args[0]
+        else:
+            backend._push(ti, "key", 1, dag_result=True)
+            sent = mock_supervisor_comms.send.call_args.args[0]
+
+        assert sent == SetXCom(
+            key="key",
+            value=expected_value.format(ti_id=ti.id),
+            dag_id="test_dag",
+            task_id="task",
+            run_id="test_run",
+            map_index=-1,
+            dag_result=True,
+        )
+
+    @pytest.mark.parametrize(
+        ("region_id", "region_index"),
+        [
+            pytest.param(None, None, id="no-region"),
+            pytest.param(uuid.UUID(int=0), 2, id="top-level-region"),
+            pytest.param(uuid.uuid4(), 3, id="loop-region"),
+        ],
+    )
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_push_passes_the_task_instance_and_its_region_to_store_value(
+        self, region_id, region_index, use_async, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=BaseOperator(task_id="task"), map_index=2)
+        ti.region_id, ti.region_index = region_id, region_index
+        mock_supervisor_comms.asend = mock.AsyncMock()
+
+        with mock.patch.object(StoreXCom, "store_value", autospec=True, return_value="stored") as store_value:
+            if use_async:
+                await StoreXCom._apush(ti, "key", 1)
+            else:
+                StoreXCom._push(ti, "key", 1)
+
+        in_region = region_id not in (None, uuid.UUID(int=0))
+        store_value.assert_called_once_with(
+            XComCoordinate(
+                "test_dag",
+                "test_run",
+                "task",
+                ti.id,
+                region_id if in_region else None,
+                region_index if in_region else None,
+            ),
+            "key",
+            1,
+        )
+        sent = (mock_supervisor_comms.asend if use_async else mock_supervisor_comms.send).call_args.args[0]
+        assert sent.map_index == 2
+
+    @pytest.mark.parametrize("operation", ["aset", "apush", "aget_one", "aget_all"])
+    @pytest.mark.asyncio
+    async def test_async_paths_call_the_backend_hooks_off_the_calling_thread(
+        self, operation, create_runtime_ti, mock_supervisor_comms
+    ):
+        threads: list[int] = []
+
+        class RecordingXCom(BaseXCom):
+            @classmethod
+            def store_value(cls, coordinate, key, value):
+                threads.append(threading.get_ident())
+                return "stored"
+
+            @classmethod
+            def load_value(cls, stored):
+                threads.append(threading.get_ident())
+                return stored
+
+        ti = create_runtime_ti(task=BaseOperator(task_id="task"))
+        coordinates = {"key": "key", "dag_id": "dag", "task_id": "task", "run_id": "run"}
+        reply = (
+            XComSequenceSliceResult(root=["ref"])
+            if operation == "aget_all"
+            else XComResult(key="key", value="ref")
+        )
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value=reply)
+
+        match operation:
+            case "aset":
+                await RecordingXCom.aset(value=1, **coordinates)
+            case "apush":
+                await RecordingXCom._apush(ti, "key", 1)
+            case "aget_one":
+                await RecordingXCom.aget_one(**coordinates)
+            case "aget_all":
+                await RecordingXCom.aget_all(**coordinates)
+
+        assert threads
+        assert threading.get_ident() not in threads
+
+    def test_super_store_value_keeps_the_value_in_the_metadata_database(self):
+        coordinate = XComCoordinate("dag", "run", "task")
+
+        assert BaseXCom.store_value(coordinate, "key", {"a": 1}) == {"a": 1}
+
+    @pytest.mark.parametrize(
+        ("backend", "expected_value"),
+        [
+            pytest.param(StoreXCom, "store://None/key", id="store_value"),
+            pytest.param(CompatXCom, "store://None/key", id="store-and-serialize-in-one-class"),
+            pytest.param(LegacyXCom, "legacy://dag/run/task/3/key", id="serialize_value"),
+        ],
+    )
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_set_by_coordinates_goes_through_the_backend_without_a_task_instance_id(
+        self, backend, expected_value, use_async, mock_supervisor_comms
+    ):
+        mock_supervisor_comms.asend = mock.AsyncMock()
+        coordinates = dict(key="key", value=1, dag_id="dag", task_id="task", run_id="run", map_index=3)
+
+        if use_async:
+            await backend.aset(**coordinates)
+            sent = mock_supervisor_comms.asend.call_args.args[0]
+        else:
+            backend.set(**coordinates)
+            sent = mock_supervisor_comms.send.call_args.args[0]
+
+        assert sent == SetXCom(
+            key="key", value=expected_value, dag_id="dag", task_id="task", run_id="run", map_index=3
+        )
+
+    @pytest.mark.parametrize(
+        ("owner", "overrides", "expected_id"),
+        [
+            pytest.param("task", {}, "{ti_id}", id="running-task-own-coordinates"),
+            pytest.param("task", {"task_id": "other"}, "None", id="running-task-another-task"),
+            pytest.param("task", {"map_index": 2}, "None", id="running-task-another-map-index"),
+            pytest.param("task", {"dag_id": "other_dag"}, "None", id="running-task-another-dag"),
+            pytest.param("task", {"run_id": "other_run"}, "None", id="running-task-another-run"),
+            pytest.param("trigger", {}, "{ti_id}", id="trigger-own-coordinates"),
+            pytest.param("trigger", {"task_id": "other"}, "None", id="trigger-another-task"),
+            pytest.param(None, {}, "None", id="no-owner"),
+        ],
+    )
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_set_passes_the_task_instance_id_only_for_the_writers_own_coordinates(
+        self, owner, overrides, expected_id, use_async, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=BaseOperator(task_id="task"))
+        mock_supervisor_comms.asend = mock.AsyncMock()
+        context = [{"ti": ti}] if owner == "task" else []
+        coordinates: dict[str, Any] = {
+            "dag_id": "test_dag",
+            "run_id": "test_run",
+            "task_id": "task",
+            "map_index": -1,
+            **overrides,
+        }
+        token = _current_trigger_ti.set(ti if owner == "trigger" else None)
+        try:
+            with mock.patch("airflow.sdk.definitions._internal.contextmanager._CURRENT_CONTEXT", context):
+                if use_async:
+                    await StoreXCom.aset(key="key", value=1, **coordinates)
+                    sent = mock_supervisor_comms.asend.call_args.args[0]
+                else:
+                    StoreXCom.set(key="key", value=1, **coordinates)
+                    sent = mock_supervisor_comms.send.call_args.args[0]
+        finally:
+            _current_trigger_ti.reset(token)
+
+        assert sent.value == f"store://{expected_id.format(ti_id=ti.id)}/key"
+
+    @pytest.mark.parametrize(
+        ("backend", "prefix"),
+        [
+            pytest.param(StoreXCom, "loaded", id="load_value"),
+            pytest.param(SubclassOverridingOldHooks, "deserialized", id="deserialize-overridden-below-load"),
+        ],
+    )
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_get_one_loads_the_stored_value(self, backend, prefix, use_async, mock_supervisor_comms):
+        response = XComResult(key="key", value="ref")
+        coordinates = dict(key="key", dag_id="dag", task_id="task", run_id="run")
+
+        if use_async:
+            mock_supervisor_comms.asend = mock.AsyncMock(return_value=response)
+            result = await backend.aget_one(**coordinates)
+        else:
+            mock_supervisor_comms.send.return_value = response
+            result = backend.get_one(**coordinates)
+
+        assert result == f"{prefix} ref"
+
+    @pytest.mark.parametrize(
+        ("backend", "prefix"),
+        [
+            pytest.param(StoreXCom, "loaded", id="load_value"),
+            pytest.param(SubclassOverridingOldHooks, "deserialized", id="deserialize-overridden-below-load"),
+        ],
+    )
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_get_all_loads_each_stored_value(self, backend, prefix, use_async, mock_supervisor_comms):
+        response = XComSequenceSliceResult(root=["a", "b"])
+        coordinates = dict(key="key", dag_id="dag", task_id="task", run_id="run")
+
+        if use_async:
+            mock_supervisor_comms.asend = mock.AsyncMock(return_value=response)
+            result = await backend.aget_all(**coordinates)
+        else:
+            mock_supervisor_comms.send.return_value = response
+            result = backend.get_all(**coordinates)
+
+        assert result == [f"{prefix} a", f"{prefix} b"]
+
+
+class TestXComCoordinate:
+    def test_build_path_for_a_task_instance_reuses_its_path_for_a_key(self):
+        ti_id = uuid.uuid4()
+        coordinate = XComCoordinate("dag", "run", "task", ti_id)
+
+        path = coordinate.build_path("s3://bucket/xcom", "key", suffix=".gz")
+
+        assert path == f"s3://bucket/xcom/dag/run/task/ti-{ti_id}/key.gz"
+        assert coordinate.build_path("s3://bucket/xcom/", "key", suffix=".gz") == path
+
+    def test_build_path_without_a_task_instance_is_unique_per_write(self):
+        coordinate = XComCoordinate("dag", "run", "task")
+
+        first = coordinate.build_path("p", "key")
+        second = coordinate.build_path("p", "key")
+
+        head, instance, name = first.rsplit("/", 2)
+        assert (head, name) == ("p/dag/run/task", "key")
+        assert uuid.UUID(instance.removeprefix("write-"))
+        assert first != second
+
+    @pytest.mark.parametrize(
+        ("key", "expected"),
+        [
+            pytest.param("a/key", "a%2Fkey", id="quoted"),
+            pytest.param(".", "%2E", id="dot"),
+            pytest.param("..", "%2E%2E", id="dots"),
+            pytest.param("k" * 300, hashlib.sha256(b"k" * 300).hexdigest(), id="too-long-to-quote"),
+            pytest.param("/" * 100, hashlib.sha256(b"/" * 100).hexdigest(), id="quoting-makes-it-too-long"),
+            pytest.param("a" * 200, "a" * 200, id="at-the-limit"),
+            pytest.param("a" * 201, hashlib.sha256(b"a" * 201).hexdigest(), id="just-over-the-limit"),
+        ],
+    )
+    def test_build_path_names_the_key_safely(self, key, expected):
+        path = XComCoordinate("dag", "run", "task", uuid.uuid4()).build_path("p", key)
+
+        assert path.rsplit("/", 1)[1] == expected
+
+    @pytest.mark.parametrize("dag_id", ["d" * 100, "é" * 100])
+    def test_build_path_shortens_the_readable_parts_only_when_it_must(self, dag_id):
+        ti_id = uuid.uuid4()
+        coordinate = XComCoordinate(dag_id, "r" * 100, "t" * 100, ti_id)
+        whole = coordinate.build_path("prefix", "key")
+
+        shortened = coordinate.build_path("prefix", "key", max_length=len(whole.encode()) - 20)
+
+        assert len(shortened.encode()) <= len(whole.encode()) - 20
+        assert shortened.startswith("prefix/")
+        assert shortened.endswith(f"/ti-{ti_id}/key")
+        assert coordinate.build_path("prefix", "key", max_length=len(whole.encode())) == whole
+
+    def test_build_path_shortens_the_longest_part_first(self):
+        ti_id = uuid.uuid4()
+        coordinate = XComCoordinate("d" * 10, "r" * 100, "t" * 10, ti_id)
+        whole = coordinate.build_path("p", "key")
+
+        shortened = coordinate.build_path("p", "key", max_length=len(whole) - 20)
+
+        assert shortened == f"p/{'d' * 10}/{'r' * 80}/{'t' * 10}/ti-{ti_id}/key"
+
+    def test_build_path_raises_when_the_fixed_parts_do_not_fit(self):
+        coordinate = XComCoordinate("dag", "run", "task", uuid.uuid4())
+
+        with pytest.raises(ValueError, match="Cannot fit"):
+            coordinate.build_path("p" * 300, "key", max_length=100)

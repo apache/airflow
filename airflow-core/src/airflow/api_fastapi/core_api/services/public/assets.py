@@ -28,18 +28,31 @@ if TYPE_CHECKING:
     from airflow.models.asset import AssetEvent
 
 
-def serialize_asset_events(events: Sequence[AssetEvent], *, session: Session) -> list[AssetEventResponse]:
+def serialize_asset_events(
+    events: Sequence[AssetEvent], *, readable_dag_ids: set[str] | None, session: Session
+) -> list[AssetEventResponse]:
     """
     Serialize asset events, flagging on each created dag run whether this event triggered it.
 
     Only a run's most recent consumed event triggers it; the rest were merely included. The flag is
     resolved per ``(event_id, dag_id, run_id)`` tuple and set on the run before validation so the response
     carries it.
+
+    The created dag runs are narrowed to the Dags in ``readable_dag_ids``. ``None`` is treated as no
+    readable Dag, as the asset events filter the ids come from does. The argument has no default so that a
+    new caller has to decide, rather than return every run by omission. The narrowing is applied to the
+    response, never to the ``created_dagruns`` relationship, so the session does not see a changed
+    collection.
     """
+    readable = readable_dag_ids or set()
     triggering_refs = resolve_triggering_event_refs(events, session=session)
     asset_events = []
     for event in events:
         for run in event.created_dagruns:
             run.triggering = (event.id, run.dag_id, run.run_id) in triggering_refs
-        asset_events.append(AssetEventResponse.model_validate(event))
+        response = AssetEventResponse.model_validate(event)
+        response = response.model_copy(
+            update={"created_dagruns": [run for run in response.created_dagruns if run.dag_id in readable]}
+        )
+        asset_events.append(response)
     return asset_events

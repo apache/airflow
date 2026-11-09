@@ -55,7 +55,7 @@ class _NativeImporter(CoordinatorDagImporter):
     artifact_suffix = ".min.native"
     supported_extensions = [".native"]
 
-    def get_source_code(self, definition) -> DagSourceCode:
+    def get_source_code(self, definition, dag_id: str | None = None) -> DagSourceCode:
         return DagSourceCode("", "native")
 
     def might_contain_dag(self, definition, safe_mode: bool) -> bool:

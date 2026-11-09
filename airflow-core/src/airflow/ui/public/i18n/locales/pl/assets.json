@@ -29,8 +29,8 @@
     "lastUpdatedByWatcher": "Watcher",
     "title": "Magazyn stanu zasobu"
   },
-  "consumingDags": "Przetwarzanie Dagów",
-  "consumingTasks": "Przetwarzanie zadań",
+  "consumingDags": "Dagi konsumujące",
+  "consumingTasks": "Zadania konsumujące",
   "createEvent": {
     "button": "Utwórz zdarzenie",
     "manual": {
@@ -39,15 +39,15 @@
       "label": "Ręcznie"
     },
     "materialize": {
-      "description": "Wykonaj Dag zależny od tego zasobu",
-      "descriptionWithDag": "Wykonaj Dag zależny od tego zasobu: {{dagName}}",
+      "description": "Uruchom Daga nadrzędnego względem tego zasobu",
+      "descriptionWithDag": "Uruchom Daga nadrzędnego względem tego zasobu: {{dagName}}",
       "label": "Materializuj",
-      "unpauseDag": "Wznów {{dagName}} przy wywołaniu"
+      "unpauseDag": "Wznów {{dagName}} przy uruchomieniu"
     },
     "success": {
       "manualDescription": "Ręczne utworzenie zdarzenia zasobu zakończone sukcesem.",
       "manualTitle": "Zdarzenie zasobu utworzone",
-      "materializeDescription": "Zależny Dag {{dagId}} został pomyślnie wywołany.",
+      "materializeDescription": "Nadrzędny Dag {{dagId}} został pomyślnie uruchomiony.",
       "materializeTitle": "Materializowanie zasobu"
     },
     "title": "Utwórz zdarzenie zasobu dla {{name}}"
@@ -55,6 +55,7 @@
   "events": "Zdarzenia",
   "filters": {
     "groupPlaceholder": "Szukaj grupy",
+    "hasEvents": "Ma zdarzenia",
     "lastEventDateRange": "Data ostatniego zdarzenia"
   },
   "group": "Grupa",

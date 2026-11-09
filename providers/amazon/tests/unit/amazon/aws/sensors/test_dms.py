@@ -26,8 +26,8 @@ from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.fixture
-def mocked_get_task_status():
-    with mock.patch.object(DmsHook, "get_task_status") as m:
+def mocked_get_task_description():
+    with mock.patch.object(DmsHook, "get_task_description", autospec=True) as m:
         yield m
 
 
@@ -65,13 +65,13 @@ class TestDmsTaskCompletedSensor:
         assert sensor.hook._config is None
 
     @pytest.mark.parametrize("status", ["stopped"])
-    def test_poke_completed(self, mocked_get_task_status, status):
-        mocked_get_task_status.return_value = status
+    def test_poke_completed(self, mocked_get_task_description, status):
+        mocked_get_task_description.return_value = {"Status": status}
         assert DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
 
     @pytest.mark.parametrize("status", ["running", "starting"])
-    def test_poke_not_completed(self, mocked_get_task_status, status):
-        mocked_get_task_status.return_value = status
+    def test_poke_not_completed(self, mocked_get_task_description, status):
+        mocked_get_task_description.return_value = {"Status": status}
         assert not DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
 
     @pytest.mark.parametrize(
@@ -87,13 +87,26 @@ class TestDmsTaskCompletedSensor:
             "testing",
         ],
     )
-    def test_poke_terminated_status(self, mocked_get_task_status, status):
-        mocked_get_task_status.return_value = status
-        error_message = f"Unexpected status: {status}"
-        with pytest.raises(AirflowException, match=error_message):
+    def test_poke_terminated_status(self, mocked_get_task_description, status):
+        mocked_get_task_description.return_value = {"Status": status}
+        with pytest.raises(AirflowException) as ctx:
             DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
+        assert str(ctx.value) == f"Unexpected status: {status}"
 
-    def test_poke_none_status(self, mocked_get_task_status):
-        mocked_get_task_status.return_value = None
+    def test_poke_terminated_status_includes_reason(self, mocked_get_task_description):
+        mocked_get_task_description.return_value = {
+            "Status": "failed",
+            "StopReason": "Stop Reason FATAL_ERROR",
+            "LastFailureMessage": "Last Error",
+        }
+        with pytest.raises(AirflowException) as ctx:
+            DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
+        assert (
+            str(ctx.value)
+            == "Unexpected status: failed (StopReason: Stop Reason FATAL_ERROR, LastFailureMessage: Last Error)"
+        )
+
+    def test_poke_none_status(self, mocked_get_task_description):
+        mocked_get_task_description.return_value = None
         with pytest.raises(AirflowException, match="task with ARN .* not found"):
             DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
