@@ -189,7 +189,7 @@ async def run_durably(
         raise
     if result.interruptions:
         tools = ", ".join(sorted({f"{item.tool_name} ({item.agent.name})" for item in result.interruptions}))
-        error = UnsupportedToolDeferralError(
+        unanswered = UnsupportedToolDeferralError(
             f"The agent stopped to ask for approval to call {tools}, and run_durably() cannot "
             "resume a run that waits for approval. Remove the approval requirement (needs_approval, "
             "or require_approval on an MCP server), or call Runner.run and handle "
@@ -198,8 +198,8 @@ async def run_durably(
         # Counted against the model's last answer, so a clear asks the model again from there:
         # what was recorded after it, such as an agent tool's answer given while it waited for
         # approval, never replays, and the turns before it still do.
-        durable_run.fail(error, model_at_fault=True)
-        raise error
+        durable_run.fail(unanswered, model_at_fault=True)
+        raise unanswered
     if journal.clean_up_after_run:
         durable_run.cleanup()
     return result
