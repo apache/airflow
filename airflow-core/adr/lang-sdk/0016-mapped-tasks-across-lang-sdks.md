@@ -76,6 +76,7 @@ The coordinator only starts the SDK runtime subprocess; the supervisor handles e
 | Scheduler | Python | Counts the expansion and turns the `-1` placeholder into N instances. |
 | API server, Execution API | Python | Picks this index's element and builds the bindings for `ti_run`. |
 | Supervisor | Python, in the worker process | Measures a Lang-SDK producer's map length; forwards every XCom request. |
+| Python sidecar | Python, one per Lang-SDK task instance, started on the first request that needs it | Runs `[core] xcom_backend`, so a runtime only sends and receives plain values. |
 | `map()` helper | Python, one per consuming task instance | Imports a Python Dag file and applies its `map()` callables. |
 | SDK runtime | the SDK's own language | Runs the handler, applies the SDK's own `map()` callables, holds the reduce sequence. |
 
@@ -409,7 +410,16 @@ at least one `unresolved` binding, and imports the Dag file once however many th
 4. `at(i)` sends `GetXComSequenceItem` → `GET …/{key}/item/{offset}`.
 5. `slice(a, b)` sends `GetXComSequenceSlice` → `GET …/{key}/slice`.
 6. The server decides which producer rows are live and orders them iteration first, then map index. The runtime sends only the offset it wants.
-7. With a configured `[core] xcom_backend`, the supervisor's backend helper decodes each value on the way back.
+7. With a configured `[core] xcom_backend`, the supervisor's Python sidecar decodes each value on the way back.
+
+### Python sidecar subprocess for the XCom backend
+
+The supervisor runs `[core] xcom_backend` for a Lang-SDK task, so a runtime only sends and receives plain values.
+The backend runs in the supervisor's Python sidecar, one process per task instance, started the way a Python task process is, on the first call the configured backend handles.
+With the default backend no sidecar starts for XComs.
+The sidecar reads connections and variables through the supervisor's API client, as a Python task does.
+The supervisor measures a value before the backend stores it, and every value read back goes through the backend first, so nothing measures or indexes a storage path.
+A Python task keeps running the backend in its own process.
 
 ## Runtime steps
 
