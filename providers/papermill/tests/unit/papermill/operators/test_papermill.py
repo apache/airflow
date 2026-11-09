@@ -267,6 +267,84 @@ class TestPapermillOperator:
             op.execute(context={})
 
         mock_run.assert_not_called()
+        mock_papermill.execute_notebook.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "output_nb",
+        [
+            pytest.param("s3://bucket/out.ipynb", id="s3"),
+            pytest.param("gs://bucket/out.ipynb", id="gcs"),
+            pytest.param("hdfs://namenode/out.ipynb", id="hdfs"),
+            pytest.param("file:///tmp/out.ipynb", id="file-url"),
+        ],
+    )
+    @patch("airflow.providers.papermill.operators.papermill.subprocess.run", autospec=True)
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_rejects_a_remote_output_notebook_before_running_it(
+        self, mock_papermill, mock_run, output_nb
+    ):
+        """papermill can write the output notebook remotely, but nbconvert reads local paths only."""
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb=output_nb,
+            task_id="test_nbconvert_remote_output",
+            nbconvert=True,
+        )
+
+        with pytest.raises(ValueError, match="nbconvert cannot convert the remote output notebook"):
+            op.execute(context={})
+
+        # The notebook must not have run: failing afterwards would discard the execution and a
+        # retry would repeat it.
+        mock_papermill.execute_notebook.assert_not_called()
+        mock_run.assert_not_called()
+
+    @patch("airflow.providers.papermill.operators.papermill.subprocess.run", autospec=True)
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_allows_a_remote_output_notebook_without_nbconvert(self, mock_papermill, mock_run):
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="s3://bucket/out.ipynb",
+            task_id="test_remote_output_no_nbconvert",
+        )
+
+        op.execute(context={})
+
+        mock_papermill.execute_notebook.assert_called_once()
+        mock_run.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("nbconvert", "should_convert"),
+        [
+            pytest.param(True, True, id="bool-true"),
+            pytest.param(False, False, id="bool-false"),
+            pytest.param("True", True, id="rendered-true"),
+            pytest.param("False", False, id="rendered-false"),
+            pytest.param("", False, id="rendered-empty"),
+        ],
+    )
+    @patch("airflow.providers.papermill.operators.papermill.subprocess.run", autospec=True)
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_reads_a_rendered_nbconvert_as_a_boolean(
+        self, mock_papermill, mock_run, nbconvert, should_convert
+    ):
+        """nbconvert is templated, and Jinja renders it to a string, where "False" is truthy."""
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="/tmp/out.ipynb",
+            task_id="test_nbconvert_rendered",
+            nbconvert=nbconvert,  # type: ignore[arg-type]
+        )
+
+        op.execute(context={})
+
+        assert mock_run.called is should_convert
 
     @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):

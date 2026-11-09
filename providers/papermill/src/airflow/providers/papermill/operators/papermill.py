@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
+from urllib.parse import urlsplit
 
 import attr
 import papermill as pm
@@ -30,6 +31,7 @@ from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
+from airflow.utils.strings import to_boolean
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -59,7 +61,8 @@ class PapermillOperator(BaseOperator):
     :param log_output: (optional) Log the notebook cell output to the task log.
         When True, the stdout/stderr of each cell execution is visible in the Airflow task log.
     :param nbconvert: (optional) Convert the executed notebook to HTML, alongside the output
-        notebook, once it has run. (templated)
+        notebook, once it has run. Requires ``output_nb`` to be a local path, since
+        ``jupyter nbconvert`` cannot read a remote one. (templated)
     :param nbconvert_args: (optional) Extra command line arguments for ``jupyter nbconvert``,
         appended after the output notebook. (templated)
     """
@@ -115,6 +118,14 @@ class PapermillOperator(BaseOperator):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
         if not isinstance(self.output_nb, NoteBook):
             self.output_nb = NoteBook(url=self.output_nb)
+        # nbconvert is templated, and Jinja renders a templated value to a string, so a rendered
+        # "False" would otherwise be truthy and switch the conversion on.
+        nbconvert = to_boolean(self.nbconvert) if isinstance(self.nbconvert, str) else bool(self.nbconvert)
+        if nbconvert:
+            # Checked before the notebook runs rather than next to the conversion: raising
+            # afterwards would throw away a completed execution, and the retry would run the
+            # whole notebook again.
+            self._validate_nbconvert(self.output_nb.url)
         if not AIRFLOW_V_3_0_PLUS:
             self.inlets.append(self.input_nb)
             self.outlets.append(self.output_nb)
@@ -148,11 +159,7 @@ class PapermillOperator(BaseOperator):
             **remote_kernel_kwargs,
         )
 
-        if self.nbconvert:
-            # nbconvert_args is templated, and Jinja renders a templated collection to a string,
-            # which would otherwise be spliced into the command one character per argument.
-            if self.nbconvert_args is not None and not isinstance(self.nbconvert_args, list):
-                raise TypeError(f"nbconvert_args must be a list, got {type(self.nbconvert_args).__name__}")
+        if nbconvert:
             command = [
                 "jupyter",
                 "nbconvert",
@@ -171,6 +178,23 @@ class PapermillOperator(BaseOperator):
             self.log.info("Output HTML: %s", Path(self.output_nb.url).with_suffix(".html"))
 
         return self.output_nb
+
+    def _validate_nbconvert(self, output_nb_url: str) -> None:
+        if self.nbconvert_args is not None and not isinstance(self.nbconvert_args, list):
+            # nbconvert_args is templated, and Jinja renders a templated collection to a string,
+            # which would otherwise be spliced into the command one character per argument.
+            raise TypeError(f"nbconvert_args must be a list, got {type(self.nbconvert_args).__name__}")
+        # papermill writes the output notebook through its own handlers, so output_nb may be a
+        # remote URL (s3://, gs://, hdfs://, abs://, adl://). jupyter nbconvert reads local
+        # paths only, so it cannot convert one, nor a file:// URL. A single-character scheme is
+        # a Windows drive letter rather than a URL scheme.
+        scheme = urlsplit(output_nb_url).scheme
+        if len(scheme) > 1:
+            raise ValueError(
+                f"nbconvert cannot convert the remote output notebook {output_nb_url!r}. "
+                "jupyter nbconvert reads local paths only. Write the output notebook to a local "
+                "path, or set nbconvert=False."
+            )
 
     @cached_property
     def hook(self) -> KernelHook | None:
