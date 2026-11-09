@@ -73,6 +73,9 @@ class AwsDuckDBHook(DuckDBHook):
         running inside DuckDB cannot see, or when talking to an S3-compatible endpoint with its own
         credentials. Prefer ``credential_chain`` where it works.
 
+    When ``credential_strategy`` is not set and the AWS connection has credentials (keys, a
+    ``role_arn`` or a ``profile_name``), the hook warns that ``credential_chain`` does not use them.
+
     Either strategy is better than none: DuckDB's ``httpfs`` extension has its own HTTP client which
     reads credentials from the standard ``AWS_*`` environment variables but does **not** implement the
     ECS container credential provider, so an ambient task role is invisible to it and S3 access fails
@@ -145,6 +148,7 @@ class AwsDuckDBHook(DuckDBHook):
         self._s3_endpoint_url = s3_endpoint_url
         self._secret_name = secret_name
         self._aws_identity_looked_up = False
+        self._ignored_credentials_checked = False
 
     @property
     def aws_conn_id(self) -> str | None:
@@ -210,6 +214,7 @@ class AwsDuckDBHook(DuckDBHook):
             self.log.debug("credential_strategy is 'none'; not creating a DuckDB S3 secret.")
             return
 
+        self._warn_if_connection_credentials_are_ignored()
         self._validate_identifier(self.secret_name, "secret")
         parts = ["TYPE s3", *self._provider_clauses(strategy)]
 
@@ -240,6 +245,29 @@ class AwsDuckDBHook(DuckDBHook):
             )
 
         self._log_aws_identity(strategy, region, endpoint_url)
+
+    def _warn_if_connection_credentials_are_ignored(self) -> None:
+        """Warn once per hook when ``credential_chain`` leaves the AWS connection's credentials unused."""
+        if self._ignored_credentials_checked:
+            return
+        self._ignored_credentials_checked = True
+        explicit = self._credential_strategy or self.connection_extra.get("credential_strategy")
+        if explicit or self.aws_conn_id is None:
+            return
+        # profile_name counts: boto3 resolves it like every other AWS hook, DuckDB's chain would not.
+        conn_config = self.aws_hook.conn_config
+        if (
+            conn_config.aws_access_key_id
+            or conn_config.aws_session_token
+            or conn_config.role_arn
+            or conn_config.profile_name
+        ):
+            self.log.warning(
+                "The AWS connection %r has credentials, but DuckDB is using its own credential chain, so "
+                "they are not used. Set credential_strategy to 'config' to use them, or to "
+                "'credential_chain' to silence this warning.",
+                self.aws_conn_id,
+            )
 
     def _log_aws_identity(
         self, strategy: CredentialStrategy, region: str | None, endpoint_url: str | None
