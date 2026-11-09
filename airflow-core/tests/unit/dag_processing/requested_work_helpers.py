@@ -18,9 +18,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import httpx2
+from uuid6 import uuid7
+
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
 from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
 
 if TYPE_CHECKING:
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.manager import DagFileProcessorManager
 
 
@@ -28,3 +33,26 @@ def get_api_work_source(manager: DagFileProcessorManager) -> ExecutionAPIWorkSou
     source = manager.work_source
     assert isinstance(source, ExecutionAPIWorkSource)
     return source
+
+
+def make_work(
+    bundle_name: str, relative_fileloc: str = "a.py", *, callback: CallbackRequest | None = None
+) -> ProcessorWorkItem:
+    return ProcessorWorkItem(
+        id=str(uuid7()),
+        claim_id=uuid7(),
+        bundle_name=bundle_name,
+        relative_fileloc=relative_fileloc,
+        callback=callback,
+    )
+
+
+def make_status_error(
+    status_code: int, reason: str | None = None, *, message: str | None = None
+) -> httpx2.HTTPStatusError:
+    response = httpx2.Response(
+        status_code,
+        json={"detail": {"reason": reason, "message": message}} if reason else None,
+        request=httpx2.Request("POST", "http://api/execution/"),
+    )
+    return httpx2.HTTPStatusError("Rejected", request=response.request, response=response)

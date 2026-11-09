@@ -1232,6 +1232,25 @@ def test_catalog_read_waits_for_a_slow_response_and_retries_only_when_asked(
     assert timeout["read"] == client.timeout.read > 1
 
 
+def test_work_claims_and_acknowledgments_wait_for_a_slow_response(make_client, make_registration_response):
+    client, requests = make_client(
+        make_registration_response(), httpx2.Response(200, json=[]), httpx2.Response(204)
+    )
+    client.register_job()
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py"
+    )
+
+    client.claim_work("callbacks", ["bundle-a"], 1)
+    client.acknowledge_work("callbacks", work)
+
+    for request in requests[1:]:
+        timeout = request.extensions["timeout"]
+        assert timeout["connect"] <= 1
+        assert timeout["pool"] <= 1
+        assert timeout["read"] == client.timeout.read > 1
+
+
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
 @pytest.mark.parametrize(
     "failure",

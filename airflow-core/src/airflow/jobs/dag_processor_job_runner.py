@@ -26,7 +26,7 @@ from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 from airflow.configuration import conf
-from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource, get_status_code
 from airflow.dag_processing.health import write_processor_health
 from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -167,7 +167,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
             elapsed = monotonic() - self._last_api_heartbeat
             timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
             error_type = type(error).__name__
-            status_code = error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+            status_code = get_status_code(error)
             if elapsed >= timeout:
                 reason = f"{error_type} (HTTP {status_code})" if status_code is not None else error_type
                 raise DagProcessorHeartbeatTimeout(

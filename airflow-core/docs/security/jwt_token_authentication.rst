@@ -660,9 +660,10 @@ even if the earlier import has not yet been acknowledged.
 
 The manager retains a bounded queue of pending publications. Each loop it sends queued
 publications and acknowledgments for up to a second, stopping at the first failure that may
-be transient. Connecting is limited to a second, but a publication or inventory waits up to
-``[workers] execution_api_timeout`` for its response, so a slow write can still be
-acknowledged. Retries keep the same payload and identity while
+be transient. Connecting is limited to a second, but a publication, inventory, work claim or
+acknowledgment waits up to ``[workers] execution_api_timeout`` for its response. The API server
+commits each of them before it responds, so a request that gave up sooner would be sent again
+and take just as long. Retries keep the same payload and identity while
 heartbeats and subprocess supervision continue between attempts. Pending results
 count against parsing capacity. Failed publication attempts throttle reparsing but
 do not advance the timestamps used to detect stale Dags.
@@ -703,7 +704,12 @@ Use ``airflow dag-processor --check-health`` for local liveness and ``--check-re
 local liveness plus a recent API heartbeat. Both read ``[dag_processor] health_check_file``
 without querying the database. Give each processor its own writable health file. A paused
 manager fails liveness even while the API remains healthy; a transient API outage affects
-readiness without immediately failing liveness.
+readiness without immediately failing liveness. While the API is slow, each request can wait up
+to ``[workers] execution_api_timeout``. While the manager answers its parsing processes' requests,
+it refreshes the health file once a second has passed, so a slow request is always followed by a
+refresh. One loop also makes up to five requests of its own (a heartbeat, two work claims, a
+publication and an acknowledgment), so keep
+``health_check_threshold`` above five times that timeout.
 
 Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
 entrypoint otherwise checks the database before starting the command. Do not set
