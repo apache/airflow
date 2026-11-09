@@ -300,5 +300,14 @@ creates its own Deployment (and PodDisruptionBudget when enabled) named
        - name: bundle2
          bundleNames: ["bundle2"]
 
-The bundle selection is passed as ``--bundle-name`` flags appended to the last item of
-``dagProcessor.args``. Without ``bundleNames`` a Dag processor parses all bundles.
+The default ``dagProcessor.args`` passes the bundle selection as ``--bundle-name`` flags. Without
+``bundleNames`` a Dag processor parses all bundles. If you set custom ``command`` or ``args``, they are used
+as they are, so pass the flags yourself; the chart fails to render when ``bundleNames`` is set but
+``args`` does not contain a ``--bundle-name`` flag for each bundle.
+
+A set that overrides ``serviceAccount`` gets that ServiceAccount created, and sets that use the same
+ServiceAccount name share one object, so their ``serviceAccount`` settings must match.
+
+A PodDisruptionBudget selects the Pods of a single Deployment. When the default Dag processor and sets with
+their own PodDisruptionBudget run together, the default PodDisruptionBudget leaves out those sets, so a Pod is
+never selected by two budgets.

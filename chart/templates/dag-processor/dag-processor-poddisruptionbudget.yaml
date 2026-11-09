@@ -30,6 +30,13 @@
 {{- if $enableDefault -}}
   {{- $dagProcessorSets = concat (list (dict "name" "default")) $dagProcessorSets -}}
 {{- end -}}
+{{- $setsWithPdb := list -}}
+{{- range $dagProcessorSet := .Values.dagProcessor.sets | default list -}}
+  {{- $merged := include "workersMergeValues" (list $.Values.dagProcessor $dagProcessorSet) | fromYaml -}}
+  {{- if $merged.podDisruptionBudget.enabled -}}
+    {{- $setsWithPdb = append $setsWithPdb $dagProcessorSet.name -}}
+  {{- end -}}
+{{- end -}}
 {{- range $dagProcessorSet := $dagProcessorSets -}}
   {{- $dagProcessor := include "workersMergeValues" (list $.Values.dagProcessor $dagProcessorSet) | fromYaml -}}
   {{- $_ := set $globals.Values "dagProcessor" $dagProcessor -}}
@@ -58,6 +65,12 @@ spec:
       {{- if ne .Values.dagProcessor.name "default" }}
       dag-processor-set: {{ .Values.dagProcessor.name }}
       {{- end }}
+    {{- if and (eq .Values.dagProcessor.name "default") $setsWithPdb }}
+    matchExpressions:
+      - key: dag-processor-set
+        operator: NotIn
+        values: {{ toJson $setsWithPdb }}
+    {{- end }}
   {{- toYaml .Values.dagProcessor.podDisruptionBudget.config | nindent 2 }}
 {{- end }}
 {{- end }}

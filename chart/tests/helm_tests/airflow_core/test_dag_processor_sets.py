@@ -24,10 +24,46 @@ from chart_utils.helm_template_generator import render_chart
 
 DEPLOYMENT = "templates/dag-processor/dag-processor-deployment.yaml"
 PDB = "templates/dag-processor/dag-processor-poddisruptionbudget.yaml"
+SERVICE_ACCOUNT = "templates/dag-processor/dag-processor-serviceaccount.yaml"
 BUNDLES = [
     {"name": "bundle1", "classpath": "a.B", "kwargs": {}},
     {"name": "bundle2", "classpath": "a.B", "kwargs": {}},
 ]
+
+
+def _selects(selector, labels):
+    for key, value in selector.get("matchLabels", {}).items():
+        if labels.get(key) != value:
+            return False
+    for expression in selector.get("matchExpressions", []):
+        key, operator, values = expression["key"], expression["operator"], expression.get("values", [])
+        if operator == "In" and labels.get(key) not in values:
+            return False
+        if operator == "NotIn" and labels.get(key) in values:
+            return False
+        if operator == "Exists" and key not in labels:
+            return False
+        if operator == "DoesNotExist" and key in labels:
+            return False
+    return True
+
+
+def _render_pdb_selection(dag_processor):
+    docs = render_chart(name="test", values={"dagProcessor": dag_processor}, show_only=[DEPLOYMENT, PDB])
+    pods = {
+        doc["metadata"]["name"]: doc["spec"]["template"]["metadata"]["labels"]
+        for doc in docs
+        if doc["kind"] == "Deployment"
+    }
+    selectors = {
+        doc["metadata"]["name"]: doc["spec"]["selector"]
+        for doc in docs
+        if doc["kind"] == "PodDisruptionBudget"
+    }
+    return {
+        pod: [name for name, selector in selectors.items() if _selects(selector, labels)]
+        for pod, labels in pods.items()
+    }
 
 
 class TestDagProcessorSets:
@@ -223,3 +259,138 @@ class TestDagProcessorSets:
         )
 
         assert docs == []
+
+    @pytest.mark.parametrize(
+        ("sets", "expected"),
+        [
+            (
+                [{"name": "one"}, {"name": "two"}],
+                {
+                    "test-dag-processor": ["test-dag-processor-pdb"],
+                    "test-dag-processor-one": ["test-dag-processor-pdb-one"],
+                    "test-dag-processor-two": ["test-dag-processor-pdb-two"],
+                },
+            ),
+            (
+                [{"name": "one"}, {"name": "two", "podDisruptionBudget": {"enabled": False}}],
+                {
+                    "test-dag-processor": ["test-dag-processor-pdb"],
+                    "test-dag-processor-one": ["test-dag-processor-pdb-one"],
+                    "test-dag-processor-two": ["test-dag-processor-pdb"],
+                },
+            ),
+            ([], {"test-dag-processor": ["test-dag-processor-pdb"]}),
+        ],
+    )
+    def test_each_pod_is_selected_by_one_pdb(self, sets, expected):
+        selection = _render_pdb_selection(
+            {"enableDefault": True, "podDisruptionBudget": {"enabled": True}, "sets": sets}
+        )
+
+        assert selection == expected
+
+    def test_default_pdb_selector_is_unchanged_without_sets(self):
+        docs = render_chart(
+            name="test",
+            values={"dagProcessor": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=[PDB],
+        )
+
+        assert docs[0]["spec"]["selector"] == {
+            "matchLabels": {"tier": "airflow", "component": "dag-processor", "release": "test"}
+        }
+
+    def test_set_service_account_override_is_created(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "dagProcessor": {
+                    "enableDefault": True,
+                    "sets": [
+                        {"name": "one", "serviceAccount": {"create": True, "name": "team-a"}},
+                        {"name": "two"},
+                    ],
+                }
+            },
+            show_only=[SERVICE_ACCOUNT, DEPLOYMENT],
+        )
+
+        accounts = [doc["metadata"]["name"] for doc in docs if doc["kind"] == "ServiceAccount"]
+        referenced = {
+            doc["spec"]["template"]["spec"]["serviceAccountName"]
+            for doc in docs
+            if doc["kind"] == "Deployment"
+        }
+        assert sorted(accounts) == ["team-a", "test-airflow-dag-processor"]
+        assert referenced == set(accounts)
+
+    @pytest.mark.parametrize(
+        ("sets", "expected"),
+        [
+            ([{"name": "one"}, {"name": "two"}], ["test-airflow-dag-processor"]),
+            (
+                [
+                    {"name": "one", "serviceAccount": {"name": "shared"}},
+                    {"name": "two", "serviceAccount": {"name": "shared"}},
+                ],
+                ["shared"],
+            ),
+        ],
+    )
+    def test_shared_service_account_is_rendered_once(self, sets, expected):
+        docs = render_chart(
+            name="test",
+            values={"dagProcessor": {"enableDefault": False, "sets": sets}},
+            show_only=[SERVICE_ACCOUNT],
+        )
+
+        assert jmespath.search("[*].metadata.name", docs) == expected
+
+    def test_conflicting_service_account_config_fails(self):
+        sets = [
+            {"name": "one", "serviceAccount": {"name": "shared", "annotations": {"owner": "one"}}},
+            {"name": "two", "serviceAccount": {"name": "shared", "annotations": {"owner": "two"}}},
+        ]
+
+        with pytest.raises(CalledProcessError) as ex_ctx:
+            render_chart(
+                values={"dagProcessor": {"enableDefault": False, "sets": sets}},
+                show_only=[SERVICE_ACCOUNT],
+            )
+
+        assert "conflicting" in ex_ctx.value.stderr.decode()
+
+    def test_custom_command_and_args_are_passed_through(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enableDefault": False,
+                    "dagBundleConfigList": BUNDLES,
+                    "command": ["airflow"],
+                    "args": ["dag-processor", "--bundle-name", "bundle1"],
+                    "sets": [{"name": "one", "bundleNames": ["bundle1"]}],
+                }
+            },
+            show_only=[DEPLOYMENT],
+        )
+
+        container = docs[0]["spec"]["template"]["spec"]["containers"][0]
+        assert container["command"] == ["airflow"]
+        assert container["args"] == ["dag-processor", "--bundle-name", "bundle1"]
+
+    def test_bundle_names_not_passed_by_custom_args_fail(self):
+        with pytest.raises(CalledProcessError) as ex_ctx:
+            render_chart(
+                values={
+                    "dagProcessor": {
+                        "enableDefault": False,
+                        "dagBundleConfigList": BUNDLES,
+                        "command": ["airflow"],
+                        "args": ["dag-processor"],
+                        "sets": [{"name": "one", "bundleNames": ["bundle1"]}],
+                    }
+                },
+                show_only=[DEPLOYMENT],
+            )
+
+        assert "does not select" in ex_ctx.value.stderr.decode()

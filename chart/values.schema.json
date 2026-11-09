@@ -4709,7 +4709,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec airflow dag-processor"
+                        "exec airflow dag-processor{{ range .Values.dagProcessor.bundleNames }} --bundle-name {{ . | squote }}{{ end }}"
                     ]
                 },
                 "strategy": {
