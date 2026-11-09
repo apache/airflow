@@ -309,9 +309,11 @@ class TestClasspathLink:
 
         with (
             patch("airflow.sdk.coordinators.java.coordinator.os.getuid", autospec=True, return_value=uid),
-            pytest.raises(PermissionError, match="Cannot keep Java classpath links"),
+            pytest.raises(TaskLaunchError, match="Cannot keep Java classpath links") as ctx,
         ):
             _get_classpath_link(root)
+
+        assert ctx.value.retryable is False
 
     def test_rejects_a_link_dir_holding_the_separator(self, tmp_path):
         root = _make_timestamped_bundle(tmp_path)
@@ -324,10 +326,11 @@ class TestClasspathLink:
                 autospec=True,
                 return_value=os.fspath(tmp),
             ),
-            pytest.raises(ValueError, match="Cannot keep Java classpath links"),
+            pytest.raises(TaskLaunchError, match="Cannot keep Java classpath links") as ctx,
         ):
             _calculate_classpath([root])
 
+        assert ctx.value.retryable is False
         assert list(tmp.iterdir()) == []
 
     def test_separator_inside_the_bundle_raises_without_linking(self, tmp_path, link_dir):
@@ -336,9 +339,10 @@ class TestClasspathLink:
         nested.mkdir()
         jar = _make_jar(nested / "app.jar")
 
-        with pytest.raises(ValueError, match="Cannot put these JARs on a Java classpath") as ctx:
+        with pytest.raises(TaskLaunchError, match="Cannot put these JARs on a Java classpath") as ctx:
             _calculate_classpath([root])
 
+        assert ctx.value.retryable is False
         assert os.fspath(jar) in str(ctx.value)
         assert not link_dir.exists()
 
