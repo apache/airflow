@@ -39,6 +39,7 @@ from airflow.dag_processing.bundles.manager import (
 )
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.exceptions import AirflowConfigException
+from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -49,7 +50,13 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_teams,
+)
 
 
 @pytest.mark.parametrize(
@@ -677,6 +684,209 @@ def test_multiple_bundles_one_fails(clear_db, session):
         manager.sync_bundles_to_db()
         bundle_names = {b.name for b in session.scalars(select(DagBundleModel)).all()}
         assert bundle_names == {"my-test-bundle"}
+
+
+class BundleReadingConnection(BasicBundle):
+    """Read a connection during construction or URL-template generation."""
+
+    def __init__(self, *, conn_id: str, subdir: str, read_in_constructor: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.subdir = subdir
+        self.host = self._read_host() if read_in_constructor else None
+
+    def _read_host(self) -> str | None:
+        return Connection.get_connection_from_secrets(self.conn_id).host
+
+    def view_url_template(self) -> str | None:
+        return f"https://{self.host or self._read_host()}/tree/{{version}}/{{subdir}}"
+
+
+CONNECTION_BUNDLE_CONFIG = {
+    "name": "connection-bundle",
+    "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BundleReadingConnection",
+    "kwargs": {"conn_id": "bundle_conn", "subdir": "connection_dags", "refresh_interval": 1},
+}
+
+
+def _clear_db_for_connection_bundles():
+    clear_db_dag_bundles()
+    clear_db_teams()
+    clear_db_connections()
+    clear_db_import_errors()
+
+
+@pytest.fixture
+def clean_db_with_connection():
+    _clear_db_for_connection_bundles()
+    with create_session() as session:
+        session.add(Connection(conn_id="bundle_conn", conn_type="generic", host="bundles.example.com"))
+    yield
+    _clear_db_for_connection_bundles()
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "read_in_constructor", [True, False], ids=["read_in_constructor", "read_in_template"]
+)
+def test_sync_bundles_to_db_updates_stored_bundles_when_one_reads_connection(
+    clean_db_with_connection, session, read_in_constructor
+):
+    for name in ("connection-bundle", "template-bundle"):
+        stored = DagBundleModel(name=name)
+        stored.active = False
+        session.add(stored)
+    session.commit()
+
+    connection_config = {
+        **CONNECTION_BUNDLE_CONFIG,
+        "kwargs": {**CONNECTION_BUNDLE_CONFIG["kwargs"], "read_in_constructor": read_in_constructor},
+    }
+    with conf_vars(
+        {
+            ("core", "LOAD_EXAMPLES"): "False",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [connection_config, *TEMPLATE_BUNDLE_CONFIG]
+            ),
+        }
+    ):
+        DagBundlesManager().sync_bundles_to_db()
+
+    session.expire_all()
+    bundle = session.get(DagBundleModel, "connection-bundle")
+    assert bundle.active is True
+    assert bundle._unsign_url() == "https://bundles.example.com/tree/{version}/{subdir}"
+    assert bundle.template_params == {"subdir": "connection_dags"}
+    bundle = session.get(DagBundleModel, "template-bundle")
+    assert bundle.active is True
+    assert bundle._unsign_url() == "https://github.com/example/repo/tree/{version}/{subdir}"
+    assert bundle.template_params == {"subdir": "dags"}
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("stored_team", "configured_team"),
+    [
+        pytest.param(None, "team-a", id="assign_team"),
+        pytest.param("team-a", "team-b", id="change_team"),
+        pytest.param("team-a", None, id="remove_team"),
+    ],
+)
+def test_sync_bundles_to_db_updates_team_of_stored_bundle_that_reads_connection(
+    clean_db_with_connection, session, stored_team, configured_team
+):
+    teams = {name: Team(name=name) for name in ("team-a", "team-b")}
+    stored = DagBundleModel(name="connection-bundle")
+    if stored_team:
+        stored.teams = [teams[stored_team]]
+    session.add_all([*teams.values(), stored])
+    session.commit()
+
+    config = {**CONNECTION_BUNDLE_CONFIG, "team_name": configured_team}
+    with conf_vars(
+        {
+            ("core", "LOAD_EXAMPLES"): "False",
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps([config]),
+        }
+    ):
+        DagBundlesManager().sync_bundles_to_db()
+
+    session.expire_all()
+    assert session.get(DagBundleModel, "connection-bundle").team_name == configured_team
+
+
+@pytest.mark.db_test
+@conf_vars(
+    {
+        ("core", "LOAD_EXAMPLES"): "False",
+        ("dag_processor", "dag_bundle_config_list"): json.dumps([CONNECTION_BUNDLE_CONFIG]),
+    }
+)
+def test_sync_bundles_to_db_disables_bundle_left_out_of_config_when_another_reads_connection(
+    clean_db_with_connection, session
+):
+    removed = DagBundleModel(name="removed-bundle")
+    removed.teams = [Team(name="team-a")]
+    session.add_all(
+        [removed, ParseImportError(bundle_name="removed-bundle", filename="dag.py", stacktrace="error")]
+    )
+    session.commit()
+
+    DagBundlesManager().sync_bundles_to_db()
+
+    session.expire_all()
+    bundle = session.get(DagBundleModel, "removed-bundle")
+    assert bundle.active is False
+    assert bundle.teams == []
+    assert session.scalar(select(func.count(ParseImportError.id))) == 0
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "failing_config",
+    [
+        pytest.param(FAILING_BUNDLE_CONFIG[0], id="fails_before_reading_the_db"),
+        pytest.param(
+            {
+                **CONNECTION_BUNDLE_CONFIG,
+                "name": "failing-bundle",
+                "kwargs": {"conn_id": "missing_conn", "subdir": "dags", "refresh_interval": 1},
+            },
+            id="fails_after_reading_the_db",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("stored_active", "stored_team", "configured_team"),
+    [
+        pytest.param(True, "team-a", "team-b", id="active_row_changes_team"),
+        pytest.param(False, None, None, id="inactive_row_without_team"),
+    ],
+)
+def test_sync_bundles_to_db_keeps_configured_bundle_active_when_template_fails(
+    clean_db_with_connection, session, failing_config, stored_active, stored_team, configured_team
+):
+    teams = {name: Team(name=name) for name in ("team-a", "team-b")}
+    failing = DagBundleModel(name="failing-bundle", version="v1")
+    failing.active = stored_active
+    failing.signed_url_template = "stored-url"
+    failing.template_params = {"subdir": "stored"}
+    if stored_team:
+        failing.teams = [teams[stored_team]]
+    other = DagBundleModel(name="template-bundle")
+    other.active = False
+    session.add_all(
+        [
+            *teams.values(),
+            failing,
+            other,
+            ParseImportError(bundle_name="failing-bundle", filename="dag.py", stacktrace="error"),
+        ]
+    )
+    session.commit()
+
+    config = {**failing_config, "team_name": configured_team}
+    with conf_vars(
+        {
+            ("core", "LOAD_EXAMPLES"): "False",
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps([config, *TEMPLATE_BUNDLE_CONFIG]),
+        }
+    ):
+        DagBundlesManager().sync_bundles_to_db()
+
+    session.expire_all()
+    bundle = session.get(DagBundleModel, "failing-bundle")
+    assert bundle.active is True
+    assert bundle.team_name == configured_team
+    assert bundle.signed_url_template == "stored-url"
+    assert bundle.template_params == {"subdir": "stored"}
+    assert bundle.version == "v1"
+    assert session.scalar(select(func.count(ParseImportError.id))) == 1
+    bundle = session.get(DagBundleModel, "template-bundle")
+    assert bundle.active is True
+    assert bundle._unsign_url() == "https://github.com/example/repo/tree/{version}/{subdir}"
 
 
 def test_get_all_bundle_names():

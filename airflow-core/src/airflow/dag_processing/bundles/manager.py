@@ -565,6 +565,24 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
+        # Bundle initialization and template generation can close the shared session,
+        # detaching loaded rows. Complete them before loading rows to update.
+        template_instances = self._pending_template_updates | (bundle_instances or {})
+        pending_templates: dict[str, BaseDagBundle | None] = {}
+        templates: dict[str, tuple[str | None, dict | None]] = {}
+        for name in self._bundle_config:
+            if bundle_instances is not None and name not in template_instances:
+                continue
+            bundle_instance = template_instances.get(name)
+            try:
+                with self._bundle_context(name):
+                    if bundle_instance is None:
+                        bundle_instance = self.get_bundle(name)
+                    templates[name] = _extract_and_sign_template(name, bundle_instance)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                pending_templates[name] = bundle_instance
+
         stored = {
             b.name: b
             for b in session.scalars(select(DagBundleModel).options(selectinload(DagBundleModel.teams))).all()
@@ -582,32 +600,19 @@ class DagBundlesManager(LoggingMixin):
             if team_name not in teams:
                 raise _bundle_item_exc(f"Team '{team_name}' does not exist")
 
-        template_instances = self._pending_template_updates | (bundle_instances or {})
-        pending_templates: dict[str, BaseDagBundle | None] = {}
         for name, config in self._bundle_config.items():
             team = teams.get(config.team_name) if config.team_name else None
 
             bundle = stored.pop(name, None)
-            update_template = bundle_instances is None or name in template_instances
-            if update_template:
-                bundle_instance = template_instances.get(name)
-                try:
-                    with self._bundle_context(name):
-                        if bundle_instance is None:
-                            bundle_instance = self.get_bundle(name)
-                        new_template, new_params = _extract_and_sign_template(name, bundle_instance)
-                except Exception as e:
-                    self.log.exception("Error creating bundle '%s': %s", name, e)
-                    pending_templates[name] = bundle_instance
-                    if bundle is None and bundle_instances is None:
-                        continue
-                    update_template = False
             if bundle is None:
+                if bundle_instances is None and name not in templates:
+                    continue
                 bundle = DagBundleModel(name=name)
                 session.add(bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
             bundle.active = True
-            if update_template:
+            if name in templates:
+                new_template, new_params = templates[name]
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
