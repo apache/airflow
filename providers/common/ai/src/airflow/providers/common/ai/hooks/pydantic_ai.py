@@ -657,7 +657,8 @@ class PydanticAIHook(BaseHook):
             prefix has no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If a request times out.
         :raises httpx2.TransportError: If a request cannot reach the server.
-        :raises httpx2.HTTPStatusError: If the server answers with an error status.
+        :raises httpx2.HTTPStatusError: If the server answers with an error status. The default
+            ``OllamaBackend`` words the message with the model name and the server's error text.
         """
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError(f"timeout must be positive and finite, got {timeout}.")

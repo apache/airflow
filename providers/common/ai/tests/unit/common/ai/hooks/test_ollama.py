@@ -81,11 +81,42 @@ class TestOllamaBackendLoad:
         assert json.loads(request.content) == {"model": "llama3", "stream": False}
         assert request.extensions["timeout"]["read"] == 12.0
 
-    def test_http_error_propagates(self):
-        backend = _build_backend(lambda request: httpx2.Response(500))
+    def test_http_error_names_model_and_server_error_field(self):
+        response = httpx2.Response(404, json={"error": "model 'llama3' not found"})
+        backend = _build_backend(lambda request: response)
 
-        with pytest.raises(httpx2.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             backend.load(timeout=5.0)
+
+        assert str(exc_info.value) == ("Ollama could not load model 'llama3' (404): model 'llama3' not found")
+        assert exc_info.value.response.status_code == 404
+        assert isinstance(exc_info.value.__cause__, httpx2.HTTPStatusError)
+
+    @pytest.mark.parametrize(
+        ("response", "expected_detail"),
+        [
+            pytest.param(
+                httpx2.Response(502, text="<html>Bad Gateway</html>"),
+                "<html>Bad Gateway</html>",
+                id="non-json-body",
+            ),
+            pytest.param(
+                httpx2.Response(500, json={"message": "boom"}), '{"message":"boom"}', id="json-without-error"
+            ),
+            pytest.param(httpx2.Response(500, text="x" * 500), "x" * 200, id="long-body-truncated"),
+            pytest.param(httpx2.Response(500), "Internal Server Error", id="empty-body"),
+            pytest.param(httpx2.Response(500, text="\n"), "Internal Server Error", id="whitespace-body"),
+        ],
+    )
+    def test_http_error_falls_back_to_body_text(self, response, expected_detail):
+        backend = _build_backend(lambda request: response)
+
+        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+            backend.load(timeout=5.0)
+
+        assert str(exc_info.value) == (
+            f"Ollama could not load model 'llama3' ({response.status_code}): {expected_detail}"
+        )
 
     def test_timeout_is_raised_as_timeout_error_naming_model_and_seconds(self):
         def handler(request: httpx2.Request) -> httpx2.Response:
