@@ -301,20 +301,22 @@ class TestBaseAuthManager:
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
         autospec=True,
     )
-    @patch.object(EmptyAuthManager, "deserialize_user")
+    @patch.object(EmptyAuthManager, "deserialize_user_async")
     @pytest.mark.asyncio
-    async def test_get_user_from_token(self, mock_deserialize_user, mock__get_token_validator, auth_manager):
+    async def test_get_user_from_token(
+        self, mock_deserialize_user_async, mock__get_token_validator, auth_manager
+    ):
         token = "token"
         payload = {}
         user = BaseAuthManagerUserTest(name="test")
         signer = AsyncMock(spec=JWTValidator)
         signer.avalidated_claims.return_value = payload
         mock__get_token_validator.return_value = signer
-        mock_deserialize_user.return_value = user
+        mock_deserialize_user_async.return_value = user
 
         result = await auth_manager.get_user_from_token(token)
 
-        mock_deserialize_user.assert_called_once_with(payload)
+        mock_deserialize_user_async.assert_awaited_once_with(payload)
         signer.avalidated_claims.assert_called_once_with(token)
         assert result == user
 
