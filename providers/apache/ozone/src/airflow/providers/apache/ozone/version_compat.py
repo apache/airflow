@@ -37,8 +37,11 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+# airflow.sdk.timezone, airflow.sdk.bases.hook and airflow.sdk._shared.secrets_masker
+# arrived in 3.1. Airflow 3.0 still exposes them from the pre-move locations
+AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import Connection, timezone
     from airflow.sdk._shared.secrets_masker import mask_secret, redact
     from airflow.sdk.bases.hook import BaseHook
@@ -46,6 +49,15 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.sensor import BaseSensorOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.exceptions import AirflowException
+elif AIRFLOW_V_3_0_PLUS:
+    from airflow.exceptions import AirflowException  # type: ignore[no-redef]
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+    from airflow.sdk import Connection  # type: ignore[no-redef]
+    from airflow.sdk.bases.operator import BaseOperator  # type: ignore[no-redef]
+    from airflow.sdk.bases.sensor import BaseSensorOperator  # type: ignore[no-redef]
+    from airflow.sdk.definitions.context import Context  # type: ignore[no-redef]
+    from airflow.sdk.execution_time.secrets_masker import mask_secret, redact  # type: ignore[attr-defined,no-redef]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef] # noqa: TID251
 else:
     from airflow.exceptions import AirflowException
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
@@ -58,6 +70,7 @@ else:
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
+    "AIRFLOW_V_3_1_PLUS",
     "AirflowException",
     "BaseHook",
     "BaseOperator",
