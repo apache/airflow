@@ -1072,11 +1072,11 @@ The ``java`` command cannot load a classpath containing paths that use the ``:``
 systems). The version directory of a Dag bundle may contain one, for example when it is named after a
 timestamp. The coordinator tries to handle this automatically by reading such a bundle through a symbolic link
 created in a temporary directory. A file or directory *inside* the Dag bundle still cannot contain the colon
-separator.
+separator. Such a Dag bundle fails to parse, and its tasks fail without retrying.
 
 This approach should generally work. On the off chance it does not, however, all such links are located in
-``airflow-java-classpath-<uid>`` under the temporary directory (``$TMPDIR`` on Linux, usually ``/tmp``).
-Airflow logs should also report which link corresponds to which bundle.
+``airflow-java-classpath-<uid>`` under the temporary directory (``/tmp`` by default on Linux, or ``$TMPDIR``
+if set). Airflow logs should also report which link corresponds to which bundle.
 
 Each link is named after the first 16 hexadecimal digits of the SHA-256 hash of the bundle version's absolute
 path, so the same path always gets the same link. Links are not removed immediately when they are not needed,
