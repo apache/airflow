@@ -506,6 +506,34 @@ class TestCliUsers:
         with pytest.raises(SystemExit, match=re.escape(message)):
             self._import_users_from_file([user])
 
+    def test_cli_import_users_fails_when_user_cannot_be_created(self):
+        self._import_users_from_file(
+            [
+                {
+                    "username": "imported_user1",
+                    "lastname": "doe1",
+                    "firstname": "jon",
+                    "email": TEST_USER1_EMAIL,
+                    "roles": ["Admin"],
+                }
+            ]
+        )
+        # Usernames are unique case-insensitively, so this insert fails even though the email is new.
+        with pytest.raises(
+            SystemExit, match=re.escape(f"Failed to create user with email {TEST_USER2_EMAIL!r}")
+        ):
+            self._import_users_from_file(
+                [
+                    {
+                        "username": "IMPORTED_USER1",
+                        "lastname": "doe2",
+                        "firstname": "jon",
+                        "email": TEST_USER2_EMAIL,
+                        "roles": ["Admin"],
+                    }
+                ]
+            )
+
     def test_cli_reset_user_password(self):
         args = self.parser.parse_args(
             [
