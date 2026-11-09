@@ -35,6 +35,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     BulkDAGRunBody,
     BulkDAGRunClearBody,
@@ -2656,7 +2657,12 @@ class TestClearDagRun:
 
 class TestBulkClearDagRuns:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_clear_dag_runs_includes_archived_attempt_versions(self, dag_maker, session):
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dag_run.attach_dag_versions_to_runs",
+        autospec=True,
+        wraps=attach_dag_versions_to_runs,
+    )
+    def test_clear_dag_runs_includes_archived_attempt_versions(self, mock_attach, dag_maker, session):
         run_id_a, old_a, new_a = _create_bundled_run_with_history(
             "test_bulk_clear_prefetch_history_a", dag_maker, session
         )
@@ -2686,6 +2692,8 @@ class TestBulkClearDagRuns:
         for resp in result.dag_runs:
             old_dag_version, new_dag_version = versions_by_key[(resp.dag_id, resp.dag_run_id)]
             assert {dv.id for dv in resp.dag_versions} == {old_dag_version.id, new_dag_version.id}
+        mock_attach.assert_called_once()
+        assert len(mock_attach.call_args.args[0]) == 2
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_bulk_clear_specific_dag(self, test_client, session):
