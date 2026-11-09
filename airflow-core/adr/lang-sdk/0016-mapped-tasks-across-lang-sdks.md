@@ -23,6 +23,9 @@
 
 Proposed.
 
+Amends [ADR-0007](0007-taskflow-across-language-boundary.md): it defines the bindings of a mapped stub task, and supports three forms 0007 rejects,
+a `.map()`, `.zip()` or `.concat()` result as an expand argument, a mapped upstream's aggregated output, and a stub task with arguments inside a mapped task group.
+
 ## Terms
 
 | Term | Means |
