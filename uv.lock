@@ -1069,7 +1069,7 @@ all = [
     { name = "apache-airflow-providers-anthropic" },
     { name = "apache-airflow-providers-apache-arrow" },
     { name = "apache-airflow-providers-apache-beam" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-cassandra" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
     { name = "apache-airflow-providers-apache-flink" },
@@ -1201,7 +1201,7 @@ apache-beam = [
     { name = "apache-airflow-providers-apache-beam" },
 ]
 apache-cassandra = [
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-cassandra" },
 ]
 apache-drill = [
     { name = "apache-airflow-providers-apache-drill" },
@@ -1660,8 +1660,8 @@ requires-dist = [
     { name = "apache-airflow-providers-apache-arrow", marker = "extra == 'apache-arrow'", editable = "providers/apache/arrow" },
     { name = "apache-airflow-providers-apache-beam", marker = "extra == 'all'", editable = "providers/apache/beam" },
     { name = "apache-airflow-providers-apache-beam", marker = "extra == 'apache-beam'", editable = "providers/apache/beam" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'all'", editable = "providers/apache/cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'apache-drill'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-druid", marker = "extra == 'all'", editable = "providers/apache/druid" },
@@ -2297,7 +2297,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "rich-argparse", specifier = ">=1.0.0" },
+    { name = "rich-argparse", specifier = ">=1.4.0" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "tenacity", specifier = ">=9.1.4" },
@@ -3541,7 +3541,7 @@ source = { editable = "providers/apache/cassandra" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "cassandra-driver", marker = "python_full_version < '3.14'" },
+    { name = "cassandra-driver" },
 ]
 
 [package.dev-dependencies]
@@ -3562,6 +3562,7 @@ requires-dist = [
     { name = "cassandra-driver", marker = "python_full_version < '3.12'", specifier = ">=3.29.1" },
     { name = "cassandra-driver", marker = "python_full_version == '3.12.*'", specifier = ">=3.29.2" },
     { name = "cassandra-driver", marker = "python_full_version == '3.13.*'", specifier = ">=3.29.3" },
+    { name = "cassandra-driver", marker = "python_full_version >= '3.14'", specifier = ">=3.30.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -5128,7 +5129,8 @@ azure-identity = [
     { name = "azure-identity" },
 ]
 common-ai = [
-    { name = "apache-airflow-providers-common-ai" },
+    { name = "apache-airflow-providers-common-ai", extra = ["mcp"] },
+    { name = "fastmcp-slim", extra = ["client"] },
 ]
 fab = [
     { name = "apache-airflow-providers-fab" },
@@ -5157,7 +5159,7 @@ dev = [
     { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
-    { name = "apache-airflow-providers-databricks", extra = ["sqlalchemy"] },
+    { name = "apache-airflow-providers-databricks", extra = ["common-ai", "sqlalchemy"] },
     { name = "apache-airflow-providers-fab" },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-microsoft-azure" },
@@ -5174,7 +5176,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.0,<4" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
+    { name = "apache-airflow-providers-common-ai", extras = ["mcp"], marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
@@ -5188,6 +5190,7 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.12' and python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.9.0" },
+    { name = "fastmcp-slim", extras = ["client"], marker = "extra == 'common-ai'", specifier = ">=4.0.0" },
     { name = "mergedeep", specifier = ">=1.3.4" },
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
@@ -5198,7 +5201,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "tenacity", specifier = ">=8.3.0" },
 ]
-provides-extras = ["common-ai", "avro", "amazon", "azure-identity", "fab", "google", "sdk", "standard", "openlineage", "sqlalchemy"]
+provides-extras = ["avro", "amazon", "azure-identity", "common-ai", "fab", "google", "sdk", "standard", "openlineage", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5209,7 +5212,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
-    { name = "apache-airflow-providers-databricks", extras = ["sqlalchemy"], editable = "providers/databricks" },
+    { name = "apache-airflow-providers-databricks", extras = ["common-ai", "sqlalchemy"], editable = "providers/databricks" },
     { name = "apache-airflow-providers-fab", editable = "providers/fab" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
@@ -7329,6 +7332,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-apache-kafka" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-io" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas"] },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-openlineage", extra = ["sqlalchemy"] },
@@ -7357,6 +7361,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-apache-kafka", editable = "providers/apache/kafka" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-io", editable = "providers/common/io" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },

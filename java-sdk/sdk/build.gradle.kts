@@ -38,7 +38,7 @@ plugins {
     kotlin("plugin.serialization") version "2.4.20"
 }
 
-val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
+val schemaBaseUrl = "https://airflow.apache.org/schemas/supervisor-schema"
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
@@ -52,10 +52,10 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.22")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.22.2")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.2")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.2")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.22.4")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.4")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.4")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")

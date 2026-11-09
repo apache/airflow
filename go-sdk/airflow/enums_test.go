@@ -151,6 +151,20 @@ func TestDagRunStateMatchesGenmodels(t *testing.T) {
 	assert.ElementsMatch(t, slices.Collect(maps.Values(generated)), toStrings(dagRunStates))
 }
 
+// TestDagRunTypeMatchesGenmodels fails when regenerating genmodels adds, renames or removes a
+// DagRunType constant. Like DagRunState, DagRunType is an alias, so enums.go declares each of the
+// genmodels constants again.
+func TestDagRunTypeMatchesGenmodels(t *testing.T) {
+	generated := readPairs(
+		t,
+		"../pkg/execution/genmodels/models.gen.go",
+		`(?m)^const DagRunType(\w+) DagRunType = "([^"]*)"$`,
+	)
+	declared := readPairs(t, enumsPath, `(?m)^\tDagRunType(\w+) +DagRunType = "([^"]*)"$`)
+
+	assert.Equal(t, generated, declared)
+}
+
 func TestTaskRejectsAValueOutsideAnEnum(t *testing.T) {
 	const (
 		triggerRuleValues = `["all_success" "all_failed" "all_done" "all_done_min_one_success" ` +
