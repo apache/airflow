@@ -252,6 +252,12 @@ public record LoopDecision(boolean stop, String reason) {}
 /** Interface surface, beside ConditionTask and SwitchTask, which both extend Task as well. */
 public interface UntilTask extends Task {
   LoopDecision check(Context context, Client client);
+
+  /** Never called: the SDK runs a gate through check(), as it runs a condition through decide(). */
+  @Override
+  default void execute(Context context, Client client) {
+    throw new IllegalStateException("...");
+  }
 }
 
 /** A loop is a group with a bound, so its ref is a TaskGroupRef that also declares the gate. */
@@ -296,10 +302,10 @@ public class LoopTaskRef<T> extends TaskRef<T> {}
   `loop.previous` property does. The mapped spelling is the declaration, `Loop<XComSequence<Metrics>>`.
   A `Class` cannot carry that type, so the interface surface reads the sequence with
   `client.getXComSequence(Metrics.class, taskId)`.
-- **The interface surface reads the terminal off `Loop`, where ADR-0017 rule 3 reads it as wired
-  data.** The deviation is the surface, not the loop: `Task.execute(Context, Client)` is fixed, so
-  there is no wiring to bind the terminal with, and `loop.getResult(Metrics.class)` is that surface's
-  spelling of the same read. Core pins it to the gate's iteration either way.
+- **The interface surface reads the terminal off `Loop`**, which is the second half of ADR-0017
+  rule 3: `Task.execute(Context, Client)` is fixed, so there is no wiring to bind the terminal with.
+  `loop.getResult(Metrics.class)` names the type at the read as `Client.getXCom` does, and core pins
+  the read to the gate's iteration either way.
 - **The interface surface wires no data out of the body**, so ADR-0017 decision 3 has nothing to
   rewire there: a consumer outside the loop orders itself after the loop and reads the sequence
   through `Client`.
