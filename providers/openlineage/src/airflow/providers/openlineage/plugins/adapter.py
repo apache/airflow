@@ -41,6 +41,7 @@ from airflow.providers.openlineage.token_provider import (
     resolve_airflow_connection_auth,
 )
 from airflow.providers.openlineage.utils.utils import (
+    _JOB_TYPE_ASSET_WATCHER,
     _JOB_TYPE_DAG,
     _JOB_TYPE_TASK,
     _PRODUCER,
@@ -56,6 +57,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import datetime
 
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -575,6 +577,34 @@ class OpenLineageAdapter(LoggingMixin):
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
             self.log.warning("Failed to emit OpenLineage DAG failed event: \n %s", traceback.format_exc())
 
+    def asset_watcher_event(
+        self,
+        run_id: str,
+        job_name: str,
+        event_time: datetime,
+        run_facets: Mapping[str, RunFacet],
+        outputs: list,
+    ) -> None:
+        """
+        Emit a START and COMPLETE event pair for an asset event produced by an asset watcher.
+
+        Both events carry the full set of facets, so either one alone describes the asset event.
+        """
+        job = self._build_job(job_name=job_name, job_type=_JOB_TYPE_ASSET_WATCHER)
+        run = self._build_run(run_id=run_id, run_facets={**run_facets, **get_airflow_debug_facet()})
+        for event_type in (RunState.START, RunState.COMPLETE):
+            self.emit(
+                RunEvent(
+                    eventType=event_type,
+                    eventTime=event_time.isoformat(),
+                    job=job,
+                    run=run,
+                    inputs=[],
+                    outputs=outputs,
+                    producer=_PRODUCER,
+                )
+            )
+
     @staticmethod
     def _build_run(
         run_id: str,
@@ -602,7 +632,7 @@ class OpenLineageAdapter(LoggingMixin):
     @staticmethod
     def _build_job(
         job_name: str,
-        job_type: Literal["DAG", "TASK"],
+        job_type: Literal["DAG", "TASK", "ASSET_WATCHER"],
         job_description: str | None = None,
         job_description_type: str | None = None,
         job_owners: list[str] | None = None,

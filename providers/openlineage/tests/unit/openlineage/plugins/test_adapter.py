@@ -48,6 +48,7 @@ from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowAssetEventRunFacet,
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
     AirflowRunFacet,
@@ -1879,3 +1880,53 @@ def test_adapter_build_job():
             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
         ),
     }
+
+
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=False)
+def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outputs(_):
+    client = MagicMock()
+    adapter = OpenLineageAdapter(client)
+    event_time = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC)
+    run_facets = {"airflowAssetEvent": AirflowAssetEventRunFacet(asset={"name": "orders"}, assetEvent={})}
+    outputs = [Dataset(namespace="s3://bucket", name="orders")]
+
+    adapter.asset_watcher_event(
+        run_id="01970000-0000-7000-8000-000000000000",
+        job_name="asset_watcher:orders",
+        event_time=event_time,
+        run_facets=run_facets,
+        outputs=outputs,
+    )
+
+    expected_run = Run(
+        runId="01970000-0000-7000-8000-000000000000",
+        facets={
+            **run_facets,
+            "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+            ),
+        },
+    )
+    expected_job = Job(
+        namespace=namespace(),
+        name="asset_watcher:orders",
+        facets={
+            "jobType": job_type_job.JobTypeJobFacet(
+                processingType="BATCH", integration="AIRFLOW", jobType="ASSET_WATCHER"
+            )
+        },
+    )
+    assert client.emit.mock_calls == [
+        call(
+            RunEvent(
+                eventType=event_type,
+                eventTime=event_time.isoformat(),
+                run=expected_run,
+                job=expected_job,
+                inputs=[],
+                outputs=outputs,
+                producer=_PRODUCER,
+            )
+        )
+        for event_type in (RunState.START, RunState.COMPLETE)
+    ]

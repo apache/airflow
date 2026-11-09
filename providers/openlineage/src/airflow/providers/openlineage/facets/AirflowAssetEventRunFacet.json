@@ -1,0 +1,35 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "AirflowAssetEventRunFacet": {
+        "allOf": [
+          {
+            "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "asset": {
+                "description": "The Airflow asset the event was registered for: name, uri, group and extra",
+                "type": "object",
+                "additionalProperties": true
+              },
+              "assetEvent": {
+                "description": "The Airflow asset event: extra (holding the trigger payload), partitionKey, partitionDate and sourceAliases",
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": ["asset", "assetEvent"]
+          }
+        ],
+        "type": "object"
+      }
+    },
+    "type": "object",
+    "properties": {
+      "airflowAssetEvent": {
+        "$ref": "#/$defs/AirflowAssetEventRunFacet"
+      }
+    }
+  }
