@@ -182,6 +182,119 @@ have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixt
 holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
 `TestSerializeConformanceDags` says how to rewrite it.
 
+## Calling a release vote
+
+Every release needs a `[VOTE]` on `dev@airflow.apache.org`. The vote is on the
+signed source package in `dist/dev`. Go has no binary artifacts: the module is
+fetched straight from the git tag, so the release candidate is installable for
+testing as soon as `go-sdk/v<VERSION>-rc<N>` is pushed.
+
+Put the signed source package in the dist dev area as
+`go-sdk/<VERSION>-rc<N>/apache-airflow-go-sdk-<VERSION>-src.tar.gz`, with its
+`.asc` signature and `.sha512` checksum.
+
+### Vote email template
+
+```text
+Subject: [VOTE] Release Apache Airflow Go SDK <VERSION> based on <VERSION>-rc<N>
+
+Hi,
+
+I would like to call a vote to release Apache Airflow Go SDK <VERSION>, based
+on release candidate <VERSION>-rc<N>.
+
+Changes since <the last release>: <a one-line description>
+
+The release candidate contains the Go module github.com/apache/airflow/go-sdk.
+
+Git information:
+
+- Tag: go-sdk/v<VERSION>-rc<N>
+- Commit: <full-commit-sha>
+- https://github.com/apache/airflow/releases/tag/go-sdk%2Fv<VERSION>-rc<N>
+
+Source release, signatures and checksums:
+https://dist.apache.org/repos/dist/dev/airflow/go-sdk/<VERSION>-rc<N>/
+
+To try the release candidate in a Go project:
+
+    go get github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>
+
+KEYS file (public keys used to sign the release):
+https://downloads.apache.org/airflow/KEYS
+
+Please review and vote. The vote will remain open for at least 72 hours, until <YYYY-MM-DD HH:MM UTC>, or until the necessary number of binding votes is reached.
+
+[ ] +1 Release this package as Apache Airflow Go SDK <VERSION>
+[ ] +0 No opinion
+[ ] -1 Do not release, because ...
+
+Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
+
+The verification process can be found in the main repository:
+https://github.com/apache/airflow/blob/go-sdk/v<VERSION>-rc<N>/go-sdk/DEVELOPMENT.md#verifying-a-release
+
+For more details on ASF release verification, see: https://www.apache.org/info/verification.html
+
+Best,
+<your name>
+```
+
+Pre-send checklist:
+
+* `go list -m github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>` resolves.
+* `Changes since <the last release>` and the vote deadline are filled in.
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder was left unfilled.
+
+### Verifying a release
+
+Run these against the source package in `dist/dev`.
+
+1. **Checksum.**
+
+   ```bash
+   sha512sum -c apache-airflow-go-sdk-<VERSION>-src.tar.gz.sha512
+   ```
+
+2. **Signature.**
+
+   ```bash
+   curl -O https://downloads.apache.org/airflow/KEYS
+   gpg --import KEYS
+   gpg --verify apache-airflow-go-sdk-<VERSION>-src.tar.gz.asc \
+       apache-airflow-go-sdk-<VERSION>-src.tar.gz
+   ```
+
+3. **Diff against the git tag.** The extracted directory should match
+   `go-sdk/` at the tag, apart from files excluded via `export-ignore`:
+
+   ```bash
+   tar xzf apache-airflow-go-sdk-<VERSION>-src.tar.gz
+   git clone --branch go-sdk/v<VERSION>-rc<N> \
+     https://github.com/apache/airflow.git tag-checkout
+   diff -rq apache-airflow-go-sdk-<VERSION>/ tag-checkout/go-sdk/
+   ```
+
+   Any diff output is unexpected and should block the vote.
+
+4. **No binary files.**
+
+   ```bash
+   find apache-airflow-go-sdk-<VERSION>/ -type f \
+     -exec sh -c 'file -b "$1" | grep -qviE "text|json|xml|empty" && echo "$1"' _ {} \;
+   ```
+
+   This should print nothing.
+
+5. **Build and test from source.**
+
+   ```bash
+   cd apache-airflow-go-sdk-<VERSION>
+   go build ./...
+   go test ./...
+   ```
+
 ## Architectural decisions
 
 The [`adr/`](./adr) directory records the design decisions behind the SDK:
