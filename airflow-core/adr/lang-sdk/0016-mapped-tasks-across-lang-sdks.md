@@ -487,6 +487,10 @@ Only a stub TaskHandler with an `apply_map` binding starts the sidecar for this.
 With `.expandKwargs(rows.map(toKwargs))` the callables build each instance's dict, and each parameter takes its `kwarg` from it.
 `toKwargs` runs once per instance: a runtime reuses the result across parameters, and the sidecar does the same across `ApplyMap` requests.
 
+A `map()` callable may skip its instance, as a Python one does by raising `AirflowSkipException`.
+The runtime handles a skip from its own callables, or a skip response to `ApplyMap`, like a skip raised by the handler.
+Any other error fails the task.
+
 ### Reduce
 
 `report` is not mapped, so it reads every `transform` result instead of one.
@@ -514,7 +518,7 @@ What every SDK implements, in order. Nothing here is language-specific.
 
 1. Read `ti.map_index` and `ti_context.expanded_ti_count` from `StartupDetails`. A `map_index` of `-1` means the task is not mapped.
 2. Take the delivered binding for this map index: a `literal`, or a `sequence` for a reduce. A kind the SDK does not implement fails the task before the handler runs.
-3. For a binding with `apply_map`, get its `map()` callables run: a Dag definition applies its own, and a stub TaskHandler sends `ApplyMap`. Then take `kwarg`, or `fallback` when the key is missing. Run the callables once per instance, even when several parameters share them.
+3. For a binding with `apply_map`, get its `map()` callables run: a Dag definition applies its own, and a stub TaskHandler sends `ApplyMap`. Then take `kwarg`, or `fallback` when the key is missing. Run the callables once per instance, even when several parameters share them. A skip from them skips the instance.
 4. Optionally send `SetRenderedMapIndex` to label the instance.
 5. Run the handler with that one element.
 6. Push the return value. The supervisor adds the map length; the SDK sends none.
