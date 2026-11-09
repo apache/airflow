@@ -541,8 +541,9 @@ def attached_memory_filesystem(monkeypatch):
     from airflow.sdk.io.store import _STORE_CACHE
     from fsspec.implementations.memory import MemoryFileSystem
 
-    monkeypatch.delitem(_STORE_CACHE, "memory", raising=False)
-    return attach("memory", fs=MemoryFileSystem())
+    store = attach("memory", fs=MemoryFileSystem())
+    yield store
+    _STORE_CACHE.pop("memory", None)
 
 
 def test_object_storage_memory_scheme_handoff(attached_memory_filesystem):
