@@ -41,7 +41,9 @@ the matching Airflow connection in the URI's user-info section, for example
 ``s3://aws_default@my-bucket/path/data.json`` or
 ``gs://google_cloud_default@my-bucket/path/data.json``. Without a connection
 ID in the URI, the filesystem uses its default credential chain; configuring
-an Airflow connection alone does not select it.
+an Airflow connection alone does not select it. If an operator's
+``storage_conn_id`` is set, do not also put a connection ID in the URI: which
+one takes precedence differs between supported Airflow versions.
 
 Guides
 ------

@@ -50,8 +50,9 @@ if tasks run on different workers. A failed write can leave an incomplete
 manifest or orphaned split objects; rerunning the writer overwrites those
 objects. Configure object-store lifecycle cleanup for abandoned temporary
 objects. Alternatively, set an operator's ``storage_conn_id`` to select the
-Airflow connection for its artifact paths; when set, it takes precedence over
-the connection ID in the URI. Publication checks the manifest fingerprint
+Airflow connection for its artifact paths. Use either ``storage_conn_id`` or a
+connection ID in the URI's user-info section, but not both: precedence differs
+between supported Airflow versions. Publication checks the manifest fingerprint
 before upload.
 
 The canonical Airflow asset URI for a dataset repository is

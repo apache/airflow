@@ -30,8 +30,10 @@ LoadDatasetOperator
 (dataset configuration), ``split``, ``revision``, ``cache_dir``,
 ``download_mode``, ``load_kwargs``, ``storage_conn_id``, and ``durable``
 (default ``True``). ``storage_conn_id`` selects the Airflow object-storage
-connection for ``output_uri``; if omitted, a connection ID in the URI's
-user-info section or the backend's default credentials are used. It
+connection for ``output_uri``. If omitted, a connection ID in the URI's
+user-info section or the backend's default credentials are used. Set only one
+of ``storage_conn_id`` and a URI user-info connection ID, because precedence
+differs between supported Airflow versions. It
 persists the result and returns the
 artifact URI plus source ID, resolved revision, configuration, split, row
 counts, and feature descriptions. It resolves a Hub source to a commit before
@@ -57,7 +59,9 @@ callable from a string. ``transform_kwargs`` are passed as Datasets ``fn_kwargs`
 ``map_kwargs`` are passed to ``Dataset.map`` or ``DatasetDict.map``. The output
 preserves compatible provenance and records a new artifact fingerprint.
 ``storage_conn_id`` selects the connection used for both input and output
-artifact paths.
+artifact paths. Use it or connection IDs in the artifact URIs' user-info
+sections, but not both, because precedence differs between supported Airflow
+versions.
 
 The system example demonstrates the durable artifact flow and its task handoff:
 
