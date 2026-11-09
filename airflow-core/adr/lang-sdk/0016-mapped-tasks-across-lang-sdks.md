@@ -532,6 +532,8 @@ What every SDK implements, in order. Nothing here is language-specific.
 - **A worker running a Python `map()` for a stub TaskHandler needs the Dag file's Python dependencies.** The sidecar imports the Dag file, so every provider and library it imports must be installed on the workers serving that queue,
   which a Lang-SDK worker image did not need before. A missing one fails only the instances that consume a `map()`, at run time.
 - **`map()` callables are serialized as source text for display only.** Core deliberately does not deserialize them ([`SchedulerMapXComArg`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/airflow-core/src/airflow/serialization/definitions/xcom_arg.py#L105-L115)), so an SDK emits its own source the same way and no language has to read another's.
+- **Two resolution paths must agree.** A Python task resolves its arguments locally, a Lang-SDK task through the server and supervisor.
+  A shared conformance test runs every authoring form through both and compares what each instance receives, as the Lang SDK serialization conformance check does for the Dag format.
 
 ## Rejected alternatives
 
