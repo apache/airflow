@@ -190,6 +190,65 @@ class TestFabAirflowSecurityManagerOverride:
         assert mock_log.error.call_count == 0
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_user_returns_none_when_commit_fails(self, mock_log):
+        sm = EmptySecurityManager()
+        sm._hash_password = Mock(return_value="hashed")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.add_user("alice", "Alice", "Smith", "alice@example.com", password="secret")
+
+        assert result is None
+        mock_session.rollback.assert_called_once()
+        mock_log.error.assert_called_once()
+
+    @mock.patch.object(EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock)
+    def test_auth_user_oauth_returns_none_when_registration_fails(self, mock_auth_user_registration):
+        mock_auth_user_registration.return_value = True
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm._oauth_calculate_user_roles = Mock(return_value=[])
+        sm._hash_password = Mock(return_value="hashed")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.auth_user_oauth({"username": "alice", "email": "alice@example.com"})
+
+        assert result is None
+        mock_session.rollback.assert_called_once()
+
+    @mock.patch.object(
+        EmptySecurityManager,
+        "auth_user_registration_role",
+        new_callable=mock.PropertyMock,
+        return_value="User",
+    )
+    @mock.patch.object(
+        EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock, return_value=True
+    )
+    def test_auth_user_remote_user_returns_none_when_registration_fails(self, _, __):
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm.find_role = Mock(return_value=None)
+        sm._hash_password = Mock(return_value="hashed")
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.auth_user_remote_user("alice")
+
+        assert result is None
+        sm._rotate_session_id.assert_not_called()
+        sm.update_user_auth_stat.assert_not_called()
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_create_action_returns_existing_on_concurrent_insert(self, mock_log):
         sm = EmptySecurityManager()
         existing_action = Mock(spec=Action, name="can_read")
