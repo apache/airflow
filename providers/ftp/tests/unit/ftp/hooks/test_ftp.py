@@ -105,12 +105,13 @@ class TestFTPHook:
 
         self.conn_mock.sendcmd.assert_called_once_with("MDTM " + path)
 
-    def test_get_size(self):
-        self.conn_mock.size.return_value = 1942
+    @pytest.mark.parametrize("size", [1942, 0, None], ids=["file", "empty-file", "no-size-reply"])
+    def test_get_size(self, size):
+        self.conn_mock.size.return_value = size
 
         path = "/path/file"
         with fh.FTPHook() as ftp_hook:
-            ftp_hook.get_size(path)
+            assert ftp_hook.get_size(path) == size
 
         self.conn_mock.size.assert_called_once_with(path)
 
