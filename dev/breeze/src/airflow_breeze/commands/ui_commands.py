@@ -81,7 +81,7 @@ def natural_sort_key(text: str) -> tuple:
         else:
             for char in part:
                 code = _get_char_code(char)
-                tokens.append((0, code) if code < 66 else (2, code))
+                tokens.append((0, code) if code < _CHAR_CODES["0"] else (2, code))
     return tuple(tokens)
 
 

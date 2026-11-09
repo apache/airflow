@@ -16,10 +16,33 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
+from pathlib import Path
 
 import pytest
+from ci.prek import check_i18n_json
 from ci.prek.check_i18n_json import natural_sort_key, sort_keys_naturally
+from ci.prek.common_prek_utils import AIRFLOW_ROOT_PATH
+
+BREEZE_UI_COMMANDS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "commands" / "ui_commands.py"
+)
+NATURAL_SORT_NAMES = ("_NATURAL_CHAR_ORDER", "_get_char_code", "natural_sort_key")
+
+
+def get_natural_sort_definitions(source: str) -> dict[str, str]:
+    definitions = {}
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.FunctionDef) and node.name in NATURAL_SORT_NAMES:
+            if ast.get_docstring(node) is not None:
+                node.body = node.body[1:]
+            definitions[node.name] = ast.dump(node)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in NATURAL_SORT_NAMES:
+                    definitions[target.id] = ast.dump(node)
+    return definitions
 
 
 class TestNaturalSortKey:
@@ -64,3 +87,12 @@ class TestSortKeysNaturally:
                 "item10": 1,
             }
         )
+
+
+def test_natural_sort_key_matches_breeze_copy():
+    """`breeze ui` sorts locale files with its own copy; the two must order keys identically."""
+    hook_definitions = get_natural_sort_definitions(Path(check_i18n_json.__file__).read_text())
+    breeze_definitions = get_natural_sort_definitions(BREEZE_UI_COMMANDS_PATH.read_text())
+
+    assert set(hook_definitions) == set(NATURAL_SORT_NAMES)
+    assert hook_definitions == breeze_definitions
