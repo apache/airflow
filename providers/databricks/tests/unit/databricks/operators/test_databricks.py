@@ -5386,6 +5386,52 @@ class TestDatabricksTaskBaseOperatorDurable:
         db_mock.submit_run.assert_called_once()
         task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_resubmits_when_stored_run_was_cancelled(self, db_mock_class, _, make_operator):
+        """Clearing a deferred task cancels the run via the trigger but leaves its id stored."""
+        op = make_operator()
+        op.monitor_databricks_job = MagicMock()
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run.side_effect = [
+            make_run_state("TERMINATING", ""),
+            make_run_state("TERMINATED", "CANCELED"),
+        ]
+        task_store = self._task_store(999)
+
+        op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
+
+        db_mock.submit_run.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksTaskBaseOperator._get_current_databricks_task"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_stores_run_id_before_deferring(self, db_mock_class, mock_current_task, make_operator):
+        op = make_operator(deferrable=True)
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run.return_value = {
+            "state": {"life_cycle_state": "PENDING", "result_state": ""},
+            "run_page_url": "test_url",
+        }
+        mock_current_task.return_value = {"run_id": RUN_ID}
+        task_store = self._task_store()
+        stored_when_deferred = []
+
+        def record_then_defer(*args, **kwargs):
+            stored_when_deferred.append(task_store.set.call_args)
+            raise TaskDeferred(trigger=MagicMock(), method_name="execute_complete")
+
+        op.defer = record_then_defer
+
+        with pytest.raises(TaskDeferred):
+            op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
+
+        assert stored_when_deferred == [mock.call("databricks_task_run_id", RUN_ID)]
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_false_never_touches_task_state_store(self, db_mock_class, make_operator):
         op = make_operator(durable=False)
@@ -5484,3 +5530,32 @@ class TestRunStatusHelpers:
 
         with pytest.raises(DatabricksApiError):
             fetch_run_status(hook, RUN_ID)
+
+    @pytest.mark.parametrize(
+        ("final_result", "expected"),
+        [("CANCELED", "TERMINATED:CANCELED"), ("SUCCESS", "TERMINATED:SUCCESS")],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_fetch_run_status_waits_out_terminating(self, mock_sleep, final_result, expected):
+        hook = MagicMock()
+        hook.get_run.side_effect = [
+            make_run_state("TERMINATING", ""),
+            make_run_state("TERMINATING", ""),
+            make_run_state("TERMINATED", final_result),
+        ]
+
+        assert fetch_run_status(hook, RUN_ID, poll_interval=7) == expected
+        assert hook.get_run.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(7), mock.call(7)]
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_fetch_run_status_gives_up_on_a_stuck_terminating_run(self, mock_sleep):
+        hook = MagicMock()
+        hook.get_run.return_value = make_run_state("TERMINATING", "")
+
+        status = fetch_run_status(hook, RUN_ID, settle_timeout=0)
+
+        assert status == "TERMINATING:"
+        assert is_run_active(status) is True
+        hook.get_run.assert_called_once()
+        mock_sleep.assert_not_called()

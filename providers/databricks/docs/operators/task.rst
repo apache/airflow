@@ -116,8 +116,14 @@ id is gone by the next retry and the operator submits a fresh run instead of rec
 running cleanup on a schedule shorter than your longest ``retry_delay``. See
 :doc:`apache-airflow:administration-and-deployment/task-and-asset-state-store-cleanup`.
 
-Clearing a task is treated the same as a retry, which matters for a task whose run already
-succeeded: clearing does not delete the stored run id, so the next attempt reads it back and
-returns without submitting a new run. See
+Which clear you use decides whether the stored run id survives. Clearing a single task from the
+UI or the REST API discards it, so the next attempt submits a new run. Every other clear keeps
+it: Clear Run on the whole Dag run, marking a task success or failed (both clear downstream
+tasks), a task clear that sets ``keep_task_state``, and ``airflow tasks clear``.
+
+Where the id is kept, clearing behaves like a retry rather than a fresh start. If the stored run
+already succeeded, the next attempt reads it back, re-pushes its XComs and returns without
+submitting anything. If the run is still going and ``wait_for_termination=False``, the attempt
+reconnects to it and returns immediately, also without submitting. See
 :doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
 ``[state_store] clear_on_success`` setting that restores "clearing always resubmits."

@@ -86,6 +86,7 @@ XCOM_STATEMENT_ID_KEY = "statement_id"
 # status interface is a single string. The durable operators encode both as "LIFE_CYCLE:RESULT" and
 # decode them with the predicates below, so all three share one view of which runs can be rejoined.
 RUN_NOT_FOUND_STATUS = "NOT_FOUND:"
+TERMINATING_SETTLE_TIMEOUT_SECONDS = 60
 ACTIVE_RUN_LIFE_CYCLE_STATES = (
     "PENDING",
     "QUEUED",
@@ -96,19 +97,35 @@ ACTIVE_RUN_LIFE_CYCLE_STATES = (
 )
 
 
-def fetch_run_status(hook: DatabricksHook, run_id: JsonValue) -> str:
-    """Return the encoded status of ``run_id``, or a sentinel if its run history is gone."""
-    try:
-        # The stored external id is always a Databricks run id; the mixin types it as JsonValue.
-        run_info = hook.get_run(cast("int", run_id))
-    except DatabricksApiError as e:
-        # A stored run whose history expired (or was deleted) returns 404. The sentinel is neither
-        # active nor succeeded, so the mixin resubmits fresh instead of failing the task.
-        if e.http_status_code == 404:
-            return RUN_NOT_FOUND_STATUS
-        raise
-    state = RunState(**run_info["state"])
-    return f"{state.life_cycle_state}:{state.result_state}"
+def fetch_run_status(
+    hook: DatabricksHook,
+    run_id: JsonValue,
+    *,
+    poll_interval: float = 5,
+    settle_timeout: float = TERMINATING_SETTLE_TIMEOUT_SECONDS,
+) -> str:
+    """
+    Return the encoded status of ``run_id``, or a sentinel if its run history is gone.
+
+    ``TERMINATING`` is waited out because it does not say whether the run is finishing on its own or
+    being cancelled, and ``on_kill`` cancels asynchronously without clearing the stored id. On
+    timeout it is reported as-is, which counts as active: rejoining a slow run beats duplicating it.
+    """
+    deadline = time.monotonic() + settle_timeout
+    while True:
+        try:
+            # The stored external id is always a Databricks run id; the mixin types it as JsonValue.
+            run_info = hook.get_run(cast("int", run_id))
+        except DatabricksApiError as e:
+            # A stored run whose history expired (or was deleted) returns 404. The sentinel is neither
+            # active nor succeeded, so the mixin resubmits fresh instead of failing the task.
+            if e.http_status_code == 404:
+                return RUN_NOT_FOUND_STATUS
+            raise
+        state = RunState(**run_info["state"])
+        if state.life_cycle_state != "TERMINATING" or time.monotonic() >= deadline:
+            return f"{state.life_cycle_state}:{state.result_state}"
+        time.sleep(poll_interval)
 
 
 def is_run_active(status: str) -> bool:
@@ -1057,7 +1074,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         return self.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        return fetch_run_status(self._hook, external_id)
+        return fetch_run_status(self._hook, external_id, poll_interval=self.polling_period_seconds)
 
     def is_job_active(self, status: str) -> bool:
         return is_run_active(status)
@@ -1533,7 +1550,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         return self.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        return fetch_run_status(self._hook, external_id)
+        return fetch_run_status(self._hook, external_id, poll_interval=self.polling_period_seconds)
 
     def is_job_active(self, status: str) -> bool:
         return is_run_active(status)
@@ -2298,7 +2315,7 @@ class DatabricksTaskBaseOperator(ResumableJobMixin, BaseOperator, ABC):
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         self.databricks_run_id = cast("int", external_id)
-        return fetch_run_status(self._hook, external_id)
+        return fetch_run_status(self._hook, external_id, poll_interval=self.polling_period_seconds)
 
     def is_job_active(self, status: str) -> bool:
         return is_run_active(status)
