@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
@@ -47,6 +48,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
+    is_run_missing_error,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -343,6 +345,37 @@ def make_run_with_state_mock(
             },
         }
     )
+
+
+def make_api_error(status_code: int, error_code: str, message: str) -> DatabricksApiError:
+    body = json.dumps({"error_code": error_code, "message": message})
+    return DatabricksApiError(
+        f"Response: {body}, Status Code: {status_code}",
+        http_status_code=status_code,
+        error_code=error_code,
+    )
+
+
+class TestIsRunMissingError:
+    @pytest.mark.parametrize(
+        ("status_code", "error_code", "message", "expected"),
+        [
+            (400, "INVALID_PARAMETER_VALUE", "Run 999 does not exist.", True),
+            (400, "INVALID_PARAMETER_VALUE", "Run: 999 in job: 42 doesn't exist", True),
+            (400, "RESOURCE_DOES_NOT_EXIST", "Run 999 does not exist.", True),
+            (404, "RESOURCE_DOES_NOT_EXIST", "Run 999 does not exist.", True),
+            # Same code, but bad input rather than a lost run: must stay an error.
+            (400, "INVALID_PARAMETER_VALUE", "Invalid value for run_id: 'abc'", False),
+            (403, "PERMISSION_DENIED", "User not authorized", False),
+            (500, "INTERNAL_ERROR", "Run 999 does not exist.", False),
+        ],
+    )
+    def test_detects_only_a_lost_run(self, status_code, error_code, message, expected):
+        assert is_run_missing_error(make_api_error(status_code, error_code, message)) is expected
+
+    def test_unparsed_error_code_is_not_a_lost_run(self):
+        exc = DatabricksApiError("Response: Bad Gateway, Status Code: 502", http_status_code=502)
+        assert is_run_missing_error(exc) is False
 
 
 class TestDatabricksCreateJobsOperator:
@@ -2229,7 +2262,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run.side_effect = [
-            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            make_api_error(400, "INVALID_PARAMETER_VALUE", "Run 999 does not exist."),
             self._state("TERMINATED", "SUCCESS"),
         ]
         task_store = MagicMock(spec_set=["get", "set"])
@@ -3584,9 +3617,9 @@ class TestDatabricksRunNowOperatorDurable:
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
-        # the stored run's history has expired -> get_run 404s; the fresh run then polls to success.
+        # the stored run's history has expired -> get_run rejects it; the fresh run polls to success.
         db_mock.get_run.side_effect = [
-            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            make_api_error(400, "INVALID_PARAMETER_VALUE", "Run 999 does not exist."),
             self._state("TERMINATED", "SUCCESS"),
         ]
         task_store = MagicMock(spec_set=["get", "set"])
