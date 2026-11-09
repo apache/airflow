@@ -39,7 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -59,6 +59,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.exceptions import AirflowException, DeserializationError, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -162,6 +163,8 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
@@ -188,8 +191,9 @@ from tests_common.test_utils.db import (
     clear_db_triggers,
     set_default_pool_slots,
 )
+from tests_common.test_utils.mapping import push_mapped_length
 from tests_common.test_utils.mock_executor import MockExecutor
-from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_operators import CustomOperator, MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
@@ -4649,6 +4653,19 @@ class TestSchedulerJob:
             assert total_enqueued == 31
         session.rollback()
 
+    @conf_vars({("scheduler", "parsing_cleanup_interval"): "123"})
+    @mock.patch.object(EventScheduler, "call_regular_interval", autospec=True)
+    def test_dag_processor_maintenance_runs_on_the_parsing_cleanup_interval(self, call_regular_interval):
+        scheduler_job = Job()
+        scheduler_job.heartbeat = mock.create_autospec(scheduler_job.heartbeat)
+        self.job_runner = SchedulerJobRunner(
+            job=scheduler_job, num_runs=1, executors=[MockExecutor(do_update=False)]
+        )
+
+        self.job_runner._run_scheduler_loop()
+
+        call_regular_interval.assert_any_call(mock.ANY, 123.0, cleanup_processor_metadata, non_fatal=True)
+
     def test_adopt_or_reset_orphaned_tasks(self, dag_maker, session):
         with dag_maker("test_execute_helper_reset_orphaned_tasks", session=session):
             op1 = EmptyOperator(task_id="op1")
@@ -6418,6 +6435,51 @@ class TestSchedulerJob:
         session.refresh(downstream_ti)
         assert downstream_ti.state == State.SCHEDULED
         assert downstream_ti.dag_version_id == latest_version_id
+
+    @pytest.mark.parametrize(
+        ("new_length", "expected_states"),
+        [
+            (1, {0: TaskInstanceState.SCHEDULED, 1: TaskInstanceState.REMOVED}),
+            (3, dict.fromkeys(range(3), TaskInstanceState.SCHEDULED)),
+        ],
+    )
+    def test_verify_integrity_keeps_mapped_tis_while_cleared_producer_reruns(
+        self, dag_maker, session, new_length, expected_states
+    ):
+        with dag_maker("test_cleared_mapped_producer", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        assert dr.bundle_version is None
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+        clear_task_instances(dr.get_task_instances(session=session), session)
+
+        with dag_maker("test_cleared_mapped_producer", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner._schedule_dag_run(dr, session)
+
+        tis = dr.get_task_instances(session=session)
+        assert "added" in {ti.task_id for ti in tis}
+        assert {ti.map_index: ti.state for ti in tis if ti.task_id == "mapped"} == {0: None, 1: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        self.job_runner._schedule_dag_run(dr, session)
+        session.expire_all()
+
+        tis = dr.get_task_instances(session=session)
+        assert {ti.map_index: ti.state for ti in tis if ti.task_id == "mapped"} == expected_states
 
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
@@ -10594,6 +10656,39 @@ class TestSchedulerJob:
         assert orphaned == [asset1]
         assert [asset.updated_at for asset in orphaned] == updated_at_timestamps
 
+    def test_asset_orphaning_delete_has_no_cte(self, dag_maker, session):
+        """MySQL-compatible backends such as Vitess reject a WITH clause in a DELETE statement."""
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+
+        with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        with dag_maker(dag_id="assets-1", schedule=None, session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        with mock.patch.object(
+            session, "execute", autospec=True, side_effect=session.execute
+        ) as mock_execute:
+            self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        asset_active_deletes = [
+            call.args[0]
+            for call in mock_execute.call_args_list
+            if isinstance(call.args[0], Delete) and call.args[0].table == AssetActive.__table__
+        ]
+        assert len(asset_active_deletes) == 1
+        assert "WITH" not in str(asset_active_deletes[0].compile(dialect=mysql.dialect()))
+
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+
     @pytest.mark.parametrize(
         ("paused", "stale", "expected_classpath"),
         [
@@ -14297,6 +14392,112 @@ def _produce_and_register_asset_event(
     assert apdr.partition_key == expected_partition_key
 
     return apdr
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    ("mapper", "expected_partition_key", "expected_partition_date"),
+    [
+        pytest.param(IdentityMapper(), "2026-10-16T12:00:00", None, id="identity"),
+        pytest.param(StartOfDayMapper(), "2026-10-16", pendulum.datetime(2026, 10, 16, tz="UTC"), id="daily"),
+    ],
+)
+# Payload fields resemble native event fields to prove metadata cannot select the event type or partition.
+@pytest.mark.parametrize(
+    (
+        "event",
+        "expected_native_key",
+        "expected_ordinary_candidate",
+        "expected_created_dag_ids",
+        "expected_run_count",
+    ),
+    [
+        pytest.param(
+            TriggerEvent({"type": "AssetTriggerEvent", "partition_key": "payload-only"}),
+            None,
+            True,
+            set(),
+            0,
+            id="ordinary",
+        ),
+        pytest.param(
+            AssetTriggerEvent({"type": "AssetTriggerEvent", "partition_key": "payload-only"}),
+            None,
+            True,
+            set(),
+            0,
+            id="asset-without-partition",
+        ),
+        pytest.param(
+            AssetTriggerEvent(
+                {"type": "AssetTriggerEvent", "partition_key": "payload-only"},
+                partition_key="2026-10-16T12:00:00",
+            ),
+            "2026-10-16T12:00:00",
+            False,
+            {"watcher-partitioned-consumer"},
+            1,
+            id="partitioned",
+        ),
+    ],
+)
+def test_watcher_event_creates_partitioned_consumer_run(
+    dag_maker,
+    session,
+    mapper,
+    expected_partition_key,
+    expected_partition_date,
+    event,
+    expected_native_key,
+    expected_ordinary_candidate,
+    expected_created_dag_ids,
+    expected_run_count,
+):
+    asset = Asset(name="watcher-partitioned-asset")
+    dag_id = "watcher-partitioned-consumer"
+    with dag_maker(
+        dag_id=dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset,
+            default_partition_mapper=mapper,
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="consume")
+    ordinary_dag_id = "watcher-ordinary-consumer"
+    with dag_maker(dag_id=ordinary_dag_id, schedule=asset, session=session):
+        EmptyOperator(task_id="consume")
+    session.commit()
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.name == asset.name))
+    asset_model.add_trigger(trigger, "partition-watcher")
+    session.flush()
+    Trigger.submit_event(trigger.id, event, session=session)
+    session.flush()
+
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset_model.id))
+    assert asset_event.partition_key == expected_native_key
+    assert asset_event.extra == {"from_trigger": True, "payload": event.payload}
+    ordinary_candidate = session.scalar(
+        select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == ordinary_dag_id)
+    )
+    assert (ordinary_candidate is not None) is expected_ordinary_candidate
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == expected_created_dag_ids
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
+    assert len(runs) == expected_run_count
+    for run in runs:
+        assert run.partition_key == expected_partition_key
+        assert run.logical_date is None
+        assert run.state == DagRunState.QUEUED
+        assert [event.id for event in run.consumed_asset_events] == [asset_event.id]
+        assert run.partition_date == expected_partition_date
 
 
 @pytest.mark.need_serialized_dag

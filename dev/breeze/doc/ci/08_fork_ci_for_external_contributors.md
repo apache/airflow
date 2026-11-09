@@ -501,8 +501,12 @@ state targetUrl description } } } } }`), and the reconciler's own state comment
 (`comments(first: 100)`, the earliest comment by `github-actions` with the marker, paging
 through the remaining comments of the rare pull request with more). The reconciler creates that
 comment on first contact and only edits it afterwards, so a marker posted by anyone else, or
-echoed later by another workflow, is ignored. The fork state is then fetched in batches of 50 with one GraphQL
-query per batch using aliases. Owner and name come from the pull request's
+echoed later by another workflow, is ignored. The search index can take minutes to list a pull
+request under the label pass 1 has just added, so the pull requests pass 1 labelled that the
+search does not list yet are read by number with the same fields, 25 per query, and reconciled in
+the same run. If that read fails, they are left for the next run. The fork state is then
+fetched in batches of 50 with one GraphQL query per batch using aliases. Owner and name come
+from the pull request's
 `headRepository { nameWithOwner }`, never a fixed `airflow`, because a fork can be renamed or
 created as `airflow-1` on a name collision:
 
@@ -1064,7 +1068,8 @@ files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated 
 one changed-files call per head commit that turns green, plus one mutation per actual state
 change. Job statuses add a jobs call and a status call per pull request with a fork run in
 progress or a completed run not yet reported, and up to two status mutations per job, at most
-`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Well inside
+`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Pull requests that pass 1 labelled and
+the search does not list yet add one GraphQL call per 25. Well inside
 the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
 budget stays observable.
 

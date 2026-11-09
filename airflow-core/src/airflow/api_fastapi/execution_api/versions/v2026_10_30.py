@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 from cadwyn import (
     ResponseInfo,
     VersionChange,
@@ -35,6 +37,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams, GetXComSliceFilterParams
 
 
 class AddLoopContext(VersionChange):
@@ -72,7 +75,19 @@ class AddStoppedTaskReport(VersionChange):
 
 
 class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
-    """Reject mutations from an archived attempt with 410, except Variable writes; older clients keep each endpoint's own response."""
+    """
+    Reject mutations from an archived attempt with 410.
+
+    Variable writes and asset-watcher writes to asset state are exempt. Older
+    clients keep each endpoint's own response.
+    """
+
+    description = inspect.cleandoc(__doc__)
+    instructions_to_migrate_to_previous_version = ()
+
+
+class ReturnNotFoundForMissingDagRun(VersionChangeWithSideEffects):
+    """Return 404 when a task state write cannot find its DagRun."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = ()
@@ -168,4 +183,15 @@ class AddFirstTaskRescheduleStartDateField(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
+class AddPreviousIterationToXComFilterParams(VersionChange):
+    """Add the `previous_iteration` field to GetXComSliceFilterParams and GetXcomFilterParams."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams).field("previous_iteration").didnt_exist,
+        schema(GetXcomFilterParams).field("previous_iteration").didnt_exist,
     )

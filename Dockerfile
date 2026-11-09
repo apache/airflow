@@ -48,7 +48,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.3.2"
+ARG AIRFLOW_VERSION="3.4.0"
 
 # BASE_IMAGE: the Docker Hardened Image that Python comes from. Both the build stage and the final
 # image are based on it, so Python is never compiled during the build.
@@ -171,6 +171,13 @@ AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+    if ! command -v python3 >/dev/null; then
+        echo
+        echo "ERROR! The hardened flavor takes Python from BASE_IMAGE, but this base image has no python3."
+        echo "Pick a BASE_IMAGE with Python, or set AIRFLOW_IMAGE_FLAVOR to 'legacy' to build on a plain Debian image."
+        echo
+        exit 1
+    fi
     # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
     # Debian packages under /usr - so ask the base image's Python where it lives.
     PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
@@ -454,6 +461,28 @@ function align_perl_base_with_perl() {
     fi
 }
 
+function install_apt_utils() {
+    # apt-utils depends on exactly its own apt version. The hardened images can ship an apt newer than
+    # the one dhi.io publishes, and with dhi.io preferred apt then picks an apt-utils it cannot install
+    # beside the image's apt, so ask for the version matching apt whenever a repository carries it.
+    local apt_version apt_utils_package apt_utils_log
+    apt_version=$(dpkg-query -W -f='${Version}' apt)
+    apt_utils_package="apt-utils"
+    if apt-cache madison apt-utils | awk -v version="${apt_version}" '$3 == version {found = 1} END {exit !found}'; then
+        apt_utils_package="apt-utils=${apt_version}"
+    fi
+    apt_utils_log=$(mktemp)
+    if ! apt-get install -yqq --no-install-recommends "${apt_utils_package}" > "${apt_utils_log}" 2>&1; then
+        echo
+        echo "ERROR! Installing ${apt_utils_package} failed. Output:"
+        echo
+        cat "${apt_utils_log}"
+        rm -f "${apt_utils_log}"
+        exit 1
+    fi
+    rm -f "${apt_utils_log}"
+}
+
 function install_debian_dev_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
@@ -461,7 +490,7 @@ function install_debian_dev_dependencies() {
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         align_image_packages_with_hardened_repository
         restore_debian_base_files
@@ -758,7 +787,7 @@ function install_debian_runtime_dependencies() {
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         align_image_packages_with_hardened_repository
         restore_debian_base_files
@@ -2265,6 +2294,190 @@ while echo "Running"; do
 done
 EOF
 
+# The content below is automatically copied from scripts/docker/keys/mariadb.asc
+COPY <<"EOF" /keys/mariadb.asc
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBFb8EKsBEADwGmleOSVThrbCyCVUdCreMTKpmD5p5aPz/0jc66050MAb71Hv
+TVcfuMqHYO8O66qXLpEdqZpuk4D+rw1oKyC+d8uPD2PSHRqBXnR0Qf+LVTZvtO92
+3R7pYnC2x6V6iVGpKQYFP8cwh2B1qgIa+9y/N8cQIqfD+0ghyiUjjTYek3YFBnqa
+L/2h2V0Mt0DkBrDK80LqEY10PAFDfJjINAW9XNHZzi2KqUx5w1z8rItokXV6fYE5
+ItyGMR6WVajJg5D4VCiZd0ymuQP2bGkrRbl6FH5vofVSkahKMJeHs2lbvMvNyS3c
+n8vxoBvbbcwSAV1gvB1uzXXxv0kdkFZjhU1Tss4+Dak8qeEmIrC5qYycLxIdVEhT
+Z8N8+P7Dll+QGOZKu9+OzhQ+byzpLFhUHKys53eXo/HrfWtw3DdP21yyb5P3QcgF
+scxfZHzZtFNUL6XaVnauZM2lqquUW+lMNdKKGCBJ6co4QxjocsxfISyarcFj6ZR0
+5Hf6VU3Y7AyuFZdL0SQWPv9BSu/swBOimrSiiVHbtE49Nx1x/d1wn1peYl07WRUv
+C10eF36ZoqEuSGmDz59mWlwB3daIYAsAAiBwgcmN7aSB8XD4ZPUVSEZvwSm/IwuS
+Rkpde+kIhTLjyv5bRGqU2P/Mi56dB4VFmMJaF26CiRXatxhXOAIAF9dXCwARAQAB
+tC1NYXJpYURCIFNpZ25pbmcgS2V5IDxzaWduaW5nLWtleUBtYXJpYWRiLm9yZz6J
+AjgEEwEIACIFAlb8EKsCGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEPFl
+byTHTNHYJZ0P/2Z2RURRkSTHLKZ/GqSvPReReeB7AI+ZrDapkpG/26xp1Yw1isCO
+y99pvQ7hjTFhdZQ7xSRUiT/e27wJxR7s4G/ck5VOVjuJzGnByNLmwMjdN1ONIO9P
+hQAs2iF3uoIbVTxzXof2F8C0WSbKgEWbtqlCWlaapDpN8jKAWdsQsNMdXcdpJ2os
+WiacQRxLREBGjVRkAiqdjYkegQ4BZ0GtPULKjZWCUNkaat51b7O7V19nSy/T7MM7
+n+kqYQLMIHCF8LGd3QQsNppRnolWVRzXMdtR2+9iI21qv6gtHcMiAg6QcKA7halL
+kCdIS2nWR8g7nZeZjq5XhckeNGrGX/3w/m/lwczYjMUer+qs2ww5expZJ7qhtSta
+lE3EtL/l7zE4RlknqwDZ0IXtxCNPu2UovCzZmdZm8UWfMSKk/3VgL8HgzYRr8fo0
+yj0XkckJ7snXvuhoviW2tjm46PyHPWRKgW4iEzUrB+hiXpy3ikt4rLRg/iMqKjyf
+mvcE/VdmFVtsfbfRVvlaWiIWCndRTVBkAaTu8DwrGyugQsbjEcK+4E25/SaKIJIw
+qfxpyBVhru21ypgEMAw1Y8KC7KntB7jzpFotE4wpv1jZKUZuy71ofr7g3/2O+7nW
+LrR1mncbuT6yXo316r56dfKzOxQJBnYFwTjXfa65yBArjQBUCPNYOKr0uQINBFb8
+EKsBEADDfCMsu2U1CdJhr4xp6z4J89/tMnpCQASC8DQhtZ6bWG/ksyKt2DnDQ050
+XBEng+7epzHWA2UgT0liY05zZmFs1X7QeZr16B7JANq6fnHOdZB0ThS7JEYbProk
+MxcqAFLAZJCpZT534GpzW7qHwzjV+d13IziCHdi6+DD5eavYzBqY8QzjlOXbmIlY
+7dJUCwXTECUfirc6kH86CS8fXZTke4QYZ55VnrOomB4QGqP371kwBETnhlhi74+p
+vi3jW05Z5x1tVMwuugyzzkseZp1VYmJq5SHNFZ/pnAQLE9gUDTb6UWcPBwQh9Sw+
+7ahSK74lJKYm3wktyvZhzAxbNyzs1M56yeFP6uFwJTBfNByyMAa6TGUhNkxlLcYj
+xKbVmoAnKCVM8t41TlLv/a0ki8iQxqvphVLufksR9IpN6d3F15j6GeyVtxBEv04i
+v4vbuKthWytb+gjX4bI8CAo9jGHevmtdiw/SbeKx2YBM1MF6eua37rFMooOBj4X7
+VfQCyS+crNsOQn8nJGahYbzUDCCgnX+pqN9iZvXisMS79wVyD5DyISFDvT/5jY7I
+XxPibxr10P/8lfW1d72uxyI2UiZKZpyHCt4k47yMq4KQGLGuhxJ6q6O3bi2aXRuz
+8bLqTBLca9dmx9wZFvRh6jS/SKEg7eFcY0xbb6RVIv1UwGDYfQARAQABiQIfBBgB
+CAAJBQJW/BCrAhsMAAoJEPFlbyTHTNHYEBIQAJhFTh1u34Q+5bnfiM2dAdCr6T6w
+4Y1v9ePiIYdSImeseJS2yRglpLcMjW0uEA9KXiRtC/Nm/ClnqYJzCKeIaweHqH6d
+IgJKaXZFt1Uaia7X9tDDwqALGu97irUrrV1Kh9IkM0J29Vid5amakrdS4mwt2uEI
+SSnCi7pfVoEro+S7tYQ9iH6APVIwqWvcaty3cANdwKWfUQZ6a9IQ08xqzaMhMp2V
+zhVrWkq3B0j2aRoZR7BNLH2I7Z0giIM8ARjZs99aTRL+SfMEQ3sUxNLb3KWP/n1l
+SFbrk4HGzqUBBfczESlNc0970C6znK0H0HD11/3BTkMuPqww+Tzex4dpMQllMEKZ
+3wEyd9v6ba+nj/P1FHSEy/VN6IXzd82s1lYOonKTdmXAIROcHnb0QUzwsd/mhB3j
+KhEDOV2ZcBTD3yHv8m7C9G9y4hV+7yQlnPlSg3DjBp3SS5r+sOObCIy2Ad32upoX
+kilWa9g7GZSuhY9kyKqeEba1lgXXaQykEeqx0pexkWavNnb9JaPrAZHDjUGcXrRE
+mjEyXyElRoD4CrWXySe46jCuNhVVlkLGo7osefynXa/+PNjQjURtx8en7M9A1FkQ
+uRAxE8KIZgZzYxkGl5o5POSFCA4JUoRPDcrl/sI3fuq2dIOE/BJ2r8dV+LddiR+i
+ukhXRwJXH8RVVEUS
+=ihRo
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+
+# The content below is automatically copied from scripts/docker/keys/microsoft-2025.asc
+COPY <<"EOF" /keys/microsoft-2025.asc
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBGVUhiwBEADF3TWX0HMi2+BdQfJrSdQkZTE4qk4vV2ooAMn8vWA2DGI88JOl
+k1LwhZGEqJv5TsKTyNEMWb3NXhR1ZZ5uQPvf6iN0806cq83s096F85GUtjzfGLQj
+Zo3FhDSKeHz3mhthQ4QP4bwYUmSpWs6e+/ZSFYYc3yU8mInDM4SNzrqr4x2ltmf+
+3RWkoYYo1SpG521A9+1zi7xzz6IHpAk6MdIcTj7mHxXd6ovmXkvHUhKbXGkybHPn
+iupWokDaJZgV4+q6kc7zVgTVnwmXV7NHQhWSyOm/BmYVcpmrkCSgSH18SArFjR6Q
+KyJ9VuUo1mJEUGnEakQSaOn1UAYtO8Mh4cXXD4833G0BLjiFNOL0XRUNh35pKvcT
+my/HnXvRXtpzAzTtANPxIbjli/veagU+JRWhtjtfONz0wQ5Bv1zFjnM9ewxFNPPo
+7Jp9WCVeUKFZcZJo8r/k7Y4d0Y1WINOPniSCNhKcD0pva3gXLcxfdnZjdMSj++ba
+XlAstjw0Oyty0EXoHXCMpelMoa+DQ7KSDGKrOtm5YFAP6Ki4go1Tt2q8nmul36cZ
+Zot6eoPG/qKxW+dvmSrWhQCcfd74VbhECbzXiCFLHadq85C1K5rrLM6oVr1u7K6O
+jlc1aitGgZECi6fvu61QhpUvHjCegRWzMIhah9qrv4lvxFFcA+a1jwXlnwARAQAB
+tEJNaWNyb3NvZnQgQ29ycG9yYXRpb24gLSBHZW5lcmFsIEdQRyBTaWduZXIgPGdw
+Z3NpZ25AbWljcm9zb2Z0LmNvbT6JAjgEEwEIACIFAmVUhiwCGwMGCwkIBwMCBhUI
+AgkKCwQWAgMBAh4BAheAAAoJEO5Nd5L3SBgrDc0P/0Ubx0vqD/DgyhiP0bIs8euO
+iA5BQvOCiroIkhSkFbAw8rT9a/XtRTRM2l4I8c2M1ZX9i/0wWihmFUJhiVHyRxkl
+ZcEFv+ieBuhvD1gPOVLZg3To8yOTrcOnHe+FuKqA6u+3xBn2AmAWeck9o0NKhtnm
+5ckweos+Qj9NoxaZX8UeGFstOiTBJeyhuJjthQ+3M0BvTxEaRcLXGSXSGSgZ00ii
+YSLNgOMPF+C22bXBL/erClEYkIGCctqPvyrhV/GVNnGk2ALyJqdK+BaJeGh9mBJa
+ZrP3l6vFxsAI0RNCNU1s5QaFzfFzFkiUnG/aoyuwh4xmsB+uyVkR+KigPK9gfF3S
+nU7AqcdhSbUA6A0DGDRkHauHM5Wtc7730LdjiNDXbYwG/yXmDYNasoszmItZzh77
+HiQxYA5dNB9r9QJS2rHV/qe+heAJ5Rub5kxcu33DGL30qG7Q9+HRTu0oSEOIUFyT
+aOJJnNUiB2D4hoKKnr5U8FYOZ7KvDcG7cDvInqYtGpNfrnIf94VeB9WJY6DbDQSA
+F5yHb6X8FS0x3lMT2H1l6RRyr0278kyO18VBudtlnonC+Y1UT7eqAk6WjS5CitPX
+T3Hc7jCURugXrc51igKa+p67yAaybEIuVyWF6JaINKRqiUqEPVXnHELXPbBmiHW5
+1HwdbKTMzgF8bu1JI+tQ
+=lIzW
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+
+# The content below is automatically copied from scripts/docker/keys/microsoft.asc
+COPY <<"EOF" /keys/microsoft.asc
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQENBFYxWIwBCADAKoZhZlJxGNGWzqV+1OG1xiQeoowKhssGAKvd+buXCGISZJwT
+LXZqIcIiLP7pqdcZWtE9bSc7yBY2MalDp9Liu0KekywQ6VVX1T72NPf5Ev6x6DLV
+7aVWsCzUAF+eb7DC9fPuFLEdxmOEYoPjzrQ7cCnSV4JQxAqhU4T6OjbvRazGl3ag
+OeizPXmRljMtUUttHQZnRhtlzkmwIrUivbfFPD+fEoHJ1+uIdfOzZX8/oKHKLe2j
+H632kvsNzJFlROVvGLYAk2WRcLu+RjjggixhwiB+Mu/A8Tf4V6b+YppS44q8EvVr
+M+QvY7LNSOffSO6Slsy9oisGTdfE39nC7pVRABEBAAG0N01pY3Jvc29mdCAoUmVs
+ZWFzZSBzaWduaW5nKSA8Z3Bnc2VjdXJpdHlAbWljcm9zb2Z0LmNvbT6JATUEEwEC
+AB8FAlYxWIwCGwMGCwkIBwMCBBUCCAMDFgIBAh4BAheAAAoJEOs+lK2+EinPGpsH
+/32vKy29Hg51H9dfFJMx0/a/F+5vKeCeVqimvyTM04C+XENNuSbYZ3eRPHGHFLqe
+MNGxsfb7C7ZxEeW7J/vSzRgHxm7ZvESisUYRFq2sgkJ+HFERNrqfci45bdhmrUsy
+7SWw9ybxdFOkuQoyKD3tBmiGfONQMlBaOMWdAsic965rvJsd5zYaZZFI1UwTkFXV
+KJt3bp3Ngn1vEYXwijGTa+FXz6GLHueJwF0I7ug34DgUkAFvAs8Hacr2DRYxL5RJ
+XdNgj4Jd2/g6T9InmWT0hASljur+dJnzNiNCkbn9KbX7J/qK1IbR8y560yRmFsU+
+NdCFTW7wY0Fb1fWJ+/KTsC6JATQEEwEIAB4FAlYxWIwCGwMGCwkIBwMCAxUIAwMW
+AgECHgECF4AACgkQ6z6Urb4SKc+P9gf/diY2900wvWEgV7iMgrtGzx79W/PbwWiO
+kKoD9sdzhARXWiP8Q5teL/t5TUH6TZ3BENboDjwr705jLLPwuEDtPI9jz4kvdT86
+JwwG6N8gnWM8Ldi56SdJEtXrzwtlB/Fe6tyfMT1E/PrJfgALUG9MWTIJkc0GhRJo
+yPpGZ6YWSLGXnk4c0HltYKDFR7q4wtI84cBu4mjZHZbxIO6r8Cci+xxuJkpOTIpr
+4pdpQKpECM6x5SaT2gVnscbN0PE19KK9nPsBxyK4wW0AvAhed2qldBPTipgzPhqB
+2gu0jSryil95bKrSmlYJd1Y1XfNHno5Dxfn5JwgySBIdWWvtOI05gw==
+=dfGw
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+
+# The content below is automatically copied from scripts/docker/keys/postgres.asc
+COPY <<"EOF" /keys/postgres.asc
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+=XSRU
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -2323,7 +2536,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 # scripts, and its marker covers them, so the pinned OS-dependencies images carry them too.
 COPY --from=scripts install_os_dependencies.sh common.sh install_mysql.sh install_mssql.sh \
     install_postgres.sh /scripts/docker/
-COPY scripts/docker/keys/ /scripts/docker/keys/
+COPY --from=scripts /keys/ /scripts/docker/keys/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 FROM dev-os-deps as python-dist
@@ -2586,7 +2799,7 @@ COPY --from=python-dist /python-dist/ /
 # scripts, and its marker covers them, so the pinned OS-dependencies images carry them too.
 COPY --from=scripts install_os_dependencies.sh common.sh install_mysql.sh install_mssql.sh \
     install_postgres.sh /scripts/docker/
-COPY scripts/docker/keys/ /scripts/docker/keys/
+COPY --from=scripts /keys/ /scripts/docker/keys/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
 FROM runtime-os-deps as main

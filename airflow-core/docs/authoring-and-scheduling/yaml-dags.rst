@@ -427,7 +427,7 @@ A ``run:`` task must be accompanied by a task handler implemented by a Task SDK
 that will be executed at runtime. How the handler is implemented is not named by
 the YAML file; it follows the task-level ``queue:``, and then is mapped to the
 appropriate coordinator through ``[sdk] queue_to_coordinator``. For more on
-writing task handlers, see :doc:`task-sdk:task-handler` for Python,
+writing task handlers, see `Task handlers <https://airflow.apache.org/docs/task-sdk/stable/task-handler.html>`__ for Python,
 and :doc:`language-sdks/index` for other languages.
 
 Each argument in ``run:`` is either a JSON-serializable literal, or an upstream

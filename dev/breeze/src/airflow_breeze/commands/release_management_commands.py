@@ -159,6 +159,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.git_remotes import get_github_repo
 from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
@@ -1557,7 +1558,7 @@ def tag_providers(
                 # stdout for every remote, which would make the search below find nothing.
                 dry_run_override=False,
             )
-            if "apache/airflow.git" in result.stdout:
+            if (get_github_repo(result.stdout.strip()) or "").casefold() == APACHE_AIRFLOW_GITHUB_REPOSITORY:
                 found_remote = remote
                 break
         except subprocess.CalledProcessError:

@@ -43,14 +43,17 @@ from airflow.api_fastapi.execution_api.datamodels.asset_state_store import (
     AssetStateStoreResponse,
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute
+from airflow.api_fastapi.execution_api.security import (
+    ASSET_WATCHER_ID,
+    CurrentTIToken,
+    ExecutionAPIRoute,
+    allow_asset_watcher,
+)
 from airflow.models.asset import AssetModel
 from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreBackend
-
-NULL_UUID = UUID(int=0)
 
 
 class _TIWriterFields(NamedTuple):
@@ -146,8 +149,7 @@ def _put_asset_state_store(
 ) -> None:
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
-        if token.id == NULL_UUID:
-            # Since the asset state store routes do not have `task_instance_id` in their path params, the default kicks in which is"00000000-0000-0000-0000-000000000000"
+        if token.id == ASSET_WATCHER_ID:
             backend.set_asset_state_store(
                 scope,
                 key,
@@ -178,6 +180,7 @@ def _put_asset_state_store(
 
 
 @router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
+@allow_asset_watcher
 def set_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
@@ -192,6 +195,7 @@ def set_asset_state_store_by_name(
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
+@allow_asset_watcher
 def delete_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
@@ -203,6 +207,7 @@ def delete_asset_state_store_by_name(
 
 
 @router.delete("/by-name/clear", status_code=status.HTTP_204_NO_CONTENT)
+@allow_asset_watcher
 def clear_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     session: SessionDep,
@@ -229,6 +234,7 @@ def get_asset_state_store_by_uri(
 
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
+@allow_asset_watcher
 def set_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
@@ -243,6 +249,7 @@ def set_asset_state_store_by_uri(
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
+@allow_asset_watcher
 def delete_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
@@ -254,6 +261,7 @@ def delete_asset_state_store_by_uri(
 
 
 @router.delete("/by-uri/clear", status_code=status.HTTP_204_NO_CONTENT)
+@allow_asset_watcher
 def clear_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     session: SessionDep,
