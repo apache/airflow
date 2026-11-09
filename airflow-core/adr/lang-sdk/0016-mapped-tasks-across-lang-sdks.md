@@ -42,8 +42,8 @@ Proposed.
 1. **Expansion stays in the scheduler for every language.** Map length, instance creation, regions, `REMOVED` handling and trigger rules are core's, not an SDK's.
    An SDK emits an expand input and consumes one value per map index; it never decides how many instances exist.
 2. **The expand input keeps Python's `{__type, __var}` encoding.** An SDK emits the same form the Dag processor already writes for a Python mapped task, so core parses one format and no SDK invents a second.
-3. **Map length is computed once in the supervisor, instead of being re-implemented in each SDK.** The server tells the producer's supervisor whether the length is needed; the supervisor measures the return value and rejects one that is absent or unsized.
-   The API server loads no extra Dag, and Python's own copy is deleted so the two cannot drift.
+3. **A Lang-SDK producer's map length is computed once in the supervisor, instead of in each SDK.** The server tells the supervisor whether the length is needed; the supervisor measures the return value and rejects one that is absent or not mappable.
+   A Python task keeps measuring in its own runtime, so its `ti_run` still loads no Dag, and both apply the same `is_mappable_value` rule.
 4. **Every Python mapping primitive is in scope, and the server resolves all of them.** A primitive an SDK has not implemented yet is a capability flag, not a core limit.
 5. **A runtime always consumes delivered bindings; it never resolves the expand input itself.** The server picks this index's element in both authoring modes, so no SDK re-implements element selection or cross-product arithmetic.
 6. **Only `map()` callables run outside the server, applied on top of the element it picked.** Selection and transformation separate: [`_MapResult`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L398) indexes first, then applies the callables.
@@ -64,15 +64,18 @@ An SDK owns *what to expand over* and *what to do with one element*, and core ow
 so a mapped task in a loop expands once per iteration with no extra work in the SDK. Task loops
 therefore need no mapping design of their own.
 
+This ADR changes only the Lang-SDK path: a Dag definition, and a Python Dag with stub TaskHandler.
+A Python task keeps resolving its arguments, measuring its map length and storing its XComs in its own runtime, as today.
+
 ## Who runs what
 
-The coordinator is the supervisor of a Lang-SDK task, so the two names mean one process.
+The coordinator only starts the SDK runtime subprocess; the supervisor handles every request that runtime sends.
 
 | Process | Language | Its share of mapping |
 |---|---|---|
 | Scheduler | Python | Counts the expansion and turns the `-1` placeholder into N instances. |
 | API server, Execution API | Python | Picks this index's element and builds the bindings for `ti_run`. |
-| Supervisor / coordinator | Python, in the worker process | Measures the producer's map length; forwards every XCom request. |
+| Supervisor | Python, in the worker process | Measures a Lang-SDK producer's map length; forwards every XCom request. |
 | `map()` helper | Python, one per consuming task instance | Imports a Python Dag file and applies its `map()` callables. |
 | SDK runtime | the SDK's own language | Runs the handler, applies the SDK's own `map()` callables, holds the reduce sequence. |
 
@@ -246,9 +249,10 @@ and one field on the run context:
 ```python
 class TIRunContext(BaseModel):
     ...
-    needs_mapped_length: bool = False
-    """True when this task's return value is expanded over downstream, so the supervisor has
-    to measure it. Derived from ``not ti.is_mapped and any(task.iter_mapped_dependants())``."""
+    needs_mapped_length: bool | None = None
+    """Set only for a Lang-SDK task: True when its return value is expanded over downstream, so the
+    supervisor has to measure it. Derived from ``not ti.is_mapped and any(task.iter_mapped_dependants())``.
+    None for a Python task, which measures its own."""
 ```
 
 `concat` needs no new kind: the server knows each argument's length already, so it emits an
@@ -283,9 +287,10 @@ delegates to the argument it wraps, because it is elementwise and cannot change 
 
 | Process | What it does |
 |---|---|
-| API server | Sets the flag at `ti_run`, off the serialized task it already loads for the bindings. |
-| Supervisor | On `SetXCom` for `return_value`, computes `len(value)` and passes it as `mapped_length`; an unsized value fails the task. No `return_value` push by task end also fails it, since the consumer would otherwise be `UPSTREAM_FAILED` with no reason. Drops the field before forwarding the context, as it already does for `xcom_keys_to_clear`. |
+| API server | Sets the flag at `ti_run` for a Lang-SDK task, off the serialized task it already loads for the bindings when `ti.is_stub`. A Python task's `ti_run` is unchanged and leaves it `None`. |
+| Supervisor | On `SetXCom` for `return_value`, checks the value with `is_mappable_value` and passes `len(value)` as `mapped_length`, before the XCom backend stores it. A value that is not mappable, such as a string, fails the task. No `return_value` push by task end also fails it, since the consumer would otherwise be `UPSTREAM_FAILED` with no reason. Drops the field before forwarding the context, as it already does for `xcom_keys_to_clear`. |
 | SDK runtime | Nothing. It never receives the flag and never sends a length. |
+| Python task | Unchanged: its runtime measures in `_push_xcom_if_needed` before the value is stored. |
 
 ## Read path
 
@@ -438,3 +443,8 @@ there is no key to record. A `map()`, `zip()` or `concat()` argument is `unresol
 payload. Every `value` and `default` is checked JSON-serializable when it is written, so it crosses
 the language boundary as it stands. Plain JSON also keeps the stored Dag readable, where the encoded
 form wrapped every `value_schema` and every dict-valued `default` in a second object.
+
+## Related work, out of scope
+
+- **Moving Python tasks onto the supervisor path.** A Python task could send plain values and let the supervisor measure, store and narrow them,
+  as it does for a Lang-SDK task, so one implementation serves every runtime. It changes Python task behaviour, so it is a separate follow-up.
