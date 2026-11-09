@@ -241,6 +241,8 @@ def _callable_identity(function: Callable[..., Any] | None) -> dict[str, str] | 
     if function is None:
         return None
     code = getattr(function, "__code__", None)
+    if code is None:
+        code = getattr(type(function).__call__, "__code__", None)
     return {
         "module": getattr(function, "__module__", type(function).__module__),
         "qualname": getattr(function, "__qualname__", type(function).__qualname__),
@@ -459,8 +461,6 @@ class StreamDatasetOperator(BaseOperator):
                 self.log.info("Reusing existing completed streaming publication to %s", self.repo_id)
 
         if commit is None:
-            if state is not None:
-                state.set(pending_key, True)
             load_kwargs: dict[str, Any] = {"streaming": True}
             if self.name is not None:
                 load_kwargs["name"] = self.name
@@ -477,6 +477,8 @@ class StreamDatasetOperator(BaseOperator):
 
             message = self.commit_message or "Stream dataset from Airflow"
             push_kwargs["commit_message"] = f"{message} [{marker}]"
+            if state is not None:
+                state.set(pending_key, True)
             commit = hook.push_to_hub(stream, self.repo_id, **push_kwargs)
             # A retry can recover the completed Hub commit if the worker exited
             # after upload but before Airflow recorded the task result.
@@ -645,8 +647,6 @@ class PushToHubOperator(BaseOperator):
             if commit is not None:
                 self.log.info("Reusing existing completed publication to %s", self.repo_id)
         if commit is None:
-            if state is not None:
-                state.set(pending_key, True)
             with tempfile.TemporaryDirectory(prefix="airflow-hf-cache-") as cache_dir:
                 dataset = _load_artifact(
                     self.input_uri,
@@ -655,6 +655,8 @@ class PushToHubOperator(BaseOperator):
                 )
                 message = self.commit_message or "Publish dataset from Airflow"
                 kwargs["commit_message"] = f"{message} [{marker}]"
+                if state is not None:
+                    state.set(pending_key, True)
                 commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)
             if commit is None and self.durable:
                 commit = hook.find_commit_by_marker(
