@@ -154,6 +154,7 @@ Extra               Dependencies
 ``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
 ``amazon``          ``apache-airflow-providers-amazon>=9.38.0``
 ``google``          ``apache-airflow-providers-google>=23.1.0``
+``sqlglot``         ``sqlglot>=30.0.0``
 ==================  =======================================================================================================================================================================
 
 Downloading official packages
