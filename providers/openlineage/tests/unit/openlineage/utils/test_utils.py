@@ -31,6 +31,7 @@ from uuid import UUID, uuid4
 import attrs
 import pendulum
 import pytest
+from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import parent_run
 from sqlalchemy.orm.exc import DetachedInstanceError
 from uuid6 import uuid7
@@ -41,8 +42,13 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset, AssetAlias
 from airflow.providers.common.compat.sdk import BaseOperator, TaskGroup, task, task_group, timezone
 from airflow.providers.openlineage.conf import namespace
-from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
+from airflow.providers.openlineage.plugins.facets import (
+    AirflowAssetEventRunFacet,
+    AirflowDagRunFacet,
+    AirflowJobFacet,
+)
 from airflow.providers.openlineage.utils.utils import (
+    _MAX_ASSET_EVENT_VALUE_SIZE,
     _MAX_DOC_BYTES,
     AssetInfo,
     DagInfo,
@@ -56,6 +62,7 @@ from airflow.providers.openlineage.utils.utils import (
     _build_labeled_edge_map,
     _convert_to_json_safe,
     _extract_ol_info_from_asset_event,
+    _get_json_safe_value_within_size_limit,
     _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
     _get_task_groups_details,
@@ -65,11 +72,14 @@ from airflow.providers.openlineage.utils.utils import (
     build_task_event_job_facets,
     build_task_event_run_facets,
     build_task_instance_ol_run_id,
+    get_airflow_asset_event_run_facet,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
     get_airflow_state_run_facet,
+    get_asset_event_output_datasets,
+    get_asset_watcher_job_name,
     get_dag_documentation,
     get_dag_job_dependency_facet,
     get_dag_parent_run_facet,
@@ -89,6 +99,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_loop_info,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
+    is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
     is_valid_uuid,
     translate_airflow_asset,
@@ -6754,3 +6765,99 @@ def test_get_task_parent_run_facet_explicit_root_ignores_dr_conf_job_type():
     assert parent_facet.root.job.name == "explicit_root"
     assert _get_job_type_facets(parent_facet.job) == _DAG_JOB_TYPE
     assert _get_job_type_facets(parent_facet.root.job) is None
+
+
+def _build_listener_asset_event(*, source_task_id=None, extra=None, partition_date=None):
+    # Not importable before Airflow 3.2, which introduced the asset event listener hook.
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
+    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
+
+    optional_kwargs = {"partition_date": partition_date} if partition_date is not None else {}
+    return ListenerAssetEvent(
+        asset=SerializedAsset(
+            name="orders", uri="s3://bucket/orders", group="asset", extra={"owner": "team"}, watchers=[]
+        ),
+        extra={"from_trigger": True, "payload": {"order_id": 1}} if extra is None else extra,
+        source_dag_id=None,
+        source_task_id=source_task_id,
+        source_run_id=None,
+        source_map_index=None,
+        source_aliases=[SerializedAssetAlias(name="orders_alias", group="asset")],
+        partition_key="2026-11-04",
+        **optional_kwargs,
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Asset event listener hook requires Airflow 3.2+")
+class TestAssetWatcherEventHelpers:
+    @pytest.mark.parametrize(
+        ("source_task_id", "extra", "expected"),
+        [
+            pytest.param(None, {"from_trigger": True, "payload": "p"}, True, id="asset-watcher"),
+            pytest.param(None, {"custom": "value"}, False, id="rest-api"),
+            pytest.param("producer_task", {"from_trigger": True}, False, id="task"),
+        ],
+    )
+    def test_is_asset_event_from_asset_watcher(self, source_task_id, extra, expected):
+        asset_event = _build_listener_asset_event(source_task_id=source_task_id, extra=extra)
+
+        assert is_asset_event_from_asset_watcher(asset_event) is expected
+
+    def test_get_asset_watcher_job_name(self):
+        assert get_asset_watcher_job_name(_build_listener_asset_event()) == "asset_watcher:orders"
+
+    def test_get_json_safe_value_within_size_limit_handles_unsafe_values(self):
+        circular: dict = {}
+        circular["self"] = circular
+        oversized = "x" * _MAX_ASSET_EVENT_VALUE_SIZE
+
+        assert _get_json_safe_value_within_size_limit({"a": [1, "b"]}) == {"a": [1, "b"]}
+        assert _get_json_safe_value_within_size_limit({"at": datetime.datetime(2026, 1, 1)}) == {
+            "at": "2026-01-01 00:00:00"
+        }
+        assert _get_json_safe_value_within_size_limit(circular) == "<not serializable: ValueError>"
+        assert _get_json_safe_value_within_size_limit(oversized) == (
+            f"<omitted: {_MAX_ASSET_EVENT_VALUE_SIZE + 2} characters exceeds limit of "
+            f"{_MAX_ASSET_EVENT_VALUE_SIZE}>"
+        )
+
+    def test_get_airflow_asset_event_run_facet(self):
+        partition_date = datetime.datetime(2026, 11, 4, tzinfo=datetime.UTC) if AIRFLOW_V_3_3_PLUS else None
+        asset_event = _build_listener_asset_event(partition_date=partition_date)
+
+        assert get_airflow_asset_event_run_facet(asset_event) == {
+            "airflowAssetEvent": AirflowAssetEventRunFacet(
+                asset={
+                    "name": "orders",
+                    "uri": "s3://bucket/orders",
+                    "group": "asset",
+                    "extra": {"owner": "team"},
+                },
+                assetEvent={
+                    "extra": {"from_trigger": True, "payload": {"order_id": 1}},
+                    "partitionKey": "2026-11-04",
+                    "partitionDate": partition_date.isoformat() if partition_date else None,
+                    "sourceAliases": ["orders_alias"],
+                },
+            )
+        }
+
+    @patch("airflow.providers.openlineage.utils.utils.translate_airflow_asset", autospec=True)
+    def test_get_asset_event_output_datasets(self, mock_translate):
+        dataset = OpenLineageDataset(namespace="s3://bucket", name="orders")
+        mock_translate.return_value = dataset
+
+        assert get_asset_event_output_datasets(_build_listener_asset_event()) == [dataset]
+        [translated_asset, lineage_context] = mock_translate.call_args.args
+        assert (translated_asset.name, translated_asset.uri, translated_asset.extra) == (
+            "orders",
+            "s3://bucket/orders",
+            {"owner": "team"},
+        )
+        assert lineage_context is None
+
+    @patch(
+        "airflow.providers.openlineage.utils.utils.translate_airflow_asset", autospec=True, return_value=None
+    )
+    def test_get_asset_event_output_datasets_skips_untranslatable_asset(self, _):
+        assert get_asset_event_output_datasets(_build_listener_asset_event()) == []

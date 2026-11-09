@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
@@ -31,6 +32,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+import time_machine
 from openlineage.client import OpenLineageClient
 from openlineage.client.transport import ConsoleTransport
 from openlineage.client.transport.console import ConsoleConfig
@@ -45,10 +47,15 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-from airflow.providers.openlineage.plugins.listener import OpenLineageListener, _get_task_end_date
+from airflow.providers.openlineage.plugins.listener import (
+    OpenLineageListener,
+    _AssetWatcherEventEmitter,
+    _get_task_end_date,
+)
 from airflow.providers.openlineage.plugins.macros import lineage_run_id
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.providers.openlineage.utils.utils import get_airflow_asset_event_run_facet
 from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
@@ -3512,3 +3519,183 @@ class TestExecuteRouting:
 
         listener.log.warning.assert_called_once()
         assert "on_running" in listener.log.warning.call_args.args
+
+
+def _build_listener_asset_event(*, source_task_id=None, extra=None):
+    # Not importable before Airflow 3.2, which introduced the asset event listener hook.
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
+    from airflow.serialization.definitions.assets import SerializedAsset
+
+    return ListenerAssetEvent(
+        asset=SerializedAsset(name="orders", uri="s3://bucket/orders", group="asset", extra={}, watchers=[]),
+        extra={"from_trigger": True, "payload": {"order_id": 1}} if extra is None else extra,
+        source_dag_id=None,
+        source_task_id=source_task_id,
+        source_run_id=None,
+        source_map_index=None,
+        source_aliases=[],
+        partition_key=None,
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Asset event listener hook requires Airflow 3.2+")
+class TestOpenLineageListenerAssetEvents:
+    @pytest.mark.parametrize(
+        ("source_task_id", "extra"),
+        [
+            pytest.param("producer_task", {}, id="task"),
+            pytest.param(None, {"custom": "value"}, id="rest-api"),
+        ],
+    )
+    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
+    def test_ignores_asset_events_not_produced_by_asset_watcher(
+        self, mock_emitter_cls, source_task_id, extra
+    ):
+        listener = OpenLineageListener()
+
+        listener.on_asset_event_emitted(
+            asset_event=_build_listener_asset_event(source_task_id=source_task_id, extra=extra)
+        )
+
+        mock_emitter_cls.return_value.submit.assert_not_called()
+
+    @conf_vars({("openlineage", "selective_enable"): "True"})
+    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
+    def test_skips_asset_watcher_event_when_selective_enable_is_on(self, mock_emitter_cls):
+        listener = OpenLineageListener()
+
+        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+
+        mock_emitter_cls.return_value.submit.assert_not_called()
+
+    @time_machine.travel(datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc), tick=False)
+    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
+    def test_submits_asset_watcher_event_with_event_time(self, mock_emitter_cls):
+        listener = OpenLineageListener()
+        asset_event = _build_listener_asset_event()
+
+        listener.on_asset_event_emitted(asset_event=asset_event)
+
+        mock_emitter_cls.return_value.submit.assert_called_once_with(
+            asset_event, datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
+        )
+
+    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
+    def test_logs_warning_when_asset_watcher_event_queue_is_full(self, mock_emitter_cls):
+        mock_emitter_cls.return_value.submit.return_value = False
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+
+        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+
+        listener.log.warning.assert_called_once()
+        assert "queue is full" in listener.log.warning.call_args.args[0]
+
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.is_asset_event_from_asset_watcher",
+        autospec=True,
+        side_effect=RuntimeError("boom"),
+    )
+    def test_does_not_raise_when_handling_asset_event_fails(self, _):
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+
+        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+
+        listener.log.warning.assert_called_once()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Asset event listener hook requires Airflow 3.2+")
+class TestAssetWatcherEventEmitter:
+    EVENT_TIME = datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
+
+    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
+    def test_emits_submitted_events_on_a_daemon_thread(self, mock_emit):
+        emitter = _AssetWatcherEventEmitter()
+        asset_event = _build_listener_asset_event()
+        emitted_on: list[threading.Thread] = []
+        done = threading.Event()
+
+        def _record(*_):
+            emitted_on.append(threading.current_thread())
+            done.set()
+
+        mock_emit.side_effect = _record
+
+        assert emitter.submit(asset_event, self.EVENT_TIME) is True
+        assert done.wait(timeout=10)
+        mock_emit.assert_called_once_with(emitter, asset_event, self.EVENT_TIME)
+        assert emitted_on[0] is not threading.main_thread()
+        assert emitted_on[0].daemon
+
+    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
+    def test_drops_events_when_queue_is_full(self, mock_emit):
+        emitter = _AssetWatcherEventEmitter(max_queue_size=1)
+        asset_event = _build_listener_asset_event()
+        started, release = threading.Event(), threading.Event()
+
+        def _block(*_):
+            started.set()
+            release.wait(timeout=10)
+
+        mock_emit.side_effect = _block
+        try:
+            emitter.submit(asset_event, self.EVENT_TIME)
+            assert started.wait(timeout=10)
+            assert emitter.submit(asset_event, self.EVENT_TIME) is True
+            assert emitter.submit(asset_event, self.EVENT_TIME) is False
+        finally:
+            release.set()
+
+    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
+    def test_keeps_emitting_after_an_emission_fails(self, mock_emit):
+        emitter = _AssetWatcherEventEmitter()
+        emitter.log = MagicMock(spec=logging.Logger)
+        asset_event = _build_listener_asset_event()
+        done = threading.Event()
+
+        def _fail_then_succeed(*_):
+            if mock_emit.call_count == 1:
+                raise RuntimeError("transport down")
+            done.set()
+
+        mock_emit.side_effect = _fail_then_succeed
+
+        emitter.submit(asset_event, self.EVENT_TIME)
+        emitter.submit(asset_event, self.EVENT_TIME)
+
+        assert done.wait(timeout=10)
+        emitter.log.warning.assert_called_once()
+
+    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
+    def test_starts_a_new_thread_when_previous_one_is_gone(self, mock_emit):
+        emitter = _AssetWatcherEventEmitter()
+        dead_thread = threading.Thread(target=lambda: None)
+        dead_thread.start()
+        dead_thread.join()
+        emitter._thread = dead_thread
+        done = threading.Event()
+        mock_emit.side_effect = lambda *_: done.set()
+
+        emitter.submit(_build_listener_asset_event(), self.EVENT_TIME)
+
+        assert done.wait(timeout=10)
+        assert emitter._thread is not dead_thread
+
+    @patch("airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets", autospec=True)
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
+    def test_emit_sends_asset_watcher_event_pair(self, mock_adapter_cls, mock_get_outputs):
+        emitter = _AssetWatcherEventEmitter()
+        asset_event = _build_listener_asset_event()
+
+        emitter._emit(asset_event, self.EVENT_TIME)
+
+        mock_adapter_cls.return_value.asset_watcher_event.assert_called_once_with(
+            run_id=mock.ANY,
+            job_name="asset_watcher:orders",
+            event_time=self.EVENT_TIME,
+            run_facets=get_airflow_asset_event_run_facet(asset_event),
+            outputs=mock_get_outputs.return_value,
+        )
+        run_id = mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["run_id"]
+        assert uuid.UUID(run_id).version == 7

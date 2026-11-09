@@ -60,6 +60,7 @@ from airflow.providers.openlineage import (
     conf,
 )
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowAssetEventRunFacet,
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
     AirflowJobFacet,
@@ -105,6 +106,7 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet, RunFacet, processing_engine_run
     from sqlalchemy.orm import Session
 
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
     from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
@@ -145,6 +147,9 @@ _MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 _JOB_TYPE_DAG: Literal["DAG"] = "DAG"
 _JOB_TYPE_TASK: Literal["TASK"] = "TASK"
+_JOB_TYPE_ASSET_WATCHER: Literal["ASSET_WATCHER"] = "ASSET_WATCHER"
+# Asset and asset event extras (the latter holds the trigger payload) are user-controlled and unbounded.
+_MAX_ASSET_EVENT_VALUE_SIZE = 16 * 1024
 
 
 def try_import_from_string(string: str) -> Any:
@@ -2712,3 +2717,64 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     except Exception as err:
         log.debug("Airflow asset `%s` conversion to OL Dataset failed with err `%s`", normalized_uri, err)
         return None
+
+
+def is_asset_event_from_asset_watcher(asset_event: ListenerAssetEvent) -> bool:
+    """Check whether an asset event was produced by an asset watcher's trigger rather than a task or API."""
+    return asset_event.source_task_id is None and (asset_event.extra or {}).get("from_trigger") is True
+
+
+def get_asset_watcher_job_name(asset_event: ListenerAssetEvent) -> str:
+    """
+    Return the OpenLineage job name for the asset watchers of the asset event's asset.
+
+    ``:`` is not allowed in Dag or task ids, so these names cannot collide with Dag or task job names.
+    Listeners are not told which of the asset's watchers produced the event, so all of them share one job.
+    """
+    return f"asset_watcher:{asset_event.asset.name}"
+
+
+def _get_json_safe_value_within_size_limit(value: Any) -> Any:
+    """Return ``value`` as plain JSON types, or a placeholder when it cannot be serialized or is too large."""
+    try:
+        serialized = json.dumps(value, default=str)
+    except (TypeError, ValueError) as err:
+        return f"<not serializable: {type(err).__name__}>"
+    if len(serialized) > _MAX_ASSET_EVENT_VALUE_SIZE:
+        return f"<omitted: {len(serialized)} characters exceeds limit of {_MAX_ASSET_EVENT_VALUE_SIZE}>"
+    return json.loads(serialized)
+
+
+def get_airflow_asset_event_run_facet(
+    asset_event: ListenerAssetEvent,
+) -> dict[str, AirflowAssetEventRunFacet]:
+    """Return a run facet describing an asset event and its asset."""
+    asset = asset_event.asset
+    # Passed to listeners since Airflow 3.3.
+    partition_date = getattr(asset_event, "partition_date", None)
+    return {
+        "airflowAssetEvent": AirflowAssetEventRunFacet(
+            asset={
+                "name": asset.name,
+                "uri": asset.uri,
+                "group": asset.group,
+                "extra": _get_json_safe_value_within_size_limit(asset.extra),
+            },
+            assetEvent={
+                "extra": _get_json_safe_value_within_size_limit(asset_event.extra),
+                "partitionKey": asset_event.partition_key,
+                "partitionDate": partition_date.isoformat() if partition_date else None,
+                "sourceAliases": [alias.name for alias in asset_event.source_aliases],
+            },
+        )
+    }
+
+
+def get_asset_event_output_datasets(asset_event: ListenerAssetEvent) -> list[OpenLineageDataset]:
+    """Return the asset of an asset event as an OpenLineage dataset, or nothing if it cannot be translated."""
+    asset = asset_event.asset
+    dataset = translate_airflow_asset(Asset(name=asset.name, uri=asset.uri, extra=asset.extra), None)
+    if dataset is None:
+        log.debug("Asset `%s` could not be translated to an OpenLineage dataset.", asset.uri)
+        return []
+    return [dataset]
