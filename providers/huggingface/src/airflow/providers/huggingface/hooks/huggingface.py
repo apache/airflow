@@ -29,8 +29,11 @@ from airflow.providers.common.compat.sdk import BaseHook
 class HuggingFaceHook(BaseHook):
     """Access Hugging Face Datasets and Hub APIs using an Airflow connection.
 
-    If the connection is absent, huggingface_hub may use ``HF_TOKEN`` or a
-    cached worker login.
+    If ``huggingface_default`` is absent, or no connection ID is configured,
+    huggingface_hub may use ``HF_TOKEN`` or a cached worker login. A missing
+    explicitly named connection raises Airflow's connection-not-found
+    exception. An existing connection with no password disables SDK
+    authentication fallback.
     """
 
     conn_name_attr = "huggingface_conn_id"

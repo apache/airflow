@@ -59,6 +59,13 @@ preserves compatible provenance and records a new artifact fingerprint.
 ``storage_conn_id`` selects the connection used for both input and output
 artifact paths.
 
+The system example demonstrates the durable artifact flow and its task handoff:
+
+.. exampleinclude:: /../../huggingface/tests/system/huggingface/example_read_only.py
+    :language: python
+    :start-after: [START huggingface_load_and_map_example]
+    :end-before: [END huggingface_load_and_map_example]
+
 StreamDatasetOperator
 ---------------------
 
@@ -131,12 +138,6 @@ downstream tasks should load the published Hub repository. Passing
 substitute: that operator writes a durable artifact and its writer accepts
 ``Dataset`` and ``DatasetDict``, not ``IterableDataset``.
 
-The system example demonstrates the durable artifact flow and its task handoff:
-
-.. exampleinclude:: /../../huggingface/tests/system/huggingface/example_read_only.py
-    :language: python
-    :start-after: [START huggingface_load_and_map_example]
-    :end-before: [END huggingface_load_and_map_example]
 
 PushToHubOperator
 -----------------

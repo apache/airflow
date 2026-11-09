@@ -31,7 +31,7 @@ from airflow.providers.huggingface.operators.datasets import (
 )
 
 HUB_ORG = os.environ.get("HF_TEST_HUB_ORG", "airflow-hf")
-SYSTEM_TESTS_ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", uuid.uuid4().hex)
+SYSTEM_TESTS_ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID") or uuid.uuid4().hex
 REPO_BASE = os.environ.get("HF_TEST_WRITE_REPO_ID", f"{HUB_ORG}/airflow-provider-system-write")
 REPO_ID = f"{REPO_BASE}-{SYSTEM_TESTS_ENV_ID}"
 REPO_DURABLE_BASE = os.environ.get(
