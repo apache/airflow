@@ -2325,16 +2325,18 @@ class TestPydanticAIVertexHook:
         prefix = _extract_google_cloud_prefix(description)
         _assert_prefix_is_known_provider(prefix)
 
-    def test_conn_fields_default_provider_description_example_is_valid_provider(self):
-        """Drift tripwire for the example in the generic connection's Default Model Provider conn-field."""
+    def test_conn_fields_default_provider_example_and_suggestions_are_valid_providers(self):
+        """Drift tripwire for the Default Model Provider description example and form suggestions."""
         connection_types = get_provider_info()["connection-types"]
         generic_conn_fields = next(
             c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai"
         )
-        description = generic_conn_fields["model_provider"]["description"]
-        example = re.search(r"\(e\.g\. ([a-z0-9-]+)\)", description)
-        assert example is not None, description
-        _assert_prefix_is_known_provider(example.group(1))
+        field = generic_conn_fields["model_provider"]
+        example = re.search(r"\(e\.g\. ([a-z0-9-]+)\)", field["description"])
+        assert example is not None, field["description"]
+        assert field["schema"]["examples"]
+        for provider in [example.group(1), *field["schema"]["examples"]]:
+            _assert_prefix_is_known_provider(provider)
 
     def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
         """

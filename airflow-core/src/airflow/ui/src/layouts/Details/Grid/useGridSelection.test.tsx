@@ -22,12 +22,22 @@ import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import type { GridTISummaries, LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type {
+  GridNodeResponse,
+  GridTISummaries,
+  LightGridTaskInstanceSummary,
+} from "openapi/requests/types.gen";
 
 import { GridSelectionProvider, useHasGridSelection } from "src/context/gridSelection";
 import { ShortcutRegistryProvider, useShortcutRegistry } from "src/context/keyboardShortcuts";
 
-import { getCellKey, isSelectableCell, useGridSelection } from "./useGridSelection";
+import {
+  buildSelectableGroups,
+  getCellKey,
+  getCoveredCellKeys,
+  isSelectableCell,
+  useGridSelection,
+} from "./useGridSelection";
 import type { GridTask } from "./utils";
 
 const node = (id: string, isGroup = false): GridTask => ({
@@ -51,9 +61,10 @@ const instance = (taskId: string, overrides: Partial<LightGridTaskInstanceSummar
 
 const RUN_IDS = ["r1", "r2", "r3"];
 const FLAT_NODES = [node("group", true), node("a"), node("b"), node("c")];
+const SELECTABLE_GROUPS = new Map([["group", ["a", "b"]]]);
 const LOOPED = { latest_region_id: "11111111-1111-4111-8111-111111111111", latest_region_index: 2 };
 
-// "c" is looped in r2 and "b" has no task instance in r3, so neither can be selected.
+// "c" is looped in r2, and "b" has no task instance in r3 so it cannot be selected there.
 const SUMMARIES = new Map<string, GridTISummaries>(
   RUN_IDS.map((runId) => [
     runId,
@@ -76,7 +87,11 @@ const click = (modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boo
 const renderSelection = (route = "/dags/dag") =>
   renderHook(
     () => ({
-      ...useGridSelection({ flatNodes: FLAT_NODES, runIds: RUN_IDS, summariesByRunId: SUMMARIES }),
+      ...useGridSelection({
+        flatNodes: FLAT_NODES,
+        runIds: RUN_IDS,
+        summariesByRunId: SUMMARIES,
+      }),
       hasGridSelection: useHasGridSelection(),
       shortcuts: useShortcutRegistry().shortcuts,
     }),
@@ -88,6 +103,7 @@ const renderSelection = (route = "/dags/dag") =>
               <Routes>
                 <Route element={children} path="/dags/:dagId" />
                 <Route element={children} path="/dags/:dagId/runs/:runId/tasks/:taskId" />
+                <Route element={children} path="/dags/:dagId/runs/:runId/tasks/group/:groupId" />
               </Routes>
             </MemoryRouter>
           </GridSelectionProvider>
@@ -99,20 +115,62 @@ const renderSelection = (route = "/dags/dag") =>
 const selectedKeys = (result: ReturnType<typeof renderSelection>["result"]) =>
   [...result.current.selection.keys()].sort();
 
+const groupNode = (id: string, children: Array<GridNodeResponse>, isLoop = false): GridNodeResponse => ({
+  children,
+  id,
+  is_loop: isLoop,
+  is_mapped: false,
+  label: id,
+});
+const leafNode = (id: string): GridNodeResponse => ({ id, is_mapped: false, label: id });
+
+describe("buildSelectableGroups", () => {
+  it("lists the members of each group, loops and the groups around or inside them included", () => {
+    const structure = [
+      groupNode("outer", [leafNode("outer.a"), groupNode("outer.inner", [leafNode("outer.inner.b")])]),
+      groupNode("with_loop", [leafNode("with_loop.c"), groupNode("with_loop.loop", [leafNode("d")], true)]),
+      groupNode("loop", [groupNode("loop.group", [leafNode("loop.group.e")])], true),
+      leafNode("f"),
+    ];
+
+    expect(buildSelectableGroups(structure)).toEqual(
+      new Map([
+        ["loop.group", ["loop.group.e"]],
+        ["loop", ["loop.group", "loop.group.e"]],
+        ["outer.inner", ["outer.inner.b"]],
+        ["outer", ["outer.a", "outer.inner", "outer.inner.b"]],
+        ["with_loop.loop", ["d"]],
+        ["with_loop", ["with_loop.c", "with_loop.loop", "d"]],
+      ]),
+    );
+  });
+});
+
+describe("getCoveredCellKeys", () => {
+  it("covers the cells inside a selected group in its own run only", () => {
+    const selection = new Map([
+      [getCellKey("r1", "group"), { runId: "r1", taskId: "group" }],
+      [getCellKey("r2", "c"), { runId: "r2", taskId: "c" }],
+    ]);
+
+    expect([...getCoveredCellKeys(selection, SELECTABLE_GROUPS)].sort()).toEqual(
+      [getCellKey("r1", "group"), getCellKey("r1", "a"), getCellKey("r1", "b"), getCellKey("r2", "c")].sort(),
+    );
+  });
+});
+
 describe("isSelectableCell", () => {
   it.each([
-    { expected: true, name: "a plain task instance", taskInstance: instance("a"), taskNode: node("a") },
-    { expected: false, name: "a group", taskInstance: instance("group"), taskNode: node("group", true) },
-    { expected: false, name: "a cell without task instance", taskInstance: undefined, taskNode: node("a") },
+    { expected: true, name: "a plain task instance", taskInstance: instance("a") },
+    { expected: true, name: "a looped task", taskInstance: instance("c", LOOPED) },
+    { expected: false, name: "a cell without task instance", taskInstance: undefined },
     {
       expected: false,
       name: "a task that has no task instance in the run yet",
       taskInstance: instance("a", { dag_version_number: null }),
-      taskNode: node("a"),
     },
-    { expected: false, name: "a looped task", taskInstance: instance("c", LOOPED), taskNode: node("c") },
-  ])("returns $expected for $name", ({ expected, taskInstance, taskNode }) => {
-    expect(isSelectableCell(taskNode, taskInstance)).toBe(expected);
+  ])("returns $expected for $name", ({ expected, taskInstance }) => {
+    expect(isSelectableCell(taskInstance)).toBe(expected);
   });
 });
 
@@ -147,6 +205,16 @@ describe("useGridSelection", () => {
     expect(selectedKeys(result)).toEqual([getCellKey("r1", "a"), getCellKey("r2", "b")].sort());
   });
 
+  it("starts a selection from the opened task group", () => {
+    const { result } = renderSelection("/dags/dag/runs/r1/tasks/group/group");
+
+    act(() => {
+      result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r2", taskId: "group" });
+    });
+
+    expect(selectedKeys(result)).toEqual([getCellKey("r1", "group"), getCellKey("r2", "group")].sort());
+  });
+
   it("selects only the opened task instance when it is the one Ctrl + clicked", () => {
     const { result } = renderSelection("/dags/dag/runs/r1/tasks/a");
 
@@ -175,6 +243,7 @@ describe("useGridSelection", () => {
         getCellKey("r1", "b"),
         getCellKey("r2", "b"),
         getCellKey("r1", "c"),
+        getCellKey("r2", "c"),
         getCellKey("r3", "c"),
       ].sort(),
     );
@@ -200,7 +269,7 @@ describe("useGridSelection", () => {
       result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r1", taskId: "a" });
     });
     act(() => {
-      handled = result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r2", taskId: "c" });
+      handled = result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r3", taskId: "b" });
     });
 
     expect(handled).toBe(false);

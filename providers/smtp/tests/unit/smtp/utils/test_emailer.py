@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import json
 import os
 from email.mime.application import MIMEApplication
@@ -227,11 +228,11 @@ class TestEmailerSmtp:
         emailer.send_email_smtp("to", "subject", "content", files=[os.fspath(path)])
         assert mock_send_mime.called
         _, call_args = mock_send_mime.call_args
-        assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
+        assert call_args["e_from"] == "airflow@example.com"
         assert call_args["e_to"] == ["to"]
         msg = call_args["mime_msg"]
         assert msg["Subject"] == "subject"
-        assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
+        assert msg["From"] == "airflow@example.com"
         assert len(msg.get_payload()) == 2
         filename = f'attachment; filename="{path.name}"'
         assert filename == msg.get_payload()[-1].get("Content-Disposition")
@@ -262,11 +263,11 @@ class TestEmailerSmtp:
         )
         assert mock_send_mime.called
         _, call_args = mock_send_mime.call_args
-        assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
+        assert call_args["e_from"] == "airflow@example.com"
         assert call_args["e_to"] == ["to", "cc", "bcc"]
         msg = call_args["mime_msg"]
         assert msg["Subject"] == "subject"
-        assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
+        assert msg["From"] == "airflow@example.com"
         assert len(msg.get_payload()) == 2
         assert f'attachment; filename="{path.name}"' == msg.get_payload()[-1].get("Content-Disposition")
         mimeapp = MIMEApplication("attachment")
@@ -281,9 +282,9 @@ class TestEmailerSmtp:
         msg = MIMEMultipart()
         emailer.send_mime_email("from", "to", msg, dryrun=False)
         mock_smtp.assert_called_once_with(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
         )
         assert not mock_smtp_ssl.called
         assert mock_smtp.return_value.starttls.called
@@ -317,9 +318,9 @@ class TestEmailerSmtp:
             emailer.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
         assert not mock_smtp.called
         mock_smtp_ssl.assert_called_once_with(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
             context=None,
         )
 
@@ -333,9 +334,9 @@ class TestEmailerSmtp:
         assert not mock_smtp.called
         assert create_default_context.called
         mock_smtp_ssl.assert_called_once_with(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
             context=create_default_context.return_value,
         )
 
@@ -351,9 +352,9 @@ class TestEmailerSmtp:
         assert not mock_smtp.called
         assert create_default_context.called
         mock_smtp_ssl.assert_called_once_with(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
             context=create_default_context.return_value,
         )
 
@@ -370,9 +371,9 @@ class TestEmailerSmtp:
             emailer.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
         assert not mock_smtp_ssl.called
         mock_smtp.assert_called_once_with(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
         )
         assert not mock_smtp.login.called
 
@@ -391,11 +392,11 @@ class TestEmailerSmtp:
         with pytest.raises(SMTPServerDisconnected):
             emailer.send_mime_email("from", "to", msg, dryrun=False)
         mock_smtp.assert_any_call(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
         )
-        assert mock_smtp.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT") + 1
+        assert mock_smtp.call_count == 5 + 1
         assert not mock_smtp_ssl.called
         assert not mock_smtp.return_value.starttls.called
         assert not mock_smtp.return_value.login.called
@@ -413,13 +414,13 @@ class TestEmailerSmtp:
                 emailer.send_mime_email("from", "to", msg, dryrun=False)
 
         mock_smtp_ssl.assert_any_call(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
             context=create_default_context.return_value,
         )
         assert create_default_context.called
-        assert mock_smtp_ssl.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT") + 1
+        assert mock_smtp_ssl.call_count == 5 + 1
         assert not mock_smtp.called
         assert not mock_smtp_ssl.return_value.starttls.called
         assert not mock_smtp_ssl.return_value.login.called
@@ -444,9 +445,7 @@ class TestEmailerSmtp:
             with pytest.raises(SMTPServerDisconnected):
                 emailer.send_mime_email("from", "to", msg, dryrun=False)
 
-        mock_smtp.assert_any_call(
-            host=conf.get("smtp", "SMTP_HOST"), port=conf.getint("smtp", "SMTP_PORT"), timeout=custom_timeout
-        )
+        mock_smtp.assert_any_call(host="localhost", port=25, timeout=custom_timeout)
         assert not mock_smtp_ssl.called
         assert mock_smtp.call_count == custom_retry_limit + 1
 
@@ -461,9 +460,9 @@ class TestEmailerSmtp:
         emailer.send_mime_email("from", "to", msg, dryrun=False)
 
         mock_smtp.assert_any_call(
-            host=conf.get("smtp", "SMTP_HOST"),
-            port=conf.getint("smtp", "SMTP_PORT"),
-            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            host="localhost",
+            port=25,
+            timeout=30,
         )
         assert mock_smtp.call_count == side_effects.index(final_mock) + 1
         assert not mock_smtp_ssl.called
@@ -523,3 +522,46 @@ class TestEmailerSmtp:
             emailer.send_mime_email("from", "to", MIMEMultipart())
         assert not mock_smtp.return_value.starttls.called
         assert mock_smtp.return_value.sendmail.called
+
+    @pytest.fixture
+    def core_without_smtp_section(self, monkeypatch):
+        """Drop core's ``[smtp]`` defaults, like a core release that no longer defines the section."""
+        defaults = copy.deepcopy(conf._default_values)
+        defaults.remove_section("smtp")
+        monkeypatch.setattr(conf, "_default_values", defaults)
+        monkeypatch.delenv("AIRFLOW_CONN_SMTP_DEFAULT", raising=False)
+        with conf_vars({("smtp", "smtp_mail_from"): None}):
+            yield
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    def test_send_without_core_smtp_section_uses_built_in_defaults(
+        self, mock_smtp, mock_smtp_ssl, core_without_smtp_section
+    ):
+        emailer.send_email_smtp("to", "subject", "content")
+        mock_smtp.assert_called_once_with(host="localhost", port=25, timeout=30)
+        assert not mock_smtp_ssl.called
+        assert mock_smtp.return_value.starttls.called
+        assert mock_smtp.return_value.sendmail.call_args.args[0] == "airflow@example.com"
+
+    @mock.patch("smtplib.SMTP")
+    def test_retry_without_core_smtp_section_uses_built_in_limit(self, mock_smtp, core_without_smtp_section):
+        mock_smtp.side_effect = SMTPServerDisconnected()
+        with pytest.raises(SMTPServerDisconnected):
+            emailer.send_mime_email("from", "to", MIMEMultipart())
+        assert mock_smtp.call_count == 5 + 1
+
+    @mock.patch("smtplib.SMTP")
+    @conf_vars(
+        {
+            ("smtp", "smtp_host"): "smtp.example.com",
+            ("smtp", "smtp_port"): "2525",
+            ("smtp", "smtp_mail_from"): "sender@example.com",
+        }
+    )
+    def test_send_without_core_smtp_section_uses_configured_values(
+        self, mock_smtp, core_without_smtp_section
+    ):
+        emailer.send_email_smtp("to", "subject", "content")
+        mock_smtp.assert_called_once_with(host="smtp.example.com", port=2525, timeout=30)
+        assert mock_smtp.return_value.sendmail.call_args.args[0] == "sender@example.com"

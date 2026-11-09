@@ -11,8 +11,8 @@ plugins:
   - magpie-release-management
 
 reconciled:
-  version: 0.9.0.dev202610280340
-  at:      2026-10-29
+  version: 0.9.0.dev202611021858
+  at:      2026-11-02
   skills:
     activity-sweep:             sha256:a39919af92a37e2d
     announce-draft:             sha256:edffafcd9d9948ab
@@ -20,7 +20,7 @@ reconciled:
     audit-finding-fix:          sha256:a31ea1f8e96846eb
     audit-report:               sha256:ecab5c5c3e52d580
     backlog-stats:              sha256:0f124437a9fa54f9
-    code-review:                sha256:0e09164d15647a70
+    code-review:                sha256:97ef701d93960492
     deduplicate:                sha256:10a3cb1b8a2892e2
     dependency-audit:           sha256:19ba62ec34a55604
     fix-workflow:               sha256:cdd7487f53514882

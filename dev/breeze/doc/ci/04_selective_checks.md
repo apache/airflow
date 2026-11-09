@@ -548,6 +548,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
   are left to `canary` runs. Like the other
   deployed e2e suites, enabling them forces `PROD Image building`.
+* `YAML Dag E2E tests` (the `yaml_dag` mode of the deployed-stack tests, exposed as the
+  `run-yaml-dag-e2e-tests` output) run when the YAML Dag fixture or its suite change
+  (`airflow-e2e-tests/yaml-dags/`, `airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/`,
+  `airflow-e2e-tests/docker/yaml-dag.yml`), when the Go example bundle's handler for that Dag changes
+  (`go-sdk/example/bundle/yamldag/`, `go-sdk/example/bundle/main.go` — the mode runs the Dag's one
+  code task on that bundle, so the rest of the Go SDK is left to the Go SDK E2E tests), when the
+  executable coordinator changes (`task-sdk/src/airflow/sdk/coordinators/executable/`,
+  `_subprocess.py`), or when the native Lang-SDK Dag parsing sources listed above change — the YAML
+  importer itself lives in `task-sdk/src/airflow/sdk/importers/`. Like the other deployed e2e
+  suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -576,6 +586,15 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   are enabled.
 * If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
   the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
+* The `disable image cache` label sets `docker-cache` to `disabled` and `use-pinned-os-deps-images` to
+  `false`, so the CI and PROD images install their OS dependencies from the apt repositories instead of
+  starting from the pinned OS-dependencies images. Only the label does that: the image build's own
+  retry with the cache disabled, after a failed first attempt, keeps using the pinned images.
+* A change to an input that `install_os_dependencies.sh` hashes into its marker - the script itself,
+  `common.sh`, `install_mysql.sh`, `install_mssql.sh`, `install_postgres.sh` or `scripts/docker/keys/` -
+  also sets `use-pinned-os-deps-images` to `false`. Reinstalling on top of a pinned image would only
+  exercise additions: a package or database client the change drops would still be there from the
+  pinned layer.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
   several criteria: if any of the airflow core, charts, docker-stack, Apache Airflow Mypy, providers files or
   docs have changed, then corresponding packages are built (including cross-dependent providers). If any of the core files
@@ -735,6 +754,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
+| run-yaml-dag-e2e-tests                                  | Whether YAML Dag e2e tests should be run — on YAML Dag fixture/suite, its Go handler, executable coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |
 | arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                               | \["ubuntu-22.04-arm"\]                   |      |
 | runner-type                                             | Runner labels for the CI jobs on this platform: public, or a RunsOn template jobs fill with cpu/ram     | \["ubuntu-22.04"\]                       |      |
@@ -745,6 +765,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
+| use-pinned-os-deps-images                               | Whether the CI and PROD image builds start from the pinned OS-dependencies images; false with the `disable image cache` label or a changed OS-dependencies script | true                                     |      |
 
 
 ## Self-hosted (RunsOn) vs. public runners
@@ -911,7 +932,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
-| disable image cache              | docker-cache                     | If set, the image cache is disables when building the image.                              |
+| disable image cache              | docker-cache, use-pinned-os-deps-images | If set, the image cache is disabled and the OS dependencies are installed from scratch when building the image. |
 | force pip                        | force-pip                        | If set, the image build uses pip instead of uv.                                           |
 | full tests needed                | full-tests-needed                | If set, complete set of tests are run                                                     |
 | include success outputs          | include-success-outputs          | If set, outputs of successful parallel tests are shown not only failed outputs.           |

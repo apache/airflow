@@ -1015,7 +1015,6 @@ class TestPopenActivitySubprocessSetTaskStateStore:
             process_log.warning.assert_called_once_with(
                 "Task store value exceeds configured max_value_storage_bytes",
                 key="k",
-                size=15,
                 max_value_storage_bytes=14,
             )
         else:
@@ -1324,10 +1323,13 @@ class TestPopenActivitySubprocessProcessGroup:
 
 class TestPopenActivitySubprocessExecutionTimeout:
     @pytest.mark.parametrize(
-        ("execution_timeout", "killed"),
+        ("execution_timeout", "elapsed", "killed"),
         [
-            pytest.param(30.0, True, id="with-timeout"),
-            pytest.param(None, False, id="without-timeout"),
+            pytest.param(30.0, 35, True, id="with-timeout"),
+            pytest.param(None, 35, False, id="without-timeout"),
+            pytest.param(0.0, 35, False, id="zero-means-no-timeout"),
+            pytest.param(-30.0, 3, False, id="negative-keeps-grace-period"),
+            pytest.param(-30.0, 6, True, id="negative-has-elapsed"),
         ],
     )
     @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
@@ -1335,7 +1337,7 @@ class TestPopenActivitySubprocessExecutionTimeout:
     @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
     @patch("time.monotonic", autospec=True, return_value=1.0)
     def test_arms_execution_timeout_from_run_context(
-        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, killed
+        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, elapsed, killed
     ):
         client = MagicMock()
         client.task_instances.start.return_value = TIRunContext.model_construct(
@@ -1359,7 +1361,7 @@ class TestPopenActivitySubprocessExecutionTimeout:
             sentry_integration="",
         )
 
-        mock_monotonic.return_value += 35
+        mock_monotonic.return_value += elapsed
         proc._handle_execution_timeout_if_needed()
         assert mock_kill.called is killed
 
@@ -1367,7 +1369,7 @@ class TestPopenActivitySubprocessExecutionTimeout:
 class TestResolveArtifactBundle:
     """Execute-time resolution of the Dag bundle holding the artifacts."""
 
-    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True)
     def test_unset_name_uses_the_task_bundle(self, mock_initialize, tmp_path):
         resolved = _make_bundle(tmp_path, version="v3")
         mock_initialize.return_value = resolved
@@ -1377,7 +1379,7 @@ class TestResolveArtifactBundle:
         assert coordinator._resolve_artifact_bundle(bundle_info, log) is resolved
         mock_initialize.assert_called_once_with(bundle_info)
 
-    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True)
     def test_version_less_bundle_is_rematerialized_at_its_current_version(self, mock_initialize, tmp_path):
         """A bundle resolved without a version is re-resolved at the version current now.
 
@@ -1402,7 +1404,7 @@ class TestResolveArtifactBundle:
             call(BundleInfo(name="artifacts", version="sha-abc", version_data={"k": "v"})),
         ]
 
-    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True)
     def test_unversioned_bundle_keeps_its_single_path(self, mock_initialize, tmp_path):
         resolved = _make_bundle(tmp_path)
         resolved.get_current_version.return_value = None
@@ -1413,7 +1415,7 @@ class TestResolveArtifactBundle:
         assert coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log) is resolved
         mock_initialize.assert_called_once_with(BundleInfo(name="artifacts"))
 
-    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True)
     def test_missing_resolved_path_raises(self, mock_initialize, tmp_path):
         mock_initialize.return_value = _make_bundle(tmp_path / "nope", version="v1")
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
@@ -1474,7 +1476,7 @@ class TestExecuteTaskLaunchFailure:
         assert isinstance(raised.value.__cause__, RuntimeError)
 
     @patch(
-        "airflow.sdk.coordinators._subprocess.initialize_ti_bundle",
+        "airflow.sdk.execution_time.bundles.initialize_ti_bundle",
         autospec=True,
         side_effect=RuntimeError("Error cloning repository"),
     )
@@ -1663,7 +1665,7 @@ class TestExecuteTaskBundleWiring:
     """execute_task passes the task bundle, forwards resolved roots, and holds the version lock."""
 
     @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True)
-    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True)
     @patch.object(_PopenActivitySubprocess, "start", autospec=True)
     def test_task_bundle_mode_binds_forwards_roots_and_locks(
         self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
@@ -1689,7 +1691,7 @@ class TestExecuteTaskBundleWiring:
         mock_lock.return_value.__exit__.assert_called_once()
 
     @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True)
-    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch("airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True)
     @patch.object(_PopenActivitySubprocess, "start", autospec=True)
     def test_named_bundle_mode_locks_the_tree_it_scans(
         self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
@@ -1804,7 +1806,7 @@ class TestExecuteTaskNativeDagFile:
     @pytest.fixture
     def mock_initialize(self, bundle):
         with patch(
-            "airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True, return_value=bundle
+            "airflow.sdk.execution_time.bundles.initialize_ti_bundle", autospec=True, return_value=bundle
         ) as m:
             yield m
 

@@ -1796,6 +1796,46 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run go e2e tests when ExecutableCoordinator changes",
         ),
         pytest.param(
+            ("airflow-e2e-tests/yaml-dags/yaml_s3_roundtrip.yaml",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run only the YAML Dag e2e tests when the YAML Dag fixture changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/test_yaml_dag.py",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "false",
+            },
+            id="Run only the YAML Dag e2e tests when its suite changes",
+        ),
+        pytest.param(
+            ("go-sdk/example/bundle/yamldag/handlers.go",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+            },
+            id="Run the YAML Dag e2e tests alongside go's when the Dag's Go handler changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/importers/yaml_importer/builder.py",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+            },
+            id="Run the YAML Dag e2e tests when the YAML importer changes",
+        ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {
+                "run-yaml-dag-e2e-tests": "false",
+                "run-go-sdk-e2e-tests": "true",
+            },
+            id="Skip the YAML Dag e2e tests for a go-sdk change outside the Dag's handler",
+        ),
+        pytest.param(
             ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
             {
                 "run-openlineage-e2e-tests": "true",
@@ -2146,6 +2186,56 @@ def test_lang_sdk_conformance_sdks(files: tuple[str, ...], expected_sdks: list[s
         default_branch="main",
     )
     assert json.loads(get_outputs_from_stderr(str(stderr))["lang-sdk-conformance-sdks"]) == expected_sdks
+
+
+@pytest.mark.parametrize(
+    ("pr_labels", "docker_cache", "use_pinned_os_deps_images"),
+    [
+        pytest.param((), "registry", "true", id="default"),
+        pytest.param(("disable image cache",), "disabled", "false", id="disable-image-cache-label"),
+    ],
+)
+def test_disable_image_cache_label_also_stops_using_the_pinned_os_deps_images(
+    pr_labels, docker_cache, use_pinned_os_deps_images
+):
+    stderr = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/dag.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+        default_branch="main",
+    )
+    outputs = get_outputs_from_stderr(str(stderr))
+    assert outputs["docker-cache"] == docker_cache
+    assert outputs["use-pinned-os-deps-images"] == use_pinned_os_deps_images
+
+
+@pytest.mark.parametrize(
+    ("changed_file", "use_pinned_os_deps_images"),
+    [
+        pytest.param("scripts/docker/install_os_dependencies.sh", "false", id="install-os-dependencies"),
+        pytest.param("scripts/docker/common.sh", "false", id="common"),
+        pytest.param("scripts/docker/install_mysql.sh", "false", id="mysql-client"),
+        pytest.param("scripts/docker/install_mssql.sh", "false", id="mssql-client"),
+        pytest.param("scripts/docker/install_postgres.sh", "false", id="postgres-client"),
+        pytest.param("scripts/docker/keys/postgres.asc", "false", id="keys"),
+        pytest.param(
+            "scripts/docker/install_airflow_when_building_images.sh", "true", id="not-a-marker-input"
+        ),
+    ],
+)
+def test_changing_os_dependencies_inputs_stops_using_the_pinned_os_deps_images(
+    changed_file, use_pinned_os_deps_images
+):
+    stderr = SelectiveChecks(
+        files=(changed_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    outputs = get_outputs_from_stderr(str(stderr))
+    assert outputs["use-pinned-os-deps-images"] == use_pinned_os_deps_images
 
 
 def test_spotless_skipped_when_only_airflow_serializer_changes():
@@ -2507,7 +2597,6 @@ def test_excluded_providers():
             "excluded-providers-as-string": json.dumps(
                 {
                     "3.14": [
-                        "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                         "apache.tinkerpop",
                     ],
                 }
@@ -5157,20 +5246,15 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
         assert provider not in LONG_RUNNING_TEST_PROVIDERS
 
 
-RUNS_ON_AMD = (
-    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co'
-    '/cpu={0}/ram={1}"]'
-)
-RUNS_ON_ARM = (
-    '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
-)
+RUNS_ON_AMD = '["runs-on=42/env=flex/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
+RUNS_ON_ARM = '["runs-on=42/env=flex/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
 RUNS_ON_AMD_IN_MEMORY = (
-    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i'
+    '["runs-on=42/env=flex/family=m8a+m8i+m7a+m7i+m6i+r8i'
     "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 RUNS_ON_ARM_IN_MEMORY = (
-    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
+    '["runs-on=42/env=flex/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 

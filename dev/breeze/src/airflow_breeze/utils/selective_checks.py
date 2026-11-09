@@ -172,6 +172,7 @@ class FileGroupForCi(Enum):
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
     TS_SDK_E2E_FILES = auto()
+    YAML_DAG_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -194,6 +195,7 @@ class FileGroupForCi(Enum):
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
     PREK_FILES = auto()
+    OS_DEPENDENCIES_FILES = auto()
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
@@ -340,6 +342,18 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+        ],
+        FileGroupForCi.YAML_DAG_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/.*",
+            r"^airflow-e2e-tests/yaml-dags/.*",
+            r"^airflow-e2e-tests/docker/yaml-dag\.yml$",
+            # The mode runs the Dag's one code task on the Go example bundle, so the handler
+            # it registers counts, but the rest of the Go SDK is the go_sdk mode's business.
+            r"^go-sdk/example/bundle/yamldag/.*",
+            r"^go-sdk/example/bundle/main\.go$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
@@ -626,6 +640,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.PREK_FILES: [
             r"^scripts/ci/prek",
+        ],
+        # The inputs install_os_dependencies.sh hashes into its marker, apart from the build args.
+        FileGroupForCi.OS_DEPENDENCIES_FILES: [
+            r"^scripts/docker/install_os_dependencies\.sh$",
+            r"^scripts/docker/common\.sh$",
+            r"^scripts/docker/install_(mysql|mssql|postgres)\.sh$",
+            r"^scripts/docker/keys/",
         ],
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
@@ -1470,6 +1491,11 @@ class SelectiveChecks:
 
     @cached_property
     @_scoped_to_component_branch
+    def run_yaml_dag_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.YAML_DAG_E2E_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
@@ -1700,6 +1726,7 @@ class SelectiveChecks:
             or self.run_openlineage_e2e_tests
             or self.run_openlineage_e2e_compat_tests
             or self.run_ts_sdk_e2e_tests
+            or self.run_yaml_dag_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -2323,6 +2350,16 @@ class SelectiveChecks:
     @cached_property
     def disable_airflow_repo_cache(self) -> bool:
         return self.docker_cache == "disabled"
+
+    @cached_property
+    def use_pinned_os_deps_images(self) -> bool:
+        # Only the label - not the DOCKER_CACHE=disabled retry of a failed image build - asks for the OS
+        # dependencies to be installed from scratch rather than taken from the pinned images.
+        if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels:
+            return False
+        # Reinstalling on top of a pinned image exercises additions only: a package or client the change
+        # drops stays installed from the pinned layer, so the change is tested from the base image.
+        return not self._matching_files(FileGroupForCi.OS_DEPENDENCIES_FILES, CI_FILE_GROUP_MATCHES)
 
     @cached_property
     def helm_test_packages(self) -> str:

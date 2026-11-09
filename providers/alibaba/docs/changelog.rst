@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+.. warning::
+  The deprecated ``OSSKeySensor.get_hook`` property has been removed. Use ``hook`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated get_hook property from OSSKeySensor (#76127)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 3.5.2
 .....
 

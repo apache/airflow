@@ -23,6 +23,7 @@ from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     TypedDict,
     cast,
 )
@@ -137,6 +138,9 @@ class MSGraphAsyncOperator(BaseOperator):
         larger than the store's ``max_value_storage_bytes`` need a state store backend that offloads
         large values. Needs Airflow 3.3 or later.
     """
+
+    # Durable execution implemented directly against task_state_store, without ResumableJobMixin.
+    __supports_durable_execution: ClassVar[bool] = True
 
     template_fields: Sequence[str] = (
         "url",

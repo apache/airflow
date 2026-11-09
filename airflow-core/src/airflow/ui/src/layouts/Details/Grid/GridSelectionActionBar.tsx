@@ -29,25 +29,52 @@ import type { GridSelection } from "src/context/gridSelection";
 import { formatNumber } from "src/utils";
 
 import { useGridSelectedTaskInstances } from "./useGridSelectedTaskInstances";
+import { getCellKey, getCoveredNodeIds, type SelectableGroups } from "./useGridSelection";
 
 type Props = {
   readonly clearSelection: VoidFunction;
   readonly dagId: string;
   readonly deselectCells: (keys: Array<string>) => void;
+  readonly selectableGroups: SelectableGroups;
   readonly selection: GridSelection;
 };
 
-export const GridSelectionActionBar = ({ clearSelection, dagId, deselectCells, selection }: Props) => {
+export const GridSelectionActionBar = ({
+  clearSelection,
+  dagId,
+  deselectCells,
+  selectableGroups,
+  selection,
+}: Props) => {
   const { i18n, t: translate } = useTranslation();
-  const { data: selectedTaskInstances = [], isLoading } = useGridSelectedTaskInstances(dagId, selection);
+  const { data: selectedTaskInstances = [], isLoading } = useGridSelectedTaskInstances(
+    dagId,
+    selection,
+    selectableGroups,
+  );
 
-  // Bulk actions report each updated task instance as `dag_id.run_id.task_id[map_index]`.
-  const deselectKeys = (keys: Array<string>) =>
+  // Bulk actions report each updated task instance as `dag_id.run_id.task_id[map_index]`, or by its id
+  // when it has a region (a loop pass or a mapped task instance). A group cell is deselected as soon as
+  // one of its task instances is updated.
+  const deselectKeys = (keys: Array<string>) => {
+    const updatedCellKeys = new Set(
+      selectedTaskInstances
+        .filter((ti) => keys.includes(ti.id))
+        .map((ti) => getCellKey(ti.dag_run_id, ti.task_id)),
+    );
+
     deselectCells(
       [...selection.entries()]
-        .filter(([, cell]) => keys.some((key) => key.startsWith(`${dagId}.${cell.runId}.${cell.taskId}[`)))
+        .filter(([, cell]) =>
+          getCoveredNodeIds(cell, selectableGroups).some(
+            (taskId) =>
+              updatedCellKeys.has(getCellKey(cell.runId, taskId)) ||
+              keys.some((key) => key.startsWith(`${dagId}.${cell.runId}.${taskId}[`)),
+          ),
+        )
         .map(([cellKey]) => cellKey),
     );
+  };
 
   return (
     <ActionBar.Root closeOnInteractOutside={false} open={selection.size > 0}>

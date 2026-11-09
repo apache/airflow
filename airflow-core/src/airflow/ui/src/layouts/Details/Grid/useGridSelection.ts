@@ -22,22 +22,59 @@ import { useCallback, useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import type { GridTISummaries, LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type {
+  GridNodeResponse,
+  GridTISummaries,
+  LightGridTaskInstanceSummary,
+} from "openapi/requests/types.gen";
 
-import { type GridCell, useGridSelectionState } from "src/context/gridSelection";
+import { type GridCell, type GridSelection, useGridSelectionState } from "src/context/gridSelection";
 import { SHORTCUTS, useShortcutRegistry } from "src/context/keyboardShortcuts";
 
 import type { GridTask } from "./utils";
 
+/** The nodes (tasks and nested groups) inside each task group whose cell can be selected, keyed by group id. */
+export type SelectableGroups = ReadonlyMap<string, Array<string>>;
+
 export const getCellKey = (runId: string, taskId: string) => JSON.stringify([runId, taskId]);
 
-// A looped task's cell aggregates every pass while its link opens only the newest one, so a bulk
-// action on it would be ambiguous. Groups and cells without a task instance have nothing to act on.
-export const isSelectableCell = (node: GridTask, taskInstance: LightGridTaskInstanceSummary | undefined) =>
-  !node.isGroup &&
-  taskInstance?.dag_version_number !== null &&
-  taskInstance?.dag_version_number !== undefined &&
-  (taskInstance.latest_region_id === null || taskInstance.latest_region_id === undefined);
+// A selected group cell acts on everything inside it, every pass of a loop included.
+export const buildSelectableGroups = (nodes: Array<GridNodeResponse> | undefined): SelectableGroups => {
+  const groups = new Map<string, Array<string>>();
+  const visit = (node: GridNodeResponse): Array<string> => {
+    if (!node.children) {
+      return [];
+    }
+
+    const memberIds = node.children.flatMap((child) => [child.id, ...visit(child)]);
+
+    groups.set(node.id, memberIds);
+
+    return memberIds;
+  };
+
+  nodes?.forEach(visit);
+
+  return groups;
+};
+
+/** The node ids a cell stands for: its own, plus everything inside it for a group. */
+export const getCoveredNodeIds = (cell: GridCell, selectableGroups: SelectableGroups) => [
+  cell.taskId,
+  ...(selectableGroups.get(cell.taskId) ?? []),
+];
+
+/** The keys of the cells the selection acts on, including those inside the selected groups. */
+export const getCoveredCellKeys = (selection: GridSelection, selectableGroups: SelectableGroups) =>
+  new Set(
+    [...selection.values()].flatMap((cell) =>
+      getCoveredNodeIds(cell, selectableGroups).map((nodeId) => getCellKey(cell.runId, nodeId)),
+    ),
+  );
+
+// Cells without a task instance have nothing to act on.
+export const isSelectableCell = (taskInstance: LightGridTaskInstanceSummary | undefined) =>
+  taskInstance?.dag_version_number !== null && taskInstance?.dag_version_number !== undefined;
 
 type GridData = {
   readonly flatNodes: Array<GridTask>;
@@ -61,7 +98,7 @@ export const buildRangeSelection = (data: GridData, from: GridCell, to: GridCell
 
   for (const node of data.flatNodes.slice(Math.min(...rows), Math.max(...rows) + 1)) {
     for (const runId of data.runIds.slice(Math.min(...columns), Math.max(...columns) + 1)) {
-      if (isSelectableCell(node, findTaskInstance(data, runId, node.id))) {
+      if (isSelectableCell(findTaskInstance(data, runId, node.id))) {
         selection.set(getCellKey(runId, node.id), { runId, taskId: node.id });
       }
     }
@@ -76,7 +113,7 @@ export const buildRangeSelection = (data: GridData, from: GridCell, to: GridCell
  * plain click clears the selection and navigates as before.
  */
 export const useGridSelection = (data: GridData) => {
-  const { dagId = "", runId: openedRunId, taskId: openedTaskId } = useParams();
+  const { dagId = "", groupId: openedGroupId, runId: openedRunId, taskId: openedTaskId } = useParams();
   const [selection, setSelection] = useGridSelectionState();
   const anchorRef = useRef<GridCell | undefined>(undefined);
   // The click handler is passed to every run column; reading the grid data through a ref keeps it
@@ -137,14 +174,13 @@ export const useGridSelection = (data: GridData) => {
   // Returns whether the click changed the selection, in which case it must not navigate.
   const handleSelectionClick = useCallback(
     (event: MouseEvent, cell: GridCell): boolean => {
-      const isSelectable = ({ runId, taskId }: GridCell) => {
-        const node = dataRef.current.flatNodes.find((flatNode) => flatNode.id === taskId);
-
-        return node !== undefined && isSelectableCell(node, findTaskInstance(dataRef.current, runId, taskId));
-      };
+      const isSelectable = ({ runId, taskId }: GridCell) =>
+        dataRef.current.flatNodes.some((flatNode) => flatNode.id === taskId) &&
+        isSelectableCell(findTaskInstance(dataRef.current, runId, taskId));
+      const openedId = openedTaskId ?? openedGroupId;
       const openedCell =
-        openedRunId !== undefined && openedTaskId !== undefined
-          ? { runId: openedRunId, taskId: openedTaskId }
+        openedRunId !== undefined && openedId !== undefined
+          ? { runId: openedRunId, taskId: openedId }
           : undefined;
 
       if (event.shiftKey && isSelectable(cell)) {
@@ -191,7 +227,7 @@ export const useGridSelection = (data: GridData) => {
 
       return false;
     },
-    [clearSelection, dagId, openedRunId, openedTaskId, setSelection],
+    [clearSelection, dagId, openedGroupId, openedRunId, openedTaskId, setSelection],
   );
 
   return { clearSelection, deselectCells, handleSelectionClick, selection: cells };
