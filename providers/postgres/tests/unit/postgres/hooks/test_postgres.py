@@ -767,6 +767,25 @@ class TestPostgresHookConnPPG3:
             options="-c statement_timeout=3000ms",
         )
 
+    @pytest.mark.asyncio
+    async def test_aclose_conn_awaits_close(self, mocker):
+        conn = mocker.MagicMock()
+        conn.close = mock.AsyncMock()
+
+        await self.db_hook._aclose_conn(conn)
+
+        conn.close.assert_awaited_once_with()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("autocommit", [True, False])
+    async def test_aset_autocommit_awaits_set_autocommit(self, mocker, autocommit):
+        conn = mocker.MagicMock()
+        conn.set_autocommit = mock.AsyncMock()
+
+        await self.db_hook._aset_autocommit(conn, autocommit)
+
+        conn.set_autocommit.assert_awaited_once_with(autocommit)
+
 
 class TestPostgresHookSqlalchemyScheme:
     """Tests for overriding the SQLAlchemy ``drivername`` via the sqlalchemy_scheme extra/parameter."""

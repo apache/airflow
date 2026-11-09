@@ -406,61 +406,59 @@ class TestDbApiHook:
     async def test_acreate_connection_yields_conn(self):
         hook = mock_db_hook(DbApiHook)
         mock_conn = MagicMock()
-        mock_conn.close = MagicMock()
-        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+        with (
+            patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)),
+            patch.object(hook, "_aclose_conn", AsyncMock()),
+        ):
             async with hook._acreate_autocommit_connection() as conn:
                 assert conn is mock_conn
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_acreate_connection_calls_close(self):
+    async def test_aclose_conn_not_implemented_by_default(self):
         hook = mock_db_hook(DbApiHook)
-        mock_conn = MagicMock()
-        mock_conn.close = MagicMock()
-        del mock_conn.aclose
-        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._acreate_autocommit_connection():
-                pass
-        mock_conn.close.assert_called_once()
+        with pytest.raises(NotImplementedError, match="does not implement _aclose_conn"):
+            await hook._aclose_conn(MagicMock())
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_acreate_connection_prefers_aclose(self):
+    async def test_aset_autocommit_not_implemented_by_default(self):
         hook = mock_db_hook(DbApiHook)
-        mock_conn = MagicMock()
-        mock_conn.aclose = AsyncMock()
-        mock_conn.close = MagicMock()
-        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._acreate_autocommit_connection():
-                pass
-        mock_conn.aclose.assert_awaited_once()
-        mock_conn.close.assert_not_called()
+        with pytest.raises(NotImplementedError, match="does not implement _aset_autocommit"):
+            await hook._aset_autocommit(MagicMock(), True)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_acreate_connection_sets_sync_autocommit(self):
+    @pytest.mark.parametrize("supports_autocommit", [True, False])
+    async def test_acreate_connection_sets_autocommit_only_when_supported(self, supports_autocommit):
         hook = mock_db_hook(DbApiHook)
-        hook.supports_autocommit = True
+        hook.supports_autocommit = supports_autocommit
         mock_conn = MagicMock()
-        mock_conn.close = MagicMock()
-        del mock_conn.set_autocommit
-        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+        with (
+            patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)),
+            patch.object(hook, "_aset_autocommit", AsyncMock()) as mock_set,
+            patch.object(hook, "_aclose_conn", AsyncMock()),
+        ):
             async with hook._acreate_autocommit_connection(autocommit=True):
                 pass
-        assert mock_conn.autocommit is True
+        if supports_autocommit:
+            mock_set.assert_awaited_once_with(mock_conn, True)
+        else:
+            mock_set.assert_not_awaited()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_acreate_connection_sets_async_autocommit(self):
+    async def test_acreate_connection_closes_on_error(self):
         hook = mock_db_hook(DbApiHook)
-        hook.supports_autocommit = True
         mock_conn = MagicMock()
-        mock_conn.close = MagicMock()
-        mock_conn.set_autocommit = AsyncMock()
-        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._acreate_autocommit_connection(autocommit=True):
-                pass
-        mock_conn.set_autocommit.assert_awaited_once_with(True)
+        with (
+            patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)),
+            patch.object(hook, "_aclose_conn", AsyncMock()) as mock_close,
+        ):
+            with pytest.raises(RuntimeError, match="boom"):
+                async with hook._acreate_autocommit_connection():
+                    raise RuntimeError("boom")
+        mock_close.assert_awaited_once_with(mock_conn)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio

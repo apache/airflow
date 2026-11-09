@@ -1168,21 +1168,39 @@ class DbApiHook(BaseHook):
             return await func(*args, **kwargs)
         return await sync_to_async(func)(*args, **kwargs)
 
+    async def _aclose_conn(self, conn) -> None:
+        """
+        Close an async connection opened by :meth:`aget_conn`.
+
+        DB-specific hooks override this with their driver's close call, since async drivers
+        do not share a common connection interface.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _aclose_conn. Override it to support "
+            "deferrable execution with a native async driver."
+        )
+
+    async def _aset_autocommit(self, conn, autocommit: bool) -> None:
+        """
+        Set autocommit on an async connection opened by :meth:`aget_conn`.
+
+        Only called when :attr:`supports_autocommit` is true. DB-specific hooks override this
+        with their driver's call, since async drivers do not share a common connection interface.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _aset_autocommit. Override it to support "
+            "autocommit with a native async driver."
+        )
+
     @asynccontextmanager
     async def _acreate_autocommit_connection(self, autocommit: bool = False):
         conn = await self.aget_conn()
         try:
             if self.supports_autocommit:
-                set_autocommit = getattr(conn, "set_autocommit", None)
-                if set_autocommit and inspect.iscoroutinefunction(set_autocommit):
-                    await set_autocommit(autocommit)
-                else:
-                    self.set_autocommit(conn, autocommit)
+                await self._aset_autocommit(conn, autocommit)
             yield conn
         finally:
-            close = getattr(conn, "aclose", None) or getattr(conn, "close", None)
-            if close:
-                await self._call(close)
+            await self._aclose_conn(conn)
 
     def supports_async_execution(self) -> bool:
         """Whether the DB-specific hook overrides :meth:`aget_conn` for a real async driver."""

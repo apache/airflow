@@ -353,6 +353,14 @@ class PostgresHook(DbApiHook):
         """Put the async connection's next transaction into read-only mode."""
         await conn.set_read_only(True)
 
+    async def _aclose_conn(self, conn) -> None:
+        """Close the psycopg3 async connection."""
+        await conn.close()
+
+    async def _aset_autocommit(self, conn, autocommit: bool) -> None:
+        """Set autocommit on the psycopg3 async connection."""
+        await conn.set_autocommit(autocommit)
+
     @overload
     def get_df(
         self,
