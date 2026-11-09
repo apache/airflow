@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, func, select, text
+from sqlalchemy import Column, MetaData, String, Table, create_engine, select, text
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -594,7 +594,8 @@ class TestPrefixSearchContractionCollationsPostgres:
     PREFIXES = ["c", "ch", "n", "ng"]
 
     @pytest.mark.parametrize("collation", COLLATIONS)
-    def test_prefix_search_matches_python_startswith_on_icu_collations(self, session, collation):
+    @pytest.mark.parametrize("prefix", PREFIXES)
+    def test_prefix_search_matches_python_startswith_on_icu_collations(self, session, collation, prefix):
         coll_exists = session.execute(
             text("SELECT 1 FROM pg_collation WHERE collname = :name"),
             {"name": collation},
@@ -603,7 +604,7 @@ class TestPrefixSearchContractionCollationsPostgres:
             pytest.skip(f"Collation {collation!r} is not installed in this PostgreSQL database")
 
         clean_coll_name = collation.replace("-", "_")
-        table_name = f"test_prefix_icu_{clean_coll_name}"
+        table_name = f"test_prefix_icu_{clean_coll_name}_{prefix}"
         table = Table(
             table_name,
             MetaData(),
@@ -617,38 +618,21 @@ class TestPrefixSearchContractionCollationsPostgres:
             session.execute(table.insert(), [{"name": r} for r in self.ROWS])
             session.flush()
 
-            for prefix in self.PREFIXES:
-                expected = sorted(r for r in self.ROWS if r.startswith(prefix))
+            expected = sorted(r for r in self.ROWS if r.startswith(prefix))
 
-                param = _PrefixSearchParam(table.c.name).set_value(prefix)
-                stmt = param.to_orm(select(table.c.name))
-                actual = sorted(session.scalars(stmt).all())
+            param = _PrefixSearchParam(table.c.name).set_value(prefix)
+            stmt = param.to_orm(select(table.c.name))
+            actual = sorted(session.scalars(stmt).all())
 
-                assert actual == expected, (
-                    f"Prefix {prefix!r} with collation {collation!r} returned {actual}, expected {expected}"
-                )
-
-                # Counter-check: verify that reintroducing the lower bound fails on this collation,
-                # proving that the exact substr check is necessary and this test is an active tripwire.
-                lower_bound_stmt = select(table.c.name).where(
-                    table.c.name >= prefix,
-                    func.substr(table.c.name, 1, len(prefix)) == prefix,
-                )
-                lower_bound_actual = sorted(session.scalars(lower_bound_stmt).all())
-                if collation == "cy-x-icu" and prefix == "n":
-                    assert lower_bound_actual != expected, (
-                        "Expected lower bound to fail on Welsh prefix 'n' (should miss 'ng1' and 'nginx')"
-                    )
-                elif collation == "ig-x-icu" and prefix == "c":
-                    assert lower_bound_actual != expected, (
-                        "Expected lower bound to fail on Igbo prefix 'c' (should miss 'ch1' and 'chata')"
-                    )
+            assert actual == expected, (
+                f"Prefix {prefix!r} with collation {collation!r} returned {actual}, expected {expected}"
+            )
         finally:
             table.drop(connection, checkfirst=True)
 
 
 class TestTaskDisplayNamePrefixPatternParam:
-    """Prefix filter splits on NULL override so ``task_id`` can use indexes."""
+    """Prefix filter splits on the NULL override between ``task_id`` and the display-name override."""
 
     def test_to_orm_uses_task_id_when_override_null(self):
         param = _TaskDisplayNamePrefixPatternParam().set_value("test_task_hello")

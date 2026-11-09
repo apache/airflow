@@ -45,12 +45,11 @@ class _PrefixPatternParam(BaseParam[str], ABC):
     Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), exact prefix check.
 
     .. note::
-        Trailing non-alphanumeric characters in a search term are stripped before the
-        predicate is built. Punctuation-terminated terms are unsafe under PostgreSQL's
-        default locale-aware collation (``en_US.utf8`` sorts punctuation unexpectedly),
-        so the term is stripped first. A user who asks for prefix ``"test_"`` gets matches
-        starting with ``"test"`` — a small over-match trade-off made explicit in the public
-        ``*_prefix_pattern`` query-param description.
+        Trailing non-alphanumeric characters in a search term are stripped to
+        preserve existing prefix-search behaviour. A user who asks for prefix
+        ``test_`` gets matches starting with ``test`` — a small over-match
+        trade-off made explicit in the public ``*_prefix_pattern`` query-param
+        description.
     """
 
     pipe_as_or: bool = True
@@ -69,13 +68,13 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         """
         Return the predicates matching values that start with ``term`` on ``column``.
 
-        The check is a collation-independent ``substr`` equality — no range bounds are
-        used. A ``column >= term`` bound would miss valid matches under collations where a
-        contraction sorts before its first letter: Welsh ``ng`` sorts before ``n``
-        (ICU ``cy-x-icu``) and Igbo ``ch`` sorts before ``c`` (``ig-x-icu``). The earlier
-        upper bound had the mirror problem: Czech ``ch`` sorts after ``h`` (``cs-CZ-x-icu``),
-        so prefix ``c`` missed ``chata`` (#74724). ``LIKE 'term%'`` is avoided because it is
-        case-insensitive on SQLite.
+        The check is a ``substr`` equality, so it does not depend on how the collation
+        orders strings — no range bounds are used. A ``column >= term`` bound would miss
+        valid matches under collations where a contraction sorts before its first letter:
+        Welsh ``ng`` sorts before ``n`` (ICU ``cy-x-icu``) and Igbo ``ch`` sorts before
+        ``c`` (``ig-x-icu``). The earlier upper bound had the mirror problem: Czech ``ch``
+        sorts after ``h`` (``cs-CZ-x-icu``), so prefix ``c`` missed ``chata`` (#74724).
+        ``LIKE 'term%'`` is avoided because it is case-insensitive on SQLite.
         """
         return [func.substr(column, 1, len(term)) == term]
 
@@ -195,11 +194,12 @@ class _PrefixSearchParam(_PrefixPatternParam):
 
 class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
     """
-    Prefix filter equivalent to :attr:`TaskInstance.task_display_name`, rewritten for composite-index use.
+    Prefix filter equivalent to :attr:`TaskInstance.task_display_name`.
 
-    The hybrid expression ``coalesce(_task_display_property_value, task_id)`` cannot use those indexes;
-    this implementation applies an equivalent ``OR`` of simpler prefix predicates instead. Trailing
-    non-alphanumeric characters in ``term`` are stripped first (see :class:`_PrefixPatternParam`).
+    The hybrid expression ``coalesce(_task_display_property_value, task_id)`` is expressed as
+    an equivalent ``OR`` of simple prefix predicates: ``task_id`` when the override is NULL,
+    otherwise the override. Trailing non-alphanumeric characters in ``term`` are stripped
+    first (see :class:`_PrefixPatternParam`).
     """
 
     def _prefix_clause(self, term: str):
@@ -335,8 +335,9 @@ def prefix_search_param_factory(
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
 
-    Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
-    B-tree index range scan, while substring matching requires a full table scan.
+    Prefix matching compares the start of the value with an exact ``substr`` equality. It adds no
+    range bounds, because they are unsafe under collations with contractions (#74724), so it does
+    not use an index range scan.
     """
     DESCRIPTION = (
         "Case-sensitive, index-friendly prefix match. "
