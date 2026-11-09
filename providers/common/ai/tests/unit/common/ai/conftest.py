@@ -20,8 +20,10 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from pydantic_ai.messages import ModelResponse
 from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import TaskStateStoreUsageBudget
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -100,6 +102,61 @@ def make_mock_run_result():
         mock_result.response = MagicMock(model_name="test-model")
         mock_result.all_messages.return_value = []
         return mock_result
+
+    return _make
+
+
+@pytest.fixture
+def reporting_task_instance():
+    """A task instance with id ``ti-1``, specced to what a run reads off it or pushes to."""
+    return MagicMock(
+        spec=["id", "dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"],
+        id="ti-1",
+        dag_id="dag",
+        task_id="test",
+        run_id="run",
+        try_number=1,
+        map_index=-1,
+    )
+
+
+@pytest.fixture
+def make_reporting_agent(make_mock_run_result):
+    """Factory fixture creating a mock agent whose run spends a known usage, as ``(agent, expected_pushes)``.
+
+    ``expected_pushes`` maps each XCom key the run must report (``usage``, ``run_id``, and the
+    model name unless ``model_name`` is ``None``) to its value, for a task instance with id ``ti-1``.
+    """
+
+    def _make(output, *, model_name):
+        result = make_mock_run_result(output)
+        result.response = ModelResponse(parts=[], model_name=model_name)
+
+        def _run_sync(*args, **kwargs):
+            # A real run updates the ``usage=`` object it is called with, which is what gets pushed,
+            # and reports back the ``run_id=`` it is called with.
+            kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, output_tokens=5))
+            result.run_id = kwargs["run_id"]
+            return result
+
+        agent = MagicMock(spec=["run_sync", "instrument"])
+        agent.run_sync.side_effect = _run_sync
+        expected_pushes = {
+            "usage": {
+                "requests": 1,
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15,
+                "tool_calls": 0,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+                "cost": None,
+            },
+            "run_id": "ti-1",
+        }
+        if model_name is not None:
+            expected_pushes[MODEL_NAME_XCOM_KEY] = model_name
+        return agent, expected_pushes
 
     return _make
 

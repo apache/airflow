@@ -38,6 +38,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
 from airflow.models.base import ID_LEN
+from airflow.models.trigger import TriggerStatus
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -84,8 +85,9 @@ class AssetWatcherResponse(BaseModel):
     """Asset watcher serializer for responses."""
 
     name: str
-    trigger_id: int
+    trigger_id: int = Field(description="The watcher's trigger; `GET /triggers/{trigger_id}` has its state.")
     created_date: datetime
+    status: TriggerStatus = Field(description="Status of the watcher's trigger, as in `GET /triggers`.")
 
 
 class AssetResponse(BaseModel):
@@ -137,6 +139,7 @@ class AssetResponse(BaseModel):
                 "name": watcher.name,
                 "trigger_id": watcher.trigger_id,
                 "created_date": watcher.trigger.created_date,
+                "status": watcher.trigger.status(),
             }
             for watcher in asset.watchers
         ]

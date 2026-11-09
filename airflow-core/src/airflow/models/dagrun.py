@@ -63,6 +63,7 @@ from sqlalchemy.orm import (
     Mapped,
     declared_attr,
     joinedload,
+    lazyload,
     mapped_column,
     relationship,
     synonym,
@@ -98,6 +99,7 @@ from airflow.models.dynamic_region import (
 )
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1064,8 +1066,10 @@ class DagRun(Base, LoggingMixin):
         If ``columns`` is provided then the result is plain rows with the
         values of these columns, otherwise the result is ORM objects.
         """
+        # The joined run comes back on every row. Its conf can be large, so it loads on first
+        # access instead of being decoded once per task instance.
         stmt = (
-            (select(*columns) if columns else select(TI).options(joinedload(TI.dag_run)))
+            (select(*columns) if columns else select(TI).options(joinedload(TI.dag_run).defer(DagRun.conf)))
             .where(TI.dag_id == dag_id, TI.run_id == run_id)
             .order_by(TI.task_id, TI.region_id, TI.region_index)
         )
@@ -1625,7 +1629,6 @@ class DagRun(Base, LoggingMixin):
                         TI.state != TaskInstanceState.REMOVED,
                     )
                     .values(state=TaskInstanceState.REMOVED)
-                    .execution_options(synchronize_session=False)
                 )
             return finished
 
@@ -1821,6 +1824,7 @@ class DagRun(Base, LoggingMixin):
             }
 
         context["reason"] = reason
+        context["callback"] = CallbackMeta(source=CallbackSource.DAG)
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:
@@ -1908,10 +1912,20 @@ class DagRun(Base, LoggingMixin):
         expansion_happened = False
         # (task id, region id) pairs for which _revise_map_indexes_if_mapped was already done
         revised_expansion_keys: set[tuple[str, UUID]] = set()
+        now = timezone.utcnow()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, Operator)
             old_state = schedulable.state
+            if old_state == TaskInstanceState.UP_FOR_RETRY:
+                # Worker-reported retries arrive without one; storing it spares later passes the
+                # previous-attempt lookup.
+                if schedulable.retry_at is None:
+                    schedulable.retry_at = schedulable.next_retry_datetime()
+                # Not due yet, so no dependency of it can pass; _are_premature_tis still counts it
+                # as runnable when the run looks for a deadlock.
+                if schedulable.retry_at >= now:
+                    continue
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.id] = old_state
                 continue
@@ -1966,7 +1980,10 @@ class DagRun(Base, LoggingMixin):
 
         # Check if any ti changed state
         if old_states:
-            fresh_tis = session.scalars(select(TI).where(TI.id.in_(old_states))).all()
+            # Joining the run here would decode its conf once per row; only the states are needed.
+            fresh_tis = session.scalars(
+                select(TI).options(lazyload(TI.dag_run)).where(TI.id.in_(old_states))
+            ).all()
             changed_tis = any(ti.state != old_states[ti.id] for ti in fresh_tis)
 
         return ready_tis, changed_tis, expansion_happened
@@ -2361,13 +2378,10 @@ class DagRun(Base, LoggingMixin):
                         producer_contexts=coordinates.producer_contexts(ti),
                     )
                 except NotFullyPopulated:
-                    # Not all upstreams finished, so we can't tell what should be here. Remove everything.
-                    if ti.region_index >= 0:
-                        self.log.debug(
-                            "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
-                        )
-                        ti.state = TaskInstanceState.REMOVED
-                        continue
+                    # Not all upstreams finished, so the count isn't known yet. Keep the expanded
+                    # instances and restore removed ones below; _revise_map_indexes_if_mapped trims
+                    # or extends them once the upstreams finish, but never restores a removed index.
+                    pass
                 else:
                     # Upstreams finished, check there aren't any extras
                     if ti.region_index >= total_length:
@@ -2880,6 +2894,7 @@ class DagRun(Base, LoggingMixin):
                         # Already archived with the finished try; the new one must not inherit it.
                         retry_reason=None,
                         retry_delay_override=None,
+                        retry_at=None,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2932,6 +2947,7 @@ class DagRun(Base, LoggingMixin):
                         try_number=next_try_number,
                         retry_reason=None,
                         retry_delay_override=None,
+                        retry_at=None,
                     )
                     .execution_options(
                         synchronize_session=False,

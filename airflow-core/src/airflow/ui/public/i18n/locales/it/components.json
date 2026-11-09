@@ -1,21 +1,40 @@
 {
   "backfill": {
-    "affected_many": "{{count, number}} runs verranno attivati.",
+    "affected_many": "{{count, number}} di runs verranno attivati.",
     "affected_one": "1 run verrà attivato.",
     "affected_other": "{{count, number}} runs verranno attivati.",
     "affected_zero": "Nessun run verrà attivato.",
     "affectedNone": "Nessun run corrispondente ai criteri selezionati.",
     "allRuns": "Tutti i Run",
     "backwards": "Run all'indietro",
+    "completed": "Completato",
     "dateRange": "Intervallo di Date",
     "errorStartDateBeforeEndDate": "La Data di Inizio deve essere precedente alla Data di Fine",
+    "exceptionReason": {
+      "alreadyExists": "Esiste già",
+      "inFlight": "In corso",
+      "unknown": "Sconosciuto"
+    },
     "maxRuns": "Numero massimo di Runs attive",
     "missingAndErroredRuns": "Run Mancanti ed Errati",
     "missingRuns": "Run Mancanti",
+    "notCreatedReason": "Motivo della mancata creazione",
+    "overrideExistingParams": "Sovrascrivi i parametri dei run esistenti",
+    "partitionRange": "Intervallo di partizioni",
+    "partitionsAffected_many": "Verrà applicato il backfill a {{count, number}} di partizioni:",
+    "partitionsAffected_one": "Verrà applicato il backfill a 1 partizione:",
+    "partitionsAffected_other": "Verrà applicato il backfill a {{count, number}} partizioni:",
+    "partitionsAffected_zero": "Nessuna partizione a cui applicare il backfill:",
+    "partitionsNone": "Nessuna partizione corrisponde all'intervallo selezionato.",
+    "permissionDenied": "Dry run fallito: l'utente non ha il permesso di creare backfill.",
     "reprocessBehavior": "Comportamento di Reprocesso",
     "run": "Correre Backfill",
+    "running": "In esecuzione",
+    "scheduleNotBackfillable": "La programmazione di questo Dag non supporta i backfill",
+    "schedulerPriorityHint": "In ogni ciclo dello scheduler i run di backfill del Dag vengono ordinati dopo quelli che non sono backfill. I run di backfill possono restare in coda più a lungo se sono presenti altri run.",
     "selectDescription": "Esegui questo Dag per un intervallo di date",
     "selectLabel": "Backfill",
+    "status": "Stato",
     "title": "Correre Backfill",
     "toaster": {
       "success": {
@@ -26,7 +45,8 @@
     "validation": {
       "datesRequired": "Devi fornire sia la Data di Inizio che la Data di Fine.",
       "startBeforeEnd": "La Data di Inizio deve essere precedente o uguale alla Data di Fine."
-    }
+    },
+    "viewSlots": "Vedi gli slot del Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill in corso",
@@ -43,10 +63,7 @@
     "invalidJson": "Formato JSON non valido: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_many": "{{count, number}} Errori",
     "error_one": "1 Errore",
-    "error_other": "{{count, number}} Errori",
-    "error_zero": "Nessun errore",
     "errorAndWarning": "1 Errore e {{warningText}}",
     "types": {
       "asset conflict": "Conflitto di Asset",
@@ -55,39 +72,50 @@
       "runtime varying value": "Valore variabile a runtime",
       "task group cycle": "Ciclo nel gruppo di task"
     },
-    "warning_many": "{{count, number}} Avvisi",
+    "warning_many": "{{count, number}} di Avvisi",
     "warning_one": "1 Avviso",
     "warning_other": "{{count, number}} Avvisi",
     "warning_zero": "Nessun avviso"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Formato della data non valido.",
+      "invalidTimeFormat": "Formato dell'ora non valido.",
+      "startBeforeEnd": "Data e ora di inizio devono precedere data e ora di fine"
+    }
+  },
   "durationChart": {
     "duration": "Durata (secondi)",
-    "lastDagRun_many": "Ultimi {{count, number}} Runs del Dag",
+    "lastDagRun_many": "Ultimi {{count, number}} di Runs del Dag",
     "lastDagRun_one": "Ultimo Run del Dag",
     "lastDagRun_other": "Ultimi {{count, number}} Runs del Dag",
     "lastDagRun_zero": "Nessun run del Dag",
-    "lastTaskInstance_many": "Ultime {{count, number}} Istanze di Task",
+    "lastTaskInstance_many": "Ultime {{count, number}} di Istanze di Task",
     "lastTaskInstance_one": "Ultima Istanza di Task",
     "lastTaskInstance_other": "Ultime {{count, number}} Istanze di Task",
     "lastTaskInstance_zero": "Nessuna istanza di task",
+    "medianTotalDuration": "Totale: {{duration}}",
     "queuedDuration": "Durata in coda",
     "runAfter": "Esegui dopo",
     "runDuration": "Durata del Run"
   },
   "fileUpload": {
-    "files_many": "{{count, number}} file",
+    "files_many": "{{count, number}} di file",
     "files_one": "1 file",
     "files_other": "{{count, number}} file",
     "files_zero": "Nessun file"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Inserisci la durata in formato ISO 8601",
     "placeholder": "Seleziona Valore",
     "placeholderArray": "Inserisci ogni stringa su una nuova riga",
     "placeholderExamples": "Inizia a digitare per vedere le opzioni",
     "placeholderMulti": "Seleziona uno o più valori",
+    "validationErrorArrayElement": "Valori {{type}} non validi: {{values}}",
     "validationErrorArrayNotArray": "Il valore deve essere un array.",
     "validationErrorArrayNotNumbers": "Tutti gli elementi dell'array devono essere numeri.",
     "validationErrorArrayNotObject": "Tutti gli elementi dell'array devono essere oggetti.",
+    "validationErrorDuration": "Formato di durata ISO 8601 non valido",
     "validationErrorRequired": "Questo campo è obbligatorio"
   },
   "graph": {
@@ -99,11 +127,18 @@
     "downloadImageError": "Impossibile scaricare l'immagine del grafico.",
     "downloadImageErrorTitle": "Scaricamento Fallito",
     "otherDagRuns": "+Altri Runs del Dag",
-    "taskCount_many": "{{count, number}} Tasks",
+    "taskCount_many": "{{count, number}} di Tasks",
     "taskCount_one": "{{count, number}} Task",
     "taskCount_other": "{{count, number}} Tasks",
     "taskCount_zero": "Nessun task",
-    "taskGroup": "Task Group"
+    "taskGroup": "Task Group",
+    "zoomToTask": "Zoom sul Task selezionato"
+  },
+  "jsonPreview": {
+    "items_many": "{{count, number}} di elementi",
+    "items_one": "1 elemento",
+    "items_other": "{{count, number}} elementi",
+    "items_zero": "Nessun elemento"
   },
   "limitedList": "+{{count, number}} altro",
   "limitedList.allItems": "Tutti i {{count, number}} elementi:",
@@ -114,7 +149,7 @@
   "limitedList.clickToInteract": "Fai clic su un'etichetta per filtrare i Dag",
   "limitedList.clickToOpenFull": "Fai clic su \"+{{count, number}} altro\" per visualizzare tutto",
   "limitedList.copyPasteText": "Puoi copiare e incollare il testo sopra",
-  "limitedList.showingItems_many": "Mostrando {{count, number}} elementi",
+  "limitedList.showingItems_many": "Mostrando {{count, number}} di elementi",
   "limitedList.showingItems_one": "Mostrando 1 elemento",
   "limitedList.showingItems_other": "Mostrando {{count, number}} elementi",
   "limitedList.showingItems_zero": "Mostrando 0 elementi",
@@ -122,27 +157,79 @@
     "file": "File",
     "location": "linea {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Nascondi il valore",
+    "show": "Mostra il valore"
+  },
+  "pausedDag": {
+    "drain": "Drena",
+    "drainDescription": "I run non terminati continuano, ma non vengono creati run programmati. I backfill in pausa restano in pausa. Il Dag torna in pausa quando tutti i run non terminati finiscono.",
+    "keepPaused": "Tieni in pausa",
+    "keepPausedDescription": "I run nuovi e quelli non terminati attendono finché il Dag non viene ripreso.",
+    "title": "Il Dag è in pausa",
+    "unfinishedRunsWillRun_many": "{{count, number}} di run del Dag non terminati verranno avviati o ripresi.",
+    "unfinishedRunsWillRun_one": "1 run del Dag non terminato verrà avviato o ripreso.",
+    "unfinishedRunsWillRun_other": "{{count, number}} run del Dag non terminati verranno avviati o ripresi.",
+    "unfinishedRunsWillRun_zero": "Nessun run del Dag non terminato verrà avviato o ripreso.",
+    "unpause": "Riprendi",
+    "unpauseDescription": "Il Dag diventa attivo: i run non terminati continuano e la programmazione riprende. I backfill in pausa restano in pausa."
+  },
   "reparseDag": "Reparse Dag",
+  "slowestTaskInstances": {
+    "empty": "Nessuna istanza di Task completata in questo intervallo",
+    "title": "Istanze di Task più lente"
+  },
+  "sort": "ordina",
+  "sortMultiColumnHint": "Tieni premuto Maiusc e fai clic per ordinare per più colonne",
   "sortedAscending": "ordinato in ordine crescente",
   "sortedDescending": "ordinato in ordine decrescente",
   "sortedUnsorted": "non ordinato",
   "taskTries": "Tentativi di Task",
+  "taskTryPlaceholder": "Tentativo del Task",
+  "team": {
+    "selector": {
+      "helperText": "Facoltativo. Limita l'uso a un Team specifico.",
+      "label": "Team",
+      "placeHolder": "Seleziona un Team"
+    }
+  },
   "toggleCardView": "Mostra la vista in card",
   "toggleTableView": "Mostra la vista in tabella",
   "triggerDag": {
     "button": "Trigger",
+    "dagStartEndDate": {
+      "both": "Data di inizio del Dag: {{startDate}}, data di fine: {{endDate}}",
+      "end": "Data di fine del Dag: {{endDate}}",
+      "noTaskWillRun": "Nessun Task verrà eseguito.",
+      "start": "Data di inizio del Dag: {{startDate}}"
+    },
+    "dataInterval": "Intervallo dei dati",
+    "dataIntervalAuto": "Dedotto dalla data logica e dalla programmazione",
+    "dataIntervalManual": "Specifica manualmente",
+    "editConfigAndTrigger": "Modifica la configurazione e attiva",
+    "intervalEnd": "Fine",
+    "intervalStart": "Inizio",
     "loading": "Caricamento informazioni del Dag...",
     "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
+    "manualRunDenied": "I run manuali non sono consentiti per questo Dag",
+    "partitionKeyHelp": "Facoltativo: vale solo per i Dag partizionati",
+    "recentConfig": "Configurazioni recenti",
+    "recentConfigPlaceholder": "Seleziona una configurazione recente",
     "runIdHelp": "Opzionale - verrà generato se non fornito",
     "selectDescription": "Triggera un singolo run di questo Dag",
     "selectLabel": "Singolo Run",
     "title": "Trigger del Dag",
     "toaster": {
+      "error": {
+        "title": "Attivazione del Dag fallita"
+      },
       "success": {
         "description": "Il run del Dag è stato attivato con successo.",
         "title": "Run del Dag attivato"
       }
-    }
+    },
+    "triggerAgainWithConfig": "Attiva di nuovo con questa configurazione",
+    "triggerOptions": "Opzioni di attivazione"
   },
   "trimText": {
     "details": "Dettagli",
@@ -157,7 +244,9 @@
     "versionId": "ID della Versione"
   },
   "versionSelect": {
+    "allVersions": "Tutte le versioni",
     "dagVersion": "Versione del Dag",
+    "placeholder": "Seleziona la versione",
     "versionCode": "v{{versionCode}}"
   }
 }

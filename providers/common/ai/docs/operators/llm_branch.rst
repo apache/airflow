@@ -231,7 +231,8 @@ The decision record
 ^^^^^^^^^^^^^^^^^^^
 
 Whether or not a bar is set, the operator pushes a ``decision`` XCom next to
-its return value (suppressed by ``do_xcom_push=False`` like any other):
+its return value and the run XComs listed under `Logging`_ (suppressed by
+``do_xcom_push=False`` like any other):
 
 .. code-block:: json
 
@@ -350,3 +351,6 @@ Logging
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

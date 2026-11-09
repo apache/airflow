@@ -1055,6 +1055,17 @@ To check what documents will be published to S3, you can use the ``--dry-run`` f
      breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
      --destination-location s3://airflow-docs/docs --dry-run
 
+After the sync the command rebuilds ``manifest/packages-metadata.json`` from a scan of every package in
+the bucket. When several publishes to one bucket can run at once, sync with ``--skip-packages-metadata``
+and rebuild the file in a separate, serialised step with ``--packages-metadata-only``, which needs no
+``--source-dir-path``. The ``Publish Docs to S3`` workflow does this so that provider and Airflow docs
+publishes can sync side by side.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs-to-s3 --destination-location s3://airflow-docs/docs \
+     --packages-metadata-only
+
 These are all available flags of ``release-management publish-docs-to-s3`` command:
 
 .. image:: ./images/output_release-management_publish-docs.svg
@@ -1147,6 +1158,42 @@ These are all available flags of ``workflow-run release-constraints`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_release-constraints.svg
   :width: 100%
   :alt: Breeze workflow-run release-constraints
+
+Refreshing the base images before a release
+"""""""""""""""""""""""""""""""""""""""""""
+
+The images are built on hardened Python base images pinned to digests, and the legacy images on pinned
+Python patch releases. Only the "Upgrade important CI environment" upgrade moves those pins, to images the
+mirror already has, so the release manager runs it before every beta (for ``main``) and before every
+test-to-stable PR (for the release branch), with one command.
+
+``breeze workflow-run upgrade-check`` mirrors the latest hardened base images first and waits for it, then
+upgrades the branch - by default the branch breeze comes from. For ``main`` it runs the upgrade check
+workflow, which opens an upgrade PR, and waits for it. For a ``vX-Y-test`` branch it runs
+``breeze ci upgrade --push-to-target-branch`` in your checkout, which pushes the upgrade straight to the
+branch, the head of the test-to-stable PR. That runs locally, as the release branch rules let only
+committers push without CI having passed. It fails, rather than switching, resetting or cleaning anything,
+when the checkout is not at the tip of the branch or has local changes. Both need ``gh`` credentials that
+may dispatch ``apache/airflow`` workflows, and check that first.
+
+These are all available flags of ``workflow-run upgrade-check`` command:
+
+.. image:: ./images/output_workflow-run_upgrade-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_upgrade-check.svg
+  :width: 100%
+  :alt: Breeze workflow-run upgrade-check
+
+``breeze workflow-run mirror-base-images`` runs only the mirror on ``main`` and waits for it. The mirror is
+shared by all branches, and ``main`` mirrors every Python version an active release branch still builds
+on. The upgrade check workflow runs it in a job of its own, so the token that may dispatch workflows never
+reaches the job running the upgraded tools.
+
+These are all available flags of ``workflow-run mirror-base-images`` command:
+
+.. image:: ./images/output_workflow-run_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze workflow-run mirror-base-images
 
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
@@ -1292,6 +1339,78 @@ Example usage:
      breeze release-management mirror-base-images --python 3.10
 
 Without ``--python`` every currently supported Python version is mirrored.
+
+
+Build the OS-dependencies images
+""""""""""""""""""""""""""""""""
+
+Pinning the base image to a digest does not pin the ``dhi.io`` apt repository the OS dependencies are
+installed from: it moves on - and drops the package versions it replaced - whenever Docker rebuilds its
+images, so the same commit could build today and fail tomorrow. The CI image and the PROD images built
+by CI and the release workflows therefore start from images in which ``install_os_dependencies.sh``
+already ran, one per installation type (``ci``, ``dev`` and ``runtime``). They are built from the
+``ci-os-deps``, ``dev-os-deps`` and ``runtime-os-deps`` stages of the Dockerfiles, on the base images the
+mirror serves, and pinned in ``dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json``
+by the same upgrade that moves the base image pins. Only ``main`` carries pins: the images are built from
+``main``'s script and Dockerfiles, so on a release branch they would not match its own installation - the
+upgrade leaves the file empty on any other branch until there are images per branch.
+
+The "Mirror hardened base images" workflow runs this command daily, natively on an AMD and an ARM runner,
+after it mirrored the base images - also for a newer Python patch release the mirror already copied, so
+its images are published by the time the upgrade moves the base image pin to it. Its six-hourly runs only
+mirror, and the run the upgrade check dispatches
+(``breeze workflow-run mirror-base-images --no-build-os-deps-images``) builds nothing either. Every input
+of an image - the base image digest, the script, its Dockerfile stage and its build args - is part of its
+tag, so an image is built only when one of them changed.
+
+These are all available flags of ``release-management build-os-deps-images`` command:
+
+.. image:: ./images/output_release-management_build-os-deps-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_build-os-deps-images.svg
+  :width: 100%
+  :alt: Breeze build OS-dependencies images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management build-os-deps-images --platform linux/arm64 --python 3.13
+
+In the workflow, the build and publish jobs get the base image digests the run's own mirror job mirrored
+(``--base-image-digests``), so a mirror-only run moving the tags meanwhile does not change what they
+build and publish - the OS-dependencies jobs have concurrency groups of their own and do not hold up the
+mirror runs.
+
+The script records what it installed with in the image, and a build on it installs nothing when nothing
+differs. When a PR changes the variables the script installs with (such as the Go or Node.js versions),
+the installation runs again on top of the pinned image, so the change is still exercised; a PR that
+changes the script, the client scripts or the keys builds from ``BASE_IMAGE`` in CI instead. Builds with
+another base image, Debian version or apt dependencies do not use the pinned images at all and install
+from the apt repositories.
+
+
+Publish the OS-dependencies images
+""""""""""""""""""""""""""""""""""
+
+Once both platforms are built, this command merges them into a multi-platform image and moves the tag
+the upgrade check pins - the latest published OS-dependencies image of a Python patch release - to it.
+The merged image keeps its own tag, which has every input in it and never moves, so a pinned digest
+stays tagged. When it moves a tag, the workflow triggers the upgrade check, which pins the latest image
+of each Python patch release whatever base image digest it was built on: the image carries its own
+Python, so it need not share the digest of the base image pin, which moves several times a day.
+
+These are all available flags of ``release-management publish-os-deps-images`` command:
+
+.. image:: ./images/output_release-management_publish-os-deps-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-os-deps-images.svg
+  :width: 100%
+  :alt: Breeze publish OS-dependencies images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management publish-os-deps-images --python 3.13
 
 
 -----

@@ -73,7 +73,7 @@ PIP package                                 Version required
 ``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
 ``google-api-core``                         ``>=2.30.3``
-``google-api-python-client``                ``>=2.194.0``
+``google-api-python-client``                ``>=2.195.0``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
@@ -87,7 +87,7 @@ PIP package                                 Version required
 ``google-cloud-automl``                     ``>=2.19.0``
 ``google-cloud-bigquery``                   ``>=3.41.0``
 ``google-cloud-bigquery-datatransfer``      ``>=3.22.0``
-``google-cloud-bigtable``                   ``>=2.36.0``
+``google-cloud-bigtable``                   ``>=2.37.0``
 ``google-cloud-build``                      ``>=3.36.0``
 ``google-cloud-compute``                    ``>=1.47.0``
 ``google-cloud-container``                  ``>=2.64.0``
@@ -137,7 +137,6 @@ PIP package                                 Version required
 ``sqlalchemy-spanner``                      ``>=1.6.2``
 ``tenacity``                                ``>=8.3.0``
 ``immutabledict``                           ``>=4.2.0``
-``types-protobuf``                          ``>=5.27.0,!=5.29.1.20250402``
 ==========================================  ==================================================================
 
 Optional cross provider package dependencies

@@ -54,25 +54,40 @@ ARG AIRFLOW_VERSION="3.3.2"
 # image are based on it, so Python is never compiled during the build.
 #
 # The default is Airflow's public mirror of the upstream "dhi.io/python" image, so building needs no
-# registry credentials. The upstream image itself requires a "docker login dhi.io".
+# registry credentials. The upstream image itself requires a "docker login dhi.io". It is pinned to a
+# digest, because the mirror's tags move several times a day: "breeze ci upgrade" moves the pin once
+# the full CI has passed on the new image.
 #
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
-#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian13-fips-dev"
+#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.18-debian13-fips-dev"
 #
 # AIRFLOW_IMAGE_FLAVOR="legacy" builds the image the way it was built before the hardened base images:
 # BASE_IMAGE is then a plain Debian image (for example "debian:bookworm-slim") and Python
-# AIRFLOW_PYTHON_VERSION is downloaded from python.org, verified and compiled from sources.
+# AIRFLOW_PYTHON_VERSION is downloaded from python.org, verified and compiled from sources. A
+# MAJOR.MINOR AIRFLOW_PYTHON_VERSION builds the latest release of that line.
+#
+# AIRFLOW_PYTHON_VERSION is empty by default: the hardened flavor takes Python from BASE_IMAGE, and the
+# build fails if a version passed here does not match it. Breeze passes the Python patchlevel that
+# "breeze ci upgrade" last moved, so a new patch release also rebuilds the legacy flavor.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev"
-ARG AIRFLOW_PYTHON_VERSION="3.13.16"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:cacda18986eefebc42b0c6c03565ec2d65a4507b6adff559e4daf0f1e2bfe338"
+
+# DEV_OS_DEPS_IMAGE / RUNTIME_OS_DEPS_IMAGE: the images the build and the final image install their OS
+# dependencies on. By default both are BASE_IMAGE and the build installs them from the apt repositories.
+# The CI and release builds pass the pinned OS-dependencies images instead - BASE_IMAGE with the OS
+# dependencies already installed by the "dev-os-deps" and "runtime-os-deps" stages below - so they do
+# not depend on the live dhi.io apt repository. See "breeze release-management build-os-deps-images".
+ARG DEV_OS_DEPS_IMAGE="${BASE_IMAGE}"
+ARG RUNTIME_OS_DEPS_IMAGE="${BASE_IMAGE}"
+ARG AIRFLOW_PYTHON_VERSION=""
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.2.1
+ARG AIRFLOW_PIP_VERSION=26.2.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.4
+ARG AIRFLOW_UV_VERSION=0.13.6
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -118,6 +133,34 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
+OS_DEPENDENCIES_SCRIPTS_DIR="$(dirname "${BASH_SOURCE[0]}")"
+OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
+OS_DEPENDENCIES_INPUTS_HASH=$(
+    {
+        echo "${1}"
+        for file in "${BASH_SOURCE[0]}" "${OS_DEPENDENCIES_SCRIPTS_DIR}/common.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}"/keys/*; do
+            sha256sum "${file}" | cut -d ' ' -f 1
+        done
+        for variable in AIRFLOW_IMAGE_FLAVOR AIRFLOW_PYTHON_VERSION PYTHON_HOME \
+                DEV_APT_DEPS ADDITIONAL_DEV_APT_DEPS DEV_APT_COMMAND ADDITIONAL_DEV_APT_COMMAND \
+                ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
+                ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
+                TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER \
+                INSTALL_MYSQL_CLIENT INSTALL_MYSQL_CLIENT_TYPE INSTALL_MSSQL_CLIENT INSTALL_POSTGRES_CLIENT; do
+            printf '%s=%s\n' "${variable}" "${!variable-}"
+        done
+    } | sha256sum | cut -d ' ' -f 1
+)
+if [[ -f "${OS_DEPENDENCIES_MARKER}" && "$(cat "${OS_DEPENDENCIES_MARKER}")" == "${OS_DEPENDENCIES_INPUTS_HASH}" ]]; then
+    echo
+    echo "The base image already has the OS dependencies for these inputs (${OS_DEPENDENCIES_INPUTS_HASH}) - nothing to install."
+    echo
+    exit 0
+fi
+
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
@@ -125,7 +168,7 @@ PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.13.16}
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
@@ -133,6 +176,13 @@ if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
     # Read before apt runs: a package depending on python3 can pull another Python version in.
     BASE_PYTHON_MAJOR_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+    if [[ -n "${AIRFLOW_PYTHON_VERSION}" && "${AIRFLOW_PYTHON_VERSION}." != "${BASE_PYTHON_MAJOR_MINOR}."* ]]; then
+        echo
+        echo "ERROR! AIRFLOW_PYTHON_VERSION is ${AIRFLOW_PYTHON_VERSION}, but the base image has Python ${BASE_PYTHON_MAJOR_MINOR}."
+        echo "The hardened flavor takes Python from BASE_IMAGE: leave AIRFLOW_PYTHON_VERSION empty or pick a BASE_IMAGE with that Python."
+        echo
+        exit 1
+    fi
 elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-/usr/python}
 else
@@ -307,6 +357,47 @@ function keep_image_conffiles() {
     printf '%s\n' force-confdef force-confold > /etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles
 }
 
+function prefer_hardened_apt_repository() {
+    # The hardened base images take their packages from dhi.io, but stock Debian's sources stay
+    # configured beside it and apt installs whichever repository offers the higher version. Debian's
+    # build of a package then replaces Docker's, and its dependencies no longer match the packages the
+    # image ships (docker-hardened-images/catalog#610). Ranking dhi.io above the default priority of
+    # 500 makes apt take Docker's build whenever dhi.io publishes the package, and fall back to Debian
+    # only when it does not.
+    # The priority stays below 1000 so the preference never forces a downgrade: apt still favors
+    # dhi.io's build of a package it publishes, but may take a newer version from another repository
+    # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
+    # ">= 18.6" and dhi.io does not carry. The renumbered builds that sort below the image's own copy
+    # are handled by align_image_packages_with_hardened_repository instead.
+    # The preference covers every apt run - this build's and those of images extending it.
+    mkdir -p /etc/apt/preferences.d
+    printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 999\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+}
+
+function align_image_packages_with_hardened_repository() {
+    # The dhi.io apt repository is live, so it moves on even under a base image pinned to a digest.
+    # Docker renumbered its builds ("14.2.0-19+dhi5" became "14.2.0-19+deb13u0+dhi5", which sorts
+    # lower) and the repository dropped the old numbers, while the image still ships them. Packages
+    # depending on the exact new version (gcc-14 on gcc-14-base, libgmp-dev on libgmp10) are then
+    # uninstallable, because apt will not downgrade the image's copy at a priority below 1000
+    # (docker-hardened-images/catalog#689). Only installed versions no repository offers any more
+    # ("local" ones) are moved to dhi.io's build, so newer packages from other repositories - such as
+    # PGDG's libpq5 - are left alone.
+    local package
+    local dhi_version
+    local -a downgrades=()
+    while read -r package; do
+        dhi_version=$(apt-cache madison "${package}" | awk -F' [|] ' '$3 ~ /dhi\.io/ {print $2; exit}')
+        if [[ -n "${dhi_version}" ]]; then
+            downgrades+=("${package}=${dhi_version}")
+        fi
+    done < <(apt list --installed 2>/dev/null | awk -F/ '/\[installed,local\]/ {print $1}')
+    if (( ${#downgrades[@]} )); then
+        echo "Aligning image packages with the dhi.io repository: ${downgrades[*]}"
+        apt-get install -y --no-install-recommends --allow-downgrades "${downgrades[@]}"
+    fi
+}
+
 function refresh_ldconfig_after_dpkg() {
     # The hardened base images ship libc-bin without its dpkg trigger, so installing a shared library
     # does not refresh the ldconfig cache and ctypes.util.find_library() - which reads that cache -
@@ -363,14 +454,38 @@ function align_perl_base_with_perl() {
     fi
 }
 
+function install_apt_utils() {
+    # apt-utils depends on exactly its own apt version. The hardened images can ship an apt newer than
+    # the one dhi.io publishes, and with dhi.io preferred apt then picks an apt-utils it cannot install
+    # beside the image's apt, so ask for the version matching apt whenever a repository carries it.
+    local apt_version apt_utils_package apt_utils_log
+    apt_version=$(dpkg-query -W -f='${Version}' apt)
+    apt_utils_package="apt-utils"
+    if apt-cache madison apt-utils | awk -v version="${apt_version}" '$3 == version {found = 1} END {exit !found}'; then
+        apt_utils_package="apt-utils=${apt_version}"
+    fi
+    apt_utils_log=$(mktemp)
+    if ! apt-get install -yqq --no-install-recommends "${apt_utils_package}" > "${apt_utils_log}" 2>&1; then
+        echo
+        echo "ERROR! Installing ${apt_utils_package} failed. Output:"
+        echo
+        cat "${apt_utils_log}"
+        rm -f "${apt_utils_log}"
+        exit 1
+    fi
+    rm -f "${apt_utils_log}"
+}
+
 function install_debian_dev_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        prefer_hardened_apt_repository
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -548,8 +663,39 @@ function install_cosign() {
     chmod +x /tmp/cosign
 }
 
+function resolve_python_version() {
+    if [[ -z "${AIRFLOW_PYTHON_VERSION}" ]]; then
+        echo
+        echo "ERROR! The legacy flavor compiles Python from sources, so AIRFLOW_PYTHON_VERSION has to name it:"
+        echo "MAJOR.MINOR for the latest release of that line, or MAJOR.MINOR.PATCH."
+        echo
+        exit 1
+    fi
+    if [[ ! "${AIRFLOW_PYTHON_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        return
+    fi
+    # A release directory appears on python.org with its first pre-release, so take the newest one
+    # that already holds the final tarball.
+    local candidate
+    for candidate in $(wget --tries=3 --waitretry=5 -qO- https://www.python.org/ftp/python/ \
+            | grep -oE "href=\"${AIRFLOW_PYTHON_VERSION//./\\.}\.[0-9]+/\"" \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -V -r); do
+        if wget --tries=3 --waitretry=5 -q --spider \
+                "https://www.python.org/ftp/python/${candidate}/Python-${candidate}.tar.xz"; then
+            echo "Python ${AIRFLOW_PYTHON_VERSION} resolved to its latest release ${candidate}"
+            AIRFLOW_PYTHON_VERSION="${candidate}"
+            return
+        fi
+    done
+    echo
+    echo "ERROR! No release of Python ${AIRFLOW_PYTHON_VERSION} found on python.org."
+    echo
+    exit 1
+}
+
 function install_python() {
     # Only the legacy image flavor compiles Python - the hardened flavor gets it from the base image.
+    resolve_python_version
     wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
@@ -630,11 +776,13 @@ function install_python() {
 function install_debian_runtime_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        prefer_hardened_apt_repository
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -744,6 +892,25 @@ function install_rustup() {
     rm -f /tmp/rustup-init
 }
 
+function install_database_clients() {
+    # Part of the OS dependencies, so the pinned OS-dependencies images carry the clients too and an
+    # image built on one does not install them from the live apt repositories. They run in the same
+    # order as before they moved here: after the rest of the OS dependencies, each cleaning up after apt.
+    if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" prod
+        return
+    fi
+    # The CI image runs Airflow from the sources as well, so it also gets the MySQL runtime client.
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+    fi
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" dev
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -775,6 +942,14 @@ else
     fi
     install_docker_cli
     apt_clean
+fi
+install_database_clients
+
+mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
+echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
+OS_DEPENDENCIES_BASE_IMAGE_FILE="$(dirname "${OS_DEPENDENCIES_MARKER}")/os-dependencies.base-image"
+if [[ ! -f "${OS_DEPENDENCIES_BASE_IMAGE_FILE}" ]]; then
+    echo "${BASE_IMAGE:-unknown}" > "${OS_DEPENDENCIES_BASE_IMAGE_FILE}"
 fi
 EOF
 
@@ -971,6 +1146,12 @@ install_postgres_client() {
 
     echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(common::debian_codename)-pgdg main" > \
         /etc/apt/sources.list.d/pgdg.list
+    # The hardened image's airflow-prefer-dhi pin outranks Debian's default, so apt would otherwise keep
+    # dhi.io's libpq (e.g. 17.11) and postgresql-client (which needs a matching, newer libpq5) could not
+    # install. PostgreSQL's own repository is the authority for its packages - rank it above the dhi.io
+    # preference so apt takes libpq from PGDG.
+    mkdir -p /etc/apt/preferences.d
+    printf 'Package: *\nPin: origin "apt.postgresql.org"\nPin-Priority: 1001\n' > /etc/apt/preferences.d/airflow-prefer-pgdg
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
@@ -1469,6 +1650,15 @@ function install_from_sources() {
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
         extra_sync_flags="--active"
     fi
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Upgrade builds resolve dependencies anew; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        extra_sync_flags="${extra_sync_flags} --no-install-workspace"
+    fi
     if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
             set +x
@@ -1489,19 +1679,35 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
-        set +x
-        echo
-        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
-        echo
         # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
         # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
+        # shellcheck disable=SC2206 # extra_sync_flags holds several flags
+        local -a frozen_sync=(uv sync --all-packages --frozen --group ci-image
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --no-python-downloads --no-managed-python)
+        set +x
+        # Without the workspace sources a lock that does not match the manifests cannot be re-resolved;
+        # the installation that adds the workspace packages does that later.
+        if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]] && ! "${frozen_sync[@]}" --dry-run; then
+            echo
+            echo "${COLOR_YELLOW}uv.lock does not match the dependency manifests; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        echo
+        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
+        echo
         set -x
-        if ! uv sync --all-packages --frozen --group ci-image \
-            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-downloads --no-managed-python; then
+        if ! "${frozen_sync[@]}"; then
             set +x
+            if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because the locked third-party installation failed although uv.lock matches the dependency manifests.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
                 echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
@@ -1591,6 +1797,10 @@ function install_airflow_when_building_images() {
         install_from_external_spec
     fi
     set +x
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        # Packaging tools and 'pip check' are handled by the installation that adds the workspace packages
+        return
+    fi
     common::install_packaging_tools
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -2080,13 +2290,19 @@ EOF
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
-FROM ${BASE_IMAGE} as airflow-build-image
+FROM ${DEV_OS_DEPS_IMAGE} as dev-os-deps
 
 # Nolog bash flag is currently ignored - but you can replace it with
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG BASE_IMAGE
+
+# BASE_IMAGE is the base image the build was given. When DEV_OS_DEPS_IMAGE names a pinned OS-dependencies
+# image, the OS dependencies and Python come from that image instead - it may be built on an older digest
+# of the base image, which /usr/share/airflow/os-dependencies.base-image records.
+ARG DEV_OS_DEPS_IMAGE
+ENV AIRFLOW_OS_DEPS_IMAGE=${DEV_OS_DEPS_IMAGE}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV BASE_IMAGE=${BASE_IMAGE} \
@@ -2115,22 +2331,6 @@ ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/home/airflow/.cargo"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
-COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-RUN bash /scripts/docker/install_os_dependencies.sh dev
-
-# The final image copies /python-dist over its root. It is empty for the hardened flavor, whose Python
-# comes with the base image, and holds the compiled /usr/python for the legacy flavor - so that COPY
-# needs no condition and adds nothing to the hardened image.
-RUN mkdir -p /python-dist; \
-    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then \
-        mkdir -p /python-dist/usr && cp -a /usr/python /python-dist/usr/; \
-    fi
-
-# In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
-# libraries will be accidentally used before the library installed from sources (which is newer and
-# python interpreter might break if accidentally the old system libraries are used.
-ENV LD_LIBRARY_PATH="/usr/python/lib"
-
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 ARG INSTALL_MSSQL_CLIENT="true"
@@ -2141,16 +2341,38 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
 
+# The database clients are part of the OS dependencies - install_os_dependencies.sh runs their
+# scripts, and its marker covers them, so the pinned OS-dependencies images carry them too.
+COPY --from=scripts install_os_dependencies.sh common.sh install_mysql.sh install_mssql.sh \
+    install_postgres.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
+RUN bash /scripts/docker/install_os_dependencies.sh dev
+
+FROM dev-os-deps as python-dist
+
+# The final image copies /python-dist over its root before its runtime OS dependencies are installed -
+# the legacy flavor's installation links the compiled Python. It is empty for the hardened flavor, whose
+# Python comes with the base image, and holds the compiled /usr/python for the legacy flavor - so that
+# COPY needs no condition and adds nothing to the hardened image. A stage of its own, so the
+# "runtime-os-deps" stage needs the OS dependencies of the build image, but not the build image itself.
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+RUN mkdir -p /python-dist; \
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then \
+        mkdir -p /python-dist/usr && cp -a /usr/python /python-dist/usr/; \
+    fi
+
+FROM dev-os-deps as airflow-build-image
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+# In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
+# libraries will be accidentally used before the library installed from sources (which is newer and
+# python interpreter might break if accidentally the old system libraries are used.
+ENV LD_LIBRARY_PATH="/usr/python/lib"
+
 COPY --from=scripts common.sh /scripts/docker/
 
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-COPY scripts/docker/keys/ /scripts/docker/keys/
-
-RUN bash /scripts/docker/install_mysql.sh dev && \
-    bash /scripts/docker/install_mssql.sh dev && \
-    bash /scripts/docker/install_postgres.sh dev
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 # By default we do not install from docker context files but if we decide to install from docker context
@@ -2336,21 +2558,19 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 # This is the actual Airflow image - much smaller than the build one. We copy
 # installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
-FROM ${BASE_IMAGE} as main
+FROM ${RUNTIME_OS_DEPS_IMAGE} as runtime-os-deps
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG AIRFLOW_UID
-
-LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.module="airflow" \
-  org.apache.airflow.component="airflow" \
-  org.apache.airflow.image="airflow" \
-  org.apache.airflow.uid="${AIRFLOW_UID}"
-
 ARG BASE_IMAGE
+
+# BASE_IMAGE is the base image the build was given. When RUNTIME_OS_DEPS_IMAGE names a pinned OS-dependencies
+# image, the OS dependencies and Python come from that image instead - it may be built on an older digest
+# of the base image, which /usr/share/airflow/os-dependencies.base-image records.
+ARG RUNTIME_OS_DEPS_IMAGE
+ENV AIRFLOW_OS_DEPS_IMAGE=${RUNTIME_OS_DEPS_IMAGE}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV BASE_IMAGE=${BASE_IMAGE} \
@@ -2383,9 +2603,25 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR}
 
-COPY --from=airflow-build-image /python-dist/ /
-COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+COPY --from=python-dist /python-dist/ /
+# The database clients are part of the OS dependencies - install_os_dependencies.sh runs their
+# scripts, and its marker covers them, so the pinned OS-dependencies images carry them too.
+COPY --from=scripts install_os_dependencies.sh common.sh install_mysql.sh install_mssql.sh \
+    install_postgres.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
+
+FROM runtime-os-deps as main
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+ARG AIRFLOW_UID
+
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow" \
+  org.apache.airflow.uid="${AIRFLOW_UID}"
 
 # Having the variable in final image allows to disable providers manager warnings when
 # production image is prepared from sources rather than from package
@@ -2405,19 +2641,7 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
 
 COPY --from=scripts common.sh /scripts/docker/
 
-COPY scripts/docker/keys/ /scripts/docker/keys/
-
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here.
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
-# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
-# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
-# That also protects against AUFS Docker backend problem where changing the executable bit required sync
-RUN bash /scripts/docker/install_mysql.sh prod \
-    && bash /scripts/docker/install_mssql.sh prod \
-    && bash /scripts/docker/install_postgres.sh prod \
-    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html

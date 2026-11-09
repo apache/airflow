@@ -224,8 +224,15 @@ export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
  */
 export type AssetWatcherResponse = {
     name: string;
+    /**
+     * The watcher's trigger; `GET /triggers/{trigger_id}` has its state.
+     */
     trigger_id: number;
     created_date: string;
+    /**
+     * Status of the watcher's trigger, as in `GET /triggers`.
+     */
+    status: TriggerStatus;
 };
 
 /**
@@ -1262,7 +1269,7 @@ export type DagBundleDetailResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1270,11 +1277,11 @@ export type DagBundleDetailResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
     /**
-     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     * Number of live Dags recorded against the bundle, including Dags the caller may not read.
      */
     dag_count: number;
 };
@@ -1293,7 +1300,7 @@ export type DagBundleFileCollectionResponse = {
 export type DagBundleFileResponse = {
     relative_fileloc: string;
     /**
-     * Number of live Dags the file defines that the caller may read.
+     * Number of live Dags the file defines, including Dags the caller may not read.
      */
     dag_count: number;
     /**
@@ -1305,9 +1312,13 @@ export type DagBundleFileResponse = {
      */
     last_parse_duration: number | null;
     /**
-     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     * Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
+    /**
+     * Whether the caller may read the file's import error through ``GET /importErrors``, possibly with its stack trace redacted. Always false when the file has no error.
+     */
+    can_read_import_error: boolean;
 };
 
 /**
@@ -1328,7 +1339,7 @@ export type DagBundleResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1336,9 +1347,9 @@ export type DagBundleResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
 };
 
 /**
@@ -2425,6 +2436,10 @@ export type TaskInstanceHistoryResponse = {
      * The reason this try ended, as recorded by a retry policy.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2476,6 +2491,10 @@ export type TaskInstanceResponse = {
      * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2630,6 +2649,34 @@ export type TimeDelta = {
 };
 
 /**
+ * An asset watcher a trigger serves.
+ */
+export type TriggerAssetWatcherReferenceResponse = {
+    asset_id: number;
+    asset_name: string;
+    asset_uri: string;
+    watcher_name: string;
+};
+
+/**
+ * The callback a trigger runs.
+ */
+export type TriggerCallbackReferenceResponse = {
+    id: string;
+    dag_id: string | null;
+    dag_run_id: string | null;
+    state: string | null;
+};
+
+/**
+ * Trigger collection response.
+ */
+export type TriggerCollectionResponse = {
+    triggers: Array<TriggerDetailResponse>;
+    total_entries: number;
+};
+
+/**
  * Trigger Dag Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
@@ -2651,6 +2698,61 @@ export type TriggerDAGRunPostBody = {
 };
 
 /**
+ * A trigger, who it runs for, and how it is doing; never its kwargs.
+ */
+export type TriggerDetailResponse = {
+    id: number;
+    /**
+     * What the trigger runs for: a deferred `task`, a `callback` or an `asset_watcher`.
+     */
+    kind: TriggerKind;
+    classpath: string;
+    created_date: string;
+    queue: string | null;
+    team_name: string | null;
+    /**
+     * `pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it.
+     */
+    status: TriggerStatus;
+    /**
+     * Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` status.
+     */
+    triggerer_hostname: string | null;
+    /**
+     * Failures since the trigger last recovered.
+     */
+    consecutive_failures: number;
+    /**
+     * When the current run of failures started.
+     */
+    first_failed_at: string | null;
+    last_failed_at: string | null;
+    /**
+     * Exception type and message of the last failure, with secrets masked. It is kept after a recovery; the traceback is in the trigger's logs.
+     */
+    last_error: string | null;
+    /**
+     * When the trigger last fired an event.
+     */
+    last_event_at: string | null;
+    /**
+     * The Dag of the task instance or callback the trigger runs for.
+     */
+    dag_id: string | null;
+    task_instance: TriggerTaskInstanceReferenceResponse | null;
+    callback: TriggerCallbackReferenceResponse | null;
+    /**
+     * The watchers the trigger serves, on the assets the caller can read.
+     */
+    asset_watchers: Array<TriggerAssetWatcherReferenceResponse>;
+};
+
+/**
+ * What a trigger runs for, worked out from its owner rather than stored.
+ */
+export type TriggerKind = 'task' | 'callback' | 'asset_watcher';
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -2663,6 +2765,23 @@ export type TriggerResponse = {
     created_date: string;
     queue: string | null;
     triggerer_id: number | null;
+};
+
+/**
+ * How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat.
+ */
+export type TriggerStatus = 'pending' | 'running' | 'failing' | 'orphaned';
+
+/**
+ * The task instance a trigger runs for.
+ */
+export type TriggerTaskInstanceReferenceResponse = {
+    dag_id: string;
+    dag_run_id: string;
+    task_id: string;
+    map_index: number;
+    try_number: number;
+    state: string | null;
 };
 
 /**
@@ -3094,6 +3213,13 @@ export type DAGsRunStateCountsCollectionResponse = {
 };
 
 /**
+ * Number of Dag bundles holding a Dag or an import error the caller may read.
+ */
+export type DagBundleCountResponse = {
+    total_entries: number;
+};
+
+/**
  * Collection of distinct Dag folders, each scoped to the bundle it belongs to.
  */
 export type DagFolderCollectionResponse = {
@@ -3372,6 +3498,7 @@ export type LightGridTaskInstanceSummary = {
     loop_iterations_count?: number | null;
     latest_region_id?: string | null;
     latest_region_index?: number | null;
+    retry_at?: string | null;
 };
 
 /**
@@ -3792,6 +3919,10 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
     assetId: number;
     before?: string | null;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -3812,6 +3943,10 @@ export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteDagAssetQueuedEventsData = {
     before?: string | null;
     dagId: string;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -3828,6 +3963,10 @@ export type DeleteDagAssetQueuedEventData = {
     assetId: number;
     before?: string | null;
     dagId: string;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -4308,6 +4447,8 @@ export type GetDagBundleFilesData = {
 };
 
 export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
+
+export type GetDagBundleCountResponse = DagBundleCountResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -5559,6 +5700,47 @@ export type GetTaskData = {
 
 export type GetTaskResponse = TaskResponse;
 
+export type GetTriggersData = {
+    /**
+     * Return only the triggers of this asset's watchers.
+     */
+    assetId?: number | null;
+    /**
+     * Return only the triggers of this Dag's task instances and callbacks.
+     */
+    dagId?: string | null;
+    /**
+     * Return only triggers of these kinds.
+     */
+    kind?: Array<TriggerKind>;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
+     */
+    orderBy?: Array<(string)>;
+    /**
+     * Return only triggers with one of these statuses.
+     */
+    status?: Array<TriggerStatus>;
+    /**
+     * Return only the triggers of these teams.
+     */
+    teams?: Array<(string)>;
+    /**
+     * Return only the triggers assigned to the triggerer on this host.
+     */
+    triggererHostname?: string | null;
+};
+
+export type GetTriggersResponse = TriggerCollectionResponse;
+
+export type GetTriggerData = {
+    triggerId: number;
+};
+
+export type GetTriggerResponse = TriggerDetailResponse;
+
 export type DeleteVariableData = {
     variableKey: string;
 };
@@ -5721,6 +5903,10 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 export type GetDagDeadlineAlertsData = {
     dagId: string;
     limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
@@ -7341,6 +7527,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dagBundles/count': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCountResponse;
             };
         };
     };
@@ -9665,6 +9861,60 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/triggers': {
+        get: {
+            req: GetTriggersData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TriggerCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/triggers/{trigger_id}': {
+        get: {
+            req: GetTriggerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TriggerDetailResponse;
                 /**
                  * Unauthorized
                  */
