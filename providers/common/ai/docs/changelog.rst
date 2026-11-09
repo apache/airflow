@@ -62,10 +62,10 @@ Changelog
   top-level model is still dumped with ``model_dump()`` as before. A downstream task reads
   ``result["field"]`` and needs no entry in ``[core] allowed_deserialization_classes``.
 
-  For ``AgentOperator`` and ``@task.agent`` with a list of output types such as ``[Summary, int]``
-  on Airflow >= 3.3, compared with 1.1.0: a model with ``serialize_by_alias=True`` now arrives with
-  its field names (``full_name``, not ``fullName``); a tuple next to the model arrives as a list;
-  a ``date`` next to the model arrives as a string.
+  For ``AgentOperator`` and ``@task.agent``, whenever a model in the output is dumped (for example
+  with ``output_type=[Summary, int]``, and on Airflow < 3.3 too), compared with 1.1.0: a model with
+  ``serialize_by_alias=True`` now arrives with its field names (``full_name``, not ``fullName``); a
+  tuple in the output arrives as a list; a ``date`` next to the model arrives as a string.
 
 .. note::
   **Signature change: MCP ``tool_prefix``**

@@ -100,23 +100,6 @@ task receives:
   task that loaded the instance because the class was listed in
   ``[core] allowed_deserialization_classes`` now gets a dict.
 
-Behaviour of the LLM operators after 1.1.0
--------------------------------------------
-
-The changelog note above 1.1.0 describes changes made after that release. ``LLMOperator``,
-``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent`` share one
-helper, ``dump_output_for_xcom``, and behave as follows:
-
-* A model whose class the worker registers is left for the XCom serializer, in a container or not.
-  A top-level model is dumped with ``model_dump()`` when ``serialize_output=True`` is set.
-* A model whose class the worker cannot register is dumped to JSON values, also inside a list,
-  tuple, set or dict.
-* Before Airflow 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
-  class. A top-level model is dumped with ``model_dump()``, and a model inside a list, tuple, set
-  or dict is dumped to JSON values. ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator``
-  pushed ``list[MyModel]`` as instances there in 1.1.0 and now push dicts; ``AgentOperator`` and
-  ``@task.agent`` already did.
-
 The Airflow UI's XCom viewer renders Pydantic instances via the
 ``stringify`` path, which produces a representation like
 ``my_module.MyModel@version=1(field=value,...)`` without consulting the
@@ -152,3 +135,20 @@ In a dump to JSON values, ``HttpUrl``, ``Path`` and ``Enum`` fields become plain
 that is itself the output with ``serialize_output=True`` keeps its Python field values instead, so an
 ``HttpUrl``, a ``Path`` or a plain ``Enum`` member in it stays an object that the default XCom backend
 cannot serialize.
+
+Behaviour of the LLM operators after 1.1.0
+-------------------------------------------
+
+The changelog note above 1.1.0 describes changes made after that release. ``LLMOperator``,
+``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent`` share one
+helper, ``dump_output_for_xcom``, and behave as follows:
+
+* A model whose class the worker registers is left for the XCom serializer, in a container or not.
+  A top-level model is dumped with ``model_dump()`` when ``serialize_output=True`` is set.
+* A model whose class the worker cannot register is dumped to JSON values, also inside a list,
+  tuple, set or dict.
+* Before Airflow 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
+  class. A top-level model is dumped with ``model_dump()``, and a model inside a list, tuple, set
+  or dict is dumped to JSON values. ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator``
+  pushed ``list[MyModel]`` as instances there in 1.1.0 and now push dicts; ``AgentOperator`` and
+  ``@task.agent`` already did.
