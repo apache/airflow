@@ -122,7 +122,7 @@ Decision 7 is what makes both compile:
 interface RefineEstimateDeps extends Deps {
   default Refine refine() { return Flow.loop("refine"); }
 
-  interface Refine extends LoopRef {
+  interface Refine extends Flow {
     default LoopTaskRef<Double> improve() { return Flow.node("refine.improve"); }
     default LoopTaskRef<Metrics> evaluate(Arg<Double> estimate) { return Flow.call("refine.evaluate", estimate); }
     default TaskRef<Void> accurateEnough(Arg<Metrics> result) { return Flow.call("refine.accurate_enough", result); }
@@ -172,7 +172,7 @@ public static class Improve implements Task {
 
 public static class AccurateEnough implements UntilTask {
   @Override
-  public LoopDecision decide(Context context, Client client) {
+  public LoopDecision check(Context context, Client client) {
     Metrics result = context.loop().getResult(Metrics.class);
     return new LoopDecision(result.error() < 1e-6, "error %.2g".formatted(result.error()));
   }
@@ -187,8 +187,9 @@ public static class Report implements Task {
 }
 ```
 
-`UntilTask` joins `ConditionTask` and `SwitchTask` as a task kind with its own verb, so the gate is
-recognized by the interface it implements rather than by a naming rule.
+`UntilTask` extends `Task` and joins `ConditionTask` and `SwitchTask` as a task kind with its own
+verb — `decide` is already `ConditionTask`'s — so the gate is recognized by the interface it
+implements rather than by a naming rule.
 
 ## Signature
 
@@ -247,14 +248,15 @@ public interface XComSequence<E> {
 /** What an until method returns. A boolean return is a decision with no reason. */
 public record LoopDecision(boolean stop, String reason) {}
 
-/** Interface surface. */
-public interface UntilTask {
-  LoopDecision decide(Context context, Client client);
+/** Interface surface, beside ConditionTask and SwitchTask, which both extend Task as well. */
+public interface UntilTask extends Task {
+  LoopDecision check(Context context, Client client);
 }
 
-public interface LoopRef extends TaskGroupRef, Flow {
+/** A loop is a group with a bound, so its ref is a TaskGroupRef that also declares the gate. */
+public class LoopRef extends TaskGroupRef {
   /** Declares the gate. The terminal task is the body's single leaf. */
-  TaskRef<Void> until(String taskId, Class<? extends UntilTask> gate);
+  public TaskRef<Void> until(String taskId, Class<? extends UntilTask> gate);
 }
 
 public class Dag {
@@ -262,7 +264,7 @@ public class Dag {
 }
 
 /** Wiring view, generated. A loop body task's ref reads as one iteration or as all of them. */
-public interface LoopTaskRef<T> extends TaskRef<T> {}
+public class LoopTaskRef<T> extends TaskRef<T> {}
 ```
 
 ## Consequences
@@ -297,6 +299,11 @@ public interface LoopTaskRef<T> extends TaskRef<T> {}
 - **The interface surface wires no data out of the body**, so ADR-0017 decision 3 has nothing to
   rewire there: a consumer outside the loop orders itself after the loop and reads the sequence
   through `Client`.
+- **Two shipped types open up.** `TaskRef<T>` and `TaskGroupRef` are final Kotlin classes today, and
+  `LoopTaskRef<T>` and `LoopRef` sit under them, so both become `open`. Their constructors stay
+  internal, so the SDK is still the only thing that subclasses them, and `Arg` stays sealed because
+  sealing constrains only its direct subclasses. The generated wiring view of a loop extends `Flow`
+  rather than `LoopRef`, since an interface cannot extend a class.
 - **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
   outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
   Dag is read rather than failing partway through the run.
