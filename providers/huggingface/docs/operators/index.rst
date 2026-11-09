@@ -42,7 +42,9 @@ loading; pin a commit SHA in ``revision`` for reproducible inputs.
 With ``durable=True``, the operator stores the resolved source revision in
 Airflow's task state store so retries use the same Hub commit. Set it to
 ``False`` to resolve the revision again on each attempt without task-state
-reuse.
+reuse. The task state store is available in Airflow 3.3 and later; on earlier
+versions, ``durable=True`` logs a warning and cannot pin the revision across
+retries.
 
 The default ``reuse_dataset_if_exists`` mode reuses Datasets' valid cache.
 ``force_redownload`` forces a new download. ``cache_dir`` isolates cache data;
@@ -89,9 +91,11 @@ a Python list, stored in XCom, or written to a local artifact first.
 The operator accepts ``path``, ``repo_id``, optional ``name``, ``split``,
 ``revision``, ``config``, ``private``, ``commit_message``,
 ``huggingface_conn_id``, ``push_kwargs``, and ``durable`` (default ``True``).
-With durability enabled, it pins the resolved Hub source revision and reuses a
-completed push from task state or the matching final Hub commit on retry. Set
-``durable=False`` to disable those reuse checks. It returns the Hub repository,
+With durability enabled on Airflow 3.3 and later, it pins the resolved Hub
+source revision and reuses a completed push from task state. It searches Hub
+commit markers only after task state records that a push may have started.
+Markers include the Dag, task, run, map index, source, and transform identity.
+Set ``durable=False`` to disable those reuse checks. It returns the Hub repository,
 commit SHA and URL, source revision, configuration, split, and
 ``streaming=True``. After a successful push it emits the matching
 ``hf://datasets/<repo_id>`` asset event. A run marker in the commit message
@@ -107,12 +111,14 @@ Execution proceeds in this order:
    configuration, and split. A retry reuses the SHA, so a moving branch such as
    ``main`` does not silently change between attempts. Non-Hub paths are passed
    to Datasets without Hub revision lookup.
-#. **Check for a completed publication.** The operator builds a marker from
-   the task and run IDs, source and pinned revision, configuration and split,
-   destination repository, target config/revision, and pull-request setting.
-   With durability enabled, it first checks task state, then searches the target
-   Hub refs for a completed commit carrying that marker. A match skips loading
-   the source and pushing again; the prior result and asset event are reused.
+#. **Check for a completed publication.** The operator builds a marker from the
+   Dag, task, run, map index, source and pinned revision, configuration and split,
+   transform and predicate identities, destination repository, target
+   config/revision, and pull-request setting. On Airflow 3.3 and later, it checks
+   task state first. It searches Hub refs only when task state records that a
+   prior attempt may have started the push. A matching final commit recovers an
+   interrupted publication. Clearing the task removes that marker state, so a
+   cleared task starts a new publication.
 #. **Create a lazy stream if recovery found no commit.** The operator calls
    ``load_dataset(..., streaming=True)`` and passes the optional configuration,
    split, and pinned revision. Hugging Face Datasets reads rows incrementally.
@@ -126,8 +132,8 @@ Execution proceeds in this order:
    Datasets uploads Parquet shards progressively; the operator does not collect
    the rows into a list or write an intermediate artifact.
 #. **Recover and report the commit.** If the push returns a commit, its SHA and
-   URL are returned. If it returns no commit object and durability is enabled,
-   the operator searches the Hub again in case the upload succeeded before the
+   URL are returned. If it returns no commit object and task state is available,
+   the operator searches the Hub in case the upload succeeded before the
    worker stopped. It accepts only a final upload part. If no completed commit
    can be found, the task raises ``RuntimeError``. The result contains commit
    metadata and source provenance, not dataset rows; that result is saved to
@@ -152,7 +158,10 @@ fingerprint) and ``repo_id``. ``config``, ``private``, ``commit_message``,
 publication. ``storage_conn_id`` selects the connection used to read the
 artifact. The
 operator accepts ``durable`` (default ``True``) in addition to its publication
-options. It verifies the manifest fingerprint and per-split checksums before
+options. Task state store support for revision pinning and result caching requires
+Airflow 3.3 or later; older versions log a warning. Hub marker lookup can still
+recover a completed artifact publication on retry.
+It verifies the manifest fingerprint and per-split checksums before
 uploading. With durability enabled it checks Airflow task state and the target
 Hub revision for a completed publication before loading Parquet data; a retry
 can therefore return the prior result even if the artifact is no longer on the

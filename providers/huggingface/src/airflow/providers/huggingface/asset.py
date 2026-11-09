@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow asset URI and OpenLineage integration for Hub datasets."""
+
 from __future__ import annotations
 
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 
 def sanitize_uri(uri: str | SplitResult) -> str | SplitResult:
@@ -34,16 +35,13 @@ def sanitize_uri(uri: str | SplitResult) -> str | SplitResult:
     )
     if isinstance(uri, SplitResult):
         return normalized
-    from urllib.parse import urlunsplit
     return urlunsplit(normalized)
 
 
 def create_asset(*, repo_id: str, extra: dict | None = None):
     """Build a dataset asset from the repo ID supplied by Airflow's URI factory."""
-    try:
-        from airflow.sdk import Asset
-    except ImportError:
-        from airflow.datasets import Dataset as Asset
+    from airflow.sdk import Asset
+
     return Asset(uri=sanitize_uri(f"hf://datasets/{repo_id}"), extra=extra)
 
 

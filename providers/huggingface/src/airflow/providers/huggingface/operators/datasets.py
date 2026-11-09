@@ -20,15 +20,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
+import marshal
 import tempfile
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from contextlib import suppress
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from datasets import Dataset, DatasetDict
 
 from airflow.providers.common.compat.sdk import Asset, BaseOperator, Context, ObjectStoragePath
-
 from airflow.providers.huggingface.hooks.huggingface import HuggingFaceHook
 
 
@@ -154,14 +156,10 @@ def _save(
         # Remove partial split outputs. A failed write must not leave an artifact
         # reference that a downstream task could mistake for a complete dataset.
         for path in written:
-            try:
+            with suppress(OSError, NotImplementedError):
                 path.unlink(missing_ok=True)
-            except (OSError, NotImplementedError):
-                pass
-        try:
+        with suppress(OSError, NotImplementedError):
             manifest_path.unlink(missing_ok=True)
-        except (OSError, NotImplementedError):
-            pass
         raise
 
 
@@ -205,7 +203,10 @@ def _load_artifact(
             split_uri = item["uri"]
             local_path = Path(local_dir) / f"split-{index:05d}.parquet"
             digest = hashlib.sha256()
-            with _path(split_uri, conn_id=storage_conn_id).open("rb") as source, local_path.open("wb") as target:
+            with (
+                _path(split_uri, conn_id=storage_conn_id).open("rb") as source,
+                local_path.open("wb") as target,
+            ):
                 for chunk in iter(lambda: source.read(1024 * 1024), b""):
                     digest.update(chunk)
                     target.write(chunk)
@@ -215,12 +216,9 @@ def _load_artifact(
             feature_data = item["features"]
             feature_order = item.get("feature_order", list(feature_data))
             features = Features.from_dict({key: feature_data[key] for key in feature_order})
-            raw_split = item.get("split") or (name if name != "dataset" else None)
-            split_name = raw_split.split("[")[0] if raw_split and "[" in raw_split else raw_split
             restored = Dataset.from_parquet(
                 str(local_path),
                 features=features,
-                split=split_name,
                 cache_dir=resolved_cache_dir,
             )
             # Parquet readers may return fields in physical/file order; restore the
@@ -235,8 +233,27 @@ def _state_key(prefix: str, identity: str) -> str:
 
 
 def _publication_marker(prefix: str, identity: dict[str, Any]) -> str:
-    payload = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+    payload = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=str).encode()
     return f"{prefix}:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _callable_identity(function: Callable[..., Any] | None) -> dict[str, str] | None:
+    if function is None:
+        return None
+    code = getattr(function, "__code__", None)
+    return {
+        "module": getattr(function, "__module__", type(function).__module__),
+        "qualname": getattr(function, "__qualname__", type(function).__qualname__),
+        "code_hash": hashlib.sha256(marshal.dumps(code)).hexdigest() if code is not None else "",
+    }
+
+
+def _warn_missing_task_state(operator: BaseOperator, state: Any) -> None:
+    if operator.durable and state is None:
+        operator.log.warning(
+            "durable=True requires Airflow 3.3 task state store support; revision pinning and "
+            "task-state result caching are unavailable for this task run"
+        )
 
 
 def _commit_details(commit: Any, repo_id: str, hook: HuggingFaceHook) -> tuple[str, str]:
@@ -289,6 +306,7 @@ class LoadDatasetOperator(BaseOperator):
         requested_revision = self.revision
         is_hub_repo = _is_hub_repo(self.path)
         state = context.get("task_state_store") if self.durable else None
+        _warn_missing_task_state(self, state)
         state_identity = json.dumps([self.path, requested_revision], separators=(",", ":"))
         state_key = _state_key("load-revision", state_identity)
         revision = state.get(state_key) if state is not None else None
@@ -346,7 +364,9 @@ class StreamDatasetOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         if "{{" in repo_id:
-            raise ValueError("repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on.")
+            raise ValueError(
+                "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
+            )
         if transform is not None and not callable(transform):
             raise TypeError("transform must be a callable or None")
         if predicate is not None and not callable(predicate):
@@ -372,6 +392,7 @@ class StreamDatasetOperator(BaseOperator):
         is_hub_repo = _is_hub_repo(self.path)
         requested_revision = self.revision
         state = context.get("task_state_store") if self.durable else None
+        _warn_missing_task_state(self, state)
         revision_identity = json.dumps(
             [self.path, requested_revision, self.name, self.split], separators=(",", ":")
         )
@@ -387,6 +408,8 @@ class StreamDatasetOperator(BaseOperator):
             self.log.info("Reusing pinned Hugging Face streaming revision %s for %s", revision, self.path)
 
         run_id = context.get("run_id", "manual")
+        dag = context.get("dag")
+        task_instance = context.get("ti")
         push_kwargs = dict(self.push_kwargs)
         if self.config is not None:
             push_kwargs["config_name"] = self.config
@@ -396,11 +419,16 @@ class StreamDatasetOperator(BaseOperator):
             "huggingface-stream-publish",
             {
                 "task_id": self.task_id,
+                "dag_id": getattr(dag, "dag_id", None),
+                "map_index": getattr(task_instance, "map_index", -1),
                 "run_id": run_id,
                 "source": self.path,
                 "source_revision": revision,
                 "name": self.name,
                 "split": self.split,
+                "transform": _callable_identity(self.transform),
+                "transform_kwargs": self.transform_kwargs,
+                "predicate": _callable_identity(self.predicate),
                 "repo_id": self.repo_id,
                 "config_name": push_kwargs.get("config_name", "default"),
                 "revision": push_kwargs.get("revision", "main"),
@@ -408,6 +436,7 @@ class StreamDatasetOperator(BaseOperator):
             },
         )
         state_key = _state_key("stream-publication", marker)
+        pending_key = _state_key("stream-publication-pending", marker)
         if state is not None:
             prior_result = state.get(state_key)
             if prior_result:
@@ -418,7 +447,8 @@ class StreamDatasetOperator(BaseOperator):
         target_revision = push_kwargs.get("revision")
         include_pull_requests = bool(push_kwargs.get("create_pr", False))
         commit = None
-        if self.durable:
+        recovery_pending = state is not None and bool(state.get(pending_key))
+        if recovery_pending:
             commit = hook.find_commit_by_marker(
                 self.repo_id,
                 marker,
@@ -429,6 +459,8 @@ class StreamDatasetOperator(BaseOperator):
                 self.log.info("Reusing existing completed streaming publication to %s", self.repo_id)
 
         if commit is None:
+            if state is not None:
+                state.set(pending_key, True)
             load_kwargs: dict[str, Any] = {"streaming": True}
             if self.name is not None:
                 load_kwargs["name"] = self.name
@@ -515,17 +547,20 @@ class MapDatasetOperator(BaseOperator):
         self.storage_conn_id = storage_conn_id
 
     def execute(self, context: Context) -> dict[str, Any]:
-        dataset = _load_artifact(
-            self.input_uri, cache_dir=self.cache_dir, storage_conn_id=self.storage_conn_id
-        )
-        mapped = dataset.map(self.transform, fn_kwargs=self.transform_kwargs, **self.map_kwargs)
-        source = self.input_uri if isinstance(self.input_uri, dict) else {}
-        provenance = {
-            key: source[key]
-            for key in ("repository_id", "revision", "configuration", "split")
-            if key in source
-        }
-        return _save(mapped, self.output_uri, provenance, storage_conn_id=self.storage_conn_id)
+        with tempfile.TemporaryDirectory(prefix="airflow-hf-cache-") as cache_dir:
+            dataset = _load_artifact(
+                self.input_uri,
+                cache_dir=self.cache_dir or cache_dir,
+                storage_conn_id=self.storage_conn_id,
+            )
+            mapped = dataset.map(self.transform, fn_kwargs=self.transform_kwargs, **self.map_kwargs)
+            source = self.input_uri if isinstance(self.input_uri, dict) else {}
+            provenance = {
+                key: source[key]
+                for key in ("repository_id", "revision", "configuration", "split")
+                if key in source
+            }
+            return _save(mapped, self.output_uri, provenance, storage_conn_id=self.storage_conn_id)
 
 
 class PushToHubOperator(BaseOperator):
@@ -536,7 +571,7 @@ class PushToHubOperator(BaseOperator):
     def __init__(
         self,
         *,
-        input_uri: str | dict[str, Any],
+        input_uri: dict[str, Any],
         repo_id: str,
         config: str | None = None,
         private: bool | None = None,
@@ -548,7 +583,9 @@ class PushToHubOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         if "{{" in repo_id:
-            raise ValueError("repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on.")
+            raise ValueError(
+                "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
+            )
         self.input_uri, self.repo_id, self.config = input_uri, repo_id, config
         self.private, self.commit_message = private, commit_message
         self.huggingface_conn_id, self.push_kwargs = huggingface_conn_id, push_kwargs or {}
@@ -585,6 +622,7 @@ class PushToHubOperator(BaseOperator):
         )
         marker = f"airflow-artifact-sha256:{fingerprint}:{target_marker}"
         state = context.get("task_state_store") if self.durable else None
+        _warn_missing_task_state(self, state)
         state_key = _state_key("publication", marker)
         if state is not None:
             prior_result = state.get(state_key)
@@ -605,10 +643,15 @@ class PushToHubOperator(BaseOperator):
             if commit is not None:
                 self.log.info("Reusing existing completed publication to %s", self.repo_id)
         if commit is None:
-            dataset = _load_artifact(self.input_uri, storage_conn_id=self.storage_conn_id)
-            message = self.commit_message or "Publish dataset from Airflow"
-            kwargs["commit_message"] = f"{message} [{marker}]"
-            commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)
+            with tempfile.TemporaryDirectory(prefix="airflow-hf-cache-") as cache_dir:
+                dataset = _load_artifact(
+                    self.input_uri,
+                    cache_dir=cache_dir,
+                    storage_conn_id=self.storage_conn_id,
+                )
+                message = self.commit_message or "Publish dataset from Airflow"
+                kwargs["commit_message"] = f"{message} [{marker}]"
+                commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)
             if commit is None and self.durable:
                 commit = hook.find_commit_by_marker(
                     self.repo_id,
