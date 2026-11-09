@@ -128,6 +128,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+    from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter  # noqa: SDK001
 
 # The budget limits when another send starts; an in-flight request retains its read/write timeout.
 _API_SEND_BUDGET_SECONDS = 1.0
@@ -545,6 +546,16 @@ class DagFileProcessorManager(LoggingMixin):
         registry = DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=importers)
         self._bundle_importer_registries[bundle_name] = registry
         return registry
+
+    def _get_claiming_importer(
+        self, path: str | os.PathLike[str], bundle_name: str
+    ) -> CoordinatorDagImporter | None:
+        try:
+            registry = self._get_importer_registry(bundle_name)
+        except Exception:
+            self.log.exception("Cannot load the Dag importer for %s in bundle %s", path, bundle_name)
+            return None
+        return get_claiming_importer(path, bundle_name, registry=registry)
 
     def warm_importers(self) -> None:
         """Build each bundle's Dag importers, so parse processes forked later share them."""
@@ -994,14 +1005,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _add_callback_to_queue(self, request: CallbackRequest) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-        if (
-            get_claiming_importer(
-                request.filepath,
-                request.bundle_name,
-                registry=self._bundle_importer_registries.get(request.bundle_name),
-            )
-            is not None
-        ):
+        if self._get_claiming_importer(request.filepath, request.bundle_name) is not None:
             self._log_dropped_lang_sdk_callback(request)
             return
         bundle = self.prepare_callback_bundle(request)
@@ -2348,15 +2352,13 @@ class DagFileProcessorManager(LoggingMixin):
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
 
-        importer_registry = self._bundle_importer_registries.get(dag_file.bundle_name)
         bundle_config = None
         if is_bundle_config_reload_enabled():
             bundle_config = self._dag_bundle_manager.get_bundle_parse_context(dag_file.bundle_name)
+        is_claimed = self._get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name) is not None
+        importer_registry = self._bundle_importer_registries.get(dag_file.bundle_name)
 
-        if (
-            get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name, registry=importer_registry)
-            is not None
-        ):
+        if is_claimed:
             return LangSDKDagFileProcessorProcess.start(
                 id=id,
                 path=dag_file.absolute_path,

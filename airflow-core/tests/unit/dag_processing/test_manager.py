@@ -666,6 +666,68 @@ class TestDagFileProcessorManager:
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").teams[0].name == "team-a"
 
+    @pytest.mark.parametrize("bundle_version", [None, "v1"])
+    def test_callbacks_for_unconfigured_bundle_read_configuration_once_per_interval(
+        self, tmp_path, bundle_version
+    ):
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text("[]")
+        runs = tmp_path / "runs"
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"sh -c 'echo >> {runs}; cat {config_file}'",
+                ("dag_processor", "bundle_refresh_check_interval"): "60",
+            }
+        ):
+            processor = DagFileProcessorManager(max_runs=1)
+            processor.load_dag_bundles()
+            config_file.unlink()
+            request = DagCallbackRequest(
+                filepath="dag.py",
+                dag_id="dag",
+                run_id="run",
+                bundle_name="removed-bundle",
+                bundle_version=bundle_version,
+            )
+            for _ in range(3):
+                processor._add_callback_to_queue(request)
+        assert len(runs.read_text().splitlines()) == 2
+
+    @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_parse_uses_accepted_importers_before_bundle_is_scanned(self, mock_logger, mock_start, tmp_path):
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "bundle-a",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(tmp_path)},
+                    }
+                ]
+            )
+        )
+        runs = tmp_path / "runs"
+        mock_logger.return_value = (structlog.get_logger(), mock.Mock(spec=["close"]))
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"sh -c 'echo >> {runs}; cat {config_file}'",
+                ("dag_processor", "bundle_refresh_check_interval"): "60",
+            }
+        ):
+            processor = DagFileProcessorManager(max_runs=1)
+            processor._create_process(
+                DagFileInfo(bundle_name="bundle-a", bundle_path=tmp_path, rel_path=Path("dag.py")),
+                source=DagParseSource(),
+            )
+            assert mock_start.call_args.kwargs["importer_registry"] is processor._get_importer_registry(
+                "bundle-a"
+            )
+        assert len(runs.read_text().splitlines()) == 1
+
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
     @pytest.mark.parametrize("remove_all", [False, True])
     def test_reconcile_repairs_stale_writer_only_when_unfiltered(
