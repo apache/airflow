@@ -186,6 +186,25 @@ describe("NavTabs", () => {
     );
   });
 
+  it("shows a tab's icon beside its label when showIconWithLabel is set", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(TABS.length * TAB_WIDTH);
+
+    renderTabs("/dag/tab0", [
+      {
+        icon: <img alt="Warehouse" src="/icon.svg" />,
+        label: "Warehouse",
+        showIconWithLabel: true,
+        value: "plugin/warehouse",
+      },
+    ]);
+
+    const link = screen.getByRole("link", { name: "Warehouse" });
+
+    expect(link).toHaveTextContent("Warehouse");
+    expect(within(link).getByRole("img", { hidden: true })).toBeInTheDocument();
+    expect(within(link).queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("shows icons and an icon-only More trigger in a narrow panel", async () => {
     vi.mocked(useContainerWidth).mockReturnValue(400);
 

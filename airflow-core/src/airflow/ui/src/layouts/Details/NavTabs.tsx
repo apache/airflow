@@ -33,6 +33,7 @@ export type NavTab = {
   /** Additional route segments that should also mark this tab as active. */
   readonly matchPaths?: Array<string>;
   readonly search?: string;
+  readonly showIconWithLabel?: boolean;
   readonly value: string;
 };
 
@@ -53,6 +54,7 @@ const TabContent = ({ active, children, ...rest }: { readonly active: boolean } 
     color={active ? "fg" : "fg.muted"}
     fontSize="md"
     fontWeight={active ? "bold" : "medium"}
+    gap={2}
     height="40px"
     mb={`-${INDICATOR_HEIGHT}`}
     px={4}
@@ -89,7 +91,25 @@ export const NavTabs = ({ tabs }: Props) => {
     );
   });
   const showLabels = containerWidth > 600;
-  const getTabContent = ({ icon, label }: NavTab) => (showLabels || !Boolean(icon) ? label : icon);
+  const getTabContent = ({ icon, label, showIconWithLabel = false }: NavTab): ReactNode => {
+    if (!Boolean(icon)) {
+      return label;
+    }
+    if (!showLabels) {
+      return icon;
+    }
+
+    return showIconWithLabel ? (
+      <>
+        <Box aria-hidden as="span" display="flex" flexShrink={0}>
+          {icon}
+        </Box>
+        {label}
+      </>
+    ) : (
+      label
+    );
+  };
   const moreLabel = showLabels ? (
     <HStack as="span" gap={1}>
       {translate("moreTabs")}
