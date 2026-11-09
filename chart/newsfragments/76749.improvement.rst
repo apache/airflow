@@ -1,0 +1,1 @@
+Add ``workers.celery.livenessProbe.terminationGracePeriodSeconds`` to bound how long a Celery worker killed by its liveness probe may take to stop (#76749)
