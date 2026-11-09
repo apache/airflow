@@ -562,6 +562,25 @@ class SageMakerHook(AwsBaseHook):
             )
         return response
 
+    def _stop_job(self, api_name: str, name_kwarg: str, job_kind: str, job_name: str) -> None:
+        """
+        Call a SageMaker ``stop_*`` API, tolerating a job that is no longer running.
+
+        :param api_name: name of the boto3 client method to call.
+        :param name_kwarg: name of the job-name keyword that method takes.
+        :param job_kind: job kind as it should read in the log message.
+        :param job_name: name of the job to stop.
+        """
+        try:
+            getattr(self.conn, api_name)(**{name_kwarg: job_name})
+        except ClientError as ce:
+            # SageMaker only accepts a stop for a job in InProgress; a ValidationException here means
+            # the job reached a terminal state (or never existed) before the stop landed.
+            if ce.response["Error"]["Code"] == "ValidationException":
+                self.log.warning("Could not stop %s job %s: %s", job_kind, job_name, ce)
+                return
+            raise
+
     def stop_training_job(self, training_job_name: str) -> None:
         """
         Stop a running SageMaker training job.
@@ -571,15 +590,7 @@ class SageMakerHook(AwsBaseHook):
 
         :param training_job_name: name of the training job to stop.
         """
-        try:
-            self.conn.stop_training_job(TrainingJobName=training_job_name)
-        except ClientError as ce:
-            # SageMaker only accepts a stop for a job in InProgress; a ValidationException here means
-            # the job reached a terminal state (or never existed) before the stop landed.
-            if ce.response["Error"]["Code"] == "ValidationException":
-                self.log.warning("Could not stop training job %s: %s", training_job_name, ce)
-                return
-            raise
+        self._stop_job("stop_training_job", "TrainingJobName", "training", training_job_name)
 
     def stop_processing_job(self, processing_job_name: str) -> None:
         """
@@ -590,13 +601,7 @@ class SageMakerHook(AwsBaseHook):
 
         :param processing_job_name: name of the processing job to stop.
         """
-        try:
-            self.conn.stop_processing_job(ProcessingJobName=processing_job_name)
-        except ClientError as ce:
-            if ce.response["Error"]["Code"] == "ValidationException":
-                self.log.warning("Could not stop processing job %s: %s", processing_job_name, ce)
-                return
-            raise
+        self._stop_job("stop_processing_job", "ProcessingJobName", "processing", processing_job_name)
 
     def describe_training_job(self, name: str):
         """

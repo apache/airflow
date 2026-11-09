@@ -55,9 +55,9 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     :param cancel_on_kill: If True, stop the job when the user marks the deferred task failed,
-        clears it, or marks it succeeded. Only applies to the job types in ``STOP_METHODS_BY_JOB_TYPE``.
-        Requires ``apache-airflow`` with ``BaseTrigger.on_kill()`` support (3.3 and later); below that
-        it is inert.
+        clears it, or marks it succeeded. Only the Training and Processing job types can be stopped;
+        it is a no-op for the others. Requires ``apache-airflow`` with ``BaseTrigger.on_kill()``
+        support (3.3 and later); below that it is inert.
     :param poke_interval: (deprecated) use ``waiter_delay`` instead.
     :param max_attempts: (deprecated) use ``waiter_max_attempts`` instead.
     """
@@ -124,9 +124,11 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             config=self.botocore_config,
         )
 
-    STOP_METHODS_BY_JOB_TYPE: ClassVar[dict[str, str]] = {
-        "training": "stop_training_job",
-        "processing": "stop_processing_job",
+    # Spelled via the methods themselves so mypy rejects a name that does not exist, but stored as
+    # names so the call still resolves on the hook instance.
+    _STOP_METHODS_BY_JOB_TYPE: ClassVar[dict[str, str]] = {
+        "training": SageMakerHook.stop_training_job.__name__,
+        "processing": SageMakerHook.stop_processing_job.__name__,
     }
 
     async def on_kill(self) -> None:
@@ -134,7 +136,7 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
         if not self.cancel_on_kill:
             return
         # Absent job types are a no-op, not a call against another type's stop API.
-        stop_method = self.STOP_METHODS_BY_JOB_TYPE.get(self.job_type.lower())
+        stop_method = self._STOP_METHODS_BY_JOB_TYPE.get(self.job_type.lower())
         if stop_method is None:
             return
         self.log.info("Stopping SageMaker %s job %s.", self.job_type, self.job_name)
