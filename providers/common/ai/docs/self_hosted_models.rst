@@ -262,8 +262,11 @@ task would fail outright rather than the agent recovering gracefully.
 Waiting for an Ollama model to load
 -------------------------------------
 
-Ollama loads a model into memory on the first request, which can take long
-enough to time out that request. To load the model ahead of time, call
+Ollama loads a model into memory on the first request. pydantic-ai's default
+HTTP read timeout is 600 seconds, longer than the 300 seconds used below, so with
+default settings the agent's first request waits for the load itself. Loading
+ahead of time matters when ``model_settings`` sets a shorter ``timeout``: the first
+request then times out before the model has loaded. In that case, call
 :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.ensure_model_ready`
 before the task builds its agent. It sends Ollama a load request for this
 connection's model and waits until Ollama answers, which it does once the model
@@ -307,6 +310,11 @@ The load request does not send ``keep_alive``, so Ollama unloads the model after
 its own keep-alive time (5 minutes by default) like any other model. If the
 downstream LLM task can wait in the queue longer than that, raise the server's
 default with the ``OLLAMA_KEEP_ALIVE`` environment variable.
+
+The upstream task and the LLM task must reach the same Ollama server for the
+load to help. With one Ollama on each worker (a ``localhost`` connection) or several
+replicas behind a load balancer, the load request can reach a different server
+than the LLM call, and then it has no effect on that call.
 
 ``timeout`` is passed as is to the load request. Running out ends in a
 ``TimeoutError`` naming the model, or the server when it cannot be reached.
