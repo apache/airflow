@@ -27,6 +27,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
@@ -68,11 +69,13 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    HITLUser,
     LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
+    VariableResponse,
 )
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -128,6 +131,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     HITLDetailRequestResult,
+    HITLDetailResponseResult,
     InactiveAssetsResult,
     MaskSecret,
     OKResponse,
@@ -3819,6 +3823,29 @@ REQUEST_TEST_CASES = [
         test_id="create_hitl_detail_payload",
     ),
     RequestTestCase(
+        message=GetHITLDetailResponse(ti_id=TI_ID),
+        expected_body={
+            "response_received": True,
+            "responded_by_user": {"id": "alice", "name": "Alice"},
+            "responded_at": timezone.parse("2024-10-31T12:00:00Z"),
+            "chosen_options": ["Approve"],
+            "params_input": {"reason": "ship it"},
+            "type": "HITLDetailResponseResult",
+        },
+        client_mock=ClientMock(
+            method_path="hitl.get_detail_response",
+            kwargs={"ti_id": TI_ID},
+            response=HITLDetailResponseResult(
+                response_received=True,
+                responded_by_user=HITLUser(id="alice", name="Alice"),
+                responded_at=timezone.parse("2024-10-31T12:00:00Z"),
+                chosen_options=["Approve"],
+                params_input={"reason": "ship it"},
+            ),
+        ),
+        test_id="get_hitl_detail_response",
+    ),
+    RequestTestCase(
         message=MaskSecret(value=["iter1", "iter2", {"key": "value"}], name="test_secret"),
         mask_secret_args=(["iter1", "iter2", {"key": "value"}], "test_secret"),
         test_id="mask_secret_list",
@@ -4403,16 +4430,11 @@ class TestHandleRequest:
             )
 
     @patch.object(ActivitySubprocess, "send_msg", autospec=True)
-    @pytest.mark.parametrize(
-        "message",
-        [
-            GetHITLDetailResponse(ti_id=TI_ID),
-            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]),
-        ],
-    )
-    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess, message):
+    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess):
         process, _ = watched_subprocess
-        process._handle_request(message, structlog.get_logger(), req_id=42)
+        process._handle_request(
+            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]), structlog.get_logger(), req_id=42
+        )
 
         send_msg.assert_called_once_with(
             process,
@@ -4536,7 +4558,7 @@ class TestHandleRequest:
             assert decoder.validate_python(frame.body) == client_mock.response
 
     def test_registered_message_types(self):
-        expected = set(get_args(get_args(ToSupervisor)[0])) - {GetHITLDetailResponse, UpdateHITLDetail}
+        expected = set(get_args(get_args(ToSupervisor)[0])) - {UpdateHITLDetail}
         assert set(ActivitySubprocess._request_handlers) == expected
         assert {type(case.message) for case in REQUEST_TEST_CASES} == expected
 
@@ -5077,6 +5099,170 @@ class TestInProcessTestSupervisor:
         # Ensure we got back what we expect
         assert isinstance(response, VariableResult)
         assert response.value == "value"
+
+    @pytest.fixture
+    def socket_supervisor(self, mocker, socket_pair):
+        """An in-process supervisor wired to a socket, as ``_setup_subprocess_socket`` leaves it."""
+        read_end, write_end = socket_pair
+
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.stdin = write_end
+        supervisor.client.variables.get.return_value = VariableResult(key="test_key", value="test_value")
+
+        return supervisor, read_end
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    @pytest.mark.parametrize("req_id", [0, 42], ids=["first_request", "later_request"])
+    def test_socket_request_is_answered_over_the_socket(
+        self, mock_mask_secret, socket_supervisor, mocker, req_id
+    ):
+        """A virtualenv operator under ``dag.test()`` runs in a real child process that reconnects to
+        the supervisor over ``__AIRFLOW_SUPERVISOR_FD``, so its requests can only be answered with a
+        response frame on that socket. ``req_id=0`` is deliberate: the child's ``CommsDecoder``
+        numbers its requests from 0, so the id cannot tell the two paths apart.
+        """
+        supervisor, read_end = socket_supervisor
+
+        generator = supervisor.handle_requests(log=mocker.Mock())
+        next(generator)
+        generator.send(_RequestFrame(id=req_id, body=GetVariable(key="test_key").model_dump()))
+
+        read_end.settimeout(1)
+        frame_len = int.from_bytes(read_end.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_end.recv(frame_len))
+
+        assert frame.id == req_id
+        assert frame.body == {"key": "test_key", "value": "test_value", "type": "VariableResult"}
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    def test_in_process_request_is_not_written_to_the_socket(self, mock_mask_secret, socket_supervisor):
+        """The task running in this process reads its response from the queue, not the socket."""
+        supervisor, read_end = socket_supervisor
+
+        response = supervisor.comms.send(GetVariable(key="test_key"))
+
+        assert response == VariableResult(key="test_key", value="test_value")
+        read_end.settimeout(0.1)
+        with pytest.raises(TimeoutError):
+            read_end.recv(1)
+
+    def test_concurrent_in_process_requests_get_their_own_response(self, mocker):
+        """In-process requests in flight at the same time must not be answered with each other's response.
+
+        Both requests go through ``comms.send`` from different threads, with the first one still
+        being handled when the second arrives, so each must read its response from its own sink.
+        """
+        first_queued = threading.Event()
+        second_answered = threading.Event()
+
+        class ConcurrentSupervisor(InProcessTestSupervisor):
+            def _handle_request(self, msg, log, req_id):
+                self.send_msg(VariableResult(key=msg.key, value=msg.key), req_id)
+                if msg.key == "first":
+                    first_queued.set()
+                    second_answered.wait(10)
+
+        supervisor = ConcurrentSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+
+        answers: dict[str, Any] = {}
+
+        def ask(key):
+            answers[key] = supervisor.comms.send(GetVariable(key=key))
+
+        first = threading.Thread(target=ask, args=("first",), daemon=True)
+        first.start()
+        assert first_queued.wait(10)
+
+        ask("second")
+        second_answered.set()
+        first.join(10)
+        assert not first.is_alive(), "first in-process request never got its response"
+
+        assert answers == {
+            "first": VariableResult(key="first", value="first"),
+            "second": VariableResult(key="second", value="second"),
+        }
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    def test_child_process_gets_a_response_through_the_real_socket(self, mock_mask_secret, mocker):
+        """The same round trip, driven through the socket machinery a real child process uses."""
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.client.variables.get.return_value = VariableResult(key="test_key", value="test_value")
+
+        received: list[Any] = []
+        with supervisor._setup_subprocess_socket() as child_sock:
+            comms = CommsDecoder(socket=child_sock)
+            # `CommsDecoder._read_frame` forces the socket back to blocking mode, so a lost response
+            # hangs forever -- read it from a thread we can give up on to get a failure instead.
+            reader = threading.Thread(
+                target=lambda: received.append(comms.send(GetVariable(key="test_key"))), daemon=True
+            )
+            reader.start()
+            reader.join(10)
+
+            assert not reader.is_alive(), "supervisor never answered the request sent on its socket"
+
+        assert received == [VariableResult(key="test_key", value="test_value")]
+
+    @patch("airflow.sdk.log._secrets_masker")
+    def test_child_request_masking_secret_on_socket_thread_gets_only_its_response(
+        self, mock_secrets_masker, mocker
+    ):
+        """Handling a child's ``GetVariable`` on the socket thread calls ``mask_secret``, which
+        re-enters ``comms.send`` on that same thread with a sink set; the nested ``MaskSecret`` reply
+        must stay in that sink and only the ``VariableResult`` may reach the child's socket.
+        """
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.client.variables.get.return_value = VariableResponse(key="test_key", value="test_value")
+        comms_send = mocker.spy(InProcessSupervisorComms, "send")
+
+        received: list[Any] = []
+        with (
+            set_supervisor_comms(supervisor.comms),
+            supervisor._setup_subprocess_socket() as child_sock,
+        ):
+            comms = CommsDecoder(socket=child_sock)
+            reader = threading.Thread(
+                target=lambda: received.append(comms.send(GetVariable(key="test_key"))), daemon=True
+            )
+            reader.start()
+            reader.join(10)
+
+            assert not reader.is_alive(), "supervisor never answered the request sent on its socket"
+            child_sock.settimeout(0.1)
+            with pytest.raises(TimeoutError):
+                child_sock.recv(1)
+
+        assert received == [VariableResult(key="test_key", value="test_value")]
+        comms_send.assert_called_once_with(supervisor.comms, MaskSecret(value="test_value", name="test_key"))
 
     def test_inprocess_failure_callback_receives_exception(
         self,

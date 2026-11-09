@@ -15,13 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Supervisor schema version 2027-02-28."""
+"""
+Supervisor schema version 2027-02-28.
+
+New bodies in this version:
+
+- ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
+  Human-in-the-loop response.
+"""
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for, schema
 
-from airflow.sdk.api.datamodels._generated import TIRunContext
+from airflow.sdk.api.datamodels._generated import TIRunContext, VariableResponse
+from airflow.sdk.execution_time.comms import PutVariable
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -37,3 +45,27 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
     )
+
+
+class MakeSupervisorVariableValueNonNullable(VersionChange):
+    """
+    Make the Variable value non-nullable in ``VariableResult`` and ``PutVariable``.
+
+    The supervisor-schema mirror of the execution API's ``MakeVariableValueNonNullable``,
+    named apart so the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        # VariableResult (and TIRunContext.variables) inherit the field from the generated
+        # VariableResponse, and Cadwyn only changes a field on the class that declares it.
+        schema(VariableResponse).field("value").had(type=str | None),
+        schema(PutVariable).field("value").had(type=str | None),
+    )
+
+    @convert_request_to_next_version_for(PutVariable)  # type: ignore[arg-type]
+    def store_null_value_as_none_string(request: RequestInfo) -> None:
+        """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
+        if "value" in request.body and request.body["value"] is None:
+            request.body["value"] = "None"

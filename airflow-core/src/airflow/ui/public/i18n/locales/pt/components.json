@@ -1,22 +1,40 @@
 {
   "backfill": {
-    "affected_many": "{{count, number}} execuções serão acionadas.",
+    "affected_many": "{{count, number}} de execuções serão acionadas.",
     "affected_one": "1 execução será acionada.",
     "affected_other": "{{count, number}} execuções serão acionadas.",
     "affected_zero": "Nenhuma execução será acionada.",
     "affectedNone": "Nenhuma execução correspondente aos critérios selecionados.",
     "allRuns": "Todas as Execuções",
     "backwards": "Executar para trás",
+    "completed": "Concluído",
     "dateRange": "Intervalo de Data",
     "errorStartDateBeforeEndDate": "A Data Inicial deve ser antes da Data Final",
+    "exceptionReason": {
+      "alreadyExists": "Já existe",
+      "inFlight": "Em andamento",
+      "unknown": "Desconhecido"
+    },
     "maxRuns": "Máximo de Execuções Ativas",
     "missingAndErroredRuns": "Execuções Faltando e com Erro",
     "missingRuns": "Execuções Faltando",
+    "notCreatedReason": "Motivo de não criação",
+    "overrideExistingParams": "Sobrescrever parâmetros nas execuções existentes",
+    "partitionRange": "Intervalo de partições",
+    "partitionsAffected_many": "{{count, number}} de partições receberão backfill:",
+    "partitionsAffected_one": "1 partição receberá backfill:",
+    "partitionsAffected_other": "{{count, number}} partições receberão backfill:",
+    "partitionsAffected_zero": "Nenhuma partição receberá backfill.",
+    "partitionsNone": "Nenhuma partição corresponde ao intervalo selecionado.",
     "permissionDenied": "Execução de teste falhou: o utilizador não tem permissão para criar backfills.",
     "reprocessBehavior": "Comportamento de Reprocessamento",
     "run": "Executar Backfill",
+    "running": "Executando",
+    "scheduleNotBackfillable": "O agendamento deste Dag não suporta backfills",
+    "schedulerPriorityHint": "As execuções de Dag de backfill são ordenadas depois das execuções que não são de backfill em cada ciclo do scheduler. As execuções de backfill podem permanecer enfileiradas por mais tempo se houver outras execuções que não são de backfill.",
     "selectDescription": "Executar este Dag para um intervalo de datas",
     "selectLabel": "Backfill",
+    "status": "Estado",
     "title": "Executar Backfill",
     "toaster": {
       "success": {
@@ -27,7 +45,8 @@
     "validation": {
       "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
       "startBeforeEnd": "A Data Inicial do Intervalo deve ser menor ou igual à Data Final do Intervalo."
-    }
+    },
+    "viewSlots": "Ver slots do Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill em progresso",
@@ -44,10 +63,7 @@
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_many": "{{count, number}} Erros",
     "error_one": "1 Erro",
-    "error_other": "{{count, number}} Erros",
-    "error_zero": "Nenhum erro",
     "errorAndWarning": "1 Erro e {{warningText}}",
     "types": {
       "asset conflict": "Conflito de Asset",
@@ -56,7 +72,7 @@
       "runtime varying value": "Valor variável em tempo de execução",
       "task group cycle": "Ciclo no grupo de tarefas"
     },
-    "warning_many": "{{count, number}} Avisos",
+    "warning_many": "{{count, number}} de Avisos",
     "warning_one": "1 Aviso",
     "warning_other": "{{count, number}} Avisos",
     "warning_zero": "Nenhum aviso"
@@ -70,32 +86,36 @@
   },
   "durationChart": {
     "duration": "Duração (segundos)",
-    "lastDagRun_many": "Últimas {{count, number}} Execuções do Dag",
+    "lastDagRun_many": "Últimas {{count, number}} de Execuções do Dag",
     "lastDagRun_one": "Última Execução do Dag",
     "lastDagRun_other": "Últimas {{count, number}} Execuções do Dag",
     "lastDagRun_zero": "Nenhuma execução do Dag",
-    "lastTaskInstance_many": "Últimas {{count, number}} Instâncias de Tarefa",
+    "lastTaskInstance_many": "Últimas {{count, number}} de Instâncias de Tarefa",
     "lastTaskInstance_one": "Última Instância de Tarefa",
     "lastTaskInstance_other": "Últimas {{count, number}} Instâncias de Tarefa",
     "lastTaskInstance_zero": "Nenhuma instância de tarefa",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Duração da Fila",
     "runAfter": "Executar Depois",
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
-    "files_many": "{{count, number}} arquivos",
+    "files_many": "{{count, number}} de arquivos",
     "files_one": "1 arquivo",
     "files_other": "{{count, number}} arquivos",
     "files_zero": "Nenhum arquivo"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Informe a duração no formato ISO 8601",
     "placeholder": "Selecionar Valor",
     "placeholderArray": "Digite cada string em uma nova linha",
     "placeholderExamples": "Comece a digitar para ver opções",
     "placeholderMulti": "Selecione um ou vários valores",
+    "validationErrorArrayElement": "Valor(es) de {{type}} inválido(s): {{values}}",
     "validationErrorArrayNotArray": "O valor deve ser um array.",
     "validationErrorArrayNotNumbers": "Todos os elementos do array devem ser números.",
     "validationErrorArrayNotObject": "Todos os elementos do array devem ser objetos.",
+    "validationErrorDuration": "Formato de duração ISO 8601 inválido",
     "validationErrorRequired": "Este campo é obrigatório"
   },
   "graph": {
@@ -103,15 +123,22 @@
     "directionLeft": "Direita para Esquerda",
     "directionRight": "Esquerda para Direita",
     "directionUp": "Inferior para Superior",
-    "downloadImage": "Baixar imagem do gráfico",
-    "downloadImageError": "Falha ao baixar a imagem do gráfico.",
+    "downloadImage": "Baixar imagem do grafo",
+    "downloadImageError": "Falha ao baixar a imagem do grafo.",
     "downloadImageErrorTitle": "Download Falhou",
     "otherDagRuns": "+Outras Execuções do Dag",
-    "taskCount_many": "{{count, number}} Tarefas",
+    "taskCount_many": "{{count, number}} de Tarefas",
     "taskCount_one": "{{count, number}} Tarefa",
     "taskCount_other": "{{count, number}} Tarefas",
     "taskCount_zero": "Nenhuma tarefa",
-    "taskGroup": "Grupo de Tarefas"
+    "taskGroup": "Grupo de Tarefas",
+    "zoomToTask": "Ampliar para a tarefa selecionada"
+  },
+  "jsonPreview": {
+    "items_many": "{{count, number}} de itens",
+    "items_one": "1 item",
+    "items_other": "{{count, number}} itens",
+    "items_zero": "Nenhum item"
   },
   "limitedList": "+{{count, number}} mais",
   "limitedList.allItems": "Todos os {{count, number}} itens:",
@@ -122,7 +149,7 @@
   "limitedList.clickToInteract": "Clique em uma etiqueta para filtrar os Dags",
   "limitedList.clickToOpenFull": "Clique em \"+{{count, number}} mais\" para ver a lista completa",
   "limitedList.copyPasteText": "Você pode copiar e colar o texto acima",
-  "limitedList.showingItems_many": "Mostrando {{count, number}} itens",
+  "limitedList.showingItems_many": "Mostrando {{count, number}} de itens",
   "limitedList.showingItems_one": "Mostrando 1 item",
   "limitedList.showingItems_other": "Mostrando {{count, number}} itens",
   "limitedList.showingItems_zero": "Mostrando 0 itens",
@@ -130,7 +157,30 @@
     "file": "Arquivo",
     "location": "linha {{line}} em {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Ocultar valor",
+    "show": "Mostrar valor"
+  },
+  "pausedDag": {
+    "drain": "Drenar",
+    "drainDescription": "As execuções inacabadas continuam, mas nenhuma execução agendada é criada. Backfills pausados permanecem pausados. O Dag pausa de novo quando todas as execuções inacabadas terminam.",
+    "keepPaused": "Manter pausado",
+    "keepPausedDescription": "Execuções novas e inacabadas esperam até o Dag ser despausado.",
+    "title": "O Dag está pausado",
+    "unfinishedRunsWillRun_many": "{{count, number}} de execuções do Dag inacabadas serão iniciadas ou retomadas.",
+    "unfinishedRunsWillRun_one": "1 execução do Dag inacabada será iniciada ou retomada.",
+    "unfinishedRunsWillRun_other": "{{count, number}} execuções do Dag inacabadas serão iniciadas ou retomadas.",
+    "unfinishedRunsWillRun_zero": "Nenhuma execução do Dag inacabada será iniciada ou retomada.",
+    "unpause": "Despausar",
+    "unpauseDescription": "O Dag fica ativo: as execuções inacabadas continuam e o agendamento é retomado. Backfills pausados permanecem pausados."
+  },
   "reparseDag": "Reparse Dag",
+  "slowestTaskInstances": {
+    "empty": "Nenhuma instância de tarefa concluída neste intervalo",
+    "title": "Instâncias de tarefa mais lentas"
+  },
+  "sort": "ordenar",
+  "sortMultiColumnHint": "Shift-clique para ordenar por várias colunas",
   "sortedAscending": "Ordenado em ordem crescente",
   "sortedDescending": "Ordenado em ordem decrescente",
   "sortedUnsorted": "Não ordenado",
@@ -147,14 +197,24 @@
   "toggleTableView": "Mostrar visualização de tabela",
   "triggerDag": {
     "button": "Acionar",
+    "dagStartEndDate": {
+      "both": "Data inicial do Dag: {{startDate}}, data final: {{endDate}}",
+      "end": "Data final do Dag: {{endDate}}",
+      "noTaskWillRun": "Nenhuma tarefa será executada.",
+      "start": "Data inicial do Dag: {{startDate}}"
+    },
     "dataInterval": "Intervalo de Dados",
     "dataIntervalAuto": "Inferido da Data Lógica e do Timetable",
     "dataIntervalManual": "Especificar Manualmente",
+    "editConfigAndTrigger": "Editar configuração e acionar",
     "intervalEnd": "Fim",
     "intervalStart": "Início",
     "loading": "Carregando informações do Dag...",
     "loadingFailed": "Falha ao carregar informações do Dag. Por favor, tente novamente.",
     "manualRunDenied": "Execuções manuais não são permitidas para este Dag",
+    "partitionKeyHelp": "Opcional — aplica-se apenas a Dags particionados",
+    "recentConfig": "Configurações recentes",
+    "recentConfigPlaceholder": "Selecionar uma configuração recente",
     "runIdHelp": "Opcional - será gerado se não for fornecido",
     "selectDescription": "Acionar uma única execução deste Dag",
     "selectLabel": "Execução Única",
@@ -168,7 +228,8 @@
         "title": "Execução do Dag acionada"
       }
     },
-    "triggerAgainWithConfig": "Acionar novamente com esta configuração"
+    "triggerAgainWithConfig": "Acionar novamente com esta configuração",
+    "triggerOptions": "Opções de acionamento"
   },
   "trimText": {
     "details": "Detalhes",
@@ -185,6 +246,7 @@
   "versionSelect": {
     "allVersions": "Todas as Versões",
     "dagVersion": "Versão do Dag",
+    "placeholder": "Selecionar versão",
     "versionCode": "v{{versionCode}}"
   }
 }

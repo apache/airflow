@@ -120,6 +120,9 @@ Python - for Airflow |airflow-version| that is ``ghcr.io/apache/airflow/base/pyt
 pinned to the digest the Airflow CI last passed on (see :ref:`the hardened base images <image-hardened-base>`). Pulling the mirror needs no
 credentials; pulling ``dhi.io`` directly requires a ``docker login dhi.io``.
 
+In the default ``hardened`` flavor ``BASE_IMAGE`` has to provide Python, so the build fails on a plain Debian
+image such as ``debian:trixie-slim``. Use the ``legacy`` flavor below to build on one.
+
 For the 3.4.x line Airflow also publishes ``legacy`` images, built the way all images were built before
 3.4.0: Python is downloaded from python.org, its signature verified and compiled on a ``debian:bookworm-slim``
 base. They are deprecated and will be removed in Airflow 3.5.0. To build one yourself, set these arguments:

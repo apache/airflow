@@ -43,7 +43,9 @@ type Props = {
   readonly loopMaxIterations?: number | null;
   readonly runId?: string | null;
   readonly taskInstance?:
-    LightGridTaskInstanceSummaryWithWhen | TaskInstanceHistoryResponse | TaskInstanceResponse;
+    | LightGridTaskInstanceSummaryWithWhen
+    | TaskInstanceHistoryResponse
+    | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 

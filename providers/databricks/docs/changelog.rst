@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+7.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks agent invocation operator and hook (#74386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove empty Databricks mixin test placeholders (#75893)``
+   * ``Remove duplicate Databricks timeout retry test (#75891)``
+   * ``Remove duplicate Databricks retry test (#75889)``
+
 7.23.0
 ......
 

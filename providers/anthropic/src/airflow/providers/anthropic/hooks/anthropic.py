@@ -32,6 +32,7 @@ from anthropic import (
     AnthropicBedrock,
     AnthropicFoundry,
     AnthropicVertex,
+    APIStatusError,
     AsyncAnthropic,
     AsyncAnthropicAWS,
     AsyncAnthropicBedrock,
@@ -115,6 +116,23 @@ class _ClientFactories(Generic[_ClientT]):
 #: (transient errors). Mirrors the deferrable triggers' tolerance so a single blip does
 #: not fail (and cancel/archive) a still-healthy batch or session.
 MAX_CONSECUTIVE_POLL_FAILURES = 5
+
+
+def _is_permanent_poll_error(error: BaseException) -> bool:
+    """
+    Return whether a failed poll is an API error that retrying will not fix.
+
+    Follows the SDK's own retry rule: an ``x-should-retry`` response header decides when
+    present, otherwise 408, 409, 429 and 5xx are retryable and any other status is not.
+    Errors without an HTTP status (network failures, timeouts) count as transient.
+    """
+    if not isinstance(error, APIStatusError):
+        return False
+    should_retry = error.response.headers.get("x-should-retry")
+    if should_retry in ("true", "false"):
+        return should_retry == "false"
+    status = error.status_code
+    return status not in (408, 409, 429) and status < 500
 
 
 class BatchStatus(str, Enum):
@@ -676,7 +694,8 @@ class AnthropicHook(BaseHook):
                 # results remain recoverable for 29 days.
                 consecutive_failures += 1
                 if (
-                    consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES
+                    _is_permanent_poll_error(e)
+                    or consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES
                     or time.monotonic() - start > timeout
                 ):
                     raise

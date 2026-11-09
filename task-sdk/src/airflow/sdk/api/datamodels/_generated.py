@@ -26,6 +26,7 @@ from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
+from typing_extensions import TypeAliasType
 
 API_VERSION: Final[str] = "2027-02-28"
 
@@ -107,6 +108,75 @@ class ConnectionTestState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+
+class Version(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, title="Version")]
+
+
+class DagBundleInventoryBody(BaseModel):
+    """
+    A discovery snapshot with explicit failures, conditional on the previously observed revision.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    dispatch_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Dispatch Sequence")]
+    expected_revision: Annotated[UUID | None, Field(title="Expected Revision")]
+    version: Annotated[Version | None, Field(title="Version")] = None
+    files: Annotated[list[str], Field(max_length=100000, title="Files")]
+    failed_sources: Annotated[list[str] | None, Field(max_length=100000, title="Failed Sources")] = None
+
+
+class DagBundleInventoryResponse(BaseModel):
+    """
+    The source revision to attach to imports dispatched from this inventory.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    accepted_at: Annotated[AwareDatetime, Field(title="Accepted At")]
+    revision: Annotated[UUID, Field(title="Revision")]
+
+
+class DagBundleStateResponse(BaseModel):
+    """
+    Server-owned metadata for an authorized bundle.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    version: Annotated[str | None, Field(title="Version")]
+    last_refreshed: Annotated[AwareDatetime | None, Field(title="Last Refreshed")]
+    revision: Annotated[UUID | None, Field(title="Revision")]
+    team_name: Annotated[str | None, Field(title="Team Name")]
+
+
+class BundleVersion(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, title="Bundle Version")]
+
+
+DagSourceIndexesAdditionalProperty = TypeAliasType(
+    "DagSourceIndexesAdditionalProperty", Annotated[int, Field(ge=0)]
+)
+
+
+class DagParseResultResponse(BaseModel):
+    """
+    Receipt returned unchanged when the latest accepted publication is replayed.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    accepted_at: Annotated[AwareDatetime, Field(title="Accepted At")]
 
 
 class DagParseTokenBody(BaseModel):
@@ -219,6 +289,26 @@ class DagRunType(str, Enum):
     OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
+
+
+class DagWarningType(str, Enum):
+    """
+    Enum for DAG warning types.
+
+    This is the set of allowable values for the ``warning_type`` field
+    in the DagWarning model.
+    """
+
+    ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
+    NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
+    TASK_GROUP_CYCLE = "task group cycle"
+
+
+class EmailType(str, Enum):
+    FAILURE = "failure"
+    RETRY = "retry"
 
 
 class HITLUser(BaseModel):
@@ -360,6 +450,37 @@ class LoopDecisionPayload(BaseModel):
     reason: Annotated[str | None, Field(title="Reason")] = None
 
 
+class ParseSourceCode(BaseModel):
+    """
+    Source captured by the importer; null explicitly means unavailable.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    source_code: Annotated[str | None, Field(title="Source Code")]
+    language: Annotated[str, Field(max_length=64, min_length=1, title="Language")]
+
+
+class WarningType(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=50, pattern="^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$", title="Warning Type")
+    ]
+
+
+class ParseWarning(BaseModel):
+    """
+    A warning attached to a Dag returned by this import.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(max_length=250, min_length=1, title="Dag Id")]
+    warning_type: Annotated[DagWarningType | WarningType, Field(title="Warning Type")]
+    message: Annotated[str, Field(title="Message")]
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -388,6 +509,33 @@ class PreviousTIResponse(BaseModel):
     region_id: Annotated[UUID | None, Field(title="Region Id")] = None
     region_index: Annotated[int | None, Field(title="Region Index")] = None
     duration: Annotated[float | None, Field(title="Duration")] = None
+
+
+class ProcessorWorkAckBody(BaseModel):
+    """
+    Acknowledge delivery, retaining the claim identity across retries.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+
+
+class ProcessorWorkClaimBody(BaseModel):
+    """
+    A bounded claim whose sequence increases per Job and work kind.
+
+    Retry the same payload until its response arrives before sending a newer sequence for that kind.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    claim_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Claim Sequence")]
+    bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
+    limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
 
 
 class TIAwaitingInputStatePayload(BaseModel):
@@ -524,6 +672,25 @@ class TaskBreadcrumbsResponse(BaseModel):
     breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
 
 
+class TaskInstance(BaseModel):
+    """
+    Schema for TaskInstance model with minimal required fields needed for Runtime.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = "default"
+
+
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -652,7 +819,7 @@ class VariablePostBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    val: Annotated[str | None, Field(title="Val")]
+    val: Annotated[str, Field(title="Val")]
     description: Annotated[str | None, Field(title="Description")] = None
 
 
@@ -665,7 +832,7 @@ class VariableResponse(BaseModel):
         extra="forbid",
     )
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str | None, Field(title="Value")]
+    value: Annotated[str, Field(title="Value")]
 
 
 class XComResponse(BaseModel):
@@ -699,25 +866,6 @@ class XComSequenceSliceResponse(RootModel[list[JsonValue | None]]):
             title="XComSequenceSliceResponse",
         ),
     ]
-
-
-class TaskInstance(BaseModel):
-    """
-    Schema for TaskInstance model with minimal required fields needed for Runtime.
-    """
-
-    id: Annotated[UUID, Field(title="Id")]
-    task_id: Annotated[str, Field(title="Task Id")]
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    try_number: Annotated[int, Field(title="Try Number")]
-    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
-    map_index: Annotated[int | None, Field(title="Map Index")] = -1
-    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
-    region_index: Annotated[int | None, Field(title="Region Index")] = None
-    hostname: Annotated[str | None, Field(title="Hostname")] = None
-    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
-    queue: Annotated[str | None, Field(title="Queue")] = "default"
 
 
 class BundleInfo(BaseModel):
@@ -825,6 +973,48 @@ class ConnectionTestResultBody(BaseModel):
     )
     state: ConnectionTestState
     result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
+
+
+class DagParseResultBody(BaseModel):
+    """
+    One completed file or container import, including an empty result.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
+    dispatch_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Dispatch Sequence")]
+    bundle_revision: Annotated[UUID | None, Field(title="Bundle Revision")] = None
+    bundle_version: Annotated[BundleVersion | None, Field(title="Bundle Version")] = None
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    parse_duration: Annotated[float, Field(ge=0.0, title="Parse Duration")]
+    serialized_dags: Annotated[list[dict[str, Any]], Field(title="Serialized Dags")]
+    import_errors: Annotated[dict[str, str] | None, Field(title="Import Errors")] = None
+    warnings: Annotated[list[ParseWarning] | None, Field(title="Warnings")] = None
+    parsed_definitions: Annotated[list[str] | None, Field(title="Parsed Definitions")] = None
+    result_unavailable: Annotated[
+        bool | None,
+        Field(
+            description="The processor has no result for the file: its parse did not finish, or the API server refused the result. The import error says why, and the file's Dags go stale only once they outlast stale_dag_threshold.",
+            title="Result Unavailable",
+        ),
+    ] = False
+    source_codes: Annotated[
+        list[ParseSourceCode],
+        Field(
+            description="Source text and language pairs, deduplicated by the processor.", title="Source Codes"
+        ),
+    ]
+    dag_source_indexes: Annotated[
+        dict[str, DagSourceIndexesAdditionalProperty],
+        Field(
+            description="Index in source_codes for each serialized Dag, including unavailable source.",
+            title="Dag Source Indexes",
+        ),
+    ]
 
 
 class HITLDetailRequest(BaseModel):
@@ -992,8 +1182,34 @@ class DagRun(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class DagRunContext(BaseModel):
+    """
+    Class to pass context info from the server to build a Execution context object.
+    """
+
+    dag_run: DagRun | None = None
+    last_ti: TaskInstance | None = None
+
+
 class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
     root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
+
+
+class DagCallbackRequest(BaseModel):
+    """
+    A Class with information about the success/failure DAG callback to be executed.
+    """
+
+    filepath: Annotated[str, Field(title="Filepath")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")]
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    context_from_server: DagRunContext | None = None
+    is_failure_callback: Annotated[bool | None, Field(title="Is Failure Callback")] = True
+    type: Annotated[Literal["DagCallbackRequest"] | None, Field(title="Type")] = "DagCallbackRequest"
 
 
 class TIRunContext(BaseModel):
@@ -1025,3 +1241,55 @@ class TIRunContext(BaseModel):
         ),
     ] = None
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False
+
+
+class TaskCallbackRequest(BaseModel):
+    """
+    Task callback status information.
+
+    A Class with information about the success/failure TI callback to be executed. Currently, only failure
+    callbacks when tasks are externally killed or experience heartbeat timeouts are run via DagFileProcessorProcess.
+    """
+
+    filepath: Annotated[str, Field(title="Filepath")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")]
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti: TaskInstance
+    task_callback_type: TaskInstanceState | None = None
+    context_from_server: TIRunContext | None = None
+    type: Annotated[Literal["TaskCallbackRequest"] | None, Field(title="Type")] = "TaskCallbackRequest"
+
+
+class EmailRequest(BaseModel):
+    """
+    Email notification request for task failures/retries.
+    """
+
+    filepath: Annotated[str, Field(title="Filepath")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")]
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti: TaskInstance
+    email_type: Annotated[EmailType | None, Field(title="Email Type")] = EmailType.FAILURE
+    context_from_server: TIRunContext
+    type: Annotated[Literal["EmailRequest"] | None, Field(title="Type")] = "EmailRequest"
+
+
+class ProcessorWorkItem(BaseModel):
+    """
+    A claimed callback or priority parse request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(title="Id")]
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    callback: Annotated[
+        DagCallbackRequest | TaskCallbackRequest | EmailRequest | None, Field(title="Callback")
+    ] = None
