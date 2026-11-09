@@ -319,21 +319,23 @@ class FTPSHook(FTPHook):
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
 
-            if params.port:
-                ftplib.FTP_TLS.port = params.port
-
             # Construct FTP_TLS instance with SSL context to allow certificates to be validated by default
             context = ssl.create_default_context()
-            params.host = cast("str", params.host)
-            params.password = cast("str", params.password)
-            params.login = cast("str", params.login)
             if encoding:
-                conn = ftplib.FTP_TLS(
-                    params.host, params.login, params.password, context=context, encoding=encoding
-                )  # nosec: B321
+                conn = ftplib.FTP_TLS(context=context, encoding=encoding)  # nosec: B321
             else:
-                conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
+                conn = ftplib.FTP_TLS(context=context)  # nosec: B321
             try:
+                if params.host:
+                    # Pass the port to connect() rather than setting FTP_TLS.port, which would
+                    # change the default port of every FTP_TLS connection in the process.
+                    port: int = int(ftplib.FTP_PORT)
+                    if params.port is not None:
+                        port = params.port
+                    logger.info("Connecting via FTPS to %s:%d", params.host, port)
+                    conn.connect(params.host, port)
+                    if params.login:
+                        conn.login(params.login, cast("str", params.password))
                 conn.set_pasv(pasv)
                 # Without prot_p() file payloads use cleartext despite TLS on the control connection.
                 conn.prot_p()
