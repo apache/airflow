@@ -21,28 +21,30 @@ import inspect
 import json
 import typing
 from unittest.mock import MagicMock, Mock, patch
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.params import Depends as DependsClass
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
 from airflow.api_fastapi.core_api.app import (
     base_react_app_bundle_urls,
     init_config,
     init_middlewares,
     init_ui_translation_views,
+    init_views,
 )
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
-from airflow.api_fastapi.core_api.security import get_user
+from airflow.api_fastapi.core_api.security import get_optional_user, get_user
 from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.config import conf_vars
@@ -388,6 +390,81 @@ class TestBaseReactAppPreload:
         html = self._render("index.html", ['/x.js" onload="alert(1)'])
 
         assert 'onload="alert(1)"' not in html
+
+
+class TestWebappAuthentication:
+    def test_unauthenticated_page_redirects_before_serving_ui(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/dags/example?state=running",
+            headers={"Accept": "text/html"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["cache-control"] == "no-store"
+        location = urlsplit(response.headers["location"])
+        assert location.path == "/api/v2/auth/login"
+        assert parse_qs(location.query) == {"next": ["/dags/example?state=running"]}
+
+    def test_invalid_session_redirect_clears_cookie(self, unauthenticated_test_client):
+        unauthenticated_test_client.cookies.set(COOKIE_NAME_JWT_TOKEN, "invalid-token")
+
+        response = unauthenticated_test_client.get(
+            "/dags/example",
+            headers={"Accept": "text/html"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert any(
+            cookie.startswith(f'{COOKIE_NAME_JWT_TOKEN}=""') and "Max-Age=0" in cookie
+            for cookie in response.headers.get_list("set-cookie")
+        )
+
+    @patch.object(
+        Jinja2Templates,
+        "TemplateResponse",
+        autospec=True,
+        return_value=HTMLResponse("<html></html>"),
+    )
+    def test_authenticated_page_serves_ui(self, mock_template_response, test_client):
+        response = test_client.get("/dags/example", headers={"Accept": "text/html"})
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        mock_template_response.assert_called_once()
+
+    @patch.object(
+        Jinja2Templates,
+        "TemplateResponse",
+        autospec=True,
+        return_value=HTMLResponse("<html></html>"),
+    )
+    def test_non_page_request_is_not_redirected(self, mock_template_response, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/favicon.ico",
+            headers={"Accept": "image/avif,image/webp,image/png"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        mock_template_response.assert_called_once()
+
+    def test_redirect_preserves_root_path_once(self):
+        app = FastAPI(root_path="/airflow")
+        app.dependency_overrides[get_optional_user] = lambda: None
+        init_views(app)
+        client = TestClient(app, root_path="/airflow")
+
+        response = client.get(
+            "/airflow/dags/example?state=running",
+            headers={"Accept": "text/html"},
+            follow_redirects=False,
+        )
+
+        location = urlsplit(response.headers["location"])
+        assert location.path == "/airflow/api/v2/auth/login"
+        assert parse_qs(location.query) == {"next": ["/airflow/dags/example?state=running"]}
 
 
 class TestMiddlewareInitialisation:

@@ -48,6 +48,7 @@ from airflow.api_fastapi.core_api.security import (
     PermittedAssetEventByAssetFilter,
     PermittedAssetFilter,
     _build_dag_run_access_requests,
+    get_optional_user,
     get_user,
     is_safe_url,
     permitted_asset_filter_factory,
@@ -266,6 +267,31 @@ class TestFastApiSecurity:
 
         assert result == user
         mock_resolve_user_from_token.assert_called_once_with(expected)
+
+    @patch("airflow.api_fastapi.core_api.security.get_user", autospec=True)
+    async def test_get_optional_user_returns_authenticated_user(self, mock_get_user):
+        user = SimpleAuthManagerUser(username="username", role="admin")
+        mock_get_user.return_value = user
+        request = Mock(spec=Request)
+
+        assert await get_optional_user(request, None) == user
+        mock_get_user.assert_awaited_once_with(request, _oauth_token=None, bearer_credentials=None)
+
+    @pytest.mark.parametrize("status_code", [401, 403])
+    @patch("airflow.api_fastapi.core_api.security.get_user", autospec=True)
+    async def test_get_optional_user_returns_none_for_authentication_errors(self, mock_get_user, status_code):
+        mock_get_user.side_effect = HTTPException(status_code=status_code)
+
+        assert await get_optional_user(Mock(spec=Request), None) is None
+
+    @patch("airflow.api_fastapi.core_api.security.get_user", autospec=True)
+    async def test_get_optional_user_propagates_other_http_errors(self, mock_get_user):
+        mock_get_user.side_effect = HTTPException(status_code=500)
+
+        with pytest.raises(HTTPException) as error:
+            await get_optional_user(Mock(spec=Request), None)
+
+        assert error.value.status_code == 500
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
