@@ -50,7 +50,11 @@ An event means that the producer observed a newer committed Delta version. Its `
 * ``version`` and ``observed_version``: the newest Delta version at the time of the check.
 * ``previous_version``: the version of the previous event, or ``baseline_version``. ``None`` for enrollment.
 * ``table_identity``: the ``host``, ``catalog``, ``schema`` and ``table`` of the table.
-* ``operation`` and ``timestamp``: the Delta history entry of ``version``.
+* ``operation``: the newest non-ignored Delta history operation in
+  ``(previous_version, version]``. When the producer publishes without a full check of that
+  window (incomplete history or more than ``max_history_rows`` commits), this can be an ignored
+  operation such as ``OPTIMIZE``.
+* ``timestamp``: the Delta history timestamp of ``version``.
 * ``change``: ``enrollment``, ``new_version`` or ``recreated``.
 * ``delta_table_id``: the Delta table id from ``DESCRIBE DETAIL``.
 * ``dedup_id``: the asset URI, table id and version. Use it to drop duplicate events.
@@ -108,9 +112,12 @@ produce events by default. Pass ``ignored_operations`` to change the list, or an
 for every commit.
 
 If the newest commit is an ignored operation, the producer reads the history back to the checkpoint
-to check that every commit after it is ignored. It publishes when it cannot check this, because the
-history was removed by Delta log retention or because more than ``max_history_rows`` commits were made
-since the checkpoint. The task is not skipped when it is not sure that the data did not change.
+to check that every commit after it is ignored. When a data commit is followed by ignored
+operations, the event still carries the head ``version`` (for ``VERSION AS OF``), while
+``operation`` reports the newest non-ignored commit in that window. It publishes when it cannot
+check the window fully, because the history was removed by Delta log retention or because more
+than ``max_history_rows`` commits were made since the checkpoint. The task is not skipped when it
+is not sure that the data did not change.
 
 Recreated and renamed tables
 ----------------------------

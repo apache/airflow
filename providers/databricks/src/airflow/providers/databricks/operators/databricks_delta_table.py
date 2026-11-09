@@ -267,18 +267,24 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
         else:
             change, previous = "new_version", checkpoint.version
 
+        operation_entry = head
         if change == "new_version" and previous is not None:
             if head.version == previous:
                 raise AirflowSkipException(
                     f"Delta table {self.table_name} is still at version {previous}; no event published."
                 )
-            if not self._has_relevant_commit(head, previous):
+            relevant = self._find_newest_relevant_commit(head, previous)
+            if relevant is None:
                 raise AirflowSkipException(
                     f"Delta table {self.table_name} only has {sorted(self.ignored_operations)} commits "
                     f"after version {previous}; no event published."
                 )
+            # ``version`` stays at head for VERSION AS OF; ``operation`` names the data change.
+            operation_entry = relevant
 
-        extra = self._build_extra(head=head, table_id=table_id, previous=previous, change=change)
+        extra = self._build_extra(
+            head=head, operation_entry=operation_entry, table_id=table_id, previous=previous, change=change
+        )
         for outlet in self.outlets:
             context["outlet_events"][outlet].extra = extra
         self.log.info(
@@ -369,12 +375,18 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             )
         return sorted(entries, key=lambda e: e.version, reverse=True)
 
-    def _has_relevant_commit(self, head: _HistoryEntry, previous: int) -> bool:
-        """Whether any commit in ``(previous, head.version]`` is not an ignored operation."""
+    def _find_newest_relevant_commit(self, head: _HistoryEntry, previous: int) -> _HistoryEntry | None:
+        """
+        Newest non-ignored commit in ``(previous, head.version]``.
+
+        Returns ``None`` when every retained commit in the window is an ignored operation. When the
+        window cannot be fully checked (too large or incomplete history), returns ``head`` so the
+        caller publishes without proof — ``operation`` may then be an ignored operation.
+        """
         if not self._ignored:
-            return True
+            return head
         if not self._is_ignored(head):
-            return True
+            return head
         needed = head.version - previous
         if needed > self.max_history_rows:
             self.log.warning(
@@ -384,7 +396,8 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
                 previous,
                 self.max_history_rows,
             )
-            return True
+            return head
+        # History is newest-first, so the first non-ignored entry is the newest relevant commit.
         window = [e for e in self._read_history(limit=needed) if e.version > previous]
         if len(window) < needed:
             self.log.warning(
@@ -394,14 +407,23 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
                 len(window),
                 needed,
             )
-            return True
-        return any(not self._is_ignored(e) for e in window)
+            return head
+        for entry in window:
+            if not self._is_ignored(entry):
+                return entry
+        return None
 
     def _is_ignored(self, entry: _HistoryEntry) -> bool:
         return entry.operation is not None and entry.operation.casefold() in self._ignored
 
     def _build_extra(
-        self, *, head: _HistoryEntry, table_id: str | None, previous: int | None, change: ChangeKind
+        self,
+        *,
+        head: _HistoryEntry,
+        operation_entry: _HistoryEntry,
+        table_id: str | None,
+        previous: int | None,
+        change: ChangeKind,
     ) -> dict[str, Any]:
         t = self.unity_table
         return {
@@ -409,7 +431,7 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             "observed_version": head.version,
             "previous_version": previous,
             "table_identity": {"host": t.host, "catalog": t.catalog, "schema": t.schema, "table": t.table},
-            "operation": head.operation,
+            "operation": operation_entry.operation,
             "timestamp": head.timestamp,
             "change": change,
             "delta_table_id": table_id,

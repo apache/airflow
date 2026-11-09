@@ -373,11 +373,20 @@ class TestVersionChanges:
         assert published(context) is None
         assert table.statements[-1] == f"DESCRIBE HISTORY {QUOTED} LIMIT 3"
 
-    def test_data_commit_hidden_behind_maintenance_publishes(self, hook, table):
-        table.commits += [(3, "WRITE"), (4, "OPTIMIZE"), (5, "VACUUM END")]
+    @pytest.mark.parametrize(
+        "commits",
+        [
+            [(3, "WRITE"), (4, "OPTIMIZE"), (5, "VACUUM END")],
+            # Two data commits then OPTIMIZE: version stays at head, operation is the newest WRITE.
+            [(3, "WRITE"), (4, "WRITE"), (5, "OPTIMIZE")],
+        ],
+        ids=["write-behind-optimize-vacuum", "write-write-optimize"],
+    )
+    def test_data_commit_hidden_behind_maintenance_publishes(self, hook, table, commits):
+        table.commits += commits
         result = make_operator().execute(make_context([checkpoint_event(2)]))
         assert result["version"] == 5
-        assert result["operation"] == "VACUUM END"
+        assert result["operation"] == "WRITE"
 
     def test_ignored_operations_are_case_insensitive(self, hook, table):
         table.commits += [(3, "optimize")]
@@ -395,11 +404,14 @@ class TestVersionChanges:
         table.retained_from = 4  # Versions 3 and earlier were removed from the Delta log.
         result = make_operator().execute(make_context([checkpoint_event(2)]))
         assert result["version"] == 5
+        # Incomplete window: operation stays at the head commit.
+        assert result["operation"] == "OPTIMIZE"
 
     def test_history_beyond_scan_window_publishes_conservatively(self, hook, table):
         table.commits += [(v, "OPTIMIZE") for v in range(3, 13)]
         result = make_operator(max_history_rows=5).execute(make_context([checkpoint_event(2)]))
         assert result["version"] == 12
+        assert result["operation"] == "OPTIMIZE"
         # It did not run the large scan at all.
         assert all("LIMIT 10" not in s for s in table.statements)
 
