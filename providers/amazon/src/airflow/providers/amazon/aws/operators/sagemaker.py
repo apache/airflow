@@ -1230,6 +1230,10 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         before polling, and a retry reconnects to that job instead of submitting a new one. Only applies
         to the synchronous path; a deferrable run is unaffected. Needs Airflow 3.3 or later, below it the
         operator behaves as with ``durable=False``.
+    :param stop_training_job_on_kill: If True, the training job is stopped when the task is killed.
+        Without it the job keeps running, and billing, after the task is gone. A deferred task is
+        stopped from the Triggerer, which needs Airflow 3.3 or later; below that the flag only
+        applies while the task holds a worker slot.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
@@ -1247,6 +1251,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        stop_training_job_on_kill: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -1264,8 +1269,10 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
                 Provided value: '{action_if_job_exists}'."
             )
         self.deferrable = deferrable
+        self.stop_training_job_on_kill = stop_training_job_on_kill
         self.serialized_training_data: dict
         self._result: dict[str, dict] | None = None
+        self._training_job_name: str | None = None
 
     def expand_role(self) -> None:
         """Expand an IAM role name into an ARN."""
@@ -1307,7 +1314,8 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
                 self.hook.describe_training_job,
             )
 
-        job_name = self.config["TrainingJobName"]
+        # Recorded before the submit call so a kill in that window still has a name to stop.
+        job_name = self._training_job_name = self.config["TrainingJobName"]
         self.log.info("Creating SageMaker training job %s.", job_name)
 
         response = self.hook.create_training_job(
@@ -1338,7 +1346,8 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         return status == "Completed"
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
-        job_name = str(external_id)
+        # A reconnecting retry never calls submit_job, so the name is recorded here too.
+        job_name = self._training_job_name = str(external_id)
 
         self.hook.wait_for_training_job(
             job_name,
@@ -1405,6 +1414,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
                 region_name=self.region_name,
                 verify=self.verify,
                 botocore_config=self.botocore_config,
+                cancel_on_kill=self.stop_training_job_on_kill,
             ),
             method_name="execute_complete",
         )
@@ -1421,6 +1431,12 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
     def serialize_result(self, job_name: str) -> dict[str, dict]:
         self.serialized_training_data = serialize(self.hook.describe_training_job(job_name))
         return {"Training": self.serialized_training_data}
+
+    def on_kill(self) -> None:
+        """Stop the SageMaker training job if ``stop_training_job_on_kill`` is set."""
+        if self.stop_training_job_on_kill and self._training_job_name:
+            self.log.info("Stopping SageMaker training job %s.", self._training_job_name)
+            self.hook.stop_training_job(self._training_job_name)
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Return OpenLineage data gathered from SageMaker's API response saved by training job."""

@@ -98,8 +98,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Generates SQL from the prompt and returns it without running it. With
        ``validate_sql=True``, the default, the task fails unless the output is a single
        statement that parses for ``dialect`` and is one of ``allowed_sql_types``
-       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); with the default
-       types, a write nested inside the statement fails it too. A reviewer's edit under
+       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); unless
+       ``allowed_sql_types`` admits a write, a write nested inside the statement fails it
+       too. A reviewer's edit under
        ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
        ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
        schema. ``datasource_config`` reads object storage through the DataFusion engine of
@@ -197,9 +198,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - Output review: ``require_approval``, ``enable_hitl_review`` and the review plugin
      - With ``require_approval=True``, the task defers after generating output and returns
        it only once a person approves it on the Required Actions page. A rejection, or a
-       timeout under the default ``on_approval_timeout="fail"``, fails the task, except on
-       ``@task.llm_branch``, where it skips the downstream tasks unless
-       ``fail_on_reject=True``.
+       timeout under the default ``on_approval_timeout="fail"``, fails the task. With
+       ``fail_on_reject=False``, the default on ``@task.llm_branch``, a rejection skips the
+       downstream tasks instead.
 
 Experimental features
 ---------------------

@@ -496,6 +496,11 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
 	start := logical.Add(-time.Hour)
 	end := logical.Add(time.Hour)
+	runAfter := end.Add(30 * time.Minute)
+	conf := genmodels.Conf{
+		"export_date": "2026-06-09",
+		"output":      map[string]any{"bucket": "reports"},
+	}
 
 	var got contexttest.Context
 	bundle := buildBundle(t, func(r testBundle) {
@@ -523,6 +528,9 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 				LogicalDate:       logical,
 				DataIntervalStart: start,
 				DataIntervalEnd:   end,
+				RunAfter:          runAfter,
+				RunType:           genmodels.DagRunTypeManual,
+				Conf:              &conf,
 			},
 		},
 	}
@@ -552,6 +560,9 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+	assert.Equal(t, runAfter, dagRun.RunAfter)
+	assert.Equal(t, genmodels.DagRunTypeManual, dagRun.RunType)
+	assert.Equal(t, map[string]any(conf), dagRun.Conf)
 }
 
 // Guards against the runtime binding the task state store to an empty task instance id.

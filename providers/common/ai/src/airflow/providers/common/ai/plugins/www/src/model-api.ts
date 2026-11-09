@@ -18,7 +18,7 @@
  */
 
 import { regionQuery, type TaskRegion } from "./region.ts";
-import type { UsageInfo } from "src/types/model";
+import type { SkillInfo, UsageInfo } from "src/types/model";
 
 function getApiBase(): string {
   if (typeof document === "undefined") return "/api/v2";
@@ -33,6 +33,8 @@ const API_BASE = getApiBase();
 // Namespaced to match airflow.providers.common.ai.utils.logging.MODEL_NAME_XCOM_KEY --
 // avoids colliding with a user's own "model_name" XCom.
 const MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__";
+// Matches airflow.providers.common.ai.utils.logging.SKILLS_XCOM_KEY.
+const SKILLS_XCOM_KEY = "__AIRFLOW__COMMON_AI_SKILLS__";
 
 /** Read one XCom entry; returns `null` when the task hasn't pushed that key (404). */
 async function fetchXComValue<T>(
@@ -87,6 +89,11 @@ export function createModelApi(
       // deserialize_value. Treat anything that isn't a plain object as absent rather than
       // let every stat box below render "undefined".
       return isUsageInfo(value) ? value : null;
+    },
+    fetchSkills: async () => {
+      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, SKILLS_XCOM_KEY, region);
+      // Same reference-storing backend caveat as `usage` above.
+      return Array.isArray(value) ? (value as SkillInfo[]) : null;
     },
   };
 }

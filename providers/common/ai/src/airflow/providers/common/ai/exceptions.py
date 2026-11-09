@@ -33,6 +33,16 @@ class ToolRunnerMaxIterationsError(RuntimeError):
     """
 
 
+class MCPToolsetNotSupportedError(NotImplementedError):
+    """
+    Raised when ``MCPToolset`` is handed to a framework adapter's ``AirflowTools``.
+
+    An MCP session belongs to the event loop that opened it, so the framework connects to the
+    server with its own MCP client instead. The adapters this provider ships name that client
+    in the message.
+    """
+
+
 class ToolApprovalError(RuntimeError):
     """
     Raised when a run paused for tool approval cannot resume safely.
