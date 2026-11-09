@@ -121,7 +121,8 @@ How it works
   show those values: the public XCom endpoint it calls returns the reference the backend
   stored in the database, since the API server never runs the backend's
   ``deserialize_value``. The tab lists the model name, usage or skills kept that way with
-  their reference (e.g. an ``s3://...`` path) instead of rendering them.
+  their reference (e.g. an ``s3://...`` path) instead of rendering them. A model name that is
+  itself a URI, such as one vLLM serves from ``--model s3://...``, is listed that way too.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

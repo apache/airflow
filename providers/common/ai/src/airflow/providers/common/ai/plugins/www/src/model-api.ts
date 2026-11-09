@@ -90,7 +90,8 @@ export function createModelApi(
   return {
     fetchModelName: async (): Promise<string | OffloadedValue | null> => {
       const value = await fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY, region);
-      // A reference is a string too, but a model name never holds a URI scheme.
+      // A reference is a string too. A model name rarely holds a URI scheme, but can: vLLM serves
+      // ``--model s3://...`` as the name, which this reports as a reference.
       return typeof value === "string" && value.includes("://") ? { reference: value } : value;
     },
     fetchUsage: async (): Promise<UsageInfo | OffloadedValue | null> => {

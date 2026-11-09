@@ -213,3 +213,24 @@ test("values kept in external storage are listed by their reference instead of r
   );
   assert.doesNotMatch(plugin.text(), /Requests|No AI Model Info|No skills found/);
 });
+
+test("a value kept in external storage leaves the values stored in the database rendered", async (t) => {
+  const reference = "s3://aws_default@bucket/xcom/dag/run/refine.agent/ti-0d6e/__AIRFLOW__COMMON_AI_SKILLS__.json";
+  mock.method(globalThis, "fetch", async (input) => {
+    const key = new URL(input, "http://localhost").pathname.split("/").at(-1);
+    const value = key === "__AIRFLOW__COMMON_AI_SKILLS__" ? reference : key === "usage" ? { requests: 3 } : "model";
+    return new Response(JSON.stringify({ value }), { status: 200 });
+  });
+  const plugin = mountPlugin(t);
+
+  await plugin.render(taskProps);
+
+  assert.deepEqual(
+    [...document.querySelectorAll("li")].map((item) => [item.firstChild.textContent, item.querySelector("code").textContent]),
+    [["Skills", reference]],
+  );
+  const paragraphs = [...document.querySelectorAll("p")].map((paragraph) => paragraph.textContent);
+  assert.equal(paragraphs[paragraphs.indexOf("Requests") + 1], "3");
+  assert.equal(document.querySelector(".chakra-badge")?.textContent, "model");
+  assert.equal(document.querySelector('[data-testid="skills-section"]'), null);
+});
