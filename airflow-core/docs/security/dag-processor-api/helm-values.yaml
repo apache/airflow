@@ -51,6 +51,7 @@ config:
   core:
     execution_api_server_url: http://airflow-api-server.airflow.svc.cluster.local:8080/execution/
   dag_processor:
+    use_execution_api: "True"
     execution_api_token_file: /run/dag-processor/processor.jwt
 dagProcessor:
   replicas: 1

@@ -158,11 +158,10 @@ services:
       test:
         - CMD-SHELL
         - >-
-          if [ -n "$${AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE:-}" ]; then
-            airflow dag-processor --check-health;
-          else
-            airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}";
-          fi
+          case "$${AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API:-}" in
+            [Tt] | [Tt][Rr][Uu][Ee] | 1) airflow dag-processor --check-health;;
+            *) airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}";;
+          esac
       interval: 30s
       timeout: 10s
       retries: 5
