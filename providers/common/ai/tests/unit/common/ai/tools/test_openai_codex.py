@@ -67,12 +67,14 @@ from openai_codex.generated.v2_all import (
 from openai_codex.models import Notification
 from pydantic_ai.exceptions import ModelRetry
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools.openai_codex import (
     _MAX_INLINE_RESULT_CHARS,
     AirflowTools,
     _BearerTokenMiddleware,
 )
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.tool_metrics import current_framework
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -228,6 +230,10 @@ async def _call_over_http(
 
 
 class TestTools:
+    def test_an_mcp_toolset_points_to_codexs_mcp_servers_config(self):
+        with pytest.raises(MCPToolsetNotSupportedError, match="Codex's mcp_servers config"):
+            AirflowTools(MCPToolset("mcp_default"))
+
     @pytest.mark.asyncio
     async def test_each_toolset_tool_becomes_an_mcp_tool_with_its_schema(self):
         ts = SQLToolset("pg_default")
