@@ -31,7 +31,7 @@ def get_provider_info():
                 "integration-name": "Hugging Face Datasets",
                 "external-doc-url": "https://huggingface.co/docs/datasets/",
                 "logo": "/docs/integration-logos/HuggingFace.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-huggingface/operators/index.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-huggingface/operators/datasets.rst"],
                 "tags": ["machine-learning"],
             }
         ],

@@ -29,7 +29,7 @@ integrations:
     external-doc-url: https://huggingface.co/docs/datasets/
     logo: /docs/integration-logos/HuggingFace.png
     how-to-guide:
-      - /docs/apache-airflow-providers-huggingface/operators/index.rst
+      - /docs/apache-airflow-providers-huggingface/operators/datasets.rst
     tags: [machine-learning]
 hooks:
   - integration-name: Hugging Face Datasets

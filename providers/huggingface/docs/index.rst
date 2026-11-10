@@ -70,7 +70,7 @@ Guides
    :maxdepth: 2
 
    Connection types <connections/index>
-   Operators <operators/index>
+   Operators <operators/datasets>
    artifacts
    Security <security>
    changelog
