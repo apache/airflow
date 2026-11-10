@@ -78,26 +78,7 @@ Non-goals:
 
 ## Overview
 
-```
-             contributor fork                               apache/airflow
-   ┌──────────────────────────────────┐      ┌───────────────────────────────────────────┐
-   │ git push feature-branch          │      │ pull_request event                        │
-   │   └─ ci-amd.yml (push trigger)   │      │   └─ ci-amd.yml                           │
-   │      ├─ gate job: fork -> run    │      │      └─ gate job: eligibility -> skip     │
-   │      ├─ build-info: fork mode    │      │         (build-info and everything after  │
-   │      │  changed files from       │      │          are skipped for gated PRs)       │
-   │      │  compare API vs upstream  │      │                                           │
-   │      └─ public runners only      │      │ fork-ci-monitor.yml (every 15 minutes)    │
-   └──────────────────────────────────┘      │   └─ breeze ci fork-ci-reconcile          │
-                     ▲                       │      ├─ discover new gated PRs -> label   │
-                     │ GraphQL: checkSuites  │      ├─ per labelled PR: fork state ->    │
-                     │ REST: workflow state  │      │    draft/undraft, labels, comment, │
-                     └───────────────────────│      │    commit status with run link,    │
-                                             │      │    close after 30 days or when the │
-                                             │      │    PR tampered with the gate       │
-                                             │      └─ unknown failures -> Slack         │
-                                             └───────────────────────────────────────────┘
-```
+![Fork CI architecture](images/diagram_fork_ci_architecture.svg)
 
 Four pieces, in dependency order:
 
@@ -109,6 +90,10 @@ Four pieces, in dependency order:
 
 Plus `breeze ci audit` for the contributor's local setup, and documentation.
 
+The diagrams in this document are SVG files in [`images/`](images/), generated from their
+`diagram_fork_ci_*.py` Graphviz sources by the `generate-airflow-diagrams` prek hook whenever a
+source changes. The ADIP-12 wiki page embeds the same files. Edit the source, not the SVG.
+
 ### Pull request lifecycle
 
 What a gated pull request shows, and who acts next, from the moment it is opened until it is merged
@@ -116,39 +101,7 @@ or closed. The [state machine](#state-machine) below is the reconciler's view of
 diagram is the contributor's and the maintainer's view. Pull requests of committers, collaborators
 and exempted organisations are not gated and follow the usual project CI flow.
 
-```mermaid
-%%{init: {'theme': 'neutral'}}%%
-stateDiagram-v2
-    state "Waiting for the author: draft, fork CI not set up or no run for the head commit" as waiting
-    state "Fork CI running" as running
-    state "Fork CI failed: out of the review queue" as failed
-    state "Green: ready for maintainer review, CI passed" as ready
-    state "Green, base too old: ready for maintainer review, CI passed pending until a rebase" as rebase
-    state "Green, CI files changed: needs project ci" as needs_project_ci
-    state "Project CI: use project ci" as project_ci
-    state "Approved" as approved
-    state "Merged" as merged
-    state "Closed after 30 days without fork CI activity" as closed
-
-    [*] --> waiting: an external contributor opens a pull request
-    waiting --> running: the author enables the fork workflow and pushes
-    running --> failed: a job fails, times out or is cancelled, or the run cannot start
-    running --> ready: the run passes on a current base
-    running --> rebase: the run passes, but the base is 200+ commits behind or changed the same files
-    running --> needs_project_ci: the run passes, and the pull request changes CI-defining files
-    failed --> running: the author pushes a fix
-    rebase --> running: the author rebases and pushes
-    ready --> running: the author pushes
-    ready --> approved: a maintainer approves
-    rebase --> approved: a maintainer approves, the merge waits for the rebase
-    ready --> project_ci: a maintainer adds use project ci
-    needs_project_ci --> project_ci: a maintainer reviews the CI change and adds use project ci
-    project_ci --> approved: project CI passes and a maintainer approves
-    approved --> merged: merged, or auto-merged once CI passed is green
-    waiting --> closed: 30 days without fork CI activity
-    closed --> waiting: the author reopens it
-    merged --> [*]
-```
+![Pull request lifecycle](images/diagram_fork_ci_lifecycle.svg)
 
 - **Draft** is used only while the pull request waits for its author to set up fork CI or push. A
   failed run leaves the draft state unchanged and removes `ready for maintainer review`, so a flaky
@@ -589,44 +542,7 @@ pull requests without a fork run for their head commit, not by the total.
 
 ### State machine
 
-```mermaid
-%%{init: {'theme': 'neutral'}}%%
-stateDiagram-v2
-    [*] --> gated: discovery adds fork ci required
-    state gated {
-        [*] --> setup_required: workflow not enabled in the fork
-        [*] --> awaiting_push: workflow enabled, no run for the head commit
-        [*] --> running: fork run in progress
-        setup_required --> awaiting_push: author enables the workflow
-        awaiting_push --> running: author pushes
-        running --> failed: run fails, is cancelled or times out
-        running --> green: run passes, no CI-defining change
-        running --> green_unverified: run passes, CI-defining change
-        failed --> running: author pushes
-        green --> running: author pushes
-        green_unverified --> running: author pushes
-        running --> setup_required: workflow disabled
-        awaiting_push --> setup_required: workflow disabled
-        state green {
-            [*] --> green_ready: not a draft, or the bot's draft
-            [*] --> green_author_draft: the author's draft
-            green_ready --> green_author_draft: author converts to draft
-            green_author_draft --> green_ready: author marks it ready
-        }
-        state green_unverified {
-            [*] --> unverified_ready: not a draft, or the bot's draft
-            [*] --> unverified_author_draft: the author's draft
-            unverified_ready --> unverified_author_draft: author converts to draft
-            unverified_author_draft --> unverified_ready: author marks it ready
-        }
-    }
-    gated --> closed: setup_required or awaiting_push for close_after_days (30 days)
-    gated --> released: maintainer adds use project ci
-    gated --> ungated: base branch without fork CI, e.g. v3-3-test
-    gated --> gate_modified: pull request changes the gate
-    gated --> gate_bypassed: project CI ran without use project ci (gate tampering)
-    closed --> gated: reopened
-```
+![Fork CI reconciler states](images/diagram_fork_ci_states.svg)
 
 The draft state and the two review labels depend only on the state and on whether the pull
 request is the author's draft: a draft whose last convert-to-draft event was not by
