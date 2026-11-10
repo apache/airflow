@@ -81,7 +81,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
-    "3.13"  # "highest complete" python version (where all providers are included)
+    "3.14"  # "highest complete" python version (where all providers are included)
 )
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]

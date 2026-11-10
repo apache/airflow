@@ -60,7 +60,7 @@ ARG AIRFLOW_VERSION="3.4.0"
 #
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
-#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.18-debian13-fips-dev"
+#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.14.10-debian13-fips-dev"
 #
 # AIRFLOW_IMAGE_FLAVOR="legacy" builds the image the way it was built before the hardened base images:
 # BASE_IMAGE is then a plain Debian image (for example "debian:bookworm-slim") and Python
@@ -71,7 +71,7 @@ ARG AIRFLOW_VERSION="3.4.0"
 # build fails if a version passed here does not match it. Breeze passes the Python patchlevel that
 # "breeze ci upgrade" last moved, so a new patch release also rebuilds the legacy flavor.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:cacda18986eefebc42b0c6c03565ec2d65a4507b6adff559e4daf0f1e2bfe338"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.14.10-debian13-dev@sha256:e1c528dee57ce33c3192099679a1690a1541030f5137df3587d3ed0454a172b6"
 
 # DEV_OS_DEPS_IMAGE / RUNTIME_OS_DEPS_IMAGE: the images the build and the final image install their OS
 # dependencies on. By default both are BASE_IMAGE and the build installs them from the apt repositories.
