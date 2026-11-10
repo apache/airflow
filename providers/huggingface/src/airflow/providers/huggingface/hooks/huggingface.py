@@ -120,9 +120,9 @@ class HuggingFaceHook(BaseHook):
                 return None
             except RevisionNotFoundError:
                 continue
-            # Hub returns commits oldest first. A historical match is stale if
+            # Hub returns commits newest first. A historical match is stale if
             # a later publication has advanced this ref since the push attempt.
-            commit = commits[-1] if commits else None
+            commit = commits[0] if commits else None
             if commit is None:
                 continue
             # GitCommitInfo carries title/message/commit_id; CommitInfo carries

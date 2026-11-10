@@ -240,6 +240,16 @@ def test_single_dataset_split_name_survives_artifact_round_trip(tmp_path):
     assert restored.split == "validation"
 
 
+def test_split_expressions_remain_manifest_metadata(tmp_path):
+    source = Dataset.from_dict({"value": [1]}, split="train+test")
+    reference = _save(source, (tmp_path / "split-expression.json").as_uri())
+    restored_dataset = Dataset.from_dict({"value": [1]})
+    with patch("datasets.Dataset.from_parquet", autospec=True, return_value=restored_dataset) as from_parquet:
+        _load_artifact(reference)
+    assert reference["splits"]["dataset"]["split"] == "train+test"
+    assert "split" not in from_parquet.call_args.kwargs
+
+
 def test_parquet_rejects_media_feature_types(tmp_path):
     dataset = Dataset.from_dict({"image": [None]}, features=Features({"image": Image()}))
     with pytest.raises(ValueError, match="unsupported Parquet feature type"):
@@ -370,7 +380,10 @@ def test_airflow_30_path_without_state_store_and_retry_with_store(tmp_path, hub_
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("a" * 40, f"Publish [{marker}]")
-    hf_api.return_value.list_repo_commits.return_value = [commit]
+    hf_api.return_value.list_repo_commits.return_value = [
+        commit,
+        git_commit_info("b" * 40, "Initial repository commit"),
+    ]
     push_to_hub.return_value = commit_info(oid="a" * 40)
     operator = PushToHubOperator(
         task_id="legacy", input_uri=reference, repo_id="org/data", huggingface_conn_id="huggingface_test"
@@ -447,7 +460,10 @@ def test_state_store_write_failure_retry_does_not_push_twice(tmp_path, hub_depen
     )
     marker = f"airflow-artifact-sha256:{reference['fingerprint']}:{target_marker}"
     commit = git_commit_info("a" * 40, f"Publish [{marker}]")
-    hf_api.return_value.list_repo_commits.return_value = [commit]
+    hf_api.return_value.list_repo_commits.return_value = [
+        commit,
+        git_commit_info("b" * 40, "Initial repository commit"),
+    ]
     push_to_hub.return_value = commit
     operator = PushToHubOperator(
         task_id="retry_after_push",
@@ -524,7 +540,7 @@ def test_push_does_not_treat_intermediate_upload_part_as_published(tmp_path, hub
 
 def test_push_idempotency_marker_is_scoped_to_config_revision_and_pr_target(tmp_path):
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "targets.json").as_uri())
-    commits = [commit_info(oid=f"{index:040x}") for index in range(1, 4)]
+    commits = [commit_info(oid=f"{index:040x}") for index in range(1, 7)]
     with patch(
         "airflow.providers.huggingface.operators.datasets.HuggingFaceHook", autospec=True
     ) as hook_type:
@@ -591,6 +607,10 @@ def test_load_retry_reuses_resolved_revision_from_task_state_store(tmp_path, mon
         operator.output_uri = (tmp_path / "retry.json").as_uri()
         retry_result = operator.execute(context)
     assert first_result["revision"] == retry_result["revision"] == "pinned-sha"
+    assert len(store_data) == 1
+    state_key = next(iter(store_data))
+    assert "/" not in state_key
+    assert len(state_key) <= 512
     api.return_value.dataset_info.assert_called_once_with("org/data", revision="main")
     assert [call.kwargs["revision"] for call in load_dataset.call_args_list] == [
         "pinned-sha",

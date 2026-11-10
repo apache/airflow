@@ -22,6 +22,7 @@ import hashlib
 import importlib.util
 import json
 import marshal
+import re
 import tempfile
 from collections.abc import Callable
 from contextlib import suppress
@@ -230,10 +231,17 @@ def _load_artifact(
             if item.get("rows") == 0:
                 restored = Dataset.from_dict({key: [] for key in features}, features=features)
             else:
+                split_name = item.get("split")
+                split_kwargs = (
+                    {"split": split_name}
+                    if isinstance(split_name, str) and re.fullmatch(r"\w+(?:\.\w+)*", split_name)
+                    else {}
+                )
                 restored = Dataset.from_parquet(
                     str(local_path),
                     features=features,
                     cache_dir=resolved_cache_dir,
+                    **split_kwargs,
                 )
             # Parquet readers may return fields in physical/file order; restore the
             # manifest's declared feature order for stable downstream transforms.
@@ -242,8 +250,9 @@ def _load_artifact(
 
 
 def _state_key(prefix: str, identity: str) -> str:
-    """Task state stores already scope keys to a DAG run and task instance."""
-    return f"{prefix}:{identity}"
+    """Build a path-safe task-state key that fits the task state store column."""
+    digest = hashlib.sha256(identity.encode()).hexdigest()
+    return f"{prefix}:{digest}"
 
 
 def _publication_marker(prefix: str, identity: dict[str, Any]) -> str:

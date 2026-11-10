@@ -132,7 +132,7 @@ def test_find_commit_by_marker_matches_unsuffixed_final_commit_and_rejects_parts
     partial = git_commit_info("a" * 40, f"Publish [{marker}] (part 00001-of-00002)")
     final = git_commit_info("b" * 40, f"Publish [{marker}]")
     with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api_type:
-        api_type.return_value.list_repo_commits.return_value = [partial, final]
+        api_type.return_value.list_repo_commits.return_value = [final, partial]
         hook = HuggingFaceHook(None)
         commit = hook.find_commit_by_marker("org/data", marker, revision="release")
 
@@ -151,7 +151,7 @@ def test_find_commit_by_marker_does_not_reuse_historical_commit():
     old_commit = git_commit_info("a" * 40, f"Publish [{marker}]")
     latest_commit = git_commit_info("b" * 40, "Publish newer artifact")
     with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api_type:
-        api_type.return_value.list_repo_commits.return_value = [old_commit, latest_commit]
+        api_type.return_value.list_repo_commits.return_value = [latest_commit, old_commit]
         hook = HuggingFaceHook(None)
         commit = hook.find_commit_by_marker("org/data", marker, revision="release")
 
