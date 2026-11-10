@@ -55,7 +55,16 @@ SERIALIZER = [
 
 
 def main() -> int:
-    command = [sys.executable, str(COMPARE), "--sdk", "go", "--supports", "all", "--", *SERIALIZER]
+    command = [
+        sys.executable,
+        str(COMPARE),
+        "--sdk",
+        "go",
+        "--supports",
+        "branch,switch,edge_labels,group_options,trigger_dag_run,literal_inputs",
+        "--",
+        *SERIALIZER,
+    ]
     return subprocess.run(command, cwd=REPO_ROOT, check=False).returncode
 
 
