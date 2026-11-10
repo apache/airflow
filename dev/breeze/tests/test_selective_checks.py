@@ -2597,7 +2597,6 @@ def test_excluded_providers():
             "excluded-providers-as-string": json.dumps(
                 {
                     "3.14": [
-                        "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                         "apache.tinkerpop",
                     ],
                 }
@@ -3403,7 +3402,7 @@ def test_expected_output_fork_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "apache-airflow helm-chart task-sdk amazon apache.beam apache.cassandra "
                 "apache.kafka cncf.kubernetes common.ai common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
@@ -3451,7 +3450,7 @@ def test_expected_output_fork_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow",
+                "docs-list-as-string": "apache-airflow task-sdk",
                 "skip-prek-hooks": (
                     "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
@@ -3704,6 +3703,97 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
+    ("files", "pr_labels", "github_event", "expected_constraints", "expected_pypi"),
+    [
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "false",
+            "false",
+            id="provider-source-needs-neither",
+        ),
+        pytest.param(
+            ("airflow-core/docs/index.rst",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "false",
+            "false",
+            id="docs-build-the-ci-image-only",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            ("area:e2e-tests",),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "false",
+            id="prod-image-needs-source-constraints-only",
+        ),
+        pytest.param(
+            ("providers/edge3/pyproject.toml",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="provider-pyproject-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("uv.lock", "airflow-core/src/airflow/models/dag.py"),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="uv-lock-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("scripts/in_container/run_generate_constraints.py",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="constraints-script-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            ("upgrade to newer dependencies",),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="upgrade-label-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            ("canary",),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="canary-label-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            (),
+            GithubEvents.SCHEDULE,
+            "true",
+            "true",
+            id="schedule-resolves-against-pypi",
+        ),
+    ],
+)
+def test_generate_constraints(files, pr_labels, github_event, expected_constraints, expected_pypi):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=github_event,
+        default_branch="main",
+        pr_labels=pr_labels,
+    )
+    assert_outputs_are_printed(
+        {"generate-constraints": expected_constraints, "generate-pypi-constraints": expected_pypi},
+        str(checks),
+    )
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs"),
     [
         pytest.param(
@@ -3736,7 +3826,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte common.compat",
+                "docs-list-as-string": "apache-airflow task-sdk airbyte common.compat",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -3747,16 +3837,23 @@ def test_upgrade_to_newer_dependencies(
                 "providers-summary-docs/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte common.compat",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers task-sdk airbyte common.compat",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
             ("airflow-core/docs/docs.rst",),
             {
-                "docs-list-as-string": "apache-airflow",
+                "docs-list-as-string": "apache-airflow task-sdk",
             },
             id="Only Airflow docs changed",
+        ),
+        pytest.param(
+            ("task-sdk/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow task-sdk",
+            },
+            id="Only Task SDK docs changed",
         ),
         pytest.param(
             ("dev/mypy/docs/index.rst",),
@@ -3780,7 +3877,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow-core/src/airflow/test.py",),
             {
-                "docs-list-as-string": "apache-airflow",
+                "docs-list-as-string": "apache-airflow task-sdk",
             },
             id="Core files changed. Apache-Airflow docs should also be built",
         ),
@@ -3792,7 +3889,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow-core/src/airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-list-as-string": "apache-airflow helm-chart",
+                "docs-list-as-string": "apache-airflow helm-chart task-sdk",
             },
             id="Core files and helm chart files changed. Apache Airflow and helm chart docs to build",
         ),
@@ -5942,6 +6039,8 @@ def test_component_branch_upgrades_dependencies_only_with_the_ci_image(context, 
     checks = _component_branch_checks(context, ("airflow-ctl/pyproject.toml", "chart/pyproject.toml"))
 
     assert checks.upgrade_to_newer_dependencies is expected
+    assert checks.generate_constraints is expected
+    assert checks.generate_pypi_constraints is expected
 
 
 @pytest.mark.parametrize(

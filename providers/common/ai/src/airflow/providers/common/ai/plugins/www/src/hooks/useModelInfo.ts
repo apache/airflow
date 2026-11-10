@@ -19,14 +19,14 @@
 
 import { useEffect, useState } from "react";
 
-import { createModelApi } from "src/model-api";
+import { createModelApi, type OffloadedValue } from "src/model-api";
 import { regionOf, type TaskRegion } from "src/region";
 import type { SkillInfo, UsageInfo } from "src/types/model";
 
 interface UseModelInfoReturn {
-  modelName: string | null;
-  usage: UsageInfo | null;
-  skills: SkillInfo[] | null;
+  modelName: string | OffloadedValue | null;
+  usage: UsageInfo | OffloadedValue | null;
+  skills: SkillInfo[] | OffloadedValue | null;
   loading: boolean;
   error: string | null;
 }
@@ -43,9 +43,9 @@ export function useModelInfo(
   mapIndex: number,
   region?: TaskRegion,
 ): UseModelInfoReturn {
-  const [modelName, setModelName] = useState<string | null>(null);
-  const [usage, setUsage] = useState<UsageInfo | null>(null);
-  const [skills, setSkills] = useState<SkillInfo[] | null>(null);
+  const [modelName, setModelName] = useState<string | OffloadedValue | null>(null);
+  const [usage, setUsage] = useState<UsageInfo | OffloadedValue | null>(null);
+  const [skills, setSkills] = useState<SkillInfo[] | OffloadedValue | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

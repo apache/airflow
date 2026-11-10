@@ -25,10 +25,12 @@
     "permissionDenied": "드라이 런 실패: 백필 생성 권한이 없습니다.",
     "reprocessBehavior": "재처리 동작",
     "run": "백필 실행",
+    "running": "실행 중",
     "scheduleNotBackfillable": "이 Dag의 스케줄은 백필을 지원하지 않습니다.",
     "schedulerPriorityHint": "백필 Dag 실행은 각 스케줄러 주기에서 백필이 아닌 Dag 실행보다 나중에 처리됩니다. 백필이 아닌 실행이 있으면 백필 실행은 대기열에서 더 오래 기다릴 수 있습니다.",
     "selectDescription": "이 Dag를 특정 날짜 범위에 대해 실행합니다.",
     "selectLabel": "백필",
+    "status": "상태",
     "title": "백필 실행",
     "toaster": {
       "success": {
@@ -96,6 +98,7 @@
     "placeholderArray": "각 문자열을 새 줄에 입력하세요.",
     "placeholderExamples": "입력하여 옵션 보기",
     "placeholderMulti": "하나 또는 여러 값 선택",
+    "validationErrorArrayElement": "잘못된 {{type}} 값: {{values}}",
     "validationErrorArrayNotArray": "값은 배열이어야 합니다.",
     "validationErrorArrayNotNumbers": "배열의 모든 요소는 숫자여야 합니다.",
     "validationErrorArrayNotObject": "배열의 모든 요소는 객체여야 합니다.",

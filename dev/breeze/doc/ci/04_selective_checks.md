@@ -510,6 +510,12 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `CI Image building` is enabled if either test are run, docs are build.
 * `PROD Image building` is enabled when kubernetes tests are run.
+* `Generate constraints` runs when the PROD image is built, because that build reads the
+  `constraints-source-providers` file, or when `generate-pypi-constraints` is on. The PyPI constraints and
+  the distributions they need are generated only when the CI image is built and `pyproject.toml` or `uv.lock`
+  changed, full tests are needed (which covers the job's own workflow and script), the run is a canary, or
+  the `upgrade to newer dependencies` label is set. Any other change leaves nothing for this resolution to
+  check except the state of PyPI, which the canary runs cover.
 * In case of `Providers` test in regular PRs, additional check is done in order to determine which
   providers are affected and the actual selection is made based on that:
   * if directly provider code is changed (either in the provider, test or system tests) then this provider
@@ -598,7 +604,9 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
   several criteria: if any of the airflow core, charts, docker-stack, Apache Airflow Mypy, providers files or
   docs have changed, then corresponding packages are built (including cross-dependent providers). If any of the core files
-  changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
+  changed, also providers docs are built because all providers depend on airflow docs. The `apache-airflow`
+  and `task-sdk` packages are always built together, because they release together and their docs can link
+  to each other's pages before those pages are published. If any of the docs
   build python files changed or when build is "canary" type in main - all docs packages are built.
 
 ## Skipping prek hooks (Static checks)
@@ -707,6 +715,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | excluded-providers-as-string                            | List of providers that should be excluded from the build as space-separated string                      | amazon google                            | *    |
 | force-pip                                               | Whether pip should be forced in the image build instead of uv ("true"/"false")                          | false                                    |      |
 | full-tests-needed                                       | Whether this build runs complete set of tests or only subset (for faster PR builds) \[1\]               | false                                    |      |
+| generate-constraints                                    | Whether the Generate constraints job runs                                                               | false                                    |      |
+| generate-pypi-constraints                               | Whether that job also resolves the constraints against PyPI                                             | false                                    |      |
 | generated-dependencies-changed                          | Whether generated dependencies have changed ("true"/"false")                                            | false                                    |      |
 | has-migrations                                          | Whether the PR has migrations ("true"/"false")                                                          | false                                    |      |
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |

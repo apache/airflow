@@ -2162,6 +2162,24 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    def generate_pypi_constraints(self) -> bool:
+        # Without a dependency or tooling change this resolution only reports on the state of PyPI,
+        # which the canary runs cover. Their dependency report and `update-constraints` read its output.
+        if not self.ci_image_build:
+            return False
+        return (
+            self.upgrade_to_newer_dependencies
+            or self.is_uv_lock_update
+            or self.full_tests_needed
+            or self._is_canary_run()
+        )
+
+    @cached_property
+    def generate_constraints(self) -> bool:
+        # The PROD image build reads the source-providers constraints the job always generates.
+        return self.generate_pypi_constraints or self.prod_image_build
+
+    @cached_property
     def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
@@ -2183,7 +2201,15 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(file.startswith(("airflow-core/src/airflow/", "airflow-core/docs/")) for file in self._files):
+        # Core and Task SDK release together, so either side's docs may link to a page in the
+        # other that is not published yet. Building both resolves those links locally.
+        core_or_task_sdk_changed = any(
+            file.startswith(
+                ("airflow-core/src/airflow/", "airflow-core/docs/", "task-sdk/src/", "task-sdk/docs/")
+            )
+            for file in self._files
+        )
+        if core_or_task_sdk_changed:
             packages.append("apache-airflow")
         if any(file.startswith("providers-summary-docs/") for file in self._files):
             packages.append("apache-airflow-providers")
@@ -2191,7 +2217,7 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
-        if any(file.startswith("task-sdk/src/") for file in self._files):
+        if core_or_task_sdk_changed:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
