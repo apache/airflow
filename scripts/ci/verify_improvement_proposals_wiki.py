@@ -26,16 +26,17 @@ folder, so a page in the wrong place, or with a State that does not match where 
 up in the wrong list or not at all. This script reads the wiki anonymously and reports every
 such page.
 
-AIP tree (https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals):
+The AIP tree (https://cwiki.apache.org/confluence/display/AIRFLOW/AIP+-+Airflow+Improvement+Proposals)
+and the ADIP tree are laid out the same way, and for each of them:
 
-  * the index page has only the state folders (and the folder of ADIP stubs) as children;
+  * the index page has only the state folders (and, for AIPs, the folder of ADIP stubs) as
+    children;
   * every page in a state folder has one Page Properties block whose State badge matches the
-    folder, the ``airflow-improvement-proposal`` label, and the state label of that folder only;
+    folder, the tree's base label, and the state label of that folder only;
   * a page carrying a state label sits in that state's folder;
   * the counts in the titles of the folded sections on the index page match the folders.
 
-ADIP tree: every child of the ADIP page is titled ``ADIP-<n> <title>`` with a unique number,
-has the ``adip`` label and one Page Properties block with a State badge and a Formerly row.
+Every ADIP is also titled ``ADIP-<n> <title>`` with a unique number and has a Formerly row.
 
 Exits 1 when anything is out of line. With ``--slack-payload <file>`` it then also writes a
 ``chat.postMessage`` payload listing the problems, for the workflow to post.
@@ -57,11 +58,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 WIKI = "https://cwiki.apache.org/confluence"
-AIP_INDEX_ID = "89066602"
-ADIP_INDEX_ID = "462816431"
-ADIP_STUBS_FOLDER_ID = "462816661"
-BASE_LABEL = "airflow-improvement-proposal"
-ADIP_LABEL = "adip"
 SLACK_CHANNEL = "internal-airflow-ci-cd"
 MAX_PROBLEMS_IN_SLACK = 25
 MAX_TITLE_LENGTH = 100
@@ -73,29 +69,56 @@ ATTEMPTS = 4
 @dataclass(frozen=True)
 class StateFolder:
     page_id: str
-    label: str
+    state: str
     badge: str
-    # Title of the folded section on the AIP index, with "{count}" where the count goes;
-    # None when the section is not folded.
-    folded_title: str | None = None
+    # How the folded section of this folder on the index page names its pages, e.g.
+    # "completed" for "8 completed ADIPs (click to expand)"; None when it is not folded.
+    folded: str | None = None
 
 
-STATE_FOLDERS = (
-    StateFolder("462816682", f"{BASE_LABEL}/wip", "WIP"),
-    StateFolder("462816536", f"{BASE_LABEL}/draft", "Under discussion"),
-    StateFolder("462816537", f"{BASE_LABEL}/accepted", "Accepted"),
-    StateFolder(
-        "173087665", f"{BASE_LABEL}/completed", "Completed", "{count} completed AIPs (click to expand)"
-    ),
-    StateFolder(
-        "173087786",
-        f"{BASE_LABEL}/abandoned",
-        "Abandoned",
-        "{count} abandoned or replaced AIPs (click to expand)",
-    ),
+@dataclass(frozen=True)
+class ProposalTree:
+    name: str
+    index_id: str
+    base_label: str
+    folders: tuple[StateFolder, ...]
+    other_children: frozenset[str] = frozenset()
+
+    def get_label(self, folder: StateFolder) -> str:
+        return f"{self.base_label}/{folder.state}"
+
+    def get_state_labels(self) -> set[str]:
+        return {self.get_label(folder) for folder in self.folders}
+
+    def get_folded_title(self, folder: StateFolder, count: int) -> str:
+        return f"{count} {folder.folded} {self.name}s (click to expand)"
+
+
+def build_state_folders(wip: str, draft: str, accepted: str, completed: str, abandoned: str):
+    return (
+        StateFolder(wip, "wip", "WIP"),
+        StateFolder(draft, "draft", "Under discussion"),
+        StateFolder(accepted, "accepted", "Accepted"),
+        StateFolder(completed, "completed", "Completed", "completed"),
+        StateFolder(abandoned, "abandoned", "Abandoned", "abandoned or replaced"),
+    )
+
+
+AIP_TREE = ProposalTree(
+    "AIP",
+    "89066602",
+    "airflow-improvement-proposal",
+    build_state_folders("462816682", "462816536", "462816537", "173087665", "173087786"),
+    # Pages under the old titles of the AIPs that became ADIPs.
+    other_children=frozenset({"462816661"}),
 )
-STATE_LABELS = {folder.label for folder in STATE_FOLDERS}
-ADIP_BADGES = {"Draft", "Accepted", "In progress", "Completed", "Abandoned"}
+ADIP_TREE = ProposalTree(
+    "ADIP",
+    "462816431",
+    "adip",
+    build_state_folders("462816703", "462816705", "462816707", "462816709", "462816711"),
+)
+TREES = (AIP_TREE, ADIP_TREE)
 
 # Pages in a state folder that the people who keep the wiki in order cannot edit, with the
 # reason. Their State badge and labels are not checked; their place in the tree still is.
@@ -254,50 +277,55 @@ def describe(page: Page, problem: str) -> str:
     return f"<{page.url}|{escape_for_slack(shorten(page.title))}>: {escape_for_slack(problem)}"
 
 
-def check_aip_tree(
+def check_tree(
+    tree: ProposalTree,
     index: Page,
     index_children: list[Page],
     folders: dict[str, list[Page]],
     labelled: dict[str, list[Page]],
 ) -> list[str]:
     problems = []
-    allowed_children = {folder.page_id for folder in STATE_FOLDERS} | {ADIP_STUBS_FOLDER_ID}
+    allowed_children = {folder.page_id for folder in tree.folders} | tree.other_children
     for page in index_children:
         if page.page_id not in allowed_children:
-            problems.append(describe(page, "sits directly under the AIP index; move it into a state folder"))
+            problems.append(
+                describe(page, f"sits directly under the {tree.name} index; move it into a state folder")
+            )
     for missing in sorted(allowed_children - {page.page_id for page in index_children}):
         problems.append(
-            describe(Page(missing, f"page {missing}"), "folder is no longer directly under the AIP index")
+            describe(
+                Page(missing, f"page {missing}"), f"folder is no longer directly under the {tree.name} index"
+            )
         )
-    for folder in STATE_FOLDERS:
+    state_labels = tree.get_state_labels()
+    for folder in tree.folders:
+        label = tree.get_label(folder)
         pages = folders[folder.page_id]
         for page in pages:
             if page.page_id in RESTRICTED_PAGES:
                 continue
             page_problems, _ = check_properties(page, {folder.badge})
-            state_labels = STATE_LABELS.intersection(page.labels)
-            if state_labels != {folder.label}:
-                page_problems.append(f"state labels are {sorted(state_labels)}, expected ['{folder.label}']")
-            if BASE_LABEL not in page.labels:
-                page_problems.append(f"lacks the {BASE_LABEL!r} label")
+            page_state_labels = state_labels.intersection(page.labels)
+            if page_state_labels != {label}:
+                page_problems.append(f"state labels are {sorted(page_state_labels)}, expected ['{label}']")
+            if tree.base_label not in page.labels:
+                page_problems.append(f"lacks the {tree.base_label!r} label")
             problems.extend(describe(page, problem) for problem in page_problems)
         in_folder = {page.page_id for page in pages}
-        for page in labelled[folder.label]:
+        for page in labelled[label]:
             if page.page_id not in in_folder:
-                problems.append(
-                    describe(page, f"has the {folder.label!r} label but is not in that state's folder")
-                )
-        if folder.folded_title:
-            expected = folder.folded_title.format(count=len(pages))
+                problems.append(describe(page, f"has the {label!r} label but is not in that state's folder"))
+        if folder.folded:
+            expected = tree.get_folded_title(folder, len(pages))
             if f'<ac:parameter ac:name="title">{expected}</ac:parameter>' not in index.body:
                 problems.append(describe(index, f"the folded section should be titled {expected!r}"))
     return problems
 
 
-def check_adip_tree(children: list[Page]) -> list[str]:
+def check_adip_pages(pages: list[Page]) -> list[str]:
     problems = []
     numbers: dict[int, Page] = {}
-    for page in children:
+    for page in pages:
         match = re.match(r"ADIP-(\d+) \S", page.title)
         if not match:
             problems.append(describe(page, "title does not start with 'ADIP-' and its number"))
@@ -309,24 +337,28 @@ def check_adip_tree(children: list[Page]) -> list[str]:
             problems.append(
                 describe(page, "title repeats the former AIP number; it is the Formerly property")
             )
-        if ADIP_LABEL not in page.labels:
-            problems.append(describe(page, f"lacks the {ADIP_LABEL!r} label"))
-        page_problems, properties = check_properties(page, ADIP_BADGES)
-        if not page_problems and not re.fullmatch(r"AIP-\d+", get_text(properties.get("Formerly", ""))):
-            page_problems.append(
-                "has no Formerly row with the former AIP number in its Page Properties block"
+        blocks = find_properties(page.body)
+        if blocks and not re.fullmatch(r"AIP-\d+", get_text(blocks[0].get("Formerly", ""))):
+            problems.append(
+                describe(page, "has no Formerly row with the former AIP number in its Page Properties block")
             )
-        problems.extend(describe(page, problem) for problem in page_problems)
     return problems
 
 
 def collect_problems(fetch: Callable[[str, dict[str, str]], dict] = get_json) -> list[str]:
-    index = fetch_page(AIP_INDEX_ID, fetch)
-    folders = {folder.page_id: fetch_children(folder.page_id, fetch) for folder in STATE_FOLDERS}
-    labelled = {folder.label: fetch_labelled(folder.label, fetch) for folder in STATE_FOLDERS}
-    return check_aip_tree(index, fetch_children(AIP_INDEX_ID, fetch), folders, labelled) + check_adip_tree(
-        fetch_children(ADIP_INDEX_ID, fetch)
-    )
+    problems = []
+    for tree in TREES:
+        folders = {folder.page_id: fetch_children(folder.page_id, fetch) for folder in tree.folders}
+        labelled = {
+            tree.get_label(folder): fetch_labelled(tree.get_label(folder), fetch) for folder in tree.folders
+        }
+        index = fetch_page(tree.index_id, fetch)
+        problems += check_tree(
+            tree, index, fetch_all(f"content/{tree.index_id}/child/page", {}, fetch), folders, labelled
+        )
+        if tree is ADIP_TREE:
+            problems += check_adip_pages([page for pages in folders.values() for page in pages])
+    return problems
 
 
 def build_slack_payload(problems: list[str], run_url: str | None) -> dict:

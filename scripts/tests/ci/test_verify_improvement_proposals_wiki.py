@@ -60,53 +60,59 @@ def properties(rows):
     )
 
 
-def folded(count, kind):
+def folded(count, kind, name="AIP"):
     return (
         '<ac:structured-macro ac:name="expand" ac:schema-version="1"><ac:parameter ac:name="title">'
-        f"{count} {kind} AIPs (click to expand)</ac:parameter></ac:structured-macro>"
+        f"{count} {kind} {name}s (click to expand)</ac:parameter></ac:structured-macro>"
     )
 
 
-def aip(wiki, folder, page_id="1", title="AIP-1 Something", state=None, labels=None):
+def aip(wiki, folder, page_id="1", title="AIP-1 Something", state=None, labels=None, tree=None):
+    tree = tree or wiki.AIP_TREE
     return wiki.Page(
         page_id,
         title,
         properties({"State": badge(state or folder.badge) + " extra detail"}),
-        [wiki.BASE_LABEL, folder.label] if labels is None else labels,
+        [tree.base_label, tree.get_label(folder)] if labels is None else labels,
     )
 
 
-def build_tree(wiki, pages=None, index_children=None, labelled=None, index_body=None):
-    """A consistent AIP tree with one AIP in each state folder, with overrides."""
-    folders = {f.page_id: [aip(wiki, f, page_id=f"p{f.page_id}")] for f in wiki.STATE_FOLDERS}
+def build_tree(wiki, tree=None, pages=None, index_children=None, labelled=None, index_body=None):
+    """A consistent tree with one proposal in each state folder, with overrides."""
+    tree = tree or wiki.AIP_TREE
+    folders = {f.page_id: [aip(wiki, f, page_id=f"p{f.page_id}", tree=tree)] for f in tree.folders}
     folders.update(pages or {})
-    children = [wiki.Page(f.page_id, f.badge) for f in wiki.STATE_FOLDERS] + [
-        wiki.Page(wiki.ADIP_STUBS_FOLDER_ID, "AIPs moved to ADIP")
+    children = [wiki.Page(f.page_id, f.badge) for f in tree.folders] + [
+        wiki.Page(page_id, "other") for page_id in tree.other_children
     ]
-    by_label = {f.label: folders[f.page_id] for f in wiki.STATE_FOLDERS}
+    by_label = {tree.get_label(f): folders[f.page_id] for f in tree.folders}
     by_label.update(labelled or {})
     body = (
-        index_body if index_body is not None else folded(1, "completed") + folded(1, "abandoned or replaced")
+        index_body
+        if index_body is not None
+        else folded(1, "completed", tree.name) + folded(1, "abandoned or replaced", tree.name)
     )
     return (
-        wiki.Page(wiki.AIP_INDEX_ID, "AIP index", body),
+        tree,
+        wiki.Page(tree.index_id, f"{tree.name} index", body),
         children + (index_children or []),
         folders,
         by_label,
     )
 
 
-def folder_of(wiki, badge_title):
-    return next(f for f in wiki.STATE_FOLDERS if f.badge == badge_title)
+def folder_of(wiki, badge_title, tree=None):
+    return next(f for f in (tree or wiki.AIP_TREE).folders if f.badge == badge_title)
 
 
-def test_consistent_aip_tree_has_no_problems(wiki):
-    assert wiki.check_aip_tree(*build_tree(wiki)) == []
+@pytest.mark.parametrize("tree_name", ["AIP_TREE", "ADIP_TREE"])
+def test_consistent_trees_have_no_problems(wiki, tree_name):
+    assert wiki.check_tree(*build_tree(wiki, tree=getattr(wiki, tree_name))) == []
 
 
 def test_page_directly_under_the_aip_index_is_reported(wiki):
     stray = wiki.Page("99", "AIP-200 New")
-    problems = wiki.check_aip_tree(*build_tree(wiki, index_children=[stray]))
+    problems = wiki.check_tree(*build_tree(wiki, index_children=[stray]))
     assert problems == [
         f"<{stray.url}|AIP-200 New>: sits directly under the AIP index; move it into a state folder"
     ]
@@ -140,8 +146,8 @@ def test_page_directly_under_the_aip_index_is_reported(wiki):
 )
 def test_aip_properties_must_match_the_folder(wiki, body, expected):
     completed = folder_of(wiki, "Completed")
-    page = wiki.Page("5", "AIP-5 X", body, [wiki.BASE_LABEL, completed.label])
-    problems = wiki.check_aip_tree(*build_tree(wiki, pages={completed.page_id: [page]}))
+    page = wiki.Page("5", "AIP-5 X", body, [wiki.AIP_TREE.base_label, wiki.AIP_TREE.get_label(completed)])
+    problems = wiki.check_tree(*build_tree(wiki, pages={completed.page_id: [page]}))
     assert problems == [f"<{page.url}|AIP-5 X>: {expected}"]
 
 
@@ -175,14 +181,14 @@ def test_aip_properties_must_match_the_folder(wiki, body, expected):
 def test_aip_labels_must_match_the_folder(wiki, labels, expected):
     completed = folder_of(wiki, "Completed")
     page = aip(wiki, completed, page_id="5", title="AIP-5 X", labels=labels)
-    problems = wiki.check_aip_tree(*build_tree(wiki, pages={completed.page_id: [page]}))
+    problems = wiki.check_tree(*build_tree(wiki, pages={completed.page_id: [page]}))
     assert problems == [f"<{page.url}|AIP-5 X>: {problem}" for problem in expected]
 
 
 def test_restricted_page_is_not_checked_for_badge_or_labels(wiki):
     completed = folder_of(wiki, "Completed")
     page = wiki.Page(next(iter(wiki.RESTRICTED_PAGES)), "AIP-52 X", properties({"State": "Completed"}), [])
-    assert wiki.check_aip_tree(*build_tree(wiki, pages={completed.page_id: [page]})) == []
+    assert wiki.check_tree(*build_tree(wiki, pages={completed.page_id: [page]})) == []
 
 
 def test_titles_and_problems_are_escaped_and_shortened_for_slack(wiki):
@@ -209,12 +215,13 @@ def test_macro_without_a_body_has_no_properties_even_before_a_table(wiki, macro)
     assert wiki.find_properties(body) == [{}]
 
 
-def test_folder_moved_out_of_the_aip_index_is_reported(wiki):
-    index, children, folders, labelled = build_tree(wiki)
+@pytest.mark.parametrize("tree_name", ["AIP_TREE", "ADIP_TREE"])
+def test_folder_moved_out_of_the_index_is_reported(wiki, tree_name):
+    tree, index, children, folders, labelled = build_tree(wiki, tree=getattr(wiki, tree_name))
     moved = children[0]
-    problems = wiki.check_aip_tree(index, children[1:], folders, labelled)
+    problems = wiki.check_tree(tree, index, children[1:], folders, labelled)
     assert problems == [
-        f"<{moved.url}|page {moved.page_id}>: folder is no longer directly under the AIP index"
+        f"<{moved.url}|page {moved.page_id}>: folder is no longer directly under the {tree.name} index"
     ]
 
 
@@ -238,32 +245,42 @@ def test_properties_table_outside_the_macro_is_not_read(wiki):
 
 def test_state_label_outside_its_folder_is_reported(wiki):
     draft = folder_of(wiki, "Under discussion")
-    elsewhere = wiki.Page("77", "AIP-101: Appendix", labels=[draft.label])
+    label = wiki.AIP_TREE.get_label(draft)
+    elsewhere = wiki.Page("77", "AIP-101: Appendix", labels=[label])
     tree = build_tree(wiki)
-    tree[3][draft.label] = [*tree[2][draft.page_id], elsewhere]
-    problems = wiki.check_aip_tree(*tree)
+    tree[4][label] = [*tree[3][draft.page_id], elsewhere]
+    problems = wiki.check_tree(*tree)
     assert problems == [
-        f"<{elsewhere.url}|AIP-101: Appendix>: has the '{draft.label}' label but is not in that state's folder"
+        f"<{elsewhere.url}|AIP-101: Appendix>: has the '{label}' label but is not in that state's folder"
     ]
 
 
-def test_stale_count_in_a_folded_section_is_reported(wiki):
-    tree = build_tree(wiki, index_body=folded(7, "completed") + folded(1, "abandoned or replaced"))
-    problems = wiki.check_aip_tree(*tree)
+@pytest.mark.parametrize("tree_name", ["AIP_TREE", "ADIP_TREE"])
+def test_stale_count_in_a_folded_section_is_reported(wiki, tree_name):
+    name = getattr(wiki, tree_name).name
+    tree = build_tree(
+        wiki,
+        tree=getattr(wiki, tree_name),
+        index_body=folded(7, "completed", name) + folded(1, "abandoned or replaced", name),
+    )
+    problems = wiki.check_tree(*tree)
     assert problems == [
-        f"<{tree[0].url}|AIP index>: the folded section should be titled '1 completed AIPs (click to expand)'"
+        f"<{tree[1].url}|{name} index>: the folded section should be titled "
+        f"'1 completed {name}s (click to expand)'"
     ]
 
 
-def adip(wiki, number=1, title=None, state="Completed", formerly="AIP-4", labels=("adip",)):
-    rows = {"State": badge(state, "Green")}
+def adip(wiki, number=1, title=None, formerly="AIP-4"):
+    rows = {"State": badge("Completed", "Green")}
     if formerly is not None:
         rows["Formerly"] = f'<span style="color: rgb(151,160,175);">{formerly}</span>'
-    return wiki.Page(str(number), title or f"ADIP-{number} Something", properties(rows), list(labels))
+    return wiki.Page(
+        str(number), title or f"ADIP-{number} Something", properties(rows), ["adip", "adip/completed"]
+    )
 
 
-def test_consistent_adip_tree_has_no_problems(wiki):
-    assert wiki.check_adip_tree([adip(wiki, 1), adip(wiki, 2, formerly="AIP-6")]) == []
+def test_consistent_adip_pages_have_no_problems(wiki):
+    assert wiki.check_adip_pages([adip(wiki, 1), adip(wiki, 2, formerly="AIP-6")]) == []
 
 
 @pytest.mark.parametrize(
@@ -277,14 +294,6 @@ def test_consistent_adip_tree_has_no_problems(wiki):
             ["title repeats the former AIP number; it is the Formerly property"],
             id="formerly-in-title",
         ),
-        pytest.param({"labels": ()}, ["lacks the 'adip' label"], id="no-label"),
-        pytest.param(
-            {"state": "Done"},
-            [
-                "State badge is 'Done', expected one of ['Abandoned', 'Accepted', 'Completed', 'Draft', 'In progress']"
-            ],
-            id="unknown-badge",
-        ),
         pytest.param(
             {"formerly": None},
             ["has no Formerly row with the former AIP number in its Page Properties block"],
@@ -294,14 +303,14 @@ def test_consistent_adip_tree_has_no_problems(wiki):
 )
 def test_adip_page_problems(wiki, page_kwargs, expected):
     page = adip(wiki, 2, **page_kwargs)
-    assert wiki.check_adip_tree([adip(wiki, 1), page]) == [
+    assert wiki.check_adip_pages([adip(wiki, 1), page]) == [
         f"<{page.url}|{page.title}>: {p}" for p in expected
     ]
 
 
 def test_duplicate_adip_number_is_reported_with_the_other_title_escaped(wiki):
     first, second = adip(wiki, 3, title="ADIP-3 <!channel>"), adip(wiki, 4, title="ADIP-3 Two")
-    assert wiki.check_adip_tree([first, second]) == [
+    assert wiki.check_adip_pages([first, second]) == [
         f"<{second.url}|ADIP-3 Two>: reuses the number of 'ADIP-3 &lt;!channel&gt;'"
     ]
 
@@ -394,3 +403,21 @@ def test_slack_payload_splits_long_lists_into_sections_within_the_limit(wiki):
     assert len(sections) > 1
     assert all(len(text) <= wiki.MAX_SECTION_LENGTH for text in sections)
     assert "\n".join(sections).count("• problem") == wiki.MAX_PROBLEMS_IN_SLACK
+
+
+def test_collect_problems_checks_both_trees_and_the_adip_pages(wiki):
+    def fetch_children(page_id, fetch):
+        return [wiki.Page(f"in-{page_id}", "x")]
+
+    with (
+        mock.patch.object(wiki, "fetch_children", side_effect=fetch_children),
+        mock.patch.object(wiki, "fetch_labelled", return_value=[]),
+        mock.patch.object(wiki, "fetch_page", side_effect=lambda page_id, fetch: wiki.Page(page_id, "index")),
+        mock.patch.object(wiki, "fetch_all", return_value=[]),
+        mock.patch.object(wiki, "check_tree", side_effect=lambda tree, *args: [f"tree {tree.name}"]),
+        mock.patch.object(wiki, "check_adip_pages", return_value=["adip pages"]) as check_adip_pages,
+    ):
+        assert wiki.collect_problems(fetch=mock.Mock()) == ["tree AIP", "tree ADIP", "adip pages"]
+    assert [page.page_id for page in check_adip_pages.call_args.args[0]] == [
+        f"in-{folder.page_id}" for folder in wiki.ADIP_TREE.folders
+    ]
