@@ -141,7 +141,13 @@ html_static_path = [SPHINX_DESIGN_STATIC_PATH.as_posix(), "_static"]
 html_js_files = ["anchor-redirects.js"]
 
 # Substitute in links
-manual_substitutions_in_generated_html = ["build.html", "index.html"]
+manual_substitutions_in_generated_html = [
+    "build.html",
+    "build-customizing.html",
+    "index.html",
+    "security-scan-results.html",
+    "why-build-your-own-image.html",
+]
 
 html_css_files = ["custom.css"]
 

@@ -46,7 +46,7 @@ def update_version(pattern: re.Pattern, v: str, file_path: Path):
 
 REPLACEMENTS: dict[str, list[str]] = {
     r"^(FROM apache\/airflow:(?:slim-)?).*($)": ["docker-stack-docs/docker-examples/extending/*/Dockerfile"],
-    r"(apache\/airflow:)[^-]*(\-)": ["docker-stack-docs/entrypoint.rst"],
+    r"(apache\/airflow:)[^-]*(\-)": ["docker-stack-docs/entrypoint.rst", "docker-stack-docs/testing.rst"],
     r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": ["docker-stack-docs/README.md"],
     r"(\(Assuming Airflow version `).*(`\))": ["docker-stack-docs/README.md"],
     r"(^version = \").*(\"$)": ["pyproject.toml", "airflow-core/pyproject.toml"],

@@ -149,8 +149,8 @@ The saving can be large: for the ``mpi4py`` package used here, the customized im
 smaller than the same packages added by extending the regular image, and it grows with every package
 that needs compiling.
 
-The published slim images are built the same way, with no extras at all and the constraints without
-providers:
+An image equivalent to the published slim image is built the same way, with no extras at all and the
+constraints without providers:
 
 .. code-block:: shell
    :substitutions:
@@ -158,7 +158,7 @@ providers:
    docker build . \
      --build-arg AIRFLOW_VERSION="|airflow-version|" \
      --build-arg AIRFLOW_EXTRAS="" \
-     --build-arg AIRFLOW_CONSTRAINTS="constraints-no-providers" \
+     --build-arg AIRFLOW_CONSTRAINTS_MODE="constraints-no-providers" \
      --tag my-company/airflow:slim-|airflow-version|
 
 This method needs `BuildKit <https://docs.docker.com/build/buildkit/>`_ (the default in Docker Desktop
