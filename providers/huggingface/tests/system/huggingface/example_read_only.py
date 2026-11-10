@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Read a pinned public dataset, map it, and validate the durable XCom handoff."""
-from airflow.sdk import DAG, task
-
 from airflow.providers.huggingface.operators.datasets import LoadDatasetOperator, MapDatasetOperator
+from airflow.sdk import DAG, task
+from tests_common.test_utils.system_tests import get_test_run
 
 SOURCE_REPO = "nyu-mll/glue"
 SOURCE_REVISION = "bcdcba79d07bc864c1c254ccfcedcce55bcc9a8c"
@@ -27,7 +27,7 @@ def add_pair_text(example):
     return {"pair_text": f"{example['sentence1']} [SEP] {example['sentence2']}"}
 
 
-with DAG(dag_id="huggingface_system_read_only", tags=["huggingface", "system-test"]) as dag:
+with DAG(dag_id="huggingface_system_read_only", schedule="@once", tags=["huggingface", "system-test"]) as dag:
     # [START huggingface_load_and_map_example]
     load = LoadDatasetOperator(
         task_id="load_public_dataset",
@@ -59,7 +59,5 @@ with DAG(dag_id="huggingface_system_read_only", tags=["huggingface", "system-tes
     from tests_common.test_utils.watcher import watcher
 
     list(dag.tasks) >> watcher()
-
-from tests_common.test_utils.system_tests import get_test_run
 
 test_run = get_test_run(dag)

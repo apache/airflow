@@ -49,32 +49,14 @@ The package supports the following python versions: 3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=3.0,<4``
-``datasets``         ``>=5.0.0``
-``huggingface-hub``  ``>=0.24,<2``
-===================  ==================
-
-Optional cross provider package dependencies
---------------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-huggingface[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0,<4``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``datasets``                                ``>=5.0.0``
+``huggingface-hub``                         ``>=0.24``
+==========================================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-huggingface/0.1.0/changelog.html>`_.

@@ -20,6 +20,7 @@ import uuid
 
 import airflow
 from packaging.version import Version
+from sqlalchemy import delete, or_, select
 from airflow.sdk import Asset, DAG, get_current_context, task
 from airflow.providers.common.compat.sdk import TriggerRule
 
@@ -51,12 +52,14 @@ def _activate_asset(asset: Asset):
         from airflow.models.asset import AssetActive, AssetModel
         from airflow.settings import Session
 
-        with Session() as session:
+        session_factory = Session
+        if session_factory is None:
+            return
+
+        with session_factory() as session:
             # 1. Upsert AssetModel
-            asset_model = (
-                session.query(AssetModel)
-                .filter((AssetModel.name == asset.name) | (AssetModel.uri == asset.uri))
-                .first()
+            asset_model = session.scalar(
+                select(AssetModel).where(or_(AssetModel.name == asset.name, AssetModel.uri == asset.uri))
             )
             if not asset_model:
                 asset_model = AssetModel(name=asset.name, uri=asset.uri)
@@ -64,10 +67,8 @@ def _activate_asset(asset: Asset):
                 session.flush()
 
             # 2. Upsert AssetActive
-            active_entry = (
-                session.query(AssetActive)
-                .filter((AssetActive.name == asset.name) | (AssetActive.uri == asset.uri))
-                .first()
+            active_entry = session.scalar(
+                select(AssetActive).where(or_(AssetActive.name == asset.name, AssetActive.uri == asset.uri))
             )
             if not active_entry:
                 active_entry = AssetActive(name=asset.name, uri=asset.uri)
@@ -84,13 +85,17 @@ def _deactivate_asset(asset: Asset):
         from airflow.models.asset import AssetActive, AssetModel
         from airflow.settings import Session
 
-        with Session() as session:
-            session.query(AssetActive).filter(
-                (AssetActive.name == asset.name) | (AssetActive.uri == asset.uri)
-            ).delete(synchronize_session=False)
-            session.query(AssetModel).filter(
-                (AssetModel.name == asset.name) | (AssetModel.uri == asset.uri)
-            ).delete(synchronize_session=False)
+        session_factory = Session
+        if session_factory is None:
+            return
+
+        with session_factory() as session:
+            session.execute(
+                delete(AssetActive).where(or_(AssetActive.name == asset.name, AssetActive.uri == asset.uri))
+            )
+            session.execute(
+                delete(AssetModel).where(or_(AssetModel.name == asset.name, AssetModel.uri == asset.uri))
+            )
             session.commit()
     except ImportError:
         pass
@@ -114,7 +119,7 @@ class FailAfterSuccessfulFirstPushOperator(PushToHubOperator):
         return result
 
 
-with DAG(dag_id="huggingface_system_write", tags=["huggingface", "system-test"]) as dag:
+with DAG(dag_id="huggingface_system_write", schedule="@once", tags=["huggingface", "system-test"]) as dag:
 
     @task
     def create_private_repo():

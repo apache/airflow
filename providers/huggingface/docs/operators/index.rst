@@ -153,7 +153,7 @@ Execution proceeds in this order:
 
 Unlike the local Parquet artifact path, this operator delegates feature
 serialization to Datasets' Hub upload implementation and does not use the
-provider's ``_validate_feature`` whitelist. It does not create a local manifest
+provider's ``_validate_feature`` allowlist. It does not create a local manifest
 reference for downstream ``MapDatasetOperator`` or ``PushToHubOperator`` tasks;
 downstream tasks should load the published Hub repository. Passing
 ``streaming=True`` through ``LoadDatasetOperator.load_kwargs`` is not a

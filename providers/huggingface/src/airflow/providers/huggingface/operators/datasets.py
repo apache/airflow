@@ -265,7 +265,7 @@ def _callable_identity(function: Callable[..., Any] | None) -> dict[str, str] | 
 
 
 def _warn_missing_task_state(operator: BaseOperator, state: Any) -> None:
-    if operator.durable and state is None:
+    if getattr(operator, "durable", False) and state is None:
         operator.log.warning(
             "durable=True requires Airflow 3.3 task state store support; revision pinning and "
             "task-state result caching are unavailable for this task run"
@@ -316,7 +316,16 @@ def _publication_outlets(
 class LoadDatasetOperator(BaseOperator):
     """Load a dataset revision and persist it as a Parquet artifact."""
 
-    template_fields = ("path", "name", "split", "revision", "cache_dir", "output_uri")
+    template_fields = (
+        "path",
+        "name",
+        "split",
+        "revision",
+        "cache_dir",
+        "output_uri",
+        "storage_conn_id",
+        "huggingface_conn_id",
+    )
 
     def __init__(
         self,
@@ -335,10 +344,16 @@ class LoadDatasetOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.path, self.output_uri, self.name, self.split = path, output_uri, name, split
-        self.revision, self.cache_dir, self.download_mode = revision, cache_dir, download_mode
+        self.path = path
+        self.output_uri = output_uri
+        self.name = name
+        self.split = split
+        self.revision = revision
+        self.cache_dir = cache_dir
+        self.download_mode = download_mode
         self.storage_conn_id = storage_conn_id
-        self.huggingface_conn_id, self.load_kwargs = huggingface_conn_id, load_kwargs or {}
+        self.huggingface_conn_id = huggingface_conn_id
+        self.load_kwargs = load_kwargs or {}
         self.durable = durable
 
     def execute(self, context: Context) -> dict[str, Any]:
@@ -382,7 +397,15 @@ class LoadDatasetOperator(BaseOperator):
 class StreamDatasetOperator(BaseOperator):
     """Transform a streamed dataset lazily and publish it directly to the Hub."""
 
-    template_fields = ("path", "name", "split", "revision", "config", "commit_message")
+    template_fields = (
+        "path",
+        "name",
+        "split",
+        "revision",
+        "config",
+        "commit_message",
+        "huggingface_conn_id",
+    )
 
     @classmethod
     def partial(cls, **kwargs: Any) -> Any:
@@ -427,10 +450,15 @@ class StreamDatasetOperator(BaseOperator):
             raise TypeError("transform must be a callable or None")
         if predicate is not None and not callable(predicate):
             raise TypeError("predicate must be a callable or None")
-        self.path, self.repo_id = path, repo_id
+        self.path = path
+        self.repo_id = repo_id
         self.transform, self.predicate = transform, predicate
-        self.name, self.split, self.revision = name, split, revision
-        self.config, self.private, self.commit_message = config, private, commit_message
+        self.name = name
+        self.split = split
+        self.revision = revision
+        self.config = config
+        self.private = private
+        self.commit_message = commit_message
         self.transform_kwargs = transform_kwargs or {}
         self.push_kwargs = push_kwargs or {}
         self.huggingface_conn_id = huggingface_conn_id
@@ -492,7 +520,7 @@ class StreamDatasetOperator(BaseOperator):
         pending_key = _state_key("stream-publication-pending", marker)
         if state is not None:
             prior_result = state.get(state_key)
-            if prior_result:
+            if isinstance(prior_result, dict):
                 self.log.info("Reusing stored streaming publication result for %s", self.repo_id)
                 self._emit_asset_event(context, prior_result)
                 return prior_result
@@ -577,7 +605,7 @@ class StreamDatasetOperator(BaseOperator):
 class MapDatasetOperator(BaseOperator):
     """Apply a Python callable and persist the transformed artifact."""
 
-    template_fields = ("input_uri", "output_uri", "transform_kwargs", "cache_dir")
+    template_fields = ("input_uri", "output_uri", "transform_kwargs", "cache_dir", "storage_conn_id")
 
     def __init__(
         self,
@@ -594,8 +622,11 @@ class MapDatasetOperator(BaseOperator):
         super().__init__(**kwargs)
         if not callable(transform):
             raise TypeError("transform must be a callable")
-        self.input_uri, self.output_uri, self.transform = input_uri, output_uri, transform
-        self.transform_kwargs, self.map_kwargs = transform_kwargs or {}, map_kwargs or {}
+        self.input_uri = input_uri
+        self.output_uri = output_uri
+        self.transform = transform
+        self.transform_kwargs = {} if transform_kwargs is None else transform_kwargs
+        self.map_kwargs = map_kwargs or {}
         self.cache_dir = cache_dir
         self.storage_conn_id = storage_conn_id
 
@@ -608,7 +639,7 @@ class MapDatasetOperator(BaseOperator):
             )
             mapped = dataset.map(self.transform, fn_kwargs=self.transform_kwargs, **self.map_kwargs)
             source = self.input_uri if isinstance(self.input_uri, dict) else {}
-            provenance = {
+            provenance: dict[str, Any] = {
                 key: source[key]
                 for key in ("repository_id", "revision", "configuration", "split")
                 if key in source
@@ -619,7 +650,7 @@ class MapDatasetOperator(BaseOperator):
 class PushToHubOperator(BaseOperator):
     """Synchronously publish an artifact and emit its successful asset event."""
 
-    template_fields = ("input_uri", "config", "commit_message")
+    template_fields = ("input_uri", "config", "commit_message", "huggingface_conn_id", "storage_conn_id")
 
     @classmethod
     def partial(cls, **kwargs: Any) -> Any:
@@ -655,9 +686,13 @@ class PushToHubOperator(BaseOperator):
             raise ValueError(
                 "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
             )
-        self.input_uri, self.repo_id, self.config = input_uri, repo_id, config
-        self.private, self.commit_message = private, commit_message
-        self.huggingface_conn_id, self.push_kwargs = huggingface_conn_id, push_kwargs or {}
+        self.input_uri = input_uri
+        self.repo_id = repo_id
+        self.config = config
+        self.private = private
+        self.commit_message = commit_message
+        self.huggingface_conn_id = huggingface_conn_id
+        self.push_kwargs = push_kwargs or {}
         self.storage_conn_id = storage_conn_id
         self.durable = durable
         self.published_asset, declared_outlets = _publication_outlets(
@@ -694,7 +729,7 @@ class PushToHubOperator(BaseOperator):
         pending_key = _state_key("publication-pending", marker)
         if state is not None:
             prior_result = state.get(state_key)
-            if prior_result:
+            if isinstance(prior_result, dict):
                 self.log.info("Reusing stored publication result for %s", self.repo_id)
                 self._emit_asset_event(context, prior_result)
                 return prior_result

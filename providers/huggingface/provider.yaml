@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
 
 package-name: apache-airflow-providers-huggingface
 name: Hugging Face
 description: Load, transform, and publish Hugging Face Datasets.
-state: not-ready
+state: ready
 source-date-epoch: 0
 lifecycle: incubation
 versions:
