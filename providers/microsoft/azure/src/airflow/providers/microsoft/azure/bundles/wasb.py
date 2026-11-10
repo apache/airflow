@@ -23,6 +23,7 @@ import tempfile
 from abc import abstractmethod
 from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
 import structlog
@@ -31,6 +32,9 @@ from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger
 
 
 def _require_tar_data_filter() -> None:
@@ -74,7 +78,7 @@ class _WasbDagBundleBase(BaseDagBundle):
             "wasb_conn_id": self.wasb_conn_id,
         }
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with the context common to every WASB Dag bundle."""
         return structlog.get_logger(__name__).bind(**self._log_bindings())
 
@@ -176,7 +180,7 @@ class WasbDagBundle(_WasbDagBundleBase):
         self.prefix = prefix
         super().__init__(wasb_conn_id=wasb_conn_id, container_name=container_name, **kwargs)
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this prefix bundle's context."""
         return structlog.get_logger(__name__).bind(**self._log_bindings(), prefix=self.prefix)
 
@@ -242,7 +246,7 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
         self.archive_blob = archive_blob
         super().__init__(wasb_conn_id=wasb_conn_id, container_name=container_name, **kwargs)
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this archive bundle's context."""
         return structlog.get_logger(__name__).bind(**self._log_bindings(), archive_blob=self.archive_blob)
 
