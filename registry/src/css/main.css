@@ -164,7 +164,7 @@
   margin-right: auto;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   #site-header nav {
     display: flex;
   }
@@ -199,9 +199,16 @@
 /* Header Search */
 #search-trigger {
   display: none;
+  margin-left: auto;
   padding: 0.375rem var(--space-2);
   background: var(--color-input-bg);
   border-color: var(--color-input-border);
+}
+
+@media (min-width: 1024px) {
+  #search-trigger {
+    margin-left: 0;
+  }
 }
 
 .js #search-trigger {
@@ -285,7 +292,7 @@
   color: var(--text-secondary);
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   #mobile-menu-btn {
     display: none;
   }
@@ -296,28 +303,34 @@
   height: 1.25rem;
 }
 
-/* Mobile Nav */
-#mobile-nav {
+/* Mobile Nav: #site-header prefix outranks the #site-header nav rules above */
+#site-header #mobile-nav {
   display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   flex-direction: column;
-  gap: var(--space-3);
-  padding-bottom: var(--space-4);
-  border-top: 1px solid var(--border-primary);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
+  align-items: stretch;
+  gap: var(--space-1);
+  margin: 0;
+  padding-block: var(--space-4);
+  padding-inline: inherit;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--color-header-border);
 }
 
-@media (min-width: 768px) {
-  #mobile-nav {
+@media (min-width: 1024px) {
+  #site-header #mobile-nav {
     display: none !important;
   }
 }
 
-#mobile-nav.active {
+#site-header #mobile-nav.active {
   display: flex;
 }
 
-#mobile-nav a {
+#site-header #mobile-nav a {
   padding: var(--space-2) 0;
   color: var(--text-primary);
 }
@@ -3657,7 +3670,7 @@ main {
   outline-offset: 2px;
 }
 
-/* Durable and Deferrable Operators Page */
+/* Durable Execution Page */
 .durable-page {
   padding: var(--space-16) 0;
   background: var(--bg-primary);

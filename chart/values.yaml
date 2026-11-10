@@ -376,6 +376,8 @@ priorityClasses: []
 #    preemptionPolicy: PreemptLowerPriority
 #    value: 10000
 #  - name: class2
+#    annotations:
+#      class2.annotation.key: class2_annotation_value
 #    preemptionPolicy: Never
 #    value: 100000
 
@@ -2725,6 +2727,8 @@ otelCollector:
   labels: {}
   podAnnotations: {}
 
+  # Detailed security contexts for the OTel Collector.
+  # By default, the container disallows privilege escalation and drops all capabilities.
   securityContexts:
     pod: {}
     container: {}
@@ -2886,6 +2890,9 @@ pgbouncer:
 
   # Launch additional containers into PgBouncer pod.
   extraContainers: []
+
+  # Add additional init containers into PgBouncer pod (templated).
+  extraInitContainers: []
 
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}

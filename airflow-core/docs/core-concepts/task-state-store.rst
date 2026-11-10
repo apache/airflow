@@ -316,4 +316,20 @@ When ``[state_store] clear_on_success = True``, all task state store keys for a 
 
    ``clear_on_success`` clears **task state store only**. Asset store is scoped to the asset, not the task instance, and is never affected by this setting. Asset store persists across runs and must be cleared explicitly.
 
+.. note::
+
+   With a custom ``[workers] state_store_backend``, the worker deletes the backend's entries only
+   after the success has been reported, once the task's callbacks and listeners have run. If that
+   deletion fails the task stays successful and the failure is logged. The Dag id, run id, task id
+   and region of the entries are logged just before the deletion starts.
+
+   Those entries are then orphaned: the API server has already removed the metadata-DB references,
+   ``airflow state-store clean`` covers the metastore backend only, and
+   :meth:`~airflow.sdk.state.BaseStoreBackend.cleanup` is a no-op unless your backend implements
+   it. Because the storage scope includes the run id, the next Dag run writes elsewhere rather than
+   overwriting them. Removing them is up to your storage's own lifecycle or TTL policy, or a
+   ``cleanup()`` implementation on your backend. Nothing in Airflow calls ``cleanup()`` for a
+   worker backend, so it has to be called from your own maintenance process, as described in
+   :doc:`/administration-and-deployment/task-and-asset-state-store-cleanup`.
+
 See :doc:`/administration-and-deployment/task-and-asset-state-store` for full configuration details.
