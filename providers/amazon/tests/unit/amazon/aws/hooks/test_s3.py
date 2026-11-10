@@ -1613,6 +1613,52 @@ class TestAwsS3Hook:
                 "Expected provided bucket_name to take precedence over fallback"
             )
 
+    @pytest.mark.asyncio
+    async def test_provide_bucket_name_async(self):
+        """Async bucket resolution honors configuration and explicit overrides."""
+
+        class FakeS3Hook(S3Hook):
+            @provide_bucket_name
+            async def test_function(self, bucket_name=None):
+                return bucket_name
+
+        hook = FakeS3Hook(aws_conn_id="aws_default")
+        connection = Connection(
+            conn_id="aws_default",
+            conn_type="aws",
+            schema="schema-bucket",
+        )
+
+        with (
+            mock.patch(
+                "airflow.providers.amazon.aws.hooks.s3.get_async_connection",
+                new_callable=AsyncMock,
+                return_value=connection,
+            ) as mock_connection,
+            mock.patch(
+                "airflow.providers.amazon.aws.hooks.s3.get_async_extra_dejson",
+                new_callable=AsyncMock,
+                return_value={"service_config": {"s3": {"bucket_name": "configured-bucket"}}},
+            ) as mock_extras,
+        ):
+            assert await hook.test_function() == "configured-bucket"
+
+            mock_connection.reset_mock()
+            mock_extras.reset_mock()
+
+            assert await hook.test_function(bucket_name="explicit-bucket") == "explicit-bucket"
+            mock_connection.assert_not_awaited()
+            mock_extras.assert_not_awaited()
+
+            mock_extras.return_value = {}
+            assert await hook.test_function() == "schema-bucket"
+
+            connection.schema = None
+            assert await hook.test_function() is None
+
+        hook_without_connection = FakeS3Hook(aws_conn_id=None)
+        assert await hook_without_connection.test_function() is None
+
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
         # It will succeed idempotently
