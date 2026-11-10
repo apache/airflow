@@ -27,7 +27,7 @@ AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 # The features of test_dags.yaml that tests/conformance/serialize_typescript.ts can build. A Dag that
 # requires another feature is left out until the builder gets it.
-SUPPORTED_FEATURES: list[str] = ["edge_labels"]
+SUPPORTED_FEATURES: list[str] = ["edge_labels", "loops"]
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(

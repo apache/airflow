@@ -42,6 +42,10 @@
 # - literal_inputs: a task's `literals` are values that follow the results of its `upstream` tasks
 #   as the arguments of the task. They add no edge. compare.py does not compare how a task takes its
 #   arguments, so the Dag shows only that no edge comes of a literal and that Airflow loads it.
+# - loops: an entry of `loops` makes the group it names a task loop of `max_iterations`. `until`
+#   names the gate task the loop gets, which decides whether another iteration follows; without
+#   it the loop runs a fixed count. A loop is made after the `upstream` edges are drawn and before
+#   the `order_edges`, as an author draws edges from a loop once it exists.
 dags:
   # No schedule and no options: NullTimetable plus the fields Python always emits.
   - dag_id: conformance_minimal
@@ -330,3 +334,32 @@ dags:
           - s3://bucket/out
           - {limit: 10, ratio: 0.5, tags: [a, null], nested: {enabled: true}}
           - null
+
+  # refine_estimate of example_task_loops.py: a loop whose gate decides, with a task after the loop.
+  - dag_id: conformance_loop_until
+    requires: [loops]
+    groups: [refine]
+    loops:
+      - group: refine
+        max_iterations: 10
+        until: accurate_enough
+    tasks:
+      - task_id: improve
+        group: refine
+      - task_id: evaluate
+        group: refine
+        upstream: [refine.improve]
+      - task_id: finished
+    order_edges:
+      - [refine, finished]
+
+  # fixed_task_loop of example_task_loops.py: a loop that runs a fixed count, with no gate handler.
+  - dag_id: conformance_loop_count
+    requires: [loops]
+    groups: [accumulate]
+    loops:
+      - group: accumulate
+        max_iterations: 3
+    tasks:
+      - task_id: increment
+        group: accumulate

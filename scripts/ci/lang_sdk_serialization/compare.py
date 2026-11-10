@@ -67,7 +67,7 @@ PYTHON_SERIALIZER_VENV = REPO_ROOT / ".build" / "lang-sdk-serialization-venv"
 # The features that a Dag of test_dags.yaml may require of an SDK. The comment at the top of
 # test_dags.yaml says what each one adds to a Dag.
 FEATURES = frozenset(
-    {"branch", "switch", "edge_labels", "group_options", "trigger_dag_run", "literal_inputs"}
+    {"branch", "switch", "edge_labels", "group_options", "trigger_dag_run", "literal_inputs", "loops"}
 )
 
 # Name the file a Dag was declared in: Python's own Dag file, or the SDK's bundle.

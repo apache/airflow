@@ -41,6 +41,11 @@ import yaml
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sdk import DAG, BaseOperator, Label, TaskGroup
 from airflow.sdk.bases.branch import BaseBranchOperator
+from airflow.sdk.definitions._internal.loop import (
+    LoopGateOperator,
+    LoopTaskGroup,
+    redirect_outside_edges_to_gate,
+)
 from airflow.serialization.serialized_objects import DagSerialization
 
 
@@ -84,14 +89,25 @@ def build_task(dag: DAG, task: dict[str, Any], group: TaskGroup | None) -> BaseO
 
 def build_dag(case: dict[str, Any]) -> DAG:
     dag = DAG(case["dag_id"], **case.get("spec", {}))
+    loops = {loop["group"]: loop for loop in case.get("loops", [])}
     groups: dict[str, TaskGroup] = {}
+    loop_groups: dict[str, LoopTaskGroup] = {}
     for entry in case.get("groups", []):
         # A group id is fully qualified, so its parent is whatever comes before the last dot.
         group_id, spec = (entry, {}) if isinstance(entry, str) else (entry["id"], entry.get("spec", {}))
         parent_id, _, local_id = group_id.rpartition(".")
-        groups[group_id] = TaskGroup(
-            local_id, dag=dag, parent_group=groups[parent_id] if parent_id else None, **spec
-        )
+        parent = groups[parent_id] if parent_id else None
+        if (loop := loops.get(group_id)) is not None:
+            groups[group_id] = loop_groups[group_id] = LoopTaskGroup(
+                group_id=local_id,
+                dag=dag,
+                parent_group=parent,
+                max_iterations=loop["max_iterations"],
+                has_until="until" in loop,
+                **spec,
+            )
+        else:
+            groups[group_id] = TaskGroup(local_id, dag=dag, parent_group=parent, **spec)
     # A task is named by its group and its own id even when its group leaves the group id off the
     # id the task gets, as prefix_group_id=False does.
     tasks: dict[str, BaseOperator] = {}
@@ -106,12 +122,33 @@ def build_dag(case: dict[str, Any]) -> DAG:
         for chosen in [branch.get("then"), branch.get("else"), *branch.get("cases", [])]:
             if chosen is not None:
                 tasks[qualified_id] >> tasks[chosen]
+    for group_id, loop in loops.items():
+        close_loop(loop_groups[group_id], loop.get("until"))
     for upstream, downstream, *label in case.get("order_edges", []):
         edge = get_node(tasks, groups, upstream)
         if label:
             edge = edge >> Label(label[0])
         edge >> get_node(tasks, groups, downstream)
     return dag
+
+
+def close_loop(group: LoopTaskGroup, until: str | None) -> None:
+    """Give a filled loop group its gate, as ``create_loop`` does once the body is built."""
+    (terminal,) = group.get_leaves()
+
+    def decide() -> bool:
+        return True
+
+    gate = LoopGateOperator(
+        task_id=until or "__loop_gate",
+        until=decide if until else None,
+        dag=group.dag,
+        task_group=group,
+    )
+    terminal >> gate
+    group.terminal_task_id = terminal.task_id
+    group.gate_task_id = gate.task_id
+    redirect_outside_edges_to_gate(group, gate)
 
 
 def get_node(tasks: dict[str, BaseOperator], groups: dict[str, TaskGroup], node_id: str):
