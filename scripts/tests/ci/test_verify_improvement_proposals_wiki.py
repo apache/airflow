@@ -294,10 +294,9 @@ def test_consistent_adip_pages_have_no_problems(wiki):
             ["title repeats the former AIP number; it is the Formerly property"],
             id="formerly-in-title",
         ),
+        pytest.param({"formerly": None}, [], id="new-adip-without-formerly"),
         pytest.param(
-            {"formerly": None},
-            ["has no Formerly row with the former AIP number in its Page Properties block"],
-            id="no-formerly",
+            {"formerly": "AIP 6"}, ["Formerly is 'AIP 6', expected 'AIP-' and its number"], id="bad-formerly"
         ),
     ],
 )
@@ -421,3 +420,12 @@ def test_collect_problems_checks_both_trees_and_the_adip_pages(wiki):
     assert [page.page_id for page in check_adip_pages.call_args.args[0]] == [
         f"in-{folder.page_id}" for folder in wiki.ADIP_TREE.folders
     ]
+
+
+def test_long_wiki_text_in_a_problem_keeps_the_slack_payload_within_limits(wiki):
+    page = adip(wiki, 2, formerly="x" * 5000)
+    problems = wiki.check_adip_pages([page])
+    assert len(problems) == 1
+    assert problems[0].endswith("…")
+    sections = [block["text"]["text"] for block in wiki.build_slack_payload(problems, None)["blocks"]]
+    assert all(len(text) <= wiki.MAX_SECTION_LENGTH for text in sections)

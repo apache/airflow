@@ -36,7 +36,8 @@ and the ADIP tree are laid out the same way, and for each of them:
   * a page carrying a state label sits in that state's folder;
   * the counts in the titles of the folded sections on the index page match the folders.
 
-Every ADIP is also titled ``ADIP-<n> <title>`` with a unique number and has a Formerly row.
+Every ADIP is also titled ``ADIP-<n> <title>`` with a unique number; an ADIP that started as an AIP
+has its old number in a Formerly row.
 
 Exits 1 when anything is out of line. With ``--slack-payload <file>`` it then also writes a
 ``chat.postMessage`` payload listing the problems, for the workflow to post.
@@ -61,6 +62,7 @@ WIKI = "https://cwiki.apache.org/confluence"
 SLACK_CHANNEL = "internal-airflow-ci-cd"
 MAX_PROBLEMS_IN_SLACK = 25
 MAX_TITLE_LENGTH = 100
+MAX_PROBLEM_LENGTH = 300
 # Slack rejects a section block whose text is longer than 3000 characters.
 MAX_SECTION_LENGTH = 2900
 ATTEMPTS = 4
@@ -274,6 +276,9 @@ def shorten(title: str) -> str:
 
 
 def describe(page: Page, problem: str) -> str:
+    # Problems quote wiki text, which can be arbitrarily long; Slack rejects oversized sections.
+    if len(problem) > MAX_PROBLEM_LENGTH:
+        problem = problem[: MAX_PROBLEM_LENGTH - 1] + "…"
     return f"<{page.url}|{escape_for_slack(shorten(page.title))}>: {escape_for_slack(problem)}"
 
 
@@ -337,11 +342,11 @@ def check_adip_pages(pages: list[Page]) -> list[str]:
             problems.append(
                 describe(page, "title repeats the former AIP number; it is the Formerly property")
             )
+        # ADIPs that started as AIPs keep their old number in a Formerly row; new ones have none.
         blocks = find_properties(page.body)
-        if blocks and not re.fullmatch(r"AIP-\d+", get_text(blocks[0].get("Formerly", ""))):
-            problems.append(
-                describe(page, "has no Formerly row with the former AIP number in its Page Properties block")
-            )
+        formerly = get_text(blocks[0].get("Formerly", "")) if blocks else ""
+        if formerly and not re.fullmatch(r"AIP-\d+", formerly):
+            problems.append(describe(page, f"Formerly is {formerly!r}, expected 'AIP-' and its number"))
     return problems
 
 
