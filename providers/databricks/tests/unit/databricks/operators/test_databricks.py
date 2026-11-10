@@ -40,6 +40,7 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, 
 from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
+    MIN_SETTLE_POLL_SECONDS,
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
@@ -5320,6 +5321,20 @@ class TestDatabricksTaskBaseOperatorDurable:
         ti.xcom_push.assert_any_call(key="run_page_url", value=RUN_PAGE_URL)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_persists_run_id_even_if_the_page_url_lookup_fails(self, db_mock_class, make_operator):
+        op = make_operator()
+        op.monitor_databricks_job = MagicMock()
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run_page_url.side_effect = DatabricksApiError("boom", http_status_code=500)
+        task_store = self._task_store()
+
+        with pytest.raises(DatabricksApiError):
+            op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
+
+        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_reconnects_to_active_run_without_resubmitting(self, db_mock_class, make_operator):
         op = make_operator()
         op.monitor_databricks_job = MagicMock()
@@ -5559,3 +5574,26 @@ class TestRunStatusHelpers:
         assert is_run_active(status) is True
         hook.get_run.assert_called_once()
         mock_sleep.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.monotonic")
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_fetch_run_status_never_sleeps_past_the_settle_deadline(self, mock_sleep, mock_monotonic):
+        mock_monotonic.side_effect = [0.0, 0.5, 1.5]
+        hook = MagicMock()
+        hook.get_run.return_value = make_run_state("TERMINATING", "")
+
+        status = fetch_run_status(hook, RUN_ID, poll_interval=30, settle_timeout=1)
+
+        assert status == "TERMINATING:"
+        assert mock_sleep.call_args_list == [mock.call(0.5)]
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.monotonic")
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_fetch_run_status_does_not_busy_loop_on_a_zero_poll_interval(self, mock_sleep, mock_monotonic):
+        mock_monotonic.side_effect = [0.0, 0.5, 1.5]
+        hook = MagicMock()
+        hook.get_run.return_value = make_run_state("TERMINATING", "")
+
+        fetch_run_status(hook, RUN_ID, poll_interval=0, settle_timeout=1)
+
+        assert mock_sleep.call_args_list == [mock.call(MIN_SETTLE_POLL_SECONDS)]

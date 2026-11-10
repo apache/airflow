@@ -87,6 +87,7 @@ XCOM_STATEMENT_ID_KEY = "statement_id"
 # decode them with the predicates below, so all three share one view of which runs can be rejoined.
 RUN_NOT_FOUND_STATUS = "NOT_FOUND:"
 TERMINATING_SETTLE_TIMEOUT_SECONDS = 60
+MIN_SETTLE_POLL_SECONDS = 0.1
 ACTIVE_RUN_LIFE_CYCLE_STATES = (
     "PENDING",
     "QUEUED",
@@ -123,9 +124,10 @@ def fetch_run_status(
                 return RUN_NOT_FOUND_STATUS
             raise
         state = RunState(**run_info["state"])
-        if state.life_cycle_state != "TERMINATING" or time.monotonic() >= deadline:
+        remaining = deadline - time.monotonic()
+        if state.life_cycle_state != "TERMINATING" or remaining <= 0:
             return f"{state.life_cycle_state}:{state.result_state}"
-        time.sleep(poll_interval)
+        time.sleep(max(MIN_SETTLE_POLL_SECONDS, min(poll_interval, remaining)))
 
 
 def is_run_active(status: str) -> bool:

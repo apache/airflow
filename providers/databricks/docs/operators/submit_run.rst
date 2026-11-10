@@ -205,17 +205,16 @@ earlier Airflow versions the flag is a no-op and the operator always submits a f
 run on retry, exactly as before. If the task state store is unavailable at runtime, the
 operator logs that crash recovery is disabled and behaves the same way.
 
-Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
-``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
-run id won't be there for the next retry, and the operator will submit a fresh run instead of
-reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
+``[state_store] default_retention_days`` (30 days by default) is stamped on the run id when it is
+stored, so a retry that comes later than that finds nothing and submits a fresh run instead of
+reconnecting, whatever schedule ``airflow state-store clean`` runs on. Size that setting against
+your longest ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose run
-already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
-and returns immediately without submitting a new run. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task discards the stored run id by default, so the next attempt submits a fresh run.
+Set ``keep_task_state`` when clearing to keep it instead, and the attempt is then treated the same
+as a retry: for a task whose run already succeeded, it reads the run back and returns immediately
+without submitting a new one. :doc:`apache-airflow:core-concepts/resumable-tasks` lists which
+clear paths discard the id and describes the ``[state_store] clear_on_success`` setting.
 
 This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
 polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to

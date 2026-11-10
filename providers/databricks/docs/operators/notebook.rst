@@ -118,21 +118,18 @@ Inside a ``DatabricksWorkflowTaskGroup`` nothing changes: the run is submitted b
 launch task and this operator only monitors its own task within that shared run, so a retry already
 reconnects rather than resubmitting.
 
-The stored run id is not deleted automatically; that only happens when someone runs
-``airflow state-store clean``. If a task's ``retry_delay`` is longer than
-``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the run
-id is gone by the next retry and the operator submits a fresh run instead of reconnecting. Avoid
-running cleanup on a schedule shorter than your longest ``retry_delay``. See
+``[state_store] default_retention_days`` (30 days by default) is stamped on the run id when it is
+stored, so a retry that comes later than that finds nothing and submits a fresh run instead of
+reconnecting, whatever schedule ``airflow state-store clean`` runs on. Size that setting against
+your longest ``retry_delay``. See
 :doc:`apache-airflow:administration-and-deployment/task-and-asset-state-store-cleanup`.
 
-Which clear you use decides whether the stored run id survives. Clearing a single task from the
-UI or the REST API discards it, so the next attempt submits a new run. Every other clear keeps
-it: Clear Run on the whole Dag run, marking a task success or failed (both clear downstream
-tasks), a task clear that sets ``keep_task_state``, and ``airflow tasks clear``.
+Clearing a task discards the stored run id by default, so the next attempt submits a fresh run.
+Set ``keep_task_state`` when clearing to keep it instead.
+:doc:`apache-airflow:core-concepts/resumable-tasks` lists which clear paths discard it and
+describes the ``[state_store] clear_on_success`` setting.
 
 Where the id is kept, clearing behaves like a retry rather than a fresh start. If the stored run
 already succeeded, the next attempt reads it back, re-pushes its XComs and returns without
 submitting anything. If the run is still going and ``wait_for_termination=False``, the attempt
-reconnects to it and returns immediately, also without submitting. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+reconnects to it and returns immediately, also without submitting.
