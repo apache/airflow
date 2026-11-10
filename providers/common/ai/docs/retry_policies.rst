@@ -379,7 +379,7 @@ retry behaviour with no change to the Dag. Two things follow:
 Separately, and regardless of this policy: if the connection **the task itself** uses to call
 the LLM (for example ``llm_conn_id`` on ``LLMOperator`` or ``AgentOperator``) carries a fallback
 chain, the exception the task raises once that chain is exhausted is
-:class:`~airflow.providers.common.ai.exceptions.FallbackChainExhaustedError`. It subclasses
+:class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`. It subclasses
 ``pydantic_ai.exceptions.FallbackExceptionGroup``, so a rule or ``except`` clause written for the
 group keeps matching, and it is raised ``from`` the group the chain raised. The error each
 connection raised is in ``member_errors``, in chain order.

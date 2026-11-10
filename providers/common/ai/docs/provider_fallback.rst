@@ -141,7 +141,7 @@ a permanent data error still has to be decided by the retry policy.
 
 Adding a chain changes what the retry layer sees. When every connection in the chain
 fails, the exception the task raises is
-:class:`~airflow.providers.common.ai.exceptions.FallbackChainExhaustedError`, a subclass of
+:class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`, a subclass of
 ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own exception.
 The error each connection raised is in its ``member_errors``. ``LLMRetryPolicy`` and
 ``ClassifierRetryPolicy`` match their ``fallback_rules`` against the chain's error and then
