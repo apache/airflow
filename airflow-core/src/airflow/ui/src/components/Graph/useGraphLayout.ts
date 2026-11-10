@@ -30,25 +30,27 @@ import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 let elkPromise: Promise<ELK> | undefined;
 
 const getElk = () => {
-  elkPromise ??= import("elkjs/lib/elk-worker.min.js?raw").then(({ default: elkWorkerSource }) => {
-    // ?raw imports the file content as a plain string without any transformation.
-    // We create a blob: URL from it so the Worker is always same-origin to the
-    // page — avoiding the cross-origin SecurityError that occurs in Airflow's dev
-    // setup where Vite (5173) and Flask (28080) run on different ports, and all
-    // URL-based worker approaches (?worker, ?worker&inline, new URL()) resolve to
-    // the Vite origin which browsers reject for Workers.
-    // `type: "classic"` preserves the original CJS environment detection in elk-worker: as a classic script
-    // `typeof module === "undefined"`, so the worker sets self.onmessage rather than exporting a FakeWorker.
-    const elkWorkerBlobUrl = URL.createObjectURL(
-      new Blob([elkWorkerSource], { type: "application/javascript" }),
-    );
+  elkPromise ??= import("elkjs/lib/elk-worker.min.js?raw")
+    .then(({ default: elkWorkerSource }) => {
+      // ?raw imports the file content as a plain string without any transformation.
+      // We create a blob: URL from it so the Worker is always same-origin to the
+      // page — avoiding the cross-origin SecurityError that occurs in Airflow's dev
+      // setup where Vite (5173) and Flask (28080) run on different ports, and all
+      // URL-based worker approaches (?worker, ?worker&inline, new URL()) resolve to
+      // the Vite origin which browsers reject for Workers.
+      // `type: "classic"` preserves the original CJS environment detection in elk-worker: as a classic script
+      // `typeof module === "undefined"`, so the worker sets self.onmessage rather than exporting a FakeWorker.
+      const elkWorkerBlobUrl = URL.createObjectURL(
+        new Blob([elkWorkerSource], { type: "application/javascript" }),
+      );
 
-    return new ElkConstructor({ workerFactory: () => new Worker(elkWorkerBlobUrl, { type: "classic" }) });
-  });
-  // Retry on the next layout if the chunk failed to load, rather than keeping the rejection.
-  elkPromise.catch(() => {
-    elkPromise = undefined;
-  });
+      return new ElkConstructor({ workerFactory: () => new Worker(elkWorkerBlobUrl, { type: "classic" }) });
+    })
+    .catch((error: unknown) => {
+      // Retry on the next layout if the chunk failed to load, rather than keeping the rejection.
+      elkPromise = undefined;
+      throw error;
+    });
 
   return elkPromise;
 };
