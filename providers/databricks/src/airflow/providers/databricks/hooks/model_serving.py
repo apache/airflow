@@ -171,6 +171,11 @@ class PydanticAIDatabricksHook(PydanticAIHook):
                 databricks_conn_id=self._get_databricks_conn_id(extra),
                 caller="PydanticAIDatabricksHook",
             )
+            if not databricks_hook.host:
+                raise ValueError(
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' has no host. "
+                    "Set the workspace host on the connection or in its extra field."
+                )
             base_url = databricks_hook._endpoint_url("serving-endpoints")
             http_client = httpx2.AsyncClient(auth=_DatabricksServingAuth(databricks_hook))
             self._databricks_hook = databricks_hook
