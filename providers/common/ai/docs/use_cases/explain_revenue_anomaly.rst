@@ -72,7 +72,7 @@ Adapting it
 * Trigger it from a data-quality check that fires when the move exceeds your threshold, so
   the agent runs only on days that need explaining.
 * Swap ``ModalSandboxBackend`` for ``SbxSandboxBackend`` to run locally; the same file has
-  that variant (see :doc:`../sandbox/backends`).
+  that variant (see :doc:`../sandbox/backends/index`).
 * Add an :doc:`../approval_gates` step before the finding reaches the finance channel.
 * Widen ``allowed_tables`` only as far as the question needs. The limit is what makes the
   agent safe to run unattended.

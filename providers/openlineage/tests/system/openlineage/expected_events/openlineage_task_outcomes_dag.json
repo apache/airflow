@@ -225,7 +225,7 @@
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_task_outcomes_dag"}
                 },
-                "errorMessage": {"message": "{{ 'reported that the task instance' in result }}"}
+                "errorMessage": {"message": "{{ ('reported that the task instance <TaskInstance: openlineage_task_outcomes_dag.group.worker_dies_in_group ' in result and 'finished with state failed' in result and 'state attribute is running' in result) or (\"'DAG Id': 'openlineage_task_outcomes_dag', 'Task Id': 'group.worker_dies_in_group'\" in result) }}"}
             }
         }
     },
@@ -395,7 +395,7 @@
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_task_outcomes_dag"}
                 },
-                "errorMessage": {"message": "{{ 'reported that the task instance' in result }}"}
+                "errorMessage": {"message": "{{ ('reported that the task instance <TaskInstance: openlineage_task_outcomes_dag.mapped_worker_dies ' in result and 'finished with state failed' in result and 'state attribute is running' in result and 'map_index=1 ' in result) or (\"'DAG Id': 'openlineage_task_outcomes_dag', 'Task Id': 'mapped_worker_dies'\" in result and \"'Map Index': 1\" in result) }}"}
             }
         }
     },
@@ -1074,7 +1074,7 @@
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_task_outcomes_dag"}
                 },
-                "errorMessage": {"message": "{{ 'reported that the task instance' in result }}"}
+                "errorMessage": {"message": "{{ ('reported that the task instance <TaskInstance: openlineage_task_outcomes_dag.worker_dies ' in result and 'finished with state failed' in result and 'state attribute is running' in result) or (\"'DAG Id': 'openlineage_task_outcomes_dag', 'Task Id': 'worker_dies'\" in result) }}"}
             }
         }
     },

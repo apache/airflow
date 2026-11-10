@@ -72,9 +72,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         More information:
         https://developers.google.com/bid-manager/guides/entity-read/overview
 
-        :param partner_id The numeric ID of your Partner.
+        :param partner_id: The numeric ID of your Partner.
         :param entity_type: The type of file Partner, Advertiser, InsertionOrder,
-        LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
+            LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
         """
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 

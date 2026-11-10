@@ -28,12 +28,14 @@ the same Dags run in the e2e tests and in other deployments:
   ``SYSTEM_TESTS_OL_API_PASSWORD`` are used: exchanged for a token on Airflow 3, as basic auth on Airflow 2.
 
 The REST API version follows the Airflow version the task runs on: ``/api/v2`` on Airflow 3, ``/api/v1`` on 2.
+A request that times out is retried a few times, as the API server may be behind a proxy that sometimes hangs.
 """
 
 from __future__ import annotations
 
 import functools
 import json
+import logging
 import os
 import random
 import time
@@ -46,11 +48,14 @@ import requests
 from system.openlineage.expected_events import AIRFLOW_VERSION
 from system.openlineage.operator import log_validation_error
 
+log = logging.getLogger(__name__)
+
 # An empty value (e.g. an unset Docker build arg) counts as unset
 API_URL = (os.getenv("SYSTEM_TESTS_OL_API_URL") or "http://airflow-apiserver:8080").rstrip("/")
 IS_API_V2 = AIRFLOW_VERSION.major >= 3
 POLL_INTERVAL_SECONDS = 2
 TOKEN_ATTEMPTS = 10
+REQUEST_ATTEMPTS = 4
 FINISHED_DAG_RUN_STATES = ("success", "failed")
 
 
@@ -96,13 +101,22 @@ def _get_auth() -> dict[str, Any]:
 
 
 def _request(method: str, path: str, **kwargs) -> Any:
-    response = requests.request(
-        method,
-        f"{API_URL}/api/{'v2' if IS_API_V2 else 'v1'}/{path}",
-        timeout=30,
-        **_get_auth(),
-        **kwargs,
-    )
+    for attempt in range(1, REQUEST_ATTEMPTS + 1):
+        try:
+            response = requests.request(
+                method,
+                f"{API_URL}/api/{'v2' if IS_API_V2 else 'v1'}/{path}",
+                timeout=30,
+                **_get_auth(),
+                **kwargs,
+            )
+            break
+        except requests.exceptions.ReadTimeout:
+            # Reaching the API server through a proxy or an ingress, as a deployment other than the e2e one does,
+            # a request sometimes hangs until its timeout: a new connection usually gets through
+            if attempt == REQUEST_ATTEMPTS:
+                raise
+            log.warning("%s %s timed out (attempt %s/%s), retrying", method, path, attempt, REQUEST_ATTEMPTS)
     if not response.ok:
         raise RuntimeError(f"{method} {path} failed with {response.status_code}: {response.text}")
     return response.json()
@@ -239,6 +253,16 @@ def mark_task_instance(
         body.update(region_id=task_instance["region_id"], region_index=task_instance["region_index"])
     elif task_instance["map_index"] != -1:
         path += f"/{task_instance['map_index']}"
+    if (AIRFLOW_VERSION.major, AIRFLOW_VERSION.minor) == (3, 0) and (include_upstream or include_downstream):
+        # Airflow 3.0 notifies listeners for only one changed TI; non running first so none starts meanwhile
+        affected = _request("PATCH", f"{path}/dry_run", json=body)["task_instances"]
+        current = get_task_instances(dag_id, run_id)
+        for ti in sorted(
+            (_find_task_instance(current, ti["task_id"], ti["map_index"]) or ti for ti in affected),
+            key=lambda ti: ti["state"] == "running",
+        ):
+            mark_task_instance(ti, state)
+        return
     _request("PATCH", path, json=body)
 
 

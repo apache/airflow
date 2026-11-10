@@ -116,13 +116,13 @@ How it works
   schema-compare subclasses (and their decorator forms) -- the match is on the exact
   operator name, so a subclass of your own does not get the tab automatically. Like the
   span-level cost above, the tab's number is a best-effort ``genai-prices`` estimate, not
-  provider-reported billing. With a custom XCom backend that offloads large values to external storage (e.g. ``common.io`` with
-  ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
-  the real value, since the public XCom endpoint it calls never runs the backend's
-  ``deserialize_value``: the model name badge would show the reference string (e.g. an
-  ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
-  string rather than an object -- the tab treats a non-object ``usage`` as absent and
-  hides the stat boxes instead of rendering ``undefined`` in each one.
+  provider-reported billing. With a custom XCom backend that keeps large values in external
+  storage (e.g. ``common.io`` with ``xcom_objectstorage_threshold`` set low), the tab cannot
+  show those values: the public XCom endpoint it calls returns the reference the backend
+  stored in the database, since the API server never runs the backend's
+  ``deserialize_value``. The tab lists the model name, usage or skills kept that way with
+  their reference (e.g. an ``s3://...`` path) instead of rendering them. A model name that is
+  itself a URI, such as one vLLM serves from ``--model s3://...``, is listed that way too.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

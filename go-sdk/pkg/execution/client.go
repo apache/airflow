@@ -88,7 +88,7 @@ func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient
 // supervisor always passes the setting, so an absent or malformed value is a
 // misconfiguration and fails the write rather than silently retaining the key
 // for a period nobody configured.
-func resolveDefaultExpiry(now time.Time) (any, error) {
+func resolveDefaultExpiry(now time.Time) (*genmodels.Time, error) {
 	raw, ok := os.LookupEnv(defaultRetentionDaysEnv)
 	if !ok {
 		return nil, fmt.Errorf(
@@ -117,7 +117,7 @@ func resolveDefaultExpiry(now time.Time) (any, error) {
 			"state_store",
 		)
 	}
-	return expiry, nil
+	return genmodels.TimePtr(expiry), nil
 }
 
 // parseRetentionDays accepts "7.0" because Python's getint does.
@@ -168,29 +168,11 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 		return "", fmt.Errorf("decoding variable result: %w", err)
 	}
 
-	if result.Value == nil {
-		return "", fmt.Errorf("%w: %q", sdk.VariableNotFound, key)
-	}
-
 	// TODO: register secret-named variables with a SecretsMasker so the
 	// returned value is automatically redacted from subsequent task logs,
 	// matching Python's airflow.models.variable.Variable.get behaviour.
 
-	switch v := result.Value.(type) {
-	case string:
-		return v, nil
-	default:
-		// Airflow Variables are stored as strings, but the supervisor
-		// decodes msgpack into native Go types — a supervisor that
-		// returns a list/map/number means the caller stored JSON.
-		// Re-encode it so UnmarshalJSONVariable still works uniformly
-		// across HTTP and coordinator modes.
-		b, err := json.Marshal(v)
-		if err != nil {
-			return "", fmt.Errorf("marshaling variable value: %w", err)
-		}
-		return string(b), nil
-	}
+	return result.Value, nil
 }
 
 // UnmarshalJSONVariable gets a variable and unmarshals its JSON value.
@@ -520,7 +502,7 @@ func (s taskStateStore) Clear(ctx context.Context) error {
 
 // resolveExpiry turns a retention into the wire expires_at. A nil retention -
 // no sdk.WithRetention - follows the deployment default.
-func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
+func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, error) {
 	if retention == nil {
 		return resolveDefaultExpiry(now)
 	}
@@ -535,7 +517,7 @@ func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
 			r,
 		)
 	default:
-		return now.UTC().Add(r), nil
+		return genmodels.TimePtr(now.UTC().Add(r)), nil
 	}
 }
 
