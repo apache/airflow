@@ -22,6 +22,7 @@ import tarfile
 import tempfile
 from abc import abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -29,6 +30,9 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.compat.sdk import AirflowException
+
+if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger
 
 
 def _require_tar_data_filter() -> None:
@@ -74,7 +78,7 @@ class _S3DagBundleBase(BaseDagBundle):
             "aws_conn_id": self.aws_conn_id,
         }
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with the context common to every S3 Dag bundle."""
         return structlog.get_logger(__name__).bind(**self._log_bindings())
 
@@ -188,7 +192,7 @@ class S3DagBundle(_S3DagBundleBase):
         self.prefix = prefix
         super().__init__(aws_conn_id=aws_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this prefix bundle's context."""
         return structlog.get_logger(__name__).bind(**self._log_bindings(), prefix=self.prefix)
 
@@ -255,7 +259,7 @@ class S3ArchiveDagBundle(_S3DagBundleBase):
         self.archive_key = archive_key
         super().__init__(aws_conn_id=aws_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this archive bundle's context."""
         return structlog.get_logger(__name__).bind(**self._log_bindings(), archive_key=self.archive_key)
 
