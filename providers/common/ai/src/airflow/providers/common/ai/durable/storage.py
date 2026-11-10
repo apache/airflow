@@ -30,6 +30,8 @@ log = get_task_logger()
 
 SECTION = "common.ai"
 
+_MISSING = object()
+
 
 @lru_cache(maxsize=1)
 def _get_base_path():
@@ -108,18 +110,24 @@ class DurableStorage:
         """
         Store one journal step and rewrite the journal file.
 
-        :return: ``True`` if the entry was written, ``False`` if it could not be encoded.
+        Best-effort: the save runs *after* the step already succeeded, so an entry that
+        cannot be encoded or a write that fails must not fail the step. It is skipped
+        with a warning, and the step runs again on the next retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it was skipped.
         """
         cache = self._load_cache()
+        previous = cache.get(key, _MISSING)
         cache[key] = entry
         try:
-            text = json.dumps(cache)
-        except (TypeError, ValueError):
-            # Only this entry is skipped; the rest of the journal is still written.
-            del cache[key]
+            self._write(json.dumps(cache))
+        except Exception:
+            if previous is _MISSING:
+                del cache[key]
+            else:
+                cache[key] = previous
             log.warning("Durable: could not store step", key=key, exc_info=True)
             return False
-        self._write(text)
         return True
 
     def load_step(self, key: str) -> dict[str, Any] | None:
