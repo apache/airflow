@@ -31,7 +31,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
+import { useClearKeepTaskStateDefault, useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -48,6 +48,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const { t: translate } = useTranslation();
 
   const [note, setNote] = useState<string | null>(dagRun.note);
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
 
   useEffect(() => {
     if (open) {
@@ -55,8 +57,15 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     }
   }, [dagRun.note, open]);
 
+  useEffect(() => {
+    if (open) {
+      setKeepTaskState(keepTaskStateDefault);
+    }
+  }, [open, keepTaskStateDefault]);
+
   const handleClose = () => {
     setNote(dagRun.note);
+    setKeepTaskState(keepTaskStateDefault);
     onClose();
   };
   const [clearRunDefaultOptions] = useClearRunDefaultOptions();
@@ -122,6 +131,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               dagRunId,
               requestBody: {
                 dry_run: false,
+                ...(keepTaskState ? { keep_task_state: true } : {}),
                 note: note === dagRun.note ? undefined : note,
                 only_failed: onlyFailed,
                 only_new: onlyNew,
@@ -134,20 +144,28 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         </Button>
       }
       footerOptions={
-        shouldShowBundleVersionOption ? (
+        <>
           <Checkbox
-            checked={runOnLatestVersionForced || runOnLatestVersion}
-            disabled={runOnLatestVersionForced}
-            onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-            title={
-              runOnLatestVersionForced
-                ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
-                : undefined
-            }
+            checked={keepTaskState}
+            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
           >
-            {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            {translate("dags:runAndTaskActions.options.keepTaskState")}
           </Checkbox>
-        ) : undefined
+          {shouldShowBundleVersionOption ? (
+            <Checkbox
+              checked={runOnLatestVersionForced || runOnLatestVersion}
+              disabled={runOnLatestVersionForced}
+              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              title={
+                runOnLatestVersionForced
+                  ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                  : undefined
+              }
+            >
+              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            </Checkbox>
+          ) : undefined}
+        </>
       }
       lazyMount
       onOpenChange={(details) => {

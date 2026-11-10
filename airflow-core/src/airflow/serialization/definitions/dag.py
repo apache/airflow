@@ -1153,6 +1153,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> set[str]: ...  # pragma: no cover
 
     @overload
@@ -1170,6 +1171,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1187,6 +1189,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> set[str] | list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1204,6 +1207,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1221,6 +1225,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1238,6 +1243,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1257,6 +1263,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
     ) -> int | Iterable[TaskInstance] | set[str]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1272,6 +1279,7 @@ class SerializedDAG:
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
         :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+        :param keep_task_state: keep the ``task_state_store`` entries so cleared tasks resume from them
         :param session: The sqlalchemy session to use
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared. A task excluded here is still archived when it sits in
@@ -1370,6 +1378,7 @@ class SerializedDAG:
             session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            keep_task_state=keep_task_state,
             later_loop_iterations=not (only_failed or only_running),
             whole_task_keys={
                 (ti.dag_id, ti.run_id, ti.task_id)
@@ -1398,6 +1407,7 @@ class SerializedDAG:
         only_running=False,
         dag_run_state=DagRunState.QUEUED,
         dry_run: bool = False,
+        keep_task_state: bool = False,
     ):
         if dry_run:
             tis = itertools.chain.from_iterable(
@@ -1421,6 +1431,7 @@ class SerializedDAG:
                 only_running=only_running,
                 dag_run_state=dag_run_state,
                 dry_run=False,
+                keep_task_state=keep_task_state,
             )
             for dag in dags
         )

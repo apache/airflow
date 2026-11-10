@@ -42,6 +42,7 @@ type Props = {
 };
 
 export type BulkClearDagRunsOptions = {
+  keepTaskState: boolean;
   note: string | null;
   onlyFailed: boolean;
   onlyNew: boolean;
@@ -99,6 +100,7 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
         note: options.note ?? undefined,
         only_failed: options.onlyFailed,
         only_new: options.onlyNew,
+        ...(options.keepTaskState ? { keep_task_state: true } : {}),
       },
     });
   };

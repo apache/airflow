@@ -31,6 +31,7 @@ from sqlalchemy import delete, func, insert, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -42,12 +43,14 @@ from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.state.metastore import MetastoreBackend
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
@@ -2315,6 +2318,41 @@ class TestClearDagRun:
         )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("url", "extra_body"),
+        [
+            pytest.param(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", {}, id="single"),
+            pytest.param(
+                f"/dags/{DAG1_ID}/clearDagRuns", {"dag_runs": [{"dag_run_id": DAG1_RUN1_ID}]}, id="bulk"
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_dag_run_task_state(self, test_client, session, url, extra_body, keep_task_state):
+        tis = session.scalars(
+            select(TaskInstance).where(TaskInstance.dag_id == DAG1_ID, TaskInstance.run_id == DAG1_RUN1_ID)
+        ).all()
+        for ti in tis:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.commit()
+
+        response = test_client.post(
+            url, json={"dry_run": False, "keep_task_state": keep_task_state, **extra_body}
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == DAG1_RUN1_ID)
+        ).all()
+        assert sorted(remaining) == (sorted(ti.task_id for ti in tis) if keep_task_state else [])
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_whose_dag_version_was_deleted(self, test_client, session):
         """A run that kept its bundle version after ``airflow db clean`` removed its Dag version."""
         session.execute(
@@ -2556,6 +2594,7 @@ class TestClearDagRun:
             only_new=True,
             only_failed=False,
             run_on_latest_version=False,
+            keep_task_state=False,
             session=mock.ANY,
         )
         _check_last_log(

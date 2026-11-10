@@ -132,6 +132,11 @@ class BaseDAGRunClear(StrictBaseModel):
         "then the ``[core] rerun_with_latest_version`` config option, "
         "and finally ``False``.",
     )
+    keep_task_state: bool = Field(
+        default=False,
+        description="Keep the task state store entries of the cleared task instances so the next "
+        "attempt resumes from them. By default they are discarded, so the task starts over.",
+    )
     note: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="before")

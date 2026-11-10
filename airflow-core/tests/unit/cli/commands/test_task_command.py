@@ -846,6 +846,14 @@ class TestCliTasks:
 
         assert capsys.readouterr().out == expected_stdout
 
+    @pytest.mark.parametrize(("extra_args", "expected"), [([], False), (["--keep-task-state"], True)])
+    @mock.patch("airflow.cli.commands.task_command.SerializedDAG.clear_dags", autospec=True)
+    def test_task_clear_keep_task_state(self, mock_clear_dags, extra_args, expected):
+        args = self.parser.parse_args(["tasks", "clear", "example_bash_operator", "--yes", *extra_args])
+        task_command.task_clear(args)
+
+        assert mock_clear_dags.call_args.kwargs["keep_task_state"] is expected
+
     def test_task_clear_task_regex_invalid_pattern_reported_before_dag_lookup(self):
         args = self.parser.parse_args(["tasks", "clear", "no_such_dag", "--task-regex", "runme_[", "--yes"])
         with pytest.raises(SystemExit, match=r"Invalid --task-regex 'runme_\['"):

@@ -1523,6 +1523,17 @@ class TestCliDagsClear:
             dag_command.dag_clear(args)
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(("extra_args", "expected"), [([], False), (["--keep-task-state"], True)])
+    @mock.patch("airflow.cli.commands.dag_command._bulk_clear_runs", autospec=True, return_value=1)
+    def test_keep_task_state(self, mock_bulk_clear_runs, parser, extra_args, expected):
+        args = parser.parse_args(
+            ["dags", "clear", self.DAG_ID, "--run-id", "part_2026_03_10", "--yes", *extra_args]
+        )
+        dag_command.dag_clear(args)
+
+        assert mock_bulk_clear_runs.call_args.kwargs["keep_task_state"] is expected
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
     def test_rejects_inverted_window(self, parser):
         args = parser.parse_args(
             [

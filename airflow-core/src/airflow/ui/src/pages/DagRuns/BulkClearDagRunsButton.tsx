@@ -24,11 +24,12 @@ import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
-import { Modal, SegmentedControl } from "src/system-components";
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 
+import { useClearKeepTaskStateDefault } from "src/hooks/useUserSettings";
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
 
@@ -42,6 +43,8 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const [note, setNote] = useState<string | null>(null);
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const { bulkClear, error, isPending } = useBulkClearDagRuns({
     deselectKeys,
     onSuccessConfirm: onClose,
@@ -49,6 +52,7 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
 
   const handleClose = () => {
     setNote(null);
+    setKeepTaskState(keepTaskStateDefault);
     onClose();
   };
 
@@ -73,12 +77,20 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
             disabled={affectedTasks.total_entries === 0}
             loading={isPending || isFetching}
             onClick={() => {
-              bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
+              bulkClear(selectedDagRuns, { keepTaskState, note, onlyFailed, onlyNew });
             }}
           >
             <CgRedo />
             {translate("modal.confirm")}
           </Button>
+        }
+        footerOptions={
+          <Checkbox
+            checked={keepTaskState}
+            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+          >
+            {translate("dags:runAndTaskActions.options.keepTaskState")}
+          </Checkbox>
         }
         onOpenChange={handleClose}
         open={open}

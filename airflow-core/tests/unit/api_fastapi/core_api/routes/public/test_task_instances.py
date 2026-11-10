@@ -4677,6 +4677,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             prevent_running_task=False,
             run_on_latest_version=False,
             whole_task_keys=set(),
+            keep_task_state=False,
         )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
@@ -5382,9 +5383,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert self._task_state_rows(session, dag_id)
 
     @pytest.mark.db_test
-    @mock.patch.object(MetastoreBackend, "clear", side_effect=RuntimeError("boom"))
+    @mock.patch(
+        "airflow.models.taskinstance._discard_task_state_store",
+        autospec=True,
+        side_effect=RuntimeError("boom"),
+    )
     def test_clear_task_state_store_discard_failure_fails_request(self, mock_clear, test_client, session):
-        """A backend.clear() failure fails the whole request instead of reporting a partial clear as success."""
+        """A discard failure fails the whole request instead of reporting a partial clear as success."""
         dag_id = "example_python_operator"
         self.create_task_instances(
             session,
