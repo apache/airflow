@@ -145,7 +145,7 @@ core-internal, and two of them subtract from the wire rather than add to it.
 
 | Decision | Change |
 |---|---|
-| 2 | Gate identification stops reading `task_instance.operator == "LoopGateOperator"` and resolves `gate_task_id` off the serialized group instead. Four call sites: the two task-instance route modules, `serialization/definitions/dag.py` and `models/taskinstance.py`. |
+| 2 | Gate identification stops reading `task_instance.operator == "LoopGateOperator"` and resolves `gate_task_id` off the serialized group instead. Five modules: the two task-instance route modules, `jobs/scheduler_job_runner.py`, `serialization/definitions/dag.py` and `models/taskinstance.py`. |
 | 4 | A gate with `has_until: false` completes in the scheduler, so it sends no `ti_run` and no `SucceedTask` at all. |
 | 8 | `redact(reason)` moves out of the task process (`execution_time/loop.py`) into the supervisor, beside the redaction it already does for logs. |
 
