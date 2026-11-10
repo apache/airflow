@@ -93,13 +93,13 @@ def airflow_tools_from_toolset(toolset: AbstractToolset[Any], *, deps: Any = Non
     :param toolset: The pydantic-ai toolset to expose.
     :param deps: Exposed to the toolset as ``ctx.deps``.
     """
-    ctx = _inert_context(deps)
+    ctx = _build_inert_context(deps)
     toolset_tools = run_coroutine_sync(toolset.get_tools(ctx))
     in_order = _InOrder()
     return [_as_airflow_tool(toolset, name, tool, ctx, in_order) for name, tool in toolset_tools.items()]
 
 
-def _inert_context(deps: Any = None) -> RunContext[Any]:
+def _build_inert_context(deps: Any = None) -> RunContext[Any]:
     return RunContext(deps=deps, model=TestModel(), usage=RunUsage(), max_retries=1)
 
 
@@ -114,7 +114,7 @@ def _is_naming_wrapper(
     return type(toolset) in _NAMING_WRAPPERS
 
 
-def airflow_tools_of(source: object) -> list[AirflowTool]:
+def resolve_airflow_tools(source: object) -> list[AirflowTool]:
     """
     Return the tools of a toolset a framework adapter was given.
 
@@ -128,7 +128,8 @@ def airflow_tools_of(source: object) -> list[AirflowTool]:
 
     :raises TypeError: when ``source`` is any other wrapper, such as ``.approval_required()``,
         or there is no ``airflow_tools()`` method under its wrappers.
-    :raises ValueError: when a ``.renamed()`` map names a tool the toolset does not have.
+    :raises ValueError: when a ``.renamed()`` map sends an offered name to a name the toolset does
+        not have, such as a map written backwards.
     """
     # Looked up, not checked against ToolProvider: since Python 3.12 a Protocol check misses a
     # method that a mock or proxy only provides through __getattr__.
@@ -136,7 +137,7 @@ def airflow_tools_of(source: object) -> list[AirflowTool]:
     if callable(own):
         return list(own())
     if not _is_naming_wrapper(source):
-        raise TypeError(_cannot_take(source))
+        raise TypeError(_describe_unsupported_toolset(source))
     renames: list[PrefixedToolset[Any] | RenamedToolset[Any]] = []
     inner: AbstractToolset[Any] = source
     while _is_naming_wrapper(inner):
@@ -145,9 +146,9 @@ def airflow_tools_of(source: object) -> list[AirflowTool]:
         inner = inner.wrapped
     provide = getattr(inner, "airflow_tools", None)
     if not callable(provide):
-        raise TypeError(_cannot_take(inner))
+        raise TypeError(_describe_unsupported_toolset(inner))
     by_name = {tool.name: tool for tool in provide()}
-    offered = run_coroutine_sync(source.get_tools(_inert_context()))
+    offered = run_coroutine_sync(source.get_tools(_build_inert_context()))
     tools = []
     for name in offered:
         # Map the offered name back through each wrapper, as its ``call_tool`` does.
@@ -167,8 +168,7 @@ def airflow_tools_of(source: object) -> list[AirflowTool]:
     return tools
 
 
-def _cannot_take(toolset: object) -> str:
-    kind = type(toolset).__name__
+def _describe_unsupported_toolset(toolset: object) -> str:
     if isinstance(toolset, ApprovalRequiredToolset):
         return (
             "AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another "
@@ -177,6 +177,8 @@ def _cannot_take(toolset: object) -> str:
             "AgentOperator; a framework's own tool approval, such as needs_approval in the OpenAI "
             "Agents SDK, stops the run and nothing in Airflow resumes it."
         )
+
+    kind = type(toolset).__name__
     if isinstance(toolset, WrapperToolset):
         return (
             f"AirflowTools cannot read through {kind}. Only .filtered(), .prefixed() and .renamed() "

@@ -178,7 +178,7 @@ def collect_tools(sources: Iterable[ToolSource]) -> list[AirflowTool]:
     :raises ValueError: when two tools share a name. Frameworks route a call by name, so one
         of them would silently never run; give the toolsets different ``tool_prefix`` values,
         where they take one, or wrap them with ``.prefixed()``. Also when a ``.renamed()`` map
-        names a tool the toolset does not have.
+        sends an offered name to a name the toolset does not have, such as a map written backwards.
     """
     return _collect_tools(sources)
 
@@ -191,7 +191,7 @@ def _collect_tools(sources: Iterable[ToolSource], *, mcp_hint: str | None = None
         replaces the generic advice in the error raised for an ``MCPToolset``.
     """
     # Circular import: _from_toolset imports AirflowTool from this module.
-    from airflow.providers.common.ai.tools._from_toolset import airflow_tools_of
+    from airflow.providers.common.ai.tools._from_toolset import resolve_airflow_tools
 
     tools: list[AirflowTool] = []
     for source in sources:
@@ -199,7 +199,7 @@ def _collect_tools(sources: Iterable[ToolSource], *, mcp_hint: str | None = None
             tools.append(source)
             continue
         try:
-            tools.extend(airflow_tools_of(source))
+            tools.extend(resolve_airflow_tools(source))
         except MCPToolsetNotSupportedError:
             if mcp_hint is None:
                 raise
