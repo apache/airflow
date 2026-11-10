@@ -27,6 +27,7 @@ from airflow.providers.common.ai.utils.query_results import (
     build_get_schema_description,
     build_query_result,
     build_schema_result,
+    truncate_comment,
 )
 
 
@@ -361,3 +362,43 @@ class TestSchemaToolName:
         )
         assert "Call pg_get_schema without name_contains" in no_match["hint"]
         assert "Call pg_get_schema with a name_contains substring" in summary["hint"]
+
+
+@pytest.mark.parametrize(
+    ("comment", "expected"),
+    [
+        pytest.param("short", "short", id="under-limit"),
+        pytest.param("a" * 200, "a" * 200, id="at-limit"),
+        pytest.param("a" * 201, "a" * 199 + "\u2026", id="over-limit"),
+    ],
+)
+def test_truncate_comment(comment, expected):
+    assert truncate_comment(comment) == expected
+
+
+class TestSchemaComments:
+    def test_table_comment_is_returned_only_when_present(self):
+        with_comment = json.loads(
+            build_schema_result(
+                _cols(2), max_columns=100, max_result_bytes=65_536, table_comment="Customer orders"
+            )
+        )
+        without = json.loads(build_schema_result(_cols(2), max_columns=100, max_result_bytes=65_536))
+        assert with_comment["table_comment"] == "Customer orders"
+        assert "table_comment" not in without
+
+    def test_summary_keeps_table_comment_and_drops_column_comments(self):
+        cols = [{**col, "comment": "note"} for col in _cols(250)]
+        data = json.loads(
+            build_schema_result(cols, max_columns=100, max_result_bytes=65_536, table_comment="Wide table")
+        )
+        assert data["truncated_by"] == "max_columns"
+        assert data["table_comment"] == "Wide table"
+        assert data["comments_omitted"] is True
+        assert "comments are omitted" in data["hint"]
+        assert all("comment" not in col for col in data["sample_columns"])
+
+    def test_summary_without_comments_is_unchanged(self):
+        data = json.loads(build_schema_result(_cols(250), max_columns=100, max_result_bytes=65_536))
+        assert "comments_omitted" not in data
+        assert "table_comment" not in data

@@ -64,6 +64,10 @@ _SCHEMA_TYPE_HISTOGRAM_OTHER_KEY = "(other)"
 # "here is what the names look like, now filter", never as a usable prefix of the table.
 _SCHEMA_SAMPLE_SIZE = 20
 
+# Longest table or column comment returned, in characters. Comments are free text written by
+# people, so one pasted paragraph must not be able to dominate the result.
+DEFAULT_MAX_COMMENT_CHARS = 200
+
 # Tool results are machine-read, so no whitespace. ensure_ascii=False matters as much as
 # the separators: escaping one CJK character to \uXXXX costs six bytes instead of three,
 # so an ASCII-escaped result is charged several times over against the budget and
@@ -95,7 +99,8 @@ _GET_SCHEMA_DESCRIPTION_TEMPLATE = (
     "where the budget allows a `type_histogram` and a `sample_columns` preview) with `truncated` "
     "set, `truncated_by` naming the limit that was hit, and a `hint`. Call {tool_name} again with "
     "a `name_contains` substring to retrieve the specific columns you need instead of the whole "
-    "table."
+    "table. A column or the table itself carries a `comment` when the database provides one; "
+    "`comments_omitted` in a summary means they were left out to fit."
 )
 
 
@@ -106,6 +111,13 @@ def build_get_schema_description(*, tool_name: str = "get_schema") -> str:
 
 def _dumps(payload: Any) -> str:
     return dumps_masked(payload, **_DUMP_KWARGS)
+
+
+def truncate_comment(comment: str, *, max_chars: int = DEFAULT_MAX_COMMENT_CHARS) -> str:
+    """Cap ``comment`` to ``max_chars`` characters, marking a cut with a trailing ellipsis."""
+    if len(comment) <= max_chars:
+        return comment
+    return comment[: max_chars - 1] + "\u2026"
 
 
 def _size(payload: Any) -> int:
@@ -228,6 +240,7 @@ def build_schema_result(
     max_result_bytes: int,
     name_contains: str | None = None,
     tool_name: str = "get_schema",
+    table_comment: str | None = None,
 ) -> str:
     """
     Render a table's columns as a bounded JSON tool result.
@@ -238,7 +251,11 @@ def build_schema_result(
     the way to retrieve specific columns. ``columns`` is assumed to hold distinct names (a table's
     introspected columns are unique by construction).
 
-    :param columns: ``{"name", "type"}`` dicts in table order.
+    Comments count against the same budget as the columns: each one is capped to
+    ``DEFAULT_MAX_COMMENT_CHARS`` characters, and when the result still does not fit, the summary
+    drops the column comments (and says so) rather than the column names.
+
+    :param columns: ``{"name", "type"}`` dicts in table order, each optionally with a ``comment``.
     :param max_columns: Column count above which a summary replaces the full list.
     :param max_result_bytes: Budget for the serialized result.
     :param name_contains: Case-insensitive substring. When given (and non-empty), only matching
@@ -246,8 +263,12 @@ def build_schema_result(
         for the whole table.
     :param tool_name: Name of the ``get_schema`` tool as the model sees it (including any
         ``tool_prefix``), so hints point at this toolset's own tool.
+    :param table_comment: The table's comment, returned as ``table_comment`` when non-empty.
     """
     name_contains = name_contains or None
+    columns = [
+        {**col, "comment": truncate_comment(col["comment"])} if "comment" in col else col for col in columns
+    ]
     total_columns = len(columns)
     if name_contains is not None:
         needle = name_contains.casefold()
@@ -280,6 +301,8 @@ def build_schema_result(
         )
 
     full: dict[str, Any] = {"columns": selected, "column_count": len(selected)}
+    if table_comment:
+        full["table_comment"] = truncate_comment(table_comment)
     if name_contains is not None:
         full["name_contains"] = name_contains
         full["total_columns"] = total_columns
@@ -293,6 +316,7 @@ def build_schema_result(
         max_result_bytes=max_result_bytes,
         name_contains=name_contains,
         tool_name=tool_name,
+        table_comment=full.get("table_comment"),
     )
 
 
@@ -304,6 +328,7 @@ def _summarize_schema(
     max_result_bytes: int,
     name_contains: str | None,
     tool_name: str,
+    table_comment: str | None,
 ) -> str:
     """Build the bounded summary returned when the full column list does not fit."""
     # Count is checked before bytes: it is the cheaper, more explainable bound. A bytes-only
@@ -328,6 +353,12 @@ def _summarize_schema(
         "truncated_by": truncated_by,
         "hint": f"{reason} {move}",
     }
+    if table_comment:
+        output["table_comment"] = table_comment
+    if any("comment" in col for col in selected):
+        output["comments_omitted"] = True
+        output["hint"] += " Column comments are omitted from this summary and are returned with the columns."
+        selected = [{k: v for k, v in col.items() if k != "comment"} for col in selected]
     if name_contains is not None:
         output["name_contains"] = name_contains
         output["total_columns"] = total_columns
