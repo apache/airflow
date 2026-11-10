@@ -3704,6 +3704,97 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
+    ("files", "pr_labels", "github_event", "expected_constraints", "expected_pypi"),
+    [
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "false",
+            "false",
+            id="provider-source-needs-neither",
+        ),
+        pytest.param(
+            ("airflow-core/docs/index.rst",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "false",
+            "false",
+            id="docs-build-the-ci-image-only",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            ("area:e2e-tests",),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "false",
+            id="prod-image-needs-source-constraints-only",
+        ),
+        pytest.param(
+            ("providers/edge3/pyproject.toml",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="provider-pyproject-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("uv.lock", "airflow-core/src/airflow/models/dag.py"),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="uv-lock-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("scripts/in_container/run_generate_constraints.py",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="constraints-script-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            ("upgrade to newer dependencies",),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="upgrade-label-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            ("canary",),
+            GithubEvents.PULL_REQUEST,
+            "true",
+            "true",
+            id="canary-label-resolves-against-pypi",
+        ),
+        pytest.param(
+            ("providers/edge3/src/airflow/providers/edge3/models/edge_job.py",),
+            (),
+            GithubEvents.SCHEDULE,
+            "true",
+            "true",
+            id="schedule-resolves-against-pypi",
+        ),
+    ],
+)
+def test_generate_constraints(files, pr_labels, github_event, expected_constraints, expected_pypi):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=github_event,
+        default_branch="main",
+        pr_labels=pr_labels,
+    )
+    assert_outputs_are_printed(
+        {"generate-constraints": expected_constraints, "generate-pypi-constraints": expected_pypi},
+        str(checks),
+    )
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs"),
     [
         pytest.param(
@@ -5949,6 +6040,8 @@ def test_component_branch_upgrades_dependencies_only_with_the_ci_image(context, 
     checks = _component_branch_checks(context, ("airflow-ctl/pyproject.toml", "chart/pyproject.toml"))
 
     assert checks.upgrade_to_newer_dependencies is expected
+    assert checks.generate_constraints is expected
+    assert checks.generate_pypi_constraints is expected
 
 
 @pytest.mark.parametrize(

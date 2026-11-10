@@ -2169,6 +2169,24 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    def generate_pypi_constraints(self) -> bool:
+        # Without a dependency or tooling change this resolution only reports on the state of PyPI,
+        # which the canary runs cover. Their dependency report and `update-constraints` read its output.
+        if not self.ci_image_build:
+            return False
+        return (
+            self.upgrade_to_newer_dependencies
+            or self.is_uv_lock_update
+            or self.full_tests_needed
+            or self._is_canary_run()
+        )
+
+    @cached_property
+    def generate_constraints(self) -> bool:
+        # The PROD image build reads the source-providers constraints the job always generates.
+        return self.generate_pypi_constraints or self.prod_image_build
+
+    @cached_property
     def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
