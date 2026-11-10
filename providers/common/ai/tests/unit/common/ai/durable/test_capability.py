@@ -33,8 +33,8 @@ from unittest import mock
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
-from pydantic_ai.capabilities import AbstractCapability, durable_operation
-from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
+from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior, UserError
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
@@ -44,7 +44,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.durable import AirflowDurability
@@ -477,6 +477,15 @@ def _function_toolset(calls: Calls, result: Any) -> FunctionToolset[None]:
     return toolset
 
 
+def _dynamic_toolset(calls: Calls, result: Any) -> DynamicToolset[None]:
+    """A dynamic toolset that builds :func:`_function_toolset` per run step."""
+
+    async def build(ctx: RunContext[None]) -> FunctionToolset[None]:
+        return _function_toolset(calls, result)
+
+    return DynamicToolset(build, id="dynamic_db")
+
+
 @dataclasses.dataclass
 class _Event:
     """A tool result of the user's own whose ``kind`` matches pydantic-ai's recorded tool return."""
@@ -887,11 +896,182 @@ class TestAirflowToolsets:
         assert calls["model"] == 3
 
 
+def _ops_toolset(calls: Calls, *, clock_metadata: dict[str, Any] | None = None, clock_changes: bool = False):
+    toolset = FunctionToolset(id="ops")
+
+    @toolset.tool_plain(metadata=clock_metadata)
+    def clock() -> str:
+        """Read the time."""
+        calls.bump("clock")
+        return f"tick {calls['clock']}" if clock_changes else "tick"
+
+    @toolset.tool_plain
+    def lookup(key: str) -> str:
+        """Look a key up."""
+        calls.bump("lookup")
+        return "value"
+
+    return toolset
+
+
+def clock_then_lookup(calls: Calls, *, fail_final: list[bool]):
+    """A model that calls ``clock``, then ``lookup``, then answers."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        calls.bump("model")
+        match responses_so_far(messages):
+            case 0:
+                return ModelResponse(parts=[ToolCallPart("clock", {})])
+            case 1:
+                return ModelResponse(parts=[ToolCallPart("lookup", {"key": "a"})])
+        if fail_final[0]:
+            raise RuntimeError("worker died")
+        return ModelResponse(parts=[TextPart("done")])
+
+    return model_fn
+
+
+class TestToolOptOut:
+    """A tool whose metadata says ``{"airflow": False}`` runs live on every attempt."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("clock_metadata", "extra_capabilities"),
+        [
+            pytest.param({"airflow": False}, [], id="tool-metadata"),
+            pytest.param(None, [SetToolMetadata(tools=["clock"], airflow=False)], id="SetToolMetadata"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("clock_changes", "expected_model_calls", "expected_lookups"),
+        [
+            pytest.param(False, 4, 1, id="same-result"),
+            # The request after the clock sees a different result, so it and the steps after it run again.
+            pytest.param(True, 5, 2, id="new-result"),
+        ],
+    )
+    async def test_an_opted_out_function_tool_runs_again_and_the_other_steps_replay(
+        self,
+        memory_storage,
+        clock_metadata,
+        extra_capabilities,
+        clock_changes,
+        expected_model_calls,
+        expected_lookups,
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
+                name="ops",
+                toolsets=[_ops_toolset(calls, clock_metadata=clock_metadata, clock_changes=clock_changes)],
+                capabilities=[AirflowDurability(), *extra_capabilities],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "done"
+        assert calls["clock"] == 2
+        assert (calls["model"], calls["lookup"]) == (expected_model_calls, expected_lookups)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("opt_out_on_attempt", [1, 2], ids=["opted-out-first", "opted-out-on-retry"])
+    @pytest.mark.parametrize("dynamic", [False, True], ids=["function", "dynamic"])
+    async def test_turning_the_opt_out_on_or_off_between_attempts_keeps_the_rest_replaying(
+        self, memory_storage, opt_out_on_attempt, dynamic
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build(attempt_number: int) -> Agent[None, str]:
+            opt_out = [SetToolMetadata(tools=["clock"], airflow=False)]
+
+            async def ops(ctx: RunContext[None]) -> FunctionToolset[None]:
+                return _ops_toolset(calls)
+
+            return Agent(
+                FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
+                name="ops",
+                toolsets=[DynamicToolset(ops, id="dynamic_ops") if dynamic else _ops_toolset(calls)],
+                capabilities=[
+                    AirflowDurability(),
+                    *(opt_out if attempt_number == opt_out_on_attempt else []),
+                ],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build(1))
+        fail_final[0] = False
+        await attempt(memory_storage, build(2))
+
+        # The clock is live on the attempt that opts it out, and has nothing to replay after one
+        # that did; the model requests and the lookup replay either way.
+        assert (calls["clock"], calls["lookup"], calls["model"]) == (2, 1, 4)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("airflow", "expected_queries"), [(False, 2), (True, 1)], ids=["opted-out", "journaled"]
+    )
+    @pytest.mark.parametrize(
+        "build_toolset",
+        [_function_toolset, _WarehouseToolset, _dynamic_toolset],
+        ids=["function", "airflow", "dynamic"],
+    )
+    async def test_set_tool_metadata_decides_whether_a_tool_replays(
+        self, memory_storage, build_toolset, airflow, expected_queries
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[build_toolset(calls, "3 rows")],
+                capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=airflow)],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == expected_queries
+        # The model request that chose the query replayed either way.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", ["false", 0])
+    @pytest.mark.parametrize("build_toolset", [_function_toolset, _WarehouseToolset])
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_is_refused(
+        self, memory_storage, value, build_toolset
+    ):
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[build_toolset(calls, "3 rows")],
+            capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=value)],
+        )
+
+        with pytest.raises(UserError, match="Tool 'query' has invalid 'airflow' metadata"):
+            await attempt(memory_storage, agent)
+        assert calls["query"] == 0
+
+
 class Answer(BaseModel):
     rows: int
 
 
-def build_analyst(calls: Calls, queries: list[str]) -> Agent[None, str]:
+def build_analyst(
+    calls: Calls, queries: list[str], metadata: dict[str, Any] | None = None
+) -> Agent[None, str]:
     """An analyst whose first answer queries a column that does not exist; later answers query one that does."""
 
     def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
@@ -903,7 +1083,7 @@ def build_analyst(calls: Calls, queries: list[str]) -> Agent[None, str]:
 
     toolset = FunctionToolset(id="db")
 
-    @toolset.tool_plain
+    @toolset.tool_plain(metadata=metadata)
     def query(sql: str) -> str:
         queries.append(sql)
         if "nope" in sql:
@@ -1014,8 +1194,10 @@ class TestModelAtFault:
         assert (calls["model"], calls["query"]) == (2, 2)
 
     @pytest.mark.asyncio
+    # An opted-out call still takes its step, so its failures count the same way.
+    @pytest.mark.parametrize("metadata", [None, {"airflow": False}], ids=["journaled", "opted-out"])
     async def test_a_tool_that_keeps_failing_on_the_models_arguments_asks_the_model_again(
-        self, memory_storage
+        self, memory_storage, metadata
     ):
         """The second attempt retries the same call in case the failure was transient; the third asks the model."""
         calls = Calls()
@@ -1023,8 +1205,8 @@ class TestModelAtFault:
 
         for _ in range(2):
             with pytest.raises(ValueError, match="column nope"):
-                await attempt(memory_storage, build_analyst(calls, queries))
-        result = await attempt(memory_storage, build_analyst(calls, queries))
+                await attempt(memory_storage, build_analyst(calls, queries, metadata))
+        result = await attempt(memory_storage, build_analyst(calls, queries, metadata))
 
         assert result.output == "answer: 3 rows"
         assert queries == ["select nope", "select nope", "select 1"]

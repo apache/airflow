@@ -42,8 +42,7 @@ model, so a model id is the whole integration.
      - Needs
      - Runs
    * - ``typesafe:``
-     - ``pydantic-ai-slim`` 2.45.0 or later (2.46.0 for the examples on this page, which
-       describe options with ``UseEnumMemberDocstrings``) and the provider's ``typesafe`` extra
+     - The provider's ``typesafe`` extra
      - `TypeSafe <https://typesafe.ai>`__'s hosted Jev.
    * - ``system-one:``
      - ``pydantic-ai-slim`` 2.53.0 or later, no extra
@@ -55,8 +54,8 @@ model, so a model id is the whole integration.
        it. `pydantic-ai's System One page <https://pydantic.dev/docs/ai/models/system-one/>`__
        lists more.
 
-Both prefixes need a newer ``pydantic-ai-slim`` than the floor the provider's other extras
-set, so check the release you have installed.
+``system-one:`` needs a newer ``pydantic-ai-slim`` than the provider's minimum, so check the
+release you have installed.
 
 Setup
 -----

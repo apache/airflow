@@ -167,6 +167,8 @@ class JournalStep:
         except Exception as error:
             self.fail(error)
             raise
+        if not self.replayable:
+            return payload
         if isinstance(payload, Unrecordable):
             self.cannot_record(payload.error)
         else:
@@ -403,8 +405,9 @@ class DurableRun:
             fingerprinted. A step without one replays on a matching name, and only right
             after a step that replayed.
         :param replayable: ``False`` for a step that must always run live, such as a tool
-            whose effect Airflow cannot observe. It still takes a position, so the steps
-            after it keep theirs, but nothing is looked up or recorded for it.
+            whose effect Airflow cannot observe or one its metadata opts out. It still takes
+            a position, so the steps after it keep theirs, but nothing is looked up or
+            recorded for it.
         """
         return self._claim(name, kind=kind, fingerprint=fingerprint, replayable=replayable, count_replay=True)
 

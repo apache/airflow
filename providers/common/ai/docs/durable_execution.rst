@@ -210,11 +210,13 @@ The journal records:
 
 - model requests, including streamed ones;
 - calls to tools from any toolset, including the provider's own toolsets, MCP servers,
-  toolsets built per run, and toolsets supplied by capabilities;
+  toolsets built per run, and toolsets supplied by capabilities, except the tools you
+  :ref:`set to run on every attempt <durable-tool-opt-out>`;
 - tool discovery for MCP and per-run toolsets;
 - ``@durable_operation`` methods of other capabilities, such as the spend accounting of
   pydantic-ai-harness ``SpendLimits`` and the summarization of ``SummarizingCompaction``,
-  so a retry neither charges the spend twice nor pays for a summary again.
+  so a retry neither charges the spend twice nor pays for a summary again, unless the
+  summary follows a tool set to run on every attempt.
 
 A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
 ``CallDeferred`` replays as the same signal. ``AgentOperator`` does not support tool
@@ -398,10 +400,6 @@ reject the duplicate.
 Tool results are masked by Airflow's secret masker before they are recorded, so a
 connection password in a result reaches the journal as ``***``.
 
-A toolset can opt out of replay. ``ManagedAgentToolset`` does by default
-(``replayable=False``), because a managed agent acts on a system Airflow cannot observe:
-its calls run again on every attempt, while the steps around them still replay.
-
 A result has to survive a JSON round trip to be recorded. Bytes a tool returns, on their
 own or as values anywhere inside dicts and lists, are recorded as base64, and a retry
 replays the same bytes. Only ``bytes`` is converted. ``bytearray``, ``memoryview``, a
@@ -413,6 +411,69 @@ tool call run again. Put bytes in a dict instead. A result the journal cannot en
 such as an object with no JSON form, fails the task with ``DurableJournalError`` and no
 retry, since it would fail the same way every time. A write the storage refuses or
 fails does not fail the task: the task log names the step, and a retry runs it again.
+
+.. _durable-tool-opt-out:
+
+Run a tool on every attempt
+---------------------------
+
+Some tools must run again on a retry rather than replay: one whose answer has to be
+current, such as today's date or the state of a job, and one whose effect does not outlive
+the attempt, such as a file in a temporary directory. Give such a tool the metadata
+``{"airflow": False}``. For a tool in a toolset you do not build yourself, such as
+``SQLToolset``, select it by name with pydantic-ai's ``SetToolMetadata`` capability:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_agent_durable_tool_opt_out]
+    :end-before: [END howto_agent_durable_tool_opt_out]
+
+On a retry, ``today`` and every ``query`` call run again, and the model requests and the
+other tool calls still replay. A live call that returns what it returned on the last
+attempt leaves the model requests and tool calls after it replaying. One that returns
+something new changes the conversation the model sees, so the model requests after it,
+and the tool calls they make, run again. A capability that writes into the conversation
+right after the live call (a compaction summary, say) runs again too: its
+``@durable_operation`` has no request to compare, so it replays only after a step that
+replayed. The summary it writes can then make the steps after it run again.
+
+You can turn the opt-out on or off between attempts. The call keeps its place in the
+journal and the setting is left out when a model request is compared, so later steps still
+replay. Failures still count, too. Two in a row with the same arguments, and the next retry
+asks the model again.
+
+Where the setting goes depends on the toolset:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 65
+
+   * - Toolset
+     - How to opt a tool out
+   * - ``FunctionToolset``, tools passed to the agent
+     - ``metadata={"airflow": False}`` on the tool, or ``SetToolMetadata``.
+   * - ``SQLToolset``, ``HookToolset``, the provider's ``MCPToolset``, and any other toolset
+     - ``SetToolMetadata``. On a toolset built on ``AirflowToolset``, setting
+       ``replayable = False`` opts all its tools out; ``ManagedAgentToolset`` does by
+       default, because a managed agent acts on a system Airflow cannot observe.
+   * - ``DynamicToolset``
+     - ``SetToolMetadata``. Its tool list replays from the journal, so metadata set inside
+       the toolset can keep the value an earlier attempt saw.
+   * - ``pydantic_ai.mcp.MCPToolset``
+     - Not supported; pydantic-ai raises the error below when an opted-out tool is called.
+
+The error from pydantic-ai's ``MCPToolset``:
+
+.. code-block:: text
+
+    pydantic_ai.exceptions.UserError: Airflow durable config for MCP tool 'get_forecast' has been explicitly set to `False` (durable execution disabled), but MCP tools perform I/O and cannot run outside a durable step. Remove the metadata so the call stays durable.
+
+Any value other than ``True``, ``False`` or ``None`` is refused when the tool is called. The
+attempt fails, as do its retries:
+
+.. code-block:: text
+
+    pydantic_ai.exceptions.UserError: Tool 'today' has invalid 'airflow' metadata: expected True or False, got str.
 
 Limitations
 -----------
