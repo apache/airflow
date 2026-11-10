@@ -2190,7 +2190,15 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(file.startswith(("airflow-core/src/airflow/", "airflow-core/docs/")) for file in self._files):
+        # Core and Task SDK release together, so either side's docs may link to a page in the
+        # other that is not published yet. Building both resolves those links locally.
+        core_or_task_sdk_changed = any(
+            file.startswith(
+                ("airflow-core/src/airflow/", "airflow-core/docs/", "task-sdk/src/", "task-sdk/docs/")
+            )
+            for file in self._files
+        )
+        if core_or_task_sdk_changed:
             packages.append("apache-airflow")
         if any(file.startswith("providers-summary-docs/") for file in self._files):
             packages.append("apache-airflow-providers")
@@ -2198,7 +2206,7 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
-        if any(file.startswith("task-sdk/src/") for file in self._files):
+        if core_or_task_sdk_changed:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
