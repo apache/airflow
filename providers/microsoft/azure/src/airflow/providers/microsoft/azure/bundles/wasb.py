@@ -301,11 +301,11 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
         staging_dir = Path(tempfile.mkdtemp(dir=self.base_dir, prefix="archive-staging-"))
         try:
             archive_path = staging_dir / "_bundle_archive"
-            download_kwargs = {}
             if etag:
-                download_kwargs["etag"] = etag
-                download_kwargs["match_condition"] = MatchConditions.IfNotModified
-            payload = blob.download_blob(**download_kwargs).readall()
+                downloader = blob.download_blob(etag=etag, match_condition=MatchConditions.IfNotModified)
+            else:
+                downloader = blob.download_blob()
+            payload = downloader.readall()
             archive_path.write_bytes(payload)
 
             unpack_dir = staging_dir / "unpacked"
