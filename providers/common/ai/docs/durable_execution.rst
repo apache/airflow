@@ -65,30 +65,64 @@ The capability needs a name for the agent's steps: the agent's ``name``, or
 ``agent_params`` sets one, and the task id otherwise. Outside a running Airflow task
 the capability does nothing, so the same agent runs normally in a test or a notebook.
 
-Give every toolset an id
-------------------------
+.. _durable-toolset-ids:
 
-pydantic-ai records each call of a ``FunctionToolset``, ``MCPToolset`` or
-``DynamicToolset`` under the toolset's ``id``, and refuses to run one without it. Set
-the id on the toolset itself:
+Toolset ids
+-----------
 
-.. code-block:: python
+pydantic-ai names the recorded steps of a ``FunctionToolset``, ``MCPToolset`` or
+``DynamicToolset`` after the toolset's ``id``. ``AgentOperator`` and ``@task.agent`` fill
+in the ids you leave out of a ``FunctionToolset`` and of a function that builds a toolset
+for each run passed in ``toolsets`` or ``agent_params["toolsets"]``, and of a
+``FunctionToolset`` held directly by a ``Toolset`` capability, so this agent needs none:
 
-    orders = FunctionToolset(tools=[get_order], id="orders")
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_agent_durable_toolsets_without_id]
+    :end-before: [END howto_agent_durable_toolsets_without_id]
 
-``AgentOperator(durable=True)`` checks this when the Dag is parsed and fails with:
+A tool call of a ``FunctionToolset`` without an id is recorded under the tool's name
+alone, ``durable_order_status__function_toolset.call_tool:get_order`` above, so a retry
+of the same agent finds the calls the failed attempt recorded. A function that builds a
+toolset, such as ``carrier_tools``, is named by its module and qualified name
+(``example_agent_durable.carrier_tools``). A toolset you give an ``id`` keeps it in its
+step names. Adding a tool to a toolset, reordering the toolsets, or renaming a function
+or an id between attempts changes what the model is offered, so the retry runs again
+from the first model request (:ref:`durable-replay`). A function that builds a toolset
+per run is the exception for its own tools: its tool list is a recorded step, so the
+steps a retry replays, and the request that failed, keep the tools the failed attempt
+saw, and later steps get the new list. A clear that deletes the journal
+(:ref:`durable-clear`) starts over with the new list.
+
+An ``MCPToolset`` from pydantic-ai still needs an id from you. Its calls are named after
+the toolset alone, and no id is derived from the server's URL or command, which can carry
+credentials. The Dag fails to load with:
 
 .. code-block:: text
 
-    ValueError: durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders'): durable replay records each tool call under it. Set it on the toolset itself, and pass a function that builds a toolset as DynamicToolset(function, id=...); the id of a Toolset capability around a toolset does not reach it.
+    ValueError: durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather'): durable replay records each tool call under it, and none is derived from the server's URL or command, which can carry credentials. Set it on the toolset itself; the id of a Toolset capability around a toolset does not reach it.
 
-It also refuses two different toolsets with the same id, which would file their calls
-under one name; passing one toolset object in two places is fine.
+So does a callable that has no ``__qualname__`` to name it by, such as a
+``functools.partial``; pass it as ``DynamicToolset(function, id=...)``:
 
-Keep an id stable once tasks run with it: a retry finds its recorded tool calls by it.
-The provider's own toolsets (``SQLToolset``, ``HookToolset`` and the rest) and tools
-passed as ``agent_params={"tools": [...]}`` need nothing. A capability that contributes
-``@durable_operation`` methods needs an ``id`` for the same reason; pydantic-ai raises
+.. code-block:: text
+
+    ValueError: durable=True names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0xffff89c904a0>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...).
+
+Two different toolsets with the same id are refused, since their calls would be filed
+under one name, and so are two functions with the same qualified name, such as two
+lambdas in one Dag file:
+
+.. code-block:: text
+
+    ValueError: durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders_dag_lambdas.<lambda>': durable replay records each tool call under its toolset's id, so a retry could not tell their calls apart.
+
+Passing one toolset object in two places is fine. The provider's own toolsets
+(``SQLToolset``, ``HookToolset``, its ``MCPToolset`` and the rest) and tools passed as
+``agent_params={"tools": [...]}`` need nothing. ``AirflowDurability`` in a plain ``@task``
+does not fill in ids: there pydantic-ai raises ``UserError`` for a ``FunctionToolset``,
+``MCPToolset`` or ``DynamicToolset`` without one. A capability that contributes
+``@durable_operation`` methods needs an ``id`` for the same reason, and pydantic-ai raises
 ``UserError`` naming it when it has none. pydantic-ai-harness ``SpendLimits`` has one by
 default.
 
@@ -135,6 +169,8 @@ Without the option, the task fails with:
 .. code-block:: text
 
     ValueError: Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path to be set, to say where its journal is kept. Example: durable_cache_path = file:///tmp/airflow_durable_cache
+
+.. _durable-replay:
 
 How a retry replays
 -------------------

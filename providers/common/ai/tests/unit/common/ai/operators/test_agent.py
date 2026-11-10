@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import functools
 import inspect
 import json
 import logging
@@ -46,6 +47,7 @@ from pydantic_ai.capabilities import (
     WebSearch,
 )
 from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed, UsageLimitExceeded
+from pydantic_ai.mcp import MCPToolset as PydanticAIMCPToolset
 from pydantic_ai.messages import (
     BinaryContent,
     ModelMessage,
@@ -60,6 +62,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.wrapper import WrapperModel
+from pydantic_ai.toolsets import DynamicToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
@@ -1921,6 +1924,11 @@ def _refund(order_id: int) -> str:
     return f"refunded order {order_id}"
 
 
+def _build_forecast_tools(ctx: RunContext) -> FunctionToolset:
+    """A function that builds a toolset for each run."""
+    return FunctionToolset()
+
+
 def _tool_then_answer(fail_after_tool: list[bool], live: dict[str, int]):
     """A model that calls ``my_tool`` once, then answers; it fails once after the tool if asked to."""
 
@@ -2045,19 +2053,111 @@ class TestAgentOperatorDurable:
             ),
         ],
     )
-    def test_durable_refuses_a_toolset_without_an_id(self, kwargs):
-        with pytest.raises(ValueError, match="durable=True needs a unique id on every FunctionToolset"):
-            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
+    def test_durable_accepts_a_function_toolset_without_an_id(self, kwargs):
+        AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
 
-    def test_durable_refuses_a_function_that_builds_a_toolset(self):
-        with pytest.raises(ValueError, match="needs a unique id on every DynamicToolset"):
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(functools.partial(_build_forecast_tools), id="partial"),
+            pytest.param(DynamicToolset(functools.partial(_build_forecast_tools)), id="dynamic-toolset"),
+        ],
+    )
+    def test_durable_refuses_a_function_without_a_qualified_name(self, toolset):
+        with pytest.raises(ValueError, match=r"functools.partial\(.*\) has no __qualname__"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[toolset])
+
+    def test_durable_refuses_an_mcp_toolset_without_an_id(self):
+        with pytest.raises(ValueError, match="needs a unique id on every MCPToolset"):
             AgentOperator(
                 task_id="t",
                 prompt="p",
                 llm_conn_id="c",
                 durable=True,
-                toolsets=[lambda ctx: FunctionToolset()],
+                toolsets=[PydanticAIMCPToolset("http://mcp.example.com/mcp")],
             )
+
+    @pytest.mark.parametrize(
+        "toolsets",
+        [
+            pytest.param([lambda ctx: FunctionToolset(), lambda ctx: FunctionToolset()], id="two-lambdas"),
+            pytest.param([_build_forecast_tools, _build_forecast_tools], id="one-function-twice"),
+            pytest.param(
+                [_build_forecast_tools, DynamicToolset(_build_forecast_tools)], id="function-and-dynamic"
+            ),
+        ],
+    )
+    def test_durable_refuses_two_functions_with_the_same_qualified_name(self, toolsets):
+        with pytest.raises(ValueError, match="more than one toolset has the id"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=toolsets)
+
+    @pytest.mark.parametrize("passed_as", ["toolsets", "agent_params", "toolset_capability"])
+    def test_durable_replays_toolsets_that_have_no_id(self, passed_as):
+        """Id-less FunctionToolsets, one with instructions, and a function that builds a toolset replay on retry."""
+        storage = MemoryStorage()
+        live = {"model": 0, "lookup": 0, "forecast": 0}
+        fail_final = [True]
+
+        def lookup(order_id: int) -> str:
+            live["lookup"] += 1
+            return "shipped"
+
+        def build_forecast_tools(ctx: RunContext) -> FunctionToolset:
+            def forecast(city: str) -> str:
+                live["forecast"] += 1
+                return "sunny"
+
+            return FunctionToolset(tools=[forecast])
+
+        def model_fn(messages, info):
+            live["model"] += 1
+            match sum(isinstance(m, ModelResponse) for m in messages):
+                case 0:
+                    return ModelResponse(parts=[ToolCallPart("lookup", {"order_id": 7})])
+                case 1:
+                    return ModelResponse(parts=[ToolCallPart("forecast", {"city": "Oslo"})])
+            if fail_final[0]:
+                fail_final[0] = False
+                raise RuntimeError("transient model failure")
+            return ModelResponse(parts=[TextPart(content="done")])
+
+        def refund_policy() -> str:
+            return "30 days"
+
+        for try_number in (1, 2):
+            toolsets = [
+                FunctionToolset(tools=[lookup], instructions="Orders ship from Oslo."),
+                FunctionToolset(tools=[refund_policy]),
+                build_forecast_tools,
+            ]
+            op = AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                **{
+                    "toolsets": {"toolsets": toolsets},
+                    "agent_params": {"agent_params": {"toolsets": toolsets}},
+                    # The FunctionToolset with instructions is held by a Toolset capability instead.
+                    "toolset_capability": {
+                        "toolsets": toolsets[1:],
+                        "capabilities": [Toolset(toolsets[0])],
+                    },
+                }[passed_as],
+            )
+            op.llm_hook = MagicMock(spec=["create_agent"])
+            op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+            context = _make_context(ti=_make_ti(id=f"ti-{try_number}", try_number=try_number))
+            with (
+                patch.object(AgentOperator, "_build_durable_storage", autospec=True, return_value=storage),
+                pytest.raises(RuntimeError, match="transient") if try_number == 1 else nullcontext(),
+            ):
+                output = op.execute(context=context)
+
+        assert output == "done"
+        # Attempt 2 replays both model requests and both tool calls; only the failed request runs again.
+        assert live == {"model": 4, "lookup": 1, "forecast": 1}
 
     def test_non_durable_accepts_a_toolset_without_an_id(self):
         AgentOperator(task_id="t", prompt="p", llm_conn_id="c", toolsets=[FunctionToolset()])
@@ -2099,9 +2199,15 @@ class TestAgentOperatorDurable:
             agent_params={"toolsets": [FunctionToolset(id="orders")]},
         )
 
-    def test_durable_accepts_one_toolset_passed_twice(self):
-        orders = FunctionToolset(id="orders")
-
+    @pytest.mark.parametrize(
+        "orders",
+        [
+            pytest.param(FunctionToolset(id="orders"), id="with-id"),
+            pytest.param(FunctionToolset(), id="function-toolset-without-id"),
+            pytest.param(DynamicToolset(_build_forecast_tools), id="dynamic-toolset-without-id"),
+        ],
+    )
+    def test_durable_accepts_one_toolset_passed_twice(self, orders):
         AgentOperator(
             task_id="t",
             prompt="p",
@@ -2110,6 +2216,26 @@ class TestAgentOperatorDurable:
             toolsets=[orders],
             capabilities=[Toolset(orders)],
         )
+
+    def test_durable_gives_a_toolset_passed_twice_one_id(self):
+        orders = FunctionToolset()
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            toolsets=[orders],
+            capabilities=[Toolset(orders)],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+
+        op._build_agent()
+
+        kwargs = op.llm_hook.create_agent.call_args.kwargs
+        listed, in_capability = kwargs["toolsets"][0].wrapped, kwargs["capabilities"][0].toolset.wrapped
+        assert listed is in_capability
+        assert listed.id is not None
+        assert orders.id is None
 
     def test_durable_fails_a_tool_that_raises_approval_required_with_unsupported_tool_deferral_error(self):
         def refund() -> str:

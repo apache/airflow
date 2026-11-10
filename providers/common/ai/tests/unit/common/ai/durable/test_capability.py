@@ -26,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import dataclasses
+import functools
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -35,6 +36,7 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
 from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
 from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
@@ -45,11 +47,17 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
+from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.base import RUNS_KEY
-from airflow.providers.common.ai.durable.capability import _JournalCodec
+from airflow.providers.common.ai.durable.capability import (
+    GivenIds,
+    _JournalCodec,
+    callable_toolset_id,
+    give_durable_ids,
+)
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
 from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
@@ -1084,6 +1092,173 @@ class TestToolOptOut:
 
         assert result.output == "answer: 3 rows"
         assert calls["query"] == 1
+
+
+def _query_tools(calls: Calls, *extra: Any, instructions: str | None = None) -> FunctionToolset[None]:
+    """A ``FunctionToolset`` without an id, with a ``query`` tool and any ``extra`` tools."""
+
+    def query(sql: str) -> str:
+        calls.bump("query")
+        return "3 rows"
+
+    return FunctionToolset(tools=[query, *extra], instructions=instructions)
+
+
+def _build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+    """A function that builds a toolset for each run, as a Dag file defines one."""
+    return FunctionToolset()
+
+
+class _ToolsBuilder:
+    def __call__(self, ctx: RunContext[None]) -> FunctionToolset[None]:
+        return FunctionToolset()
+
+
+class TestToolsetIds:
+    """Toolsets without an ``id`` replay under the ids ``give_durable_ids`` gives them, as in AgentOperator."""
+
+    @staticmethod
+    def tool_step_names(storage) -> list[str]:
+        return [step["name"] for step in storage.steps() if step["kind"] == "tool"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("built_per_run", "instructions"),
+        [
+            pytest.param(False, None, id="function-toolset"),
+            # pydantic-ai builds instruction ids from the toolset's id: it rejects a colon in it, and the
+            # request fingerprint hashes them, so the id has to be the same on every attempt.
+            pytest.param(False, "Count rows with SQL.", id="function-toolset-with-instructions"),
+            pytest.param(True, None, id="function-building-one"),
+        ],
+    )
+    async def test_a_toolset_without_an_id_replays_on_retry(
+        self, memory_storage, built_per_run, instructions
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+            return _query_tools(calls)
+
+        def build() -> Agent[None, str]:
+            toolset = build_tools if built_per_run else _query_tools(calls, instructions=instructions)
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[give_durable_ids(toolset, {})],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        names = self.tool_step_names(memory_storage)
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert names == [
+            f"analyst__dynamic_toolset__{__name__}.{build_tools.__qualname__}.call_tool:query"
+            if built_per_run
+            else "analyst__function_toolset.call_tool:query"
+        ]
+        assert (calls["query"], calls["model"]) == (1, 3)
+
+    @pytest.mark.asyncio
+    async def test_adding_a_tool_between_attempts_keeps_the_first_tools_step_name(self, memory_storage):
+        """The retry runs again from the first request, which now offers a new tool, but names its calls alike."""
+        calls = Calls()
+
+        def forecast(city: str) -> str:
+            return "sunny"
+
+        names = []
+        for tools in ((), (forecast,)):
+            agent = Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
+                name="analyst",
+                toolsets=[give_durable_ids(_query_tools(calls, *tools), {})],
+                capabilities=[AirflowDurability()],
+            )
+            with pytest.raises(RuntimeError, match="worker died"):
+                await attempt(memory_storage, agent)
+            names.append(self.tool_step_names(memory_storage))
+
+        assert names == [["analyst__function_toolset.call_tool:query"]] * 2
+        assert calls["query"] == 2
+
+    @pytest.mark.asyncio
+    async def test_an_id_the_author_chose_keeps_its_step_names(self, memory_storage):
+        """The step names journals were recorded under before Airflow gave toolsets ids."""
+        calls = Calls()
+        toolset = FunctionToolset(tools=list(_query_tools(calls).tools.values()), id="db")
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
+            name="analyst",
+            toolsets=[give_durable_ids(toolset, {})],
+            capabilities=[AirflowDurability()],
+        )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, agent)
+
+        assert self.tool_step_names(memory_storage) == ["analyst__function_toolset__db.call_tool:query"]
+
+    def test_gives_ids_to_copies_and_one_copy_to_a_toolset_listed_twice(self):
+        shared = FunctionToolset()
+        given: GivenIds = {}
+
+        prefixed = give_durable_ids(shared.prefixed("a"), given)
+        plain = give_durable_ids(shared, given)
+
+        assert isinstance(prefixed, WrapperToolset)
+        assert prefixed.wrapped is plain
+        assert plain.id == "<airflow-function_toolset-0>"
+        assert shared.id is None
+
+    def test_numbers_the_function_toolsets_it_gives_ids_in_order(self):
+        given: GivenIds = {}
+
+        ids = [give_durable_ids(FunctionToolset(), given).id for _ in range(2)]
+
+        assert ids == ["<airflow-function_toolset-0>", "<airflow-function_toolset-1>"]
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(FunctionToolset(id="db").prefixed("a"), id="function-toolset-with-id"),
+            pytest.param(DynamicToolset(_build_tools, id="tools"), id="dynamic-toolset-with-id"),
+            pytest.param(MCPToolset("http://mcp.example.com/mcp"), id="mcp-toolset"),
+        ],
+    )
+    def test_leaves_a_toolset_it_cannot_or_need_not_give_an_id_as_it_is(self, toolset):
+        assert give_durable_ids(toolset, {}) is toolset
+
+    def test_a_dynamic_toolset_without_an_id_gets_its_functions_name(self):
+        given = give_durable_ids(DynamicToolset(_build_tools, per_run_step=False), {})
+
+        assert isinstance(given, DynamicToolset)
+        assert (given.id, given.per_run_step) == (f"{__name__}._build_tools", False)
+
+
+class TestCallableToolsetId:
+    def test_leaves_out_the_path_hash_airflow_puts_in_a_dag_files_module(self):
+        def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+            return FunctionToolset()
+
+        build_tools.__module__ = f"unusual_prefix_{'0123456789abcdef' * 2}01234567_orders_dag"
+
+        assert callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
+
+    @pytest.mark.parametrize(
+        "function",
+        [
+            pytest.param(functools.partial(_build_tools), id="partial"),
+            pytest.param(_ToolsBuilder(), id="callable-instance"),
+        ],
+    )
+    def test_none_for_a_callable_without_a_qualified_name(self, function):
+        assert callable_toolset_id(function) is None
 
 
 class Answer(BaseModel):
