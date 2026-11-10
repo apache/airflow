@@ -58,8 +58,11 @@ Changelog
   On Airflow < 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
   class at all, so ``list[MyModel]`` and other containers of models are pushed as dicts for all
   five. ``AgentOperator`` and ``@task.agent`` already did this in 1.1.0; ``LLMOperator``,
-  ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed instances there and now push dicts. A
-  top-level model is still dumped with ``model_dump()`` as before. A downstream task reads
+  ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed instances there and now push dicts. This
+  includes a top-level model: with ``serialize_output=True`` it is dumped with ``model_dump()``
+  (Python field values kept), and otherwise to JSON values with field names rather than aliases.
+  ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed a top-level model as an
+  instance there in 1.1.0 unless ``serialize_output=True`` was set. A downstream task reads
   ``result["field"]`` and needs no entry in ``[core] allowed_deserialization_classes``.
 
   For ``AgentOperator`` and ``@task.agent``, whenever a model in the output is dumped (for example

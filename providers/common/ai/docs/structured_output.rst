@@ -144,11 +144,14 @@ The changelog note above 1.1.0 describes changes made after that release. ``LLMO
 helper, ``dump_output_for_xcom``, and behave as follows:
 
 * A model whose class the worker registers is left for the XCom serializer, in a container or not.
-  A top-level model is dumped with ``model_dump()`` when ``serialize_output=True`` is set.
+  A top-level model is dumped with ``model_dump()`` (Python field values kept) when
+  ``serialize_output=True`` is set.
 * A model whose class the worker cannot register is dumped to JSON values, also inside a list,
   tuple, set or dict.
 * Before Airflow 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
-  class. A top-level model is dumped with ``model_dump()``, and a model inside a list, tuple, set
-  or dict is dumped to JSON values. ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator``
-  pushed ``list[MyModel]`` as instances there in 1.1.0 and now push dicts; ``AgentOperator`` and
-  ``@task.agent`` already did.
+  class, so every model is dumped, a top-level one included. A top-level model is dumped with
+  ``model_dump()`` when ``serialize_output=True`` is set, and otherwise to JSON values with field
+  names rather than aliases, like a model inside a list, tuple, set or dict. ``LLMOperator``,
+  ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed ``list[MyModel]``, and a top-level model
+  without ``serialize_output=True``, as instances there in 1.1.0 and now push dicts;
+  ``AgentOperator`` and ``@task.agent`` already dumped containers.

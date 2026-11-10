@@ -361,6 +361,23 @@ class TestDumpOutputForXcom:
             assert dumped == [{"x": 1}]
             assert dumped is not output
 
+    @pytest.mark.parametrize(
+        ("output", "output_type", "expected"),
+        [
+            (A(x=1), A, {"x": 1}),
+            ([A(x=1)], list[A], [{"x": 1}]),
+        ],
+        ids=["top-level-model", "list-of-models"],
+    )
+    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
+    def test_dumps_every_model_without_the_sdk_walker_when_not_serializing(
+        self, output, output_type, expected
+    ):
+        dumped = dump_output_for_xcom(output, output_type, serialize_output=False)
+
+        assert dumped == expected
+        assert dumped is not output
+
     def test_serialize_output_keeps_python_field_types(self):
         dumped = dump_output_for_xcom(STAMPED, Stamped, serialize_output=True)
 
@@ -430,10 +447,15 @@ class TestDumpOutputForXcom:
 
 
 class TestRehydratePydanticOutput:
+    @requires_walker
     def test_returns_model_instance(self):
         result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=False)
         assert isinstance(result, A)
         assert result.x == 7
+
+    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
+    def test_returns_dict_without_the_sdk_walker(self):
+        assert rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=False) == {"x": 7}
 
     def test_returns_dict_when_serialize_output(self):
         result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=True)
@@ -550,6 +572,7 @@ class TestRehydratePydanticOutput:
     @pytest.mark.parametrize(
         "raw", ['{"user_name": "kax"}', '{"userName": "kax"}'], ids=["field-name", "alias"]
     )
+    @requires_walker
     def test_accepts_a_field_name_or_an_alias(self, raw):
         result = rehydrate_pydantic_output(ValidationAlias, raw, serialize_output=False)
 
@@ -644,6 +667,7 @@ class TestRehydratePydanticOutput:
             "list-of-computed-field-forbid-extra",
         ],
     )
+    @requires_walker
     def test_a_dumped_output_validates_back(self, output_type, output):
         raw = dump_output_to_json(output)
 
@@ -727,6 +751,7 @@ class TestRehydratePydanticOutput:
         assert rehydrate_pydantic_output(A | str, raw, serialize_output=False) == raw
 
 
+@requires_walker
 def test_a_model_that_turned_off_validation_by_alias_reads_its_dump_back_unchanged():
     output = AliasNamedLikeAnotherField(source="SRC", destination="DST")
 
