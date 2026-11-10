@@ -59,7 +59,6 @@ from airflow_breeze.utils.fork_ci_gate import (
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
-    CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     CI_RUN_STARTED_CONTEXT,
     CI_RUN_STARTED_DESCRIPTION,
@@ -69,13 +68,16 @@ from airflow_breeze.utils.fork_ci_messages import (
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
     STATUS_STATES,
+    BaseCheck,
     Marker,
+    ci_passed_description,
     fork_actions_url,
     gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
     nudge_comment,
     parse_marker,
+    rebase_needed_description,
     released_comment,
     state_comment,
     status_description,
@@ -580,17 +582,24 @@ def _set_status(
         plan.status = desired
 
 
-def _set_ci_passed(plan: Plan, pr: PullRequestSnapshot, *, passed: bool, target_url: str) -> None:
+def _set_ci_passed(
+    plan: Plan, pr: PullRequestSnapshot, state: ForkState, base: BaseCheck | None, *, target_url: str
+) -> None:
     """
     Report fork CI to the `CI passed` check the merge ruleset requires.
 
-    Only success is ever posted: a gated pull request without the status cannot merge, which is
-    what a pending or failing one would say. A success that no longer holds for the head commit,
-    such as a failed re-run in the fork, is overwritten so the pull request cannot merge on it.
+    Success is posted only for a trusted green run whose base is current enough; a gated pull
+    request without the status cannot merge. A green run on an old base gets a pending status that
+    says to rebase. A success that no longer holds for the head commit, such as a failed re-run in
+    the fork, is overwritten so the pull request cannot merge on it.
     """
-    if passed and pr.ci_passed_state != "success":
-        plan.ci_passed = ("success", target_url, CI_PASSED_DESCRIPTION)
-    elif not passed and pr.ci_passed_state == "success":
+    if state == ForkState.GREEN and base is not None and base.is_current:
+        if pr.ci_passed_state != "success":
+            plan.ci_passed = ("success", target_url, ci_passed_description(base, base_ref=pr.base_ref))
+    elif state == ForkState.GREEN and base is not None:
+        if pr.ci_passed_state != "pending":
+            plan.ci_passed = ("pending", target_url, rebase_needed_description(base, base_ref=pr.base_ref))
+    elif pr.ci_passed_state == "success":
         plan.ci_passed = ("pending", target_url, CI_PASSED_REVOKED_DESCRIPTION)
 
 
@@ -614,7 +623,7 @@ def classify(
     repo: str,
     find_bypass_run: Callable[[], str | None],
     changes_ci_files: Callable[[], bool | None],
-    count_behind: Callable[[], int | None] = lambda: None,
+    compare_base: Callable[[], BaseCheck | None] = lambda: None,
     jobs_reported: str | None = None,
     head_shared_across_bases: bool = False,
     find_gate_change: Callable[[], str | None] = lambda: None,
@@ -630,8 +639,9 @@ def classify(
         cannot be told for the snapshot's head commit; only called when a new head commit turns
         green in the fork. On None nothing is changed, since the decision would be recorded on a
         commit the answer may not belong to.
-    :param count_behind: how many commits the head commit is behind the base branch, None when
-        unknown; called at the same time as ``changes_ci_files``.
+    :param compare_base: compares the head commit's base with the base branch, None when that
+        cannot be read; called when a new head commit turns green, alongside ``changes_ci_files``,
+        and on later runs until it succeeds.
     :param jobs_reported: the completed fork run whose jobs are all reported as statuses, recorded
         in the marker so that later runs do not read its jobs again.
     :param head_shared_across_bases: another gated pull request has the same head commit and a
@@ -754,7 +764,7 @@ def classify(
         plan.unknown.append(unknown_reason or "unknown fork state")
         return plan
     refresh_status = False
-    behind = marker.behind if marker and marker.sha == pr.head_sha else None
+    base = marker.base if marker and marker.sha == pr.head_sha else None
     if state == ForkState.GREEN:
         # The decision is read back from the commit status on the head commit, which only
         # apache/airflow's own tokens can write, never from a comment. The changed files depend
@@ -784,9 +794,16 @@ def classify(
             if changes is None:
                 return Plan()
             unverified = changes
-            behind = count_behind()
+            base = None
         if unverified:
             state = ForkState.GREEN_UNVERIFIED
+        if base is None:
+            base = compare_base()
+            if base is None and state == ForkState.GREEN:
+                plan.unknown.append(
+                    f"fork CI is green, but the head commit could not be compared with `{pr.base_ref}`, "
+                    "so `CI passed` waits for the next run"
+                )
     plan.state = state
     since = marker.since if marker and marker.state == state.value else now
 
@@ -822,7 +839,7 @@ def classify(
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
     _set_status(plan, pr, state.value, target_url, force=refresh_status)
-    _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
+    _set_ci_passed(plan, pr, state, base, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
     green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
     _set_marker_comment(
@@ -833,7 +850,7 @@ def classify(
                 state.value,
                 pr.head_sha,
                 since,
-                behind=behind if green else None,
+                base=base if green else None,
                 jobs=jobs_reported,
                 gate_checked=gate_checked,
             ),
@@ -2059,17 +2076,37 @@ def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int, 
     return changes_ci_definition(changed_paths(files), file_count=len(files))
 
 
-def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> int | None:
-    """Commits on the base branch that the head commit does not have; None when not readable."""
+def compare_with_base(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> BaseCheck | None:
+    """
+    Compare the base a fork run tested with the base branch; None when not readable.
+
+    The fork run tests the head commit, so its base is the merge base with the base branch. Two
+    three-dot compares from it give the files the pull request changes and the files the base branch
+    changed since; a file in both means the merged result differs from what the fork run tested
+    in a file the pull request changes. Compares list at most 300 files (on their first page, which
+    ``per_page`` does not limit): a pull request with more is listed with the files endpoint instead,
+    while a base branch that changed more cannot be checked until the branch is rebased.
+    """
     owner = (pr.head_repo or "").split("/", 1)[0]
+    base_ref = quote(pr.base_ref, safe="")
     try:
-        compare = client.rest_get(
-            f"repos/{repo}/compare/{quote(pr.base_ref, safe='')}...{owner}:{pr.head_sha}?per_page=1"
+        head_side = client.rest_get(f"repos/{repo}/compare/{base_ref}...{owner}:{pr.head_sha}?per_page=1")
+        merge_base = head_side["merge_base_commit"]["sha"]
+        behind = head_side["behind_by"]
+        base_side = (
+            client.rest_get(f"repos/{repo}/compare/{merge_base}...{base_ref}?per_page=1") if behind else {}
         )
-    except GitHubError as e:
-        console_print(f"[warning]#{pr.number}: could not count commits behind {pr.base_ref}: {e}[/]")
+        head_files = head_side.get("files") or []
+        if len(head_files) >= COMPARE_FILES_CAP:
+            head_files = client.rest_get(f"repos/{repo}/pulls/{pr.number}/files?per_page=100", paginate=True)
+    except (GitHubError, KeyError, TypeError) as e:
+        console_print(f"[warning]#{pr.number}: could not compare with {pr.base_ref}: {e}[/]")
         return None
-    return compare.get("behind_by")
+    base_files = base_side.get("files") or []
+    if len(head_files) >= PULL_REQUEST_FILES_CAP or len(base_files) >= COMPARE_FILES_CAP:
+        return BaseCheck(merge_base, behind, None)
+    overlap = set(changed_paths(head_files)) & set(changed_paths(base_files))
+    return BaseCheck(merge_base, behind, tuple(sorted(overlap)))
 
 
 def find_heads_shared_across_bases(prs: Iterable[PullRequestSnapshot]) -> set[str]:
@@ -2403,7 +2440,7 @@ def run_reconcile(
                 changes_ci_files=functools.partial(
                     pull_request_changes_ci_files, client, repo, pr.number, pr.head_sha
                 ),
-                count_behind=functools.partial(count_commits_behind, client, repo, pr),
+                compare_base=functools.partial(compare_with_base, client, repo, pr),
                 jobs_reported=jobs_reported,
                 head_shared_across_bases=pr.head_sha in shared_heads,
                 find_gate_change=functools.partial(gate_change_finder.find, pr),
