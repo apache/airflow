@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import pickle
 from datetime import UTC, datetime
@@ -381,6 +382,119 @@ class TestClient:
 
         with pytest.raises(ValueError, match="Both client_ssl_cert and client_ssl_key must be set"):
             make_client(httpx2.MockTransport(handle_request))
+
+    @pytest.mark.parametrize(
+        ("call", "expected_path"),
+        [
+            pytest.param(
+                lambda c: c.variables.get("../connections/aws_default"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-get",
+            ),
+            pytest.param(
+                lambda c: c.variables.set("../connections/aws_default", "v"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-set",
+            ),
+            pytest.param(
+                lambda c: c.variables.delete("../connections/aws_default"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-delete",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.head("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-head",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-get",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.set("d", "r", "t", "x/../../variables/k", "v"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-set",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.delete("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-delete",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get_sequence_item("d", "r", "t", "x/../../variables/k", 0),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk/item/0",
+                id="xcoms-item",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get_sequence_slice("d", "r", "t", "x/../../variables/k", None, None, None),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk/slice",
+                id="xcoms-slice",
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.trigger("..", "r"), b"/dag-runs/%2E%2E/r", id="dag-runs-trigger"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.clear("d", ".."), b"/dag-runs/d/%2E%2E/clear", id="dag-runs-clear"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.get_detail("..", "r"), b"/dag-runs/%2E%2E/r", id="dag-runs-detail"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.get_state("d", ".."), b"/dag-runs/d/%2E%2E/state", id="dag-runs-state"
+            ),
+            pytest.param(
+                lambda c: c.task_instances.get_previous("..", "t"),
+                b"/task-instances/previous/%2E%2E/t",
+                id="get-previous",
+            ),
+            pytest.param(lambda c: c.connections.get(".."), b"/connections/%2E%2E", id="connection-dotdot"),
+            pytest.param(lambda c: c.connections.get("."), b"/connections/%2E", id="connection-dot"),
+            pytest.param(
+                lambda c: c.xcoms.get("..", "..", "variables", "secret"),
+                b"/xcoms/%2E%2E/%2E%2E/variables/secret",
+                id="xcoms-dots",
+            ),
+        ],
+    )
+    def test_path_identifiers_stay_in_their_segment(self, call, expected_path):
+        """Caller-supplied identifiers cannot reach another endpoint, whatever they contain."""
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(
+                status_code=200, content=b"null", headers={"Content-Range": "map_indexes 1"}
+            )
+
+        with contextlib.suppress(Exception):  # the stub body need not parse; only the URL matters
+            call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen[0].url.raw_path.split(b"?")[0] == expected_path
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(lambda c: c.dag_runs.trigger("d", "x/clear"), id="trigger-run-id"),
+            pytest.param(lambda c: c.dag_runs.trigger("a/b", "r"), id="trigger-dag-id"),
+            pytest.param(lambda c: c.xcoms.get("a/b", "r", "t", "k"), id="xcoms-dag-id"),
+            pytest.param(lambda c: c.xcoms.get("d", "a/b", "t", "k"), id="xcoms-run-id"),
+            pytest.param(lambda c: c.xcoms.get("d", "r", "a/b", "k"), id="xcoms-task-id"),
+            pytest.param(lambda c: c.task_instances.get_previous("a/b", "t"), id="previous-dag-id"),
+            pytest.param(lambda c: c.task_instances.get_previous("d", "a/b"), id="previous-task-id"),
+        ],
+    )
+    def test_path_rejects_slash_in_positional_identifier(self, call):
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(status_code=200, content=b"null")
+
+        with pytest.raises(ValueError, match="must not contain '/'"):
+            call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen == []
 
 
 class TestTaskInstanceOperations:
@@ -1162,6 +1276,56 @@ class TestXCOMOperations:
                     task_id="task_id",
                     key="key",
                 )
+
+    def test_xcom_get_404_returns_none_value(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
+
+        assert result == XComResponse(key="key", value=None)
+
+    def test_xcom_get_sequence_item_404_returns_not_found_error(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key/item/2":
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        result = client.xcoms.get_sequence_item(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            offset=2,
+        )
+
+        assert result == ErrorResponse(
+            error=ErrorType.XCOM_NOT_FOUND,
+            detail={
+                "dag_id": "dag_id",
+                "run_id": "run_id",
+                "task_id": "task_id",
+                "key": "key",
+                "offset": 2,
+            },
+        )
 
     @pytest.mark.parametrize(
         "values",
@@ -1960,6 +2124,27 @@ class TestHITLOperations:
         assert result.params is None
         assert result.multiple is False
         assert result.assigned_users is None
+
+    def test_add_response_retries_with_the_same_idempotency_key(self) -> None:
+        ti_id = uuid7()
+        keys: list[str] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            keys.append(request.headers["Idempotency-Key"])
+            if len(keys) == 1:
+                return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
+            return httpx2.Response(
+                status_code=201, json={"ti_id": str(ti_id), "options": ["Approve"], "subject": "Ship it?"}
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+
+        first_attempt, retry, next_request = keys
+        assert retry == first_attempt
+        assert next_request != first_attempt
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))

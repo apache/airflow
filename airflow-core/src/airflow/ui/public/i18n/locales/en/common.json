@@ -118,6 +118,7 @@
     "home": "Home",
     "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
+    "reload": "Reload page",
     "title": "Error"
   },
   "errors": {
@@ -196,6 +197,7 @@
     },
     "save": "Save"
   },
+  "moreTabs": "More",
   "nav": {
     "admin": "Admin",
     "assets": "Assets",
@@ -386,12 +388,12 @@
       "scrollBottom": "Scroll to bottom",
       "scrollTop": "Scroll to top",
       "searchDags": "Search $t(dag_other)",
-      "selectGridCellRange": "Select a range of $t(taskInstance_other) or $t(taskGroup_other) (not loop tasks)",
+      "selectGridCellRange": "Select a range of $t(taskInstance_other) or $t(taskGroup_other)",
       "showHelp": "Show $t(shortcuts.title)",
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
-      "toggleGridCellSelection": "Add or remove a $t(taskInstance_one) or $t(taskGroup_one) from the selection (not loop tasks)",
+      "toggleGridCellSelection": "Add or remove a $t(taskInstance_one) or $t(taskGroup_one) from the selection",
       "toggleLogLevel": "Toggle log levels",
       "toggleSource": "Toggle source",
       "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",

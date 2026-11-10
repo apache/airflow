@@ -67,6 +67,7 @@ from airflowctl.api.datamodels.generated import (
     DAGVersionCollectionResponse,
     DagVersionResponse,
     DAGWarningCollectionResponse,
+    DryRunBackfillCollectionResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -333,20 +334,26 @@ class BaseOperations:
         total_entries = first_pass.total_entries
         # An older server that omits total_entries leaves it None; treat that as "no more
         # pages" rather than raising on the comparison below.
-        if total_entries is None or total_entries < limit:
+        if total_entries is None:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
             if key != "total_entries" and isinstance(value, list):
                 found_key = key
                 break
+        if found_key is None:
+            return first_pass
         entry_list = getattr(first_pass, found_key)
-        offset = offset + limit
-        while offset < total_entries:
+        # The server may cap ``limit`` (``api.maximum_page_limit``), so advance by the number of
+        # entries received rather than by the requested limit, or the capped-off entries are skipped.
+        page_size = len(entry_list)
+        offset = offset + page_size
+        while page_size and offset < total_entries:
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
-            entry = validate_response(self.response.content, data_model)
-            offset = offset + limit
-            entry_list.extend(getattr(entry, found_key))
+            page_entries = getattr(validate_response(self.response.content, data_model), found_key)
+            entry_list.extend(page_entries)
+            page_size = len(page_entries)
+            offset = offset + page_size
         return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 
@@ -522,13 +529,15 @@ class BackfillOperations(BaseOperations):
         )
         return validate_response(self.response.content, BackfillResponse)
 
-    def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
+    def create_dry_run(
+        self, backfill: BackfillPostBody
+    ) -> DryRunBackfillCollectionResponse | ServerResponseError:
         """Create a dry run backfill."""
         self.response = self.client.post(
             "backfills/dry_run",
             json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
-        return validate_response(self.response.content, BackfillResponse)
+        return validate_response(self.response.content, DryRunBackfillCollectionResponse)
 
     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Get a backfill."""
@@ -738,8 +747,8 @@ class DagRunOperations(BaseOperations):
 
         Args:
             state: Filter Dag runs by state (optional; no filter applied when omitted)
-            start_date: Filter Dag runs by start date (optional)
-            end_date: Filter Dag runs by end date (optional)
+            start_date: Return only Dag runs that started at or after this time (optional)
+            end_date: Return only Dag runs that ended at or before this time (optional)
             limit: Limit the number of results returned
             offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
@@ -761,8 +770,8 @@ class DagRunOperations(BaseOperations):
             limit=limit,
             offset=offset,
             state=str(state) if state is not None else None,
-            start_date=start_date,
-            end_date=end_date,
+            start_date_gte=start_date,
+            end_date_lte=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
             partition_date_gte=partition_date_gte,

@@ -33,6 +33,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--build-progress",
                 "--docker-cache",
+                "--use-pinned-os-deps-images",
                 "--docker-host",
                 "--install-airflow-version",
                 "--python",

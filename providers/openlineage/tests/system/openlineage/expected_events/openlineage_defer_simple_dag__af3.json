@@ -1,4 +1,5 @@
 [
+    {"eventType": "START", "job": {"name": "openlineage_defer_simple_dag"}},
     {
         "eventType": "START",
         "run": {

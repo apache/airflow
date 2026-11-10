@@ -125,6 +125,37 @@ which then read ``reference.md`` and finished the run.
 ``exclude_resources`` hides files from the resource tools only. A skill's scripts can
 still read them, which is why the example excludes ``run_skill_script`` as well.
 
+.. _agent-skills-observability:
+
+Seeing which skills a run used
+------------------------------
+
+When the toolset runs inside an Airflow task, it publishes on XCom, under the key
+``__AIRFLOW__COMMON_AI_SKILLS__``, every skill it offered the agent: its name and
+description, where it came from, and how many times the agent called ``load_skill``,
+``read_skill_resource`` and ``run_skill_script`` for it. A local skill names its path on
+the worker. A ``GitSkills`` skill names the repository, its path inside the repository,
+the ``branch`` you set and the commit that was cloned, so a run that behaves differently
+from an earlier one can be traced to a change in the skill between two commits.
+
+The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
+first, with a link to the skill's folder at that commit for a repository on GitHub or
+GitLab, and says so when the sources held no skills. Calls made before a tool-approval
+pause or a human-review regeneration still count, and so do calls a durable retry replays.
+Only calls the tool answered count: a denied, retried, failed or interrupted call does not,
+while a script that exits with an error still does, since ``run_skill_script`` returns its
+output. A ``message_history`` seeded from another task does not add that task's calls, and
+calls that a history processor or compaction removes from the transcript are not counted.
+``calls`` totals ``calls_by_run``, which keeps the calls of each agent run that made any
+under its pydantic-ai run id.
+A run resumed from a tool-approval pause and a human-review regeneration each clone the
+repository again, so the source shows the commit the latest run cloned. A toolset built by
+a function, which the agent wraps in pydantic-ai's ``DynamicToolset``, is built and cloned
+again on every model step unless you pass ``DynamicToolset(fn, per_run_step=False)``.
+Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool
+names apart, share the same list. Nothing is published when the task sets
+``do_xcom_push=False``.
+
 Parameters
 ----------
 
