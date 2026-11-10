@@ -202,3 +202,78 @@ in the order they were requested so the dist-tag does not regress. Both
 publication paths use short-lived npm OIDC credentials and automatically
 publish provenance. After verifying the trusted-publisher setup, disable
 token-based publishing and revoke obsolete npm automation tokens.
+
+## Calling a release vote
+
+Every release needs a `[VOTE]` on `dev@airflow.apache.org`. The vote is
+formally on the signed source package in `dist/dev`; the npm package is the
+convenience binary.
+
+The release candidate is tagged `ts-sdk/<VERSION>-rc<N>` with `package.json`
+set to the same `<VERSION>-rc<N>`, then published with the `formal` workflow
+above using the `rc` dist-tag, so reviewers can install it with `npm install`.
+
+Put the signed source package in the dist dev area as
+`ts-sdk/<VERSION>-rc<N>/apache-airflow-ts-sdk-<VERSION>-src.tar.gz`, with its
+`.asc` signature and `.sha512` checksum.
+
+### Vote email template
+
+```text
+Subject: [VOTE] Release Apache Airflow TypeScript SDK <VERSION> based on <VERSION>-rc<N>
+
+Hi,
+
+I would like to call a vote to release Apache Airflow TypeScript SDK <VERSION>,
+based on release candidate <VERSION>-rc<N>.
+
+Changes since <the last release>: <a one-line description>
+
+The release candidate contains the following npm package:
+
+- @apache-airflow/ts-sdk
+
+Git information:
+
+- Tag: ts-sdk/<VERSION>-rc<N>
+- Commit: <full-commit-sha>
+- https://github.com/apache/airflow/releases/tag/ts-sdk%2F<VERSION>-rc<N>
+
+Source release, signatures and checksums:
+https://dist.apache.org/repos/dist/dev/airflow/ts-sdk/<VERSION>-rc<N>/
+
+Convenience binary (published on npm under the rc dist-tag):
+https://www.npmjs.com/package/@apache-airflow/ts-sdk/v/<VERSION>-rc<N>
+
+To try the release candidate in a project:
+
+    npm install @apache-airflow/ts-sdk@<VERSION>-rc<N>
+
+KEYS file (public keys used to sign the release):
+https://downloads.apache.org/airflow/KEYS
+
+Please review and vote. The vote will remain open for at least 72 hours, until <YYYY-MM-DD HH:MM UTC>, or until the necessary number of binding votes is reached.
+
+[ ] +1 Release this package as Apache Airflow TypeScript SDK <VERSION>
+[ ] +0 No opinion
+[ ] -1 Do not release, because ...
+
+Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
+
+The verification process for PMC members and contributors can be found in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-contributors
+
+For more details on ASF release verification, see: https://www.apache.org/info/verification.html
+
+Best,
+<your name>
+```
+
+Pre-send checklist:
+
+* `npm view @apache-airflow/ts-sdk@<VERSION>-rc<N> version` prints
+  `<VERSION>-rc<N>`.
+* `Changes since <the last release>` and the vote deadline are filled in.
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder was left unfilled.
