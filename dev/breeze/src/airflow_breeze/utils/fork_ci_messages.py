@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import NamedTuple
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
@@ -203,6 +205,37 @@ STARTUP_FAILURE_TEXT = (
 )
 
 
+class FailedJob(NamedTuple):
+    """A job of a failed fork run that did not pass, as listed in the state comment."""
+
+    name: str
+    url: str
+    conclusion: str
+
+
+# A full-matrix run can fail in dozens of jobs; the job statuses list them all.
+MAX_LISTED_FAILED_JOBS = 10
+_FAILED_JOB_OUTCOMES = {
+    "failure": "failed",
+    "timed_out": "timed out",
+    "cancelled": "cancelled",
+    "startup_failure": "could not start",
+}
+
+
+def build_failed_job_list(failed_jobs: Sequence[FailedJob]) -> str:
+    listed = [
+        # Job names come from the contributor's workflow; a code span keeps them from posting
+        # Markdown, including mentions, as the bot.
+        f"- [`{_sanitize_path(job.name[:JOB_NAME_MAX_LENGTH])}`]({job.url}): "
+        f"{_FAILED_JOB_OUTCOMES.get(job.conclusion, 'failed')}"
+        for job in failed_jobs[:MAX_LISTED_FAILED_JOBS]
+    ]
+    if len(failed_jobs) > MAX_LISTED_FAILED_JOBS:
+        listed.append(f"- and {len(failed_jobs) - MAX_LISTED_FAILED_JOBS} more, see the run")
+    return "Jobs that did not pass:\n\n" + "\n".join(listed)
+
+
 def behind_warning(behind: int, *, base_ref: str) -> str:
     return (
         f"**This branch is {behind} commits behind `{base_ref}`.** Fork CI tests the branch as it is, "
@@ -219,8 +252,12 @@ def state_comment(
     base_ref: str = "main",
     author_draft: bool = False,
     startup_failure: bool = False,
+    failed_jobs: Sequence[FailedJob] = (),
 ) -> str:
-    """:param startup_failure: the fork run of a failed state did not start, see ``STARTUP_FAILURE_TEXT``."""
+    """
+    :param startup_failure: the fork run of a failed state did not start, see ``STARTUP_FAILURE_TEXT``.
+    :param failed_jobs: the jobs of a failed state's fork run that did not pass.
+    """
     text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
     if startup_failure:
         text = STARTUP_FAILURE_TEXT
@@ -233,6 +270,8 @@ def state_comment(
         parts.append(behind_warning(marker.behind, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
+    if marker.state == "failed" and failed_jobs:
+        parts.append(build_failed_job_list(failed_jobs))
     if marker.state == "setup_required":
         parts.append(_setup_instructions(fork))
     parts.append(f"How this works: [CI in your fork]({CONTRIBUTING_URL}).")

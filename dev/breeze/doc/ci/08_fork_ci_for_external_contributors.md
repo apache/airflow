@@ -612,7 +612,7 @@ since the draft-state job runs after the close and GitHub refuses to draft a clo
 | **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
 | **awaiting_push**: enabled, no run for the head SHA | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
 | **running**: run in progress | `pending` (yellow), link to the run | update state and run link |
-| **failed**: conclusion is failure, cancelled, timed out or startup failure | `failure` (red), link to the run; for a startup failure the description says the run could not start | update with the run link; for a startup failure the text says no job ran and points to the fork's Actions settings |
+| **failed**: conclusion is failure, cancelled, timed out or startup failure | `failure` (red), link to the run; for a startup failure the description says the run could not start | update with the run link and the jobs that did not pass; for a startup failure the text says no job ran and points to the fork's Actions settings |
 | **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
 | **closed**: setup_required or awaiting_push for `close_after_days` | unchanged | close with a new comment; reopening restarts the clock |
@@ -876,6 +876,16 @@ workflows it uses, sometimes because the workflow file is invalid. The run has n
 are no job statuses either, and GitHub's error is only on the run page. It is handled as `failed`,
 but `Fork CI / Tests (AMD)` says "Fork CI run could not start - check your fork's Actions
 settings", and the state comment explains what to check instead of asking to fix failures.
+
+For a failed run that started, the state comment lists the jobs that did not pass, each linking
+to the job in the fork, at most 10 of them; the job statuses list them all. The jobs come from
+`GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`, reused from the job statuses when they
+read them in the same run, so a failed pull request costs one jobs read per reconciler run. Job
+names come from the contributor's workflow, so each is shown in a code span with backticks and
+line breaks replaced. When the jobs cannot be read the state comment is left as it is until the
+next run, rather than dropping the list. A read that failed after its retries is not repeated in
+the same run, whether the job statuses or the state comment made it, so persistent server errors
+cost each failed pull request one sequence of retries a run, not two.
 
 ### Commit status
 

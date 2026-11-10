@@ -36,6 +36,8 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
     MAX_LISTED_CI_FILES,
+    MAX_LISTED_FAILED_JOBS,
+    FailedJob,
     Marker,
     ci_change_approval_comment,
     ci_modification_note_comment,
@@ -119,6 +121,35 @@ def test_state_comment_links_the_contributor_documentation(startup_failure):
     assert CONTRIBUTING_URL.endswith("18_contribution_workflow.rst#ci-in-your-fork")
     assert "08_fork_ci_for_external_contributors" not in text
     assert text.endswith(FOOTER)
+
+
+def test_failed_job_list_is_safe_markdown_and_capped():
+    jobs = [
+        FailedJob("Tests `evil`\n\n@someone", "https://job/0", "timed_out"),
+        *(
+            FailedJob(f"Job {i}", f"https://job/{i + 1}", "failure")
+            for i in range(MAX_LISTED_FAILED_JOBS + 1)
+        ),
+    ]
+
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert "- [`Tests ?evil???@someone`](https://job/0): timed out" in text
+    assert "\n@someone" not in text
+    assert "- [`Job 0`](https://job/1): failed" in text
+    assert "- and 2 more, see the run" in text
+
+
+def test_failed_jobs_are_listed_only_for_a_failed_state():
+    jobs = [FailedJob("Static checks", "https://job/1", "failure")]
+
+    text = state_comment(
+        Marker("running", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert "Static checks" not in text
 
 
 def test_parse_marker_absent():

@@ -40,6 +40,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_STATUS_CONTEXT_PREFIX,
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
+    FailedJob,
     Marker,
     parse_marker,
     render_marker,
@@ -72,6 +73,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     fetch_open_pull_requests,
     fetch_workflow_state,
     find_ci_run_since,
+    find_failed_jobs,
     find_heads_shared_across_bases,
     find_project_ci_label_heads,
     find_project_ci_passed_url,
@@ -87,6 +89,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     parse_pull_request,
     pull_request_changes_ci_files,
     read_ci_run_at,
+    read_failed_jobs,
     read_head_status,
     read_job_status_failure_runs,
     read_project_ci_passed_url,
@@ -2929,6 +2932,9 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     (pr, fork), _ = mock_reporter.return_value.report.call_args
     assert pr.number == 1
     assert mock_classify.call_args.kwargs["jobs_reported"] == "7:SUCCESS"
+    find_failed = mock_classify.call_args.kwargs["find_failed_jobs"]
+    assert find_failed.func is read_failed_jobs
+    assert find_failed.args == (client, pr, fork, mock_reporter.call_args.kwargs["read_jobs"])
 
 
 @pytest.mark.parametrize("status", ["queued", "in_progress", "waiting"])
@@ -3782,7 +3788,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
 
     assert mock_classify.call_args.args[0].ci_run_at == datetime(2026, 11, 2, tzinfo=UTC)
     mock_report.assert_called_once_with(client, repo=REPO, skip={1})
-    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW)
+    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW, read_jobs={})
     assert has_alerts is fails
     if fails:
         assert "reporting `CI run started` for project CI failed: GitHubError" in output.read_text()
@@ -4462,3 +4468,114 @@ def test_report_project_ci_passed_counts_only_the_successes_that_were_written(cl
     client.set_status.side_effect = [GitHubError("HTTP 502"), None, None]
 
     assert report_project_ci_passed(client, repo=REPO, attention=[], budget=1) == [2]
+
+
+def test_find_failed_jobs_lists_finished_jobs_that_did_not_pass():
+    jobs = [
+        _fork_job("Static checks"),
+        _fork_job("Postgres tests", conclusion="failure"),
+        _fork_job("Helm tests", status="in_progress", conclusion=None),
+        _fork_job("Docs", conclusion="timed_out"),
+        _fork_job("Java SDK tests", conclusion="skipped"),
+        _fork_job("Platform: AMD", conclusion="failure"),
+        _fork_job("Postgres tests", conclusion="cancelled", url="https://job/second"),
+    ]
+
+    assert find_failed_jobs(jobs) == [
+        FailedJob("Docs", "https://job/Docs", "timed_out"),
+        FailedJob("Postgres tests", "https://job/Postgres tests", "failure"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("read_jobs", "side_effect", "expected", "reads"),
+    [
+        pytest.param({1: [_fork_job("A", conclusion="failure")]}, None, ["A"], False, id="read-this-run"),
+        pytest.param({}, [[_fork_job("B", conclusion="failure")]], ["B"], True, id="not-read-yet"),
+        pytest.param({}, GitHubError("HTTP 502"), None, True, id="unreadable"),
+        pytest.param({1: None}, None, None, False, id="read-failed-this-run"),
+    ],
+)
+def test_read_failed_jobs(client, read_jobs, side_effect, expected, reads):
+    client.get_run_jobs.side_effect = side_effect
+
+    failed = read_failed_jobs(client, _pr(), COMPLETED_RUN, read_jobs)
+
+    assert (None if failed is None else [job.name for job in failed]) == expected
+    assert client.get_run_jobs.called is reads
+    assert 1 in read_jobs
+
+
+def test_a_failed_jobs_read_is_not_repeated_for_the_state_comment(client):
+    client.rest_get.return_value = []
+    client.get_run_jobs.side_effect = GitHubError("HTTP 502")
+    read_jobs: dict = {}
+    reporter = JobStatusReporter(client, repo=REPO, budget=10, read_jobs=read_jobs)
+
+    with pytest.raises(GitHubError):
+        reporter.report(_pr(), COMPLETED_RUN)
+
+    assert read_failed_jobs(client, _pr(), COMPLETED_RUN, read_jobs) is None
+    client.get_run_jobs.assert_called_once_with("someone/airflow", 1)
+
+
+def test_job_status_reporter_keeps_the_jobs_it_read(client):
+    jobs = [_fork_job("Static checks", conclusion="failure")]
+    reporter = JobStatusReporter(_reporter_client(client, jobs), repo=REPO, budget=10)
+
+    reporter.report(_pr(), COMPLETED_RUN)
+
+    assert reporter.read_jobs == {1: jobs}
+
+
+FAILED_JOB = FailedJob("Static checks", "https://job/1", "failure")
+
+
+@pytest.mark.parametrize(
+    ("fork", "failed_jobs", "called", "listed"),
+    [
+        pytest.param(COMPLETED_RUN, [FAILED_JOB], True, True, id="failed"),
+        pytest.param(
+            dataclasses.replace(COMPLETED_RUN, suite_conclusion="STARTUP_FAILURE"),
+            [FAILED_JOB],
+            False,
+            False,
+            id="startup-failure",
+        ),
+        pytest.param(RUNNING_RUN, [FAILED_JOB], False, False, id="running"),
+    ],
+)
+def test_state_comment_lists_the_jobs_of_a_failed_run(fork, failed_jobs, called, listed):
+    find_failed = mock.Mock(return_value=failed_jobs)
+
+    plan = classify(
+        _pr(),
+        fork,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=find_failed,
+    )
+
+    assert find_failed.called is called
+    assert ("- [`Static checks`](https://job/1): failed" in plan.marker_comment) is listed
+
+
+def test_state_comment_is_left_for_the_next_run_when_failed_jobs_cannot_be_read():
+    plan = classify(
+        _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review")),
+        COMPLETED_RUN,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=lambda: None,
+    )
+
+    assert plan.state == ForkState.FAILED
+    assert plan.status == ("failure", RUN_URL, "Fork CI failed - see Details")
+    assert plan.remove_labels == ["ready for maintainer review"]
+    assert plan.marker_comment is None

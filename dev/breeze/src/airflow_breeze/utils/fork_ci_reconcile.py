@@ -71,6 +71,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
     STATUS_STATES,
+    FailedJob,
     Marker,
     fork_actions_url,
     gate_modified_close_comment,
@@ -625,6 +626,7 @@ def classify(
     jobs_reported: str | None = None,
     head_shared_across_bases: bool = False,
     find_gate_change: Callable[[], str | None] = lambda: None,
+    find_failed_jobs: Callable[[], list[FailedJob] | None] = lambda: [],
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -646,6 +648,9 @@ def classify(
     :param find_gate_change: describes how the pull request changes the fork CI gate, or returns
         None; only called for pull requests that the gate tampering check applies to, once per
         head commit.
+    :param find_failed_jobs: the jobs of the fork run that did not pass, None when they cannot be
+        read; only called for a failed run that started. On None the state comment is left for the
+        next run, so that a failed read does not drop the list from it.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -846,6 +851,9 @@ def classify(
     _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
     green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
+    failed_jobs = find_failed_jobs() if state == ForkState.FAILED and not startup_failure else []
+    if failed_jobs is None:
+        return plan
     _set_marker_comment(
         plan,
         pr,
@@ -863,6 +871,7 @@ def classify(
             base_ref=pr.base_ref,
             author_draft=_is_author_draft(pr),
             startup_failure=startup_failure,
+            failed_jobs=failed_jobs,
         ),
     )
     return plan
@@ -1748,6 +1757,48 @@ def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, s
     return statuses
 
 
+def find_failed_jobs(jobs: Iterable[dict[str, Any]]) -> list[FailedJob]:
+    """The finished jobs of a fork run that did not pass, by name, leaving out the jobs every run has."""
+    failed: dict[str, FailedJob] = {}
+    for job in jobs:
+        if job["name"] in UNREPORTED_JOB_NAMES or job.get("status") in RUNNING_JOB_STATUSES:
+            continue
+        conclusion = job.get("conclusion") or ""
+        if JOB_STATUSES.get(conclusion, ("",))[0] == "failure":
+            failed.setdefault(job["name"], FailedJob(job["name"], job["html_url"], conclusion))
+    return sorted(failed.values())
+
+
+# The jobs of fork runs read in this reconciler run, by run id. None records a read that failed after
+# its retries, so the next reader gives up at once instead of repeating them; the next run reads again.
+ReadJobs = dict[int, list[dict[str, Any]] | None]
+
+
+def read_failed_jobs(
+    client: GitHubClient,
+    pr: PullRequestSnapshot,
+    fork: ForkObservation,
+    read_jobs: ReadJobs,
+) -> list[FailedJob] | None:
+    """
+    ``find_failed_jobs`` of the pull request's fork run; None when its jobs cannot be read.
+
+    :param read_jobs: the jobs already read in this reconciler run; a read made here is recorded too.
+    """
+    if fork.run_id is None or not pr.head_repo:
+        return []
+    if fork.run_id in read_jobs:
+        jobs = read_jobs[fork.run_id]
+    else:
+        try:
+            jobs = client.get_run_jobs(pr.head_repo, fork.run_id)
+        except GitHubError as e:
+            console_print(f"[warning]#{pr.number}: could not read the jobs of {fork.run_url}: {e}[/]")
+            jobs = None
+        read_jobs[fork.run_id] = jobs
+    return None if jobs is None else find_failed_jobs(jobs)
+
+
 class JobStatusReporter:
     """Reports each job of a pull request's fork run as a commit status, within a per-run budget."""
 
@@ -1758,12 +1809,17 @@ class JobStatusReporter:
         repo: str,
         budget: int = MAX_JOB_STATUSES_PER_RUN,
         now: datetime | None = None,
+        read_jobs: ReadJobs | None = None,
     ):
-        """:param now: when given, deferring the statuses of a run that finished long ago is reported."""
+        """
+        :param now: when given, deferring the statuses of a run that finished long ago is reported.
+        :param read_jobs: where the jobs read, or a failed read, are kept, for the state comment to reuse.
+        """
         self._client = client
         self._repo = repo
         self._now = now
         self.remaining = budget
+        self.read_jobs = {} if read_jobs is None else read_jobs
         self.deferred: list[int] = []
         # (pull request, attention item) for runs whose statuses are deferred long after they finished.
         self.delayed: list[tuple[int, str]] = []
@@ -1808,7 +1864,12 @@ class JobStatusReporter:
         if self.remaining == 0:
             self._defer(pr, fork)
             return None
-        jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
+        try:
+            jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
+        except Exception:
+            self.read_jobs[fork.run_id] = None
+            raise
+        self.read_jobs[fork.run_id] = jobs
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -2682,11 +2743,13 @@ def run_reconcile(
         ci_passed_notes.append(
             f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
         )
+    read_jobs: ReadJobs = {}
     job_reporter = JobStatusReporter(
         client,
         repo=repo,
         budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes - ci_passed_reserved, 0),
         now=now,
+        read_jobs=read_jobs,
     )
 
     previous_job_status_failure_runs = read_job_status_failure_runs(reported_file)
@@ -2736,6 +2799,7 @@ def run_reconcile(
                 jobs_reported=jobs_reported,
                 head_shared_across_bases=pr.head_sha in shared_heads,
                 find_gate_change=functools.partial(gate_change_finder.find, pr),
+                find_failed_jobs=functools.partial(read_failed_jobs, client, pr, fork, read_jobs),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.
