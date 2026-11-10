@@ -255,7 +255,9 @@ class LocalExecutor(BaseExecutor):
         self._read_results()
         self._kill_idle_retired_workers()
         self._reap_dead_workers()
-        old_queue.close()
+        # Only the read end: a put blocked on the old pipe may still be using the write end, which is closed
+        # when the old queue is garbage collected.
+        old_queue._reader.close()  # type: ignore[attr-defined]
 
         workloads = [workload for pending in self._unstarted_workloads.values() for workload in pending]
         with self._unread_messages:
@@ -269,8 +271,13 @@ class LocalExecutor(BaseExecutor):
         else:
             for _ in range(min(num_workers, len(workloads))):
                 self._spawn_worker()
+        new_queue = self.activity_queue
         for workload in workloads:
-            self.activity_queue.put(workload)
+            if (put_error := self._put_workload(workload)) is not None:
+                raise put_error
+            if self.activity_queue is not new_queue:
+                # Replaced again while the put was blocked, which moved the rest of these workloads too.
+                return
 
     def _kill_idle_retired_workers(self) -> None:
         idle = [
@@ -448,11 +455,12 @@ class LocalExecutor(BaseExecutor):
 
         :return: the error the put itself raised, in which case the workload was not sent.
         """
+        queue = self.activity_queue
         put_errors: list[BaseException] = []
 
         def _put() -> None:
             try:
-                self.activity_queue.put(workload)
+                queue.put(workload)
             except BaseException as e:
                 put_errors.append(e)
 
@@ -466,13 +474,22 @@ class LocalExecutor(BaseExecutor):
                     # spawned or replaced after the batch: with spawn there are none before the first one,
                     # and each call starts just one, so a single busy worker must not stop the rest.
                     self._check_workers()
+                    if self.activity_queue is not queue:
+                        # The queue was replaced, which put this workload on the new queue with the other
+                        # unstarted ones. Nothing reads the old queue any more, so the pending write is left
+                        # to fail once the last worker reading it is gone.
+                        return None
                 self._read_results()
                 putter.join(timeout=0.05)
         except BaseException:
             # end() sends a shutdown message on the same pipe for each live worker, so an interruption
             # (SIGTERM raises SystemExit here) must not leave this writer blocked behind a full result
             # pipe. Without a live worker nothing can take the pending write, and end() sends nothing.
-            while putter.is_alive() and any(proc.is_alive() for proc in self.workers.values()):
+            while (
+                putter.is_alive()
+                and self.activity_queue is queue
+                and any(proc.is_alive() for proc in self.workers.values())
+            ):
                 self._read_results()
                 putter.join(timeout=0.05)
             raise

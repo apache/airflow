@@ -651,6 +651,7 @@ class TestLocalExecutor:
         assert executor._dispatch_counts.get(key, 0) == earlier_dispatches
         assert executor.executor_queues[workload.type][key] is workload
         assert executor._unread_messages.value == 0
+        assert not executor._unstarted_workloads
 
     def test_process_workloads_counts_workload_before_put(self):
         """A worker decrements the count when it takes the message, so it must be counted first."""
@@ -1128,6 +1129,36 @@ class TestLocalExecutorBookkeeping:
 
         assert executor.activity_queue is activity_queue
         assert not executor.workers
+
+    def test_idle_worker_death_during_blocked_put_moves_workload_to_new_activity_queue(
+        self, local_executor_with_mock_worker
+    ):
+        executor, idle = local_executor_with_mock_worker
+        workload = _make_task_workload()
+        key = executor.get_task_key(workload.ti)
+        executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+        old_queue = executor.activity_queue
+        release_put = threading.Event()
+
+        def _put_blocked_after_worker_dies(_workload):
+            # The dead worker held the read lock, so nothing reads the full old pipe until its readers are gone.
+            idle.is_alive.return_value = False
+            release_put.wait(timeout=10)
+            raise BrokenPipeError
+
+        try:
+            with mock.patch.object(old_queue, "put", side_effect=_put_blocked_after_worker_dies):
+                executor.heartbeat()
+
+            new_queue = executor.activity_queue
+            assert new_queue is not old_queue
+            assert executor.get_workload_key(new_queue.get()) == key
+            assert new_queue.empty()
+            assert executor._unread_messages.value == 1
+            assert key in executor.running
+            assert key not in executor.executor_queues[workload.type]
+        finally:
+            release_put.set()
 
     @pytest.mark.parametrize(
         ("stage", "worker_terminated"),
