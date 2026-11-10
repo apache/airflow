@@ -343,11 +343,12 @@ class Trigger(Base):
         if batch_size <= 0:
             raise ValueError("[triggerer] unreferenced_triggers_cleanup_batch_size must be at least 1")
 
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
+        # Update all task instances with trigger IDs that are not DEFERRED to remove them.
+        # A NULL state (a cleared task instance) never satisfies ``!=`` in SQL, so match it explicitly.
         session.execute(
             update(TaskInstance)
             .where(
-                TaskInstance.state != TaskInstanceState.DEFERRED,
+                or_(TaskInstance.state.is_(None), TaskInstance.state != TaskInstanceState.DEFERRED),
                 TaskInstance.trigger_id.is_not(None),
             )
             .values(trigger_id=None)
