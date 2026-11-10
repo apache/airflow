@@ -357,6 +357,7 @@ class TestGCSArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert (bundle.path / "subdir" / "dag_02.py").read_bytes() == b"print(2)\n"
+        assert bundle.path == bundle.base_dir / "dags"
         assert bundle._archive_etag_path() == bundle.path / ".archive_etag"
         assert bundle._archive_etag_path().read_text() == "etag-1"
         mock_gcs_hook_property.return_value.sync_to_local_dir.assert_not_called()
@@ -503,7 +504,8 @@ class TestGCSArchiveDagBundle:
             bucket_name=GCS_BUCKET_NAME,
         )
         prefix_bundle.initialize()
-        assert archive_bundle.path == prefix_bundle.path
+        assert archive_bundle.path == prefix_bundle.path / "dags"
+        assert not (archive_bundle.path / ".archive_etag").exists()
         assert not (prefix_bundle.path / ".archive_etag").exists()
         assert (prefix_bundle.path / "dag_01.py").read_bytes() == b"from prefix"
         assert not (prefix_bundle.path / "archive_only.py").exists()
@@ -619,7 +621,7 @@ class TestGCSArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+        assert list(bundle.base_dir.glob("archive-staging-*")) == []
 
     @patch(
         "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
@@ -642,7 +644,7 @@ class TestGCSArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
-        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+        assert list(bundle.base_dir.glob("archive-staging-*")) == []
 
     @patch(
         "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
@@ -676,7 +678,7 @@ class TestGCSArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+        assert list(bundle.base_dir.glob("archive-staging-*")) == []
 
     @patch(
         "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
@@ -693,21 +695,21 @@ class TestGCSArchiveDagBundle:
         )
         bundle.initialize()
 
-        storage_root = bundle.path.parent
-        state_dir = bundle._archive_state_dir()
-        stale = state_dir / "archive-staging-dead"
+        storage_root = bundle.base_dir.parent
+        stale = bundle.base_dir / "archive-staging-dead"
         stale.mkdir()
         (stale / "orphan.txt").write_text("left by a killed process")
-        collided = storage_root / f".{bundle.name}-archive-staging-dead"
-        collided.mkdir()
-        other = storage_root / ".other" / "archive-staging-dead"
+        dotted_sibling = storage_root / f".{bundle.name}" / "archive-staging-dead"
+        dotted_sibling.mkdir(parents=True)
+        other = storage_root / "other" / "archive-staging-dead"
         other.mkdir(parents=True)
 
         bundle.refresh()
 
         assert not stale.exists()
-        assert collided.is_dir()
+        assert dotted_sibling.is_dir()
         assert other.is_dir()
+        assert (bundle.path / "dag_01.py").is_file()
 
     @patch(
         "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
@@ -729,7 +731,7 @@ class TestGCSArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
-        assert not (bundle.path.parent / "escape.py").exists()
+        assert not (bundle.base_dir / "escape.py").exists()
 
     def test_archive_object_requires_tar_data_filter(self, monkeypatch):
         monkeypatch.delattr(tarfile, "data_filter", raising=False)
