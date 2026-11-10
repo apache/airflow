@@ -132,12 +132,14 @@ CI in your fork
 
 Pull requests from contributors who are not committers or collaborators are moving to running
 their CI in the contributor's own fork, on GitHub's free runners, instead of on the shared CI
-capacity of the Apache Software Foundation (`AIP-120
-<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711/AIP-120+Run+CI+for+external+contributions+in+contributor+forks>`__).
+capacity of the Apache Software Foundation (`ADIP-12, formerly AIP-120
+<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711>`__).
 CI on a public fork costs you nothing and has no minute limit; it runs on every push to your
 fork, so you get feedback before a maintainer looks at your pull request. The change is being
 piloted: until it is switched on for everyone, it applies to pilot participants (see below) and
-to pull requests a maintainer labels ``use fork ci``.
+to pull requests a maintainer labels ``use fork ci``. The `pull request lifecycle
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#pull-request-lifecycle>`__ diagram
+shows what your pull request shows at each step and who acts next.
 
 Set up your checkout and fork once:
 
