@@ -30,7 +30,9 @@ fingerprint, computed by the framework adapter, says what it was asked (the mess
 history, the tool arguments). The first mismatch means the run took a different path
 from the previous attempt, so that step and every step after it run live. So does
 everything the previous attempt did after a step that raised, and, when the previous
-attempt failed on the model's answers, everything from the model's last request on.
+attempt failed on the model's answers, everything from the model's last request on. A
+tool call that raised on two attempts in a row counts as such an answer: the next retry
+asks the model again from the request that chose the call.
 
 A :class:`DurableJournal` belongs to one task attempt. Each agent run in it is a
 :class:`DurableRun`, numbered in the order the runs start, with positions of its own,
@@ -54,11 +56,11 @@ An adapter that stops the task to wait for input (``request_input()``) calls
 from __future__ import annotations
 
 import collections
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from airflow.providers.common.ai.durable.base import RUN_ID_KEY, RUNS_KEY, build_run_meta_key, build_step_key
 from airflow.providers.common.ai.durable.storage import DurableStorage
@@ -79,6 +81,17 @@ log = get_task_logger()
 
 StepKind = Literal["model", "tool", "other"]
 """What a step is, for the end-of-run summary and for adapters that treat model steps specially."""
+
+# Attempts in a row a tool call may fail before a retry asks the model again instead of replaying
+# its choice: the first retry runs the same call again, in case the failure was transient.
+_TOOL_FAILURES_BEFORE_ASKING_MODEL = 2
+
+
+class _ToolFailure(TypedDict):
+    """The tool call that failed a run, in the run's entry, and on how many attempts in a row it did."""
+
+    call: list[int | str | None]  # [position, name, fingerprint]
+    attempts: int
 
 
 @dataclass(frozen=True)
@@ -115,6 +128,8 @@ class JournalStep:
     payload: Any = None
     # Whether this step's replay is in ``stats.replayed``; see :meth:`DurableRun.reserve`.
     _replay_counted: bool = field(default=False, init=False, repr=False)
+    # The position of the last model step claimed before this one: the request that chose a tool call.
+    _model_position: int | None = field(default=None, init=False, repr=False)
     # Agent runs started while this step executes; they are numbered under it.
     nested_runs: int = field(default=0, repr=False)
 
@@ -219,7 +234,7 @@ class JournalStep:
         fail the run, :meth:`DurableRun.fail` uses this to tell which steps the run had
         already started when it failed; a run that recovers from the error is unaffected.
         """
-        self.durable_run._raised.append((error, self.durable_run.position))
+        self.durable_run._raised.append((error, self.durable_run.position, self))
 
 
 @dataclass
@@ -263,8 +278,9 @@ class DurableRun:
         self._previous_replayed = True
         # Entries read ahead by ``peek`` and not yet claimed.
         self._peeked: dict[int, dict[str, Any] | None] = {}
-        # Exceptions steps raised this attempt, with the next position when each was raised.
-        self._raised: list[tuple[BaseException, int]] = []
+        # Exceptions steps raised this attempt, with the next position when each was raised
+        # and the step that raised it.
+        self._raised: list[tuple[BaseException, int, JournalStep]] = []
         # The furthest position this attempt recorded a step at, and every position it recorded.
         self._last_saved = -1
         self._saved: set[int] = set()
@@ -276,6 +292,9 @@ class DurableRun:
         # Read with the rest of the run's entry: whether ``_diverge_from`` is where the task paused
         # rather than where an attempt failed.
         self._paused = False
+        # Read with the rest of the run's entry: the tool call that failed the previous attempt,
+        # and on how many attempts in a row it did.
+        self._tool_failure: dict[str, Any] = {}
         # Steps ``reserve`` numbered for the latest model response, by tool call id, until taken.
         self._reserved: dict[str, JournalStep] = {}
 
@@ -294,6 +313,8 @@ class DurableRun:
         self._high_water = high_water if isinstance(high_water, int) else 0
         self._model_at_fault = meta.get("model_at_fault") is True
         self._paused = meta.get("paused") is True
+        tool_failure = meta.get("tool_failure")
+        self._tool_failure = tool_failure if isinstance(tool_failure, dict) else {}
 
     def peek(self, position: int) -> dict[str, Any] | None:
         """
@@ -374,6 +395,7 @@ class DurableRun:
         position = self._position
         self._position += 1
         step = JournalStep(self, position, name, kind, fingerprint, replayable=replayable)
+        step._model_position = self._last_model_position
         if kind == "model":
             self._last_model_position = position
         self._load_meta()
@@ -461,25 +483,67 @@ class DurableRun:
             checks too many times. Those answers were recorded and would replay into the same
             failure on every retry, so the retry asks the model again from its last request.
             Ignored when a step raised ``error``: that step decides where the retry runs live.
+
+        A tool call that raises ``error`` on two attempts in a row, with the same arguments, is
+        treated as a failure the model caused as well: the first retry runs the call again in
+        case its failure was transient, and the next asks the model again from the request that
+        chose the call, rather than replay that choice into the same failure.
         """
         failed_at = self._position
-        raised_in_step = False
+        failed_steps: list[JournalStep] = []
+        causes: list[BaseException] = []
         cause: BaseException | None = error
         while cause is not None:
-            positions = [position for raised, position in self._raised if raised is cause]
-            raised_in_step = raised_in_step or bool(positions)
-            failed_at = min([failed_at, *positions])
+            causes.append(cause)
+            for raised, position, step in self._raised:
+                if raised is cause:
+                    failed_steps.append(step)
+                    failed_at = min(failed_at, position)
             cause = cause.__cause__ or cause.__context__
         self._load_meta()
         # An attempt that was still replaying an earlier one when it failed, and recorded
         # nothing from the failure on, leaves that earlier attempt's steps as they were.
         diverge_from = failed_at if self.diverged or self._last_saved >= failed_at else self._diverge_from
+        failed_step = min(failed_steps, key=lambda step: step.position, default=None)
+        failures = self.journal._run_failures
+        # An agent run started inside a step that raised failed with the error first and took it
+        # as its own: its tool call failed, or its model is asked again. This run's model did not
+        # choose what failed. Only runs numbered under those steps count (a tool can raise through
+        # an operation step it started); another run whose error is merely in this one's context,
+        # such as a fallback agent started in an ``except``, does not.
+        inside = tuple(f"{self.key}.{step.position}." for step in failed_steps)
+        failed_inside = any(
+            seen is cause and key.startswith(inside) for seen, key in failures for cause in causes
+        )
+        tool_failure = None if failed_inside else self._count_tool_failure(failed_step)
+        # The model request a retry asks again, if the failure is the model's.
+        ask_model_from: int | None = None
+        if failed_step is None:
+            if model_at_fault:
+                # Unlike a step that raised, the failure is known to come after every recorded
+                # step, so this holds even for an attempt that was still replaying.
+                ask_model_from = self._last_model_position
+        elif (
+            tool_failure is not None
+            and tool_failure["attempts"] >= _TOOL_FAILURES_BEFORE_ASKING_MODEL
+            and failed_step._model_position is not None
+        ):
+            ask_model_from = failed_step._model_position
+            log.warning(
+                "Durable: the same tool call failed on consecutive attempts; a retry asks the model "
+                "again from the request that chose it",
+                position=failed_step.position,
+                step=failed_step.name,
+                attempts=tool_failure["attempts"],
+            )
+            # The count starts over with the model's next answer, even one whose call cannot be
+            # told from this one (no fingerprint), so that call too is retried once as it is.
+            tool_failure = None
+        if failed_inside or tool_failure is not None or ask_model_from is not None:
+            failures.append((error, self.key))
         rerun_model = False
-        if model_at_fault and not raised_in_step and (last_model := self._last_model_position) is not None:
-            # Unlike a step that raised, the failure is known to come after every recorded step,
-            # so this holds even for an attempt that was still replaying.
-            if diverge_from is None or last_model <= diverge_from:
-                diverge_from, rerun_model = last_model, True
+        if ask_model_from is not None and (diverge_from is None or ask_model_from <= diverge_from):
+            diverge_from, rerun_model = ask_model_from, True
         previous = self._diverge_from
         if (
             previous is not None
@@ -489,7 +553,7 @@ class DurableRun:
             # The entry at the previous attempt's point is still that attempt's, as this one
             # recorded nothing over it (the step there raised, say), so a retry must not replay it.
             diverge_from, rerun_model = previous, self._model_at_fault
-        self._save_meta(diverge_from, model_at_fault=rerun_model)
+        self._save_meta(diverge_from, model_at_fault=rerun_model, tool_failure=tool_failure)
 
     def pause(self) -> None:
         """
@@ -519,16 +583,46 @@ class DurableRun:
             log.warning("Durable: could not delete entries this attempt replaced", positions=survived)
         trusted_until = survived[0] if survived else self._position
         self._diverge_from, self._model_at_fault = trusted_until, False
-        self._save_meta(trusted_until, model_at_fault=False, paused=True)
+        # A pause is not a failure, and the task resumes in the same attempt, so the count of
+        # attempts in a row a tool call failed carries over to a failure after the resume.
+        self._save_meta(
+            trusted_until, model_at_fault=False, paused=True, tool_failure=self._tool_failure or None
+        )
 
-    def _save_meta(self, diverge_from: int | None, *, model_at_fault: bool, paused: bool = False) -> None:
+    def _save_meta(
+        self,
+        diverge_from: int | None,
+        *,
+        model_at_fault: bool,
+        paused: bool = False,
+        tool_failure: Mapping[str, Any] | None = None,
+    ) -> None:
         meta = {
             "diverge_from": diverge_from,
             "high_water": max(self._high_water, self._position),
             "model_at_fault": model_at_fault,
             "paused": paused,
+            "tool_failure": tool_failure,
         }
         self.journal.storage.save_step(build_run_meta_key(self.key), meta)
+
+    def _count_tool_failure(self, step: JournalStep | None) -> _ToolFailure | None:
+        """
+        Describe the tool call ``step`` for the run's entry, with how many attempts in a row it failed.
+
+        The call counts as the one that failed the previous attempt when its position, name and
+        fingerprint match; the fingerprint holds the call's arguments and the call id from the
+        model's answer, so a call from a new answer starts the count over.
+
+        ``None`` when ``step`` is not a tool call.
+        """
+        if step is None or step.kind != "tool":
+            return None
+        call: list[int | str | None] = [step.position, step.name, step.fingerprint]
+        attempts = self._tool_failure.get("attempts")
+        if self._tool_failure.get("call") != call or not isinstance(attempts, int):
+            attempts = 0
+        return {"call": call, "attempts": attempts + 1}
 
     def cleanup(self) -> None:
         """Delete this run's steps. Call only once the run, and anything that consumes it, has succeeded."""
@@ -602,6 +696,9 @@ class DurableJournal:
         # an earlier attempt started that this one never reaches (an agent called from a tool
         # that now replays) is still deleted.
         self._known_runs: list[str] | None = None
+        # Errors a run of this attempt failed with and took as its own, with the run's key. An agent
+        # run inside a step fails before the run the step belongs to, so that run can tell.
+        self._run_failures: list[tuple[BaseException, str]] = []
 
     def get_run_id(self, *, default: str) -> str:
         """

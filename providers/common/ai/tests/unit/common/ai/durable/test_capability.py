@@ -965,6 +965,81 @@ class TestModelAtFault:
 
         assert (calls["model"], calls["query"]) == (2, 2)
 
+    @pytest.mark.asyncio
+    async def test_a_tool_that_keeps_failing_on_the_models_arguments_asks_the_model_again(
+        self, memory_storage
+    ):
+        """The second attempt retries the same call in case the failure was transient; the third asks the model."""
+        calls = Calls()
+        queries: list[str] = []
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            if returns := tool_returns(messages):
+                return ModelResponse(parts=[TextPart(f"answer: {returns[-1].content}")])
+            sql = "select nope" if calls["model"] == 1 else "select 1"
+            return ModelResponse(parts=[ToolCallPart("query", {"sql": sql})])
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                queries.append(sql)
+                if "nope" in sql:
+                    raise ValueError("column nope does not exist")
+                return "3 rows"
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        for _ in range(2):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build())
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert queries == ["select nope", "select nope", "select 1"]
+        # Attempt 2 replays the model's first answer; attempt 3 asks again, then for the answer.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_each_answer_with_the_same_failing_arguments_gets_its_own_retry(self, memory_storage):
+        """Even an answer identical to the last, call id included, is retried once before the model is asked again."""
+        calls = Calls()
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                calls.bump("query")
+                raise ValueError("column nope does not exist")
+
+            def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                calls.bump("model")
+                return ModelResponse(
+                    parts=[ToolCallPart("query", {"sql": "select nope"}, tool_call_id="call_1")]
+                )
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        for _ in range(4):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build())
+
+        # Asked on attempts 1 and 3; attempts 2 and 4 replay those answers and retry the call.
+        assert (calls["model"], calls["query"]) == (2, 4)
+
 
 @pytest.mark.enable_redact
 class TestMasking:

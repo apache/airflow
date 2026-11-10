@@ -169,6 +169,27 @@ succeeded alongside the one that was rejected. The task log names the step:
 
     Durable: the run took a different path from the previous attempt; this step and every step after it run again position=2 step=analyst__model.request reason=the model's answers from this step on failed the previous attempt, so it is asked again
 
+A tool call that fails the run on two attempts in a row, with an exception other than
+``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or ``CallDeferred``, is also handled
+by asking the model again. The first retry replays the model's answer and runs the call
+again with the same arguments, in case the failure was transient, such as a dropped
+connection. If the call fails the run on that retry too, the arguments are taken to be the
+problem: the next retry replays the steps before the model request that chose the call,
+and asks the model again from there. That takes ``retries=2`` or more. A call from the new
+answer gets its own retry with the same arguments before the model is asked again, and
+other calls of the old answer run again if the new answer repeats them. When the failing
+call belongs to an agent that a tool runs, only that agent's model is asked again. The
+attempt that failed the second time logs:
+
+.. code-block:: text
+
+    Durable: the same tool call failed on consecutive attempts; a retry asks the model again from the request that chose it position=1 step=slogan_agent__function_toolset__marketing.call_tool:publish_slogan attempts=2
+
+The model is asked with the conversation it had before, which does not include the
+exception, so it can choose the same arguments again. To let the model see what went
+wrong and correct the call within the same attempt, raise ``ModelRetry`` from the tool
+instead.
+
 Some steps have no request to fingerprint: another capability's
 ``@durable_operation``, or tool discovery. Such a step replays on its name, and only when
 the step before it also replayed.
@@ -187,7 +208,8 @@ A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
 ``CallDeferred`` replays as the same signal. ``AgentOperator`` does not support tool
 approval or deferred tools with ``durable=True``, so there such a call fails the task
 with ``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
-any other exception runs again on retry.
+any other exception runs again on retry; once it has failed the run on two attempts in a
+row, the next retry asks the model again, as described above.
 
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool
@@ -355,7 +377,9 @@ side effect it had (a file written, a message sent) is not repeated.
 A tool that fails *before* its result is recorded runs again on retry, so a tool that
 sent an email and then raised sends it again. The same holds when the worker dies
 between a tool's side effect and the write of its result, and for the tool calls of a
-model answer that the retry asks for again after the model ran out of retries. Make tools with side effects
+model answer that the retry asks for again, after pydantic-ai gave up on the model's
+answers (``UnexpectedModelBehavior``) or a tool call failed the run on two attempts in a
+row. Make tools with side effects
 idempotent: check whether the work already happened, or let a database constraint
 reject the duplicate.
 
