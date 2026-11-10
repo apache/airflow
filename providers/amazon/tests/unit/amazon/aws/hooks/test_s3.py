@@ -682,13 +682,13 @@ class TestAwsS3Hook:
     async def test_get_head_object_async_does_not_print_to_stdout(self, capsys):
         """Async S3 calls must not emit debug output to stdout."""
         hook = S3Hook(aws_conn_id=None)
-        client = AsyncMock()
-        client.head_object.return_value = {"ContentLength": 10}
+        client = AsyncMock(spec=["head_object"])
+        client.head_object = AsyncMock(return_value={"ContentLength": 10})
 
         result = await hook.get_head_object_async(client, "test-key", "test-bucket")
 
         assert result == {"ContentLength": 10}
-        client.head_object.assert_awaited_once()
+        client.head_object.assert_awaited_once_with(Bucket="test-bucket", Key="test-key")
         assert capsys.readouterr().out == ""
 
     @pytest.mark.asyncio
