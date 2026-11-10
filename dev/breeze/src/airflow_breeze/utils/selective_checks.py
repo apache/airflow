@@ -84,6 +84,7 @@ from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.fork_compare import get_upstream_file
 from airflow_breeze.utils.functools_cache import clearable_cache
+from airflow_breeze.utils.import_graph import find_reachable_providers
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
 from airflow_breeze.utils.path_utils import (
@@ -101,6 +102,7 @@ DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
+IMPORT_GRAPH_NARROWING_LABEL = "import graph narrowing"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
@@ -1851,11 +1853,13 @@ class SelectiveChecks:
                 candidate_test_types.add("Providers")
         elif affected_providers:
             suspended = set(get_suspended_provider_ids())
-            providers_to_test = [p for p in affected_providers if p not in suspended]
+            providers_to_test = self._narrow_providers_by_import_graph(
+                [p for p in affected_providers if p not in suspended]
+            )
             if split_to_individual_providers:
                 for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
-            else:
+            elif providers_to_test:
                 providers_to_test = self._add_providers_sharing_test_process_state(
                     providers_to_test, changed_providers=self._find_changed_providers(), suspended=suspended
                 )
@@ -1864,6 +1868,33 @@ class SelectiveChecks:
         console_print("[warning]Selected providers test type candidates to run:[/]")
         console_print(sorted_candidate_test_types)
         return sorted_candidate_test_types
+
+    @cached_property
+    def _import_graph_narrowing_enabled(self) -> bool:
+        # Pushes to main stay coarse, so what a narrowed PR misses still fails before the next canary.
+        return self._is_pull_request_like() and (
+            IMPORT_GRAPH_NARROWING_LABEL in self._pr_labels
+            or os.environ.get("IMPORT_GRAPH_NARROWING", "").casefold() == "true"
+        )
+
+    def _narrow_providers_by_import_graph(self, providers: list[str]) -> list[str]:
+        """
+        Drop the upstream and downstream providers whose tests cannot import any changed file.
+
+        Off by default: the providers the import graph would drop are only printed (shadow mode), so
+        the gap can be measured from the build-info logs before the label or variable turns it on.
+        """
+        changed = self._find_changed_providers()
+        reachable = find_reachable_providers(AIRFLOW_ROOT_PATH, self._files, set(providers) - changed)
+        if reachable is None:
+            console_print("[info]Import graph narrowing: a changed file can be imported dynamically.[/]")
+            return providers
+        dropped = sorted(p for p in providers if p not in changed and p not in reachable)
+        if not self._import_graph_narrowing_enabled:
+            console_print(f"[info]Import graph narrowing (shadow mode) would drop providers: {dropped}[/]")
+            return providers
+        console_print(f"[info]Import graph narrowing dropped providers: {dropped}[/]")
+        return [p for p in providers if p not in dropped]
 
     def _find_changed_providers(self) -> set[str]:
         """Providers whose own files changed, without their upstream and downstream dependents."""

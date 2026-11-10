@@ -528,6 +528,28 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     (`PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS`, currently `cncf.kubernetes`), the side-effect
     provider is added to the same `Providers[...]` test type, because the two share one pytest process on
     canary and the changed tests must pass after it
+  * before that, the static import graph (`airflow_breeze/utils/import_graph.py`) can drop the
+    upstream and downstream providers added for a dependency, and `fab` and `openlineage` added for API
+    and asset changes, when none of their test files (with the conftest files and the `tests_common`
+    pytest plugin they load) can import a changed file. It only removes providers, never adds one,
+    and keeps every provider whose own files changed. Changed files outside `airflow-core/`,
+    `task-sdk/`, `providers/`, `devel-common/` and `shared/` do not count. It keeps the whole
+    selection when a changed file:
+    * is not a Python module that the graph can parse (non-Python files, `provider.yaml`,
+      `pyproject.toml`, deleted files, syntax errors),
+    * is under `devel-common/` or `shared/`, or is a `conftest.py`,
+    * is under an `example_dags`, `dags`, `system`, `plugins` or `migrations` directory, which tests
+      load by file path,
+    * is named by its dotted path in a runtime key of a `provider.yaml` (all keys except `operators`,
+      `sensors`, `hooks` and `transfers`), in `config.yml`, in a `pyproject.toml` entry point or
+      script, or as the literal argument of an `import_string`, `import_module`, `getimport` or
+      `__import__` call, or is imported by such a module. Any test can import these through
+      `ProvidersManager` or the configuration. A call with a computed argument is not seen.
+
+    The narrowing applies only to pull requests, with the `import graph narrowing` label or the
+    `IMPORT_GRAPH_NARROWING=true` repository variable. Otherwise it runs in shadow mode: the
+    `Selective checks` step of `Build info` prints the providers it would drop, and the selection
+    stays the same. Integration test selection is not narrowed.
 * `TS SDK unit tests` (the vitest suite run by `pnpm test` in `ts-sdk/`, exposed as the
   `run-ts-sdk-tests` output) run when `TS SDK files` change: anything under `ts-sdk/` except `.md`
   files, `ts-sdk/api-docs/`, and `ts-sdk/docs/` (the docs toolchain's own package).
@@ -945,6 +967,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 | disable image cache              | docker-cache, use-pinned-os-deps-images | If set, the image cache is disabled and the OS dependencies are installed from scratch when building the image. |
 | force pip                        | force-pip                        | If set, the image build uses pip instead of uv.                                           |
 | full tests needed                | full-tests-needed                | If set, complete set of tests are run                                                     |
+| import graph narrowing           | providers-test-types-list-as-strings-in-json, and the other provider test type lists | If set, providers whose tests cannot import a changed file are not tested (see the `Providers` rules). |
 | include success outputs          | include-success-outputs          | If set, outputs of successful parallel tests are shown not only failed outputs.           |
 | latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |
 | non committer build              | is-committer-build               | If set, the scripts used for images are used from target branch for committers.           |

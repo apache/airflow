@@ -52,6 +52,7 @@ from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     COMPONENT_BRANCH_OUTPUTS,
+    IMPORT_GRAPH_NARROWING_LABEL,
     LONG_RUNNING_TEST_PROVIDERS,
     PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS,
     SelectiveChecks,
@@ -6095,3 +6096,105 @@ def test_generic_tests_run_outside_component_branches(context, expected):
     assert checks.prod_image_build is True
     assert checks.run_generic_prod_image_tests is expected
     assert checks.run_generic_basic_tests is expected
+
+
+COMMON_COMPAT_TEST_FILE = "providers/common/compat/tests/unit/common/compat/lineage/test_entities.py"
+COMMON_SQL_SOURCE_FILE = "providers/common/sql/src/airflow/providers/common/sql/sensors/sql.py"
+FIND_REACHABLE_PROVIDERS = "airflow_breeze.utils.selective_checks.find_reachable_providers"
+
+
+def get_individual_provider_test_types(
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
+    github_event: GithubEvents = GithubEvents.PULL_REQUEST,
+    split_to_individual_providers: bool = True,
+) -> list[str]:
+    return SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=github_event,
+        pr_labels=pr_labels,
+        default_branch="main",
+        selective_tests_on_push=True,
+    )._get_providers_test_types_to_run(split_to_individual_providers=split_to_individual_providers)
+
+
+# The import graph itself is tested on a temporary tree in test_import_graph.py. These tests mock it,
+# so that they do not depend on which provider tests import what in the live repository.
+@pytest.mark.parametrize(
+    ("changed_file", "changed_provider", "reachable", "expected_test_types"),
+    [
+        pytest.param(
+            COMMON_COMPAT_TEST_FILE,
+            "common.compat",
+            set(),
+            ["Providers[common.compat]"],
+            id="unreachable-related-providers-are-dropped",
+        ),
+        pytest.param(
+            COMMON_SQL_SOURCE_FILE,
+            "common.sql",
+            {"apache.hive"},
+            ["Providers[apache.hive]", "Providers[common.sql]"],
+            id="reachable-related-provider-is-kept",
+        ),
+        pytest.param(
+            COMMON_COMPAT_TEST_FILE, "common.compat", None, None, id="graph-without-proof-keeps-the-selection"
+        ),
+    ],
+)
+@patch(FIND_REACHABLE_PROVIDERS, autospec=True)
+def test_import_graph_narrowing_label(
+    mock_find_reachable_providers: Mock,
+    changed_file: str,
+    changed_provider: str,
+    reachable: set[str] | None,
+    expected_test_types: list[str] | None,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("IMPORT_GRAPH_NARROWING", raising=False)
+    mock_find_reachable_providers.return_value = reachable
+    shadow = get_individual_provider_test_types((changed_file,), ())
+    narrowed = get_individual_provider_test_types((changed_file,), (IMPORT_GRAPH_NARROWING_LABEL,))
+    assert len(shadow) > 2
+    assert narrowed == (expected_test_types or shadow)
+    # Shadow mode asks the graph too; the changed provider is never a candidate for removal.
+    assert mock_find_reachable_providers.call_count == 2
+    for call in mock_find_reachable_providers.call_args_list:
+        assert call.args[1] == (changed_file,)
+        assert changed_provider not in call.args[2]
+
+
+@pytest.mark.parametrize(
+    ("github_event", "is_narrowed"),
+    [
+        pytest.param(GithubEvents.PULL_REQUEST, True, id="pull-request-is-narrowed"),
+        pytest.param(GithubEvents.PUSH, False, id="push-is-not-narrowed"),
+    ],
+)
+@patch(FIND_REACHABLE_PROVIDERS, autospec=True, return_value=set())
+def test_import_graph_narrowing_variable(
+    mock_find_reachable_providers: Mock,
+    monkeypatch: pytest.MonkeyPatch,
+    github_event: GithubEvents,
+    is_narrowed: bool,
+):
+    monkeypatch.setenv("IMPORT_GRAPH_NARROWING", "true")
+    test_types = get_individual_provider_test_types((COMMON_COMPAT_TEST_FILE,), (), github_event)
+    assert (test_types == ["Providers[common.compat]"]) is is_narrowed
+    assert "Providers[common.compat]" in test_types
+    mock_find_reachable_providers.assert_called_once()
+
+
+@patch(FIND_REACHABLE_PROVIDERS, autospec=True, return_value=set())
+def test_import_graph_narrowing_can_drop_every_provider(
+    mock_find_reachable_providers: Mock, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.delenv("IMPORT_GRAPH_NARROWING", raising=False)
+    # An API test change selects fab and common.compat, and changes no provider file.
+    files = ("airflow-core/tests/unit/api_fastapi/auth/test_tokens.py",)
+    assert get_individual_provider_test_types(files, (), split_to_individual_providers=False) != []
+    narrowed = get_individual_provider_test_types(
+        files, (IMPORT_GRAPH_NARROWING_LABEL,), split_to_individual_providers=False
+    )
+    assert narrowed == []

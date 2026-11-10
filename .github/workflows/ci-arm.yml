@@ -355,6 +355,8 @@ jobs:
           USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
           # Repository variable: "false" keeps docker of the RunsOn jobs on disk instead of in RAM.
           USE_IN_MEMORY_DOCKER: "${{ vars.USE_IN_MEMORY_DOCKER }}"
+          # Repository variable: "true" drops providers whose tests cannot import a changed file.
+          IMPORT_GRAPH_NARROWING: "${{ vars.IMPORT_GRAPH_NARROWING }}"
           PLATFORM: "linux/arm64"
           SELECTIVE_TESTS_ON_PUSH: "true"
           PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
