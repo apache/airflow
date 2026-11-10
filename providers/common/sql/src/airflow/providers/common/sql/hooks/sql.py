@@ -394,6 +394,41 @@ class DbApiHook(BaseHook):
         columns = self.inspector.get_columns(table_name, schema=schema)
         return [{"name": col["name"], "type": str(col["type"])} for col in columns]
 
+    def get_table_comment(self, table_name: str, schema: str | None = None) -> str | None:
+        """
+        Return the table comment using SQLAlchemy Inspector.
+
+        :param table_name: Name of the table.
+        :param schema: Optional schema/namespace name.
+        :return: The comment, or ``None`` when the table has none or the dialect cannot report comments.
+        """
+        try:
+            comment = self.inspector.get_table_comment(table_name, schema=schema)
+        except NotImplementedError:
+            return None
+        return comment.get("text") or None
+
+    def get_table_columns_with_comments(
+        self, table_name: str, schema: str | None = None
+    ) -> list[dict[str, str]]:
+        """
+        Return column names and types for a table, plus each column's comment where one exists.
+
+        Same as :meth:`get_table_schema`, except that a column carries a ``comment`` key
+        only when the dialect reports a non-empty comment for it.
+
+        :param table_name: Name of the table.
+        :param schema: Optional schema/namespace name.
+        :return: List of dicts with ``name`` and ``type`` keys, and ``comment`` when present.
+        """
+        result: list[dict[str, str]] = []
+        for col in self.inspector.get_columns(table_name, schema=schema):
+            column = {"name": col["name"], "type": str(col["type"])}
+            if comment := col.get("comment"):
+                column["comment"] = comment
+            result.append(column)
+        return result
+
     @cached_property
     def dialect_name(self) -> str:
         if make_url is not None:
