@@ -222,6 +222,10 @@
     "write": "लिखें"
   },
   "overallStatus": "समग्र स्थिति",
+  "pagination": {
+    "nextPage": "अगला पेज",
+    "previousPage": "पिछला पेज"
+  },
   "partition_one": "पार्टीशन",
   "partition_other": "पार्टीशन्स",
   "partitionedDagRun_one": "विभाजित Dag रन",
@@ -620,9 +624,5 @@
     "unwrap": "अनरैप",
     "wrap": "रैप"
   },
-  "yes": "हां",
-  "pagination": {
-    "nextPage": "अगला पेज",
-    "previousPage": "पिछला पेज"
-  }
+  "yes": "हां"
 }

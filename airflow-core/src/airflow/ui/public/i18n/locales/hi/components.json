@@ -175,6 +175,12 @@
   "toggleTableView": "टेबल व्यू दिखाएं",
   "triggerDag": {
     "button": "ट्रिगर करें",
+    "dagStartEndDate": {
+      "both": "डैग प्रारंभ तिथि: {{startDate}}, समाप्ति तिथि: {{endDate}}",
+      "end": "डैग समाप्ति तिथि: {{endDate}}",
+      "noTaskWillRun": "कोई कार्य नहीं चलेगा।",
+      "start": "डैग प्रारंभ तिथि: {{startDate}}"
+    },
     "dataInterval": "डेटा अंतराल",
     "dataIntervalAuto": "तार्किक तिथि और टाइमटेबल से अनुमानित",
     "dataIntervalManual": "मैन्युअल रूप से निर्दिष्ट करें",
@@ -201,13 +207,7 @@
       }
     },
     "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें",
-    "triggerOptions": "ट्रिगर विकल्प",
-    "dagStartEndDate": {
-      "both": "डैग प्रारंभ तिथि: {{startDate}}, समाप्ति तिथि: {{endDate}}",
-      "end": "डैग समाप्ति तिथि: {{endDate}}",
-      "noTaskWillRun": "कोई कार्य नहीं चलेगा।",
-      "start": "डैग प्रारंभ तिथि: {{startDate}}"
-    }
+    "triggerOptions": "ट्रिगर विकल्प"
   },
   "trimText": {
     "details": "विवरण",
