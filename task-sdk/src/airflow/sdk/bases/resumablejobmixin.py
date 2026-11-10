@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger
 
 tracer = trace.get_tracer(__name__)
+
+# Read by the durable execution banner on the task logs page.
+DURABLE_RECORD_KEY = "__airflow_durable__"
 
 
 class ResumableJobMixin(ABC):
@@ -189,8 +193,12 @@ class ResumableJobMixin(ABC):
                     )
 
         if reconnect_to is not None:
-            return self.poll_until_complete(reconnect_to, context)
+            self._record_try(context, "reconnected", reconnect_to)
+            result = self.poll_until_complete(reconnect_to, context)
+            self._record_try(context, "reconnected", reconnect_to, job_finished=True)
+            return result
         if already_succeeded_id is not None:
+            self._record_try(context, "already_succeeded", already_succeeded_id)
             return self.get_job_result(already_succeeded_id, context)
         external_id = self.submit_job(context)
 
@@ -201,9 +209,46 @@ class ResumableJobMixin(ABC):
                 external_id_key=self.external_id_key,
                 external_id=external_id,
             )
+            self._record_try(context, "submitted", external_id)
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
+
+    def _record_try(
+        self, context: Context, decision: str, external_id: JsonValue, *, job_finished: bool = False
+    ) -> None:
+        """
+        Record what this try did with the external job, for the banner on the task logs page.
+
+        A reconnect avoided a full second run of the job, so once the job finishes the try is
+        recorded again with the job's run time from submission as the time saved.
+        """
+        task_state_store = context.get("task_state_store")
+        if task_state_store is None:
+            return
+        try:
+            now = datetime.now(tz=UTC)
+            stored = task_state_store.get(DURABLE_RECORD_KEY)
+            record: dict[str, Any] = stored if isinstance(stored, dict) else {}
+            if decision == "submitted":
+                record["submitted_at"] = now.isoformat()
+            saved_seconds = None
+            if job_finished and record.get("submitted_at"):
+                saved_seconds = (now - datetime.fromisoformat(record["submitted_at"])).total_seconds()
+            try_number = getattr(context.get("ti"), "try_number", None)
+            record["tries"] = [t for t in record.get("tries", []) if t.get("try_number") != try_number]
+            record["tries"].append(
+                {
+                    "try_number": try_number,
+                    "decision": decision,
+                    "external_id": external_id,
+                    "saved_seconds": saved_seconds,
+                }
+            )
+            task_state_store.set(DURABLE_RECORD_KEY, record)
+        except Exception:
+            # Only feeds the UI, so it must never fail the task.
+            self.log.warning("Could not record durable execution history", exc_info=True)
 
     @abstractmethod
     def submit_job(self, context: Context) -> JsonValue:

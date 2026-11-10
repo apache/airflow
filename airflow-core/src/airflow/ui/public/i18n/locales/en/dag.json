@@ -108,6 +108,15 @@
     "allSources": "All Sources",
     "critical": "CRITICAL",
     "debug": "DEBUG",
+    "durable": {
+      "detail": {
+        "already_succeeded": "Job {{id}} had already finished, so Airflow used its result.",
+        "reconnected": "Reconnected to job {{id}} instead of running it again."
+      },
+      "title": "Durable execution saved ~{{duration}} of job time",
+      "titleNoTiming": "Durable execution avoided a rerun",
+      "total": "~{{duration}} across all tries."
+    },
     "error": "ERROR",
     "info": "INFO",
     "noTryNumber": "No try number",
