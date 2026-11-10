@@ -19,7 +19,8 @@ SQL databases: ``SQLToolset``
 =============================
 
 Curated toolset wrapping
-:class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` with four tools:
+:class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` with four tools, and a fifth,
+``search_tables``, when you pass a ``search_backend``:
 
 .. list-table::
    :header-rows: 1
@@ -28,10 +29,16 @@ Curated toolset wrapping
    * - Tool
      - Description
    * - ``list_tables``
-     - Lists available table names (filtered by ``allowed_tables`` if set)
+     - Lists available table names (filtered by ``allowed_tables`` if set). With a
+       ``search_backend``, returns only a count once there are more than
+       ``max_listed_tables`` (see :ref:`sql-toolset-table-search`)
    * - ``get_schema``
-     - Returns a table's columns as JSON, with a ``name_contains`` filter and a
-       bounded summary on very wide tables (see :ref:`bounded-schema-results`)
+     - Returns a table's columns as JSON, with table and column comments where the
+       database has them, a ``name_contains`` filter and a bounded summary on very
+       wide tables (see :ref:`bounded-schema-results`)
+   * - ``search_tables``
+     - Only with ``search_backend``. Finds tables by a free-text query over table names
+       and comments (see :ref:`sql-toolset-table-search`)
    * - ``query``
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)
@@ -337,8 +344,113 @@ Parameters
   Must be a valid Python identifier. Set it when one agent has another toolset with the
   same tool names, since duplicate tool names are rejected. A function passed to
   ``.approval_required()`` sees these prefixed names; see ``allow_writes`` above.
+- ``include_table_comments``: When ``True``, ``list_tables`` returns
+  ``{"name": ..., "comment": ...}`` objects instead of bare names; ``comment`` is
+  present only for tables that have one. Default ``False``. ``get_schema`` returns
+  comments regardless. See :ref:`sql-toolset-comments`.
+- ``search_backend``: Registers the ``search_tables`` tool. Default ``None``, no search
+  tool. See :ref:`sql-toolset-table-search`.
+- ``max_listed_tables``: With a ``search_backend``, the number of tables above which
+  ``list_tables`` stops listing and points at ``search_tables``. Default ``100``. No
+  effect without a ``search_backend``.
 - ``max_retries``: How many times the model may correct a failed call to these
   tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
+
+.. _sql-toolset-comments:
+
+Table and column comments
+-------------------------
+
+A column named ``amt_adj_2`` tells an agent little; the comment the database holds for
+it often does. ``get_schema`` returns ``table_comment`` and a ``comment`` on each column
+where the database reports one:
+
+.. code-block:: json
+
+    {"columns": [{"name": "amt_adj_2", "type": "NUMERIC", "comment": "Net of refunds"}],
+     "column_count": 1, "table_comment": "Customer orders"}
+
+Comments are read through ``DbApiHook.get_table_comment`` and
+``DbApiHook.get_table_columns_with_comments``, which ``common.sql`` provides from the
+release that added them. With an older ``common.sql``, or on a dialect that cannot report
+comments (SQLite, for one), ``get_schema`` works as before and returns none. A failure reading
+the *table* comment is ignored for the same reason; a failure reading the columns is not.
+
+Each comment is cut to 200 characters. Comments share ``max_result_bytes`` with the
+columns, so a wide table with long comments can cross the budget where the same table
+without them would not. When the result is summarized (see :ref:`bounded-schema-results`),
+the column comments are left out, the summary says so with ``comments_omitted``, and the
+agent gets them back by asking for the columns it needs with ``name_contains``.
+
+``include_table_comments=True`` adds the table comments to ``list_tables``, and the default
+search backend reads the same comments to build its catalog. Both call the Inspector's
+``get_multi_table_comment`` once per schema. What that costs depends on the dialect. Where the
+dialect does not implement ``get_multi_table_comment`` itself, SQLAlchemy's default reads the
+comments one table at a time. Based on the dialects' reflection implementations (read, not run
+against a live database), Snowflake (``snowflake-sqlalchemy`` 2.1.0) and BigQuery
+(``sqlalchemy-bigquery`` 1.17.3) do not implement it, so there each table costs one query, or one
+API call on BigQuery, and a schema with many tables makes this slow. On PostgreSQL it was a single
+query when tried. On such databases leave ``include_table_comments`` off for large schemas, or pass
+a custom ``search_backend`` that builds its catalog with one dialect-specific query, for example
+against ``INFORMATION_SCHEMA``.
+
+SQLAlchemy 1.4 has no ``get_multi_table_comment``, so there ``list_tables`` returns tables without
+comments rather than reading them table by table. The default search backend then has no comments
+to match, and a query whose words appear only in comments returns nothing; matching on table
+names still works.
+
+.. _sql-toolset-table-search:
+
+Finding tables in a large warehouse
+-----------------------------------
+
+Listing every table stops working once there are hundreds. Pass a ``search_backend`` and the
+agent gets a ``search_tables`` tool that takes a free-text ``query`` and an optional
+``limit`` (default 10, at most 50) and returns matching tables with their comments. Once
+there are more than ``max_listed_tables`` tables, ``list_tables`` returns only their number
+and a pointer to ``search_tables`` instead of the whole list. Without a ``search_backend``
+``list_tables`` is unchanged, however many tables there are.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.providers.common.ai.toolsets.sql_search import KeywordTableSearchBackend
+
+    toolset = SQLToolset(
+        db_conn_id="snowflake_hq",
+        allowed_tables=["MODEL_CRM.SF_ASTRO_ORGS", "MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS"],
+        search_backend=KeywordTableSearchBackend(),
+    )
+
+``KeywordTableSearchBackend`` splits the query on whitespace and matches each word,
+case-insensitively, as a substring of the table name and of the table's comment; column
+comments are not searched. A word found in
+the name counts three times a word found in the comment; tables matching nothing are
+dropped and ties are ordered by name. It introspects once per toolset instance, then
+searches that result.
+
+Every result is checked against ``allowed_tables`` before the agent sees it, whichever
+backend produced it, so a backend that knows about more tables than the agent may use
+cannot widen access.
+
+**Plugging in another backend.** A backend is any object with a
+``search_tables(query, limit, *, get_catalog)`` method returning ``(name, comment)``
+pairs, best match first (see
+:class:`~airflow.providers.common.ai.toolsets.sql_search.SQLTableSearchBackend`). Names
+must be in the form ``list_tables`` returns -- bare for the default schema,
+``SCHEMA.TABLE`` otherwise. A backend with its own index, such as a vector store, a search
+service or a retriever over table descriptions, ignores ``get_catalog`` and queries that
+index. This provider ships no such backend; integration code is yours to write and test
+against your own store.
+
+.. warning::
+
+    Introspection must run as the same identity the agent queries with, because
+    ``INFORMATION_SCHEMA`` and the equivalent catalogs show a role only what that role can see.
+    The default path is correct by construction: the toolset introspects through the same
+    ``db_conn_id`` it queries with. A standalone backend, an external vector store for
+    instance, is responsible for building its index with that identity or equivalent
+    privileges. Otherwise it can surface tables the agent cannot use, or miss tables it can.
 
 .. _bounded-query-results:
 
@@ -422,7 +534,8 @@ summary that reports the shape and points at the filter:
 ``truncated_by`` is ``max_columns`` or ``max_result_bytes``. ``type_histogram`` counts
 columns per type (capped to the most common, the tail folded into one entry), and
 ``sample_columns`` previews the first columns -- both only while they fit the budget, so
-a pathologically small budget still returns the ``column_count`` and ``hint``. A filtered
+a pathologically small budget still returns the ``column_count`` and ``hint``. Column comments count
+against the same budget (see :ref:`sql-toolset-comments`). A filtered
 call echoes ``name_contains`` and adds ``total_columns`` so a subset is never mistaken for
 the whole table.
 

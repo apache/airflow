@@ -186,7 +186,8 @@ How ``allowed_tables`` is enforced
 
 When ``allowed_tables`` is set it governs every tool, not just discovery:
 
-- ``list_tables`` and ``get_schema`` only reveal listed tables.
+- ``list_tables``, ``get_schema`` and, when a ``search_backend`` is set, ``search_tables``
+  only reveal listed tables.
 - ``query`` and ``check_query`` parse the SQL with `sqlglot
   <https://github.com/tobymao/sqlglot>`_ and reject it before execution if it
   references any table that is not on the list. Tables reached indirectly are
