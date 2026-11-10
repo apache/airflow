@@ -320,28 +320,30 @@ class _ModelRetryPolicy(RetryPolicy):
 
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 
-    def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
-        member_errors = self._get_member_errors(exception)
-        if self.include_traceback:
-            text = "".join(traceback.format_exception(exception)).rstrip("\n")
-        else:
-            text = str(exception)
-            if member_errors:
-                text += "".join(
-                    f"\nchain member {position} of {len(member_errors)}: {type(member).__name__}: {member}"
-                    for position, member in enumerate(member_errors, start=1)
-                )
+    def _limit(self, text: str, *, keep_tail: bool = False) -> str:
         # Redact before truncating -- truncating first could cut a registered secret in half.
         if self.redactor is not None:
             text = self.redactor(text)
-        if len(text) > self.max_exception_length:
-            if self.include_traceback:
-                # Keep the tail: the innermost frames and the final exception line say the most.
-                text = f"(truncated) ...{text[-self.max_exception_length :]}"
-            else:
-                text = f"{text[: self.max_exception_length]}... (truncated)"
-        if not self.include_traceback:
-            text = f"{type(exception).__name__}: {text}"
+        if len(text) <= self.max_exception_length:
+            return text
+        if keep_tail:
+            # Keep the tail: the innermost frames and the final exception line say the most.
+            return f"(truncated) ...{text[-self.max_exception_length :]}"
+        return f"{text[: self.max_exception_length]}... (truncated)"
+
+    def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
+        if self.include_traceback:
+            text = self._limit("".join(traceback.format_exception(exception)).rstrip("\n"), keep_tail=True)
+        else:
+            text = f"{type(exception).__name__}: {self._limit(str(exception))}"
+            # Each member gets its own limit: one long error must not push the last one, which
+            # decides ``fallback_rules``, out of the prompt.
+            member_errors = self._get_member_errors(exception)
+            for position, member in enumerate(member_errors, start=1):
+                text += (
+                    f"\nchain member {position} of {len(member_errors)}: "
+                    f"{type(member).__name__}: {self._limit(str(member))}"
+                )
         if (progress := self._describe_journal_progress(exception)) is not None:
             text += f"\n{progress}"
         # ``max_tries`` is the last try number that may still retry (core adds to it on a clear),

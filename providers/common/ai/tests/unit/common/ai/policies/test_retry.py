@@ -1004,6 +1004,19 @@ class TestFallbackChain:
 
     @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
     @patch(HOOK, autospec=True)
+    def test_a_long_earlier_member_does_not_push_the_last_one_out_of_the_prompt(
+        self, mock_hook_cls, policy_cls
+    ):
+        # Truncating the joined text instead of each member keeps the head and drops the last member.
+        error = _exhausted_chain(_RateLimited("x" * 500), _BadRequest("final rejection"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error, max_exception_length=100)
+
+        assert "chain member 1 of 2: _RateLimited: " + "x" * 100 + "... (truncated)" in prompt
+        assert "chain member 2 of 2: _BadRequest: final rejection" in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
     def test_prompt_says_how_far_the_durable_attempt_got(self, mock_hook_cls, policy_cls):
         error = _exhausted_chain(_RateLimited("a"), _RateLimited("b"), replayed=2, recorded=1)
 
