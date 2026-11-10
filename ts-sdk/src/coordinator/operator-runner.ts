@@ -20,7 +20,7 @@
 // Runs an operator the SDK executes itself: starts it, or resumes it after it parked or deferred.
 
 import { resolveArgs } from "./arg-binding.js";
-import type { CoordinatorClient } from "./client.js";
+import { XCOM_RETURN_KEY, type CoordinatorClient } from "./client.js";
 import type { LogChannel } from "./log-channel.js";
 import type {
   RuntimeAwaitInputTask,
@@ -93,7 +93,7 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
       return bound.args;
     },
     async succeed(value?: JsonValue): Promise<RuntimeSucceedTask> {
-      if (value !== undefined) await client.setXCom({ key: "return_value", value });
+      if (value !== undefined) await client.setXCom({ key: XCOM_RETURN_KEY, value });
       // The Execution API's TISuccessStatePayload validator rejects null for
       // `task_outlets` and `outlet_events`, so both are empty lists.
       return {

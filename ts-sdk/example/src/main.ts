@@ -32,10 +32,7 @@ import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
 export async function buildMessage() {
   const client = getClient();
-  const upstream = await client.getXCom<string>({
-    key: "return_value",
-    taskId: "python_start",
-  });
+  const upstream = await client.getXCom<string>({ taskId: "python_start" });
   const greeting = await client.getVariable("typescript_example_greeting");
   const message = `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
 

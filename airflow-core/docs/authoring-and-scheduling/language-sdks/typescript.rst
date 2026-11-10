@@ -452,7 +452,7 @@ on a ``Bundle``:
 
     export async function buildMessage() {
       const client = getClient();
-      const upstream = await client.getXCom<string>({ key: "return_value", taskId: "python_start" });
+      const upstream = await client.getXCom<string>({ taskId: "python_start" });
       const greeting = await client.getVariable("typescript_example_greeting");
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
@@ -591,12 +591,13 @@ The ``TaskClient``
        exist.
    * - ``getConnectionOrThrow(connId)``
      - Same, but throws ``ConnectionNotFoundError``, like Python's ``BaseHook.get_connection``.
-   * - ``getXCom<T>({ key, ... })``
-     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``, ``taskId`` and ``mapIndex``
-       default to the current task; pass ``taskId`` to read an upstream task's XCom. See
-       :ref:`typescript-sdk/types`.
-   * - ``setXCom({ key, value, ... })``
-     - Publishes an XCom value.
+   * - ``getXCom<T>({ taskId, ... })``
+     - The XCom value ``taskId`` pushed, or ``null`` when it does not exist. ``key`` defaults to
+       ``return_value``, and ``dagId`` and ``runId`` to the current task's. For a mapped task, it is the values
+       of all its instances in an array ordered by map index; pass ``mapIndex`` to read one instance. A map
+       index that selects no task instance reads ``null``. See :ref:`typescript-sdk/types`.
+   * - ``setXCom({ value, ... })``
+     - Publishes an XCom value. ``key`` defaults to ``return_value``.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.

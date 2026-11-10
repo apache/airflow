@@ -191,7 +191,42 @@ describe("writes do not read a supervisor 404 as absence", () => {
 describe("getXCom not-found contract", () => {
   it("returns null for the exact XCOM_NOT_FOUND code", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
-    expect(await c.getXCom({ key: "k" })).toBeNull();
+    expect(await c.getXCom({ key: "k", taskId: "up" })).toBeNull();
+  });
+});
+
+describe("XCom key", () => {
+  it("defaults to return_value for getXCom and setXCom", async () => {
+    const { client: c, sent } = recordingClient({
+      type: "XComResult",
+      key: "return_value",
+      value: 1,
+    });
+
+    await c.getXCom({ taskId: "up" });
+    await c.setXCom({ value: 1 });
+
+    expect(sent.map((m) => [m.type, m.key])).toEqual([
+      ["GetXCom", "return_value"],
+      ["SetXCom", "return_value"],
+    ]);
+  });
+});
+
+describe("getXCom map index", () => {
+  it("sends a map index as given", async () => {
+    const { client: c, sent } = recordingClient({ type: "XComResult", key: "k", value: null });
+
+    await c.getXCom({ key: "k", taskId: "up", mapIndex: -1 });
+    await c.getXCom({ key: "k", taskId: "up", mapIndex: 2 });
+
+    expect(sent.map((m) => m.map_index)).toEqual([-1, 2]);
+  });
+
+  it("returns a mapped task's result as an array", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: [1, 2] } }]);
+
+    expect(await c.getXCom({ key: "k", taskId: "up" })).toEqual([1, 2]);
   });
 });
 
@@ -202,23 +237,26 @@ describe("getXComEntry", () => {
   // fails the task, while one that pushed null binds null.
   it("reports an absent row as not found", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
-    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: false, value: null });
+    expect(await c.getXComEntry({ key: "k", taskId: "up" })).toEqual({ found: false, value: null });
   });
 
   it("reports a stored null as found", async () => {
     const c = client([{ body: { type: "XComResult", key: "k", value: null } }]);
-    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: null });
+    expect(await c.getXComEntry({ key: "k", taskId: "up" })).toEqual({ found: true, value: null });
   });
 
   it("reports a stored value as found", async () => {
     const c = client([{ body: { type: "XComResult", key: "k", value: { orders: 12 } } }]);
-    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: { orders: 12 } });
+    expect(await c.getXComEntry({ key: "k", taskId: "up" })).toEqual({
+      found: true,
+      value: { orders: 12 },
+    });
   });
 
   it("is what getXCom reads, so both see one round-trip", async () => {
     const c = client([{ body: { type: "XComResult", key: "k", value: false } }]);
     // `false` also pins that getXCom's `?? null` does not flatten a falsy value.
-    expect(await c.getXCom({ key: "k" })).toBe(false);
+    expect(await c.getXCom({ key: "k", taskId: "up" })).toBe(false);
   });
 });
 
@@ -258,7 +296,7 @@ describe("client is bound to TaskContext", () => {
     });
   });
 
-  it("defaults getXCom locator fields from ctx with snake_case wire names", async () => {
+  it("defaults getXCom dag and run from ctx with snake_case wire names", async () => {
     const sent: Record<string, unknown>[] = [];
     const recordingComm = {
       request: async (b: Record<string, unknown>) => {
@@ -266,15 +304,17 @@ describe("client is bound to TaskContext", () => {
         return { body: { type: "XComResult", key: b.key, value: null } };
       },
     } as unknown as CommChannel;
-    const c = createCoordinatorClient(recordingComm, FAKE_CTX, FAKE_TI_ID);
+    // A mapped ctx, to prove getXCom does not default to the running task's map index.
+    const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+    const c = createCoordinatorClient(recordingComm, mappedCtx, FAKE_TI_ID);
 
-    await c.getXCom({ key: "k" });
+    await c.getXCom({ key: "k", taskId: "up" });
 
     expect(sent[0]).toEqual({
       type: "GetXCom",
       key: "k",
       dag_id: "d",
-      task_id: "t",
+      task_id: "up",
       run_id: "r",
       map_index: null,
       include_prior_dates: false,
@@ -304,7 +344,7 @@ describe("client is bound to TaskContext", () => {
       dagId: "other_dag",
       taskId: "upstream",
       runId: "manual__1",
-      mapIndex: -1,
+      mapIndex: 2,
       includePriorDates: true,
     });
     await c.setXCom({ key: "k", value: 3, mapIndex: 5 });
@@ -316,7 +356,7 @@ describe("client is bound to TaskContext", () => {
       dag_id: "other_dag",
       task_id: "upstream",
       run_id: "manual__1",
-      map_index: null,
+      map_index: 2,
       include_prior_dates: true,
     });
     expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });

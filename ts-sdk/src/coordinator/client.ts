@@ -58,6 +58,10 @@ import type {
  */
 type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boolean };
 
+/** The key a task's return value is stored under, as Python `@task` does. */
+export const XCOM_RETURN_KEY = "return_value";
+
+/** The map index `setXCom` writes: the running task's own unless `opts` names one. */
 function resolveWireMapIndex(
   requestedMapIndex: number | null | undefined,
   contextMapIndex: number,
@@ -344,11 +348,12 @@ export function createCoordinatorClient(
     async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
       const msg: GetXCom = {
         type: "GetXCom",
-        key: opts.key,
+        key: opts.key ?? XCOM_RETURN_KEY,
         dag_id: opts.dagId ?? ctx.dagId,
-        task_id: opts.taskId ?? ctx.taskId,
+        task_id: opts.taskId,
         run_id: opts.runId ?? ctx.runId,
-        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
+        // A null map index is resolved by the server by how the task is defined.
+        map_index: opts.mapIndex ?? null,
         include_prior_dates: opts.includePriorDates ?? false,
       };
       const entry = await rpc<XComEntry>(
@@ -375,7 +380,7 @@ export function createCoordinatorClient(
     async setXCom(opts: SetXComOpts): Promise<void> {
       const msg: SetXCom = {
         type: "SetXCom",
-        key: opts.key,
+        key: opts.key ?? XCOM_RETURN_KEY,
         value: opts.value,
         dag_id: opts.dagId ?? ctx.dagId,
         task_id: opts.taskId ?? ctx.taskId,

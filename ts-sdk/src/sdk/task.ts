@@ -123,7 +123,7 @@ export function getContext<TConf = TaskContext["conf"]>(): TaskContext<TConf> {
  * ```ts
  * async function transform() {
  *   const client = getClient();
- *   return await client.getXCom<number>({ key: "return_value", taskId: "extract" });
+ *   return await client.getXCom<number>({ taskId: "extract" });
  * }
  * ```
  *
