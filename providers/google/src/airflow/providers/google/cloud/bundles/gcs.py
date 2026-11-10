@@ -22,6 +22,7 @@ import tarfile
 import tempfile
 from abc import abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 from google.api_core.exceptions import NotFound
@@ -30,6 +31,9 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger
 
 
 def _require_tar_data_filter() -> None:
@@ -75,7 +79,7 @@ class _GCSDagBundleBase(BaseDagBundle):
             "gcp_conn_id": self.gcp_conn_id,
         }
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with the context common to every GCS Dag bundle."""
         return structlog.get_logger(__name__).bind(**self._log_bindings())
 
@@ -182,7 +186,7 @@ class GCSDagBundle(_GCSDagBundleBase):
         self.prefix = prefix
         super().__init__(gcp_conn_id=gcp_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this prefix bundle's context."""
         return structlog.get_logger(__name__).bind(**self._log_bindings(), prefix=self.prefix)
 
@@ -248,7 +252,7 @@ class GCSArchiveDagBundle(_GCSDagBundleBase):
         self.archive_object = archive_object
         super().__init__(gcp_conn_id=gcp_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _get_logger(self):
+    def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this archive bundle's context."""
         return structlog.get_logger(__name__).bind(**self._log_bindings(), archive_object=self.archive_object)
 
