@@ -524,6 +524,15 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   * `Publish documentation and validate versions` runs when the docs are built and a documentation
     tree, a `provider.yaml`, a `pyproject.toml`, a distribution's version file, a changelog, the release
     notes or the docs tooling changed.
+* The provider compatibility tests (the `Compat` jobs of `Provider distributions tests`) run the selected
+  provider tests against released Airflow versions from PyPI, with `airflow-core/src` and `task-sdk/src`
+  hidden from the container. They are skipped when every changed file is a Python file in those two trees,
+  except the version files `airflow/__init__.py` and `airflow/sdk/__init__.py`, a Python file in
+  `task-sdk/tests/`, a document or image in `airflow-core/docs/` or `task-sdk/docs/`, or an
+  `airflow-core/newsfragments/*.rst` file. Other files in the docs trees, such as a nested prek config, keep
+  the tests: the job installs the prek hooks on the host before the sources are hidden. Such a change cannot change their result: a Task SDK change selects all providers,
+  but the compatibility tests install the released Task SDK. The other provider test jobs still run.
+  Full-test runs and the `upgrade to newer dependencies` case run them as before.
 * `PROD Image building` is enabled when kubernetes tests are run.
 * `Generate constraints` runs when the PROD image is built, because that build reads the
   `constraints-source-providers` file, or when `generate-pypi-constraints` is on. The PyPI constraints and
@@ -795,6 +804,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-image-build-time-check                              | Whether `Check that image builds quickly` runs: the CI image is built and a file it is built from changed | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
+| run-providers-compatibility-tests                       | Whether the provider tests run against released Airflow versions: false when every changed file is hidden from them (Task SDK or core Python sources, Task SDK tests, their docs); off on component branches | true                                     |      |
 | run-shared-distributions-tests                          | Whether the shared distributions tests run: `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml` or `uv.lock` changed; off on component branches | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |

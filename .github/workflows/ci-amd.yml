@@ -382,6 +382,8 @@ jobs:
       shared-distributions-as-json: ${{ steps.selective-checks.outputs.shared-distributions-as-json }}
       skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
+      run-providers-compatibility-tests: >-
+        ${{ steps.selective-checks.outputs.run-providers-compatibility-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.head-repo }}
       source-head-ref: ${{ steps.source-run-info.outputs.head-ref }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
@@ -724,6 +726,8 @@ jobs:
       providers-compatibility-tests-matrix: >
         ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      run-providers-compatibility-tests: >-
+        ${{ needs.build-info.outputs.run-providers-compatibility-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
