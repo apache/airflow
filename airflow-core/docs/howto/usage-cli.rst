@@ -375,6 +375,19 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
     It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
     This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
 
+.. warning::
+
+    ``airflow db downgrade`` only reverts **schema** migrations (tables, columns, Alembic revision).
+    It does **not** rewrite row payloads that were serialized by a newer Airflow release.
+
+    In particular, Airflow 3.2+ may persist SDK-serde JSON in metadata columns
+    (for example trigger kwargs and related serialized fields). After downgrading the
+    schema to 3.1.x, Airflow 3.1 still expects the legacy ``{__type, __var}`` wrapper and
+    can crash on startup with ``KeyError: Encoding.VAR`` when those newer blobs remain.
+
+    Before relying on a downgrade for rollback, take a database backup and plan how you
+    will handle or clear incompatible serialized rows (or restore from a pre-upgrade backup).
+
 .. _cli-reserialize-dags:
 
 Reserializing Dags
