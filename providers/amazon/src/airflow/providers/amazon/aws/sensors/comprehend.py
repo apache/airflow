@@ -20,12 +20,14 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.comprehend import (
     ComprehendCreateDocumentClassifierCompletedTrigger,
     ComprehendPiiEntitiesDetectionJobCompletedTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -74,6 +76,12 @@ class ComprehendBaseSensor(AwsBaseSensor[ComprehendHook]):
             raise AirflowException(self.FAILURE_MESSAGE)
 
         return state not in self.INTERMEDIATE_STATES
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise SensorTriggerFailedError(f"{self.FAILURE_MESSAGE} Trigger event: {validated_event}")
 
     @abc.abstractmethod
     def get_state(self) -> str:
@@ -139,7 +147,7 @@ class ComprehendStartPiiEntitiesDetectionJobCompletedSensor(ComprehendBaseSensor
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -227,10 +235,22 @@ class ComprehendCreateDocumentClassifierCompletedSensor(AwsBaseSensor[Comprehend
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise SensorTriggerFailedError(f"{self.FAILURE_MESSAGE} Trigger event: {validated_event}")
+
+        self.hook.validate_document_classifier_training_status(
+            document_classifier_arn=self.document_classifier_arn, fail_on_warnings=self.fail_on_warnings
+        )
+
+        self.log.info("Comprehend document classifier `%s` complete.", self.document_classifier_arn)
 
     def poke(self, context: Context, **kwargs) -> bool:
         status = self.hook.conn.describe_document_classifier(

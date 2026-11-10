@@ -19,11 +19,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.kinesis_analytics import (
     KinesisAnalyticsV2ApplicationOperationCompleteTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -92,6 +94,12 @@ class KinesisAnalyticsV2BaseSensor(AwsBaseSensor[KinesisAnalyticsV2Hook]):
 
         return False
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise SensorTriggerFailedError(f"{self.FAILURE_MESSAGE} Trigger event: {validated_event}")
+
 
 class KinesisAnalyticsV2StartApplicationCompletedSensor(KinesisAnalyticsV2BaseSensor):
     """
@@ -156,7 +164,7 @@ class KinesisAnalyticsV2StartApplicationCompletedSensor(KinesisAnalyticsV2BaseSe
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -225,7 +233,7 @@ class KinesisAnalyticsV2StopApplicationCompletedSensor(KinesisAnalyticsV2BaseSen
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)

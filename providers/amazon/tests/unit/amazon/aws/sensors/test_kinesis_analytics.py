@@ -20,12 +20,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.sensors.kinesis_analytics import (
     KinesisAnalyticsV2StartApplicationCompletedSensor,
     KinesisAnalyticsV2StopApplicationCompletedSensor,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestKinesisAnalyticsV2StartApplicationCompletedSensor:
@@ -92,6 +93,29 @@ class TestKinesisAnalyticsV2StartApplicationCompletedSensor:
         ):
             sensor.poke({})
 
+    def test_execute_defers_to_execute_complete(self):
+        sensor = self.SENSOR(**self.default_op_kwargs, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"
+
+    def test_execute_complete_success_event(self):
+        assert (
+            self.sensor.execute_complete({}, event={"status": "success", "application_name": "demo"}) is None
+        )
+
+    def test_execute_complete_error_event(self):
+        event = {
+            "status": "error",
+            "message": "Waiter error: max attempts reached",
+            "application_name": "demo",
+        }
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            self.sensor.execute_complete({}, event=event)
+
 
 class TestKinesisAnalyticsV2StopApplicationCompletedSensor:
     SENSOR = KinesisAnalyticsV2StopApplicationCompletedSensor
@@ -156,3 +180,11 @@ class TestKinesisAnalyticsV2StopApplicationCompletedSensor:
             AirflowException, match="AWS Managed Service for Apache Flink application stop failed"
         ):
             sensor.poke({})
+
+    def test_execute_defers_to_execute_complete(self):
+        sensor = self.SENSOR(**self.default_op_kwargs, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"

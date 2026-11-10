@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockBatchInferenceSensor,
@@ -370,3 +371,47 @@ class TestBedrockBatchInferenceSensor:
         mock_conn.get_model_invocation_job.return_value = {"status": "Scheduled"}
 
         assert op.poke({}) is False
+
+
+SENSORS = [
+    pytest.param(BedrockCustomizeModelCompletedSensor, {"job_name": "job_name"}, id="customize_model"),
+    pytest.param(
+        BedrockProvisionModelThroughputCompletedSensor, {"model_id": "model_id"}, id="provision_throughput"
+    ),
+    pytest.param(
+        BedrockKnowledgeBaseActiveSensor, {"knowledge_base_id": "knowledge_base_id"}, id="knowledge_base"
+    ),
+    pytest.param(
+        BedrockIngestionJobSensor,
+        {
+            "knowledge_base_id": "knowledge_base_id",
+            "data_source_id": "data_source_id",
+            "ingestion_job_id": "ingestion_job_id",
+        },
+        id="ingestion_job",
+    ),
+    pytest.param(BedrockBatchInferenceSensor, {"job_arn": "job_arn"}, id="batch_inference"),
+]
+
+
+class TestBedrockSensorDeferral:
+    @pytest.mark.parametrize(("sensor_class", "kwargs"), SENSORS)
+    def test_execute_defers_to_execute_complete(self, sensor_class, kwargs):
+        sensor = sensor_class(task_id="test_bedrock_sensor", deferrable=True, **kwargs)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"
+
+    def test_execute_complete_success_event(self):
+        sensor = BedrockBatchInferenceSensor(task_id="test_bedrock_sensor", job_arn="job_arn")
+
+        assert sensor.execute_complete({}, event={"status": "success", "job_arn": "job_arn"}) is None
+
+    def test_execute_complete_error_event(self):
+        sensor = BedrockBatchInferenceSensor(task_id="test_bedrock_sensor", job_arn="job_arn")
+        event = {"status": "error", "message": "Waiter error: max attempts reached", "job_arn": "job_arn"}
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            sensor.execute_complete({}, event=event)
