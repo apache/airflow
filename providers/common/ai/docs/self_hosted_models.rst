@@ -360,6 +360,22 @@ server. When it points at Ollama, pass ``OllamaBackend`` as the factory
     hook = PydanticAIHook(llm_conn_id="pydanticai_default", model_id="openai:llama3")
     hook.ensure_model_ready(backend_factory=OllamaBackend)
 
+For LM Studio, pass ``LMStudioBackend``. It needs LM Studio 0.4.0 or later, the
+release that introduced the native v1 REST API with the ``/api/v1/models/load``
+endpoint. LM Studio does not
+document what loading an already-loaded model does, so ``LMStudioBackend`` first
+lists the models (``GET /api/v1/models``) and sends the load request only when
+the model has no loaded instance. ``base_url`` may end in ``/v1`` or ``/api/v1``
+and must be set (``ValueError`` otherwise). Like ``OllamaBackend``, it does not
+send a password, so LM Studio with authentication enabled is not supported:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.hooks.lmstudio import LMStudioBackend
+
+    hook = PydanticAIHook(llm_conn_id="pydanticai_default", model_id="openai:qwen3")
+    hook.ensure_model_ready(backend_factory=lambda model_name, base_url: LMStudioBackend(base_url, model_name))
+
 Routing through an AI gateway
 --------------------------------
 
