@@ -2959,6 +2959,10 @@ export type AuthenticatedMeResponse = {
     id: string;
     username: string;
     /**
+     * Human-readable name of the user, as returned by the auth manager.
+     */
+    display_name: string;
+    /**
      * Teams the user has access to. Null when the environment does not run in multi-team mode.
      */
     teams?: Array<(string)> | null;

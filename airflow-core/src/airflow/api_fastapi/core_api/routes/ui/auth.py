@@ -66,6 +66,7 @@ def get_current_user_info(
     return AuthenticatedMeResponse(
         id=user.get_id(),
         username=user.get_name(),
+        display_name=user.get_display_name(),
         teams=teams,
     )
 
