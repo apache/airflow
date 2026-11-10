@@ -41,7 +41,7 @@ from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
-from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
+from airflow.sdk.api.datamodels._generated import BundleInfo, LoopDecisionPayload, TaskInstance, TIRunContext
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
@@ -55,7 +55,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
-from airflow.sdk.execution_time.comms import SetTaskStateStore
+from airflow.sdk.execution_time.comms import SetTaskStateStore, SucceedTask
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
@@ -1016,6 +1016,47 @@ class TestPopenActivitySubprocessSetTaskStateStore:
                 "Task store value exceeds configured max_value_storage_bytes",
                 key="k",
                 max_value_storage_bytes=14,
+            )
+        else:
+            process_log.warning.assert_not_called()
+
+
+class TestPopenActivitySubprocessLoopDecisionReason:
+    @pytest.mark.parametrize(
+        ("reason", "sent", "warns"),
+        [
+            pytest.param("a" * 513, "a" * 512, True, id="over-limit"),
+            pytest.param("\u00e9" * 257, "\u00e9" * 256, True, id="cut-on-a-character-boundary"),
+            pytest.param("a" * 512, "a" * 512, False, id="at-limit"),
+        ],
+    )
+    @patch.object(ActivitySubprocess, "_send_terminal_state_msg", autospec=True)
+    def test_cuts_a_reason_over_the_limit_and_warns(self, send, reason, sent, warns):
+        process_log = MagicMock()
+        proc = _PopenActivitySubprocess(
+            process_log=process_log,
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(),
+            process=MagicMock(),
+            client=MagicMock(spec=Client),
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+
+        proc._send_terminal_state_msg(
+            SucceedTask(
+                end_date=datetime(2024, 10, 31, tzinfo=UTC),
+                loop_decision=LoopDecisionPayload(stop=True, reason=reason),
+            )
+        )
+
+        assert send.call_args.args[1].loop_decision == LoopDecisionPayload(stop=True, reason=sent)
+        if warns:
+            process_log.warning.assert_called_once_with(
+                "Loop decision reason exceeds the byte limit and is cut to it",
+                reason_bytes=len(reason.encode()),
+                max_reason_bytes=512,
             )
         else:
             process_log.warning.assert_not_called()

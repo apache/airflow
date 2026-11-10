@@ -52,7 +52,7 @@ from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
-from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.execution_time.comms import RetryTask, SucceedTask, TaskState
 from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
-    from airflow.sdk.execution_time.comms import SetTaskStateStore
+    from airflow.sdk.execution_time.comms import AwaitInputTask, DeferTask, RescheduleTask, SetTaskStateStore
     from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
@@ -604,6 +604,26 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     max_value_storage_bytes=limit,
                 )
         return super()._handle_set_task_state_store(msg, log, req_id)
+
+    def _send_terminal_state_msg(
+        self, msg: TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
+    ) -> None:
+        # A language SDK runtime is not told core's limit on a gate's reason, so the supervisor cuts a
+        # longer one and warns in the task log, rather than have the API server reject the gate's finish.
+        if isinstance(msg, (TaskState, SucceedTask)) and (decision := msg.loop_decision) is not None:
+            # Imported here: the module loads the authoring classes, which the supervisor otherwise never needs.
+            from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
+
+            encoded = (decision.reason or "").encode()
+            if len(encoded) > LOOP_DECISION_REASON_MAX_BYTES:
+                self.process_log.warning(
+                    "Loop decision reason exceeds the byte limit and is cut to it",
+                    reason_bytes=len(encoded),
+                    max_reason_bytes=LOOP_DECISION_REASON_MAX_BYTES,
+                )
+                reason = encoded[:LOOP_DECISION_REASON_MAX_BYTES].decode(errors="ignore")
+                msg = msg.model_copy(update={"loop_decision": decision.model_copy(update={"reason": reason})})
+        super()._send_terminal_state_msg(msg)
 
 
 def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
