@@ -21,6 +21,7 @@ from cadwyn import (
     RequestInfo,
     ResponseInfo,
     VersionChange,
+    VersionChangeWithSideEffects,
     convert_request_to_next_version_for,
     convert_response_to_previous_version_for,
     endpoint,
@@ -29,6 +30,7 @@ from cadwyn import (
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
@@ -102,4 +104,19 @@ class AddCallbackStateEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
+    )
+
+
+class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
+    """
+    Resolve an omitted ``map_index`` on Get XCom by how the producing task is defined.
+
+    An unmapped task still reads map index -1, and a mapped task now returns the values of all its
+    instances as a list. Older clients keep reading -1 for an omitted ``map_index``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXcomFilterParams).field("map_index").had(type=int, default=-1),
     )
