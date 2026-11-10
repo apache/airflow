@@ -498,6 +498,7 @@ class TestPydanticAIExternalServicesDrift:
 TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
     "hook": ("HookToolset", "toolsets/hook"),
     "sql": ("SQLToolset", "toolsets/sql"),
+    "sql_search": ("SQLToolset", "toolsets/sql"),
     "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
     "logging": ("ToolLoggingCapability", "toolsets/logging"),
     "mcp": ("MCPToolset", "toolsets/mcp"),

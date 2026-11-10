@@ -32,6 +32,7 @@ from sqlalchemy.exc import OperationalError
 
 from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.toolsets.sql_search import KeywordTableSearchBackend
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -124,6 +125,15 @@ class TestSQLToolsetGetTools:
         ts = SQLToolset("pg_default")
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert set(tools.keys()) == {"list_tables", "get_schema", "query", "check_query"}
+
+    def test_search_tables_is_registered_only_with_a_backend(self):
+        ts = SQLToolset("pg_default", search_backend=KeywordTableSearchBackend())
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert set(tools.keys()) == {"list_tables", "get_schema", "query", "check_query", "search_tables"}
+        validator = tools["search_tables"].args_validator
+        assert validator.validate_python({"query": "orders"}) == {"query": "orders"}
+        with pytest.raises(ValidationError):
+            validator.validate_python({})
 
     def test_tool_definitions_have_descriptions(self):
         ts = SQLToolset("pg_default")
@@ -1047,6 +1057,144 @@ class TestSQLToolsetComments:
         ts._hook.inspector.get_multi_table_comment.side_effect = NotImplementedError
 
         assert self._list_tables(ts) == [{"name": "users"}]
+
+
+class _FakeSearchBackend:
+    """Returns canned results, ignoring the query, so tests control exactly what the toolset must filter."""
+
+    def __init__(self, results: list[tuple[str, str | None]]) -> None:
+        self.results = results
+        self.limits: list[int] = []
+
+    def search_tables(self, query, limit, *, get_catalog):
+        self.limits.append(limit)
+        return self.results
+
+
+class TestSQLToolsetSearchTables:
+    @staticmethod
+    def _call(ts: SQLToolset, name: str, args: dict | None = None):
+        return json.loads(asyncio.run(ts.call_tool(name, args or {}, ctx=MagicMock(), tool=MagicMock())))
+
+    def test_results_outside_allowed_tables_are_filtered(self):
+        """A backend that knows about more tables than the agent may use cannot widen access."""
+        backend = _FakeSearchBackend([("secrets", "passwords"), ("orders", "Orders"), ("users", None)])
+        ts = SQLToolset("pg_default", allowed_tables=["orders", "users"], search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "anything"})
+
+        assert result == {"tables": [{"name": "orders", "comment": "Orders"}, {"name": "users"}]}
+
+    def test_qualified_results_are_matched_against_qualified_allowed_tables(self):
+        backend = _FakeSearchBackend([("S1.A", None), ("S2.A", None), ("A", None)])
+        ts = SQLToolset("sf", allowed_tables=["S1.A"], search_backend=backend)
+
+        assert self._call(ts, "search_tables", {"query": "a"}) == {"tables": [{"name": "S1.A"}]}
+
+    @pytest.mark.parametrize(
+        ("requested", "expected_limit"),
+        [
+            pytest.param(None, 10, id="default"),
+            pytest.param(3, 3, id="explicit"),
+            pytest.param(1000, 50, id="capped"),
+            pytest.param(-5, 1, id="floored"),
+            pytest.param(0, 1, id="zero-is-floored-not-defaulted"),
+        ],
+    )
+    def test_limit_is_bounded(self, requested, expected_limit):
+        backend = _FakeSearchBackend([])
+        ts = SQLToolset("pg_default", search_backend=backend)
+        args = {"query": "x"} if requested is None else {"query": "x", "limit": requested}
+
+        self._call(ts, "search_tables", args)
+
+        assert backend.limits == [expected_limit]
+
+    def test_results_are_cut_to_limit_after_filtering(self):
+        backend = _FakeSearchBackend([("secret", None), ("a", None), ("b", None), ("c", None)])
+        ts = SQLToolset("pg_default", allowed_tables=["a", "b", "c"], search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "x", "limit": 2})
+
+        assert [t["name"] for t in result["tables"]] == ["a", "b"]
+
+    def test_result_comments_are_truncated(self):
+        backend = _FakeSearchBackend([("orders", "c" * 500)])
+        ts = SQLToolset("pg_default", search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "x"})
+
+        assert result["tables"][0]["comment"] == "c" * 199 + "\u2026"
+
+    def test_default_backend_introspects_once_with_the_toolsets_hook(self):
+        ts = SQLToolset(
+            "pg_default", allowed_tables=["users", "orders"], search_backend=KeywordTableSearchBackend()
+        )
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders", "secrets"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            (None, "users"): {"text": "Registered customers"},
+            (None, "orders"): {"text": None},
+            (None, "secrets"): {"text": "customers passwords"},
+        }
+
+        first = self._call(ts, "search_tables", {"query": "customers"})
+        second = self._call(ts, "search_tables", {"query": "orders"})
+
+        assert first == {"tables": [{"name": "users", "comment": "Registered customers"}]}
+        assert second == {"tables": [{"name": "orders"}]}
+        ts._hook.inspector.get_table_names.assert_called_once_with(schema=None)
+        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(schema=None)
+
+    def test_search_omits_comments_when_inspector_cannot_read_them_in_bulk(self):
+        """SQLAlchemy 1.4's Inspector has no get_multi_table_comment."""
+        ts = SQLToolset("pg_default", search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector = MagicMock(spec=["get_table_names"])
+        ts._hook.inspector.get_table_names.return_value = ["users"]
+
+        assert self._call(ts, "search_tables", {"query": "users"}) == {"tables": [{"name": "users"}]}
+
+    def test_calling_search_tables_without_a_backend_is_unknown(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        with pytest.raises(ValueError, match="Unknown tool: 'search_tables'"):
+            asyncio.run(ts.execute_tool("search_tables", {"query": "x"}, ctx=MagicMock(), tool=MagicMock()))
+
+    def test_error_hint_points_at_search_tables_only_when_registered(self):
+        for backend, mentioned in ((None, False), (_FakeSearchBackend([]), True)):
+            ts = SQLToolset("pg_default", search_backend=backend)
+            ts._hook = _make_mock_db_hook()
+            ts._hook.inspector.get_table_names.side_effect = Exception("boom")
+
+            with pytest.raises(ModelRetry) as exc_info:
+                asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+
+            assert ("search_tables" in exc_info.value.message) is mentioned
+
+    @pytest.mark.parametrize(
+        ("table_count", "listed"),
+        [pytest.param(3, True, id="at-threshold"), pytest.param(4, False, id="over-threshold")],
+    )
+    def test_list_tables_stops_listing_over_max_listed_tables(self, table_count, listed):
+        names = [f"t{i}" for i in range(table_count)]
+        ts = SQLToolset("pg_default", search_backend=_FakeSearchBackend([]), max_listed_tables=3)
+        ts._hook = _make_mock_db_hook(table_names=names)
+
+        result = self._call(ts, "list_tables")
+
+        if listed:
+            assert result == names
+        else:
+            assert result["table_count"] == table_count
+            assert "search_tables" in result["hint"]
+
+    def test_list_tables_has_no_limit_without_a_backend(self):
+        names = [f"t{i}" for i in range(150)]
+        ts = SQLToolset("pg_default", max_listed_tables=3)
+        ts._hook = _make_mock_db_hook(table_names=names)
+
+        assert self._call(ts, "list_tables") == names
 
 
 class TestSQLToolsetMultiSchema:
