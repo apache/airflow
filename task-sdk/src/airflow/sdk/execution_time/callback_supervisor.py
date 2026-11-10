@@ -34,7 +34,9 @@ from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.asset_events import set_asset_emission_scope
 from airflow.sdk.execution_time.comms import (
+    EmitAssetEvent,
     ErrorResponse,
     GetConnection,
     GetVariable,
@@ -83,7 +85,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 # This is a minimal subset of ToSupervisor: read-only access to Connections,
 # Variables, and XCom values, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
+    EmitAssetEvent | GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -202,24 +204,26 @@ def execute_callback(
 
         kwargs_without_context = {k: v for k, v in callback_kwargs.items() if k != "context"}
 
-        # Call the callable with all kwargs if it accepts context, otherwise strip context.
-        if accepts_context(callback_callable):
-            result = callback_callable(**callback_kwargs)
-        else:
-            result = callback_callable(**kwargs_without_context)
-
-        # If the callback was a class then it is now instantiated and callable, call it.
-        # The constructor already received the full kwargs above; the __call__ method
-        # typically only needs context (e.g. BaseNotifier.__call__(self, *args)).
-        # Some callables (like BaseNotifier.__call__) only accept positional args,
-        # so check the signature first rather than catching a broad TypeError.
-        if callable(result):
-            context = callback_kwargs.get("context", {})
-            if accepts_keyword_args(result):
-                result = result(context=context) if accepts_context(result) else result()
+        # Only the call may emit asset events: module code above runs as a Dag file parse does.
+        with set_asset_emission_scope():
+            # Call the callable with all kwargs if it accepts context, otherwise strip context.
+            if accepts_context(callback_callable):
+                result = callback_callable(**callback_kwargs)
             else:
-                # Positional-only callable (e.g. BaseNotifier.__call__(self, *args))
-                result = result(context)
+                result = callback_callable(**kwargs_without_context)
+
+            # If the callback was a class then it is now instantiated and callable, call it.
+            # The constructor already received the full kwargs above; the __call__ method
+            # typically only needs context (e.g. BaseNotifier.__call__(self, *args)).
+            # Some callables (like BaseNotifier.__call__) only accept positional args,
+            # so check the signature first rather than catching a broad TypeError.
+            if callable(result):
+                context = callback_kwargs.get("context", {})
+                if accepts_keyword_args(result):
+                    result = result(context=context) if accepts_context(result) else result()
+                else:
+                    # Positional-only callable (e.g. BaseNotifier.__call__(self, *args))
+                    result = result(context)
 
         log.info("Callback executed successfully", callback_path=callback_path)
         return True, None
@@ -431,6 +435,9 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
+        elif isinstance(msg, EmitAssetEvent):
+            # The client holds this callback's own execution token; the server derives the Dag run from it.
+            resp = self.client.asset_events.emit(msg)
         else:
             log.warning("Unhandled request from callback subprocess", msg=msg)
             self.send_msg(

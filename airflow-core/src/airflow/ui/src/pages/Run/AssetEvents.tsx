@@ -38,10 +38,16 @@ export const AssetEvents = () => {
     { refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval },
   );
 
-  const { data, isLoading } = useDagRunServiceGetUpstreamAssetEvents({ dagId, dagRunId: runId }, undefined, {
-    enabled: dagRun?.run_type === "asset_triggered",
-    refetchInterval: () => isStatePending(dagRun?.state) && refetchInterval,
-  });
+  const { data, error, isLoading } = useDagRunServiceGetUpstreamAssetEvents(
+    { dagId, dagRunId: runId },
+    undefined,
+    {
+      enabled: dagRun?.run_type === "asset_triggered",
+      refetchInterval: () => isStatePending(dagRun?.state) && refetchInterval,
+    },
+  );
 
-  return <AssetEventsTable data={data} isLoading={isLoading} titleKey="common:sourceAssetEvent" />;
+  return (
+    <AssetEventsTable data={data} error={error} isLoading={isLoading} titleKey="common:sourceAssetEvent" />
+  );
 };

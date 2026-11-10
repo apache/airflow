@@ -92,6 +92,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
     TaskNotFound,
 )
+from airflow.sdk.execution_time.asset_events import set_asset_emission_scope
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
@@ -1786,6 +1787,7 @@ def _run_task_and_map_outcome(
 
 @Sentry.enrich_errors
 @detail_span("run")
+@set_asset_emission_scope()
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
@@ -2570,6 +2572,8 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
 
 @detail_span("finalize")
+# The state callbacks run here, after run() has closed its own emission scope.
+@set_asset_emission_scope()
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,

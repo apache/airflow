@@ -260,6 +260,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "on_skipped_callback": [],
     "on_success_callback": [],
     "outlets": [],
+    "emits": [],
     "owner": DEFAULT_OWNER,
     "pool_slots": DEFAULT_POOL_SLOTS,
     "priority_weight": DEFAULT_PRIORITY_WEIGHT,
@@ -335,6 +336,7 @@ if TYPE_CHECKING:
         executor_config: dict | None = ...,
         inlets: Any | None = ...,
         outlets: Any | None = ...,
+        emits: Any | None = ...,
         doc: str | None = ...,
         doc_md: str | None = ...,
         doc_json: str | None = ...,
@@ -931,6 +933,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     multiple_outputs: bool = False
     inlets: list[Any] = field(default_factory=list)
     outlets: list[Any] = field(default_factory=list)
+    emits: list[Any] = field(default_factory=list)
     task_group: TaskGroup | None = None
     doc: str | None = None
     doc_md: str | None = None
@@ -1096,6 +1099,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         multiple_outputs: bool = False,
         inlets: Any | None = None,
         outlets: Any | None = None,
+        emits: Any | None = None,
         task_group: TaskGroup | None = None,
         doc: str | None = None,
         doc_md: str | None = None,
@@ -1241,6 +1245,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Lineage
         self.inlets = _collect_from_input(inlets)
         self.outlets = _collect_from_input(outlets)
+        # Assets this task may emit at runtime; unlike outlets, success emits nothing for them.
+        self.emits = _collect_from_input(emits)
 
         if isinstance(self.template_fields, str):
             warnings.warn(

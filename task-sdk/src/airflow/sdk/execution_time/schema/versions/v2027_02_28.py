@@ -22,6 +22,8 @@ New bodies in this version:
 
 - ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
   Human-in-the-loop response.
+- ``EmitAssetEvent`` and ``AssetEventEmissionResult``: a running task or callback writes an
+  asset event now, and the supervisor replies with its receipt.
 """
 
 from __future__ import annotations

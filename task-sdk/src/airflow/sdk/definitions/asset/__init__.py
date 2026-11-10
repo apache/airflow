@@ -32,6 +32,7 @@ from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from datetime import datetime
     from typing import Self
     from urllib.parse import SplitResult
 
@@ -49,6 +50,7 @@ else:
 __all__ = [
     "Asset",
     "AssetAccessControl",
+    "AssetEventReceipt",
     "Dataset",
     "Model",
     "AssetAlias",
@@ -67,6 +69,16 @@ log = logging.getLogger(__name__)
 
 
 SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+
+
+@attrs.define(frozen=True)
+class AssetEventReceipt:
+    """Acknowledgement that Airflow wrote an asset event; it says nothing about consumer runs."""
+
+    id: int
+    timestamp: datetime
+    replayed: bool = False
+    """True when an earlier request with the same idempotency key already wrote this event."""
 
 
 @attrs.define(frozen=True)

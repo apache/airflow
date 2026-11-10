@@ -129,6 +129,7 @@ export const UNEXPRESSIBLE_TASK_FIELDS = {
   render_template_as_native_obj: "an anyOf the generator cannot narrow to one type",
   inlets: "an array of assets, which the SDK does not model yet",
   outlets: "an array of assets, which the SDK does not model yet",
+  emits: "an array of assets, which the SDK does not model yet",
   start_trigger_args: "an object; deferrable-operator machinery",
 };
 

@@ -117,6 +117,7 @@ class SerializedBaseOperator(DAGNode):
     on_failure_fail_dagrun: bool = False
 
     outlets: Sequence = []
+    emits: Sequence = []
     owner: str = "airflow"
     params: SerializedParamsDict = SerializedParamsDict()
     pool: str = "default_pool"
@@ -212,6 +213,7 @@ class SerializedBaseOperator(DAGNode):
                 "has_on_success_callback",
                 "on_failure_fail_dagrun",
                 "outlets",
+                "emits",
                 "owner",
                 "params",
                 "pool",

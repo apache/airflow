@@ -48,6 +48,7 @@ from airflow.sdk.definitions.asset import (
     AssetAlias as AssetAlias,
     AssetAll as AssetAll,
     AssetAny as AssetAny,
+    AssetEventReceipt as AssetEventReceipt,
     AssetWatcher as AssetWatcher,
 )
 from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
@@ -136,6 +137,7 @@ from airflow.sdk.definitions.timetables.trigger import (
 from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time import macros as macros
+from airflow.sdk.execution_time.asset_events import emit_asset_event as emit_asset_event
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
@@ -151,6 +153,7 @@ __all__ = [
     "AssetAll",
     "AssetAndTimeSchedule",
     "AssetAny",
+    "AssetEventReceipt",
     "AssetOrTimeSchedule",
     "AssetTriggeredTimetable",
     "AssetWatcher",
@@ -232,6 +235,7 @@ __all__ = [
     "chain_linear",
     "cross_downstream",
     "dag",
+    "emit_asset_event",
     "get_current_context",
     "get_parsing_context",
     "literal",

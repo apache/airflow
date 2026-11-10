@@ -2535,6 +2535,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     partition_key=dag_run_partition_key,
                     partition_date=dag_run_partition_date,
                     callback_sink=callback_sink,
+                    origin="outlet",
                     session=session,
                 )
                 return
@@ -2563,6 +2564,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     partition_key=effective_pk,
                     partition_date=payload_partition_date,
                     callback_sink=callback_sink,
+                    origin="outlet",
                     session=session,
                 )
 
@@ -2648,6 +2650,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     partition_key=dag_run_partition_key,
                     partition_date=dag_run_partition_date,
                     callback_sink=callback_sink,
+                    origin="outlet",
                     session=session,
                 )
                 if event is None:
@@ -2662,6 +2665,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         partition_key=dag_run_partition_key,
                         partition_date=dag_run_partition_date,
                         callback_sink=callback_sink,
+                        origin="outlet",
                         session=session,
                     )
 

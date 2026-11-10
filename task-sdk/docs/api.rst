@@ -208,9 +208,13 @@ Assets
 
 .. autoapiclass:: airflow.sdk.AssetAny
 
+.. autoapiclass:: airflow.sdk.AssetEventReceipt
+
 .. autoapiclass:: airflow.sdk.AssetWatcher
 
 .. autoapiclass:: airflow.sdk.Metadata
+
+.. autofunction:: airflow.sdk.emit_asset_event
 
 Timetables
 ----------

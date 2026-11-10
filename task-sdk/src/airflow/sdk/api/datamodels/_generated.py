@@ -42,6 +42,19 @@ class AssetAliasReferenceAssetEventDagRun(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class AssetEventReceipt(BaseModel):
+    """
+    Acknowledgement of a persisted event, not of downstream scheduling.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[int, Field(title="Id")]
+    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
+    replayed: Annotated[bool | None, Field(title="Replayed")] = False
+
+
 class AssetProfile(BaseModel):
     """
     Profile of an asset-like object.
@@ -309,6 +322,10 @@ class DagWarningType(str, Enum):
 class EmailType(str, Enum):
     FAILURE = "failure"
     RETRY = "retry"
+
+
+class PartitionKey(RootModel[str]):
+    root: Annotated[str, Field(max_length=250, pattern="\\S", title="Partition Key")]
 
 
 class HITLUser(BaseModel):
@@ -1015,6 +1032,23 @@ class DagParseResultBody(BaseModel):
             title="Dag Source Indexes",
         ),
     ]
+
+
+class EmitAssetEventBody(BaseModel):
+    """
+    Immediate emission; the server derives the source from the caller's credential.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str | None, Field(title="Name")] = None
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    extra: Annotated[dict[str, JsonValue | None] | None, Field(title="Extra")] = None
+    partition_key: Annotated[PartitionKey | None, Field(title="Partition Key")] = None
+    idempotency_key: Annotated[str, Field(max_length=250, min_length=1, title="Idempotency Key")]
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
 
 
 class HITLDetailRequest(BaseModel):

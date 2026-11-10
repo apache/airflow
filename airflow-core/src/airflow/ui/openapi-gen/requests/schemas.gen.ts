@@ -282,7 +282,14 @@ export const $AssetEventResponse = {
             title: 'Source Run Id'
         },
         source_map_index: {
-            type: 'integer',
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Source Map Index'
         },
         source_task_instance_id: {

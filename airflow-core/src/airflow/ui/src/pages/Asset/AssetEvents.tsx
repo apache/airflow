@@ -40,7 +40,7 @@ export const AssetEvents = () => {
   const [searchParams] = useSearchParams();
   const sourceMapIndex = searchParams.get(SOURCE_MAP_INDEX);
 
-  const { data, isLoading } = useAssetServiceGetAssetEvents(
+  const { data, error, isLoading } = useAssetServiceGetAssetEvents(
     {
       assetId,
       limit: pagination.pageSize,
@@ -75,6 +75,7 @@ export const AssetEvents = () => {
       <AssetEventsTable
         assetId={assetId}
         data={data}
+        error={error}
         isLoading={isLoading}
         setOrderBy={setOrderBy}
         setTableUrlState={setTableURLState}

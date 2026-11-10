@@ -867,8 +867,16 @@ class DagResult(DagResponse):
         return cls(**dag_response.model_dump(exclude_defaults=True), type="DagResult")
 
 
+class AssetEventEmissionResult(BaseModel):
+    id: int
+    timestamp: datetime
+    replayed: bool = False
+    type: Literal["AssetEventEmissionResult"] = "AssetEventEmissionResult"
+
+
 ToTask = Annotated[
-    AssetResult
+    AssetEventEmissionResult
+    | AssetResult
     | AssetsByAliasResult
     | AssetEventsResult
     | AssetStateStoreResult
@@ -1319,8 +1327,19 @@ class GetDag(BaseModel):
     type: Literal["GetDag"] = "GetDag"
 
 
+class EmitAssetEvent(BaseModel):
+    name: str | None = None
+    uri: str | None = None
+    extra: dict[str, JsonValue] = Field(default_factory=dict)
+    partition_key: str | None = None
+    idempotency_key: str
+    callback_index: int | None = None
+    type: Literal["EmitAssetEvent"] = "EmitAssetEvent"
+
+
 ToSupervisor = Annotated[
-    AwaitInputTask
+    EmitAssetEvent
+    | AwaitInputTask
     | ClearAssetStateStoreByName
     | ClearAssetStateStoreByUri
     | ClearTaskStateStore

@@ -527,6 +527,7 @@ def create_asset_event(
         extra=body.extra,
         partition_key=body.partition_key,
         source_is_api=True,
+        origin="rest_api",
         api_user_teams=api_user_teams,
         api_allow_consumer_teams=api_allow_consumer_teams,
         api_allow_global_consumers=api_allow_global_consumers,

@@ -365,6 +365,7 @@
         "render_template_as_native_obj": { "anyOf": [{"type": "boolean"}, {"type": "null"}], "default": null },
         "inlets": {"type":  "array", "default": []},
         "outlets": {"type":  "array", "default": []},
+        "emits": {"type":  "array", "default": []},
         "has_on_execute_callback": {"type": "boolean", "default": false},
         "has_on_failure_callback": {"type": "boolean", "default": false},
         "has_on_skipped_callback": {"type": "boolean", "default": false},
