@@ -14,7 +14,7 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
-    
+
 Dataset artifact contract
 =========================
 
@@ -34,7 +34,7 @@ This avoids reading a remote split twice and keeps the returned Dataset backed
 by its local Arrow cache files, so mapping tasks can process it without first
 holding the whole split in memory. The artifact writer enforces a hard feature
 allowlist before writing: only ``Value`` and ``ClassLabel`` features,
-recursively nested in ``Sequence``, list/tuple, and dictionary structures,
+recursively nested in ``Sequence``, ``LargeList``, list/tuple, and dictionary structures,
 are supported. ``Image``, ``Audio``, ``Video``, ``Array2D`` and other array
 features, and every other feature class are rejected with ``ValueError``.
 Empty splits are restored from their declared feature schema, since some

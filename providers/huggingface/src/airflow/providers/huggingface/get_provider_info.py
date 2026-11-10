@@ -62,9 +62,9 @@ def get_provider_info():
         "asset-uris": [
             {
                 "schemes": ["hf"],
-                "factory": "airflow.providers.huggingface.asset.create_asset",
-                "handler": "airflow.providers.huggingface.asset.sanitize_uri",
-                "to_openlineage_converter": "airflow.providers.huggingface.asset.convert_asset_to_openlineage",
+                "factory": "airflow.providers.huggingface.assets.huggingface.create_asset",
+                "handler": "airflow.providers.huggingface.assets.huggingface.sanitize_uri",
+                "to_openlineage_converter": "airflow.providers.huggingface.assets.huggingface.convert_asset_to_openlineage",
             }
         ],
     }

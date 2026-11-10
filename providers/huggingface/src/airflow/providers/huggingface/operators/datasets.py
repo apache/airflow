@@ -228,15 +228,15 @@ def _load_artifact(
             feature_data = item["features"]
             feature_order = item.get("feature_order", list(feature_data))
             features = Features.from_dict({key: feature_data[key] for key in feature_order})
+            split_name = item.get("split")
+            split_kwargs = (
+                {"split": split_name}
+                if isinstance(split_name, str) and re.fullmatch(r"\w+(?:\.\w+)*", split_name)
+                else {}
+            )
             if item.get("rows") == 0:
-                restored = Dataset.from_dict({key: [] for key in features}, features=features)
+                restored = Dataset.from_dict({key: [] for key in features}, features=features, **split_kwargs)
             else:
-                split_name = item.get("split")
-                split_kwargs = (
-                    {"split": split_name}
-                    if isinstance(split_name, str) and re.fullmatch(r"\w+(?:\.\w+)*", split_name)
-                    else {}
-                )
                 restored = Dataset.from_parquet(
                     str(local_path),
                     features=features,
@@ -309,10 +309,12 @@ def _publication_outlets(
     repo_id: str, outlets: Any, push_kwargs: dict[str, Any]
 ) -> tuple[Asset | None, list[Any]]:
     declared_outlets = list(outlets) if isinstance(outlets, (list, tuple)) else ([outlets] if outlets else [])
-    if push_kwargs.get("create_pr") or push_kwargs.get("revision", "main") not in (None, "main"):
-        return None, declared_outlets
-
     asset_uri = f"hf://datasets/{repo_id}"
+    if push_kwargs.get("create_pr") or push_kwargs.get("revision", "main") not in (None, "main"):
+        # A mapped task declares the repo asset in partial() before its push_kwargs are
+        # expanded; drop it here so the unmapped task does not emit a repo-level event.
+        return None, [outlet for outlet in declared_outlets if getattr(outlet, "uri", None) != asset_uri]
+
     existing_asset = next(
         (outlet for outlet in declared_outlets if getattr(outlet, "uri", None) == asset_uri), None
     )
@@ -505,6 +507,7 @@ class StreamDatasetOperator(BaseOperator):
             push_kwargs["config_name"] = self.config
         if self.private is not None:
             push_kwargs["private"] = self.private
+        create_pr = bool(push_kwargs.get("create_pr", False))
         marker = _publication_marker(
             "huggingface-stream-publish",
             {
@@ -522,7 +525,7 @@ class StreamDatasetOperator(BaseOperator):
                 "repo_id": self.repo_id,
                 "config_name": push_kwargs.get("config_name", "default"),
                 "revision": push_kwargs.get("revision", "main"),
-                "create_pr": bool(push_kwargs.get("create_pr", False)),
+                "create_pr": create_pr,
             },
         )
         state_key = _state_key("stream-publication", marker)
@@ -534,16 +537,14 @@ class StreamDatasetOperator(BaseOperator):
                 self._emit_asset_event(context, prior_result)
                 return prior_result
 
-        target_revision = push_kwargs.get("revision")
-        include_pull_requests = bool(push_kwargs.get("create_pr", False))
         commit = None
         recovery_pending = state is not None and bool(state.get(pending_key))
         if recovery_pending:
             commit = hook.find_commit_by_marker(
                 self.repo_id,
                 marker,
-                revision=target_revision,
-                include_pull_requests=include_pull_requests,
+                revision=push_kwargs.get("revision"),
+                include_pull_requests=create_pr,
             )
             if commit is not None:
                 self.log.info("Reusing existing completed streaming publication to %s", self.repo_id)
@@ -568,21 +569,7 @@ class StreamDatasetOperator(BaseOperator):
             if state is not None:
                 state.set(pending_key, True)
             commit = hook.push_to_hub(stream, self.repo_id, **push_kwargs)
-            # A retry can recover the completed Hub commit if the worker exited
-            # after upload but before Airflow recorded the task result.
-            if commit is None:
-                if self.durable:
-                    commit = hook.find_commit_by_marker(
-                        self.repo_id,
-                        marker,
-                        revision=target_revision,
-                        include_pull_requests=include_pull_requests,
-                    )
 
-        if commit is None:
-            raise RuntimeError(
-                f"Hub push to {self.repo_id!r} completed without returning or exposing a commit for marker {marker}"
-            )
         commit_sha, commit_url = _commit_details(commit, self.repo_id, hook)
         result = {
             "repository_id": self.repo_id,
@@ -768,18 +755,7 @@ class PushToHubOperator(BaseOperator):
                 if state is not None:
                     state.set(pending_key, True)
                 commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)
-            if commit is None and self.durable:
-                commit = hook.find_commit_by_marker(
-                    self.repo_id,
-                    marker,
-                    revision=target_revision,
-                    include_pull_requests=create_pr,
-                )
 
-        if commit is None:
-            raise RuntimeError(
-                f"Hub push to {self.repo_id!r} completed without returning or exposing a final commit for {marker}"
-            )
         commit_sha, commit_url = _commit_details(commit, self.repo_id, hook)
         result = {
             "repository_id": self.repo_id,

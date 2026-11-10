@@ -14,7 +14,7 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
-    
+
 Operators
 =========
 
@@ -144,11 +144,8 @@ Execution proceeds in this order:
    control the destination. The commit message includes the recovery marker.
    Datasets uploads Parquet shards progressively; the operator does not collect
    the rows into a list or write an intermediate artifact.
-#. **Recover and report the commit.** If the push returns a commit, its SHA and
-   URL are returned. If it returns no commit object and task state is available,
-   the operator searches the Hub in case the upload succeeded before the
-   worker stopped. It accepts only a final upload part. If no completed commit
-   can be found, the task raises ``RuntimeError``. The result contains commit
+#. **Report the commit.** The commit SHA and URL from the push, or from the
+   recovered commit in step 2, are returned. The result contains commit
    metadata and source provenance, not dataset rows; that result is saved to
    task state when available and copied to the outlet event's extra fields.
 
@@ -203,7 +200,10 @@ publication. Publication uses Datasets ``push_to_hub``, which rewrites the
 README's YAML card metadata, including ``dataset_info`` and ``configs``, in the
 push commit. Only a publication to ``main`` without ``create_pr`` emits the
 repo-level asset event; pull request and non-main revision pushes do not change
-the revision referenced by ``hf://datasets/<repo_id>``.
+the revision referenced by ``hf://datasets/<repo_id>``. For those pushes the
+operator removes ``hf://datasets/<repo_id>`` from ``outlets`` even when you list
+it there yourself, and in a mapped task this follows each expanded
+``push_kwargs`` entry.
 
 Example
 -------

@@ -14,24 +14,20 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
-    
+
+ .. NOTE TO CONTRIBUTORS:
+    Please, only add notes to the Changelog just below the "Changelog" header when there
+    are some breaking changes and you want to add an explanation to the users on how they
+    are supposed to deal with them. The changelog is updated and maintained semi-automatically
+    by release manager.
+
+``apache-airflow-providers-huggingface``
+
+
 Changelog
-=========
+---------
 
-Version 0.1.0
-=============
+0.1.0
+.....
 
-Initial public release of the Hugging Face provider for Apache Airflow.
-
-* Add ``HuggingFaceHook`` and the ``huggingface`` connection.
-* Add ``LoadDatasetOperator``, ``MapDatasetOperator``,
-  ``StreamDatasetOperator``, and ``PushToHubOperator``.
-* Add revision pinned loads, Parquet artifacts, fingerprints, Hub publication
-  commit metadata, and Hugging Face dataset assets.
-* Set the artifact contract to JSON manifests and per-split Parquet objects.
-  Direct streaming publication is included; standalone filtering and split
-  assembly operators are not included in the v1 public API.
-* Require ``datasets>=5.0.0`` for recovery of completed multipart Hub uploads.
-* Pin revisions for Hub dataset IDs without a namespace and restore empty artifact splits.
-* Declare publication assets for mapped tasks with a fixed repository ID, and
-  skip repo-level asset events for pull request and non-main revision pushes.
+Initial version of the provider.

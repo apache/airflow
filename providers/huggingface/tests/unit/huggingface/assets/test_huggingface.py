@@ -21,7 +21,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 
-from airflow.providers.huggingface.asset import (
+from airflow.providers.huggingface.assets.huggingface import (
     _sanitize_uri_string,
     convert_asset_to_openlineage,
     create_asset,

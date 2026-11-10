@@ -15,29 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 """Publish to a temporary private Hub repo and validate XCom, asset, and Hub head."""
+
+from __future__ import annotations
+
 import os
 import uuid
 
-import airflow
 from packaging.version import Version
 from sqlalchemy import delete, or_, select
-from airflow.sdk import Asset, DAG, get_current_context, task
-from airflow.providers.common.compat.sdk import TriggerRule
 
+import airflow
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.huggingface.hooks.huggingface import HuggingFaceHook
 from airflow.providers.huggingface.operators.datasets import (
     LoadDatasetOperator,
     MapDatasetOperator,
     PushToHubOperator,
 )
+from airflow.sdk import DAG, Asset, get_current_context, task
 
 HUB_ORG = os.environ.get("HF_TEST_HUB_ORG", "airflow-hf")
 SYSTEM_TESTS_ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID") or uuid.uuid4().hex
 REPO_BASE = os.environ.get("HF_TEST_WRITE_REPO_ID", f"{HUB_ORG}/airflow-provider-system-write")
 REPO_ID = f"{REPO_BASE}-{SYSTEM_TESTS_ENV_ID}"
-REPO_DURABLE_BASE = os.environ.get(
-    "HF_TEST_DURABLE_REPO_ID", f"{HUB_ORG}/airflow-provider-system-durable"
-)
+REPO_DURABLE_BASE = os.environ.get("HF_TEST_DURABLE_REPO_ID", f"{HUB_ORG}/airflow-provider-system-durable")
 REPO_DURABLE_ID = f"{REPO_DURABLE_BASE}-{SYSTEM_TESTS_ENV_ID}"
 CONN_ID = os.environ.get("HF_TEST_HUB_CONN_ID", "huggingface_default")
 REVISION = "bcdcba79d07bc864c1c254ccfcedcce55bcc9a8c"
@@ -213,8 +214,8 @@ with DAG(dag_id="huggingface_system_write", schedule="@once", tags=["huggingface
         def verify_single_data_commit(mapped_ref, publication):
             fingerprint = mapped_ref["fingerprint"]
             marker_prefix = f"airflow-artifact-sha256:{fingerprint}:target:"
-            commits = HuggingFaceHook(CONN_ID).get_conn().list_repo_commits(
-                REPO_DURABLE_ID, repo_type="dataset"
+            commits = (
+                HuggingFaceHook(CONN_ID).get_conn().list_repo_commits(REPO_DURABLE_ID, repo_type="dataset")
             )
             matches = [
                 commit

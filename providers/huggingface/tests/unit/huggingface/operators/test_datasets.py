@@ -26,6 +26,7 @@ import pytest
 from datasets import ClassLabel, Dataset, DatasetDict, Features, Image, LargeList, Value
 from huggingface_hub import CommitInfo, GitCommitInfo
 
+from airflow.providers.common.compat.sdk import DAG, Asset
 from airflow.providers.huggingface.operators.datasets import (
     LoadDatasetOperator,
     MapDatasetOperator,
@@ -233,8 +234,11 @@ def test_parquet_accepts_large_list_features(tmp_path):
     assert restored["values"] == [[1, 2], [3]]
 
 
-def test_single_dataset_split_name_survives_artifact_round_trip(tmp_path):
-    source = Dataset.from_dict({"value": [1]}, split="validation")
+@pytest.mark.parametrize("values", [[1], []], ids=["rows", "empty"])
+def test_single_dataset_split_name_survives_artifact_round_trip(tmp_path, values):
+    source = Dataset.from_dict(
+        {"value": values}, features=Features({"value": Value("int64")}), split="validation"
+    )
     reference = _save(source, (tmp_path / "single-split.json").as_uri())
     restored = _load_artifact(reference)
     assert restored.split == "validation"
@@ -682,6 +686,34 @@ def test_push_preserves_user_outlets_and_changes_commit_for_new_fingerprint(tmp_
     result = operator.execute({"task_state_store": Store()})
     assert push_to_hub.call_count == 2
     assert result["commit_sha"] == second_commit.oid
+
+
+@pytest.mark.parametrize(
+    ("push_kwargs", "emits_repo_asset"),
+    [({}, True), ({"create_pr": True}, False), ({"revision": "dev"}, False)],
+    ids=["main", "pull-request", "branch"],
+)
+@pytest.mark.parametrize(
+    ("operator_class", "required_kwargs"),
+    [(PushToHubOperator, {"input_uri": {}}), (StreamDatasetOperator, {"path": "org/source"})],
+    ids=["push", "stream"],
+)
+def test_mapped_publication_outlets_follow_expanded_push_kwargs(
+    operator_class, required_kwargs, push_kwargs, emits_repo_asset
+):
+    caller_asset = Asset(uri="custom://caller")
+    with DAG(dag_id="mapped_publish"):
+        mapped = operator_class.partial(
+            task_id="publish", repo_id="org/data", outlets=[caller_asset], **required_kwargs
+        ).expand(push_kwargs=[push_kwargs])
+
+    unmapped = mapped.unmap({"push_kwargs": push_kwargs})
+
+    assert "hf://datasets/org/data" in {outlet.uri for outlet in mapped.outlets}
+    unmapped_uris = {outlet.uri for outlet in unmapped.outlets}
+    assert caller_asset.uri in unmapped_uris
+    assert ("hf://datasets/org/data" in unmapped_uris) is emits_repo_asset
+    assert (unmapped.published_asset is not None) is emits_repo_asset
 
 
 def test_push_rejects_templated_repo_id():

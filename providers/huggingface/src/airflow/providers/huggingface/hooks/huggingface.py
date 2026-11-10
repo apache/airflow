@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from huggingface_hub import HfApi
@@ -48,6 +49,19 @@ class HuggingFaceHook(BaseHook):
         self.huggingface_conn_id = huggingface_conn_id
         self._allow_ambient_fallback = huggingface_conn_id in (None, self.default_conn_name)
         self._client: HfApi | None = None
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """
+        Return custom field behaviour for Airflow 3.0 and 3.1.
+
+        Airflow 3.2+ reads ``ui-field-behaviour`` from provider.yaml instead and
+        does not call this method.
+        """
+        return {
+            "hidden_fields": ["host", "schema", "port", "login"],
+            "relabeling": {"password": "Access token"},
+        }
 
     def get_token(self) -> str | bool | None:
         if not self.huggingface_conn_id:
@@ -86,8 +100,6 @@ class HuggingFaceHook(BaseHook):
     @staticmethod
     def _commit_is_complete(commit: Any) -> bool:
         """Reject intermediate commits from a Hub upload split into parts."""
-        import re
-
         title = getattr(commit, "title", "") or ""
         return re.search(r"\(part\b.*\)\s*$", title, re.IGNORECASE) is None
 
