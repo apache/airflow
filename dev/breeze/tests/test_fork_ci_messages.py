@@ -30,6 +30,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     CI_MODIFICATION_MARKER,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
+    CONTRIBUTING_URL,
     FOOTER,
     GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
@@ -106,6 +107,18 @@ def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author
 
     assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
     assert ("ask a maintainer to mark it ready" in text) is asks_to_mark_ready
+
+
+@pytest.mark.parametrize("startup_failure", [False, True])
+def test_state_comment_links_the_contributor_documentation(startup_failure):
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, startup_failure=startup_failure
+    )
+
+    assert f"How this works: [CI in your fork]({CONTRIBUTING_URL})." in text
+    assert CONTRIBUTING_URL.endswith("18_contribution_workflow.rst#ci-in-your-fork")
+    assert "08_fork_ci_for_external_contributors" not in text
+    assert text.endswith(FOOTER)
 
 
 def test_parse_marker_absent():
