@@ -21,7 +21,7 @@ Operators
 The initial public operator API is ``LoadDatasetOperator``,
 ``MapDatasetOperator``, ``StreamDatasetOperator``, and
 ``PushToHubOperator``. The operators exchange the manifest and split Parquet
-objects described in :doc:`artifacts`.
+objects described in :doc:`/artifacts`.
 
 LoadDatasetOperator
 -------------------
@@ -37,9 +37,9 @@ differs between supported Airflow versions. It
 persists the result and returns the
 artifact URI plus source ID, resolved revision, configuration, split, row
 counts, and feature descriptions. It resolves a Hub source to a commit before
-loading; pin a commit SHA in ``revision`` for reproducible inputs. Unnamespaced
-IDs such as ``imdb`` are treated as Hub repositories unless they name an
-existing local path or a packaged Datasets builder such as ``csv`` or
+loading; pin a commit SHA in ``revision`` for reproducible inputs. IDs without
+a namespace, such as ``imdb``, are treated as Hub repositories unless they name
+an existing local path or a packaged Datasets builder such as ``csv`` or
 ``parquet``.
 
 With ``durable=True``, the operator stores the resolved source revision in
@@ -129,8 +129,9 @@ Execution proceeds in this order:
    config/revision, and pull-request setting. On Airflow 3.3 and later, it checks
    task state first. It searches Hub refs only when task state records that a
    prior attempt may have started the push. A matching final commit recovers an
-   interrupted publication. Clearing the task removes that marker state, so a
-   cleared task starts a new publication.
+   interrupted publication. Clearing a task preserves that marker state on
+   Airflow 3.3. On Airflow 3.4, clearing a Dag run also preserves it; clearing
+   an individual task instance removes it only when ``keep_task_state`` is off.
 #. **Create a lazy stream if recovery found no commit.** The operator calls
    ``load_dataset(..., streaming=True)`` and passes the optional configuration,
    split, and pinned revision. Hugging Face Datasets reads rows incrementally.
@@ -188,11 +189,15 @@ The commit message includes an artifact fingerprint and target marker. The
 marker distinguishes repository configuration, revision, pull request target,
 and all ``push_kwargs`` (including ``split`` and ``data_dir``), so publishing
 the same artifact to another target is a separate publication. Airflow 3.3 and
-later task state store support caches the result
-and records that a push may have started. A retry searches the intended branch
-or pull request ref only after that record exists, and only reuses the latest
-unsuffixed commit carrying the marker. This avoids reusing an older publication
-after the branch has advanced. The task
+later task state store support caches the result and records that a push may
+have started. A retry searches the intended branch or pull request ref only
+after that record exists, and only reuses the latest commit without a generated
+suffix carrying the marker. Clearing a task preserves this state on Airflow
+3.3. On Airflow 3.4, clearing a Dag run also preserves it; clearing an
+individual task instance removes it only when ``keep_task_state`` is off. In
+the cases that preserve state, a cleared task can return the stored commit and
+emit its asset event again without pushing. This avoids reusing an older
+publication after the branch has advanced. The task
 emits an asset event with the same commit SHA and URL only after successful
 publication. Publication uses Datasets ``push_to_hub``, which rewrites the
 README's YAML card metadata, including ``dataset_info`` and ``configs``, in the

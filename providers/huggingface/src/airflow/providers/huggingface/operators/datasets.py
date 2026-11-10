@@ -625,7 +625,7 @@ class MapDatasetOperator(BaseOperator):
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.transform = transform
-        self.transform_kwargs = {} if transform_kwargs is None else transform_kwargs
+        self.transform_kwargs = transform_kwargs
         self.map_kwargs = map_kwargs or {}
         self.cache_dir = cache_dir
         self.storage_conn_id = storage_conn_id
@@ -637,7 +637,8 @@ class MapDatasetOperator(BaseOperator):
                 cache_dir=self.cache_dir or cache_dir,
                 storage_conn_id=self.storage_conn_id,
             )
-            mapped = dataset.map(self.transform, fn_kwargs=self.transform_kwargs, **self.map_kwargs)
+            transform_kwargs = self.transform_kwargs if self.transform_kwargs is not None else {}
+            mapped = dataset.map(self.transform, fn_kwargs=transform_kwargs, **self.map_kwargs)
             source = self.input_uri if isinstance(self.input_uri, dict) else {}
             provenance: dict[str, Any] = {
                 key: source[key]

@@ -32,6 +32,6 @@ Initial public release of the Hugging Face provider for Apache Airflow.
   Direct streaming publication is included; standalone filtering and split
   assembly operators are not included in the v1 public API.
 * Require ``datasets>=5.0.0`` for recovery of completed multipart Hub uploads.
-* Pin revisions for unnamespaced Hub dataset IDs and restore empty artifact splits.
+* Pin revisions for Hub dataset IDs without a namespace and restore empty artifact splits.
 * Declare publication assets for mapped tasks with a fixed repository ID, and
   skip repo-level asset events for pull request and non-main revision pushes.

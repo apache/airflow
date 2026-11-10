@@ -69,8 +69,8 @@ Guides
 .. toctree::
    :maxdepth: 2
 
-   connections
-   operators
+   Connection types <connections/index>
+   Operators <operators/index>
    artifacts
    Security <security>
    changelog
