@@ -191,6 +191,10 @@ again, and the task log says so:
 
     Durable: the run took a different path from the previous attempt; this step and every step after it run again
 
+For a ``fallback_conn_ids`` chain, the fingerprint names the chain as a whole rather
+than its connections, and a recorded response replays only if the connection that
+answered it is still in the chain with the same ``model``; see :doc:`recovery`.
+
 A changed agent costs a re-run; it never replays results that belong to another
 conversation. Settings that only affect transport, ``timeout`` and the prompt cache
 settings, are left out of the fingerprint, so changing them does not cause a re-run.

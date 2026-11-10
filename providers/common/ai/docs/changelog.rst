@@ -26,6 +26,20 @@ Changelog
 ---------
 
 .. note::
+  **Durable replay of a fallback chain**
+
+  A recorded model step through a ``fallback_conn_ids`` chain now replays after the chain is
+  edited, as long as the connection that answered it is still in the chain with the same
+  ``model``. A step answered by a connection that was removed from the chain, or whose ``model``
+  changed, runs live. The fingerprint of a chain request no longer lists the connections, so the
+  first retry after upgrading a task whose durable journal holds steps recorded through a chain
+  by an earlier version runs every step live, tools included. Changing settings such as
+  ``temperature`` on a chain connection still does not invalidate a recorded step. A chain model
+  built outside the hook and run under ``AirflowDurability`` has no record of which member
+  answered, so its steps always run live on retry.
+  See :doc:`recovery`.
+
+.. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
   by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,

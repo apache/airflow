@@ -51,6 +51,7 @@ from pydantic_ai.exceptions import (
     UnexpectedModelBehavior,
 )
 from pydantic_ai.messages import ModelResponse, ToolReturn
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AbstractToolset, DynamicToolset, FunctionToolset, ToolsetTool
 from pydantic_ai.toolsets.wrapper import WrapperToolset
@@ -59,6 +60,7 @@ from pydantic_core import PydanticSerializationError
 from airflow.providers.common.ai.durable.base import TOOL_CONFIG_KEY
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
+from airflow.providers.common.ai.durable.member_stamp import get_member_model_id
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
@@ -197,6 +199,7 @@ def _lacks_id(leaf: AbstractToolset[Any]) -> TypeGuard[FunctionToolset[Any] | Dy
 # Why a recorded step that matched is run live anyway: it was written by a version whose
 # types have changed since, so replaying it would fail on every retry.
 _UNLOADABLE = "the recorded result no longer loads, so it was written by another version"
+_UNSTAMPED_ANSWERER = "the recorded response does not say which fallback chain member answered it"
 
 # How an operation's step is run: looked up in the journal and recorded, or always run live.
 _StepMode: TypeAlias = Literal["journal", "live"]
@@ -635,11 +638,15 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         step = self._claim(active, operation_id, name, kind="model", fingerprint=fingerprint)
         if step.replayed:
             response = _load_model_response(step.payload, streaming=streaming)
-            ledger.record_model_replay(response, continuation=continuation)
-            ledger.track_chain(response, parameters)
-            if response.state != "suspended":
-                ledger.credit_successors(active.durable_run, step.position)
-            return step.payload
+            model = await self._durability._model_for_fingerprint(model_id, run_context)
+            if reason := _find_unusable_answerer(response, model):
+                active.durable_run.reject(step, reason=reason)
+            else:
+                ledger.record_model_replay(response, continuation=continuation)
+                ledger.track_chain(response, parameters)
+                if response.state != "suspended":
+                    ledger.credit_successors(active.durable_run, step.position)
+                return step.payload
         ledger.record_live_model_request(had_request_credit=had_request_credit)
         payload = await step.run(body)
         if isinstance(payload, Unrecordable):
@@ -666,9 +673,11 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         # here as well as in the request itself is safe.
         model = await self._durability._model_for_fingerprint(model_id, run_context)
         prepared_settings, prepared_parameters = model.prepare_request(model_settings, parameters)
-        return fingerprint_model_request(
-            f"{model.system}:{model.model_name}", messages, prepared_settings, prepared_parameters
-        )
+        # A chain is fingerprinted by a fixed name, not its members: editing the chain must not
+        # invalidate steps a surviving member answered. ``_find_unusable_answerer`` rejects the
+        # replay of a step whose answering member left the chain.
+        identity = "fallback" if isinstance(model, FallbackModel) else f"{model.system}:{model.model_name}"
+        return fingerprint_model_request(identity, messages, prepared_settings, prepared_parameters)
 
 
 @dataclass
@@ -786,6 +795,17 @@ def _decode_tool_payload(payload: Any) -> Any:
         case "call_deferred":
             raise CallDeferred(metadata=payload.get("metadata"))
     raise DurableJournalError(f"durable execution found a tool result it cannot replay: {kind!r}")
+
+
+def _find_unusable_answerer(response: ModelResponse, model: Model) -> str | None:
+    """Return why a recorded response cannot replay into ``model``'s chain, or ``None`` if it can."""
+    if not isinstance(model, FallbackModel):
+        return None
+    if (member_model_id := get_member_model_id(response)) is None:
+        return _UNSTAMPED_ANSWERER
+    if member_model_id not in {member.model_id for member in model.models}:
+        return f"the model that answered this step, {member_model_id}, is no longer in the fallback chain"
+    return None
 
 
 def _load_model_response(payload: object, *, streaming: bool) -> ModelResponse:
