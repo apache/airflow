@@ -35,7 +35,7 @@ export interface TaskClient {
   /**
    * Look up an Airflow Variable.
    *
-   * Returns `null` when the key is missing or stored with a null value.
+   * Returns `null` when the key is missing.
    * Throws on any other error.
    *
    * This is intentionally JS-friendly behavior. Use
