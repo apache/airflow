@@ -74,7 +74,9 @@ def get_rst_epilogue(package_version: str, airflow_core: bool) -> str:
     )
 
 
-SMARTQUOTES_EXCLUDES = {"builders": ["man", "text", "spelling"]}
+# ``llms-markdown`` is sphinx-llm's Markdown build: its files are served without a charset, so
+# curly quotes in them turn into mojibake for clients that default ``text/*`` to Latin-1.
+SMARTQUOTES_EXCLUDES = {"builders": ["man", "text", "spelling", "llms-markdown"]}
 
 BASIC_SPHINX_EXTENSIONS = [
     "sphinx.ext.autodoc",
