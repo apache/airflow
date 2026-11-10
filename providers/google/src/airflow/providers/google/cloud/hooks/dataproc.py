@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 import shlex
 import subprocess
 import time
@@ -26,7 +27,7 @@ import uuid
 from collections.abc import MutableSequence, Sequence
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.exceptions import ServerError, ServiceUnavailable
+from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataproc_v1 import (
     Batch,
@@ -43,7 +44,13 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceAsyncClient,
     WorkflowTemplateServiceClient,
 )
-from tenacity import retry as tenacity_retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+    before_sleep_log,
+    retry as tenacity_retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -59,6 +66,8 @@ if TYPE_CHECKING:
     from google.protobuf.duration_pb2 import Duration
     from google.protobuf.field_mask_pb2 import FieldMask
     from google.type.interval_pb2 import Interval
+
+log = logging.getLogger(__name__)
 
 
 class DataprocResourceIsNotReadyError(AirflowException):
@@ -1987,9 +1996,10 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @tenacity_retry(
-        retry=retry_if_exception_type(ServiceUnavailable),
+        retry=retry_if_exception_type(ServerError),
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, max=10),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     async def get_batch(

@@ -1081,7 +1081,7 @@ class TestDataprocAsyncHook:
     async def test_get_batch_retries_on_service_unavailable(self, mock_client, mock_sleep):
         mock_batch_client = AsyncMock(BatchControllerAsyncClient)
         mock_client.return_value = mock_batch_client
-        expected_batch = mock.MagicMock()
+        expected_batch = mock.MagicMock(spec=Batch)
         mock_batch_client.get_batch.side_effect = [ServiceUnavailable("503"), expected_batch]
 
         result = await self.hook.get_batch(batch_id=BATCH_ID, region=GCP_LOCATION, project_id=GCP_PROJECT)
