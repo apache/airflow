@@ -752,6 +752,13 @@ class TestWorker:
             == 120
         )
 
+    def test_livenessprobe_termination_grace_period_rejects_zero(self):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={"workers": {"celery": {"livenessProbe": {"terminationGracePeriodSeconds": 0}}}},
+                show_only=["templates/workers/worker-deployment.yaml"],
+            )
+
     def test_extra_init_container_restart_policy_is_configurable(self):
         docs = render_chart(
             values={

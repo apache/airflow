@@ -648,9 +648,9 @@ workers:
       command: ~
       # Grace period for a kill triggered by this probe. Unset, the pod's
       # `terminationGracePeriodSeconds` applies, which workers often set to hours
-      # so that a rolling update drains running tasks; a worker killed because it
-      # stopped answering is not draining anything, so a shorter period here
-      # restarts it sooner.
+      # so that a rolling update drains running tasks. A worker that stopped
+      # answering can still wait on in-flight or hung tasks during its warm
+      # shutdown; a shorter period here bounds that wait. If set, minimum value is 1.
       terminationGracePeriodSeconds: ~
 
     # Enable the default workers defined by the root `workers` and `workers.celery`
