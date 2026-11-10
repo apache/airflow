@@ -89,9 +89,9 @@ XCOM_STATEMENT_ID_KEY = "statement_id"
 _RUN_MISSING_MESSAGE_PATTERN = re.compile(r"Run .* does not exist|Run: .* in job: .* doesn't exist")
 
 
-def is_run_missing_error(exc: DatabricksApiError) -> bool:
+def _is_run_missing_error(exc: DatabricksApiError) -> bool:
     """Whether ``exc`` means Databricks has no record of the run (expired, deleted, or foreign)."""
-    if exc.http_status_code == 404 or exc.error_code == "RESOURCE_DOES_NOT_EXIST":
+    if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
         return True
     return exc.error_code == "INVALID_PARAMETER_VALUE" and bool(_RUN_MISSING_MESSAGE_PATTERN.search(str(exc)))
 
@@ -1039,7 +1039,14 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             run_info = self._hook.get_run(external_id)
         except DatabricksApiError as e:
             # Neither active nor succeeded, so the mixin resubmits instead of failing every retry.
-            if is_run_missing_error(e):
+            if _is_run_missing_error(e):
+                self.log.warning(
+                    "Databricks has no record of run %s, so a fresh run will be submitted. "
+                    "If the workspace connection changed, the original run may still be going there. "
+                    "Databricks said: %s",
+                    external_id,
+                    e,
+                )
                 return "NOT_FOUND:"
             raise
         state = RunState(**run_info["state"])
@@ -1534,7 +1541,14 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             run_info = self._hook.get_run(external_id)
         except DatabricksApiError as e:
             # Neither active nor succeeded, so the mixin resubmits instead of failing every retry.
-            if is_run_missing_error(e):
+            if _is_run_missing_error(e):
+                self.log.warning(
+                    "Databricks has no record of run %s, so a fresh run will be submitted. "
+                    "If the workspace connection changed, the original run may still be going there. "
+                    "Databricks said: %s",
+                    external_id,
+                    e,
+                )
                 return "NOT_FOUND:"
             raise
         state = RunState(**run_info["state"])
