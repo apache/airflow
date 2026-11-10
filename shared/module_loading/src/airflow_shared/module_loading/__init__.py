@@ -185,7 +185,9 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
                     continue
                 seen_dist_names.add(normalized_name)
             for e in dist.entry_points:
-                mapping[e.group].append((e, dist))
+                # importlib_metadata >= 10 types this as its IDistribution protocol, which older
+                # releases and the stdlib lack; a cast would be redundant on those.
+                mapping[e.group].append((e, dist))  # type: ignore[arg-type]
         except Exception as e:
             log.warning("Error when retrieving package metadata (skipping it): %s, %s", dist, e)
     return mapping
