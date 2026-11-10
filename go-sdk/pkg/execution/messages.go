@@ -19,7 +19,6 @@ package execution
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -32,7 +31,7 @@ import (
 // reported in a bundle's airflow-metadata manifest as
 // sdk.supervisor_schema_version so the supervisor can down/upgrade messages to
 // a shape the bundle understands.
-const SupervisorSchemaVersion = "2026-10-30"
+const SupervisorSchemaVersion = "2027-02-28"
 
 // The message-type discriminator strings (genmodels.Type*) are generated from the
 // schema's "type" consts in discriminators.gen.go; outbound messages stamp the
@@ -175,17 +174,6 @@ func ifaceStringPtr(v any) *string {
 		return nil
 	}
 	return &s
-}
-
-// ifaceTimePtr returns a pointer to the time carried by a nullable date-time
-// field decoded as any, or nil when missing/null. msgpack decodes the
-// supervisor's timestamp extension straight into time.Time.
-func ifaceTimePtr(v any) *time.Time {
-	t, ok := v.(time.Time)
-	if !ok {
-		return nil
-	}
-	return &t
 }
 
 // ifaceInt converts a numeric value decoded as any (msgpack yields various

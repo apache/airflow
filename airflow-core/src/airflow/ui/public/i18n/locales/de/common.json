@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag Bündel",
   "dagDetails": {
     "activeRuns": "Aktive Läufe",
+    "bundleVersion": "Bündel-Version",
     "catchup": "Nachgeholt",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
@@ -92,7 +93,6 @@
   "dagRun_other": "Dag Läufe",
   "dagRunId": "Dag Lauf ID",
   "dagRunState": "Status des Dag Laufs",
-  "dagWarnings": "Dag Warnungen und Fehler",
   "delete": "Löschen",
   "diff": "Differenzansicht",
   "diffCompareWith": "Vergleichen mit",
@@ -118,6 +118,7 @@
     "home": "Start",
     "invalidUrl": "Seite nicht gefunden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
     "notFound": "Seite nicht gefunden",
+    "reload": "Seite neu laden",
     "title": "Fehler"
   },
   "errors": {
@@ -139,7 +140,7 @@
     "all": "Alle",
     "and": "UND",
     "any": "Jeder",
-    "hiddenAsset": "Versteckte Datensets (Asset)",
+    "hiddenAsset": "Ausgeblendetes Datenset (Asset)",
     "or": "ODER"
   },
   "filter": "Filter",
@@ -196,6 +197,7 @@
     },
     "save": "Speichern"
   },
+  "moreTabs": "Weiter",
   "nav": {
     "admin": "Verwaltung",
     "assets": "Datensets",
@@ -221,6 +223,10 @@
     "write": "Schreiben"
   },
   "overallStatus": "Gesamtstatus",
+  "pagination": {
+    "nextPage": "Nächse Seite",
+    "previousPage": "Vorige Seite"
+  },
   "partition_one": "Partition",
   "partition_other": "Partitionen",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
@@ -267,7 +273,8 @@
   "search": {
     "advanced": {
       "description": "Übereinstimmung an beliebiger Stelle im Wert (Teilstring-Suche). Bei großen Installationen langsamer, da der standardmäßige Datenbank-Index nicht genutzt werden kann. Details hierzu finden Sie im Dokumentationsabschnitt zu benutzerdefinierten Metadaten-Indizes (Performance tuning (API and UI)).",
-      "title": "Übereinstimmung an beliebiger Stelle"
+      "title": "Übereinstimmung an beliebiger Stelle",
+      "toggleLabel": "Umschalten beliebige Suche"
     }
   },
   "security": {
@@ -381,10 +388,12 @@
       "scrollBottom": "Nach unten scrollen",
       "scrollTop": "Nach oben scrollen",
       "searchDags": "$t(dag_other) suchen",
+      "selectGridCellRange": "Bereich von $t(taskInstance_other) bis $t(taskGroup_other) wählen (ohne Schleifen-Tasks)",
       "showHelp": "$t(shortcuts.title) anzeigen",
       "toggleExpand": "Alle Gruppen ein- oder ausklappen",
       "toggleFullscreen": "Vollbild umschalten",
       "toggleGraphGrid": "Zwischen Graph- und Gitteransicht wechseln",
+      "toggleGridCellSelection": "$t(taskInstance_one) oder $t(taskGroup_one) Hinzufügen oder Löschen von der Auswahl (ohne Schleifen-Tasks)",
       "toggleLogLevel": "Loglevel umschalten",
       "toggleSource": "Quelle umschalten",
       "toggleTaskGroup": "$t(taskGroup_one) ein- oder ausklappen",
@@ -415,7 +424,7 @@
     "no_status": "Kein Status",
     "none": "Kein Status",
     "open": "Frei",
-    "pending": "Bevorstehend",
+    "pending": "Ausstehend",
     "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
@@ -430,7 +439,7 @@
   },
   "switchDag": "Wechsel zu $t(dag_one)",
   "switchDagRun": "Wechsel zu $t(dagRun_one)",
-  "switchMapIndex": "Wechseln zu $t(mapIndex)",
+  "switchMapIndex": "Zu $t(mapIndex) wechseln",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -477,7 +486,7 @@
     "hostname": "Hostname",
     "id": "ID",
     "iteration": "Iteration",
-    "loopDecision": "Entscheidung",
+    "loopDecision": "Schleifenentscheidung",
     "loopIterations": "Iterationsläufe",
     "maxTries": "Maximale Versuche",
     "pid": "PID",
@@ -487,6 +496,7 @@
     "queue": "Warteschlange",
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
+    "retryAt": "Nochmals versuchen um",
     "scheduledWhen": "Geplant ab",
     "stateReason": "Grund für den Status",
     "stateReasonSummary": {

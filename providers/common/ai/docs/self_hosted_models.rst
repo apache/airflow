@@ -257,6 +257,109 @@ model doesn't have to guess a path. That matters because ``HttpHook`` raises
 on any response outside the 2xx/3xx range: if the model guessed wrong, the
 task would fail outright rather than the agent recovering gracefully.
 
+.. _self_hosted_models_ensure_model_ready:
+
+Waiting for an Ollama model to load
+-------------------------------------
+
+Ollama loads a model into memory on the first request. pydantic-ai's default
+HTTP read timeout is 600 seconds, longer than the 300 seconds used below, so with
+default settings the agent's first request waits for the load itself. Loading
+ahead of time matters when ``model_settings`` sets a shorter ``timeout``: the first
+request then times out before the model has loaded. In that case, call
+:meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.ensure_model_ready`
+before the task builds its agent. It sends Ollama a load request for this
+connection's model and waits until Ollama answers, which it does once the model
+is available (right away if it is already loaded):
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+
+    hook = PydanticAIHook(llm_conn_id="pydanticai_default")
+    hook.ensure_model_ready(timeout=300)
+    agent = hook.create_agent(instructions="Answer briefly.")
+
+Nothing calls it for you; it is opt-in. It has these limits:
+
+- Only Ollama is built in. For any other model prefix pass ``backend_factory=``
+  (see below); without it, ``NotImplementedError`` is raised.
+- Only the hook's own connection is checked. Models behind ``fallback_conn_ids``
+  are not loaded.
+- The call blocks and holds the worker slot for the whole wait.
+- The built-in Ollama backend does not send the connection's password, so an Ollama
+  server behind authentication is not supported.
+
+``@task.llm`` and ``AgentOperator`` build their own hook from ``llm_conn_id`` and
+their ``model_id``, so call ``ensure_model_ready`` from an upstream task with
+the same connection and, if the downstream task sets ``model_id``, the same
+``model_id``. Otherwise the upstream task loads the connection's own model:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+    from airflow.sdk import task
+
+
+    @task
+    def load_model():
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default", model_id="ollama:llama3")
+        hook.ensure_model_ready(timeout=300)
+
+The load request does not send ``keep_alive``, so Ollama unloads the model after
+its own keep-alive time (5 minutes by default) like any other model. If the
+downstream LLM task can wait in the queue longer than that, raise the server's
+default with the ``OLLAMA_KEEP_ALIVE`` environment variable.
+
+The upstream task and the LLM task must reach the same Ollama server for the
+load to help. With one Ollama on each worker (a ``localhost`` connection) or several
+replicas behind a load balancer, the load request can reach a different server
+than the LLM call, and then it has no effect on that call.
+
+``timeout`` is passed as is to the load request. Running out ends in a
+``TimeoutError`` naming the model, or the server when it cannot be reached.
+Nothing is retried, so a wrong host, a server error or a request timing out is
+raised right away.
+
+.. _self_hosted_models_readiness_backend:
+
+Using your own readiness backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``ensure_model_ready`` accepts ``backend_factory=``, a callable that is called
+with the keyword arguments ``model_name`` (the model name without its provider
+prefix) and ``base_url`` (the connection's host, or ``None``) and returns any
+object with a keyword-only ``load(*, timeout)`` method, described by
+:class:`~airflow.providers.common.ai.hooks.pydantic_ai.ModelReadinessBackend`.
+``load`` should return once the model is available. With ``backend_factory=``,
+the model prefix and the connection host are not checked, and errors are raised
+as is. The ``base_url`` the factory receives is only the connection's host, never
+``OLLAMA_BASE_URL``; the factory decides what to do when it is ``None``.
+
+.. code-block:: python
+
+    class MyServerBackend:
+        def __init__(self, model_name: str, base_url: str | None) -> None: ...
+
+        def load(self, *, timeout: float) -> None: ...
+
+
+    hook.ensure_model_ready(backend_factory=MyServerBackend)
+
+The prefix is not used to detect the server, because ``openai:<model>`` can
+point at Ollama's ``/v1`` endpoint as well as at any other OpenAI-compatible
+server. When it points at Ollama, pass ``OllamaBackend`` as the factory
+(``base_url`` may keep its ``/v1`` suffix). When the connection has no host,
+``OllamaBackend`` uses the ``OLLAMA_BASE_URL`` environment variable, and raises
+``ValueError`` if that is not set either:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.hooks.ollama import OllamaBackend
+
+    hook = PydanticAIHook(llm_conn_id="pydanticai_default", model_id="openai:llama3")
+    hook.ensure_model_ready(backend_factory=OllamaBackend)
+
 Routing through an AI gateway
 --------------------------------
 
@@ -293,14 +396,17 @@ above.
 Model identifier format
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format the
-hook always expects, but which ``provider`` prefix to use depends on the
-endpoint:
+The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format (or
+set the prefix once as Default Model Provider, see
+:ref:`conn-example-openai-compatible-gateway`), but which ``provider`` prefix to
+use depends on the endpoint:
 
-- **vLLM** has no dedicated provider class in pydantic-ai -- ``openai:<model>``
-  is the only option. pydantic-ai's ``openai`` provider class talks to
-  whatever ``host`` points at, so it works against vLLM's OpenAI-compatible
-  API even though the weights being served aren't OpenAI's.
+- **vLLM** has no dedicated provider class in pydantic-ai, so use one of the
+  OpenAI prefixes: ``openai:<model>`` for the Responses API or
+  ``openai-chat:<model>`` for Chat Completions. pydantic-ai's ``openai``
+  provider class talks to whatever ``host`` points at, so either works against
+  vLLM's OpenAI-compatible API even though the weights being served aren't
+  OpenAI's.
 - **Ollama** has two valid options: the dedicated ``ollama:<model>`` prefix
   (recommended) applies Ollama-specific model-profile tuning based on the
   model name (``llama``, ``gemma``, ``qwen``, ``deepseek``, ``mistral``,
@@ -317,11 +423,11 @@ its OpenAI provider, and there's no separate ``ollama`` extra.
 
    ``LiteLLMProvider`` is an exception: its constructor takes ``api_base``
    instead of ``base_url``, so passing ``host`` raises a ``TypeError`` that
-   the hook catches, logs a warning, and falls back to environment-variable
-   auth, ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
-   endpoint via ``openai:<model>`` instead -- this is the same proxy role
-   used in the gateway section above, just addressed through the working
-   prefix rather than the rejected ``litellm:`` one.
+   the hook re-raises as a ``ValueError``: the connection is rejected rather
+   than falling back to environment-variable auth. Point a LiteLLM proxy's
+   OpenAI-compatible endpoint via ``openai:<model>`` instead -- this is the
+   same proxy role used in the gateway section above, just addressed through
+   the working prefix rather than the rejected ``litellm:`` one.
 
 .. _self_hosted_models_other_servers:
 

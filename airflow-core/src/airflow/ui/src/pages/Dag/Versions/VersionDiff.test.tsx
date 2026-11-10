@@ -108,6 +108,25 @@ describe("VersionDiff summary", () => {
 });
 
 describe("VersionDiff", () => {
+  it("shows a merged record's count beside its path rather than in a column", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("×3")).toBeInTheDocument();
+    expect(screen.queryByText("versions.columns.occurrences")).not.toBeInTheDocument();
+  });
+
+  it("marks a truncated count as a lower bound", () => {
+    renderDiff({ ...redacted, truncated: true });
+
+    expect(screen.getByText("×3+")).toBeInTheDocument();
+  });
+
+  it("adds no count to a record that stands for one change", () => {
+    renderDiff(authorized);
+
+    expect(screen.queryByText(/^×/u)).not.toBeInTheDocument();
+  });
+
   it("withholds value columns when the caller may not see values", () => {
     renderDiff(redacted);
 
@@ -132,14 +151,6 @@ describe("VersionDiff", () => {
     for (const change of many) {
       expect(screen.getByText(change.path)).toBeInTheDocument();
     }
-  });
-
-  it("keeps the comparison's boundary reachable from above the table", () => {
-    renderDiff(redacted);
-
-    // Below the table it would be pushed off-screen by exactly the long diffs that need it.
-    expect(screen.queryByText("versions.observedStateBoundary")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "versions.aboutThisComparison" })).toBeInTheDocument();
   });
 
   it("shows values and the identifying path once the caller may see them", () => {
@@ -194,7 +205,7 @@ describe("VersionDiff", () => {
     const cells = within(screen.getAllByRole("row")[1] as HTMLElement).getAllByRole("cell");
 
     // A dash would read as a value the base version holds, rather than as a side that is absent.
-    expect(cells[5]).toBeEmptyDOMElement();
+    expect(cells[4]).toBeEmptyDOMElement();
     expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
@@ -289,9 +300,9 @@ describe("VersionDiff", () => {
 
     const cells = within(screen.getAllByRole("row")[1] as HTMLElement).getAllByRole("cell");
 
-    expect(cells[4]).toHaveTextContent("1");
-    expect(cells[5]).toHaveTextContent("alice");
-    expect(cells[6]).toHaveTextContent("bob");
+    expect(cells).toHaveLength(6);
+    expect(cells[4]).toHaveTextContent("alice");
+    expect(cells[5]).toHaveTextContent("bob");
   });
 
   it("shows no disclosure chrome when the caller may see values", () => {

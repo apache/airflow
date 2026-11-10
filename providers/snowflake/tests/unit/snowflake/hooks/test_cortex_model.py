@@ -65,8 +65,8 @@ class TestGetProviderKwargs:
     def test_ignores_connection_password_and_omits_api_key(self, mock_hook_cls, mock_provider_cls):
         """Regression: a leftover Password on the pydanticai_snowflake connection must not be
         forwarded as api_key -- the base hook's generic handling raises TypeError against
-        SnowflakeProvider (which takes `token`, not `api_key`) and silently falls back to
-        env-var auth; this hook's own kwargs must never trigger that path."""
+        SnowflakeProvider (which takes `token`, not `api_key`), which fails the connection
+        with a ValueError; this hook's own kwargs must never trigger that path."""
         mock_hook_cls.return_value._get_static_conn_params = {"account": "airflow"}
 
         hook = PydanticAISnowflakeHook(snowflake_conn_id="snowflake_conn")
@@ -248,17 +248,14 @@ class TestSnowflakeCortexAuth:
 class TestGetConn:
     @mock.patch(f"{MODULE_PATH}.SnowflakeRestTokenProvider", autospec=True)
     @mock.patch(f"{MODULE_PATH}.SnowflakeHook", autospec=True)
-    @mock.patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider", autospec=True)
     def test_get_conn_uses_explicit_credentials_despite_connection_password(
-        self, mock_infer_provider, mock_hook_cls, mock_provider_cls
+        self, mock_hook_cls, mock_provider_cls
     ):
-        """End-to-end: get_conn() must not raise and must not fall back to env-var auth.
+        """End-to-end: get_conn() must not raise when the connection also carries a password.
 
-        ``infer_provider`` is only reached by the base hook's ``except TypeError`` fallback
-        (``pydantic_ai.py``'s ``_provider_factory``), so asserting it was never called pins that
-        the explicit-credentials path was taken -- ``model is not None`` alone would also pass
-        if this hook's kwargs were rejected and pydantic-ai silently fell back to
-        ``SNOWFLAKE_ACCOUNT``/``SNOWFLAKE_TOKEN`` env vars instead.
+        The base hook raises ``ValueError`` (it never falls back to env-var auth) when the
+        provider class rejects the kwargs it derives from the connection, so a model that
+        resolves means the explicit-credentials path was taken.
         """
         mock_hook_cls.return_value._get_static_conn_params = {"account": "airflow"}
 
@@ -276,7 +273,6 @@ class TestGetConn:
 
         assert model is not None
         mock_hook_cls.assert_called_once_with(snowflake_conn_id="snowflake_conn")
-        mock_infer_provider.assert_not_called()
 
     @mock.patch(f"{MODULE_PATH}.SnowflakeRestTokenProvider", autospec=True)
     @mock.patch(f"{MODULE_PATH}.SnowflakeHook", autospec=True)

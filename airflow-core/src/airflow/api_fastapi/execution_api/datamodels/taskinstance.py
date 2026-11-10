@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
+    Discriminator,
     Field,
     JsonValue,
     Tag,
@@ -297,7 +298,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIAwaitingInputStatePayload, Tag("awaiting_input")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Field(discriminator=ti_state_discriminator),
+    Discriminator(ti_state_discriminator),
 ]
 
 
@@ -555,12 +556,15 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
-    execution_timeout: float | None = None
-    """
-    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
-
-    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
-    """
+    execution_timeout: float | None = Field(
+        default=None,
+        description=(
+            "The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. "
+            "Unset when the task sets none. Zero means no timeout and a negative value has already "
+            "elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, "
+            "and gets no value here."
+        ),
+    )
 
     multi_team: bool = False
     """

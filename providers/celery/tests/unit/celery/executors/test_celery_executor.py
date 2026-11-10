@@ -35,7 +35,6 @@ from celery import Celery
 from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -417,43 +416,6 @@ class TestCeleryExecutor:
         with _prepare_app() as app:
             app.control.revoke = mock.MagicMock()
             yield app.control.revoke
-
-    @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_tasks(self, mocker, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
-        start_date = timezone.utcnow() - timedelta(days=2)
-
-        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None) as dag:
-            task = BaseOperator(task_id="task_1", start_date=start_date)
-
-        if AIRFLOW_V_3_0_PLUS:
-            sync_dag_to_db(dag)
-            dag_version = DagVersion.get_latest_version(task.dag.dag_id)
-            ti = create_task_instance(task=task, run_id=None, dag_version_id=dag_version.id)
-        else:
-            ti = TaskInstance(task=task, run_id=None)
-        ti.external_executor_id = "231"
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
-        ti.queued_by_job_id = 1
-        tis = [ti]
-        with _prepare_app() as app:
-            app.control.revoke = mock.MagicMock()
-            executor = celery_executor.CeleryExecutor()
-            mock_fail = mocker.patch.object(executor, "fail", autospec=True)
-            executor.job_id = 1
-            if hasattr(executor, "_register_task"):
-                executor._register_task(ti)
-            key = executor.get_task_key(ti) if executor.supports_task_instance_uuid else ti.key
-            executor.running = {key}
-            executor.workloads = {key: AsyncResult("231")}
-            assert executor.has_task(ti)
-            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
-                executor.cleanup_stuck_queued_tasks(tis=tis)
-            executor.sync()
-        assert executor.workloads == {}
-        app.control.revoke.assert_called_once_with("231")
-        mock_fail.assert_called_once_with(key)
-        assert not executor.has_task(ti)
 
     @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
@@ -1325,6 +1287,48 @@ def test_execute_workload_runs_execute_task_before_airflow_3_3(execute_task_work
     assert str(mock_supervise.call_args.kwargs["dag_rel_path"]) == "test_dag.py"
     assert mock_supervise.call_args.kwargs["token"] == "test-token"
     assert mock_supervise.call_args.kwargs["log_path"] == "test.log"
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
+@pytest.mark.parametrize(
+    ("callback_result", "expected_error"),
+    [
+        pytest.param((True, None), None, id="callback-succeeds"),
+        pytest.param((False, "Callback failed"), "Callback failed", id="callback-fails"),
+    ],
+)
+def test_execute_workload_runs_execute_callback_before_airflow_3_3(
+    mock_celery_app, monkeypatch, callback_result, expected_error
+):
+    """The pre-3.3 fallback executes ExecuteCallback with the Airflow 3.2 callback helper."""
+    from airflow.executors import workloads
+    from airflow.executors.workloads.callback import CallbackDTO
+
+    workload = workloads.ExecuteCallback(
+        callback=CallbackDTO(
+            id="00000000-0000-0000-0000-000000000003",
+            fetch_method=workloads.CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "tests.callbacks.test_callback", "kwargs": {}},
+        ),
+        dag_rel_path=Path("test_dag.py"),
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="callback.log",
+    )
+    monkeypatch.setattr(celery_executor_utils, "AIRFLOW_V_3_3_PLUS", False)
+    with mock.patch(
+        "airflow.executors.workloads.callback.execute_callback_workload",
+        create=True,
+        return_value=callback_result,
+    ) as mock_execute_callback:
+        execute = celery_executor_utils.execute_workload.__wrapped__
+        if expected_error:
+            with pytest.raises(RuntimeError, match=expected_error):
+                execute(workload.model_dump_json())
+        else:
+            execute(workload.model_dump_json())
+
+    mock_execute_callback.assert_called_once_with(workload.callback, celery_executor_utils.log)
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")

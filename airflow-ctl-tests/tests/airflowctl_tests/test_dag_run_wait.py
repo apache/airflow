@@ -41,6 +41,21 @@ def http_error(status_code: int) -> requests.exceptions.HTTPError:
     return requests.exceptions.HTTPError(str(status_code), response=response)
 
 
+@pytest.mark.parametrize(
+    ("host_port", "expected"), [("localhost:8080", "8080"), ("127.0.0.1:18080", "18080")]
+)
+def test_host_port_number_is_derived_from_host_port(monkeypatch, host_port, expected):
+    monkeypatch.setattr(conftest, "DOCKER_COMPOSE_HOST_PORT", host_port)
+    assert conftest._get_host_port_number() == expected
+
+
+@pytest.mark.parametrize("host_port", ["localhost", "localhost:abc"])
+def test_host_port_number_rejects_malformed_host_port(monkeypatch, host_port):
+    monkeypatch.setattr(conftest, "DOCKER_COMPOSE_HOST_PORT", host_port)
+    with pytest.raises(ValueError, match="HOST_PORT"):
+        conftest._get_host_port_number()
+
+
 def test_poll_delays_grow_and_cap():
     assert list(islice(conftest._compute_poll_delays(), 8)) == [0.5, 1.0, 2.0, 4.0, 8.0, 10.0, 10.0, 10.0]
 

@@ -220,13 +220,10 @@ internal class Logger(
   }
 }
 
-// The log channel accepts one writer at a time, but several threads log: the task's own thread, the
-// thread that handles a stop signal, and the thread that reads replies from the supervisor.
 internal object LogSender {
   private var writer: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
-  @Synchronized
   fun configure(channel: ByteWriteChannel) {
     writer = channel
     if (!channel.isClosedForWrite) {
@@ -236,7 +233,6 @@ internal object LogSender {
     }
   }
 
-  @Synchronized
   fun send(message: LogMessage) {
     val channel = writer
     if (channel == null || channel.isClosedForWrite) {

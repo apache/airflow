@@ -484,6 +484,13 @@ option_allow_pre_releases = click.option(
     is_flag=True,
     envvar="ALLOW_PRE_RELEASES",
 )
+option_fail_on_pending_provider_candidates = click.option(
+    "--fail-on-pending-provider-candidates",
+    help="Fail when a provider's newest version on PyPI is a release candidate that was neither "
+    "released nor yanked. Set when generating the constraints of a final Airflow release.",
+    is_flag=True,
+    envvar="FAIL_ON_PENDING_PROVIDER_CANDIDATES",
+)
 option_airflow_version = click.option(
     "-A",
     "--airflow-version",

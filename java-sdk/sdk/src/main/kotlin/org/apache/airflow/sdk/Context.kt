@@ -19,10 +19,9 @@
 
 package org.apache.airflow.sdk
 
-import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
-import java.time.Duration
+import org.apache.airflow.sdk.internal.bindConf
 import java.time.OffsetDateTime
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
@@ -83,7 +82,8 @@ enum class DagRunType {
  * @property dataIntervalEnd End of the data interval.
  * @property runAfter A date-time tells the scheduler when the Dag run can be scheduled.
  * @property runType How the run was created.
- * @property conf The configuration for this run.
+ * @property conf The configuration for this run. [getConf] reads it into an
+ *    instance of a class with typed fields.
  */
 data class DagRun(
   @JvmField val dagId: String,
@@ -94,7 +94,67 @@ data class DagRun(
   @JvmField val runAfter: OffsetDateTime?,
   @JvmField val runType: DagRunType?,
   @JvmField val conf: Map<String, Any?>,
-)
+) {
+  /**
+   * Reads [conf] into a new instance of [type]. For example, [type] can be a
+   * class with one field per conf key.
+   *
+   * ```java
+   * public static class EtlConf {
+   *   public String targetTable; // set from the "target_table" key
+   *   public int limit = 100;    // stays 100 when the conf has no "limit" key
+   * }
+   *
+   * EtlConf etl = context.dagRun.getConf(EtlConf.class);
+   * ```
+   *
+   * Each key goes to the field, setter or record component whose name matches
+   * the key when case and underscores are ignored. If one key matches a name
+   * exactly, that key wins over keys that match the same name only when case
+   * and underscores are ignored. Objects nested in the conf follow the same
+   * rules, including objects in lists and objects that are map values. The keys
+   * of a map field stay as written.
+   *
+   * Keys that match no field are ignored, because other tasks in the run may
+   * read them. A field with no matching key keeps its default value. The conf
+   * holds only the values that the run was triggered with. This method does not
+   * add the defaults of the Dag's params, so in a scheduled run, where the conf
+   * is empty, no field has a matching key.
+   *
+   * The class needs a no-argument constructor and public fields or setters, so
+   * a nested class must be `static`. A record also works. A record component
+   * with no matching key is null. If the component has a primitive type, this
+   * method throws instead, so a task that reads the conf into a record with a
+   * primitive component fails in a scheduled run. In Kotlin, declare the fields
+   * with `@JvmField` so that a property such as `isEnabled` keeps its name.
+   *
+   * Annotating a field with [ArgName] has no effect on this method. To set a
+   * field from a key that no Java name can match, such as `target-table`, add
+   * `@JsonProperty("target-table")` to that field. `@JsonProperty` needs
+   * `com.fasterxml.jackson.core:jackson-annotations` in your build, because the
+   * SDK keeps Jackson off your compile classpath. You can also read the key
+   * from [conf].
+   *
+   * This method throws [IllegalArgumentException] in these cases:
+   *
+   * * A value, such as an empty string for an `int` field, cannot be converted
+   *   to the type of its field.
+   * * A key holds null for a primitive field, a list holds null for a primitive
+   *   array such as `int[]`, or a primitive record component has no matching
+   *   key. To let a field or a component receive null, declare it with a boxed
+   *   type, such as `Integer`.
+   * * Two keys, such as `target_table` and `TARGET_TABLE`, match the same field
+   *   after case and underscores are ignored, but neither key matches the field
+   *   name exactly.
+   * * The class has two fields whose names differ only in case or underscores,
+   *   such as `targetTable` and `target_table`. This method checks the class
+   *   even when the conf is empty, so it throws in a scheduled run too.
+   *
+   * @param type Class to read the conf into.
+   * @throws IllegalArgumentException in the cases listed above.
+   */
+  fun <T : Any> getConf(type: Class<T>): T = bindConf(conf, type)
+}
 
 /**
  * Identifies the task instance that is currently executing.
@@ -128,54 +188,6 @@ data class Context(
 ) {
   /** Registration of the executing task; resolves wired data inputs. */
   internal var taskDef: TaskDef? = null
-
-  // The value is read once, when the context is made. The server sets Cancellation.running back to
-  // null once it is done with the task, so a context that read the field on every call would stop
-  // seeing the stop request in code that runs after that, such as a JVM shutdown hook.
-  private val cancellation = Cancellation.current()
-
-  /**
-   * Whether Airflow has asked this task to stop.
-   *
-   * Airflow asks a running task to stop when, for example, a user marks its task
-   * instance as failed. The supervisor, which is the Airflow process that started
-   * the JVM, then sends the JVM SIGTERM. If the JVM is still running after a
-   * grace period, the supervisor sends SIGKILL.
-   *
-   * Once a task has called this method or [awaitCancellation], the SDK catches
-   * the first SIGTERM or SIGINT. The SDK records the stop request instead of
-   * letting the JVM exit, so the task can stop its work before SIGKILL arrives.
-   * From then on the task must keep checking until it returns.
-   *
-   * If a task has called neither method, or if a second signal arrives, the JVM
-   * handles the signal as it would without the SDK. By default the JVM runs its
-   * shutdown hooks and exits.
-   *
-   * Every context made while the task runs sees the same stop request,
-   * including a context made with `copy()`, and keeps seeing it after the task
-   * returns. A context made when the server is not running a task, for example
-   * in a unit test that calls a task directly, never sees a stop request.
-   */
-  fun isCancelled(): Boolean = cancellation.check()
-
-  /**
-   * Waits until Airflow asks this task to stop, or until [timeout] passes.
-   *
-   * Use this method in place of [Thread.sleep] in a polling loop, so the task
-   * stops waiting as soon as Airflow asks it to stop. See [isCancelled] for when
-   * Airflow asks a task to stop.
-   *
-   * A context made when the server is not running a task never sees a stop
-   * request. On such a context, this method waits for the whole [timeout] and
-   * returns false.
-   *
-   * @param timeout How long to wait at most.
-   * @return `true` if Airflow asked the task to stop, `false` if [timeout]
-   *    passed first.
-   * @throws InterruptedException if the waiting thread is interrupted.
-   */
-  @Throws(InterruptedException::class)
-  fun awaitCancellation(timeout: Duration): Boolean = cancellation.await(timeout)
 
   internal companion object {
     fun from(

@@ -18,20 +18,29 @@
  */
 import { Fragment } from "react";
 
+import { Badge, HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+
+import { Tooltip } from "src/system-components";
+
 import { MonoText } from "./MonoText";
 
 type PathTextProps = {
+  readonly occurrences?: number;
   readonly path: string;
+  // A truncated diff stopped counting early, so every count is a lower bound.
+  readonly truncated?: boolean;
 };
 
 // A path has no spaces, and `overflow-wrap: anywhere` would let it break after any character,
 // which drops the column's min-content width to one glyph — the other columns then squeeze it
 // until the path reads vertically. Offering a break after each separator instead keeps the column
 // at least as wide as the longest segment and breaks where the path already divides.
-export const PathText = ({ path }: PathTextProps) => {
+export const PathText = ({ occurrences = 1, path, truncated = false }: PathTextProps) => {
+  const { t: translate } = useTranslation("dag");
   let walked = "";
 
-  return (
+  const text = (
     <MonoText overflowWrap="break-word">
       {path.split("/").map((segment, index) => {
         walked += index === 0 ? segment : `/${segment}`;
@@ -45,5 +54,25 @@ export const PathText = ({ path }: PathTextProps) => {
         );
       })}
     </MonoText>
+  );
+
+  if (occurrences <= 1) {
+    return text;
+  }
+
+  return (
+    <HStack alignItems="baseline" gap={2}>
+      {text}
+      <Tooltip
+        content={translate(truncated ? "versions.pathOccurrencesAtLeast" : "versions.pathOccurrences", {
+          count: occurrences,
+        })}
+        portalled
+      >
+        <Badge colorPalette="purple" flexShrink={0} size="sm" variant="outline">
+          {`×${occurrences}${truncated ? "+" : ""}`}
+        </Badge>
+      </Tooltip>
+    </HStack>
   );
 };

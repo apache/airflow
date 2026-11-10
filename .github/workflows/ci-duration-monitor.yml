@@ -34,6 +34,7 @@ jobs:
 
   monitor-ci-durations:
     name: "Monitor CI durations on main"
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     runs-on: ubuntu-slim
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

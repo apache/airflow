@@ -14,6 +14,7 @@
 .codespellignorelines
 .eslintignore
 .eslintrc
+.oxfmtrc.json
 .prettierignore
 .prettierrc
 .rat-excludes
@@ -211,6 +212,7 @@ www-hash.txt
 **/.gitattributes
 **/.rat-excludes
 **/.gitignore
+**/.oxfmtrc.json
 **/.prettierignore
 **/.prettierrc
 **/.airflowignore

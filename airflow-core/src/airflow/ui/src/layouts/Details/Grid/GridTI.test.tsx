@@ -53,7 +53,9 @@ const buildStackShadow = (backCardState: string) =>
 type RenderGridTIOptions = {
   readonly hasNote?: boolean;
   readonly instance?: LightGridTaskInstanceSummary;
+  readonly isGroup?: boolean;
   readonly isMapped?: boolean;
+  readonly isMultiSelected?: boolean;
   readonly runId?: string;
   readonly taskId?: string;
 };
@@ -63,7 +65,9 @@ const renderGridTI = (
   {
     hasNote,
     instance = taskInstance,
+    isGroup,
     isMapped,
+    isMultiSelected,
     runId = SELECTED_RUN_ID,
     taskId = "selected_task",
   }: RenderGridTIOptions = {},
@@ -79,7 +83,9 @@ const renderGridTI = (
                   dagId="example_dag"
                   hasNote={hasNote}
                   instance={{ ...instance, task_id: taskId }}
+                  isGroup={isGroup}
                   isMapped={isMapped}
+                  isMultiSelected={isMultiSelected}
                   label={taskId}
                   runId={runId}
                   taskId={taskId}
@@ -145,6 +151,28 @@ describe("GridTI", () => {
       );
     },
   );
+
+  it.each<{
+    backCardState: string;
+    childStates: Record<string, number>;
+    primaryState: LightGridTaskInstanceSummary["state"];
+  }>([
+    { backCardState: "skipped", childStates: { skipped: 2, success: 1 }, primaryState: "success" },
+    { backCardState: "success", childStates: { success: 3 }, primaryState: "success" },
+    {
+      backCardState: "upstream_failed",
+      childStates: { failed: 1, success: 1, upstream_failed: 2 },
+      primaryState: "failed",
+    },
+    { backCardState: "success", childStates: { failed: 2, success: 3 }, primaryState: "failed" },
+  ])("stacks task group cells like mapped tasks", ({ backCardState, childStates, primaryState }) => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      instance: { ...taskInstance, child_states: childStates, state: primaryState },
+      isGroup: true,
+    });
+
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(buildStackShadow(backCardState));
+  });
 
   it("shows a single card for unmapped tasks", () => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
@@ -218,6 +246,22 @@ describe("GridTI", () => {
       "data-selected",
       "true",
     );
+  });
+
+  it("marks a multi-selected task square that is not the opened one", () => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      isMultiSelected: true,
+      runId: "other_run",
+      taskId: "other_task",
+    });
+
+    expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
+  });
+
+  it("does not mark the opened task square when a selection leaves it out", () => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, { isMultiSelected: false });
+
+    expect(screen.getByTestId("task-state-badge")).not.toHaveAttribute("data-selected");
   });
 
   it("links to the task overview when the run has no task instance", () => {
