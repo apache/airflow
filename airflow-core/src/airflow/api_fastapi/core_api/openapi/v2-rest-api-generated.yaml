@@ -14505,12 +14505,14 @@ components:
           title: Prevent Running Task
           default: false
         keep_task_state:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Keep Task State
           description: Keep the task state store entries of the cleared task instances
-            so the next attempt resumes from them. By default they are discarded,
-            so the task starts over.
-          default: false
+            so the next attempt resumes from them. If omitted, the ``[api] default_keep_task_state``
+            configuration option is used (``False`` by default, so they are discarded
+            and the task starts over).
         note:
           anyOf:
           - type: string

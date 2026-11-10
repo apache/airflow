@@ -3507,6 +3507,9 @@ components:
         require_confirmation_dag_change:
           type: boolean
           title: Require Confirmation Dag Change
+        default_keep_task_state:
+          type: boolean
+          title: Default Keep Task State
         default_wrap:
           type: boolean
           title: Default Wrap
@@ -3546,6 +3549,7 @@ components:
       - instance_name
       - enable_swagger_ui
       - require_confirmation_dag_change
+      - default_keep_task_state
       - default_wrap
       - test_connection
       - dashboard_alert

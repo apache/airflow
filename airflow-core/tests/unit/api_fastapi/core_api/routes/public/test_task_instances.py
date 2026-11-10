@@ -5314,14 +5314,19 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        ("payload_extra", "expect_kept"),
+        ("config_default", "payload_extra", "expect_kept"),
         [
-            pytest.param({}, False, id="default-discards"),
-            pytest.param({"keep_task_state": True}, True, id="keep-preserves"),
-            pytest.param({"keep_task_state": False}, False, id="explicit-false-discards"),
+            pytest.param(None, {}, False, id="default-discards"),
+            pytest.param(None, {"keep_task_state": True}, True, id="keep-preserves"),
+            pytest.param(None, {"keep_task_state": False}, False, id="explicit-false-discards"),
+            pytest.param("False", {}, False, id="config-false-omitted-discards"),
+            pytest.param("True", {}, True, id="config-true-omitted-keeps"),
+            pytest.param("True", {"keep_task_state": True}, True, id="config-true-explicit-true-keeps"),
+            pytest.param("True", {"keep_task_state": False}, False, id="config-true-explicit-false-discards"),
+            pytest.param("False", {"keep_task_state": True}, True, id="config-false-explicit-true-keeps"),
         ],
     )
-    def test_clear_task_state_store(self, test_client, session, payload_extra, expect_kept):
+    def test_clear_task_state_store(self, test_client, session, config_default, payload_extra, expect_kept):
         """Clearing one mapped index discards only that index's task state, unless kept."""
         dag_id = "example_task_mapping_second_order"
         self.create_task_instances(
@@ -5342,16 +5347,18 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert self._task_state_rows(session, dag_id, "times_2", 0)
         assert self._task_state_rows(session, dag_id, "times_2", 1)
 
-        response = test_client.post(
-            f"/dags/{dag_id}/clearTaskInstances",
-            json={
-                "dry_run": False,
-                "reset_dag_runs": False,
-                "only_failed": True,
-                "task_ids": [["times_2", 0]],
-                **payload_extra,
-            },
-        )
+        overrides = {} if config_default is None else {("api", "default_keep_task_state"): config_default}
+        with conf_vars(overrides):
+            response = test_client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json={
+                    "dry_run": False,
+                    "reset_dag_runs": False,
+                    "only_failed": True,
+                    "task_ids": [["times_2", 0]],
+                    **payload_extra,
+                },
+            )
         assert response.status_code == 200
 
         session.expire_all()

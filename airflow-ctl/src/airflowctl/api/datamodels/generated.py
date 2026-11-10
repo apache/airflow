@@ -329,10 +329,10 @@ class ClearTaskInstancesBody(BaseModel):
     keep_task_state: Annotated[
         bool | None,
         Field(
-            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. If omitted, the ``[api] default_keep_task_state`` configuration option is used (``False`` by default, so they are discarded and the task starts over).",
             title="Keep Task State",
         ),
-    ] = False
+    ] = None
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
