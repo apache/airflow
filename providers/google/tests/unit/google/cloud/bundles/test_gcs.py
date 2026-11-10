@@ -433,7 +433,7 @@ class TestGCSArchiveDagBundle:
         "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
         new_callable=PropertyMock,
     )
-    def test_refresh_restages_when_only_etag_marker_remains(self, mock_gcs_hook_property):
+    def test_refresh_restages_when_bundle_dir_emptied(self, mock_gcs_hook_property):
         archive = _make_archive({"dag_01.py": b"print(1)\n"})
         store = {GCS_ARCHIVE_OBJECT: (archive, "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
@@ -445,9 +445,10 @@ class TestGCSArchiveDagBundle:
             archive_object=GCS_ARCHIVE_OBJECT,
         )
         bundle.initialize()
-        (bundle.path / "dag_01.py").unlink()
-        assert bundle._archive_etag_path().is_file()
-        assert not bundle._bundle_dir_has_files()
+        for child in bundle.path.iterdir():
+            child.unlink()
+        assert bundle.path.is_dir()
+        assert not bundle._archive_etag_path().exists()
 
         with patch.object(
             _FakeBlob,
