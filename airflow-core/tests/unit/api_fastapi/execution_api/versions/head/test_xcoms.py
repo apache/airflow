@@ -53,6 +53,7 @@ from airflow.models.xcom import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
+from airflow.sdk.api.client import Client
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
@@ -1378,6 +1379,36 @@ class TestXComsGetEndpoint:
 
         assert response.status_code == 404
         assert "XCom" in response.json()["detail"]["message"]
+
+
+class TestTaskSdkClientGetXCom:
+    """The Task SDK client reads XComs from this tree's Execution API as both sides intend."""
+
+    @pytest.fixture(autouse=True)
+    def dag_run(self, dag_maker, session):
+        with dag_maker(dag_id="dag", serialized=True):
+            EmptyOperator(task_id="plain")
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        for ti in dag_run.get_task_instances(session=session):
+            value = "plain" if ti.task_id == "plain" else ti.region_index
+            session.add(XComModelV2(key=XCOM_RETURN_KEY, value=value, task_instance_id=ti.id))
+        session.commit()
+        return dag_run
+
+    @pytest.mark.parametrize(
+        ("task_id", "map_index", "expected"),
+        [
+            pytest.param("mapped", None, [0, 1], id="mapped-omitted"),
+            pytest.param("mapped", 1, 1, id="mapped-one"),
+            pytest.param("plain", None, "plain", id="unmapped-omitted"),
+        ],
+    )
+    def test_get(self, task_id, map_index, expected):
+        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+        client.base_url = "http://in-process.invalid/"
+        response = client.xcoms.get("dag", "runid", task_id, XCOM_RETURN_KEY, map_index)
+        assert response.value == expected
 
 
 class TestXComsSetEndpoint:

@@ -465,7 +465,8 @@ class BaseXCom:
                 dag_id=dag_id,
                 task_id=task_id,
                 run_id=run_id,
-                map_index=map_index,
+                # Sent explicitly: an omitted map index would read every instance of a mapped task.
+                map_index=-1 if map_index is None else map_index,
             ),
         )
 
@@ -502,8 +503,10 @@ class BaseXCom:
         :param dag_id: Dag ID to pull the XCom from.
         :param task_id: Task ID to pull the XCom from.
         :param map_index: Map index of the task instance to pull the XCom from.
-            *None* (default) pulls the XCom of a non-mapped task, which has
-            map index ``-1``.
+            *None* (default) pulls the task's result: the XCom of a non-mapped
+            task, or for a mapped task the XComs of all its instances as a
+            list, the same values ``get_all`` returns. Airflow 3.4 returns
+            *None* instead of an empty list.
         :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
@@ -565,8 +568,10 @@ class BaseXCom:
         :param dag_id: Dag ID to pull the XCom from.
         :param task_id: Task ID to pull the XCom from.
         :param map_index: Map index of the task instance to pull the XCom from.
-            *None* (default) pulls the XCom of a non-mapped task, which has
-            map index ``-1``.
+            *None* (default) pulls the task's result: the XCom of a non-mapped
+            task, or for a mapped task the XComs of all its instances as a
+            list, the same values ``get_all`` returns. Airflow 3.4 returns
+            *None* instead of an empty list.
         :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is

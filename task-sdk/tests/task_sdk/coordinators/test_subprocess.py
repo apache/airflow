@@ -1722,7 +1722,6 @@ class TestPopenActivitySubprocessXComBackend:
                 "ref://task_1/None/summary",
                 id="default-backend",
             ),
-            pytest.param(_RefXCom, (404, {"detail": "not found"}), None, id="missing"),
         ],
     )
     def test_get_xcom_loads_the_value_through_the_backend(self, make_proc, xcom, response, expected):
@@ -1734,6 +1733,21 @@ class TestPopenActivitySubprocessXComBackend:
         )
 
         assert _sent_body(proc).get("value") == expected
+
+    def test_get_xcom_missing_reads_the_slice_and_sends_none(self, make_proc):
+        """With no map index, a missing value is looked for in the slice too, as a mapped task's values."""
+        api = _FakeApi(
+            {("GET", _XCOM_PATH): (404, {"detail": "not found"}), ("GET", f"{_XCOM_PATH}/slice"): (200, [])}
+        )
+        proc = make_proc(_RefXCom, api)
+        proc._handle_request(
+            GetXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+        assert [(method, path) for method, path, _ in api.requests] == [
+            ("GET", _XCOM_PATH),
+            ("GET", f"{_XCOM_PATH}/slice"),
+        ]
+        assert _sent_body(proc).get("value") is None
 
     @pytest.mark.parametrize(
         ("item", "expected"),
