@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from datetime import datetime
 from unittest import mock
 
@@ -29,7 +30,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerTrigger,
 )
 from airflow.providers.common.compat.openlineage.facet import Dataset
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import DAG, AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -126,7 +127,7 @@ class TestSageMakerTrainingOperator:
         ("status", "active", "succeeded"),
         [
             ("InProgress", True, False),
-            ("Stopping", True, False),
+            ("Stopping", False, False),
             ("Completed", False, True),
             ("Failed", False, False),
             ("Stopped", False, False),
@@ -207,6 +208,29 @@ class TestSageMakerTrainingOperator:
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
+    @mock.patch.object(SageMakerHook, "configure_s3_resources")
+    def test_durable_returns_the_result_of_an_already_completed_job(
+        self, mock_configure_s3, _, mock_training, mock_desc, mock_poll
+    ):
+        mock_desc.return_value = {"TrainingJobStatus": "Completed"}
+        store = self._task_state_store("previously_completed_job")
+
+        result = self.sagemaker.execute({"task_state_store": store})
+
+        mock_training.assert_not_called()
+        mock_configure_s3.assert_not_called()
+        mock_poll.assert_not_called()
+        store.set.assert_not_called()
+        assert result == {"Training": ""}
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+    )
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log", autospec=True)
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_durable_resubmits_when_the_stored_job_is_unknown(self, _, mock_training, mock_desc, __):
         # The stored name is unresolvable after a region or connection change.
         # Only the status lookup for the stored name fails; the describe behind serialize_result works.
@@ -245,8 +269,11 @@ class TestSageMakerTrainingOperator:
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_durable_resubmits_after_a_terminal_job(self, _, mock_training, mock_desc, __):
-        mock_desc.return_value = {"TrainingJobStatus": "Failed"}
+    @pytest.mark.parametrize("stored_status", ["Failed", "Stopped", "Stopping"])
+    def test_durable_resubmits_when_the_stored_job_is_not_running(
+        self, _, mock_training, mock_desc, __, stored_status
+    ):
+        mock_desc.return_value = {"TrainingJobStatus": stored_status}
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -259,6 +286,31 @@ class TestSageMakerTrainingOperator:
         mock_training.assert_called_once()
         store.set.assert_called_once_with("sagemaker_training_job_name", "job_name")
 
+    @pytest.mark.parametrize("durable", [True, False])
+    def test_durable_is_a_named_parameter(self, durable):
+        # Below 3.3 the compat stand-in's plain mixin __init__ is not wrapped by BaseOperatorMeta,
+        # so only the signature assertion catches a regression on the version we run here.
+        assert "durable" in inspect.signature(SageMakerTrainingOperator.__init__).parameters
+
+        with DAG(
+            dag_id="test_sagemaker_durable_default_args",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+            default_args={"durable": durable},
+        ):
+            operator = SageMakerTrainingOperator(
+                task_id="test_sagemaker_operator",
+                config=CREATE_TRAINING_PARAMS.copy(),
+            )
+            mapped = SageMakerTrainingOperator.partial(
+                task_id="test_sagemaker_mapped",
+                durable=durable,
+            ).expand(config=[CREATE_TRAINING_PARAMS.copy()])
+
+        expected = durable if AIRFLOW_V_3_3_PLUS else False
+        assert operator.durable is expected
+        assert mapped.partial_kwargs["durable"] is durable
+
     @mock.patch.object(SageMakerHook, "stop_training_job")
     def test_on_kill_does_nothing_by_default(self, mock_stop):
         self.sagemaker._training_job_name = "job_name"
@@ -269,7 +321,7 @@ class TestSageMakerTrainingOperator:
 
     @mock.patch.object(SageMakerHook, "stop_training_job")
     def test_on_kill_does_nothing_before_the_job_is_submitted(self, mock_stop):
-        self.sagemaker.stop_training_job_on_kill = True
+        self.sagemaker.cancel_on_kill = True
 
         self.sagemaker.on_kill()
 
@@ -290,7 +342,7 @@ class TestSageMakerTrainingOperator:
             check_interval=5,
             check_if_job_exists=False,
             print_log=False,
-            stop_training_job_on_kill=True,
+            cancel_on_kill=True,
         )
         mock_training.side_effect = lambda *args, **kwargs: (
             sagemaker_op.on_kill(),
@@ -314,7 +366,7 @@ class TestSageMakerTrainingOperator:
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
-        self.sagemaker.stop_training_job_on_kill = True
+        self.sagemaker.cancel_on_kill = True
 
         self.sagemaker.execute({})
         self.sagemaker.on_kill()
@@ -453,11 +505,11 @@ class TestSageMakerTrainingOperator:
         assert exc.value.trigger.verify == VERIFY
         assert exc.value.trigger.botocore_config == BOTOCORE_CONFIG
 
-    @pytest.mark.parametrize("stop_training_job_on_kill", [True, False])
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     def test_deferred_trigger_receives_stop_on_kill(
-        self, mock_training, mock_describe_training_job, stop_training_job_on_kill
+        self, mock_training, mock_describe_training_job, cancel_on_kill
     ):
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
@@ -470,13 +522,13 @@ class TestSageMakerTrainingOperator:
             check_if_job_exists=False,
             print_log=False,
             deferrable=True,
-            stop_training_job_on_kill=stop_training_job_on_kill,
+            cancel_on_kill=cancel_on_kill,
         )
 
         with pytest.raises(TaskDeferred) as exc:
             sagemaker.execute(context=None)
 
-        assert exc.value.trigger.cancel_on_kill is stop_training_job_on_kill
+        assert exc.value.trigger.cancel_on_kill is cancel_on_kill
 
     @mock.patch.object(
         SageMakerHook,

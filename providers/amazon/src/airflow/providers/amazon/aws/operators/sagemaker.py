@@ -275,6 +275,12 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 {"output_name": "evaluation", "file_name": "metrics.json", "result_name": "EvaluationReport"}
             ]
             # Downstream: ti.xcom_pull("this_task")["OutputFiles"]["EvaluationReport"]["mse"]
+    :param cancel_on_kill: If True, the processing job is stopped when the task is killed.
+        Without it the job keeps running, and billing, after the task is gone. A deferred task is
+        stopped from the Triggerer, which needs Airflow 3.3 or later; below that the flag only
+        applies while the task holds a worker slot. It does not cover a deferral that expires on
+        its own ``timeout``: the Triggerer kills the trigger without calling ``on_kill``, and no
+        event reaches the task, so nothing runs to stop the job.
     :return: Dict with a ``Processing`` key (the job description) and, when ``output_files_to_xcom``
         is configured, an ``OutputFiles`` key containing the parsed JSON contents of the configured
         output files (keyed by their ``result_name``).
@@ -294,6 +300,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         action_if_job_exists: str = "timestamp",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         output_files_to_xcom: list[dict] | None = None,
+        cancel_on_kill: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -310,7 +317,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
         self.serialized_job: dict
+        self._processing_job_name: str | None = None
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -340,6 +349,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.action_if_job_exists == "fail",
             self.hook.describe_processing_job,
         )
+
+        # Recorded before the submit call so a kill in that window still has a name to stop.
+        self._processing_job_name = self.config["ProcessingJobName"]
 
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
@@ -386,6 +398,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                     region_name=self.region_name,
                     verify=self.verify,
                     botocore_config=self.botocore_config,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 method_name="execute_complete",
             )
@@ -399,6 +412,11 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         validated_event = validate_execute_complete_event(event)
 
         if validated_event["status"] != "success":
+            # A "timeout" event means the waiter gave up while the job was still running; "failed"
+            # and "stopped" are already terminal.
+            if self.cancel_on_kill and validated_event["status"] == "timeout":
+                self.log.info("Stopping SageMaker processing job %s.", validated_event["job_name"])
+                self.hook.stop_processing_job(validated_event["job_name"])
             raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("SageMaker job %s completed.", validated_event["job_name"])
@@ -407,6 +425,12 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         result = {"Processing": self.serialized_job}
         result.update(self._read_output_files())
         return result
+
+    def on_kill(self) -> None:
+        """Stop the SageMaker processing job if ``cancel_on_kill`` is set."""
+        if self.cancel_on_kill and self._processing_job_name:
+            self.log.info("Stopping SageMaker processing job %s.", self._processing_job_name)
+            self.hook.stop_processing_job(self._processing_job_name)
 
     def _read_output_files(self) -> dict:
         """Read configured output files from S3 after job completion and return them for XCom."""
@@ -1230,7 +1254,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         before polling, and a retry reconnects to that job instead of submitting a new one. Only applies
         to the synchronous path; a deferrable run is unaffected. Needs Airflow 3.3 or later, below it the
         operator behaves as with ``durable=False``.
-    :param stop_training_job_on_kill: If True, the training job is stopped when the task is killed.
+    :param cancel_on_kill: If True, the training job is stopped when the task is killed.
         Without it the job keeps running, and billing, after the task is gone. A deferred task is
         stopped from the Triggerer, which needs Airflow 3.3 or later; below that the flag only
         applies while the task holds a worker slot.
@@ -1251,9 +1275,13 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        stop_training_job_on_kill: bool = False,
+        cancel_on_kill: bool = False,
+        durable: bool | None = None,
         **kwargs,
     ):
+        # Named here (not left to **kwargs) so default_args and partial() reach it below 3.3 too.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(config=config, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
@@ -1269,7 +1297,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
                 Provided value: '{action_if_job_exists}'."
             )
         self.deferrable = deferrable
-        self.stop_training_job_on_kill = stop_training_job_on_kill
+        self.cancel_on_kill = cancel_on_kill
         self.serialized_training_data: dict
         self._result: dict[str, dict] | None = None
         self._training_job_name: str | None = None
@@ -1340,7 +1368,9 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
             raise
 
     def is_job_active(self, status: str) -> bool:
-        return status in self.hook.non_terminal_states
+        # Narrower than non_terminal_states on purpose: a "Stopping" job never produces a model, and
+        # wait_for_training_job accepts the resulting "Stopped" as done when print_log is off.
+        return status == "InProgress"
 
     def is_job_succeeded(self, status: str) -> bool:
         return status == "Completed"
@@ -1414,7 +1444,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
                 region_name=self.region_name,
                 verify=self.verify,
                 botocore_config=self.botocore_config,
-                cancel_on_kill=self.stop_training_job_on_kill,
+                cancel_on_kill=self.cancel_on_kill,
             ),
             method_name="execute_complete",
         )
@@ -1433,8 +1463,8 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         return {"Training": self.serialized_training_data}
 
     def on_kill(self) -> None:
-        """Stop the SageMaker training job if ``stop_training_job_on_kill`` is set."""
-        if self.stop_training_job_on_kill and self._training_job_name:
+        """Stop the SageMaker training job if ``cancel_on_kill`` is set."""
+        if self.cancel_on_kill and self._training_job_name:
             self.log.info("Stopping SageMaker training job %s.", self._training_job_name)
             self.hook.stop_training_job(self._training_job_name)
 
