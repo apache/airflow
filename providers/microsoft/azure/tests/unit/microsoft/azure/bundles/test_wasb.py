@@ -393,6 +393,7 @@ class TestWasbArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert (bundle.path / "subdir" / "dag_02.py").read_bytes() == b"print(2)\n"
+        assert bundle.path == bundle.base_dir / "dags"
         assert bundle._archive_etag_path() == bundle.path / ".archive_etag"
         assert bundle._archive_etag_path().read_text() == "etag-1"
         assert sorted(
@@ -517,7 +518,7 @@ class TestWasbArchiveDagBundle:
         archive_bundle.initialize()
         assert (archive_bundle.path / ".archive_etag").is_file()
         assert (archive_bundle.path / "archive_only.py").is_file()
-        sibling_etag = archive_bundle.path.parent / f".{archive_bundle.name}" / "etag"
+        sibling_etag = archive_bundle.base_dir.parent / f".{archive_bundle.name}" / "etag"
         sibling_etag.parent.mkdir(parents=True, exist_ok=True)
         sibling_etag.write_text("leftover")
 
@@ -528,7 +529,8 @@ class TestWasbArchiveDagBundle:
             container_name=CONTAINER_NAME,
         )
         prefix_bundle.initialize()
-        assert archive_bundle.path == prefix_bundle.path
+        assert archive_bundle.path == prefix_bundle.path / "dags"
+        assert not (archive_bundle.path / ".archive_etag").exists()
         assert not (prefix_bundle.path / ".archive_etag").exists()
         assert (prefix_bundle.path / "dag_01.py").read_bytes() == b"from prefix"
         assert not (prefix_bundle.path / "archive_only.py").exists()
@@ -650,7 +652,7 @@ class TestWasbArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+        assert list(bundle.base_dir.glob("archive-staging-*")) == []
 
     @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
     def test_corrupt_archive_keeps_previous_tree(self, mock_wasb_hook_property):
@@ -669,7 +671,7 @@ class TestWasbArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
-        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+        assert list(bundle.base_dir.glob("archive-staging-*")) == []
 
     @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
     def test_failed_swap_restores_previous_tree(self, mock_wasb_hook_property):
@@ -699,7 +701,7 @@ class TestWasbArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not (bundle.path / "dag_02.py").exists()
-        assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
+        assert list(bundle.base_dir.glob("archive-staging-*")) == []
 
     @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
     def test_refresh_removes_only_this_bundles_stale_staging_dir(self, mock_wasb_hook_property):
@@ -713,21 +715,21 @@ class TestWasbArchiveDagBundle:
         )
         bundle.initialize()
 
-        storage_root = bundle.path.parent
-        state_dir = bundle._archive_state_dir()
-        stale = state_dir / "archive-staging-dead"
+        storage_root = bundle.base_dir.parent
+        stale = bundle.base_dir / "archive-staging-dead"
         stale.mkdir()
         (stale / "orphan.txt").write_text("left by a killed process")
-        collided = storage_root / f".{bundle.name}-archive-staging-dead"
-        collided.mkdir()
-        other = storage_root / ".other" / "archive-staging-dead"
+        dotted_sibling = storage_root / f".{bundle.name}" / "archive-staging-dead"
+        dotted_sibling.mkdir(parents=True)
+        other = storage_root / "other" / "archive-staging-dead"
         other.mkdir(parents=True)
 
         bundle.refresh()
 
         assert not stale.exists()
-        assert collided.is_dir()
+        assert dotted_sibling.is_dir()
         assert other.is_dir()
+        assert (bundle.path / "dag_01.py").is_file()
 
     @patch(_ARCHIVE_WASB_HOOK, new_callable=PropertyMock)
     def test_refresh_rejects_archive_member_that_escapes_bundle(self, mock_wasb_hook_property):
@@ -746,7 +748,7 @@ class TestWasbArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
-        assert not (bundle.path.parent / "escape.py").exists()
+        assert not (bundle.base_dir / "escape.py").exists()
 
     def test_archive_blob_requires_tar_data_filter(self, monkeypatch):
         monkeypatch.delattr(tarfile, "data_filter", raising=False)

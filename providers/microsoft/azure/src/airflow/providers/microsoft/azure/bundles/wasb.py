@@ -245,6 +245,8 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
         _require_tar_data_filter()
         self.archive_blob = archive_blob
         super().__init__(wasb_conn_id=wasb_conn_id, container_name=container_name, **kwargs)
+        # Keep the Dag tree and its staging dirs under the bundle's own base_dir.
+        self.wasb_dags_dir = self.base_dir / "dags"
 
     def _get_logger(self) -> FilteringBoundLogger:
         """Return a logger bound with this archive bundle's context."""
@@ -263,18 +265,14 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
             f")>"
         )
 
-    def _archive_state_dir(self) -> Path:
-        return self.wasb_dags_dir.parent / f".{self.name}"
-
     def _archive_etag_path(self) -> Path:
         """Return the ETag marker path inside the staged Dag tree."""
         return self.wasb_dags_dir / ".archive_etag"
 
     def _remove_stale_archive_staging_dirs(self) -> None:
-        state_dir = self._archive_state_dir()
-        if not state_dir.is_dir():
+        if not self.base_dir.is_dir():
             return
-        for leftover in state_dir.iterdir():
+        for leftover in self.base_dir.iterdir():
             if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
                 shutil.rmtree(leftover, ignore_errors=True)
 
@@ -299,9 +297,8 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
             )
             return
 
-        state_dir = self._archive_state_dir()
-        state_dir.mkdir(parents=True, exist_ok=True)
-        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=self.base_dir, prefix="archive-staging-"))
         try:
             archive_path = staging_dir / "_bundle_archive"
             download_kwargs = {}
