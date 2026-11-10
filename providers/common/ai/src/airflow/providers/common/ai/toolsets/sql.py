@@ -65,6 +65,8 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
     from sqlalchemy.engine.reflection import Inspector
 
+    from airflow.providers.common.ai.toolsets.sql_search import SQLTableSearchBackend, TableEntry
+
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +96,26 @@ _GET_SCHEMA_SCHEMA: dict[str, Any] = {
         },
     },
     "required": ["table_name"],
+}
+
+_DEFAULT_SEARCH_LIMIT = 10
+_MAX_SEARCH_LIMIT = 50
+
+_SEARCH_TABLES_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "Words describing the data you are looking for, matched against table names and comments.",
+        },
+        "limit": {
+            "type": "integer",
+            "description": "Maximum number of tables to return (default 10, at most 50).",
+            "minimum": 1,
+            "maximum": 50,
+        },
+    },
+    "required": ["query"],
 }
 
 _QUERY_SCHEMA: dict[str, Any] = {
@@ -316,6 +338,15 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         present only for tables that have one (each capped to 200 characters). Default
         ``False`` keeps the list of names. ``get_schema`` always returns table and column
         comments where the database reports them, regardless of this flag.
+    :param search_backend: Registers a ``search_tables`` tool that finds tables by a free-text
+        query, for databases with too many tables to list. Pass
+        :class:`~airflow.providers.common.ai.toolsets.sql_search.KeywordTableSearchBackend` for a
+        keyword match over table names and comments, or any object implementing
+        :class:`~airflow.providers.common.ai.toolsets.sql_search.SQLTableSearchBackend`. Whatever it
+        returns is filtered through ``allowed_tables``. ``None`` (the default) registers no search tool.
+    :param max_listed_tables: With a ``search_backend``, ``list_tables`` returns only the number of
+        tables and a pointer to ``search_tables`` once there are more than this many. Default ``100``.
+        Without a ``search_backend`` there is no limit.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -336,6 +367,8 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         tool_prefix: str = "",
         max_retries: int | None = None,
         include_table_comments: bool = False,
+        search_backend: SQLTableSearchBackend | None = None,
+        max_listed_tables: int = 100,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
         self._set_tool_prefix(tool_prefix)
@@ -363,6 +396,9 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         self._max_result_bytes = max_result_bytes
         self._max_columns = max_columns
         self._include_table_comments = include_table_comments
+        self._search_backend = search_backend
+        self._max_listed_tables = max_listed_tables
+        self._catalog: list[TableEntry] | None = None
         self._hook: DbApiHook | None = None
 
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
@@ -460,7 +496,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
-        for base, description, schema in (
+        definitions = [
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
             (
                 "get_schema",
@@ -469,7 +505,19 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
-        ):
+        ]
+        if self._search_backend is not None:
+            definitions.append(
+                (
+                    "search_tables",
+                    "Find tables by words describing the data you need, matched against table names "
+                    "and comments. Returns JSON of the form "
+                    '{"tables": [{"name": ..., "comment": ...}, ...]}; pass a returned name to '
+                    f"{self._build_tool_name('get_schema')}.",
+                    _SEARCH_TABLES_SCHEMA,
+                )
+            )
+        for base, description, schema in definitions:
             # sequential=True keeps pydantic-ai from running these calls concurrently
             # within a turn; run_blocking's process-wide lock serializes them with the
             # blocking calls of the other toolsets that use it.
@@ -500,7 +548,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         tool: ToolsetTool[Any],
     ) -> Any:
         base = self._find_base_tool_name(name)
-        if base not in ("list_tables", "get_schema", "query", "check_query"):
+        if base not in self._get_tool_names():
             raise ValueError(f"Unknown tool: {name!r}")
         try:
             return await self.run_blocking(self._run_tool, base, tool_args)
@@ -515,14 +563,23 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             # can fix its SQL within the run, bounded by the tool's max_retries.
             raise ModelRetry(
                 f"The {name} tool failed: {e}\n"
-                f"Use the {self._build_tool_name('list_tables')} and {self._build_tool_name('get_schema')} tools "
-                "to inspect the database, "
-                "then fix the query and try again."
+                f"Use the {' and '.join(self._build_tool_name(n) for n in self._get_discovery_tool_names())} tools "
+                "to inspect the database, then fix the query and try again."
             ) from e
+
+    def _get_tool_names(self) -> tuple[str, ...]:
+        names = ("list_tables", "get_schema", "query", "check_query")
+        return (*names, "search_tables") if self._search_backend is not None else names
+
+    def _get_discovery_tool_names(self) -> tuple[str, ...]:
+        names = ("list_tables", "get_schema")
+        return (*names, "search_tables") if self._search_backend is not None else names
 
     def _run_tool(self, name: str, tool_args: dict[str, Any]) -> str:
         if name == "list_tables":
             return self._list_tables()
+        if name == "search_tables":
+            return self._search_tables(tool_args["query"], tool_args.get("limit"))
         if name == "get_schema":
             return self._get_schema(tool_args["table_name"], tool_args.get("name_contains"))
         if name == "query":
@@ -540,7 +597,8 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             return self._schema, table_name
         return schema, table
 
-    def _list_tables(self) -> str:
+    def _find_allowed_tables(self) -> list[tuple[str | None, str, str]]:
+        """Introspect the exposed schemas; return ``(schema, name, display name)`` per allowed table."""
         inspector = self._get_inspector()
         tables: list[tuple[str | None, str, str]] = []
         # Dedupe by (schema, table) so a table reachable both qualified and via the
@@ -565,21 +623,62 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         if self._include_default_schema:
             for name in inspector.get_table_names(schema=self._schema):
                 add(self._schema, name, name)
+        return tables
 
+    def _list_tables(self) -> str:
+        tables = self._find_allowed_tables()
+        if self._search_backend is not None and len(tables) > self._max_listed_tables:
+            return dumps_masked(
+                {
+                    "table_count": len(tables),
+                    "hint": (
+                        f"There are {len(tables)} tables, too many to list (the limit is "
+                        f"{self._max_listed_tables}). Use {self._build_tool_name('search_tables')} to find the ones you need."
+                    ),
+                }
+            )
         if not self._include_table_comments:
             return dumps_masked([display for _, _, display in tables])
+        return dumps_masked(
+            [
+                {"name": name, **({"comment": comment} if comment else {})}
+                for name, comment in self._get_table_entries(tables)
+            ]
+        )
 
+    def _get_table_entries(self, tables: list[tuple[str | None, str, str]]) -> list[TableEntry]:
+        """Pair each table's display name with its comment, capped, read once per schema."""
+        inspector = self._get_inspector()
         comments = {
             table_schema: self._get_table_comments(inspector, table_schema)
             for table_schema in {table_schema for table_schema, _, _ in tables}
         }
-        entries: list[dict[str, str]] = []
-        for table_schema, name, display in tables:
-            entry = {"name": display}
-            if comment := comments[table_schema].get(name):
-                entry["comment"] = truncate_comment(comment)
-            entries.append(entry)
-        return dumps_masked(entries)
+        return [
+            (display, truncate_comment(comment) if (comment := comments[table_schema].get(name)) else None)
+            for table_schema, name, display in tables
+        ]
+
+    def _get_catalog(self) -> list[TableEntry]:
+        """Return the exposed tables with comments, introspected on first use and kept for this toolset."""
+        if self._catalog is None:
+            self._catalog = self._get_table_entries(self._find_allowed_tables())
+        return self._catalog
+
+    def _search_tables(self, query: str, limit: int | None) -> str:
+        if self._search_backend is None:
+            raise ValueError("search_tables requires a search_backend")
+        # The schema's maximum is only advice to the model; the cap has to hold here.
+        limit = min(max(_DEFAULT_SEARCH_LIMIT if limit is None else limit, 1), _MAX_SEARCH_LIMIT)
+        found = self._search_backend.search_tables(query, limit, get_catalog=self._get_catalog)
+        tables: list[dict[str, str]] = []
+        for display, comment in found:
+            schema, table = self._split_table_identifier(display)
+            if not self._is_ref_allowed("", schema, table):
+                continue
+            tables.append({"name": display, **({"comment": truncate_comment(comment)} if comment else {})})
+            if len(tables) == limit:
+                break
+        return dumps_masked({"tables": tables})
 
     @staticmethod
     def _get_table_comments(inspector: Inspector, schema: str | None) -> dict[str, str]:
