@@ -3639,15 +3639,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "description": {
           "anyOf": [
@@ -4731,15 +4724,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -4757,15 +4743,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "type": {
           "const": "VariableResult",
