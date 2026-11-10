@@ -16,7 +16,7 @@ mainClass: durable-page
   <dl class="capabilities">
     <div>
       <dt><span class="durable-badge">Durable</span> {{ counts.durable }}</dt>
-      <dd>On retry, reconnects to the job it already started, or replays the progress it saved, instead of starting over. Controlled by the operator's <code>durable</code> flag; each module below says which provider version it needs, and whether you have to opt in. Needs Airflow 3.3 or later.</dd>
+      <dd>On retry, reconnects to the job it already started, or replays the progress it saved, instead of starting over. Controlled by the operator's <code>durable</code> flag; each module below says which provider version it needs, and whether you have to opt in. Several only reconnect on Airflow 3.3+.</dd>
     </div>
     <div>
       <dt><span class="deferrable-badge">Deferrable</span> {{ counts.deferrable }}</dt>
@@ -90,7 +90,7 @@ mainClass: durable-page
             {%- if module.durable_since_version %}
             <span class="version-badge" title="Durable execution needs this provider version or later">{% if module.durable_gating_provider != module.provider_id %}{{ module.durable_gating_provider }} {% endif %}{{ module.durable_since_version }}+</span>
             {%- endif %}
-            {%- if module.durable_default == false %}
+            {%- if module.durable_opt_in %}
             <span class="optin-badge" title="Durable execution is off unless you pass durable=True">Opt-in</span>
             {%- endif %}
           </h3>

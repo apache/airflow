@@ -3537,6 +3537,8 @@ main {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  /* The global .version-badge adds a border none of the sibling badges have. */
+  border: none;
 }
 
 :is(.provider-detail-page, .durable-page) .modules .module .content h3 .optin-badge {

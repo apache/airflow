@@ -37,7 +37,10 @@ import argparse
 import json
 from pathlib import Path
 
-from registry_contract_models import validate_modules_catalog, validate_providers_catalog
+from registry_contract_models import (
+    validate_extracted_modules_catalog,
+    validate_providers_catalog,
+)
 
 
 def merge(
@@ -88,7 +91,7 @@ def merge(
     merged_modules.sort(key=lambda m: date_by_provider.get(m["provider_id"], ""), reverse=True)
 
     providers_payload = validate_providers_catalog({"providers": merged_providers})
-    modules_payload = validate_modules_catalog({"modules": merged_modules})
+    modules_payload = validate_extracted_modules_catalog({"modules": merged_modules})
 
     # Write merged output
     output_dir.mkdir(parents=True, exist_ok=True)

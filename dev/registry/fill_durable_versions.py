@@ -37,12 +37,15 @@ from packaging.version import InvalidVersion, Version
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 
-# What to look for in the gating class's file to date the capability. Both tokens are the
-# mechanism itself, not its declaration: KubernetesPodOperator reconnected via task_state_store
-# in 10.20.0 but only declared `__supports_durable_execution` for the registry in 10.21.0, and
-# dating it by the declaration would report a release later than the behaviour shipped.
+# Patterns matching the mechanism, never its registry declaration, and earliest match wins.
+# KubernetesPodOperator reconnected via task_state_store in 10.20.0 but only declared
+# `__supports_durable_execution` in 10.21.0; AgentOperator took `durable` in common-ai 0.1.0
+# but only moved to task_state_store in 0.7.0.
+# Inputs to the dating, not part of the published /api/modules.json contract.
+EXTRACTION_ONLY_FIELDS = ("durable_mechanism", "durable_gating_class")
+
 DURABLE_TOKENS = {
-    "marker": "task_state_store",
+    "marker": r"task_state_store|durable: bool",
     "resumable_mixin": "execute_resumable",
 }
 
@@ -92,7 +95,7 @@ def find_first_releases(provider_id: str, token: str, paths: set[str]) -> dict[s
     if not tags:
         return {}
     # git grep exits 1 when nothing matches, which is an ordinary answer here.
-    matches = run_git("grep", "-l", token, *tags, "--", *sorted(paths), allowed_returncodes=(0, 1))
+    matches = run_git("grep", "-lE", token, *tags, "--", *sorted(paths), allowed_returncodes=(0, 1))
     earliest: dict[str, Version] = {}
     for line in matches:
         tag, _, path = line.partition(":")
@@ -122,9 +125,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not run_git("tag", "--list", "providers-*"):
+    # Nothing can be dated without tags, but the extraction-only fields still have to go.
+    has_tags = bool(run_git("tag", "--list", "providers-*"))
+    if not has_tags:
         print("No providers-* tags in this checkout; leaving durable_since_version unset.")
-        return 0
 
     for modules_file in args.modules:
         if not modules_file.exists():
@@ -133,11 +137,12 @@ def main() -> int:
         catalog = json.loads(modules_file.read_text())
 
         wanted: dict[tuple[str, str], set[str]] = {}
-        for module in catalog["modules"]:
-            group = durable_group(module)
-            if group:
-                provider_id, token, path = group
-                wanted.setdefault((provider_id, token), set()).add(path)
+        if has_tags:
+            for module in catalog["modules"]:
+                group = durable_group(module)
+                if group:
+                    provider_id, token, path = group
+                    wanted.setdefault((provider_id, token), set()).add(path)
 
         versions = {
             (provider_id, path): version
@@ -147,12 +152,13 @@ def main() -> int:
 
         filled = 0
         for module in catalog["modules"]:
-            group = durable_group(module)
-            if not group:
-                continue
-            provider_id, _, path = group
-            module["durable_since_version"] = versions.get((provider_id, path))
-            filled += (provider_id, path) in versions
+            group = durable_group(module) if has_tags else None
+            if group:
+                provider_id, _, path = group
+                module["durable_since_version"] = versions.get((provider_id, path))
+                filled += (provider_id, path) in versions
+            for field in EXTRACTION_ONLY_FIELDS:
+                module.pop(field, None)
         modules_file.write_text(json.dumps(catalog, indent=2))
         print(f"{modules_file}: dated {filled} durable modules")
     return 0

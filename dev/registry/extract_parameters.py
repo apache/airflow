@@ -56,7 +56,10 @@ from pathlib import Path
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
 from extract_versions import detect_layout, git_tag_exists, read_guide_docs as read_guide_docs_at_tag
-from registry_contract_models import validate_modules_catalog, validate_provider_parameters
+from registry_contract_models import (
+    validate_extracted_modules_catalog,
+    validate_provider_parameters,
+)
 from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors, is_guide_page
 from registry_tools.types import (
     BASE_CLASS_IMPORTS,
@@ -618,7 +621,7 @@ def get_durable_metadata(cls: type, resumable_mixin: type | None) -> dict:
             "durable_gating_provider": None,
             "durable_gating_class": None,
             "durable_since_version": None,
-            "durable_default": None,
+            "durable_opt_in": False,
         }
 
     declaring_cls, mechanism = source
@@ -626,7 +629,8 @@ def get_durable_metadata(cls: type, resumable_mixin: type | None) -> dict:
     # ships in amazon but inherits durability from KubernetesPodOperator in cncf-kubernetes.
     rel_path = _repo_relative_source(declaring_cls)
     gating_provider = _provider_id_from_source(rel_path) if rel_path else None
-    # None where the default is computed in __init__ rather than declared in the signature.
+    # On by default is spelled both as `durable: bool = True` and as `durable: bool | None = None`,
+    # so only an explicit False means the author has to opt in.
     durable_default = get_params_from_class(cls).get("durable", {}).get("default")
 
     return {
@@ -637,7 +641,7 @@ def get_durable_metadata(cls: type, resumable_mixin: type | None) -> dict:
         # Dated on the host by fill_durable_versions.py: this script runs in Breeze, which does
         # not mount .git, so no git command here can see the provider tags.
         "durable_since_version": None,
-        "durable_default": durable_default if isinstance(durable_default, bool) else None,
+        "durable_opt_in": durable_default is False,
     }
 
 
@@ -1446,7 +1450,7 @@ def _main_discover(
     # requested providers); merge_registry_data.py drives module replacement
     # off the provider IDs present in this file, so non-requested providers'
     # entries are preserved untouched in the global catalog.
-    modules_json = validate_modules_catalog({"modules": all_discovered})
+    modules_json = validate_extracted_modules_catalog({"modules": all_discovered})
     scope_label = (
         f"partial, providers: {', '.join(sorted(requested_providers))}" if requested_providers else "full"
     )

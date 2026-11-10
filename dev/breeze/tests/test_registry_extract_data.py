@@ -25,6 +25,7 @@ import pytest
 from click.testing import CliRunner
 
 from airflow_breeze.commands.registry_commands import DEV_REGISTRY_DIR, extract_data
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 MODULE = "airflow_breeze.commands.registry_commands"
 METADATA_CMD = [
@@ -34,6 +35,17 @@ METADATA_CMD = [
     str(DEV_REGISTRY_DIR),
     "python",
     str(DEV_REGISTRY_DIR / "extract_metadata.py"),
+]
+FILL_VERSIONS_CMD = [
+    "uv",
+    "run",
+    "--project",
+    str(DEV_REGISTRY_DIR),
+    "python",
+    str(DEV_REGISTRY_DIR / "fill_durable_versions.py"),
+    "--modules",
+    str(DEV_REGISTRY_DIR / "modules.json"),
+    str(AIRFLOW_ROOT_PATH / "registry" / "src" / "_data" / "modules.json"),
 ]
 
 
@@ -65,7 +77,7 @@ def test_runs_extract_metadata_on_the_host_where_git_tags_are_visible(mocks):
     result = CliRunner().invoke(extract_data, ["--provider", "amazon google"])
 
     assert result.exit_code == 0, result.output
-    assert run_command.call_args.args[0] == [*METADATA_CMD, "--provider", "amazon google"]
+    assert run_command.call_args_list[0].args[0] == [*METADATA_CMD, "--provider", "amazon google"]
     container_command = execute_command_in_shell.call_args.kwargs["command"]
     assert "extract_metadata.py" not in container_command
     assert "python dev/registry/extract_parameters.py --provider 'amazon google' && " in container_command
@@ -77,7 +89,28 @@ def test_allow_unreleased_is_forwarded_to_extract_metadata(mocks):
     result = CliRunner().invoke(extract_data, ["--allow-unreleased"])
 
     assert result.exit_code == 0, result.output
-    assert run_command.call_args.args[0] == [*METADATA_CMD, "--allow-unreleased"]
+    assert run_command.call_args_list[0].args[0] == [*METADATA_CMD, "--allow-unreleased"]
+
+
+def test_dates_durable_modules_on_the_host_after_the_container(mocks):
+    run_command, _ = mocks
+
+    result = CliRunner().invoke(extract_data, [])
+
+    assert result.exit_code == 0, result.output
+    assert run_command.call_args_list[-1].args[0] == FILL_VERSIONS_CMD
+
+
+def test_a_failed_dating_step_fails_the_command(mocks):
+    run_command, _ = mocks
+    run_command.side_effect = [
+        subprocess.CompletedProcess(args=[], returncode=0),
+        subprocess.CompletedProcess(args=[], returncode=4),
+    ]
+
+    result = CliRunner().invoke(extract_data, [])
+
+    assert result.exit_code == 4
 
 
 def test_stops_before_the_container_when_extract_metadata_fails(mocks):

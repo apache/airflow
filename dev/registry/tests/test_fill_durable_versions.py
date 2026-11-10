@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 from fill_durable_versions import (
+    DURABLE_TOKENS,
     GitCommandError,
     build_source_path,
     durable_group,
@@ -43,13 +44,24 @@ def clear_tag_cache():
     get_released_tags.cache_clear()
 
 
-def fake_git(tags=(), matches=()):
-    """Stand in for run_git: `tag --list` returns tags, `grep` returns tag:path lines."""
+def fake_git(tags=(), matches=(), token=None, paths=(), allow_grep=True):
+    """Stand in for run_git. The grep argv is checked, since without `-lE` git prints
+    `tag:path:line` and nothing gets dated."""
 
     def run(*args, **kwargs):
         if args[0] == "tag":
             return list(tags)
         if args[0] == "grep":
+            if not allow_grep:
+                raise AssertionError("grep ran even though there were no tags to search")
+            assert args[1] == "-lE", f"grep must list file names only, got {args[1]!r}"
+            if token is not None:
+                assert args[2] == token
+            assert list(args[3 : 3 + len(tags)]) == list(tags)
+            assert args[3 + len(tags)] == "--"
+            if paths:
+                assert list(args[4 + len(tags) :]) == sorted(paths)
+            assert kwargs["allowed_returncodes"] == (0, 1)
             return list(matches)
         raise AssertionError(f"unexpected git call: {args}")
 
@@ -68,7 +80,7 @@ class TestRunGit:
     @mock.patch("fill_durable_versions.subprocess.run", autospec=True)
     def test_allowed_exit_code_is_an_empty_answer(self, run):
         run.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="")
-        assert run_git("grep", "-l", "x", allowed_returncodes=(0, 1)) == []
+        assert run_git("grep", "-lE", "x", allowed_returncodes=(0, 1)) == []
 
 
 class TestBuildSourcePath:
@@ -103,8 +115,13 @@ class TestDurableGroup:
                 "durable_gating_class": "airflow.providers.apache.livy.operators.livy.LivyOperator",
             }
         )
-        assert marker == ("cncf-kubernetes", "task_state_store", POD_PATH)
+        assert marker == ("cncf-kubernetes", DURABLE_TOKENS["marker"], POD_PATH)
         assert mixin[1] == "execute_resumable"
+
+    def test_marker_token_also_catches_the_durable_parameter(self):
+        """AgentOperator took `durable` a release before it took task_state_store."""
+        assert "durable: bool" in DURABLE_TOKENS["marker"]
+        assert "task_state_store" in DURABLE_TOKENS["marker"]
 
     @pytest.mark.parametrize(
         "module",
@@ -132,7 +149,10 @@ class TestFindFirstReleases:
     def test_lowest_matching_version_wins_over_tag_order(self):
         tags = [f"providers-cncf-kubernetes/{v}" for v in ("10.20.0", "10.21.0", "9.9.0")]
         matches = [f"{t}:{POD_PATH}" for t in tags]
-        with mock.patch("fill_durable_versions.run_git", fake_git(tags, matches)):
+        with mock.patch(
+            "fill_durable_versions.run_git",
+            fake_git(tags, matches, token="task_state_store", paths={POD_PATH}),
+        ):
             assert find_first_releases("cncf-kubernetes", "task_state_store", {POD_PATH}) == {
                 POD_PATH: "9.9.0"
             }
@@ -162,7 +182,7 @@ class TestFindFirstReleases:
             assert get_released_tags("amazon") == ("providers-amazon/9.35.0",)
 
     def test_no_tags_means_no_grep_at_all(self):
-        with mock.patch("fill_durable_versions.run_git", fake_git([], [])) as _:
+        with mock.patch("fill_durable_versions.run_git", fake_git([], [], allow_grep=False)):
             assert find_first_releases("amazon", "execute_resumable", {"glue.py"}) == {}
 
 
@@ -195,19 +215,49 @@ class TestMain:
         assert modules[1]["durable_since_version"] is None
         assert "dated 1 durable modules" in capsys.readouterr().out
 
-    def test_tagless_checkout_leaves_the_catalog_untouched(self, tmp_path):
-        module = {
-            "name": "KubernetesPodOperator",
-            "durable_mechanism": "marker",
-            "durable_gating_provider": "cncf-kubernetes",
-            "durable_gating_class": POD_CLASS,
-            "durable_since_version": None,
-        }
-        path = self.write_catalog(tmp_path, [module])
-        before = path.read_text()
-        with mock.patch("fill_durable_versions.run_git", fake_git([], [])):
+    def test_extraction_only_fields_never_reach_the_published_catalog(self, tmp_path):
+        path = self.write_catalog(
+            tmp_path,
+            [
+                {
+                    "name": "KubernetesPodOperator",
+                    "durable_mechanism": "marker",
+                    "durable_gating_provider": "cncf-kubernetes",
+                    "durable_gating_class": POD_CLASS,
+                    "durable_since_version": None,
+                }
+            ],
+        )
+        tags = ["providers-cncf-kubernetes/10.20.0"]
+        with mock.patch("fill_durable_versions.run_git", fake_git(tags, [f"{tags[0]}:{POD_PATH}"])):
             assert main_with_args(path) == 0
-        assert path.read_text() == before
+
+        module = json.loads(path.read_text())["modules"][0]
+        assert module["durable_since_version"] == "10.20.0"
+        assert "durable_mechanism" not in module
+        assert "durable_gating_class" not in module
+        assert module["durable_gating_provider"] == "cncf-kubernetes"
+
+    def test_tagless_checkout_still_strips_but_dates_nothing(self, tmp_path):
+        path = self.write_catalog(
+            tmp_path,
+            [
+                {
+                    "name": "KubernetesPodOperator",
+                    "durable_mechanism": "marker",
+                    "durable_gating_provider": "cncf-kubernetes",
+                    "durable_gating_class": POD_CLASS,
+                    "durable_since_version": None,
+                }
+            ],
+        )
+        with mock.patch("fill_durable_versions.run_git", fake_git([], [], allow_grep=False)):
+            assert main_with_args(path) == 0
+
+        module = json.loads(path.read_text())["modules"][0]
+        assert module["durable_since_version"] is None
+        assert "durable_mechanism" not in module
+        assert "durable_gating_class" not in module
 
     def test_broken_checkout_is_not_mistaken_for_a_tagless_one(self, tmp_path):
         path = self.write_catalog(tmp_path, [])

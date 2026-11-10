@@ -146,20 +146,31 @@ class ModuleContract(BaseModel):
     provider_name: str | None = None
     supports_durable_execution: bool = False
     supports_deferrable: bool = False
-    durable_mechanism: Literal["marker", "resumable_mixin"] | None = None
     durable_gating_provider: str | None = None
-    durable_gating_class: str | None = None
     durable_since_version: str | None = None
-    durable_default: bool | None = None
+    durable_opt_in: bool = False
     # Only set for classes and task decorators (e.g. ``@task.agent``) that a how-to
     # guide documents in a section of their own.
     guide_url: str | None = None
+
+
+class ExtractedModuleContract(ModuleContract):
+    """A module entry before ``fill_durable_versions.py`` has dated it and dropped these two."""
+
+    durable_mechanism: Literal["marker", "resumable_mixin"] | None = None
+    durable_gating_class: str | None = None
 
 
 class ModulesCatalogContract(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     modules: list[ModuleContract]
+
+
+class ExtractedModulesCatalogContract(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    modules: list[ExtractedModuleContract]
 
 
 class ProviderModulesContract(BaseModel):
@@ -283,6 +294,10 @@ def validate_providers_catalog(payload: dict[str, Any]) -> dict[str, Any]:
 
 def validate_modules_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     return _validate(ModulesCatalogContract, payload)
+
+
+def validate_extracted_modules_catalog(payload: dict[str, Any]) -> dict[str, Any]:
+    return _validate(ExtractedModulesCatalogContract, payload)
 
 
 def validate_provider_modules(payload: dict[str, Any]) -> dict[str, Any]:
