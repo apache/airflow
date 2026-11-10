@@ -268,13 +268,6 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
         """Return the ETag marker path inside the staged Dag tree."""
         return self.wasb_dags_dir / ".archive_etag"
 
-    def _bundle_dir_has_files(self) -> bool:
-        """Return whether the staged tree has files other than the ETag marker."""
-        marker = self._archive_etag_path()
-        return self.wasb_dags_dir.is_dir() and any(
-            path.is_file() and path != marker for path in self.wasb_dags_dir.rglob("*")
-        )
-
     def _remove_stale_archive_staging_dirs(self) -> None:
         state_dir = self._archive_state_dir()
         if not state_dir.is_dir():
@@ -295,7 +288,7 @@ class WasbArchiveDagBundle(_WasbDagBundleBase):
         etag = props.etag or ""
 
         marker = self._archive_etag_path()
-        if etag and marker.is_file() and marker.read_text() == etag and self._bundle_dir_has_files():
+        if etag and marker.is_file() and marker.read_text() == etag:
             self._log.debug(
                 "Dag bundle archive 'wasb://%s/%s' is unchanged (ETag %s), skipping staging",
                 self.container_name,
