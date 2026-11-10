@@ -40,7 +40,7 @@ Proposed.
 1. **Iteration creation stays in core for every language.** Regions, instance creation, rerun trajectories and the scope of every XCom read are core's. An SDK emits a loop group and runs one callable; it never creates an instance and never decides which iteration a read belongs to.
 2. **A loop is a task group with four more serialized fields** — `max_iterations`, `has_until`, `terminal_task_id` and `gate_task_id`. The gate is found by `gate_task_id` and never by an operator class name, which [ADR-0007](0007-taskflow-across-language-boundary.md) decision B already rejected: a gate emitted by another SDK cannot honestly claim `LoopGateOperator`.
 3. **Loop validation and normalization belong to the Dag processor**, so every language gets the same errors: one terminal task, no nested loop, no loop inside a mapped task group, no `expand` over a body task from outside, and every body-to-outside edge rewired to leave from the gate. An SDK may repeat any check for earlier feedback; core's answer is the one that counts.
-4. **A fixed-count loop runs no user code.** With `has_until: false` the scheduler completes the gate itself, so counting needs no worker in any language.
+4. **A fixed-count loop runs no user code.** With `has_until: false` the scheduler completes the gate itself, so counting needs no worker in any language. A gate carrying a callback, an inlet or an outlet still goes to a worker, by the rule `TaskInstance.is_task_schedulable` already applies to `EmptyOperator`. Only a Python Dag reaches that case, since no SDK emits task callbacks.
 5. **The decision travels on `SucceedTask.loop_decision`**, which the supervisor schema already carries. An SDK sends `{stop, reason}`; core revalidates it and fails the gate when `stop` is false at `max_iterations`.
 6. **The loop context arrives on `TIRunContext.loop`** — `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped` and the region fields. No SDK counts iterations or resolves a trajectory.
 7. **Loops add no XCom call of their own.** Reading the previous iteration is the existing call with `previous_iteration: true`; reading every iteration is ADR-0016 decision 8's lazy sequence, ordered iteration first, then map index.
@@ -146,7 +146,7 @@ core-internal, and two of them subtract from the wire rather than add to it.
 | Decision | Change |
 |---|---|
 | 2 | Gate identification stops reading `task_instance.operator == "LoopGateOperator"` and resolves `gate_task_id` off the serialized group instead. Five modules: the two task-instance route modules, `jobs/scheduler_job_runner.py`, `serialization/definitions/dag.py` and `models/taskinstance.py`. |
-| 4 | A gate with `has_until: false` completes in the scheduler, so it sends no `ti_run` and no `SucceedTask` at all. |
+| 4 | A gate with `has_until: false` and no callback, inlet or outlet completes in the scheduler, so it sends no `ti_run` and no `SucceedTask` at all. |
 | 8 | `redact(reason)` moves out of the task process (`execution_time/loop.py`) into the supervisor, beside the redaction it already does for logs. |
 
 ## One loop, end to end
