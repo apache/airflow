@@ -43,8 +43,9 @@ This ADR records the TypeScript spelling of them.
 5. **`index`, `maxIterations` and `previous` are fields**, and `getPrevious<T>()` is the typed view.
    That is `client.getXCom`'s split between a value and the type the caller names.
 6. **A body task returns a `LoopTaskRef<T>`**, a `TaskRef<T>` that records the loop it came from.
-   `TaskInputs` accepts any `TaskRef` for any argument, so `tsc` checks neither reading; the SDK
-   picks the reading from where the consumer sits.
+   Inside the loop it reads as one iteration's `T`. Outside it, `all()` returns a
+   `TaskRef<XComSequence<T>>` and a bare ref is rejected when the Dag is read, since core serves only
+   the all-iterations read from outside and the SDK records no argument type it could check instead.
 7. **`LoopRef` carries `before` and `after`.** An order-only edge from a body ref to a task outside is
    rejected when the Dag is read.
 
@@ -86,13 +87,13 @@ const evaluated = evaluate({ estimate });
 
 const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 
-report({ history: evaluated }); // every iteration's metrics, through the gate
+report({ history: evaluated.all() }); // every iteration's metrics, through the gate
 refinement.before(cleanup()); // order only: the whole loop, not one iteration
 ```
 
-`evaluated` is written twice and means two things. Inside the loop it is one iteration's `Metrics`,
-which is what the gate takes. Outside it is an `XComSequence<Metrics>`, which is what `report` takes.
-Decision 6 is what lets one ref serve both.
+`evaluated` is written twice. Inside the loop it is one iteration's `Metrics`, which is what the
+gate takes. Outside it only `evaluated.all()` is allowed, an `XComSequence<Metrics>`, which is what
+`report` takes; a bare `evaluated` out there is rejected when the Dag is read.
 
 A loop that only counts needs no handler:
 
@@ -150,6 +151,9 @@ interface LoopRef extends Node {
  */
 interface LoopTaskRef<T> extends TaskRef<T> {
   readonly loopId: string;
+
+  /** Every iteration's value, the one reading core serves from outside the loop. */
+  all(): TaskRef<XComSequence<T>>;
 }
 
 /**
@@ -183,9 +187,10 @@ interface LoopContext {
 - **`getLoop()` throws outside a loop**, so a handler moved out of a group fails where it was moved.
 - **A mapped terminal needs no new call.** `getPrevious<XComSequence<Metrics>>()` names the sequence
   type, and `terminal_is_mapped` tells the runtime which to build.
-- **The reading has to match where the consumer sits.** Core serves only the all-iterations read from
-  outside the loop, so a consumer outside it that declares one iteration's value is rejected when the
-  Dag is read rather than failing partway through the run.
+- **The reading is written, not inferred.** `serializeArgBindings` records a task id and no argument
+  type, so the SDK cannot tell which reading a consumer declared. `all()` puts the outside reading in
+  the Dag instead, and `tsc` checks it because the accessor names its own return type. A bare body
+  ref outside the loop is rejected when the Dag is read rather than failing partway through the run.
 - **`loop()` runs once per group.** A group already on an edge can still become one, since `LoopRef`
   takes its edges over.
 
@@ -196,6 +201,12 @@ interface LoopContext {
   a handler's argument is its own data, and merging SDK values into it leaves the top-level names open
   to collide with the author's. Python puts `loop` among the context kwargs because every Python
   handler already takes them. No TypeScript handler does.
-- **A synchronous `getLoop()`**, with `previous` fetched before every body handler runs. Rejected: a
-  handler that never reads it would pay a round trip from iteration 2 on. Python pays nothing for the
-  same reason, since `loop.previous` is a lazy property.
+- **A synchronous `getLoop()`**, with the previous result fetched before every body handler runs.
+  Rejected: a handler that never reads it would pay a round trip from iteration 2 on. Python pays
+  nothing for the same reason, since `loop.previous` is a lazy property.
+- **A bare body ref outside the loop, with the consumer's declared parameter type picking the
+  reading.** Rejected: nothing can check it. `TaskInputs` accepts any `TaskRef` for any argument, and
+  `serializeArgBindings` records no type, so a consumer that declared one iteration's value would
+  serialize cleanly and fail partway through the run. The Go SDK keeps the bare ref because
+  registration records its handlers' parameter types, and the Java SDK because it generates an
+  overload per reading; TypeScript has neither, so it asks for the reading instead.
