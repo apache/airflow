@@ -125,6 +125,13 @@ describe("Details state reason row", () => {
     expect(screen.getByText("try 1: auth error")).toBeInTheDocument();
   });
 
+  it("shows the reason a retry policy skipped the try", () => {
+    renderDetails(buildTaskInstance({ state: "skipped", state_reason: "nothing to ingest" }));
+
+    expect(screen.getByText("nothing to ingest")).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("common:taskInstance.stateReason"))).toBeInTheDocument();
+  });
+
   it("shows the selected try's reason in the table", () => {
     renderDetails(buildTaskInstance({ state_reason: "latest try: rate limit" }), {
       state_reason: "older try: auth error",

@@ -25,6 +25,7 @@ type StateReasonDisplay = { titleKey: string };
 // TaskInstanceState so a misspelt state is a compile error rather than a row that never renders.
 const STATE_REASON_DISPLAY: Partial<Record<TaskInstanceState, StateReasonDisplay>> = {
   failed: { titleKey: "failed" },
+  skipped: { titleKey: "skipped" },
   up_for_retry: { titleKey: "upForRetry" },
 };
 

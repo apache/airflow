@@ -4567,9 +4567,12 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
 
-    def test_ti_update_state_to_failed_persists_retry_reason(self, client, session, create_task_instance):
+    @pytest.mark.parametrize("state", [TerminalTIState.FAILED, TerminalTIState.SKIPPED])
+    def test_ti_update_state_to_terminal_persists_retry_reason(
+        self, client, session, create_task_instance, state
+    ):
         ti = create_task_instance(
-            task_id="test_ti_update_state_to_failed_persists_retry_reason",
+            task_id="test_ti_update_state_to_terminal_persists_retry_reason",
             state=State.RUNNING,
         )
         session.commit()
@@ -4577,7 +4580,7 @@ class TestTIUpdateState:
         response = client.patch(
             f"/execution/task-instances/{ti.id}/state",
             json={
-                "state": TerminalTIState.FAILED,
+                "state": state,
                 "end_date": DEFAULT_END_DATE.isoformat(),
                 "retry_reason": "auth error, do not retry",
             },
@@ -4587,7 +4590,7 @@ class TestTIUpdateState:
 
         session.expire_all()
         ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
+        assert ti.state == state
         assert ti.retry_reason == "auth error, do not retry"
 
     def test_ti_update_state_to_failed_truncates_retry_reason(self, client, session, create_task_instance):

@@ -500,6 +500,7 @@
     "stateReason": "Reason for state",
     "stateReasonSummary": {
       "failed": "Stopped on try {{tryNumber}} of {{totalTries}}",
+      "skipped": "Skipped on try {{tryNumber}} of {{totalTries}}",
       "upForRetry": "Retrying after try {{tryNumber}} of {{totalTries}}"
     },
     "trigger": "Trigger",

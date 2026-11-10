@@ -183,6 +183,7 @@ describe("Header state reason banner", () => {
 
   it.each([
     { maxTries: 2, state: "failed", titleKey: "failed", totalTries: 3, tryNumber: 3 },
+    { maxTries: 5, state: "skipped", titleKey: "skipped", totalTries: 6, tryNumber: 1 },
     // Differing numbers are what make a swapped or off-by-one interpolation visible.
     { maxTries: 3, state: "up_for_retry", titleKey: "upForRetry", totalTries: 4, tryNumber: 2 },
   ] as const)("labels the stat for a $state task", ({ maxTries, state, titleKey, totalTries, tryNumber }) => {
