@@ -17,16 +17,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 conflicts = [[
@@ -550,6 +550,7 @@ name = "aiofiles"
 version = "24.1.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
+    "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.14.*' and sys_platform == 'win32'",
@@ -567,14 +568,13 @@ resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/03/a88171e277e8caa88a4c77808c20ebb04ba74cc4681bf1e9416c862de237/aiofiles-24.1.0.tar.gz", hash = "sha256:22a075c9e5a3810f0c2e48f3008c94d68c65d763b9b03857924c99e57355166c", size = 30247, upload-time = "2024-06-24T11:02:03.584Z" }
@@ -589,12 +589,12 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/41/c3/534eac40372d8ee36ef40df62ec129bee4fdb5ad9706e58a29be53b2c970/aiofiles-25.1.0.tar.gz", hash = "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2", size = 46354, upload-time = "2025-10-09T20:51:04.358Z" }
@@ -908,8 +908,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alibabacloud-endpoint-util" },
     { name = "alibabacloud-openapi-util" },
-    { name = "alibabacloud-tea-openapi", version = "0.4.0rc3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-tea-openapi", version = "0.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-tea-openapi", version = "0.4.0rc3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-tea-openapi", version = "0.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
     { name = "alibabacloud-tea-util" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/67/df/8af8a3d58ec53110da00421014f3d2faa40077882e2de5c1af2fe28f9d88/alibabacloud_adb20211201-3.7.0.tar.gz", hash = "sha256:1f741121c7de28ee481ea1cbbd19bc8564e9afbdf353887dc515652052d1294e", size = 241247, upload-time = "2025-12-16T17:32:34.536Z" }
@@ -924,16 +924,16 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "alibabacloud-tea", marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-tea", marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/92/7cb0807d6d380fa09cbad6d4fe983781e657dcc16d60fc559d6575bf98be/alibabacloud_credentials-0.3.6.tar.gz", hash = "sha256:caa82cf258648dcbe1ca14aeba50ba21845567d6ac3cd48d318e0a445fff7f96", size = 18771, upload-time = "2024-10-28T03:40:03.806Z" }
 
@@ -942,6 +942,7 @@ name = "alibabacloud-credentials"
 version = "1.0.12"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
+    "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.14.*' and sys_platform == 'win32'",
@@ -959,21 +960,20 @@ resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-credentials-api", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-tea", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "apscheduler", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "alibabacloud-credentials-api", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "alibabacloud-tea", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "apscheduler", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/25/19/bc359efb0c12f400a89783f8dc87a7261a955d73acc7b766a736e5597851/alibabacloud_credentials-1.0.12.tar.gz", hash = "sha256:87da41ea3ffb146b44d999c62c160c2b96b0c30275ae35205bcdfe79ba0c4119", size = 43203, upload-time = "2026-08-18T04:34:16.32Z" }
 wheels = [
@@ -1000,8 +1000,8 @@ name = "alibabacloud-gateway-spi"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "alibabacloud-credentials", version = "0.3.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-credentials", version = "1.0.12", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-credentials", version = "0.3.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-credentials", version = "1.0.12", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cd/67/7cd36a36bf0ec53efd3fe31eaf398713f375b7b1cdcd32c51b6c0fdc09e2/alibabacloud_gateway_spi-0.0.4.tar.gz", hash = "sha256:73d6e20d65b54eed26d89c19640d3a7572e18c45ecada627f806f5dbe8ed2130", size = 4253, upload-time = "2026-06-25T06:34:08.238Z" }
 wheels = [
@@ -1051,18 +1051,18 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "alibabacloud-credentials", version = "0.3.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-gateway-spi", marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "darabonba-core", marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-credentials", version = "0.3.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-gateway-spi", marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "darabonba-core", marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/03/e5856775e80250c3340b17d504de22294fb382cddd08e907972ac9403fd3/alibabacloud_tea_openapi-0.4.0rc3.tar.gz", hash = "sha256:1797afb22d9c96b7196eea3d1c4b1a38b3df8f1d19aed66e44a82c68eda3eda1", size = 21123, upload-time = "2025-04-16T06:03:02.273Z" }
 
@@ -1071,6 +1071,7 @@ name = "alibabacloud-tea-openapi"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
+    "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.14.*' and sys_platform == 'win32'",
@@ -1088,22 +1089,21 @@ resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "alibabacloud-credentials", version = "1.0.12", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-gateway-spi", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-tea-util", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "cryptography", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "darabonba-core", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-credentials", version = "1.0.12", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "alibabacloud-gateway-spi", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "alibabacloud-tea-util", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "cryptography", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "darabonba-core", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ab/34/1918a2d780676494365c7f945bfab397ecddb988054d78025bd26f438977/alibabacloud_tea_openapi-0.4.6.tar.gz", hash = "sha256:dafc32401712f5b21c12dc3d05ba887a91ad156d9b49a7662279f9fd90526fb2", size = 26742, upload-time = "2026-08-17T08:34:11.55Z" }
 wheels = [
@@ -2262,6 +2262,7 @@ all = [
     { name = "requests-kerberos" },
     { name = "statsd" },
     { name = "thrift-sasl" },
+    { name = "uvicorn-worker" },
 ]
 async = [
     { name = "eventlet" },
@@ -2274,6 +2275,7 @@ graphviz = [
 ]
 gunicorn = [
     { name = "gunicorn" },
+    { name = "uvicorn-worker" },
 ]
 kerberos = [
     { name = "pykerberos" },
@@ -2395,6 +2397,7 @@ requires-dist = [
     { name = "universal-pathlib", specifier = ">=0.3.8" },
     { name = "uuid6", specifier = ">=2024.7.10" },
     { name = "uvicorn", specifier = ">=0.37.0" },
+    { name = "uvicorn-worker", marker = "extra == 'gunicorn'", specifier = ">=0.4.0" },
 ]
 provides-extras = ["async", "graphviz", "kerberos", "memray", "gunicorn", "otel", "statsd", "all"]
 
@@ -3255,8 +3258,8 @@ source = { editable = "providers/alibaba" }
 dependencies = [
     { name = "alibabacloud-adb20211201" },
     { name = "alibabacloud-oss-v2" },
-    { name = "alibabacloud-tea-openapi", version = "0.4.0rc3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "alibabacloud-tea-openapi", version = "0.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-tea-openapi", version = "0.4.0rc3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "alibabacloud-tea-openapi", version = "0.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "pyodps" },
@@ -4722,8 +4725,8 @@ name = "apache-airflow-providers-cncf-kubernetes"
 version = "11.0.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
-    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "asgiref" },
@@ -5647,8 +5650,8 @@ name = "apache-airflow-providers-edge3"
 version = "5.1.1"
 source = { editable = "providers/edge3" }
 dependencies = [
-    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
     { name = "aiohttp" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
@@ -9942,7 +9945,7 @@ name = "apscheduler"
 version = "3.11.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "tzlocal", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "tzlocal", marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/6b/eeff360196bb20b312c9e762a820fd1b2c6d809466c755ef57863478e454/apscheduler-3.11.3.tar.gz", hash = "sha256:cd2fcc9330039a81a5893472ad49facf23a6d5604cbe1d918c835c6de7834d5a", size = 110312, upload-time = "2026-06-28T19:39:22.493Z" }
 wheels = [
@@ -10418,16 +10421,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -10463,16 +10466,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -12680,16 +12683,16 @@ version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -13549,12 +13552,12 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -13608,12 +13611,12 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -13630,8 +13633,8 @@ name = "gcloud-aio-storage"
 version = "9.6.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
     { name = "cryptography" },
     { name = "gcloud-aio-auth", version = "5.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11.3'" },
     { name = "gcloud-aio-auth", version = "5.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11.3'" },
@@ -13860,16 +13863,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -17601,16 +17604,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -17641,16 +17644,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0d/3e/2b75ae631789fc13191ab82bc08957af381c00fffc5fefc6248b719bc9d2/marshmallow-4.4.0.tar.gz", hash = "sha256:9e6ffa8511012ca89732324c1c253efd7b4d35632dcbdf80aa793fe01804af3e", size = 222228, upload-time = "2026-11-04T00:09:23.777Z" }
@@ -17678,16 +17681,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -17719,16 +17722,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -18980,16 +18983,16 @@ version = "3.6.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6a/51/63fe664f3908c97be9d2e4f1158eb633317598cfa6e1fc14af5383f17512/networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509", size = 2517025, upload-time = "2025-12-08T17:02:39.908Z" }
@@ -19214,16 +19217,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -19261,16 +19264,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -22456,8 +22459,8 @@ name = "python-keycloak"
 version = "7.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or (extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra != 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
-    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-openai') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
+    { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "aiofiles", version = "25.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (python_full_version < '3.11.5' and extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex') or (extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex' and extra == 'extra-34-apache-airflow-providers-common-ai-openai')" },
     { name = "deprecation" },
     { name = "httpx" },
     { name = "jwcrypto" },
@@ -23573,16 +23576,16 @@ version = "1.17.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -24053,16 +24056,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -24201,16 +24204,16 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -24258,12 +24261,12 @@ version = "2.10"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/71/c3/1b817965ac12dc002d7c9cd7dfffdd7d4fbf9b45763ef2ffe7b86ee94670/soupsieve-2.10.tar.gz", hash = "sha256:49e9380d7d2905463583bafe285e818c7366a9ed7b3aee221c1ac79c905d8bc0", size = 124337, upload-time = "2026-09-24T02:36:35.048Z" }
@@ -24306,16 +24309,16 @@ version = "9.0.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
-    "python_full_version < '3.11.3' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.5' and python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "(python_full_version >= '3.11.3' and python_full_version < '3.11.5' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11.3' and python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.11.3' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11.3' and sys_platform == 'win32'",
+    "python_full_version < '3.11.3' and sys_platform == 'emscripten'",
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
@@ -26019,6 +26022,19 @@ standard = [
     { name = "uvloop", marker = "platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
     { name = "watchfiles" },
     { name = "websockets" },
+]
+
+[[package]]
+name = "uvicorn-worker"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gunicorn" },
+    { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/59/9101b9c0680fd80e9d26c07deb822a5d18a324339fcf9cd017885ee808ad/uvicorn_worker-0.4.0.tar.gz", hash = "sha256:8ee5306070d8f38dce124adce488c3c0b50f20cf0c0222b12c66188da7214493", size = 9361, upload-time = "2025-09-20T10:47:01.218Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/25/09cd7a90c8bb7fb693be0d6704fccd5f9778d5513214b7a01cc4a94ff314/uvicorn_worker-0.4.0-py3-none-any.whl", hash = "sha256:e2ed952cef976f5e9e429d7269640bbcafbd36c80aa80f1003c8c77a6797abde", size = 5364, upload-time = "2025-09-20T10:46:59.776Z" },
 ]
 
 [[package]]
