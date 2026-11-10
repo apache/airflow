@@ -139,13 +139,10 @@ class _WasbDagBundleBase(BaseDagBundle):
             path = f"{path}/{key}"
         return urlunsplit((scheme, netloc, path, "", ""))
 
-    def _reject_version_refresh(self) -> None:
-        if self.version:
-            raise ValueError("Refreshing a specific version is not supported")
-
     def refresh(self) -> None:
         """Refresh the Dag bundle by updating the local Dag files from Azure Blob Storage."""
-        self._reject_version_refresh()
+        if self.version:
+            raise ValueError("Refreshing a specific version is not supported")
         with self.lock():
             self._refresh_locked()
 
