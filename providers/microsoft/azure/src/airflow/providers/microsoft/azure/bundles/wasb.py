@@ -20,6 +20,7 @@ import os
 import shutil
 import tarfile
 import tempfile
+from abc import abstractmethod
 from functools import cached_property
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
@@ -148,9 +149,9 @@ class _WasbDagBundleBase(BaseDagBundle):
         with self.lock():
             self._refresh_locked()
 
+    @abstractmethod
     def _refresh_locked(self) -> None:
         """Stage the bundle while the bundle lock is held."""
-        raise NotImplementedError
 
 
 class WasbDagBundle(_WasbDagBundleBase):
