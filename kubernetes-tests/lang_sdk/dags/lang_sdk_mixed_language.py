@@ -20,8 +20,8 @@ Mixed-language stub Dag for the KubernetesExecutor lang-SDK system test.
 A single ``lang_sdk_mixed_language`` Dag chains native Python tasks with Go, Java and
 TypeScript stub tasks so one run exercises every lang-SDK coordinator on KubernetesExecutor::
 
-    python_task_1 >> go_extract >> go_transform >> java_extract >> java_transform
-                   >> ts_extract >> ts_transform >> python_task_2
+    python_task_1 >> python_fanout >> go_extract >> go_transform >> java_extract
+                   >> java_transform >> ts_extract >> ts_transform >> python_task_2
 
 * ``go_extract`` / ``go_transform`` are ``@task.stub(queue="golang")``; the
   ``golang`` queue is routed to the ``ExecutableCoordinator``. Their Go
@@ -32,7 +32,9 @@ TypeScript stub tasks so one run exercises every lang-SDK coordinator on Kuberne
 * ``ts_extract`` / ``ts_transform`` are ``@task.stub(queue="typescript")``; the
   ``typescript`` queue is routed to the ``NodeCoordinator``. Their TypeScript
   implementations live in ``../ts_example`` under this same dag_id.
-* The Python tasks run on the default Python path.
+* The Python tasks run on the default Python path. ``python_fanout`` is mapped, and each
+  ``*_transform`` task reads its result with no map index, which is every instance's
+  value in a list.
 
 The dag_id and the Go/Java/TypeScript task ids MUST match the identities the bundles expose
 so each coordinator can locate its artifact by dag_id and look up the task by id.
@@ -46,6 +48,11 @@ from airflow.sdk import dag, task
 @task()
 def python_task_1():
     return "value_from_python_task_1"
+
+
+@task()
+def python_fanout(value):
+    return value
 
 
 @task.stub(queue="golang")
@@ -81,6 +88,7 @@ def python_task_2():
 def lang_sdk_mixed_language():
     (
         python_task_1()
+        >> python_fanout.expand(value=[1, 2, 3])
         >> go_extract()
         >> go_transform()
         >> java_extract()
