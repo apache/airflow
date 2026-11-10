@@ -302,11 +302,4 @@ def discover_all_providers_from_packages(
 
         provider_info["documentation-url"] = documentation_url
 
-        if package_name not in provider_dict:
-            provider_dict[package_name] = ProviderInfo(version, provider_info)
-        else:
-            log.warning(
-                "The provider for package '%s' could not be registered from because providers for that "
-                "package name have already been registered",
-                package_name,
-            )
+        provider_dict[package_name] = ProviderInfo(version, provider_info)
