@@ -224,9 +224,9 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
             default=None,
             description=(
                 "Case-sensitive prefix match on task display name (`_task_display_property_value` else "
-                "`task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases "
-                "combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes "
-                'apply. See "Filtering with pattern parameters".'
+                "`task_id`). On large databases combine with `dag_id_prefix_pattern` (or a specific Dag "
+                "in the path) to narrow the rows scanned. "
+                'See "Filtering with pattern parameters".'
             ),
         ),
     ) -> Self:
@@ -340,7 +340,7 @@ def prefix_search_param_factory(
     not use an index range scan.
     """
     DESCRIPTION = (
-        "Case-sensitive, index-friendly prefix match. "
+        "Case-sensitive prefix match. "
         f"{_build_pipe_clause(pipe_as_or)}"
         'See "Filtering with pattern parameters".'
     )

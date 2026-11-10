@@ -1210,7 +1210,7 @@ class TestGetMappedTaskInstances:
     @pytest.mark.parametrize(
         ("filter_param", "value", "expected_map_indexes"),
         [
-            # Prefix match (index-friendly).
+            # Prefix match.
             ("rendered_map_index_prefix_pattern", "table_", [0, 1]),
             ("rendered_map_index_prefix_pattern", "metrics", [2, 3]),
             ("rendered_map_index_prefix_pattern", "nope", []),

@@ -174,7 +174,7 @@ def get_event_logs(
         Depends(search_param_factory(Log.owner_display_name, "owner_display_name_pattern")),
     ],
     event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
-    # Prefix pattern search filters (index-friendly, case-sensitive)
+    # Prefix pattern search filters (case-sensitive)
     dag_id_prefix_pattern: Annotated[
         _PrefixSearchParam,
         Depends(prefix_search_param_factory(Log.dag_id, "dag_id_prefix_pattern")),
