@@ -59,6 +59,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.ai.durable.base import RUN_ID_KEY, RUNS_KEY, build_run_meta_key, build_step_key
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.observability import make_task_instance_run_key
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.sdk import AirflowException, get_current_context
@@ -75,6 +76,19 @@ log = get_task_logger()
 
 StepKind = Literal["model", "tool", "other"]
 """What a step is, for the end-of-run summary and for adapters that treat model steps specially."""
+
+
+@dataclass(frozen=True)
+class Unrecordable:
+    """
+    A step result an adapter could not encode as JSON: the live value, and why.
+
+    A step body returns it in place of the payload; :meth:`JournalStep.run` passes it to
+    :meth:`JournalStep.cannot_record` instead of recording it, and returns it to the adapter.
+    """
+
+    value: Any
+    error: Exception
 
 
 @dataclass
@@ -127,7 +141,10 @@ class JournalStep:
         except Exception as error:
             self.fail(error)
             raise
-        self.record(payload if to_record is None else to_record(payload))
+        if isinstance(payload, Unrecordable):
+            self.cannot_record(payload.error)
+        else:
+            self.record(payload if to_record is None else to_record(payload))
         return payload
 
     @contextmanager
@@ -160,6 +177,28 @@ class JournalStep:
             self.durable_run.journal.stats.recorded[self.kind] += 1
             log.debug("Durable: recorded step", position=self.position, step=self.name)
             return True
+        self._not_recorded()
+        return False
+
+    def cannot_record(self, error: Exception) -> None:
+        """
+        Note that the step's result has no form the journal can hold, such as a value with no JSON form.
+
+        :raises DurableJournalError: When the journal fails on such results, as it does by default.
+            Otherwise the step is left unrecorded, as when storage skips a write, and runs again on retry.
+        """
+        if not self.replayable:
+            # Never recorded anyway, so there is nothing to fail or report.
+            return
+        if self.durable_run.journal.fail_on_unrecordable:
+            # The same value fails the same way on every retry, so retrying the task cannot help.
+            raise DurableJournalError(
+                f"durable execution could not record a step's result, because it is not JSON-serializable: {error}"
+            ) from error
+        log.warning("Durable: step result is not JSON-serializable", step=self.name, error=str(error))
+        self._not_recorded()
+
+    def _not_recorded(self) -> None:
         self.durable_run.journal.stats.not_recorded.append((self.kind, self.name))
         # Named here, not only in the summary: this line is logged on every path,
         # including the failed attempt that Airflow retries.
@@ -168,7 +207,6 @@ class JournalStep:
             position=self.position,
             step=self.name,
         )
-        return False
 
     def fail(self, error: BaseException) -> None:
         """
@@ -482,11 +520,21 @@ class DurableJournal:
     :param clean_up_after_run: Delete a run's steps as soon as it succeeds. A journal the
         operator manages leaves this off and calls :meth:`cleanup` itself after the
         task's own post-run work has succeeded.
+    :param fail_on_unrecordable: Fail the task on a step result the journal cannot hold
+        (see :meth:`JournalStep.cannot_record`). With ``False`` the step is logged and runs
+        again on retry instead.
     """
 
-    def __init__(self, storage: DurableStorageProtocol, *, clean_up_after_run: bool = False) -> None:
+    def __init__(
+        self,
+        storage: DurableStorageProtocol,
+        *,
+        clean_up_after_run: bool = False,
+        fail_on_unrecordable: bool = True,
+    ) -> None:
         self.storage = storage
         self.clean_up_after_run = clean_up_after_run
+        self.fail_on_unrecordable = fail_on_unrecordable
         self.stats = JournalStats()
         self._runs: list[DurableRun] = []
         self._top_level_runs = 0

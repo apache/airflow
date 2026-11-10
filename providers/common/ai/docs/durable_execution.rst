@@ -366,11 +366,15 @@ A toolset can opt out of replay. ``ManagedAgentToolset`` does by default
 (``replayable=False``), because a managed agent acts on a system Airflow cannot observe:
 its calls run again on every attempt, while the steps around them still replay.
 
-A result has to survive a JSON round trip to be recorded. One that cannot be encoded
-fails the task with ``DurableJournalError`` and no retry, since it would fail the same
-way every time; the model could not have read it either. A write the task state store
-refuses does not fail the task: the task log names
-the step, and a retry runs it again.
+A result has to survive a JSON round trip to be recorded. Bytes a tool returns, on their
+own or as values anywhere inside dicts and lists, are recorded as base64, and a retry
+replays the same bytes. Bytes in a field of a dataclass or Pydantic model are not
+converted: ones that are not UTF-8 text cannot be recorded, and the rest can come back as
+text, which can make the steps after that tool call run again. Put bytes in a dict
+instead. A result that cannot be encoded, such as those bytes or an object with no JSON
+form, fails the task with ``DurableJournalError`` and no retry, since it would fail the
+same way every time. A write the task state store refuses does not fail
+the task: the task log names the step, and a retry runs it again.
 
 Limitations
 -----------
