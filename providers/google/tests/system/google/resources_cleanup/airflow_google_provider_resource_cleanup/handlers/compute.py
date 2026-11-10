@@ -22,30 +22,54 @@ from airflow_google_provider_resource_cleanup.helpers import get_resource_path, 
 
 
 async def delete_instance_group_manager(resource: dict, log_prefix: str):
+    path = get_resource_path(resource)
+    name = path.split("/")[-1]
+    scope = "region" if "/regions/" in path else "zone"
+    cmd = f"gcloud compute instance-groups managed delete {name} --{scope}={resource.get('location')} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
+
+
+async def delete_instance(resource: dict, log_prefix: str):
     name = get_resource_path(resource).split("/")[-1]
-    cmd = f"gcloud compute instance-groups managed delete {name} --zone={resource.get('location')} --quiet"
-    await run_command_async(cmd, log_prefix)
+    cmd = f"gcloud compute instances delete {name} --zone={resource['location']} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
+
+
+async def delete_instance_template(resource: dict, log_prefix: str):
+    path = get_resource_path(resource)
+    name = path.split("/")[-1]
+    scope = f"--region={resource['location']}" if "/regions/" in path else "--global"
+    cmd = f"gcloud compute instance-templates delete {name} {scope} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 async def delete_disk(resource: dict, log_prefix: str):
+    path = get_resource_path(resource)
+    name = path.split("/")[-1]
+    scope = "region" if "/regions/" in path else "zone"
+    cmd = f"gcloud compute disks delete {name} --{scope}={resource['location']} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
+
+
+async def delete_snapshot(resource: dict, log_prefix: str):
     name = get_resource_path(resource).split("/")[-1]
-    if resource.get("additionalAttributes") and resource["additionalAttributes"].get("users"):
-        print(
-            f"compute.googleapis.com/Disk with name: {name} was skipped "
-            f"because it is still used by: {resource['additionalAttributes']['users']}"
-        )
-        return False
-    cmd = f"gcloud compute disks delete {name} --zone={resource['location']} --quiet"
-    await run_command_async(cmd, log_prefix)
+    cmd = f"gcloud compute snapshots delete {name} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 class ComputeDeleteHandler(BaseDeleteHandler):
     DELETERS = {
         "compute.googleapis.com/InstanceGroupManager": delete_instance_group_manager,
+        "compute.googleapis.com/Instance": delete_instance,
+        "compute.googleapis.com/InstanceTemplate": delete_instance_template,
         "compute.googleapis.com/Disk": delete_disk,
+        "compute.googleapis.com/Snapshot": delete_snapshot,
     }
 
     DELETION_ORDER = [
         "compute.googleapis.com/InstanceGroupManager",
+        "compute.googleapis.com/Instance",
+        "compute.googleapis.com/InstanceTemplate",
         "compute.googleapis.com/Disk",
+        "compute.googleapis.com/Snapshot",
     ]
