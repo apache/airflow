@@ -40,7 +40,7 @@ from pydantic_ai.messages import ModelResponse
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
 from airflow.models.connection import Connection
-from airflow.providers.common.ai.exceptions import FallbackChainExhaustedError
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIAzureHook, PydanticAIHook
 from airflow.providers.common.ai.policies import retry as retry_module
 from airflow.providers.common.ai.policies.retry import (

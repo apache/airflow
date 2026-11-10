@@ -30,7 +30,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
-from airflow.providers.common.ai.exceptions import FallbackChainExhaustedError
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator

@@ -363,7 +363,7 @@ class _ModelRetryPolicy(RetryPolicy):
     @staticmethod
     def _describe_journal_progress(exception: BaseException) -> str | None:
         """Say how far the failed attempt got on the durable journal, or None when it is not known."""
-        from airflow.providers.common.ai.exceptions import FallbackChainExhaustedError
+        from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 
         if not isinstance(exception, FallbackChainExhaustedError) or exception.replayed_steps is None:
             return None

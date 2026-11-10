@@ -27,7 +27,7 @@ Changelog
 
 .. note::
   When every connection of a ``fallback_conn_ids`` chain fails, ``LLMOperator`` and ``AgentOperator``
-  now raise ``airflow.providers.common.ai.exceptions.FallbackChainExhaustedError`` instead of
+  now raise ``airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`` instead of
   pydantic-ai's ``FallbackExceptionGroup``. It subclasses ``FallbackExceptionGroup``, so ``except``
   clauses and ``RetryRule(exception=FallbackExceptionGroup)`` keep matching, and ``__cause__`` is the
   group the chain raised. ``LLMRetryPolicy`` and ``ClassifierRetryPolicy`` now also match their
