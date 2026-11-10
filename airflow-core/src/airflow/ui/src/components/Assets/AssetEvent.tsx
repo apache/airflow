@@ -27,6 +27,8 @@ import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
 
+import { getTaskInstanceLink } from "src/utils/links";
+
 import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";
 
@@ -84,7 +86,15 @@ export const AssetEvent = ({
         <Box>{translate("source")}: </Box>
         {source === "" ? (
           <Link
-            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
+            to={getTaskInstanceLink({
+              dag_id: event.source_dag_id ?? "",
+              dag_run_id: event.source_run_id ?? "",
+              map_index: event.source_map_index,
+              // A task instance inside a task loop can only be addressed with its region.
+              region_id: event.source_region_id ?? undefined,
+              region_index: event.source_region_index ?? undefined,
+              task_id: event.source_task_id ?? "",
+            })}
           >
             <Box color="fg.info" overflowWrap="anywhere" padding={0}>
               {event.source_dag_id}

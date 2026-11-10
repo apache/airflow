@@ -79,6 +79,8 @@ export type AssetEventResponse = {
     source_run_id?: string | null;
     source_map_index: number;
     source_task_instance_id?: string | null;
+    source_region_id?: string | null;
+    source_region_index?: number | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
