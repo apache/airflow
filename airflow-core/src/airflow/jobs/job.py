@@ -57,6 +57,32 @@ class JobState(str, Enum):
         return self.value
 
 
+# Executors don't run as their own process the way SchedulerJob/TriggererJob/DagProcessorJob do, so
+# there is no ExecutorJobRunner to own this constant. The scheduler writes rows with this job_type
+# directly when it records an executor's health, reusing the Job table and JobState exactly as the
+# other components do instead of introducing a parallel status model.
+EXECUTOR_JOB_TYPE = "ExecutorJob"
+
+
+class HealthCheckResult(str, Enum):
+    """
+    Explicit outcome of a component's own last health check.
+
+    Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+    this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+    Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+    from "never checked" or "check is hanging", which is why this is a value of its own rather than
+    being inferred from heartbeat recency.
+    """
+
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+    UNKNOWN = "unknown"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
@@ -77,6 +103,12 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
     elif job_type == "DagProcessorJob":
         health_check_threshold_value = conf.getint("dag_processor", "health_check_threshold")
+    elif job_type == EXECUTOR_JOB_TYPE:
+        # The scheduler keeps an ExecutorJob row's heartbeat moving on its own cadence (see
+        # SchedulerJobRunner._touch_executor_heartbeats), independent of how often the executor's
+        # own check actually runs, so the row goes stale at the same rate the scheduler's own Job
+        # row does -- and for the same reason: the scheduler itself has stopped.
+        health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value
@@ -108,6 +140,15 @@ class Job(Base, LoggingMixin):
     """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly or replaced by a newer registration."""
     registration_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
     """Process registration that created this Job; it creates no other Job, even after this one ends."""
+    health_check_result: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    """Outcome of this job's own last health check (see :class:`HealthCheckResult`), independent of
+    whether this row itself is alive. Only meaningful for a job type whose component runs its own
+    dependency check, e.g. :data:`EXECUTOR_JOB_TYPE`."""
+    owner_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """Id of the Job (typically a SchedulerJob) that created and maintains this row, so a restarted
+    owner gets a fresh row instead of silently taking over one left behind by its previous instance.
+    Only meaningful for a job type that is recorded on another component's behalf, e.g.
+    :data:`EXECUTOR_JOB_TYPE`."""
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),

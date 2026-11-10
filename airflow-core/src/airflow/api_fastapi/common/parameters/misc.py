@@ -93,7 +93,7 @@ class _IsAliveFilter(BaseParam[bool]):
         from sqlalchemy import and_, case, or_
 
         from airflow._shared.timezones import timezone
-        from airflow.jobs.job import Job, JobState, health_check_threshold
+        from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState, health_check_threshold
 
         now = timezone.utcnow()
         # Only the concrete core job types are persisted here and their thresholds come from config
@@ -107,7 +107,7 @@ class _IsAliveFilter(BaseParam[bool]):
                     Job.job_type == job_type,
                     Job.latest_heartbeat > now - timedelta(seconds=health_check_threshold(job_type, 0)),
                 )
-                for job_type in ("SchedulerJob", "TriggererJob", "DagProcessorJob")
+                for job_type in ("SchedulerJob", "TriggererJob", "DagProcessorJob", EXECUTOR_JOB_TYPE)
             )
         )
         alive = case(

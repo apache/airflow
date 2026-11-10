@@ -24,8 +24,9 @@ from sqlalchemy import select
 
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -52,13 +53,13 @@ class DetailedHealthStatus(str, Enum):
 
 
 @provide_session
-def get_jobs_health(job_runner_class, *, session: Session = NEW_SESSION) -> list[Job]:
-    """Return unfinished jobs for the runner class, ordered by latest heartbeat."""
+def get_jobs_health(job_type: str, *, session: Session = NEW_SESSION) -> list[Job]:
+    """Return unfinished jobs of the given job_type, ordered by latest heartbeat."""
     return list(
         session.scalars(
             select(Job)
             .where(
-                Job.job_type == job_runner_class.job_type,
+                Job.job_type == job_type,
                 Job.end_date.is_(None),
             )
             .order_by(Job.latest_heartbeat.desc())
@@ -104,6 +105,42 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
         **_job_instance_health(job, "latest_dag_processor_heartbeat"),
         "bundle_names": job.bundle_names,
     }
+
+
+def _executor_instance_health(job: Job) -> dict[str, Any]:
+    return {
+        **_job_instance_health(job, "latest_executor_heartbeat"),
+        "executor": job.executor_class,
+        "team_names": job.team_names,
+        "health_check_result": job.health_check_result,
+    }
+
+
+def _live_scheduler_job_ids() -> set[int]:
+    """Ids of the currently-alive SchedulerJob rows, used to age out a dead scheduler's own rows."""
+    return {job.id for job in get_jobs_health(SchedulerJobRunner.job_type) if job.is_alive()}
+
+
+def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
+    """
+    Narrow executor rows down to live instances whose owning scheduler is also still alive.
+
+    A row can stay technically alive for a little while after its scheduler process has already
+    died (its heartbeat hasn't crossed the staleness threshold yet), so liveness on the row alone
+    isn't enough; cross-checking the owner avoids briefly reporting a dead scheduler's executor as
+    healthy.
+    """
+    live_scheduler_ids = _live_scheduler_job_ids()
+    return [job for job in jobs if job.is_alive() and job.owner_job_id in live_scheduler_ids]
+
+
+def _executor_legacy_status(jobs: list[Job]) -> HealthStatus:
+    """Top-level status: unhealthy only when ``_executor_detailed_status`` reads DOWN."""
+    return (
+        HealthStatus.UNHEALTHY
+        if _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        else HealthStatus.HEALTHY
+    )
 
 
 # ``detailed_status`` answers "is every part of this component's work being done", which needs a
@@ -156,6 +193,68 @@ def _dag_processor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     return _coverage_status(expected, covered)
 
 
+def _configured_executor_keys() -> set[str]:
+    """
+    Return the key each configured executor that implements a health check would be recorded under.
+
+    Most executors don't override :meth:`~airflow.executors.base_executor.BaseExecutor.get_health`,
+    so this deliberately excludes them rather than counting every configured executor: an executor
+    that was never going to report anything isn't a gap in coverage, and a deployment where nothing
+    implements a health check should see no ``executor`` block at all in ``/monitor/health``, not an
+    ``unhealthy`` one.
+    """
+    from airflow.executors.base_executor import BaseExecutor
+
+    try:
+        names = ExecutorLoader.get_executor_names()
+    except Exception:
+        # A health probe must not fail on malformed executor config; callers fall back to liveness only.
+        log.warning("Could not read the executor configuration", exc_info=True)
+        return set()
+
+    keys = set()
+    for name in names:
+        try:
+            executor_cls, _ = ExecutorLoader.import_executor_cls(name)
+        except Exception:
+            log.warning("Could not import configured executor %s", name.module_path, exc_info=True)
+            continue
+        if executor_cls.get_health is not BaseExecutor.get_health:
+            keys.add(repr(name))
+    return keys
+
+
+def _executor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
+    """
+    Status from configured-executor coverage: each configured executor is its own partition.
+
+    A shared executor backend (e.g. one Celery broker) can be reachable from one scheduler and not
+    another, so coverage is decided per live, currently-owned row rather than by any single row for
+    that executor key: one scheduler finding it down is real signal, not noise an unrelated healthy
+    row should paper over.
+    """
+    expected = _configured_executor_keys()
+    if not expected:
+        return _liveness_status(jobs)
+
+    covered: set[str] = set()
+    unhealthy: set[str] = set()
+    seen: set[str] = set()
+    for job in _live_executor_jobs(jobs):
+        if not job.executor_class or job.executor_class not in expected:
+            continue
+        seen.add(job.executor_class)
+        if job.health_check_result == HealthCheckResult.HEALTHY:
+            covered.add(job.executor_class)
+        elif job.health_check_result == HealthCheckResult.UNHEALTHY:
+            unhealthy.add(job.executor_class)
+    expected = expected - (seen - covered - unhealthy)
+    if not expected:
+        return _liveness_status(jobs)
+    covered -= unhealthy
+    return _coverage_status(expected, covered)
+
+
 def _triggerer_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     """Status from team coverage, since a triggerer only picks up triggers for its own team."""
     if not conf.getboolean("core", "multi_team"):
@@ -178,27 +277,31 @@ def _triggerer_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
 
 
 def get_airflow_health() -> dict[str, Any]:
-    """Get the health for Airflow metadatabase, scheduler, triggerer, and dag processor."""
+    """Get the health for Airflow metadatabase, scheduler, triggerer, dag processor, and executors."""
     metadatabase_status = HealthStatus.HEALTHY
 
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
     latest_dag_processor_heartbeat = None
+    latest_executor_heartbeat = None
 
     scheduler_instances: list[dict[str, Any]] | None = None
     triggerer_instances: list[dict[str, Any]] | None = None
     dag_processor_instances: list[dict[str, Any]] | None = None
+    executor_instances: list[dict[str, Any]] | None = None
 
     scheduler_status = HealthStatus.UNHEALTHY
     triggerer_status = HealthStatus.UNHEALTHY
     dag_processor_status = HealthStatus.UNHEALTHY
+    executor_status = HealthStatus.UNHEALTHY
 
     scheduler_detailed_status = DetailedHealthStatus.DOWN
     triggerer_detailed_status = DetailedHealthStatus.DOWN
     dag_processor_detailed_status = DetailedHealthStatus.DOWN
+    executor_detailed_status = DetailedHealthStatus.DOWN
 
     try:
-        scheduler_jobs = get_jobs_health(SchedulerJobRunner)
+        scheduler_jobs = get_jobs_health(SchedulerJobRunner.job_type)
         scheduler_status = _legacy_status(scheduler_jobs)
         scheduler_detailed_status = _liveness_status(scheduler_jobs)
         if scheduler_jobs and scheduler_jobs[0].latest_heartbeat:
@@ -211,7 +314,7 @@ def get_airflow_health() -> dict[str, Any]:
         metadatabase_status = HealthStatus.UNHEALTHY
 
     try:
-        triggerer_jobs = get_jobs_health(TriggererJobRunner)
+        triggerer_jobs = get_jobs_health(TriggererJobRunner.job_type)
         triggerer_status = _legacy_status(triggerer_jobs)
         triggerer_detailed_status = _triggerer_detailed_status(triggerer_jobs)
         if triggerer_jobs and triggerer_jobs[0].latest_heartbeat:
@@ -224,7 +327,7 @@ def get_airflow_health() -> dict[str, Any]:
         triggerer_detailed_status = DetailedHealthStatus.DOWN
 
     try:
-        dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
+        dag_processor_jobs = get_jobs_health(DagProcessorJobRunner.job_type)
         dag_processor_status = _legacy_status(dag_processor_jobs)
         dag_processor_detailed_status = _dag_processor_detailed_status(dag_processor_jobs)
         if dag_processor_jobs and dag_processor_jobs[0].latest_heartbeat:
@@ -235,6 +338,24 @@ def get_airflow_health() -> dict[str, Any]:
         metadatabase_status = HealthStatus.UNHEALTHY
         dag_processor_status = HealthStatus.UNHEALTHY
         dag_processor_detailed_status = DetailedHealthStatus.DOWN
+
+    # Omitted entirely, not just reported unhealthy, when no configured executor implements a health
+    # check: a reporting mechanism nothing has opted into isn't a gap in coverage, and showing it as
+    # "unhealthy" on every deployment that hasn't adopted it yet would be a false alarm, not a signal.
+    report_executor_health = bool(_configured_executor_keys())
+    if report_executor_health:
+        try:
+            executor_jobs = get_jobs_health(EXECUTOR_JOB_TYPE)
+            executor_status = _executor_legacy_status(executor_jobs)
+            executor_detailed_status = _executor_detailed_status(executor_jobs)
+            if executor_jobs and executor_jobs[0].latest_heartbeat:
+                latest_executor_heartbeat = executor_jobs[0].latest_heartbeat.isoformat()
+            if live_executor_jobs := _live_executor_jobs(executor_jobs):
+                executor_instances = [_executor_instance_health(job) for job in live_executor_jobs]
+        except Exception:
+            metadatabase_status = HealthStatus.UNHEALTHY
+            executor_status = HealthStatus.UNHEALTHY
+            executor_detailed_status = DetailedHealthStatus.DOWN
 
     airflow_health_status = {
         "metadatabase": {"status": metadatabase_status},
@@ -257,5 +378,13 @@ def get_airflow_health() -> dict[str, Any]:
             "instances": dag_processor_instances,
         },
     }
+
+    if report_executor_health:
+        airflow_health_status["executor"] = {
+            "status": executor_status,
+            "latest_executor_heartbeat": latest_executor_heartbeat,
+            "detailed_status": executor_detailed_status,
+            "instances": executor_instances,
+        }
 
     return airflow_health_status
