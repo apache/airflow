@@ -262,7 +262,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^\.github/workflows/(?!("
             r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
             r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
-            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-improvement-proposals-wiki|"
+            r"scheduled-verify-release-calendar|stale"
             r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
