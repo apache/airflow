@@ -665,34 +665,83 @@ class XComOperations:
         *,
         previous_iteration: bool = False,
     ) -> XComResponse:
-        """Get a XCom value from the API server."""
+        """
+        Get a XCom value from the API server.
+
+        Any *map_index* is sent as given. An omitted one reads the task's result: its value, or for a
+        mapped task the values of all its instances as a list.
+        """
         params: dict[str, str | int] = {}
         if previous_iteration:
             params["previous_iteration"] = True
-        if map_index is not None and map_index >= 0:
-            params.update({"map_index": map_index})
+        if map_index is not None:
+            params["map_index"] = map_index
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
         try:
             resp = self.client.get(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params)
         except ServerResponseError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug(
-                    "XCom not found",
-                    dag_id=dag_id,
-                    run_id=run_id,
-                    task_id=task_id,
-                    key=key,
-                    map_index=map_index,
-                    detail=e.detail,
-                    status_code=e.response.status_code,
-                )
-                # Airflow 2.x just ignores the absence of an XCom and moves on with a return value of None
-                # Hence returning with key as `key` and value as `None`, so that the message is sent back to task runner
-                # and the default value of None in xcom_pull is used.
-                return XComResponse(key=key, value=None)
-            raise
+            if e.response.status_code != HTTPStatus.NOT_FOUND:
+                raise
+            log.debug(
+                "XCom not found",
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                key=key,
+                map_index=map_index,
+                detail=e.detail,
+                status_code=e.response.status_code,
+            )
+            value = self._get_mapped_values_or_none(
+                e.response,
+                dag_id,
+                run_id,
+                task_id,
+                key,
+                map_index,
+                include_prior_dates=include_prior_dates,
+                previous_iteration=previous_iteration,
+            )
+            # A missing XCom is not an error, as in Airflow 2; xcom_pull then returns its default.
+            return XComResponse(key=key, value=value)
         return XComResponse.model_validate_json(resp.read())
+
+    def _get_mapped_values_or_none(
+        self,
+        response: httpx2.Response,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None,
+        *,
+        include_prior_dates: bool,
+        previous_iteration: bool,
+    ) -> list[JsonValue] | None:
+        """
+        Read a mapped task's values from the slice endpoint.
+
+        This is only for an older server, which reads map index -1 for an
+        omitted map index, and so finds nothing for a mapped task.
+        """
+        if map_index is not None:
+            return None
+        # Servers after 2026-10-30 resolve an omitted map index themselves.
+        if (version := response.headers.get("Airflow-API-Version")) is None or version > "2026-10-30":
+            return None
+        values = self.get_sequence_slice(
+            dag_id,
+            run_id,
+            task_id,
+            key,
+            None,
+            None,
+            None,
+            include_prior_dates,
+            previous_iteration=previous_iteration,
+        ).root
+        return values or None  # Empty may also be an unmapped task.
 
     def set(
         self,

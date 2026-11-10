@@ -101,9 +101,20 @@ class TestBaseXCom:
 
         purge.assert_not_called()
         assert mock_supervisor_comms.send.call_args_list == [
-            mock.call(GetXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
+            mock.call(GetXCom(key="key", task_id="task", dag_id="dag", run_id="run", map_index=-1)),
             mock.call(DeleteXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
         ]
+
+    def test_get_one_without_map_index_loads_a_mapped_tasks_values(self, mock_supervisor_comms):
+        """The server answers an omitted map index on a mapped task with all its instances' values."""
+        mock_supervisor_comms.send.return_value = XComResult(key="key", value=[1, {"a": 2}])
+
+        result = BaseXCom.get_one(key="key", task_id="task", dag_id="dag", run_id="run")
+
+        assert result == [1, {"a": 2}]
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetXCom(key="key", task_id="task", dag_id="dag", run_id="run", map_index=None)
+        )
 
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):

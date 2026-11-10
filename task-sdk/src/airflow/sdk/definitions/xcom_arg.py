@@ -338,14 +338,15 @@ class PlainXComArg(XComArg):
             return LazyXComSequence(xcom_arg=self, ti=ti)
         tg = self.operator.get_closest_mapped_task_group()
         if tg is None:
-            # No mapped task group - pull from unmapped instance
-            map_indexes: int | range | None = None
+            # No mapped task group - pull from the unmapped instance. -1 says so; an omitted map
+            # index would also look for a mapped task's values when the instance has none.
+            map_indexes: int | range = -1
         else:
             # Check for pre-computed value from server (backward compatibility)
             upstream_map_indexes = getattr(ti, "_upstream_map_indexes", None)
             if upstream_map_indexes is not None:
-                # Use None as default to match original behavior (filter for unmapped XCom)
-                map_indexes = upstream_map_indexes.get(task_id, None)
+                # Use -1 as default to match original behavior (filter for unmapped XCom)
+                map_indexes = upstream_map_indexes.get(task_id, -1)
             else:
                 # Compute lazily - ti_count will be queried if needed
                 cached_context = getattr(ti, "_cached_template_context", None)

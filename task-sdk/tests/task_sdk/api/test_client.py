@@ -1254,6 +1254,100 @@ class TestXCOMOperations:
         assert result.key == "test_key"
         assert result.value == "test_value"
 
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_params"),
+        [
+            pytest.param({}, {}, id="omitted"),
+            pytest.param({"map_index": None}, {}, id="none"),
+            pytest.param({"map_index": -1}, {"map_index": "-1"}, id="minus-one"),
+            pytest.param({"map_index": 2}, {"map_index": "2"}, id="index"),
+        ],
+    )
+    def test_xcom_get_sends_map_index_as_given(self, kwargs, expected_params):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            return httpx2.Response(status_code=200, json={"key": "key", "value": ["a", "b"]})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", **kwargs)
+
+        assert dict(requests[0].url.params) == expected_params
+        assert result == XComResponse(key="key", value=["a", "b"])
+
+    @pytest.mark.parametrize(
+        ("server_version", "slice_values", "expected"),
+        [
+            pytest.param("2026-10-30", ["a", "b"], ["a", "b"], id="older-server-mapped"),
+            pytest.param("2026-10-30", [], None, id="older-server-nothing"),
+            pytest.param("2027-02-28", None, None, id="resolving-server"),
+            pytest.param(None, None, None, id="no-version"),
+        ],
+    )
+    def test_xcom_get_omitted_map_index_reads_the_slice_from_an_older_server(
+        self, server_version, slice_values, expected
+    ):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=200, json=slice_values)
+            return httpx2.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                headers={"Airflow-API-Version": server_version} if server_version else {},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", include_prior_dates=True
+        )
+
+        assert result == XComResponse(key="key", value=expected)
+        assert [request.url.path for request in requests] == [
+            "/xcoms/dag_id/run_id/task_id/key",
+            *(["/xcoms/dag_id/run_id/task_id/key/slice"] if slice_values is not None else []),
+        ]
+        if slice_values is not None:
+            assert requests[1].url.params["include_prior_dates"] == "true"
+
+    def test_xcom_get_omitted_map_index_raises_when_the_slice_fails(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=403, json={"detail": "Forbidden"})
+            return httpx2.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                headers={"Airflow-API-Version": "2026-10-30"},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as ctx:
+            client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
+
+        assert ctx.value.response.status_code == 403
+
+    def test_xcom_get_explicit_map_index_does_not_read_the_slice(self):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            return httpx2.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                headers={"Airflow-API-Version": "2026-10-30"},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", map_index=-1
+        )
+
+        assert result == XComResponse(key="key", value=None)
+        assert len(requests) == 1
+
     def test_xcom_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             # Simulate a successful response from the server returning a 500 error
