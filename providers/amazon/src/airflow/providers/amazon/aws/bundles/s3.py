@@ -20,6 +20,7 @@ import os
 import shutil
 import tarfile
 import tempfile
+from abc import abstractmethod
 from pathlib import Path
 
 import structlog
@@ -159,9 +160,9 @@ class _S3DagBundleBase(BaseDagBundle):
         with self.lock():
             self._refresh_locked()
 
+    @abstractmethod
     def _refresh_locked(self) -> None:
         """Stage the bundle while the bundle lock is held."""
-        raise NotImplementedError
 
 
 class S3DagBundle(_S3DagBundleBase):
