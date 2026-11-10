@@ -2017,21 +2017,89 @@ class TestFallbackChainEdits:
         reason = "the model that answered this step, function:b, is no longer in the fallback chain"
         assert ({"event": _DIVERGED_EVENT, "reason": reason} in caplog) is (replayed == 0)
 
+    @pytest.mark.parametrize(
+        ("second_attempt", "replayed", "calls_by_member"),
+        [
+            pytest.param([("a", None), ("b", None)], 1, {"a": 1, "b": 1}, id="chain unchanged"),
+            pytest.param([("b", None)], 0, {"a": 1, "b": 2}, id="chain edited"),
+        ],
+    )
+    @pytest.mark.parametrize("stamped_members", [0, 1], ids=["unstamped chain", "mixed chain"])
     @pytest.mark.asyncio
-    async def test_a_step_from_an_unstamped_chain_runs_live(self, memory_storage, caplog):
+    async def test_a_chain_with_an_unstamped_member_replays_only_while_unchanged(
+        self, memory_storage, stamped_members, second_attempt, replayed, calls_by_member
+    ):
         calls = Calls()
-        chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"}, stamped=False)
-        await attempt(memory_storage, self.build_agent(chain))
+
+        def build(members: list[tuple[str, float | None]]) -> FallbackModel:
+            chain = self.build_chain(calls, members, up={"b"}, stamped=False)
+            chain.models[:stamped_members] = [MemberStampingModel(m) for m in chain.models[:stamped_members]]
+            return chain
+
+        await attempt(memory_storage, self.build_agent(build([("a", None), ("b", None)])))
 
         journal = DurableJournal(memory_storage)
         with journal_scope(journal):
-            chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"}, stamped=False)
+            await self.build_agent(build(second_attempt)).run("go")
+
+        assert journal.stats.replayed["model"] == replayed
+        assert {name: calls[name] for name in calls_by_member} == calls_by_member
+
+    @pytest.mark.asyncio
+    async def test_a_stamped_chain_rejects_a_response_without_a_stamp(self, memory_storage, caplog):
+        calls = Calls()
+        chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+        await attempt(memory_storage, self.build_agent(chain))
+        for entry in memory_storage.steps():
+            if entry["kind"] == "model":
+                entry["payload"]["metadata"] = None
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
             await self.build_agent(chain).run("go")
 
         assert journal.stats.replayed["model"] == 0
         assert calls["b"] == 2
         reason = "the recorded response does not say which fallback chain member answered it"
         assert {"event": _DIVERGED_EVENT, "reason": reason} in caplog
+
+    @pytest.mark.asyncio
+    async def test_a_streamed_step_replays_while_its_answering_member_is_in_the_chain(self, memory_storage):
+        calls = Calls()
+
+        def build(names: list[str]) -> Agent[None, str]:
+            def stream_as(name: str):
+                async def stream(messages: list[ModelMessage], info: AgentInfo):
+                    calls.bump(name)
+                    if name == "a":
+                        raise ModelHTTPError(500, name)
+                    yield f"{name} answered"
+                    return
+
+                return stream
+
+            chain = FallbackModel(
+                *(
+                    MemberStampingModel(FunctionModel(stream_function=stream_as(name), model_name=name))
+                    for name in names
+                ),
+                fallback_on=(ModelAPIError,),
+            )
+            return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+        async def run_streamed(names: list[str]) -> str:
+            async with build(names).run_stream("go") as streamed:
+                return await streamed.get_output()
+
+        with journal_scope(DurableJournal(memory_storage)):
+            assert await run_streamed(["a", "b"]) == "b answered"
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            assert await run_streamed(["b", "a"]) == "b answered"
+
+        assert journal.stats.replayed["model"] == 1
+        assert calls["b"] == 1
 
     @pytest.mark.asyncio
     async def test_a_suspended_response_of_a_removed_member_is_not_continued(self, memory_storage):

@@ -901,7 +901,9 @@ class TestPydanticAIHookFallback:
 
         PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
 
-        (members, kwargs) = mock_fallback_model.call_args.args, mock_fallback_model.call_args.kwargs
+        mock_fallback_model.assert_called_once()
+        members = mock_fallback_model.call_args.args
+        kwargs = mock_fallback_model.call_args.kwargs
         assert [member.wrapped for member in members] == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],

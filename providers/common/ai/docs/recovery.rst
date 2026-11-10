@@ -132,12 +132,16 @@ the first connection that answers, whether or not that is the one that answered 
 
 A recorded model step replays only if the retry's request has the same fingerprint, and
 for a chain the fingerprint names the chain as a whole, not its connections. Each
-recorded response also notes which connection of the chain answered it, and the step
-replays only if that connection is still in the chain with the same ``model``. Adding,
-removing or reordering other connections in ``fallback_conn_ids`` between attempts
-therefore keeps the steps that a remaining connection answered. A step answered by a
-connection that was removed from the chain, or whose ``model`` changed, runs live along
-with every step after it, tools included, and the task log names the reason.
+recorded response also notes which model of the chain answered it, and the step replays
+only if that model is still in the chain. Adding, removing or reordering other
+connections in ``fallback_conn_ids`` between attempts therefore keeps the steps that a
+remaining model answered. A step answered by a model that was removed from the chain, or
+whose ``model`` changed, runs live along with every step after it, tools included, and
+the task log names the reason. The check compares models, not connections: two chain
+members that resolve to the same model cannot be told apart.
+A ``FallbackModel`` built outside the hook, whose members do not record which one
+answered, keeps the earlier rule: its steps replay while the chain is unchanged and run
+live once it is edited.
 
 Changing a connection's credentials or host does not invalidate a recorded step. Nor
 does changing settings on a chain connection, such as ``temperature``: a chain never

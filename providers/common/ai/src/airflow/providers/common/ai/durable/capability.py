@@ -60,7 +60,7 @@ from pydantic_core import PydanticSerializationError
 from airflow.providers.common.ai.durable.base import TOOL_CONFIG_KEY
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
-from airflow.providers.common.ai.durable.member_stamp import get_member_model_id
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel, get_member_model_id
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
@@ -673,10 +673,11 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         # here as well as in the request itself is safe.
         model = await self._durability._model_for_fingerprint(model_id, run_context)
         prepared_settings, prepared_parameters = model.prepare_request(model_settings, parameters)
-        # A chain is fingerprinted by a fixed name, not its members: editing the chain must not
-        # invalidate steps a surviving member answered. ``_find_unusable_answerer`` rejects the
-        # replay of a step whose answering member left the chain.
-        identity = "fallback" if isinstance(model, FallbackModel) else f"{model.system}:{model.model_name}"
+        # A chain whose members all stamp their answers is fingerprinted by a fixed name, not its
+        # members: editing the chain must not invalidate steps a surviving member answered.
+        # ``_find_unusable_answerer`` rejects the replay of a step whose answering member left
+        # the chain. Any other chain cannot say who answered, so it keeps the member-listing name.
+        identity = "fallback" if _is_stamped_chain(model) else f"{model.system}:{model.model_name}"
         return fingerprint_model_request(identity, messages, prepared_settings, prepared_parameters)
 
 
@@ -797,9 +798,15 @@ def _decode_tool_payload(payload: Any) -> Any:
     raise DurableJournalError(f"durable execution found a tool result it cannot replay: {kind!r}")
 
 
+def _is_stamped_chain(model: Model) -> TypeGuard[FallbackModel]:
+    return isinstance(model, FallbackModel) and all(
+        isinstance(member, MemberStampingModel) for member in model.models
+    )
+
+
 def _find_unusable_answerer(response: ModelResponse, model: Model) -> str | None:
     """Return why a recorded response cannot replay into ``model``'s chain, or ``None`` if it can."""
-    if not isinstance(model, FallbackModel):
+    if not _is_stamped_chain(model):
         return None
     if (member_model_id := get_member_model_id(response)) is None:
         return _UNSTAMPED_ANSWERER
