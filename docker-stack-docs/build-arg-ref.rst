@@ -321,6 +321,8 @@ See :ref:`build:dependency-caching` for when you need it.
 | Build argument                     | Default value                            | Description                              |
 +====================================+==========================================+==========================================+
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEPENDENCY_CACHE_EPOCH``         | set in the ``Dockerfile``                | Allow to invalidate cache by passing a   |
-|                                    |                                          | new argument.                            |
+| ``DEPENDENCY_CACHE_EPOCH``         | ``"11"``                                 | Part of the id of the cache of           |
+|                                    |                                          | downloaded and built packages. Any new   |
+|                                    |                                          | value starts with an empty cache - see   |
+|                                    |                                          | :ref:`build:dependency-caching`.         |
 +------------------------------------+------------------------------------------+------------------------------------------+

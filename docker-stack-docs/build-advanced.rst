@@ -93,11 +93,11 @@ the same python version as the target image.
 
 The ``pip download`` might happen in a separate environment. The files can be committed to a separate
 binary repository and vetted/verified by the security team and used subsequently to build images
-of Airflow when needed on an air-gaped system.
+of Airflow when needed on an air-gapped system.
 
 Example of preparing the constraint files and wheel files. Note that ``mysql`` dependency is removed
 as ``mysqlclient`` is installed from Oracle's ``apt`` repository and if you want to add it, you need
-to provide this library from your repository if you want to build Airflow image in an "air-gaped" system.
+to provide this library from your repository if you want to build Airflow image in an "air-gapped" system.
 
 .. exampleinclude:: docker-examples/restricted/restricted_environments.sh
     :language: bash
@@ -112,7 +112,7 @@ to install the image. You can also store those downloaded binary packages in you
 which allows for the flow where you will download the packages on one machine, submit only new packages for
 security vetting and only use the new packages when they were vetted.
 
-On a separate (air-gaped) system, all the PyPI packages can be copied to ``docker-context-files``
+On a separate (air-gapped) system, all the PyPI packages can be copied to ``docker-context-files``
 where you can build the image using the packages downloaded by passing those build args:
 
 * ``INSTALL_DISTRIBUTIONS_FROM_CONTEXT="true"``  - to use packages present in ``docker-context-files``
@@ -125,15 +125,15 @@ where you can build the image using the packages downloaded by passing those bui
   client from the Postgres repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
-of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.
-Those types of dependencies are more likely to be available in your "air-gaped" system via transparent
+of "air-gapped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.
+Those types of dependencies are more likely to be available in your "air-gapped" system via transparent
 proxies and it should automatically reach out to your private registries. However, in the future the
 solution might be applied to both of those installation steps.
 
 You can also use techniques described in the previous chapter to make ``docker build`` use your private
 apt sources or private PyPI repositories (via ``.pypirc``) available which can be security-vetted.
 
-If you fulfill all the criteria, you can build the image on an air-gaped system by running command similar
+If you fulfill all the criteria, you can build the image on an air-gapped system by running command similar
 to the below:
 
 .. exampleinclude:: docker-examples/restricted/restricted_environments.sh

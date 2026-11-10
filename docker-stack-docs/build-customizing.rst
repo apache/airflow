@@ -89,8 +89,8 @@ When customizing the image you can choose a number of options how you install Ai
 * From locally stored binary packages for Airflow, Airflow Providers and other dependencies. This is
   particularly useful if you want to build Airflow in a highly-secure environment where all such packages
   must be vetted by your security team and stored in your private artifact registry. This also
-  allows to build Airflow image in an air-gaped environment.
-* Side note. Building ``Airflow`` in an ``air-gaped`` environment sounds pretty funny, doesn't it?
+  allows to build Airflow image in an air-gapped environment.
+* Side note. Building ``Airflow`` in an ``air-gapped`` environment sounds pretty funny, doesn't it?
 
 You can also add a range of customizations while building the image:
 
@@ -289,7 +289,7 @@ Building images with MySQL client
    ``MySQL`` client installation is broken due to expiring GPG keys and every 2 years the old
    packages stop installing unless you manually update the keys (but there is a period of time when the
    packages are not installable at all). MariaDB client is a drop-in replacement for MySQL client
-   and it works perfectly well with MySQL server.
+   and it works perfectly well with MySQL servers.
 
 .. _image-build-custom:
 
