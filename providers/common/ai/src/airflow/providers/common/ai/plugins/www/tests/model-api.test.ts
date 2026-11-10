@@ -66,3 +66,25 @@ test("a task outside a loop keeps the map-only XCom read", async () => {
     assert.equal(url.searchParams.has("region_index"), false);
   }
 });
+
+function serveXComValue(value: unknown) {
+  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ value }), { status: 200 }));
+}
+
+test("values kept in external storage come back as their reference", async () => {
+  const reference = "s3://aws_default@bucket/xcom/dag/run/agent/0d6e.json";
+  serveXComValue(reference);
+  const api = createModelApi("dag", "run", "agent", -1);
+
+  assert.deepEqual(await Promise.all([api.fetchModelName(), api.fetchUsage(), api.fetchSkills()]), [
+    { reference },
+    { reference },
+    { reference },
+  ]);
+});
+
+test("a model name stored in the database comes back as is", async () => {
+  serveXComValue("anthropic:claude-sonnet-4-6");
+
+  assert.equal(await createModelApi("dag", "run", "agent", -1).fetchModelName(), "anthropic:claude-sonnet-4-6");
+});
