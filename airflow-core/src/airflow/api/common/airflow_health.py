@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -27,7 +27,7 @@ from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import Job, JobState, health_check_threshold
+from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -61,17 +61,22 @@ def get_jobs_health(job_runner_class, *, session: Session = NEW_SESSION) -> list
     Keep the latest job even when dead so health responses retain its heartbeat.
     """
     job_type = job_runner_class.job_type
-    unfinished = (Job.job_type == job_type, Job.end_date.is_(None))
-    cutoff = timezone.utcnow() - timedelta(seconds=health_check_threshold(job_type, 0))
-    latest_job = select(Job.id).where(*unfinished).order_by(Job.latest_heartbeat.desc()).limit(1).subquery()
-    live_job_ids = select(Job.id).where(
-        *unfinished,
-        Job.state == JobState.RUNNING,
-        Job.latest_heartbeat > cutoff,
+    unfinished = Job.end_date.is_(None)
+    # Two separate queries rather than one ``id IN (... UNION ALL ...)``: MySQL cannot semijoin that
+    # form and runs it as a dependent subquery per ``job`` row, which scales with job history.
+    live_jobs = session.scalars(
+        select(Job).where(Job.job_type == job_type, unfinished, Job.is_alive_clause([job_type]))
     )
-    selected_job_ids = live_job_ids.union_all(select(latest_job.c.id))
-    return list(
-        session.scalars(select(Job).where(Job.id.in_(selected_job_ids)).order_by(Job.latest_heartbeat.desc()))
+    latest_job = session.scalar(
+        select(Job).where(Job.job_type == job_type, unfinished).order_by(Job.latest_heartbeat.desc()).limit(1)
+    )
+    jobs = {job.id: job for job in live_jobs}
+    if latest_job is not None:
+        jobs.setdefault(latest_job.id, latest_job)
+    return sorted(
+        jobs.values(),
+        key=lambda job: job.latest_heartbeat or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
     )
 
 
