@@ -43,12 +43,14 @@ import type { JsonValue } from "../sdk/client-types.js";
 import {
   DOWNSTREAM_JOIN_SUFFIX,
   getDagEdgeLabellings,
+  getDagLoops,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   isTaskRef,
   UPSTREAM_JOIN_SUFFIX,
   type Dag,
+  type LoopRecord,
   type RecordedInputs,
   type TaskGroupRecord,
   type TaskRecord,
@@ -77,6 +79,9 @@ interface TypeEncoded {
  */
 const TASK_TYPE = "TypeScriptOperator";
 const TASK_MODULE = "airflow.sdk.coordinators.node";
+
+/** Core finds a loop's gate by this name, whatever language the gate runs in (ADR-0017 decision 2). */
+const LOOP_GATE_TASK_TYPE = "LoopGateOperator";
 
 /**
  * Marks the tasks this SDK serialized, as the Java SDK marks its own.
@@ -245,7 +250,7 @@ function serializeTask(
 ): SerializedValue {
   const data: Record<string, SerializedValue> = {
     task_id: taskId,
-    task_type: TASK_TYPE,
+    task_type: record.loopGate ? LOOP_GATE_TASK_TYPE : TASK_TYPE,
     _task_module: TASK_MODULE,
     language: TASK_LANGUAGE,
     // Python's operator serializer always emits this — its list value never
@@ -258,6 +263,10 @@ function serializeTask(
     // runtime, as `@task.stub` does on the Python side. `get_arg_bindings` reads
     // nothing without it.
     is_stub: true,
+    // Python's serializer always writes it, and core reads it unguarded: a loop's
+    // `terminal_is_mapped` is this flag of its terminal task. No TypeScript task
+    // is mapped.
+    _needs_expansion: false,
   };
   const label = `task "${taskId}" of Dag "${dagId}"`;
   if (record.operator) {
@@ -322,7 +331,7 @@ function serializeTaskGroups(dag: Dag, graph: DagGraph): SerializedValue {
     .filter((group) => group.parentGroupId === undefined)
     .map((group) => group.groupId);
 
-  return taskGroupObject(null, rootTaskIds, rootGroupIds, groups, graph);
+  return taskGroupObject(null, rootTaskIds, rootGroupIds, groups, graph, getDagLoops(dag));
 }
 
 /** One group object: the root when `groupId` is null, otherwise a nested one. */
@@ -332,6 +341,7 @@ function taskGroupObject(
   childGroupIds: readonly string[],
   groups: ReadonlyMap<string, TaskGroupRecord>,
   graph: DagGraph,
+  loops: ReadonlyMap<string, LoopRecord>,
 ): SerializedValue {
   const children: Record<string, SerializedValue> = {};
   for (const taskId of taskIds) {
@@ -341,10 +351,11 @@ function taskGroupObject(
     const child = groups.get(childId)!;
     children[childId] = [
       "taskgroup",
-      taskGroupObject(childId, child.taskIds, child.childGroupIds, groups, graph),
+      taskGroupObject(childId, child.taskIds, child.childGroupIds, groups, graph, loops),
     ];
   }
   const own = groupId === null ? undefined : graph.groupEdges.get(groupId);
+  const loop = groupId === null ? undefined : loops.get(groupId);
   return {
     // The local segment: Python's TaskGroup stores the id it was given, and
     // rebuilds the qualified one from where the group sits in the tree.
@@ -359,6 +370,24 @@ function taskGroupObject(
     downstream_group_ids: sorted(own?.downstreamGroups),
     upstream_task_ids: sorted(own?.upstreamTasks),
     downstream_task_ids: sorted(own?.downstreamTasks),
+    ...(loop && { loop: serializeLoop(loop, graph) }),
+  };
+}
+
+/**
+ * The four fields that make a group a loop, as Python's `serialize_task_group` writes them.
+ */
+function serializeLoop(loop: LoopRecord, graph: DagGraph): SerializedValue {
+  const terminals = graph.loopTerminals.get(loop.groupId) ?? [];
+  // finalizeDag reports this with the candidates named; serializing an unread Dag lands here.
+  if (terminals.length !== 1) {
+    throw new Error(`The body of loop "${loop.groupId}" has to end in exactly one task`);
+  }
+  return {
+    max_iterations: loop.maxIterations,
+    has_until: loop.hasUntil,
+    terminal_task_id: terminals[0]!,
+    gate_task_id: loop.gateTaskId,
   };
 }
 

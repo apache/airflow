@@ -46,11 +46,14 @@ function makeContext(tiContext: Record<string, unknown> = {}) {
   const skipDownstreamTasks = vi.fn(async () => undefined);
   const error = vi.fn();
   const fail = vi.fn((message: string) => ({ type: "TaskState", state: "failed", message }));
+  const ctx = { taskId: "t", signal: new AbortController().signal } as TaskContext;
+  const client = { setXCom, skipDownstreamTasks } as unknown as CoordinatorClient;
   const op = buildOperatorContext({
     details: makeDetails(tiContext),
     dag: new Dag("d"),
-    ctx: { taskId: "t", signal: new AbortController().signal } as TaskContext,
-    client: { setXCom, skipDownstreamTasks } as unknown as CoordinatorClient,
+    ctx,
+    client,
+    scope: { ctx, client },
     logs: { error } as unknown as LogChannel,
     fail: fail as unknown as OperatorContext["fail"],
   });

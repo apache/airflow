@@ -63,12 +63,12 @@ export function createHITLTask<TArgs extends object | void>(
 
 /** The first run: write the request, then park the task until a response arrives. */
 async function executeHITL(task: HITLTask<never>, op: OperatorContext): Promise<OperatorOutcome> {
-  const { details, ctx, client, logs } = op;
+  const { details, ctx, client, logs, scope } = op;
   // The inputs are read here only, for the text: the resumed run must not depend on upstream
   // XComs still being there.
   const args = await op.resolveArgs(task.argNames);
   const render = (text: HITLText<never, string | null>) =>
-    runInTaskScope({ ctx, client }, () => renderText(text, args));
+    runInTaskScope(scope, () => renderText(text, args));
   const subject = await render(task.subject);
   const body = task.body === undefined ? null : await render(task.body);
   if (typeof subject !== "string" || subject.length === 0) {

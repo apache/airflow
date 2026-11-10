@@ -50,7 +50,10 @@ function place(
   upstream: readonly TaskRef[] = [],
   spec?: TaskSpec,
 ) {
-  const factory = scope.task(taskId, async (_args: WiredArgs) => undefined, spec);
+  const handler = async (_args: WiredArgs) => undefined;
+  // A group's task() returns a factory of loop task references, so each side is called apart.
+  const factory =
+    scope instanceof Dag ? scope.task(taskId, handler, spec) : scope.task(taskId, handler, spec);
   const inputs: Record<string, TaskRef> = {};
   upstream.forEach((ref, index) => {
     inputs[`in_${index}`] = ref;
@@ -156,6 +159,7 @@ describe("serializeDag", () => {
       language: "typescript",
       template_fields: [],
       is_stub: true,
+      _needs_expansion: false,
     });
   });
 

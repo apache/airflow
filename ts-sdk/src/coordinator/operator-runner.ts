@@ -20,7 +20,7 @@
 // Runs an operator the SDK executes itself: starts it, or resumes it after it parked or deferred.
 
 import { resolveArgs } from "./arg-binding.js";
-import type { CoordinatorClient } from "./client.js";
+import { RETURN_VALUE_KEY, type CoordinatorClient } from "./client.js";
 import type { LogChannel } from "./log-channel.js";
 import type {
   RuntimeAwaitInputTask,
@@ -32,7 +32,7 @@ import type { JsonValue } from "../sdk/client-types.js";
 import { isPlainRecord, skipTasks, type Dag } from "../sdk/dag.js";
 import { getBooleanEnv } from "../sdk/env.js";
 import type { Operator, OperatorContext, OperatorOutcome } from "../sdk/operator.js";
-import type { TaskContext } from "../sdk/task.js";
+import type { TaskContext, TaskScope } from "../sdk/task.js";
 
 const EXECUTE_COMPLETE = "execute_complete";
 /** `TRIGGER_FAIL_REPR`: the `next_method` of a task Airflow could not resume. */
@@ -47,6 +47,10 @@ export interface OperatorContextDeps {
   readonly ctx: TaskContext;
   readonly client: CoordinatorClient;
   readonly logs: LogChannel;
+  /** Where the author's callables run; it holds `ctx` and `client` too. */
+  readonly scope: TaskScope;
+  /** The arguments the task reads every iteration of a loop task through. */
+  readonly allIterationsArgs?: ReadonlySet<string>;
   readonly fail: OperatorContext["fail"];
 }
 
@@ -75,7 +79,7 @@ function failedToResume(op: OperatorContext, kwargs: Record<string, unknown>) {
 }
 
 export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext {
-  const { details, dag, ctx, client, logs, fail } = deps;
+  const { details, dag, ctx, client, logs, fail, allIterationsArgs } = deps;
   return {
     details,
     dag,
@@ -83,17 +87,19 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
     client,
     logs,
     fail,
+    scope: deps.scope,
     async resolveArgs(argNames = NO_ARG_NAMES) {
       const bound = await resolveArgs(details.ti_context?.arg_bindings, {
         client,
         signal: ctx.signal,
         logs,
         argNames,
+        ...(allIterationsArgs && { allIterationsArgs }),
       });
       return bound.args;
     },
     async succeed(value?: JsonValue): Promise<RuntimeSucceedTask> {
-      if (value !== undefined) await client.setXCom({ key: "return_value", value });
+      if (value !== undefined) await client.setXCom({ key: RETURN_VALUE_KEY, value });
       // The Execution API's TISuccessStatePayload validator rejects null for
       // `task_outlets` and `outlet_events`, so both are empty lists.
       return {
