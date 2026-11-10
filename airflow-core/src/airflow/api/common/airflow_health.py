@@ -110,6 +110,7 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 def _executor_instance_health(job: Job) -> dict[str, Any]:
     return {
         **_job_instance_health(job, "latest_executor_heartbeat"),
+        "executor": job.executor_class,
         "team_names": job.team_names,
         "health_check_result": job.health_check_result,
     }
@@ -134,9 +135,12 @@ def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
 
 
 def _executor_legacy_status(jobs: list[Job]) -> HealthStatus:
-    """Top-level status: healthy only if some live, currently-owned row's last check passed."""
-    healthy = any(job.health_check_result == HealthCheckResult.HEALTHY for job in _live_executor_jobs(jobs))
-    return HealthStatus.HEALTHY if healthy else HealthStatus.UNHEALTHY
+    """Top-level status: unhealthy only when ``_executor_detailed_status`` reads DOWN."""
+    return (
+        HealthStatus.UNHEALTHY
+        if _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        else HealthStatus.HEALTHY
+    )
 
 
 # ``detailed_status`` answers "is every part of this component's work being done", which needs a
@@ -235,13 +239,18 @@ def _executor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
 
     covered: set[str] = set()
     unhealthy: set[str] = set()
+    seen: set[str] = set()
     for job in _live_executor_jobs(jobs):
-        if not job.hostname or job.hostname not in expected:
+        if not job.executor_class or job.executor_class not in expected:
             continue
+        seen.add(job.executor_class)
         if job.health_check_result == HealthCheckResult.HEALTHY:
-            covered.add(job.hostname)
-        else:
-            unhealthy.add(job.hostname)
+            covered.add(job.executor_class)
+        elif job.health_check_result == HealthCheckResult.UNHEALTHY:
+            unhealthy.add(job.executor_class)
+    expected = expected - (seen - covered - unhealthy)
+    if not expected:
+        return _liveness_status(jobs)
     covered -= unhealthy
     return _coverage_status(expected, covered)
 

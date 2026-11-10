@@ -24,7 +24,7 @@ import time_machine
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.team import JobTeam, Team
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -272,6 +272,25 @@ class TestGetJobs(TestJobEndpoint):
         paged = test_client.get("/jobs", params={"is_alive": True, "limit": 1}).json()
         assert paged["total_entries"] == 2
         assert len(paged["jobs"]) == 1
+
+    @time_machine.travel(datetime(2024, 1, 1, tzinfo=UTC), tick=False)
+    def test_get_jobs_is_alive_filter_recognizes_executor_job_type(self, test_client, session: Session):
+        clear_db_jobs()
+        now = datetime(2024, 1, 1, tzinfo=UTC)
+        fresh = Job(state=JobState.RUNNING, job_type=EXECUTOR_JOB_TYPE, latest_heartbeat=now)
+        stale = Job(
+            state=JobState.RUNNING,
+            job_type=EXECUTOR_JOB_TYPE,
+            latest_heartbeat=now - timedelta(days=1),
+        )
+        session.add_all([fresh, stale])
+        session.commit()
+
+        alive = test_client.get("/jobs", params={"is_alive": True}).json()
+        assert {job["id"] for job in alive["jobs"]} == {fresh.id}
+
+        not_alive = test_client.get("/jobs", params={"is_alive": False}).json()
+        assert {job["id"] for job in not_alive["jobs"]} == {stale.id}
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")

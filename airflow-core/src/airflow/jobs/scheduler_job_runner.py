@@ -516,8 +516,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             healthy = executor.get_health(timeout=self._executor_health_check_timeout)
         except Exception:
             self.log.exception("Health check for executor %s raised an exception", key)
-            self._record_executor_health_result(key, executor.team_name, HealthCheckResult.UNKNOWN)
-            return
+            healthy = None
         if healthy is None:
             result = HealthCheckResult.UNKNOWN
         elif healthy:
@@ -525,7 +524,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         else:
             self.log.warning("Executor %s reported itself unhealthy", key)
             result = HealthCheckResult.UNHEALTHY
-        self._record_executor_health_result(key, executor.team_name, result)
+        try:
+            self._record_executor_health_result(key, executor.team_name, result)
+        except Exception:
+            self.log.exception("Failed to record health check result for executor %s", key)
 
     @provide_session
     def _touch_executor_heartbeats(self, *, session: Session = NEW_SESSION) -> None:
@@ -564,20 +566,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         job = session.scalar(
             select(Job).where(
                 Job.job_type == EXECUTOR_JOB_TYPE,
-                Job.hostname == executor_key,
+                Job.executor_class == executor_key,
                 Job.owner_job_id == self.job.id,
                 Job.end_date.is_(None),
             )
         )
         if job is None:
-            job = Job(job_type=EXECUTOR_JOB_TYPE)
-            job.hostname = executor_key
-            job.owner_job_id = self.job.id
-            job.health_check_result = HealthCheckResult.UNKNOWN
+            job = Job(
+                job_type=EXECUTOR_JOB_TYPE,
+                executor_class=executor_key,
+                owner_job_id=self.job.id,
+                health_check_result=HealthCheckResult.UNKNOWN,
+                team_names=[team_name] if team_name else [],
+            )
             session.add(job)
-        job.state = JobState.RUNNING
-        if team_name:
+        elif team_name:
             job.team_names = [team_name]
+        job.state = JobState.RUNNING
         return job
 
     @provide_session

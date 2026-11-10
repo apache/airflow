@@ -642,19 +642,23 @@ class TestAirflowHealthFromDb:
 def _executor(
     *,
     alive: bool,
-    healthy: bool = True,
+    healthy: bool | None = True,
     team_name: str | None = None,
-    hostname: str | None = None,
+    executor: str | None = None,
     owner_job_id: int = 1,
 ) -> MagicMock:
     job = _mock_job(
-        hostname=hostname or f"executor-{team_name}-{'alive' if alive else 'stale'}",
+        hostname=f"host-{owner_job_id}",
         heartbeat=datetime(2024, 2, 1),
         alive=alive,
         team_names=[team_name] if team_name else [],
     )
+    job.executor_class = executor or f"executor-{team_name}-{'alive' if alive else 'stale'}"
     job.owner_job_id = owner_job_id
-    job.health_check_result = HealthCheckResult.HEALTHY if healthy else HealthCheckResult.UNHEALTHY
+    if healthy is None:
+        job.health_check_result = HealthCheckResult.UNKNOWN
+    else:
+        job.health_check_result = HealthCheckResult.HEALTHY if healthy else HealthCheckResult.UNHEALTHY
     return job
 
 
@@ -729,40 +733,62 @@ class TestExecutorDetailedStatus:
         [
             pytest.param(
                 {"Celery"},
-                [_executor(alive=True, hostname="Celery")],
+                [_executor(alive=True, executor="Celery")],
                 DetailedHealthStatus.HEALTHY,
                 id="the_only_configured_executor_is_alive",
             ),
             pytest.param(
                 {"Celery", "Kubernetes"},
-                [_executor(alive=True, hostname="Celery"), _executor(alive=True, hostname="Kubernetes")],
+                [_executor(alive=True, executor="Celery"), _executor(alive=True, executor="Kubernetes")],
                 DetailedHealthStatus.HEALTHY,
                 id="both_configured_executors_are_alive",
             ),
             pytest.param(
                 {"Celery", "Kubernetes"},
-                [_executor(alive=True, hostname="Celery")],
+                [_executor(alive=True, executor="Celery")],
                 DetailedHealthStatus.DEGRADED,
                 id="one_of_two_configured_executors_reports",
             ),
             pytest.param(
                 {"Celery"},
-                [_executor(alive=False, hostname="Celery")],
+                [_executor(alive=False, executor="Celery")],
                 DetailedHealthStatus.DOWN,
                 id="the_only_configured_executor_is_stale",
             ),
             pytest.param({"Celery"}, [], DetailedHealthStatus.DOWN, id="no_executor_has_ever_reported"),
+            pytest.param(
+                {"Celery"},
+                [_executor(alive=True, healthy=None, executor="Celery")],
+                DetailedHealthStatus.HEALTHY,
+                id="first_check_still_pending_is_not_a_coverage_gap",
+            ),
         ],
     )
     def test_coverage(self, keys, jobs, expected):
         with _patch_executor_keys(keys), _patch_live_scheduler_ids({1}):
             assert _executor_detailed_status(jobs) == expected
 
+    def test_restart_while_another_scheduler_already_reports_healthy(self):
+        jobs = [
+            _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=True, executor="Celery", owner_job_id=2),
+        ]
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
+            assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+
+    def test_unknown_does_not_mask_a_real_unhealthy_report(self):
+        jobs = [
+            _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
+        ]
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
+            assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+
     def test_restarted_executor_leaves_the_component_healthy(self):
         """A hard-killed replica leaves its row behind; a fresh one taking over must still read healthy."""
         jobs = [
-            _executor(alive=True, hostname="Celery"),
-            _executor(alive=False, hostname="Celery"),
+            _executor(alive=True, executor="Celery"),
+            _executor(alive=False, executor="Celery"),
         ]
         with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
             assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
@@ -770,15 +796,15 @@ class TestExecutorDetailedStatus:
     def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self):
         """Two schedulers checking the same broker: one healthy row must not hide another's failure."""
         jobs = [
-            _executor(alive=True, healthy=True, hostname="Celery", owner_job_id=1),
-            _executor(alive=True, healthy=False, hostname="Celery", owner_job_id=2),
+            _executor(alive=True, healthy=True, executor="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
         ]
         with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
             assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
 
     def test_row_left_behind_by_crashed_scheduler_is_ignored(self):
         """A row can still look alive right after its scheduler died; it must not count as coverage."""
-        jobs = [_executor(alive=True, healthy=True, hostname="Celery", owner_job_id=2)]
+        jobs = [_executor(alive=True, healthy=True, executor="Celery", owner_job_id=2)]
         with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
             assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
 
@@ -799,7 +825,7 @@ class TestAirflowHealthExecutor:
     @provide_session
     def test_executor_key_present_and_healthy_when_implemented_and_reporting(self, *, session):
         heartbeat = timezone.utcnow()
-        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, hostname="Celery")
+        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
         job.latest_heartbeat = heartbeat
         job.owner_job_id = 1
         job.health_check_result = HealthCheckResult.HEALTHY
@@ -814,7 +840,8 @@ class TestAirflowHealthExecutor:
         assert health_status["executor"]["latest_executor_heartbeat"] == heartbeat.isoformat()
         assert health_status["executor"]["instances"] == [
             {
-                "hostname": "Celery",
+                "hostname": job.hostname,
+                "executor": "Celery",
                 "latest_executor_heartbeat": heartbeat.isoformat(),
                 "team_names": [],
                 "health_check_result": HealthCheckResult.HEALTHY,
@@ -825,7 +852,7 @@ class TestAirflowHealthExecutor:
     def test_executor_key_unhealthy_when_last_check_failed_despite_live_heartbeat(self, *, session):
         """A row can be alive (heartbeat moving) while the last real check still failed."""
         heartbeat = timezone.utcnow()
-        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, hostname="Celery")
+        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
         job.latest_heartbeat = heartbeat
         job.owner_job_id = 1
         job.health_check_result = HealthCheckResult.UNHEALTHY

@@ -56,6 +56,7 @@ class ExecutorInstanceInfoResponse(BaseModel):
     """Executor instance info serializer for responses."""
 
     hostname: str | None
+    executor: str | None
     latest_executor_heartbeat: str | None
     team_names: list[str]
     health_check_result: HealthCheckResult | None
