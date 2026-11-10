@@ -2597,7 +2597,6 @@ def test_excluded_providers():
             "excluded-providers-as-string": json.dumps(
                 {
                     "3.14": [
-                        "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                         "apache.tinkerpop",
                     ],
                 }
@@ -3403,7 +3402,7 @@ def test_expected_output_fork_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "apache-airflow helm-chart task-sdk amazon apache.beam apache.cassandra "
                 "apache.kafka cncf.kubernetes common.ai common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
@@ -3451,7 +3450,7 @@ def test_expected_output_fork_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow",
+                "docs-list-as-string": "apache-airflow task-sdk",
                 "skip-prek-hooks": (
                     "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
@@ -3736,7 +3735,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte common.compat",
+                "docs-list-as-string": "apache-airflow task-sdk airbyte common.compat",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -3747,16 +3746,23 @@ def test_upgrade_to_newer_dependencies(
                 "providers-summary-docs/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte common.compat",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers task-sdk airbyte common.compat",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
             ("airflow-core/docs/docs.rst",),
             {
-                "docs-list-as-string": "apache-airflow",
+                "docs-list-as-string": "apache-airflow task-sdk",
             },
             id="Only Airflow docs changed",
+        ),
+        pytest.param(
+            ("task-sdk/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow task-sdk",
+            },
+            id="Only Task SDK docs changed",
         ),
         pytest.param(
             ("dev/mypy/docs/index.rst",),
@@ -3780,7 +3786,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow-core/src/airflow/test.py",),
             {
-                "docs-list-as-string": "apache-airflow",
+                "docs-list-as-string": "apache-airflow task-sdk",
             },
             id="Core files changed. Apache-Airflow docs should also be built",
         ),
@@ -3792,7 +3798,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow-core/src/airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-list-as-string": "apache-airflow helm-chart",
+                "docs-list-as-string": "apache-airflow helm-chart task-sdk",
             },
             id="Core files and helm chart files changed. Apache Airflow and helm chart docs to build",
         ),

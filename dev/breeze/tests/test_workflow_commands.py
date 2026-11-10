@@ -30,6 +30,7 @@ from airflow_breeze.commands.workflow_commands import (
     get_lines_added_to_site_index,
     workflow_run_mirror_base_images,
     workflow_run_publish,
+    workflow_run_release_constraints,
     workflow_run_sync_staging_to_main,
     workflow_run_upgrade_check,
 )
@@ -455,3 +456,23 @@ def test_upgrade_check_offers_only_branches_with_an_upgrade_workflow(mock_trigge
 
     assert result.exit_code == 2
     mock_trigger.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        pytest.param([], "", id="unset"),
+        pytest.param(["--fail-on-pending-provider-candidates", "false"], "false", id="false"),
+        pytest.param(["--fail-on-pending-provider-candidates", "true"], "true", id="true"),
+    ],
+)
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_release_constraints_passes_the_override_flag(mock_trigger, args, expected):
+    result = CliRunner().invoke(
+        workflow_run_release_constraints,
+        ["--version", "3.4.0", "--ref", "v3-4-stable", *args],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    assert mock_trigger.call_args.kwargs["fail-on-pending-provider-candidates"] == expected

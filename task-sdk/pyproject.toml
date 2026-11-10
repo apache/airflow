@@ -119,7 +119,7 @@ Homepage = "https://airflow.apache.org/"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
 Mastodon = "https://fosstodon.org/@airflow"
-Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+Bluesky = "https://bsky.app/profile/airflow.apache.org"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 
@@ -261,6 +261,7 @@ input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='AwareDatetime'
 target-python-version='3.11'
+set-default-enum-member=true
 use-annotated=true
 use-default=true
 use-double-quotes=true

@@ -98,8 +98,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Generates SQL from the prompt and returns it without running it. With
        ``validate_sql=True``, the default, the task fails unless the output is a single
        statement that parses for ``dialect`` and is one of ``allowed_sql_types``
-       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); with the default
-       types, a write nested inside the statement fails it too. A reviewer's edit under
+       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); unless
+       ``allowed_sql_types`` admits a write, a write nested inside the statement fails it
+       too. A reviewer's edit under
        ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
        ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
        schema. ``datasource_config`` reads object storage through the DataFusion engine of

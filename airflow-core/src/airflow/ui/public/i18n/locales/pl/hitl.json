@@ -25,6 +25,7 @@
     "received": "Odpowiedź otrzymana o ",
     "respond": "Odpowiedz",
     "responded_by_user_name": "Odpowiedź udzielona przez (nazwa użytkownika)",
+    "selectAtLeastOne": "Wybierz co najmniej jedną opcję",
     "success": "Odpowiedź dla {{taskId}} została pomyślnie wysłana",
     "title": "Instancja zadania wymagająca interwencji człowieka - {{taskId}}"
   },
