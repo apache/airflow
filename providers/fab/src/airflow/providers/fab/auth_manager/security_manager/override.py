@@ -2560,8 +2560,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 role=self.find_role(self.auth_user_registration_role),
             )
             if user is None:
-                log.error("Error creating a new REMOTE_USER user %s", username)
-                return None
+                # a parallel first request for the same REMOTE_USER can win the insert
+                user = self.find_user(username=username)
+                if user is None or not user.is_active:
+                    log.error("Error creating a new REMOTE_USER user %s", username)
+                    return None
 
         # If user does not exist on the DB and not auto user registration,
         # or user is inactive, go away.
