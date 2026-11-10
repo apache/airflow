@@ -398,7 +398,8 @@ status codes; that needs a classifier. Only these policies look at the members: 
 ``FallbackExceptionGroup`` there.
 
 The model that classifies sees the same detail. The prompt lists each connection's error by
-type and message, redacted like the rest of the error, and, when the task ran with
+type and message, redacted like the rest of the error and limited to ``max_exception_length``
+characters each, so a long message from one connection does not push the last one out, and, when the task ran with
 ``durable=True``, how many steps the failed attempt replayed and recorded
 (``replayed_steps`` and ``recorded_steps`` on the error). A retry still counts as an attempt
 against ``retries``: a policy can choose a longer delay or a different category from that
