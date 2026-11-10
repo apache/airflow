@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -51,6 +52,7 @@ from airflow.providers.common.ai.utils.query_results import (
     build_get_schema_description,
     build_query_result,
     build_schema_result,
+    truncate_comment,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
 from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
@@ -63,6 +65,8 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
     from sqlalchemy.engine.reflection import Inspector
 
+
+log = logging.getLogger(__name__)
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
 # table) from an explicit value. Every explicit falsy value -- ``None`` as much as
@@ -307,6 +311,11 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     :param max_retries: How many times the model may correct a failed call to one of these
         tools before the run fails. ``None`` (the default) uses the agent's tool retry
         budget, its ``retries``, as pydantic-ai's own toolsets do.
+    :param include_table_comments: When ``True``, ``list_tables`` returns
+        ``{"name": ..., "comment": ...}`` objects instead of bare names, with ``comment``
+        present only for tables that have one (each capped to 200 characters). Default
+        ``False`` keeps the list of names. ``get_schema`` always returns table and column
+        comments where the database reports them, regardless of this flag.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -326,6 +335,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         max_columns: int = DEFAULT_MAX_COLUMNS,
         tool_prefix: str = "",
         max_retries: int | None = None,
+        include_table_comments: bool = False,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
         self._set_tool_prefix(tool_prefix)
@@ -352,6 +362,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         self._max_rows = max_rows
         self._max_result_bytes = max_result_bytes
         self._max_columns = max_columns
+        self._include_table_comments = include_table_comments
         self._hook: DbApiHook | None = None
 
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
@@ -531,7 +542,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
 
     def _list_tables(self) -> str:
         inspector = self._get_inspector()
-        tables: list[str] = []
+        tables: list[tuple[str | None, str, str]] = []
         # Dedupe by (schema, table) so a table reachable both qualified and via the
         # default schema (e.g. "public.users" and "users" with schema="public") is
         # listed once. Case-folded because databases reflect identifiers in their case.
@@ -541,7 +552,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             key = self._canonical_ref("", schema, name)
             if self._is_ref_allowed("", schema, name) and key not in seen:
                 seen.add(key)
-                tables.append(display)
+                tables.append((schema, name, display))
 
         # Schemas referenced by qualified allowed_tables entries: introspect each
         # and return matching tables fully qualified so they round-trip to get_schema.
@@ -555,22 +566,64 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             for name in inspector.get_table_names(schema=self._schema):
                 add(self._schema, name, name)
 
-        return dumps_masked(tables)
+        if not self._include_table_comments:
+            return dumps_masked([display for _, _, display in tables])
+
+        comments = {
+            table_schema: self._get_table_comments(inspector, table_schema)
+            for table_schema in {table_schema for table_schema, _, _ in tables}
+        }
+        entries: list[dict[str, str]] = []
+        for table_schema, name, display in tables:
+            entry = {"name": display}
+            if comment := comments[table_schema].get(name):
+                entry["comment"] = truncate_comment(comment)
+            entries.append(entry)
+        return dumps_masked(entries)
+
+    @staticmethod
+    def _get_table_comments(inspector: Inspector, schema: str | None) -> dict[str, str]:
+        """Return ``{table name: comment}`` for a schema in one call; empty when the dialect has none."""
+        # SQLAlchemy 1.4, which common-sql still supports, has no get_multi_table_comment.
+        # Reading comments one table at a time instead would cost a query per table, so
+        # on 1.4 the tables simply come back without comments.
+        if (get_comments := getattr(inspector, "get_multi_table_comment", None)) is None:
+            return {}
+        try:
+            reflected = get_comments(schema=schema)
+        except NotImplementedError:
+            return {}
+        return {name: text for (_, name), info in reflected.items() if (text := info.get("text"))}
 
     def _get_schema(self, table_name: str, name_contains: str | None = None) -> str:
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
             return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
-        columns = [
-            {"name": col["name"], "type": str(col["type"])}
-            for col in self._get_inspector().get_columns(table, schema=schema)
-        ]
+        inspector = self._get_inspector()
+        hook = self._get_db_hook()
+        # common-sql releases before the comment methods lack them; fall back to plain columns.
+        if get_columns := getattr(hook, "get_table_columns_with_comments", None):
+            columns = get_columns(table, schema=schema)
+        else:
+            columns = [
+                {"name": col["name"], "type": str(col["type"])}
+                for col in inspector.get_columns(table, schema=schema)
+            ]
+        table_comment: str | None = None
+        if get_comment := getattr(hook, "get_table_comment", None):
+            # Broad on purpose: a hook-level failure reading only the comment must not
+            # take get_schema down when the columns were read fine.
+            try:
+                table_comment = get_comment(table, schema=schema)
+            except Exception:
+                log.debug("Could not read the comment of table %s", table, exc_info=True)
         return build_schema_result(
             columns,
             max_columns=self._max_columns,
             max_result_bytes=self._max_result_bytes,
             name_contains=name_contains,
             tool_name=self._build_tool_name("get_schema"),
+            table_comment=table_comment,
         )
 
     def _dialect_for_validation(self) -> str | None:

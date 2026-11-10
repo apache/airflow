@@ -68,8 +68,11 @@ def _make_mock_db_hook(
     """Create a mock DbApiHook with sensible defaults."""
     mock = MagicMock(spec=DbApiHook)
     mock.inspector = MagicMock(spec=Inspector)
+    # Assigned rather than taken from the spec: SQLAlchemy 1.4's Inspector has no such method.
+    mock.inspector.get_multi_table_comment = MagicMock(return_value={})
     mock.inspector.get_table_names.return_value = table_names or ["users", "orders"]
-    mock.inspector.get_columns.return_value = table_schema or [
+    mock.get_table_comment.return_value = None
+    mock.get_table_columns_with_comments.return_value = table_schema or [
         {"name": "id", "type": "INTEGER"},
         {"name": "name", "type": "VARCHAR"},
     ]
@@ -305,7 +308,7 @@ class TestSQLToolsetGetSchema:
             "columns": [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}],
             "column_count": 2,
         }
-        mock_hook.inspector.get_columns.assert_called_once_with("users", schema=None)
+        mock_hook.get_table_columns_with_comments.assert_called_once_with("users", schema=None)
 
     def test_name_contains_filters_the_columns(self):
         """``name_contains`` threads from the tool call through to the bounded result."""
@@ -366,13 +369,13 @@ class TestSQLToolsetGetSchema:
         assert "error" in data
         assert "secrets" in data["error"]
         # The guard must short-circuit before touching the database.
-        ts._hook.inspector.get_columns.assert_not_called()
+        ts._hook.get_table_columns_with_comments.assert_not_called()
 
     def test_introspection_error_raises_model_retry(self):
         """A failure while reading a table's schema is returned to the agent as a retry."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.inspector.get_columns.side_effect = Exception('relation "users" does not exist')
+        ts._hook.get_table_columns_with_comments.side_effect = Exception('relation "users" does not exist')
 
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(
@@ -924,6 +927,128 @@ class TestSQLToolsetConnectionFailures:
         assert "postgresql://svc:***@db" in str(exc_info.value)
 
 
+class TestSQLToolsetComments:
+    @staticmethod
+    def _get_schema(ts: SQLToolset, **args) -> dict:
+        args = {"table_name": "users", **args}
+        return json.loads(asyncio.run(ts.call_tool("get_schema", args, ctx=MagicMock(), tool=MagicMock())))
+
+    @staticmethod
+    def _list_tables(ts: SQLToolset):
+        return json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
+
+    def test_get_schema_returns_table_and_column_comments(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(
+            table_schema=[
+                {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+                {"name": "name", "type": "VARCHAR"},
+            ]
+        )
+        ts._hook.get_table_comment.return_value = "Registered users"
+
+        assert self._get_schema(ts) == {
+            "columns": [
+                {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+                {"name": "name", "type": "VARCHAR"},
+            ],
+            "column_count": 2,
+            "table_comment": "Registered users",
+        }
+        ts._hook.get_table_comment.assert_called_once_with("users", schema=None)
+
+    def test_get_schema_truncates_long_comments(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(table_schema=[{"name": "id", "type": "INTEGER", "comment": "c" * 500}])
+        ts._hook.get_table_comment.return_value = "t" * 500
+
+        data = self._get_schema(ts)
+        assert data["columns"][0]["comment"] == "c" * 199 + "\u2026"
+        assert data["table_comment"] == "t" * 199 + "\u2026"
+
+    def test_get_schema_survives_table_comment_failure(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.get_table_comment.side_effect = Exception("permission denied")
+
+        assert self._get_schema(ts)["column_count"] == 2
+
+    def test_get_schema_falls_back_on_hook_without_comment_methods(self):
+        """A common-sql release that predates the comment methods still serves get_schema."""
+        ts = SQLToolset("pg_default")
+        hook = MagicMock(spec=["inspector"])
+        hook.inspector.get_columns.return_value = [{"name": "id", "type": "INTEGER"}]
+        ts._hook = hook
+
+        assert self._get_schema(ts) == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
+        hook.inspector.get_columns.assert_called_once_with("users", schema=None)
+
+    def test_comments_count_against_the_byte_budget(self):
+        """Columns that fit on their own are summarized once their comments push past the budget."""
+        columns = [{"name": f"c{i}", "type": "INTEGER"} for i in range(10)]
+        with_comments = [{**col, "comment": "x" * 200} for col in columns]
+        budget = 600
+
+        plain = SQLToolset("pg_default", max_result_bytes=budget)
+        plain._hook = _make_mock_db_hook(table_schema=columns)
+        assert "truncated" not in self._get_schema(plain)
+
+        commented = SQLToolset("pg_default", max_result_bytes=budget)
+        commented._hook = _make_mock_db_hook(table_schema=with_comments)
+        data = self._get_schema(commented)
+        assert data["truncated_by"] == "max_result_bytes"
+        assert data["comments_omitted"] is True
+        assert all("comment" not in col for col in data["sample_columns"])
+
+    def test_list_tables_default_shape_ignores_comments(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders"])
+
+        assert self._list_tables(ts) == ["users", "orders"]
+        ts._hook.inspector.get_multi_table_comment.assert_not_called()
+
+    def test_list_tables_with_comments_returns_name_and_comment(self):
+        ts = SQLToolset("pg_default", include_table_comments=True, schema="public")
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            ("public", "users"): {"text": "u" * 500},
+            ("public", "orders"): {"text": None},
+        }
+
+        assert self._list_tables(ts) == [
+            {"name": "users", "comment": "u" * 199 + "\u2026"},
+            {"name": "orders"},
+        ]
+        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(schema="public")
+
+    def test_list_tables_with_comments_filters_and_qualifies(self):
+        ts = SQLToolset("sf", allowed_tables=["S1.A"], include_table_comments=True)
+        hook = _make_mock_db_hook(table_names=["A", "B"])
+        hook.inspector.get_multi_table_comment.return_value = {
+            ("S1", "A"): {"text": "table a"},
+            ("S1", "B"): {"text": "secret b"},
+        }
+        ts._hook = hook
+
+        assert self._list_tables(ts) == [{"name": "S1.A", "comment": "table a"}]
+
+    def test_list_tables_omits_comments_when_inspector_cannot_read_them_in_bulk(self):
+        """SQLAlchemy 1.4's Inspector has no get_multi_table_comment."""
+        ts = SQLToolset("pg_default", include_table_comments=True)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector = MagicMock(spec=["get_table_names"])
+        ts._hook.inspector.get_table_names.return_value = ["users"]
+
+        assert self._list_tables(ts) == [{"name": "users"}]
+
+    def test_list_tables_with_comments_degrades_when_dialect_cannot_report(self):
+        ts = SQLToolset("pg_default", include_table_comments=True)
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = NotImplementedError
+
+        assert self._list_tables(ts) == [{"name": "users"}]
+
+
 class TestSQLToolsetMultiSchema:
     """Schema-qualified allowed_tables span multiple schemas in one database."""
 
@@ -932,7 +1057,8 @@ class TestSQLToolsetMultiSchema:
         hook = MagicMock(spec=DbApiHook)
         hook.inspector = MagicMock()
         hook.inspector.get_table_names.side_effect = lambda schema=None: tables_by_schema.get(schema, [])
-        hook.inspector.get_columns.return_value = [{"name": "id", "type": "INTEGER"}]
+        hook.get_table_columns_with_comments.return_value = [{"name": "id", "type": "INTEGER"}]
+        hook.get_table_comment.return_value = None
         return hook
 
     def test_list_tables_spans_multiple_schemas(self):
@@ -984,7 +1110,7 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert result == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
-        ts._hook.inspector.get_columns.assert_called_once_with(
+        ts._hook.get_table_columns_with_comments.assert_called_once_with(
             "DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO"
         )
 
@@ -1000,14 +1126,14 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert "error" in result
-        ts._hook.inspector.get_columns.assert_not_called()
+        ts._hook.get_table_columns_with_comments.assert_not_called()
 
     def test_get_schema_unqualified_uses_default_schema(self):
         ts = SQLToolset("pg", schema="public")
         ts._hook = self._schema_aware_hook({"public": ["users"]})
 
         asyncio.run(ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock()))
-        ts._hook.inspector.get_columns.assert_called_once_with("users", schema="public")
+        ts._hook.get_table_columns_with_comments.assert_called_once_with("users", schema="public")
 
     def test_list_tables_matches_case_insensitively(self):
         """Snowflake reflects unquoted names lowercased; uppercase allowed_tables still match."""
@@ -1040,7 +1166,7 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert "error" not in result
-        ts._hook.inspector.get_columns.assert_called_once_with(
+        ts._hook.get_table_columns_with_comments.assert_called_once_with(
             "deployment_image_details", schema="MODEL_ASTRO"
         )
 
