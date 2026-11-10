@@ -145,7 +145,7 @@ run.
 
 Two details an SDK emitter has to get right:
 
-- The outer `type` is the expand input's, `dict-of-lists` or `list-of-dicts`. The inner `type` is the XCom argument's, one of `map`, `zip` and `concat`; a plain argument omits it.
+- The outer `type` is the expand input's: `expand()` writes `dict-of-lists`, and `expand_kwargs()` writes `list-of-dicts`, whose value can be an `xcomref`. The inner `type` is the XCom argument's, one of `map`, `zip` and `concat`; a plain argument omits it.
 - Only the outermost argument is wrapped in `xcomref`. A nested one — `map`'s `arg`, `zip`'s and `concat`'s `args` — is the bare dict, because [`serialize_xcom_arg`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L590) recurses without re-wrapping.
 
 A `map()` callable is stored as source text, one string per callable in call order: Python writes
