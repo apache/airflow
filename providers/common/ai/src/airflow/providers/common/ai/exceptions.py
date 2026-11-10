@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from pydantic_ai.exceptions import FallbackExceptionGroup
+
 from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException
 
 
@@ -263,3 +265,41 @@ class LLMBatchStateReadError(LLMBatchJobError):
     blip resolves on its own); a task that fails with this error should be
     retried, not have its state file deleted.
     """
+
+
+class FallbackChainExhaustedError(FallbackExceptionGroup):
+    """
+    Raised when every connection of a ``fallback_conn_ids`` chain failed.
+
+    Subclasses pydantic-ai's ``FallbackExceptionGroup``, so ``except`` clauses and
+    ``RetryRule(exception=FallbackExceptionGroup)`` written for it keep matching. The
+    operator raises it ``from`` the group the chain raised, which stays ``__cause__``.
+
+    ``replayed_steps`` and ``recorded_steps`` are what the durable journal replayed and recorded
+    in this attempt before the chain failed, summed over every step kind, so a retry policy can
+    tell an attempt that advanced the run from one that failed where it started. They are
+    ``None`` when the run was not durable.
+    """
+
+    replayed_steps: int | None = None
+    recorded_steps: int | None = None
+
+    @property
+    def member_errors(self) -> tuple[Exception, ...]:
+        """The error each connection raised, in chain order."""
+        return tuple(self.exceptions)
+
+    @classmethod
+    def from_group(
+        cls,
+        group: FallbackExceptionGroup,
+        *,
+        replayed_steps: int | None = None,
+        recorded_steps: int | None = None,
+    ) -> FallbackChainExhaustedError:
+        """Build the error from the group the chain raised, keeping its attempts and members."""
+        error = cls(group.message, list(group.exceptions))
+        error.attempts = group.attempts
+        error.replayed_steps = replayed_steps
+        error.recorded_steps = recorded_steps
+        return error
