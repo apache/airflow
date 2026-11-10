@@ -86,6 +86,22 @@ github:
     creation_cap:
       enabled: true
       max_open_pull_requests: 5
+      # Exempt from the cap. This list replaces GitHub's bypass list on every sync, so users added
+      # by hand in the repository settings are removed. Fork CI pilot participants are exempt
+      # because their CI runs in their own forks; keep them in sync with [pilot] in
+      # .github/fork-ci-gate.toml.
+      bypass_users:
+        - aaron-y-chen
+        - Andrushika
+        - Dev-iL
+        - justinpakzad
+        - meel-ayush
+        - Prab-27
+        - raphaelauv
+        - SameerMesiah97
+        - sreecharan-desu
+        - stephen-bracken
+        - yuseok89
 
   # Legacy branch protection is being migrated to Rulesets below.
   #
