@@ -40,8 +40,10 @@ This ADR records the TypeScript spelling of them.
    leaf into `inputs` is what gets the decision checked against what the body produces.
 4. **`getLoop()` supplies the loop context**, beside `getContext()` and `getClient()` (ADR-0002
    decision 6). It is awaited, because reading the previous iteration is a round trip.
-5. **`index`, `maxIterations` and `previous` are fields**, and `getPrevious<T>()` is the typed view.
-   That is `client.getXCom`'s split between a value and the type the caller names.
+5. **`index` and `maxIterations` are fields, and `getPrevious<T>()` is the one accessor** for the
+   previous iteration's terminal result — one, not two, as ADR-0017 asks of every runtime. It is a
+   generic method naming its own return type, as `client.getXCom<T>()` is, not a field with a typed
+   view beside it.
 6. **A body task returns a `LoopTaskRef<T>`**, a `TaskRef<T>` that records the loop it came from.
    Inside the loop it reads as one iteration's `T`. Outside it, `all()` returns a
    `TaskRef<XComSequence<T>>` and a bare ref is rejected when the Dag is read, since core serves only
@@ -166,11 +168,11 @@ interface LoopContext {
   readonly index: number;
   readonly maxIterations: number;
 
-  /** The previous iteration's terminal result as it arrived, or `null` at iteration 1. */
-  readonly previous: unknown;
-
-  /** The same value, as the type the caller names. `client.getXCom`'s type parameter. */
-  getPrevious<T>(): T | null;
+  /**
+   * The previous iteration's terminal result, as the type the caller names, or `null` at iteration
+   * 1. An `XComSequence<T>` when the terminal task is mapped.
+   */
+  getPrevious<T = unknown>(): T | null;
 }
 ```
 
