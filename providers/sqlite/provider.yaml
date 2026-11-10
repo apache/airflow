@@ -93,7 +93,6 @@ connection-types:
     ui-field-behaviour:
       hidden-fields:
         - port
-        - schema
         - login
         - password
       relabeling:

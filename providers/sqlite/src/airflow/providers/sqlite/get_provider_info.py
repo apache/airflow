@@ -44,7 +44,7 @@ def get_provider_info():
                 "hook-name": "Sqlite",
                 "connection-type": "sqlite",
                 "ui-field-behaviour": {
-                    "hidden-fields": ["port", "schema", "login", "password"],
+                    "hidden-fields": ["port", "login", "password"],
                     "relabeling": {"host": "File path"},
                     "placeholders": {
                         "host": "/path/to/database.db (leave empty or use :memory: for an in-memory database)",
