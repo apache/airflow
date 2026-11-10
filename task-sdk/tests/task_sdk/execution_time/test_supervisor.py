@@ -1924,6 +1924,65 @@ class TestWatchedSubprocess:
         } in cap_structlog
         assert rc == -signal_to_raise
 
+    @pytest.mark.execution_timeout(30)
+    @pytest.mark.parametrize(
+        "reported",
+        [
+            pytest.param(None, id="nothing-reported"),
+            pytest.param(SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")), id="success-reported"),
+        ],
+    )
+    def test_exit_status_collected_elsewhere(self, reported, cap_structlog, client_with_ti_start):
+        """
+        Regression test for #70117.
+
+        With SIGCHLD ignored, the kernel reaps the task process as soon as it exits, so its exit status
+        can never be collected. The supervisor must still notice the exit and deliver the reported state.
+        """
+
+        def subprocess_main():
+            comms = CommsDecoder()
+            comms._get_response()
+            if reported is not None:
+                comms.send(reported)
+
+        previous_handler = signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+        try:
+            proc = ActivitySubprocess.start(
+                dag_rel_path=os.devnull,
+                bundle_info=FAKE_BUNDLE,
+                what=TaskInstance(
+                    id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                    task_id="b",
+                    dag_id="c",
+                    run_id="d",
+                    try_number=1,
+                    dag_version_id=uuid7(),
+                    queue="default",
+                ),
+                client=client_with_ti_start,
+                target=subprocess_main,
+            )
+            rc = proc.wait()
+        finally:
+            signal.signal(signal.SIGCHLD, previous_handler)
+
+        assert rc == -1
+        assert {
+            "log_level": "warning",
+            "event": "Process exited, but its exit status was collected elsewhere (is SIGCHLD ignored?)",
+        } in cap_structlog
+        if reported is None:
+            client_with_ti_start.task_instances.succeed.assert_not_called()
+            client_with_ti_start.task_instances.finish.assert_called_once()
+            assert (
+                client_with_ti_start.task_instances.finish.call_args.kwargs["state"]
+                == TaskInstanceState.FAILED
+            )
+        else:
+            client_with_ti_start.task_instances.succeed.assert_called_once()
+            client_with_ti_start.task_instances.finish.assert_not_called()
+
     @pytest.mark.execution_timeout(3)
     def test_cleanup_sockets_after_delay(self, monkeypatch, mocker):
         """Supervisor should close sockets if EOF events are missed."""
@@ -2062,6 +2121,18 @@ class TestWatchedSubprocessKill:
         mock_process.send_signal.assert_called_once_with(signal.SIGINT)
         mock_process.wait.assert_called_once()
         assert watched_subprocess._exit_code == -1
+
+    def test_exit_status_collected_elsewhere_is_recorded_once(self, watched_subprocess, mock_process):
+        """A process whose exit status is lost exits once; later checks must not restart the cleanup clock."""
+        mock_process.wait.return_value = None
+
+        assert watched_subprocess._check_subprocess_exit() == -1
+        exited_at = watched_subprocess._process_exit_monotonic
+        assert exited_at is not None
+        assert watched_subprocess._check_subprocess_exit() == -1
+
+        mock_process.wait.assert_called_once_with(timeout=0)
+        assert watched_subprocess._process_exit_monotonic == exited_at
 
     def test_kill_process_custom_signal(self, watched_subprocess, mock_process, mocker):
         """Test that the process is killed with the correct signal via killpg."""
@@ -5660,6 +5731,41 @@ class TestSignalRetryLogic:
         mock_watched_subprocess._should_retry = False
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
+
+    @pytest.mark.parametrize(
+        ("exit_status_lost", "terminal_state", "should_retry", "expected"),
+        [
+            pytest.param(
+                True, TaskInstanceState.SUCCESS, False, TaskInstanceState.SUCCESS, id="lost-success"
+            ),
+            pytest.param(
+                True, TaskInstanceState.SKIPPED, False, TaskInstanceState.SKIPPED, id="lost-skipped"
+            ),
+            pytest.param(True, None, False, TaskInstanceState.FAILED, id="lost-nothing-reported"),
+            pytest.param(True, None, True, TaskInstanceState.UP_FOR_RETRY, id="lost-nothing-reported-retry"),
+            pytest.param(
+                False, TaskInstanceState.SUCCESS, False, TaskInstanceState.FAILED, id="known-exit-code"
+            ),
+        ],
+    )
+    def test_lost_exit_status_uses_reported_state(
+        self, mocker, exit_status_lost, terminal_state, should_retry, expected
+    ):
+        """Without an exit status the reported state decides; a known nonzero exit code still overrides it."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = -1
+        mock_watched_subprocess._exit_status_lost = exit_status_lost
+        mock_watched_subprocess._terminal_state = terminal_state
+        mock_watched_subprocess._should_retry = should_retry
+
+        assert mock_watched_subprocess.final_state == expected
 
 
 def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
