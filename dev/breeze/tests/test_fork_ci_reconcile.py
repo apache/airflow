@@ -52,6 +52,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     GateChangeFinder,
     JobStatusReporter,
     Plan,
+    Projection,
     PullRequestChangedError,
     PullRequestSnapshot,
     apply_plan,
@@ -59,6 +60,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     build_slack_payload,
     changes_ci_definition,
     classify,
+    compute_projection,
     count_commits_behind,
     discover,
     drop_reported,
@@ -236,19 +238,118 @@ def test_setup_required_comment_gives_the_command():
         pytest.param(ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL), None, id="running"),
         pytest.param(
             ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
-            True,
+            None,
             id="failed",
         ),
         pytest.param(ForkObservation(workflow_state="disabled_fork"), True, id="setup-required"),
     ],
 )
-def test_non_green_removes_review_label_and_drafts_only_when_the_author_must_act(fork, draft):
+def test_non_green_removes_review_label_and_drafts_only_without_a_fork_run(fork, draft):
     pr = _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"))
 
     plan, _, _ = _classify(pr, fork)
 
     assert plan.draft is draft
     assert plan.remove_labels == ["ready for maintainer review"]
+
+
+@pytest.mark.parametrize(
+    ("state", "author_draft", "expected"),
+    [
+        pytest.param(
+            ForkState.SETUP_REQUIRED,
+            False,
+            Projection(draft=True, ready_for_review=False, needs_project_ci=False),
+            id="setup-required",
+        ),
+        pytest.param(
+            ForkState.AWAITING_PUSH,
+            False,
+            Projection(draft=True, ready_for_review=False, needs_project_ci=False),
+            id="awaiting-push",
+        ),
+        pytest.param(
+            ForkState.FAILED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="failed",
+        ),
+        pytest.param(
+            ForkState.FAILED,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="failed-author-draft",
+        ),
+        pytest.param(
+            ForkState.RUNNING,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="running",
+        ),
+        pytest.param(
+            ForkState.GREEN,
+            False,
+            Projection(draft=False, ready_for_review=True, needs_project_ci=False),
+            id="green",
+        ),
+        pytest.param(
+            ForkState.GREEN,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="green-author-draft",
+        ),
+        pytest.param(
+            ForkState.GREEN_UNVERIFIED,
+            False,
+            Projection(draft=False, ready_for_review=False, needs_project_ci=True),
+            id="unverified",
+        ),
+        pytest.param(
+            ForkState.GREEN_UNVERIFIED,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="unverified-author-draft",
+        ),
+        pytest.param(
+            ForkState.RELEASED,
+            False,
+            Projection(draft=False, ready_for_review=None, needs_project_ci=False),
+            id="released",
+        ),
+        pytest.param(
+            ForkState.RELEASED,
+            True,
+            Projection(draft=None, ready_for_review=None, needs_project_ci=False),
+            id="released-author-draft",
+        ),
+        pytest.param(
+            ForkState.UNGATED,
+            False,
+            Projection(draft=False, ready_for_review=None, needs_project_ci=False),
+            id="ungated",
+        ),
+        pytest.param(
+            ForkState.CLOSED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="closed",
+        ),
+        pytest.param(
+            ForkState.GATE_BYPASSED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="gate-bypassed",
+        ),
+        pytest.param(
+            ForkState.GATE_MODIFIED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="gate-modified",
+        ),
+    ],
+)
+def test_projection_table(state, author_draft, expected):
+    assert compute_projection(state, author_draft=author_draft) == expected
 
 
 def test_green_undrafts_what_the_bot_drafted():
@@ -258,11 +359,22 @@ def test_green_undrafts_what_the_bot_drafted():
     assert plan.add_labels == ["ready for maintainer review"]
 
 
-def test_green_keeps_an_author_draft():
-    plan, _, _ = _classify(_pr(last_draft_actor="someone"), GREEN)
+@pytest.mark.parametrize(
+    "last_draft_actor",
+    [
+        pytest.param("someone", id="drafted-by-author"),
+        pytest.param(None, id="opened-as-draft"),
+    ],
+)
+def test_green_keeps_an_author_draft_out_of_the_review_queue(last_draft_actor):
+    pr = _pr(last_draft_actor=last_draft_actor, labels=("fork ci required", "ready for maintainer review"))
+
+    plan, _, _ = _classify(pr, GREEN)
 
     assert plan.draft is None
     assert plan.add_labels == []
+    assert plan.remove_labels == ["ready for maintainer review"]
+    assert "Mark it ready for review when it is." in plan.marker_comment
 
 
 def test_green_labels_a_ready_pull_request():
@@ -292,18 +404,27 @@ def test_green_is_not_trusted_when_ci_files_change():
 
 
 @pytest.mark.parametrize(
-    ("last_draft_actor", "expected_draft"),
+    ("last_draft_actor", "expected_draft", "expected_labels", "expected_text"),
     [
-        pytest.param("github-actions[bot]", False, id="bot-draft-undrafted"),
-        pytest.param("someone", None, id="author-draft-kept"),
+        pytest.param(
+            "github-actions[bot]",
+            False,
+            ["needs project ci"],
+            "run project CI for it before it can be merged",
+            id="bot-draft-undrafted",
+        ),
+        pytest.param("someone", None, [], "Once you mark it ready for review", id="author-draft-kept"),
     ],
 )
-def test_green_unverified_does_not_keep_a_bot_draft(last_draft_actor, expected_draft):
+def test_green_unverified_does_not_keep_a_bot_draft(
+    last_draft_actor, expected_draft, expected_labels, expected_text
+):
     plan, _, _ = _classify(_pr(last_draft_actor=last_draft_actor), GREEN, changes_ci_files=True)
 
     assert plan.state == ForkState.GREEN_UNVERIFIED
     assert plan.draft is expected_draft
-    assert plan.add_labels == ["needs project ci"]
+    assert plan.add_labels == expected_labels
+    assert expected_text in plan.marker_comment
 
 
 LABELLED = ("fork ci required", "needs project ci")
@@ -760,7 +881,7 @@ def test_gate_tampering_closes(pr_overrides, checked):
     assert plan.close is checked
     if checked:
         assert plan.state == ForkState.GATE_BYPASSED
-        assert plan.draft is True
+        assert plan.draft is None
         assert plan.status == (
             "error",
             PROJECT_RUN_URL,
@@ -2881,7 +3002,7 @@ def test_a_change_to_the_gate_closes():
 
     assert plan.state == ForkState.GATE_MODIFIED
     assert plan.close is True
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
         "error",
