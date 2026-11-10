@@ -540,7 +540,6 @@ def supervise_callback(
                 terminal_output = f"Callback subprocess exited with code {exit_code}"
         except Exception as e:
             terminal_output = f"Callback supervisor error: {type(e).__name__}: {e}"
-            log.exception("Callback supervisor error", workload_id=id)
             raise
         finally:
             try:
