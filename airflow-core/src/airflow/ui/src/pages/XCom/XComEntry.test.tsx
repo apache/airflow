@@ -20,25 +20,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { XcomService } from "openapi/requests";
 
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { XComEntry } from "./XComEntry";
 
-const server = setupServer();
 const entryUrl = "/api/v2/dags/test_dag/dagRuns/test_run/taskInstances/test_task/xcomEntries/:xcomKey";
 const entryProps = { dagId: "test_dag", mapIndex: -1, runId: "test_run", taskId: "test_task" };
 
 // i18n resources are not loaded in unit tests, so translated text renders as its key.
 const errorTitle = "error.title";
 
-beforeAll(() => server.listen({ onUnhandledFrame: "bypass" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 afterEach(() => vi.restoreAllMocks());
 
 const renderValue = (value: string) => {

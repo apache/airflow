@@ -136,31 +136,33 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   return (
     <Modal
       footerActions={
+        <Button
+          disabled={affectedTasks.total_entries === 0}
+          loading={isPending}
+          onClick={() => {
+            mutate({
+              dagId,
+              requestBody: {
+                dag_run_id: runId,
+                dry_run: false,
+                include_downstream: downstream,
+                include_future: future,
+                include_past: past,
+                include_upstream: upstream,
+                ...(note === null ? {} : { note }),
+                ...(keepTaskState ? { keep_task_state: true } : {}),
+                only_failed: onlyFailed,
+                run_on_latest_version: runOnLatestVersion,
+                task_group_id: groupId,
+              },
+            });
+          }}
+        >
+          <CgRedo /> {translate("modal.confirm")}
+        </Button>
+      }
+      footerOptions={
         <>
-          <Button
-            disabled={affectedTasks.total_entries === 0}
-            loading={isPending}
-            onClick={() => {
-              mutate({
-                dagId,
-                requestBody: {
-                  dag_run_id: runId,
-                  dry_run: false,
-                  include_downstream: downstream,
-                  include_future: future,
-                  include_past: past,
-                  include_upstream: upstream,
-                  ...(note === null ? {} : { note }),
-                  ...(keepTaskState ? { keep_task_state: true } : {}),
-                  only_failed: onlyFailed,
-                  run_on_latest_version: runOnLatestVersion,
-                  task_group_id: groupId,
-                },
-              });
-            }}
-          >
-            <CgRedo /> {translate("modal.confirm")}
-          </Button>
           <Checkbox
             checked={keepTaskState}
             onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}

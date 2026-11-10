@@ -26,15 +26,16 @@ from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
 
-from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.deps.prev_dagrun_dep import is_past_depends_met
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement
 
+    from airflow.models.task_coordinates import SchedulingTI
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
@@ -59,7 +60,7 @@ class _UpstreamTIStates(NamedTuple):
     skipped_setup: int
 
     @classmethod
-    def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
+    def calculate(cls, finished_upstreams: Iterator[SchedulingTI]) -> _UpstreamTIStates:
         """
         Calculate states for a task instance.
 
@@ -195,20 +196,18 @@ class TriggerRuleDep(BaseTIDep):
 
             # Only the not-yet-expanded summary ti (map_index < 0) needs the broad
             # "depend on every upstream ti" behavior, so a rule that can be satisfied
-            # by a subset of upstreams (ONE_SUCCESS / ONE_FAILED / ONE_DONE /
-            # NONE_FAILED_MIN_ONE_SUCCESS) does not skip it before the mapped task
-            # group has expanded (see #34023, #39801). Once the ti is expanded, each
-            # instance must depend on the upstream instance(s) that share its map
-            # index, otherwise a single upstream failure would wrongly trigger every
-            # expanded instance (see #50210). The task may be nested in plain task
-            # groups inside the mapped one (see #39801), so check the closest mapped
-            # ancestor rather than only the immediate parent group.
+            # by a subset of upstreams (ONE_SUCCESS / ONE_FAILED / ONE_DONE) does not
+            # skip it before the mapped task group has expanded (see #34023). Once the
+            # ti is expanded, each instance must depend on the upstream instance(s) that
+            # share its map index, otherwise a single upstream failure would wrongly
+            # trigger every expanded instance (see #50210). The task may be nested in
+            # plain task groups inside the mapped one (see #39801), so check the closest
+            # mapped ancestor rather than only the immediate parent group.
             if map_index < 0 and task.get_closest_mapped_task_group() is not None:
                 is_fast_triggered = task.trigger_rule in (
                     TR.ONE_SUCCESS,
                     TR.ONE_FAILED,
                     TR.ONE_DONE,
-                    TR.NONE_FAILED_MIN_ONE_SUCCESS,
                 )
                 if is_fast_triggered and upstream_id not in set(
                     _iter_expansion_dependencies(task_group=task.task_group)
@@ -230,7 +229,7 @@ class TriggerRuleDep(BaseTIDep):
                 ),
             )
 
-        def _is_relevant_upstream(upstream: TaskInstance, relevant_ids: set[str] | KeysView[str]) -> bool:
+        def _is_relevant_upstream(upstream: SchedulingTI, relevant_ids: set[str] | KeysView[str]) -> bool:
             """
             Whether a task instance is a "relevant upstream" of the current task.
 
@@ -370,10 +369,7 @@ class TriggerRuleDep(BaseTIDep):
                     new_state == TaskInstanceState.SKIPPED
                     and dep_context.wait_for_past_depends_before_skipping
                 ):
-                    past_depends_met = ti.xcom_pull(
-                        task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
-                    )
-                    if not past_depends_met:
+                    if not is_past_depends_met(ti, session=session):
                         yield (
                             self._failing_status(
                                 reason="Task should be skipped but the past depends are not met"
@@ -425,6 +421,7 @@ class TriggerRuleDep(BaseTIDep):
             success_setup = upstream_states.success_setup
             skipped_setup = upstream_states.skipped_setup
 
+            task_id_counts: list[tuple[str, int]] | None = None
             # Optimization: Don't need to hit the database if all upstreams are
             # "simple" tasks (no task or task group mapping involved).
             if not any(t.get_needs_expansion() for t in upstream_tasks.values()):
@@ -434,7 +431,6 @@ class TriggerRuleDep(BaseTIDep):
                 # Regional selections share counts only for identical producer UUID sets;
                 # legacy runs can share by task IDs. Expansion invalidates both forms.
                 cache_key: tuple[str, str, frozenset[str | UUID]] | None = None
-                task_id_counts: list[tuple[str, int]] | None = None
                 if task.get_closest_mapped_task_group() is None:
                     scope: frozenset[str | UUID] = (
                         frozenset(
@@ -461,6 +457,20 @@ class TriggerRuleDep(BaseTIDep):
                 # so every key is present in `upstream_tasks`; is_setup is re-derived locally.
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+
+            # Once an in-group upstream has expanded, the summary ti of a task in a mapped task
+            # group no longer sees it and would judge every index by the outside upstreams alone.
+            # For these two rules the expanded tis decide instead. The cost: an outside failure seen
+            # after the expansion gives one upstream_failed ti per index instead of one in total,
+            # which is why other rules still decide here.
+            if (
+                map_index < 0
+                and trigger_rule in (TR.ALL_DONE_MIN_ONE_SUCCESS, TR.NONE_FAILED_MIN_ONE_SUCCESS)
+                and task_id_counts is not None
+                and len(task_id_counts) < len(upstream_tasks)
+                and task.get_closest_mapped_task_group() is not None
+            ):
+                return
 
             upstream_done = done >= upstream
 
@@ -531,10 +541,7 @@ class TriggerRuleDep(BaseTIDep):
                     new_state == TaskInstanceState.SKIPPED
                     and dep_context.wait_for_past_depends_before_skipping
                 ):
-                    past_depends_met = ti.xcom_pull(
-                        task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
-                    )
-                    if not past_depends_met:
+                    if not is_past_depends_met(ti, session=session):
                         yield self._failing_status(
                             reason="Task should be skipped but the past depends are not met"
                         )

@@ -40,6 +40,8 @@
   "createdAssetEvent_other": "已创建资源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活跃执行数",
     "catchup": "自动回填",
@@ -90,7 +92,6 @@
   "dagRun_other": "Dag 执行",
   "dagRunId": "Dag 执行 ID",
   "dagRunState": "Dag 执行状态",
-  "dagWarnings": "Dag 警告 / 错误",
   "delete": "删除",
   "diff": "差异对比",
   "diffCompareWith": "比较对象",
@@ -166,6 +167,11 @@
   "generateToken": "生成令牌",
   "includedIn": "包含于",
   "key": "键",
+  "logLevel": {
+    "hide": "隐藏日志级别",
+    "hotkey": "l",
+    "show": "显示日志级别"
+  },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
@@ -192,6 +198,7 @@
     "plugins": "插件",
     "security": "安全"
   },
+  "no": "否",
   "noItemsFound": "找不到 {{modelName}}",
   "note": {
     "add": "添加笔记",
@@ -264,6 +271,10 @@
   "selected": "已选择",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "清除任务实例时默认保留任务存储条目，而不是将其丢弃。",
+        "label": "清除时保留任务存储"
+      },
       "preventRunningTask": {
         "helper": "清除任务实例时跳过正在执行的任务。",
         "label": "防止清除正在执行的任务"
@@ -295,6 +306,10 @@
         "helper": "未单独设置布局方向的 Dag 和资源图表所使用的方向。",
         "label": "默认图表方向"
       },
+      "taskGroupsExpanded": {
+        "helper": "在您尚未保存分组选择的 Dag 中展开任务分组，已有选择保持不变。",
+        "label": "默认展开任务分组"
+      },
       "title": "图表"
     },
     "marking": {
@@ -303,6 +318,13 @@
         "label": "标记状态的默认选项"
       },
       "title": "标记状态"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) 各搜索框的设置和共享链接中的设置仍优先使用。",
+        "label": "默认在任意位置匹配"
+      },
+      "title": "搜索"
     },
     "taskInstance": {
       "defaultTab": {
@@ -346,6 +368,7 @@
       "toggleExpand": "展开或收起所有分组",
       "toggleFullscreen": "切换全屏",
       "toggleGraphGrid": "切换图形与网格视图",
+      "toggleLogLevel": "切换日志级别显示",
       "toggleSource": "切换来源显示",
       "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
       "toggleTimestamp": "切换时间戳显示",
@@ -442,6 +465,11 @@
     "queuedWhen": "开始排队时间",
     "renderedMapIndex": "已渲染映射索引",
     "scheduledWhen": "开始调度时间",
+    "stateReason": "状态原因",
+    "stateReasonSummary": {
+      "failed": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后停止",
+      "upForRetry": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后重试"
+    },
     "trigger": "触发器",
     "triggerer": {
       "assigned": "指派的触发器",
@@ -463,9 +491,14 @@
     "title": "团队"
   },
   "timeRange": {
+    "anyTime": "不限时间",
+    "in": "在",
+    "last7Days": "最近 7 天",
     "last12Hours": "最近 12 小时",
     "last24Hours": "最近 24 小时",
+    "last30Days": "最近 30 天",
     "lastHour": "最近 1 小时",
+    "latestRun": "最近一次执行",
     "pastWeek": "过去一周"
   },
   "timestamp": {
@@ -558,5 +591,6 @@
     "tooltip": "按 {{hotkey}} 切换换行",
     "unwrap": "不换行",
     "wrap": "换行"
-  }
+  },
+  "yes": "是"
 }

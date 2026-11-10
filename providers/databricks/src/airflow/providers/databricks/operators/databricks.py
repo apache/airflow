@@ -23,14 +23,21 @@ import ast
 import copy
 import hashlib
 import json as json_utils
+import re
 import time
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    BaseOperator,
+    BaseOperatorLink,
+    ResumableJobMixin,
+    XCom,
+    conf,
+)
 from airflow.providers.databricks.exceptions import DatabricksApiError, DatabricksOperatorPayloadError
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
@@ -69,44 +76,25 @@ if TYPE_CHECKING:
     from airflow.sdk import TaskGroup
     from airflow.sdk.types import Context, Logger
 
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "databricks_run_id"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
 XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 XCOM_STATEMENT_ID_KEY = "statement_id"
+
+# jobs/runs/get answers 400 INVALID_PARAMETER_VALUE for a run it no longer knows about, never 404.
+# These are the two message forms the Databricks SDK overrides to ResourceDoesNotExist; the code
+# alone also covers malformed input, which must stay an error rather than trigger a resubmit.
+_RUN_MISSING_MESSAGE_PATTERN = re.compile(r"Run .* does not exist|Run: .* in job: .* doesn't exist")
+
+
+def _is_run_missing_error(exc: DatabricksApiError) -> bool:
+    """Whether ``exc`` means Databricks has no record of the run (expired, deleted, or foreign)."""
+    if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
+        return True
+    return exc.error_code == "INVALID_PARAMETER_VALUE" and bool(_RUN_MISSING_MESSAGE_PATTERN.search(str(exc)))
+
 
 # Mapping from Airflow TriggerRule to Databricks RunIf condition.
 # Only non-default rules are included; ALL_SUCCESS is the Databricks default
@@ -1050,9 +1038,15 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         try:
             run_info = self._hook.get_run(external_id)
         except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
-            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
+            # Neither active nor succeeded, so the mixin resubmits instead of failing every retry.
+            if _is_run_missing_error(e):
+                self.log.warning(
+                    "Databricks has no record of run %s, so a fresh run will be submitted. "
+                    "If the workspace connection changed, the original run may still be going there. "
+                    "Databricks said: %s",
+                    external_id,
+                    e,
+                )
                 return "NOT_FOUND:"
             raise
         state = RunState(**run_info["state"])
@@ -1546,9 +1540,15 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         try:
             run_info = self._hook.get_run(external_id)
         except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
-            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
+            # Neither active nor succeeded, so the mixin resubmits instead of failing every retry.
+            if _is_run_missing_error(e):
+                self.log.warning(
+                    "Databricks has no record of run %s, so a fresh run will be submitted. "
+                    "If the workspace connection changed, the original run may still be going there. "
+                    "Databricks said: %s",
+                    external_id,
+                    e,
+                )
                 return "NOT_FOUND:"
             raise
         state = RunState(**run_info["state"])

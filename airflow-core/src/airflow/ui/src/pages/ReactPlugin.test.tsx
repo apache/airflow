@@ -177,6 +177,18 @@ describe("loadPlugin", () => {
     }
   });
 
+  it("reloads once and renders nothing when the bundle cannot be fetched", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
+
+    const { default: Component } = await loadPlugin(pluginA, () => Promise.reject(new Error("network down")));
+    const { container } = render(<Component />, { wrapper: Wrapper });
+
+    expect(reload).toHaveBeenCalledOnce();
+    // An error page here would bury the page the plugin was only decorating.
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("does not let a malformed bundle inherit a previously-loaded plugin's component", async () => {
     // A well-formed bundle sets globalThis.AirflowPlugin on import; a malformed one sets nothing.
     await loadPlugin(pluginA, () => {
@@ -187,5 +199,43 @@ describe("loadPlugin", () => {
     const { default: component } = await loadPlugin(pluginB, () => Promise.resolve());
 
     expect(component).not.toBe(componentA);
+  });
+
+  it("registers plugin dependencies before importing the plugin bundle", async () => {
+    const calls: Array<string> = [];
+
+    await loadPlugin(
+      pluginA,
+      () => {
+        calls.push("bundle");
+        (globalThis as Record<string, unknown>).AirflowPlugin = componentA;
+
+        return Promise.resolve();
+      },
+      () => {
+        calls.push("dependencies");
+
+        return Promise.resolve();
+      },
+    );
+
+    expect(calls).toEqual(["dependencies", "bundle"]);
+  });
+});
+
+const loading = (destination: ReactAppResponse["destination"]) =>
+  ({ bundle_url: "http://localhost/never-loaded.js", destination, name: "Unloaded" }) as ReactAppResponse;
+
+describe("ReactPlugin loading fallback", () => {
+  it("shows a spinner while a page plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("dag")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).toBeInTheDocument();
+  });
+
+  it("shows nothing while a base plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("base")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).not.toBeInTheDocument();
   });
 });

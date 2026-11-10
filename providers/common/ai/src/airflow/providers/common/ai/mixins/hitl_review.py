@@ -21,8 +21,6 @@ import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
-
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
@@ -32,6 +30,8 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_for_display
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +39,8 @@ log = logging.getLogger(__name__)
 _MAX_CONSECUTIVE_XCOM_PULL_FAILURES = 10
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from airflow.sdk import Context
 
 
@@ -49,9 +51,11 @@ class HITLReviewProtocol(Protocol):
     max_hitl_iterations: int
     hitl_timeout: timedelta | None
     hitl_poll_interval: float
-    prompt: str
     task_id: str
     log: Any
+
+    @property
+    def prompt(self) -> str | Sequence[Any]: ...
 
 
 class HITLReviewMixin:
@@ -88,7 +92,7 @@ class HITLReviewMixin:
     - ``enable_hitl_review`` (``bool``)
     - ``hitl_timeout`` (``timedelta | None``)
     - ``hitl_poll_interval`` (``float``, seconds)
-    - ``prompt`` (``str``)
+    - ``prompt`` (``str`` or ``Sequence[UserContent]``)
 
     And must implement: meth:`regenerate_with_feedback`.
     """
@@ -104,11 +108,11 @@ class HITLReviewMixin:
         Execute the full HITL review loop.
 
         :param context: Airflow task context.
-        :param output: Initial LLM output (str or BaseModel).
+        :param output: Initial LLM output (any pydantic-serializable value).
         :param message_history: Provider-specific conversation state (e.g.
             pydantic-ai ``list[ModelMessage]``).  Passed to
             :meth:`regenerate_with_feedback` on each iteration.
-        :returns: The final approved output as a string.
+        :returns: The approved output as a string (JSON for non-str values pydantic can serialize).
         :raises HITLMaxIterationsError: When max iterations reached without approval.
         :raises HITLRejectException: When the reviewer rejects the output.
         :raises HITLTimeoutError: When hitl_timeout elapses with no response.
@@ -122,7 +126,7 @@ class HITLReviewMixin:
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
             max_iterations=self.max_hitl_iterations,
-            prompt=self.prompt,
+            prompt=describe_prompt(self.prompt),
             current_output=output_str,
         )
 
@@ -239,7 +243,7 @@ class HITLReviewMixin:
                         status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
                         iteration=session.iteration,
                         max_iterations=self.max_hitl_iterations,
-                        prompt=self.prompt,
+                        prompt=session.prompt,
                         current_output=session.current_output,
                     )
                     ti.xcom_push(key=XCOM_AGENT_SESSION, value=_session_max.model_dump(mode="json"))
@@ -262,7 +266,7 @@ class HITLReviewMixin:
                     status=SessionStatus.PENDING_REVIEW,
                     iteration=new_iteration,
                     max_iterations=self.max_hitl_iterations,
-                    prompt=self.prompt,
+                    prompt=session.prompt,
                     current_output=new_output,
                 )
 
@@ -285,8 +289,5 @@ class HITLReviewMixin:
 
     @staticmethod
     def _to_string(output: Any) -> str:
-        if isinstance(output, BaseModel):
-            return output.model_dump_json()
-        if not isinstance(output, str):
-            return str(output)
-        return output
+        """Serialize an output for the reviewer to read as JSON, or ``str()`` when pydantic cannot."""
+        return dump_output_for_display(output)

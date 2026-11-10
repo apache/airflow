@@ -66,8 +66,11 @@ Follow the `nvm docs <https://github.com/nvm-sh/nvm>`__ to manage your node vers
     # Generate production build files will be at airflow/ui/dist
     pnpm build
 
-    # Format code in .ts, .tsx, .json, .css, .html files
+    # Format code in .ts, .tsx, .js, .json, .css, .html files (oxfmt)
     pnpm format
+
+    # Check formatting without writing changes
+    pnpm format:check
 
     # Check JS/TS code in .ts, .tsx, .html files and report any errors/warnings
     pnpm lint

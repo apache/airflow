@@ -64,7 +64,7 @@ EXEC_CONTAINER_NAME = "main"
 EXPECTED_EXEC_OUTPUT = "command executed in existing GKE Pod"
 
 # [START howto_operator_gcp_gke_create_cluster_definition]
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1, "autopilot": {"enabled": True}}
+CLUSTER = {"name": CLUSTER_NAME, "autopilot": {"enabled": True}}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
 EXEC_POD = f"""

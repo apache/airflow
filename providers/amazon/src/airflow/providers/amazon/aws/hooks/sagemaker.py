@@ -562,6 +562,47 @@ class SageMakerHook(AwsBaseHook):
             )
         return response
 
+    def _stop_job(self, api_name: str, name_kwarg: str, job_kind: str, job_name: str) -> None:
+        """
+        Call a SageMaker ``stop_*`` API, tolerating a job that is no longer running.
+
+        :param api_name: name of the boto3 client method to call.
+        :param name_kwarg: name of the job-name keyword that method takes.
+        :param job_kind: job kind as it should read in the log message.
+        :param job_name: name of the job to stop.
+        """
+        try:
+            getattr(self.conn, api_name)(**{name_kwarg: job_name})
+        except ClientError as ce:
+            # SageMaker only accepts a stop for a job in InProgress; a ValidationException here means
+            # the job reached a terminal state (or never existed) before the stop landed.
+            if ce.response["Error"]["Code"] == "ValidationException":
+                self.log.warning("Could not stop %s job %s: %s", job_kind, job_name, ce)
+                return
+            raise
+
+    def stop_training_job(self, training_job_name: str) -> None:
+        """
+        Stop a running SageMaker training job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SageMaker.Client.stop_training_job`
+
+        :param training_job_name: name of the training job to stop.
+        """
+        self._stop_job("stop_training_job", "TrainingJobName", "training", training_job_name)
+
+    def stop_processing_job(self, processing_job_name: str) -> None:
+        """
+        Stop a running SageMaker processing job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SageMaker.Client.stop_processing_job`
+
+        :param processing_job_name: name of the processing job to stop.
+        """
+        self._stop_job("stop_processing_job", "ProcessingJobName", "processing", processing_job_name)
+
     def describe_training_job(self, name: str):
         """
         Get the training job info associated with the name.

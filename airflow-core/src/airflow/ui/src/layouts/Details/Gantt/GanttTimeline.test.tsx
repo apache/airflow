@@ -46,6 +46,25 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
+let mockParams: Record<string, string | undefined> = {};
+let mockSearchParams = new URLSearchParams();
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const original = await importOriginal();
+
+  return {
+    ...(original as object),
+    useParams: () => mockParams,
+    useSearchParams: () => [mockSearchParams, vi.fn()] as const,
+  };
+});
+
+// Group membership is read from the Dag structure, which this test does not stand up.
+vi.mock("src/queries/useIsLoopGroup", () => ({
+  useGroupMembers: (groupId?: string) =>
+    groupId === "refine" ? new Set(["refine", "refine.improve", "refine.evaluate"]) : new Set<string>(),
+}));
+
 const TestWrapper = ({ children }: PropsWithChildren) => <Wrapper>{children}</Wrapper>;
 
 // Shared time range: 10:00 → 10:10 UTC on 2024-03-14
@@ -87,12 +106,24 @@ const buildSegment = (taskInstanceId: string, start: number, end: number): Gantt
   y: "task_1",
 });
 
+const passSegment = (taskId: string, iteration: number): GanttDataItem => ({
+  loopIteration: { iteration, loop_id: "refine" },
+  state: "success",
+  taskId,
+  taskInstanceId: `${taskId}-${iteration}`,
+  tryNumber: 1,
+  x: [MIN_MS, MAX_MS],
+  y: taskId,
+});
+
+const PASS_MEMBERS = ["refine.improve", "refine.evaluate"];
+
 describe("GanttTimeline segment bars", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it.each([0, 3])("shows loop iteration %s in the hovered bar's tooltip", async (iteration) => {
+  it.each([1, 3])("shows loop iteration %s in the hovered bar's tooltip", async (iteration) => {
     const segment: GanttDataItem = {
       loopIteration: { iteration, loop_id: "loop" },
       regionId: "11111111-1111-1111-1111-111111111111",
@@ -112,7 +143,8 @@ describe("GanttTimeline segment bars", () => {
 
     fireEvent.pointerMove(screen.getByRole("link"), { pointerType: "mouse" });
 
-    expect(await screen.findByText(`taskInstance.iteration: ${iteration} (loop)`)).toBeInTheDocument();
+    // The loop's name is not repeated here: the group it belongs to is already on screen.
+    expect(await screen.findByText(`taskInstance.iteration: ${iteration}`)).toBeInTheDocument();
   });
 
   it.each([
@@ -446,5 +478,110 @@ describe("GanttTimeline segment bars", () => {
     expect(bars[0]?.querySelector('[style*="repeating-linear-gradient"]')).not.toBeNull();
     // Regular task bar does not.
     expect(bars[1]?.querySelector('[style*="repeating-linear-gradient"]')).toBeNull();
+  });
+
+  it.each([
+    { expected: 2, name: "every task of the group", params: { groupId: "refine" } },
+    { expected: 1, name: "only the row itself", params: { taskId: "refine.improve" } },
+  ])("lights up $name at the pinned pass", ({ expected, params }) => {
+    mockParams = params;
+    mockSearchParams = new URLSearchParams("iteration=2");
+    const nodes = PASS_MEMBERS.map((id) => ({ ...BASE_NODE, id, label: id }));
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={nodes}
+        rowSegments={PASS_MEMBERS.map((id) => [passSegment(id, 2)])}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(expected);
+  });
+
+  it("leaves other passes alone", () => {
+    mockParams = { groupId: "refine" };
+    mockSearchParams = new URLSearchParams("iteration=2");
+    const nodes = PASS_MEMBERS.map((id) => ({ ...BASE_NODE, id, label: id }));
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={nodes}
+        rowSegments={PASS_MEMBERS.map((id) => [passSegment(id, 5)])}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(0);
+  });
+
+  it("leaves the highlight open where one run's segments meet", () => {
+    mockParams = { taskId: "refine.improve" };
+    mockSearchParams = new URLSearchParams("iteration=2");
+    // Two segments of the same attempt, as a queued stretch followed by the run itself.
+    const shared = { loopIteration: { iteration: 2, loop_id: "refine" }, taskInstanceId: "one-try" };
+    const half = MIN_MS + (MAX_MS - MIN_MS) / 2;
+    const segments: Array<GanttDataItem> = [
+      {
+        ...shared,
+        state: "queued",
+        taskId: "refine.improve",
+        tryNumber: 1,
+        x: [MIN_MS, half],
+        y: "refine.improve",
+      },
+      {
+        ...shared,
+        state: "success",
+        taskId: "refine.improve",
+        tryNumber: 1,
+        x: [half, MAX_MS],
+        y: "refine.improve",
+      },
+    ];
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[{ ...BASE_NODE, id: "refine.improve", label: "refine.improve" }]}
+        rowSegments={[segments]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    const [first, second] = [...document.querySelectorAll("[data-pinned-pass]")];
+    const styleOf = (node: Element) => globalThis.getComputedStyle(node);
+
+    // The run is ringed at its ends and along its length, but not down the seam between the
+    // two states, which is inside the thing being highlighted rather than its edge.
+    expect(styleOf(first as Element).borderLeftWidth).toBe("2px");
+    expect(styleOf(first as Element).borderRightWidth).not.toBe("2px");
+    expect(styleOf(second as Element).borderLeftWidth).not.toBe("2px");
+    expect(styleOf(second as Element).borderRightWidth).toBe("2px");
+    expect(styleOf(first as Element).borderTopWidth).toBe("2px");
+  });
+
+  it("does not read a region index as a pass", () => {
+    mockParams = { taskId: "refine.improve" };
+    // A mapped expansion's region index is its map slot. Ringing bars because slot 2 happens to
+    // look like pass 2 would highlight an unrelated pass.
+    mockSearchParams = new URLSearchParams("region_index=2&region_id=expansion");
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[{ ...BASE_NODE, id: "refine.improve", label: "refine.improve" }]}
+        rowSegments={[[passSegment("refine.improve", 2)]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(0);
   });
 });

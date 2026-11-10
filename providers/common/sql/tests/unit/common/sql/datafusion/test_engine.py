@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import os
 import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from datafusion import SessionContext
+from datafusion.object_store import LocalFileSystem
 
 from airflow.models import Connection
 from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig
@@ -96,6 +98,7 @@ class TestDataFusionEngine:
         mock_store = MagicMock()
         mock_provider.create_object_store.return_value = mock_store
         mock_provider.get_scheme.return_value = scheme
+        mock_provider.normalize_uri.side_effect = lambda uri: uri
         mock_factory.return_value = mock_provider
 
         engine = DataFusionEngine()
@@ -112,7 +115,9 @@ class TestDataFusionEngine:
         mock_provider.create_object_store.assert_called_once_with(
             f"{scheme}://bucket/path", connection_config=mock_get_conn.return_value
         )
-        engine.df_ctx.register_object_store.assert_called_once_with(schema=scheme, store=mock_store)
+        engine.df_ctx.register_object_store.assert_called_once_with(
+            schema=scheme, store=mock_store, host="bucket"
+        )
 
         if format == "parquet":
             engine.df_ctx.register_parquet.assert_called_once_with("test_table", f"{scheme}://bucket/path")
@@ -208,8 +213,10 @@ class TestDataFusionEngine:
         with pytest.raises(QueryExecutionException, match="Error while executing query"):
             engine.execute_query("SELECT * FROM test_table")
 
+    @pytest.mark.parametrize("uri_prefix", ["file://", ""], ids=["file-uri", "bare-path"])
     @patch.object(DataFusionEngine, "_get_connection_config")
-    def test_execute_query_with_local_csv(self, mock_get_conn):
+    def test_execute_query_with_local_csv(self, mock_get_conn, uri_prefix):
+        """A bare path (no file:// prefix) is accepted with an explicit storage_type=StorageType.LOCAL."""
         mock_get_conn.return_value = None
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
@@ -220,7 +227,7 @@ class TestDataFusionEngine:
             engine = DataFusionEngine()
             datasource_config = DataSourceConfig(
                 table_name="test_csv",
-                uri=f"file://{csv_path}",
+                uri=f"{uri_prefix}{csv_path}",
                 format="csv",
                 storage_type="local",
                 conn_id="",
@@ -230,10 +237,86 @@ class TestDataFusionEngine:
 
             result = engine.execute_query("SELECT * FROM test_csv ORDER BY name")
 
-            expected = {"name": ["Alice", "Bob"], "age": [30, 25]}
-            assert result == expected
+            assert result == {"name": ["Alice", "Bob"], "age": [30, 25]}
         finally:
             os.unlink(csv_path)
+
+    @patch.object(DataFusionEngine, "_get_connection_config")
+    def test_execute_query_with_abfs_uri_matches_real_registry(self, mock_get_conn):
+        """Only object-store construction is mocked; normalize_uri and DataFusion's real
+        registry run live, so a missing store surfaces as "No suitable object store found"."""
+        mock_get_conn.return_value = None
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("name,age\nAlice,30\nBob,25\n")
+            csv_path = f.name
+
+        try:
+            engine = DataFusionEngine()
+            datasource_config = DataSourceConfig(
+                table_name="abfs_csv",
+                uri=f"abfss://demo-container@myaccount.dfs.core.windows.net{csv_path}",
+                format="csv",
+                conn_id="wasb_default",
+            )
+
+            with patch(
+                "airflow.providers.common.sql.datafusion.object_storage_provider"
+                ".AzureObjectStorageProvider.create_object_store",
+                autospec=True,
+                return_value=LocalFileSystem(),
+            ):
+                engine.register_datasource(datasource_config)
+
+            result = engine.execute_query("SELECT * FROM abfs_csv ORDER BY name")
+
+            assert result == {"name": ["Alice", "Bob"], "age": [30, 25]}
+            assert datasource_config.uri == f"abfss://demo-container@myaccount.dfs.core.windows.net{csv_path}"
+            assert engine.registered_tables["abfs_csv"] == f"az://myaccount.demo-container{csv_path}"
+        finally:
+            os.unlink(csv_path)
+
+    @pytest.mark.parametrize(
+        ("uri_a", "uri_b"),
+        [
+            pytest.param(
+                "abfss://bronze@myaccount.dfs.core.windows.net/data.csv",
+                "abfss://silver@myaccount.dfs.core.windows.net/data.csv",
+                id="same-account-different-containers",
+            ),
+            pytest.param(
+                "abfss://data@devacct.dfs.core.windows.net/data.csv",
+                "abfss://data@prodacct.dfs.core.windows.net/data.csv",
+                id="same-container-different-accounts",
+            ),
+        ],
+    )
+    @patch.object(DataFusionEngine, "_get_connection_config")
+    def test_execute_query_with_shared_abfs_identifiers_reads_each_store(self, mock_get_conn, uri_a, uri_b):
+        mock_get_conn.return_value = None
+
+        with (
+            tempfile.TemporaryDirectory() as dir_a,
+            tempfile.TemporaryDirectory() as dir_b,
+        ):
+            (Path(dir_a) / "data.csv").write_text("name,age\nAlice,30\n")
+            (Path(dir_b) / "data.csv").write_text("name,age\nBob,25\n")
+
+            engine = DataFusionEngine()
+            config_a = DataSourceConfig(table_name="table_a", uri=uri_a, format="csv", conn_id="wasb_a")
+            config_b = DataSourceConfig(table_name="table_b", uri=uri_b, format="csv", conn_id="wasb_b")
+
+            with patch(
+                "airflow.providers.common.sql.datafusion.object_storage_provider"
+                ".AzureObjectStorageProvider.create_object_store",
+                autospec=True,
+                side_effect=[LocalFileSystem(prefix=dir_a), LocalFileSystem(prefix=dir_b)],
+            ):
+                engine.register_datasource(config_a)
+                engine.register_datasource(config_b)
+
+            assert engine.execute_query("SELECT * FROM table_a") == {"name": ["Alice"], "age": [30]}
+            assert engine.execute_query("SELECT * FROM table_b") == {"name": ["Bob"], "age": [25]}
 
     @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
     @patch.object(DataFusionEngine, "_get_connection_config")
@@ -243,6 +326,7 @@ class TestDataFusionEngine:
         mock_store = MagicMock()
         mock_provider.create_object_store.return_value = mock_store
         mock_provider.get_scheme.return_value = "s3"
+        mock_provider.normalize_uri.side_effect = lambda uri: uri
         mock_factory.return_value = mock_provider
 
         engine = DataFusionEngine()
@@ -263,7 +347,9 @@ class TestDataFusionEngine:
         mock_provider.create_object_store.assert_called_once_with(
             "s3://bucket/path/", connection_config=mock_get_conn.return_value
         )
-        engine.df_ctx.register_object_store.assert_called_once_with(schema="s3", store=mock_store)
+        engine.df_ctx.register_object_store.assert_called_once_with(
+            schema="s3", store=mock_store, host="bucket"
+        )
 
         engine.df_ctx.register_parquet.assert_called_once_with(
             "test_table",
@@ -430,7 +516,6 @@ class TestDataFusionEngine:
         credentials, extra_config = engine._get_credentials(mock_conn)
 
         assert credentials == {
-            "account": "client-id",
             "client_id": "client-id",
             "client_secret": "client-secret",
             "tenant_id": "tenant-id",
@@ -748,7 +833,6 @@ class TestDataFusionEngine:
         else:
             credentials, extra_config = engine._get_credentials(mock_conn)
             assert credentials == {
-                "account": "client-id",
                 "client_id": "client-id",
                 "client_secret": "client-secret",
                 "tenant_id": "tenant-id",

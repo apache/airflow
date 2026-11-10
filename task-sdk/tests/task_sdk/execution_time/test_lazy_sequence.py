@@ -139,6 +139,33 @@ def test_getitem_calls_correct_deserialise(monkeypatch, mock_supervisor_comms, l
     )
 
 
+class LoadValueXCom(BaseXCom):
+    @classmethod
+    def load_value(cls, stored):
+        return f"loaded {stored}"
+
+
+@pytest.mark.parametrize(
+    ("index", "response", "expected"),
+    [
+        pytest.param(4, XComSequenceIndexResult(root="ref-4"), "loaded ref-4", id="index"),
+        pytest.param(
+            slice(0, 2),
+            XComSequenceSliceResult(root=["ref-0", "ref-1"]),
+            ["loaded ref-0", "loaded ref-1"],
+            id="slice",
+        ),
+    ],
+)
+def test_getitem_loads_through_load_value(
+    index, response, expected, monkeypatch, mock_supervisor_comms, lazy_sequence
+):
+    mock_supervisor_comms.send.return_value = response
+    monkeypatch.setattr(airflow.sdk.execution_time.xcom, "XCom", LoadValueXCom)
+
+    assert lazy_sequence[index] == expected
+
+
 def test_getitem_indexerror(mock_supervisor_comms, lazy_sequence):
     mock_supervisor_comms.send.return_value = ErrorResponse(
         error=ErrorType.XCOM_NOT_FOUND,

@@ -19,28 +19,24 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { server } from "src/mocks/server";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
 const hitlRequests: Array<{ dagId: string; dagRunId: string }> = [];
 
-let server: SetupServer;
+beforeAll(() => preloadAppRoutes(["/dags/tutorial_taskflow_api/required_actions"]));
 
-beforeAll(() => {
-  server = setupServer(
-    ...handlers,
+beforeEach(() => {
+  server.use(
     http.get("/api/v2/dags/:dagId/dagRuns/:dagRunId/hitlDetails", ({ params }) => {
       hitlRequests.push({ dagId: String(params.dagId), dagRunId: String(params.dagRunId) });
 
       return HttpResponse.json({ hitl_details: [], total_entries: 0 });
     }),
   );
-  server.listen({ onUnhandledFrame: "bypass" });
 });
-afterAll(() => server.close());
 
 describe("Dag required actions route", () => {
   it("opens the HITL review modal scoped to the Dag", async () => {

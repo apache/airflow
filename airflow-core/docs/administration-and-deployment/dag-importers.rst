@@ -45,6 +45,10 @@ Airflow ships with two importers:
 Each :doc:`language SDK <../authoring-and-scheduling/language-sdks/index>` with a configured coordinator
 also registers an importer for its bundle format.
 
+Airflow also has a YAML Dag importer at **airflow.sdk.importers.yaml_importer.YamlDagImporter**. Unlike the
+two importers above, it is not enabled by default. Register it as shown under `Configuring importers`_.
+See :ref:`yaml-dags` for the document format.
+
 How Airflow uses importers
 --------------------------
 
@@ -77,14 +81,25 @@ with:
 
     [dag_processor]
     dag_importer_configs = [
+        {"classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter"}
+      ]
+
+Additional configurations may be added if the importer accepts them. The YAML
+importer, for example, allows customizing the file extensions it scans (by
+default, ``.yaml`` and ``.yml``):
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_importer_configs = [
         {
-          "classpath": "my_company.importers.YamlDagImporter",
-          "extensions": [".yaml", ".yml"]
+          "classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter",
+          "extensions": [".yaml", ".yml", ".json"]
         }
       ]
 
-Without ``extensions``, the importer handles the extensions its class declares. An entry with only a
-classpath can be given as a string, for example ``["my_company.importers.YamlDagImporter"]``.
+If no additional arguments are needed, an entry with only a classpath can also
+be given as a string, for example ``["my_company.importers.TomlDagImporter"]``.
 
 To register an importer for one bundle only, add an ``importers`` key, in the same format, to that bundle's
 entry in :ref:`config:dag_processor__dag_bundle_config_list`:
@@ -97,7 +112,7 @@ entry in :ref:`config:dag_processor__dag_bundle_config_list`:
           "name": "pipelines",
           "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
           "kwargs": {"path": "/opt/airflow/pipelines"},
-          "importers": ["my_company.importers.YamlDagImporter"]
+          "importers": ["my_company.importers.TomlDagImporter"]
         }
       ]
 

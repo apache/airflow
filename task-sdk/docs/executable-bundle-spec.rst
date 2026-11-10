@@ -262,9 +262,10 @@ Top-level keys:
     - ``sha256`` (string, required): the lower-case hexadecimal SHA-256 of the file's bytes.
 
 ``dags`` (mapping, required)
-    Mapping of ``dag_id`` to a *DAG entry*. Every ``dag_id`` the bundle
-    exposes MUST appear here. The scanner uses these keys to match a DAG
-    parsing or task-execution request to the bundle that owns it.
+    Mapping of ``dag_id`` to a *DAG entry*, for each Python Dag with stub TaskHandler whose tasks the
+    bundle runs. The scanner uses these keys to match a task-execution request to the bundle that
+    owns it. The mapping MAY be empty, for example when the bundle only declares Dag definitions,
+    because the Dag processor finds those by running the binary.
 
 DAG entry fields:
 
