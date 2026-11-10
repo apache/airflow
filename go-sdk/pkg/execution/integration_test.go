@@ -521,14 +521,13 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 			MapIndex:  ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-		// The supervisor nests scheduling timestamps under dag_run; the
-		// generated nullable date-time fields hold time.Time values directly.
+		// The supervisor nests scheduling timestamps under dag_run.
 		TIContext: genmodels.TIRunContext{
 			DagRun: genmodels.DagRun{
-				LogicalDate:       logical,
-				DataIntervalStart: start,
-				DataIntervalEnd:   end,
-				RunAfter:          runAfter,
+				LogicalDate:       genmodels.TimePtr(logical),
+				DataIntervalStart: genmodels.TimePtr(start),
+				DataIntervalEnd:   genmodels.TimePtr(end),
+				RunAfter:          genmodels.Time(runAfter),
 				RunType:           genmodels.DagRunTypeManual,
 				Conf:              &conf,
 			},
