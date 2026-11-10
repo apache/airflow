@@ -63,11 +63,9 @@ class ToolCallScope:
 
     run: Hashable | None = None
     turn: Hashable | None = None
-    # The tool function the adapter calls. Only its own count is recorded and replayed, not that
-    # of a toolset tool a custom function calls in turn.
+    # The tool function the adapter calls. Only its own count is recorded, not that of a toolset
+    # tool a custom function calls in turn.
     function: Callable[[dict[str, Any]], Awaitable[ToolResult]] | None = None
-    # When set, the call takes this count, recorded by an earlier attempt, instead of running.
-    replayed: RetryCount | None = None
     # Set by a call that failed or succeeded; None when it left the count alone, such as a ToolFailed.
     counted: RetryCount | None = None
     # Set when the call failed once more than the budget allows, which is the model's doing.
@@ -84,7 +82,6 @@ def tool_call_scope(
     run: Hashable | None,
     turn: Hashable | None = None,
     function: Callable[[dict[str, Any]], Awaitable[ToolResult]] | None = None,
-    replayed: RetryCount | None = None,
 ) -> Iterator[ToolCallScope]:
     """
     Tell the tools which agent run and which model turn the calls inside the block belong to.
@@ -93,17 +90,29 @@ def tool_call_scope(
     per turn, as pydantic-ai does. Without a turn, calls that run at the same time count as one.
 
     Given the ``function`` of the tool the block calls, the block yields the count that call left
-    in the tool's retry budget, so durable execution can record it with the call's result. On a
-    retry that replays that result, ``replayed`` makes the call restore the recorded count
-    instead of running, so the tool gets ``max_retries`` corrections across attempts, not per
-    attempt.
+    in the tool's retry budget, so durable execution can record it with the call's result and
+    restore it through ``retry_count_restorer`` when a retry replays that result.
     """
-    scope = ToolCallScope(run=run, turn=turn, function=function, replayed=replayed)
+    scope = ToolCallScope(run=run, turn=turn, function=function)
     token = _call_scope.set(scope)
     try:
         yield scope
     finally:
         _call_scope.reset(token)
+
+
+# Set on the function of each tool this module builds: restores a count an earlier attempt recorded.
+_RESTORE_RETRY_COUNT = "_airflow_restore_retry_count"
+
+
+def retry_count_restorer(tool: AirflowTool) -> Callable[[Hashable, RetryCount], Awaitable[None]] | None:
+    """
+    Return what restores a count an earlier attempt recorded into ``tool``'s retry budget.
+
+    It takes the agent run the replay belongs to and the count, and never runs the tool.
+    ``None`` for a tool with no retry budget, such as one with a function of its own.
+    """
+    return getattr(tool.function, _RESTORE_RETRY_COUNT, None)
 
 
 def airflow_tools_from_toolset(toolset: AbstractToolset[Any], *, deps: Any = None) -> list[AirflowTool]:
@@ -286,8 +295,11 @@ def _as_airflow_tool(
         scope.counted = budget.take()
         return ToolResult(content=message, is_error=True)
 
-    def replay(count: RetryCount) -> ToolResult:
-        # The result the earlier attempt recorded reaches the model from the journal, not from here.
+    async def restore(run: Hashable, count: RetryCount) -> None:
+        budget.start(run)
+        # Let the calls the framework started alongside this one start first, so a failure among
+        # them counts in the same turn as the one this count ends on.
+        await asyncio.sleep(0)
         restored = budget.failures
         budget.restore(count)
         if budget.failures != restored:
@@ -297,14 +309,8 @@ def _as_airflow_tool(
                 budget.failures,
                 budget.max_retries,
             )
-        return ToolResult(content=None)
 
     async def call(arguments: dict[str, Any], started: float, scope: ToolCallScope) -> ToolResult:
-        if scope.replayed is not None:
-            # A sequential call holds the line without awaiting, so without this the calls the
-            # framework started alongside it would not have started when it marks its turn.
-            await asyncio.sleep(0)
-            return replay(scope.replayed)
         try:
             validated = tool.args_validator.validate_python(arguments)
         except ValidationError as e:
@@ -345,6 +351,7 @@ def _as_airflow_tool(
         finally:
             in_order.done(ticket)
 
+    setattr(function, _RESTORE_RETRY_COUNT, restore)
     return AirflowTool(
         name=name,
         description=tool.tool_def.description or name,

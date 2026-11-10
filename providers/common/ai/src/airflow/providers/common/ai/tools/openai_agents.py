@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import copy
 import json
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
@@ -54,14 +53,13 @@ except ImportError as e:
 
 from airflow.providers.common.ai.observability import _content_capture_enabled
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
-from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.tools._from_toolset import retry_count_restorer, tool_call_scope
 from airflow.providers.common.ai.tools.tracing import _task_identity
 from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
     from contextvars import Token
 
     from agents.tool_context import ToolContext
@@ -70,7 +68,7 @@ if TYPE_CHECKING:
     from opentelemetry.trace import Span as OtelSpan, TracerProvider
 
     from airflow.providers.common.ai.tools import ToolProvider
-    from airflow.providers.common.ai.tools._from_toolset import RetryCount, ToolCallScope
+    from airflow.providers.common.ai.tools._from_toolset import RetryCount
 
 __all__ = ["AirflowTools", "AirflowTraceProcessor"]
 
@@ -174,23 +172,6 @@ class _RetryLimitReached(_FailedToolCall):
     """
 
 
-@contextmanager
-def _calling_tool(
-    ctx: ToolContext[Any], tool: AirflowTool, replayed: RetryCount | None = None
-) -> Iterator[ToolCallScope]:
-    # The SDK does not identify the model turn, so calls that run at the same time count once.
-    with (
-        calling_framework("openai_agents"),
-        tool_call_scope(run=_SameRun(ctx.usage), function=tool.function, replayed=replayed) as scope,
-    ):
-        try:
-            yield scope
-        except ToolCallError as e:
-            # Already masked, and logged to the task log with its traceback by AirflowTool.call.
-            error = _RetryLimitReached if scope.limit_reached else _FailedToolCall
-            raise error(str(e)) from None
-
-
 def _to_function_tool(tool: AirflowTool) -> FunctionTool:
     async def call_airflow_tool(ctx: ToolContext[Any], arguments: str) -> str:
         # The SDK passes the model's arguments as it sent them, without parsing them first.
@@ -200,18 +181,29 @@ def _to_function_tool(tool: AirflowTool) -> FunctionTool:
             return serialize_for_llm({"error": f"The arguments are not valid JSON: {e}"})
         if not isinstance(parsed, dict):
             return serialize_for_llm({"error": "The arguments must be a JSON object."})
-        with _calling_tool(ctx, tool) as scope:
-            result = await tool.call(parsed)
+        # The SDK does not identify the model turn, so calls that run at the same time count once.
+        with (
+            calling_framework("openai_agents"),
+            tool_call_scope(run=_SameRun(ctx.usage), function=tool.function) as scope,
+        ):
+            try:
+                result = await tool.call(parsed)
+            except ToolCallError as e:
+                # Already masked, and logged to the task log with its traceback by AirflowTool.call.
+                error = _RetryLimitReached if scope.limit_reached else _FailedToolCall
+                raise error(str(e)) from None
         setattr(ctx, _RETRY_COUNT, scope.counted)
         if result.is_error:
             return serialize_for_llm({"error": result.content})
         return serialize_for_llm(result.content)
 
+    restore = retry_count_restorer(tool)
+
     async def replay_retry(ctx: ToolContext[Any], count: RetryCount) -> None:
-        # Not through AirflowTool.call: nothing reaches the model, and its task log lines would
-        # show a call that never ran. Only a toolset tool records a count, and it does not run.
-        with _calling_tool(ctx, tool, replayed=count):
-            await tool.function({})
+        # A tool without a retry budget, such as one a Dag edit swapped in since the count was
+        # recorded, has nothing to restore; the recorded result still replays as it is.
+        if restore is not None:
+            await restore(_SameRun(ctx.usage), count)
 
     function_tool = FunctionTool(
         name=tool.name,

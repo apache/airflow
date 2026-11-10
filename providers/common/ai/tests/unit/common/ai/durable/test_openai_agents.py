@@ -22,6 +22,7 @@ import contextlib
 import dataclasses
 import datetime
 import json
+import logging
 from collections.abc import Container
 from typing import Any
 from unittest import mock
@@ -713,7 +714,7 @@ class TestRunDurably:
         # The answer that asked for the lookup replays; only the final answer is asked for.
         assert retry_model.calls == 1
 
-    def test_a_replayed_correctable_failure_counts_against_the_tools_retry_limit(self):
+    def test_a_replayed_correctable_failure_counts_against_the_tools_retry_limit(self, caplog):
         """Across attempts the tool gets max_retries corrections in all, not max_retries per attempt."""
         storage = MemoryStorage()
         tool = _ToolsetLookup(max_retries=2, retry={"k0", "k1", "k2"})
@@ -722,9 +723,40 @@ class TestRunDurably:
         tool.calls = 0
 
         # The replayed failure of k0 is the first correction, k1 the second, and k2 one too many.
-        with pytest.raises(ToolCallError, match="lookup kept failing after 2 correction"):
+        with (
+            caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.tools._from_toolset"),
+            pytest.raises(ToolCallError, match="lookup kept failing after 2 correction"),
+        ):
             _attempt(storage, _ScriptedModel(lookups=3), tool)
         assert tool.calls == 2
+        # The line the guide quotes, so a task log shows why the limit ran out early.
+        assert [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "airflow.providers.common.ai.tools._from_toolset"
+        ] == ["Tool lookup: an earlier attempt left 1 of its 2 correction(s) used"]
+
+    def test_a_count_recorded_for_a_tool_since_swapped_for_a_custom_one_replays_without_running_it(self):
+        """A Dag edit between tries put a tool of the same name and schema, with no retry budget, in its place."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry=set())
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool)
+        custom_calls = []
+
+        async def custom(arguments: dict[str, Any]) -> ToolResult:
+            custom_calls.append(arguments["key"])
+            return ToolResult(f"{arguments['key']}=custom")
+
+        agent = Agent(
+            name="analyst",
+            model=_ScriptedModel(),
+            tools=AirflowTools(dataclasses.replace(tool.tool(), function=custom)),
+        )
+        with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+            result = run_durably_sync(agent, "go", run_config=NO_TRACING)
+
+        assert custom_calls == []
+        assert result.final_output == "answer: k0=42"
 
     def test_a_run_that_used_up_a_tools_retry_limit_asks_the_model_again_on_retry(self):
         """The model's answers used the limit up, so a retry asks it again rather than replaying them."""

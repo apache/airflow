@@ -36,6 +36,7 @@ from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolRe
 from airflow.providers.common.ai.tools._from_toolset import (
     RetryCount,
     airflow_tools_from_toolset,
+    retry_count_restorer,
     tool_call_scope,
 )
 from airflow.providers.common.ai.toolsets.hook import HookToolset
@@ -60,6 +61,13 @@ def _scripted(*outcomes, max_retries: int | None = 1):
         return outcome
 
     return _by_name(airflow_tools_from_toolset(FunctionToolset([step], max_retries=max_retries)))["step"]
+
+
+async def _restore(tool: AirflowTool, count: RetryCount) -> None:
+    """Restore a count an earlier attempt recorded, in the run the tests' calls belong to."""
+    restore = retry_count_restorer(tool)
+    assert restore is not None
+    await restore("run", count)
 
 
 class TestSQLToolsetAirflowTools:
@@ -284,12 +292,12 @@ class TestRetryBudget:
         step = _scripted(ModelRetry("bad"), ModelRetry("bad"), max_retries=1)
         recorded: RetryCount = {"failures": 0, "finished": time.time() + 3600}
 
-        async def call_in(turn: str, replayed: RetryCount | None = None) -> ToolResult:
-            with tool_call_scope(run="run", turn=turn, function=step.function, replayed=replayed):
+        async def call_in(turn: str) -> ToolResult:
+            with tool_call_scope(run="run", turn=turn, function=step.function):
                 return await step.function({})
 
         assert asyncio.run(call_in("turn-1")).is_error
-        asyncio.run(call_in("turn-2", replayed=recorded))
+        asyncio.run(_restore(step, recorded))
         with pytest.raises(ToolCallError, match="kept failing"):
             asyncio.run(call_in("turn-3"))
 
@@ -301,17 +309,17 @@ class TestRetryBudget:
         """
         first: RetryCount = {"failures": 1, "finished": time.time() + 3600}
 
-        async def call_in(step: AirflowTool, turn: str, replayed: RetryCount | None = None):
-            with tool_call_scope(run="run", turn=turn, function=step.function, replayed=replayed) as scope:
+        async def call_in(step: AirflowTool, turn: str):
+            with tool_call_scope(run="run", turn=turn, function=step.function) as scope:
                 result = await step.function({})
             return result, scope.counted
 
         second_attempt = _scripted("ok", max_retries=1)
-        asyncio.run(call_in(second_attempt, "turn-1", first))
+        asyncio.run(_restore(second_attempt, first))
         _, second = asyncio.run(call_in(second_attempt, "turn-2"))
         third_attempt = _scripted(ModelRetry("bad"), max_retries=1)
-        asyncio.run(call_in(third_attempt, "turn-1", first))
-        asyncio.run(call_in(third_attempt, "turn-2", second))
+        asyncio.run(_restore(third_attempt, first))
+        asyncio.run(_restore(third_attempt, second))
 
         result, _ = asyncio.run(call_in(third_attempt, "turn-3"))
 
