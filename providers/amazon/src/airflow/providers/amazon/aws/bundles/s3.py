@@ -150,13 +150,10 @@ class _S3DagBundleBase(BaseDagBundle):
 
         return url
 
-    def _reject_version_refresh(self) -> None:
-        if self.version:
-            raise AirflowException("Refreshing a specific version is not supported")
-
     def refresh(self) -> None:
         """Refresh the Dag bundle by updating the local Dag files from S3."""
-        self._reject_version_refresh()
+        if self.version:
+            raise AirflowException("Refreshing a specific version is not supported")
         with self.lock():
             self._refresh_locked()
 
