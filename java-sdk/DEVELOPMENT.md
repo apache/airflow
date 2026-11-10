@@ -280,7 +280,8 @@ is the source-package URL you link in the vote.
 Send a `[VOTE]` email to `dev@airflow.apache.org` linking the git tag and
 commit, the source package in `dist/dev`, the closed Nexus staging repository,
 and the `KEYS` file. See "Vote email template" below for the exact fields to
-fill in, and "Verifying a release" for what to ask reviewers to check.
+fill in, and [`dev/README_RELEASE_LANGUAGE_SDKS.md`](../dev/README_RELEASE_LANGUAGE_SDKS.md)
+for what to ask reviewers to check.
 
 ### Vote email template
 
@@ -333,8 +334,9 @@ Please review and vote. The vote will remain open for at least 72 hours, until <
 
 Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
 
-The verification process can be found in the main repository:
-https://github.com/apache/airflow/tree/java-sdk/<VERSION>-rc<N>/java-sdk#verifying-a-release
+The verification process for PMC members and contributors can be found in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-contributors
 
 For more details on ASF release verification, see: https://www.apache.org/info/verification.html
 
@@ -360,105 +362,8 @@ Pre-send checklist:
 
 ### Verifying a release
 
-Anyone on `dev@airflow.apache.org` can (and should) independently verify a
-candidate before voting. Below is the checklist a reviewer — or the release
-manager, before sending the vote — should run against the source package in
-`dist/dev`.
-
-1. **Checksum.** Confirm the published SHA-512 matches the downloaded tarball:
-
-   ```bash
-   shasum -a 512 -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
-   ```
-
-   `shasum` ships with both macOS and most Linux distributions; `sha512sum -c`
-   works too on Linux but is not installed on macOS by default.
-
-2. **Signature.** Import the `KEYS` file and verify the GPG signature:
-
-   ```bash
-   curl -O https://downloads.apache.org/airflow/KEYS
-   gpg --import KEYS
-   gpg --verify apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
-       apache-airflow-java-sdk-<VERSION>-src.tar.gz
-   ```
-
-3. **Diff against the git tag.** Extract the tarball and compare it with a
-   clean checkout of the tag it claims to be built from. They should be
-   identical except for the files kept out of the source release via
-   `.gitattributes` `export-ignore`. The extracted top-level directory should be
-   `apache-airflow-java-sdk-<version>` without the `-src` suffix that only
-   appears in the tarball's own filename:
-
-   ```bash
-   tar xzf apache-airflow-java-sdk-<VERSION>-src.tar.gz
-   git clone --branch java-sdk/<VERSION>-rc<N> \
-     https://github.com/apache/airflow.git tag-checkout
-   diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
-     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|scripts)$'
-   ```
-
-   Any remaining diff output is unexpected and should block the vote.
-
-   If the vote email says the source package was built from a commit before the
-   tag, diff the tarball against that commit instead, then confirm the tag adds
-   nothing to the SDK directory except the version bump. Limit the diff to the
-   SDK directory; the tag usually sits on a release branch, so an unscoped diff
-   also lists unrelated commits that landed in between:
-
-   ```bash
-   git -C tag-checkout diff <SOURCE-COMMIT> java-sdk/<VERSION>-rc<N> --stat -- java-sdk/
-   ```
-
-4. **No binary files.** ASF source releases must not contain compiled code.
-   Scan for anything that isn't text:
-
-   ```bash
-   find apache-airflow-java-sdk-<VERSION>/ -type f \
-     -exec sh -c 'file -b "$1" | grep -qviE "text|json|xml|empty" && echo "$1"' _ {} \;
-   ```
-
-   This should print nothing.
-
-5. **Build from source.** Regenerate the Gradle wrapper from a locally installed
-   Gradle (see the *Upload the source package* section above):
-
-   ```bash
-   cd apache-airflow-java-sdk-<VERSION>
-   gradle wrapper \
-       --gradle-distribution-url <GRADLE-DISTRIBUTION-URL> \
-       --gradle-distribution-sha256-sum <GRADLE-DISTRIBUTION-SHA>
-   ./gradlew build
-   ```
-
-   Use values from `distributionUrl` and `distributionSha256Sum` in the bundled
-   `gradle/wrapper/gradle-wrapper.properties` to fill in
-   `<GRADLE-DISTRIBUTION-URL>` and `<GRADLE-DISTRIBUTION-SHA>`.
-
-   Run `gradle wrapper` with that same Gradle version. The task configures
-   `buildSrc`, and a different Gradle resolves a `kotlin-dsl` plugin version that
-   `verification-metadata.xml` does not pin, so strict verification fails before
-   the wrapper is written. If your installed Gradle differs, download the pinned
-   distribution, check it against the same SHA-256, and use it directly:
-
-   ```bash
-   curl -LO <GRADLE-DISTRIBUTION-URL>
-   echo "<GRADLE-DISTRIBUTION-SHA>  gradle-<GRADLE-VERSION>-bin.zip" | shasum -a 256 -c
-   unzip -q gradle-<GRADLE-VERSION>-bin.zip
-   cd apache-airflow-java-sdk-<VERSION>
-   ../gradle-<GRADLE-VERSION>/bin/gradle build
-   ```
-
-   That Gradle version must also support the JDK it runs on; for example,
-   Gradle 8.14 cannot run on JDK 26.
-
-6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
-   throwaway project to confirm they're actually consumable, following the
-   same pattern as the "Dry-run against a local repository" step: point a
-   `repositories {}` block at the staging repository URL, declare a dependency
-   on `org.apache.airflow:airflow-sdk-bom:<VERSION>`, and confirm the
-   transitive artifacts (including `airflow-sdk-jpl`) resolve and the example
-   bundle builds against them.
+The reviewer checklist for all language SDKs is in
+[`dev/README_RELEASE_LANGUAGE_SDKS.md`](../dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members).
 
 ### After a successful vote
 
