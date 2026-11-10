@@ -145,13 +145,10 @@ class _GCSDagBundleBase(BaseDagBundle):
             return self._view_url_template
         return self._console_url(GoogleBaseHook.get_high_value_cookie_domain())
 
-    def _reject_version_refresh(self) -> None:
-        if self.version:
-            raise ValueError("Refreshing a specific version is not supported")
-
     def refresh(self) -> None:
         """Refresh the Dag bundle by updating the local Dag files from GCS."""
-        self._reject_version_refresh()
+        if self.version:
+            raise ValueError("Refreshing a specific version is not supported")
         with self.lock():
             self._refresh_locked()
 
