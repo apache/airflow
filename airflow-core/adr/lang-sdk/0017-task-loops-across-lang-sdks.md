@@ -226,8 +226,9 @@ Nothing here is language-specific.
 
 - **A loop costs an SDK one context object, one wire field and one callable.** Everything else is
   reuse: the group it is built on, the XCom calls, and the sequence ADR-0016 already defines.
-- **A fixed-count loop is available before an SDK implements anything.** Decision 4 leaves no code to
-  run, so `has_until: false` works as soon as the SDK can emit the group.
+- **A fixed-count loop is available before an SDK implements anything, once decision 4 lands.** It
+  leaves no code to run, so `has_until: false` then works as soon as the SDK can emit the group.
+  Until it lands, such a gate is still sent to a worker.
 - **A gate's decision is advice, not authority.** Core revalidates, so a buggy or malicious SDK
   cannot run past `max_iterations`.
 - **Edges out of the body are rewired, not rejected.** Decision 3 keeps Python's behaviour, so a Dag
@@ -237,8 +238,14 @@ Nothing here is language-specific.
   where an author first sees it; the Task SDK's parse-time checks stay as the faster feedback.
 - **Mapping inside a loop needs no further decision.** The terminal task may be mapped, and
   `terminal_is_mapped` is the only thing a runtime reads to know it.
-- **No new Execution API version.** Every field a loop needs shipped with `2026-10-30`, so an SDK can
-  implement this ADR before any of the core changes land, and each change can land on its own.
+- **No new Execution API version, but core goes first.** Every field a loop needs shipped with
+  `2026-10-30`, so nothing here waits on a protocol change. Decision 2 still has to land before any
+  SDK's loop runs at all: while a gate is found by `LoopGateOperator`, an SDK-emitted gate's success
+  creates no next iteration. Decision 4 has to land before a fixed-count loop skips the worker. The
+  rest are independent and can land in any order.
+- **A Python fixed-count gate stops behaving like a task.** Decision 4 completes it in the scheduler,
+  so it takes no pool slot, ignores its `queue` and never retries. A gate with `until`, or one
+  carrying a callback, an inlet or an outlet, is unaffected.
 - **Python's reason is redacted one process later.** Decision 8 moves `redact` from the task process
   to the supervisor, which is a behaviour change for Python tasks even though no field moves: a task
   that masks a value and then puts it in a reason is covered by the `MaskSecret` it already sends, but
