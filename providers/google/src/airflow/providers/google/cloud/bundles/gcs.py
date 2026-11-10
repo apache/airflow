@@ -20,6 +20,7 @@ import os
 import shutil
 import tarfile
 import tempfile
+from abc import abstractmethod
 from pathlib import Path
 
 import structlog
@@ -78,8 +79,9 @@ class _GCSDagBundleBase(BaseDagBundle):
         """Return a logger bound with the context common to every GCS Dag bundle."""
         return structlog.get_logger(__name__).bind(**self._log_bindings())
 
+    @abstractmethod
     def _console_url(self, domain: str) -> str:
-        raise NotImplementedError
+        """Return the console URL for this bundle's GCS location."""
 
     def _validate_remote(self) -> None:
         """Check the remote source before the first refresh."""
@@ -153,9 +155,9 @@ class _GCSDagBundleBase(BaseDagBundle):
         with self.lock():
             self._refresh_locked()
 
+    @abstractmethod
     def _refresh_locked(self) -> None:
         """Stage the bundle while the bundle lock is held."""
-        raise NotImplementedError
 
 
 class GCSDagBundle(_GCSDagBundleBase):
