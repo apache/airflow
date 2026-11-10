@@ -138,7 +138,8 @@ When it does not help
 answer almost anything, so hiding them saves a few definitions and adds a search request
 to nearly every run. On a warehouse with hundreds of tables, ``list_tables``
 output grows with the table count; limit it with ``allowed_tables`` (see
-:ref:`sql-toolset-restricted`).
+:ref:`sql-toolset-restricted`), or pass a ``search_backend`` so the agent finds tables with
+``search_tables`` instead of reading the whole list (see :ref:`sql-toolset-table-search`).
 
 ``AgentSkillsToolset`` has four tools, and its list of skills goes into the agent's
 instructions, which ``.defer_loading()`` does not touch, so the part of its cost that grows
