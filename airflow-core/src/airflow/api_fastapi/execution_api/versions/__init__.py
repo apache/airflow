@@ -73,6 +73,7 @@ from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddDagProcessorJobEndpoints,
     AddExecutionTimeoutToTIRunContext,
     MakeVariableValueNonNullable,
+    ResolveOmittedXComMapIndexByTaskDefinition,
 )
 
 bundle = VersionBundle(
@@ -83,6 +84,7 @@ bundle = VersionBundle(
         AddExecutionTimeoutToTIRunContext,
         MakeVariableValueNonNullable,
         AddCallbackStateEndpoint,
+        ResolveOmittedXComMapIndexByTaskDefinition,
     ),
     Version(
         "2026-10-30",
