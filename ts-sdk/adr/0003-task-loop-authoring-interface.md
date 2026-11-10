@@ -178,8 +178,8 @@ interface LoopContext {
 
 ## Consequences
 
-- **A fixed-count loop needs no runtime support.** `loop({ maxIterations })` emits `has_until: false`,
-  which core completes without a worker (ADR-0017 decision 4).
+- **A fixed-count loop's gate only counts.** `loop({ maxIterations })` emits `has_until: false`, and its
+  gate runs on a worker and stops once `index` reaches `maxIterations` (ADR-0017 decision 4).
 - **The gate is an ordinary task.** `LoopOptions` extends `TaskSpec`, so `queue` and `retries` land on
   it, and its id defaults to the handler's function name under the group's prefix. A fixed-count loop
   has no handler to take a name from, so its gate is `__loop_gate`, as Python's is.

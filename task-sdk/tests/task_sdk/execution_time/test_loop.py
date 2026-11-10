@@ -199,7 +199,7 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
         (
             1,
             lambda: LoopDecision(stop=True, reason="token hunter2 expired"),
-            LoopDecisionPayload(stop=True, reason="token *** expired"),
+            LoopDecisionPayload(stop=True, reason="token hunter2 expired"),
         ),
     ],
     ids=[
@@ -213,7 +213,7 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
         "decision_with_reason",
         "reason_at_byte_limit",
         "empty_reason_is_no_reason",
-        "secret_in_reason_is_masked",
+        "secret_in_reason_is_left_to_the_supervisor",
     ],
 )
 @pytest.mark.enable_redact

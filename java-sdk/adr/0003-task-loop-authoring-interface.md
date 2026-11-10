@@ -276,8 +276,9 @@ public class LoopTaskRef<T> extends TaskRef<T> {}
 
 ## Consequences
 
-- **A fixed-count loop needs no runtime support.** A `@Airflow.Loop` with no `@Airflow.Until` emits
-  `has_until: false`, which core completes without a worker (ADR-0017 decision 4).
+- **A fixed-count loop's gate only counts.** A `@Airflow.Loop` with no `@Airflow.Until` emits
+  `has_until: false`, and its gate runs on a worker and stops once `index` reaches `maxIterations`
+  (ADR-0017 decision 4).
 - **Neither surface names the terminal.** Both take the body's single leaf and serialize the same
   `terminal_task_id`. The annotation surface binds it into the gate as well, which is what buys the
   compile-time check; the interface surface has no wiring to bind it with.
