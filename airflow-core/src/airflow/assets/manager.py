@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
+_ALIAS_ASSOCIATION_ATTEMPTS = 3
 
 
 class AssetManager(LoggingMixin):
@@ -112,16 +113,32 @@ class AssetManager(LoggingMixin):
         *,
         session: Session,
     ) -> None:
-        already_related = {m.name for m in asset_model.aliases}
-        existing_aliases = {
-            m.name: m
-            for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
-        }
-        asset_model.aliases.extend(
-            existing_aliases.get(name, AssetAliasModel(name=name))
-            for name in alias_names
-            if name not in already_related
-        )
+        # Another task can link the same alias between our read of asset_model.aliases and the
+        # insert. The savepoint keeps that conflict from failing the whole transaction; after a
+        # rollback the aliases are reloaded and only the still-missing links are added.
+        for attempt in range(1, _ALIAS_ASSOCIATION_ATTEMPTS + 1):
+            already_related = {m.name for m in asset_model.aliases}
+            missing = [name for name in alias_names if name not in already_related]
+            if not missing:
+                return
+            existing_aliases = {
+                m.name: m
+                for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(missing)))
+            }
+            try:
+                with session.begin_nested():
+                    asset_model.aliases.extend(
+                        existing_aliases.get(name, AssetAliasModel(name=name)) for name in missing
+                    )
+            except exc.IntegrityError:
+                if attempt == _ALIAS_ASSOCIATION_ATTEMPTS:
+                    raise
+                cls.logger().debug(
+                    "Another process linked aliases %s to asset %s first; retrying",
+                    missing,
+                    asset_model.uri,
+                )
+                session.expire(asset_model, ["aliases"])
 
     @classmethod
     def _filter_dags_by_team(

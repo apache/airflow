@@ -65,7 +65,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -2652,8 +2652,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel.from_serialized(asset))
-                    session.flush()  # So event can set up its asset fk.
+                    # Another task can create the same asset between our lookup and this insert.
+                    try:
+                        with session.begin_nested():
+                            session.add(AssetModel.from_serialized(asset))
+                    except IntegrityError:
+                        ti.log.info("AssetModel %s was created concurrently; reusing it", asset_key)
                     asset_manager.register_asset_change(
                         task_instance=ti,
                         asset=asset,
