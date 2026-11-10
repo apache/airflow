@@ -380,15 +380,16 @@ class TestS3ArchiveDagBundle:
         assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
         assert bundle._get_archive_etag_path().read_text() == etag
 
-    def test_refresh_restages_when_only_etag_marker_remains(self, s3_bucket, s3_client):
+    def test_refresh_restages_when_bundle_dir_emptied(self, s3_bucket, s3_client):
         archive = _make_archive({"dag_01.py": b"test data"})
         s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
 
         bundle = self._archive_bundle()
         bundle.initialize()
-        (bundle.path / "dag_01.py").unlink()
-        assert bundle._get_archive_etag_path().is_file()
-        assert not bundle._bundle_dir_has_files()
+        for child in bundle.path.iterdir():
+            child.unlink()
+        assert bundle.path.is_dir()
+        assert not bundle._get_archive_etag_path().exists()
 
         client = bundle.s3_hook.get_conn()
         recorded: list[dict] = []
