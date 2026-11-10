@@ -329,8 +329,14 @@ class ApplyMap(BaseModel):
 class MapResult(BaseModel):
     type: Literal["MapResult"] = "MapResult"
 
-    value: JsonValue
+    value: JsonValue = None
+    """The argument after the callables. Unset when ``skipped``."""
+
+    skipped: bool = False
+    """True when a callable raised ``AirflowSkipException``."""
 ```
+
+Any other failure, including a Dag file that fails to import, comes back as an `ErrorResponse` of a new `APPLY_MAP_ERROR` type, whose `detail` holds the exception's type and message.
 
 `concat` needs no new kind: the server knows each argument's length already, so it emits an
 ordinary `XComArgBinding` for whichever argument owns this index. `serialization/schema.json` also
@@ -494,8 +500,8 @@ With `.expandKwargs(rows.map(toKwargs))` the callables build each instance's dic
 `toKwargs` runs once per instance: a runtime reuses the result across parameters, and the sidecar does the same across `ApplyMap` requests.
 
 A `map()` callable may skip its instance, as a Python one does by raising `AirflowSkipException`.
-The runtime handles a skip from its own callables, or a skip response to `ApplyMap`, like a skip raised by the handler.
-Any other error fails the task.
+The runtime handles a skip from its own callables, or a `MapResult` with `skipped` set, like a skip raised by the handler.
+Any other error fails the task, as does an `APPLY_MAP_ERROR` response to `ApplyMap`.
 
 ### Reduce
 
