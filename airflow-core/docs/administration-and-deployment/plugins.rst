@@ -331,7 +331,7 @@ definitions in Airflow.
         # "task_instance" or "asset"). When True, the tab shows its icon beside the name. When False, the tab shows
         # only its name. Either way, when the tab bar is 600px wide or less, tabs show only their icon. Has no
         # effect without "icon" (an "icon_dark_mode" alone is not enough). Defaults to False. Supported in
-        # Airflow 3.5 and later; earlier versions ignore it.
+        # Airflow 3.4.1 and later; earlier versions ignore it.
         "show_icon_with_label": True,
         # Optional parameters, relative URL location for the External View rendering. If not provided, external view will be rendered as an external link. If provided
         # will be rendered inside an Iframe in the UI. Should not contain a leading slash.
@@ -376,7 +376,7 @@ definitions in Airflow.
         # "task_instance" or "asset"). When True, the tab shows its icon beside the name. When False, the tab shows
         # only its name. Either way, when the tab bar is 600px wide or less, tabs show only their icon. Has no
         # effect without "icon" (an "icon_dark_mode" alone is not enough). Defaults to False. Supported in
-        # Airflow 3.5 and later; earlier versions ignore it.
+        # Airflow 3.4.1 and later; earlier versions ignore it.
         "show_icon_with_label": True,
         # URL route for the React app, relative to the Airflow UI base URL. Should not contain a leading slash.
         "url_route": "my_react_app",
