@@ -71,11 +71,17 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
 from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddDagProcessorJobEndpoints,
     AddExecutionTimeoutToTIRunContext,
+    MakeVariableValueNonNullable,
 )
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2027-02-28", AddDagProcessorJobEndpoints, AddExecutionTimeoutToTIRunContext),
+    Version(
+        "2027-02-28",
+        AddDagProcessorJobEndpoints,
+        AddExecutionTimeoutToTIRunContext,
+        MakeVariableValueNonNullable,
+    ),
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,
