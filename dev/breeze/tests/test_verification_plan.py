@@ -83,7 +83,7 @@ def test_docs_only_change_mirrors_the_ci_cell():
     files = ("airflow-core/docs/index.rst",)
     sc = _selective_checks(files)
     result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
-    assert [item["command"] for item in result["items"]] == ["breeze build-docs apache-airflow"]
+    assert [item["command"] for item in result["items"]] == ["breeze build-docs apache-airflow task-sdk"]
 
 
 def test_core_change_splits_db_and_non_db_cells():
