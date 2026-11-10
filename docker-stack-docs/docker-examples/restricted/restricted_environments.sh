@@ -26,7 +26,7 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START download]
 mkdir -p docker-context-files
-export AIRFLOW_VERSION="3.0.3"
+export AIRFLOW_VERSION="3.5.0"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
 curl -Lo "docker-context-files/constraints-3.11.txt" \

@@ -47,6 +47,15 @@ def update_version(pattern: re.Pattern, v: str, file_path: Path):
 REPLACEMENTS: dict[str, list[str]] = {
     r"^(FROM apache\/airflow:(?:slim-)?).*($)": ["docker-stack-docs/docker-examples/extending/*/Dockerfile"],
     r"(apache\/airflow:)[^-]*(\-)": ["docker-stack-docs/entrypoint.rst", "docker-stack-docs/testing.rst"],
+    r"^(export AIRFLOW_VERSION=\"?)[^\"\n]*(\"?)$": [
+        "docker-stack-docs/docker-examples/customizing/add-build-essential-custom.sh",
+        "docker-stack-docs/docker-examples/customizing/custom-sources.sh",
+        "docker-stack-docs/docker-examples/customizing/pypi-dev-runtime-deps.sh",
+        "docker-stack-docs/docker-examples/customizing/pypi-extras-and-deps.sh",
+        "docker-stack-docs/docker-examples/customizing/pypi-selected-version.sh",
+        "docker-stack-docs/docker-examples/customizing/selected-extras.sh",
+        "docker-stack-docs/docker-examples/restricted/restricted_environments.sh",
+    ],
     r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": ["docker-stack-docs/README.md"],
     r"(\(Assuming Airflow version `).*(`\))": ["docker-stack-docs/README.md"],
     r"(^version = \").*(\"$)": ["pyproject.toml", "airflow-core/pyproject.toml"],

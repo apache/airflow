@@ -213,8 +213,8 @@ with default set of Airflow extras and dependencies. The latest PyPI-released Ai
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image for the default Python version with default extras from ``2.3.0`` Airflow
-package. The ``2.3.0`` constraints are used automatically.
+The following example builds the production image for the default Python version with default extras from a selected Airflow
+version. The constraints for that version are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
     :language: bash
@@ -222,7 +222,7 @@ package. The ``2.3.0`` constraints are used automatically.
     :end-before: [END build]
 
 The following example builds the production image for the default Python version with additional Airflow extras
-(``mssql,hdfs``) from ``2.3.0`` PyPI package, and additional dependency (``oauth2client``).
+(``mssql,hdfs``) from a selected Airflow version on PyPI, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
     :language: bash
