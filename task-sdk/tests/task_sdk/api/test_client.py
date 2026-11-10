@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import pickle
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -32,7 +33,14 @@ from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
-from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
+from airflow.sdk.api.client import (
+    API_RETRIES,
+    API_RETRY_WAIT_MAX,
+    API_RETRY_WAIT_MIN,
+    Client,
+    RemoteValidationError,
+    ServerResponseError,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
@@ -2495,6 +2503,28 @@ class TestAssetStateOperations:
 class TestCallbackOperations:
     TOKEN_ALREADY_USED = "Callback token already used, possibly by an earlier attempt of this exchange"
 
+    @pytest.fixture
+    def clock(self):
+        """Make tenacity wait the minimum between attempts, on a clock that only its sleeps move."""
+
+        class Clock:
+            def __init__(self):
+                self.sleeps: list[float] = []
+
+            def monotonic(self) -> float:
+                return sum(self.sleeps)
+
+            def sleep(self, seconds: float) -> None:
+                self.sleeps.append(seconds)
+
+        clock = Clock()
+        with (
+            mock.patch("tenacity.time", clock),
+            mock.patch("tenacity.nap.time", clock),
+            mock.patch("tenacity.wait.random", SimpleNamespace(uniform=lambda low, high: low)),
+        ):
+            yield clock
+
     def test_run_exchanges_token(self):
         callback_id = uuid7()
 
@@ -2517,22 +2547,61 @@ class TestCallbackOperations:
         [httpx2.ConnectError("Connection refused"), httpx2.ConnectTimeout("timed out")],
         ids=["connect-error", "connect-timeout"],
     )
-    @mock.patch("tenacity.nap.time.sleep")
-    def test_run_retries_connect_errors_for_longer_than_other_calls(self, _sleep, connect_error):
+    def test_run_retries_connect_errors_past_api_retries(self, clock, connect_error):
         attempts = 0
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             nonlocal attempts
             attempts += 1
-            if attempts <= 10:
+            if attempts <= API_RETRIES:
                 raise connect_error
             return httpx2.Response(status_code=204, headers={"Refreshed-API-Token": "execution-token"})
 
+        # Other calls give up after API_RETRIES attempts.
+        other = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(type(connect_error)):
+            other.get("variables/key")
+        assert attempts == API_RETRIES
+
+        attempts = 0
         client = make_client(transport=httpx2.MockTransport(handle_request))
         client.callbacks.run(uuid7())
 
-        assert attempts == 11
+        assert attempts > API_RETRIES
         assert client.auth.token == "execution-token"
+
+    def test_run_stops_retrying_connect_errors_after_retry_wait_max(self, clock):
+        attempts = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal attempts
+            attempts += 1
+            raise httpx2.ConnectError("Connection refused")
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(httpx2.ConnectError):
+            client.callbacks.run(uuid7())
+
+        assert attempts == len(clock.sleeps) + 1
+        assert sum(clock.sleeps[:-1]) < API_RETRY_WAIT_MAX <= sum(clock.sleeps)
+
+    def test_run_makes_at_least_api_retries_attempts(self, clock, monkeypatch):
+        # A retry budget of one wait, so it runs out after the second attempt.
+        monkeypatch.setattr("airflow.sdk.api.client.API_RETRY_WAIT_MAX", API_RETRY_WAIT_MIN)
+        attempts = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal attempts
+            attempts += 1
+            raise httpx2.ConnectError("Connection refused")
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(httpx2.ConnectError):
+            client.callbacks.run(uuid7())
+
+        # The budget had run out before the last attempt, but it still makes as many attempts as other calls.
+        assert sum(clock.sleeps[:-1]) >= API_RETRY_WAIT_MIN
+        assert attempts == API_RETRIES
 
     @staticmethod
     def _make_exchange_server(failure, *, used_on_failure: bool):
@@ -2598,6 +2667,24 @@ class TestCallbackOperations:
             "callback_id": callback_id,
             "attempts": 2,
         } in cap_structlog
+
+    @pytest.mark.parametrize(
+        "failure",
+        [httpx2.ConnectError("Connection refused"), httpx2.ConnectTimeout("timed out")],
+        ids=["connect-error", "connect-timeout"],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_does_not_blame_an_earlier_attempt_after_connect_errors(self, _sleep, cap_structlog, failure):
+        """A connect error never reached the server, so something else used the token."""
+        handle_request, state = self._make_exchange_server(failure, used_on_failure=True)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.run(uuid7())
+
+        assert err.value.response.status_code == 409
+        assert state["attempts"] == 2
+        assert self.TOKEN_ALREADY_USED not in cap_structlog
 
     def test_run_raises_on_conflict(self, cap_structlog):
         callback_id = uuid7()

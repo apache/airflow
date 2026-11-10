@@ -33,6 +33,7 @@ import pytest
 import structlog
 from task_sdk import make_client
 
+from airflow.sdk.api.client import API_TIMEOUT
 from airflow.sdk.api.datamodels._generated import XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
@@ -779,7 +780,7 @@ class TestSuperviseCallbackExchangesTokenFirst:
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
     def test_slow_exchange_still_runs_the_callback(self, mock_start, _nondumpable, _sleep):
-        """The server uses up the token, then takes 6 s to answer: longer than the usual 5 s timeout."""
+        """The server uses up the token, then takes longer than the usual timeout to answer."""
         mock_start.return_value = Mock(wait=Mock(return_value=0))
         exchanges = 0
 
@@ -788,7 +789,7 @@ class TestSuperviseCallbackExchangesTokenFirst:
             exchanges += 1
             if exchanges > 1:
                 return httpx2.Response(409, json={"detail": {"reason": "invalid_state"}})
-            if request.extensions["timeout"]["read"] < 6:
+            if request.extensions["timeout"]["read"] <= API_TIMEOUT:
                 raise httpx2.ReadTimeout("timed out", request=request)
             return httpx2.Response(204, headers={"Refreshed-API-Token": "execution-token"})
 
