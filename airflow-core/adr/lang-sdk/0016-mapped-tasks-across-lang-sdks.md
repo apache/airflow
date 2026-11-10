@@ -23,6 +23,8 @@
 
 Proposed.
 
+Depends on the supervisor running `[core] xcom_backend` in a per-task Python sidecar, which is not on main yet.
+
 Amends [ADR-0007](0007-taskflow-across-language-boundary.md): it defines the bindings of a mapped stub task, and supports three forms 0007 rejects,
 a `.map()`, `.zip()` or `.concat()` result as an expand argument, a mapped upstream's aggregated output, and a stub task with arguments inside a mapped task group.
 
@@ -515,6 +517,7 @@ With the default backend no sidecar starts for XComs.
 The sidecar reads connections and variables through the supervisor's API client, as a Python task does.
 The supervisor measures a value before the backend stores it, and every value read back goes through the backend first, so nothing measures or indexes a storage path.
 A Python task keeps running the backend in its own process.
+Answering `ApplyMap` is a second job for the same sidecar, and the only one that imports the Python Dag file.
 
 ## Runtime steps
 
