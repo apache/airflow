@@ -233,7 +233,8 @@ virtualenv, so no image is built there: static checks run on the host (`basic-ch
 airflow-ctl integration tests, the docs and the dependency upgrade check, which need an image, do not run. The PROD image is built for
 the chart's tests only, so `run-generic-prod-image-tests` (Docker
 Compose, image-building examples, basic and canary end-to-end tests) is off, and so is
-`run-generic-basic-tests` (the standalone Airflow and shared distributions tests). Provider tests are skipped, and on `chart/` docs, when they changed, build only the
+`run-generic-basic-tests` (the standalone Airflow test), `run-shared-distributions-tests` and
+`run-translation-check`. Provider tests are skipped, and on `chart/` docs, when they changed, build only the
 chart's package. Static checks, scripts and Breeze integration tests, and the CodeQL scans run as usual. A test
 in `test_selective_checks.py` fails when a new `run_*` output is neither scoped nor listed as a general
 check, so a new job does not start running on these branches by accident.
@@ -509,6 +510,20 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   and docs build only the chart's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `CI Image building` is enabled if either test are run, docs are build.
+* Jobs that used to run for every change run only when a file they depend on changed. Full-test runs,
+  which include the scheduled canary runs, still run all of them:
+  * `Shared distributions tests` run when `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml`
+    or `uv.lock` changed. The
+    standalone Airflow test (`run-generic-basic-tests`) still runs for every change.
+  * `Check translation completeness` runs when a UI translation file under
+    `airflow-core/src/airflow/ui/public/i18n/` changed.
+  * `Check that image builds quickly` runs when the CI image is built and a file the image is built
+    from changed: `Dockerfile*`, `.dockerignore`, `scripts/docker/`, `hatch_build.py`, `generated/`,
+    `uv.lock`, a `pyproject.toml` or the prek script that regenerates the provider dependencies before
+    the build. Any other change reuses the cached layers.
+  * `Publish documentation and validate versions` runs when the docs are built and a documentation
+    tree, a `provider.yaml`, a `pyproject.toml`, a distribution's version file, a changelog, the release
+    notes or the docs tooling changed.
 * `PROD Image building` is enabled when kubernetes tests are run.
 * `Generate constraints` runs when the PROD image is built, because that build reads the
   `constraints-source-providers` file, or when `generate-pypi-constraints` is on. The PyPI constraints and
@@ -774,12 +789,16 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
 | run-api-tests                                           | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
 | run-generic-prod-image-tests                            | Whether the PROD image's own tests run (Docker Compose, examples, basic e2e): off on component branches | true                                     |      |
-| run-generic-basic-tests                                 | Whether the standalone Airflow and shared distributions tests run: off on component branches          | true                                     |      |
+| run-docs-publish                                        | Whether the built docs are published locally and their versions validated: docs, provider versions or docs tooling changed | true                                     |      |
+| run-generic-basic-tests                                 | Whether the standalone Airflow test runs: off on component branches                                   | true                                     |      |
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
+| run-image-build-time-check                              | Whether `Check that image builds quickly` runs: the CI image is built and a file it is built from changed | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
+| run-shared-distributions-tests                          | Whether the shared distributions tests run: `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml` or `uv.lock` changed; off on component branches | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
+| run-translation-check                                   | Whether the UI translation completeness check runs: a translation file changed; off on component branches | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
 | run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | run-ts-sdk-tests                                        | Whether TypeScript SDK unit tests should be run — on `ts-sdk/` changes except Markdown, `api-docs/`, and `docs/` ("true"/"false") | true                                     |      |
@@ -930,9 +949,9 @@ the jobs - you can set `all versions` label in the PR. This will run the PRs wit
 of versions as the `canary` main build. Using `all versions` is automatically set when build dependencies
 change in `pyproject.toml`.
 
-If you are running an `apache` PR, you can also set `canary` label for such PR and in this case, all the
-`canary` properties of build will be used: `full tests needed` mode, `all versions`
-as well as all canary-specific jobs will run there. You can modify this behaviour of the `canary` run by
+If you are running an `apache` PR, you can also set `canary` label for such PR and in this case the
+canary-specific jobs run there. The label alone does not turn on `full tests needed` or `all versions`;
+set those labels too for a complete canary build. You can modify this behaviour of the `canary` run by
 applying `use public runners`, and `default versions only` labels to the PR as well which will still run
 a `canary` equivalent build but with public runners an default Python/K8S versions only - respectively.
 

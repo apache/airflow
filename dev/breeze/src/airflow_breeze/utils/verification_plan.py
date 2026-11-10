@@ -82,6 +82,14 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("unit", "cd dev/breeze && uv run --locked pytest", "host"),
         ("unit", "cd dev/breeze && uv run --locked pytest -m integration_tests", "host"),
     ),
+    "run_shared_distributions_tests": (
+        (
+            "unit",
+            'for dist in shared/*/; do (cd "$dist" && uv run --exact --group dev pytest -n auto) || exit 1; done',
+            "host",
+        ),
+    ),
+    "run_translation_check": (("ui", "breeze ui check-translation-completeness", "host"),),
 }
 
 # Gated CI jobs that need a cluster, a prod image or an e2e stack; classified only, never printed.
@@ -106,6 +114,8 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
         "run_yaml_dag_e2e_tests",
         "run_generic_prod_image_tests",
         "run_generic_basic_tests",
+        "run_image_build_time_check",
+        "run_docs_publish",
     }
 )
 
@@ -165,18 +175,10 @@ def build_local_verification_plan(
             VerificationItem("docs", f"breeze build-docs {sc.docs_list_as_string}".rstrip(), "breeze")
         )
     if full:
-        # Jobs CI runs on every PR regardless of the change.
+        # Breeze's unit tests run on every PR regardless of the change.
         breeze_tests = VerificationItem("unit", "cd dev/breeze && uv run --locked pytest", "host")
         if breeze_tests not in items:
             items.append(breeze_tests)
-        if dists := " ".join(sorted(json.loads(sc.shared_distributions_as_json))):
-            items.append(
-                VerificationItem(
-                    "unit",
-                    f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
-                    "host",
-                )
-            )
     return {
         "base_ref": base_ref,
         "default_python_version": sc.default_python_version,
