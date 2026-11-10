@@ -245,6 +245,11 @@ class StubVerticaDialect(DefaultDialect):
 
         return vertica_python
 
+    @classmethod
+    def dbapi(cls):
+        # SQLAlchemy < 2.0 calls dbapi() instead of import_dbapi(); SQLAlchemy 2 uses import_dbapi() when defined.
+        return cls.import_dbapi()
+
 
 @pytest.fixture
 def vertica_dialect_registered():
