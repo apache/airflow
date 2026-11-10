@@ -401,7 +401,7 @@ Typical scenarios where you would like to use your custom image are adding:
 * custom tools needed in your deployment.
 
 See :ref:`Extending Airflow Image <quick-start:extending-airflow-image>` and/or
-`Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
+`Building your image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
 details on how you can extend, customize and test the modifications of Airflow image.
 
 Managing Dag Files

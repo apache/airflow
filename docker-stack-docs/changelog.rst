@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Dockerfile Changelog
-====================
+Changelog
+=========
 
 The ``Dockerfile`` does not strictly follow the `SemVer <https://semver.org/>`_ approach of
 Apache Airflow when it comes to features and backwards compatibility. While Airflow code strictly
