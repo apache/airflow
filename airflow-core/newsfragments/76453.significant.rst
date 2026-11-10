@@ -1,0 +1,16 @@
+Testing an existing connection reuses its stored secrets only when the connection is unchanged
+
+``POST /api/v2/connections/test`` with the ``connection_id`` of an existing connection fills in the stored password and ``extra`` for the fields the request leaves out or sends back masked. It now does so only when the request keeps the stored connection type, host, port, schema, login and ``extra``. A request that changes any of them, including a partial request that only sets the changed fields, is rejected with a 400 unless it includes the password to test, and is then tested with exactly what it contains.
+
+Testing a saved connection from the UI is not affected.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

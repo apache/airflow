@@ -118,6 +118,11 @@ When you add a new dependency, you should make sure that:
   all packages with all extras can be installed together without conflicts, but this might be sometimes
   difficult and slow as some of the extras require some additional system level dependencies to be installed
   (for example ``mysql`` or ``postgres`` extras require client libraries to be installed on the system).
+  Extras that ``[tool.uv] conflicts`` in the root ``pyproject.toml`` declares as conflicting cannot be
+  synced together, so leave one of each group out with ``--no-extra`` (today
+  ``uv sync --all-packages --all-extras --no-extra llamaindex``). The lowest-direct dependency tests
+  leave the same extras out through ``LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS`` in
+  ``scripts/docker/entrypoint_ci.sh``.
 
 * Make sure to run all tests after modifying dependencies to make sure that nothing is broken
 

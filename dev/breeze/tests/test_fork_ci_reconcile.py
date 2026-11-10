@@ -63,6 +63,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     discover,
     drop_reported,
     fetch_fork_observations,
+    fetch_open_pull_requests,
     fetch_workflow_state,
     find_ci_run_since,
     find_heads_shared_across_bases,
@@ -3238,6 +3239,109 @@ def test_gate_change_finder_aborts_when_the_pull_request_changed(client, head_sh
 
     with pytest.raises(PullRequestChangedError, match=match):
         finder.find(_pr())
+
+
+NEWLY_GATED = {**_pr_node(1), "labels": {"nodes": []}}
+
+
+def _graphql_after_gating_pull_request_1(*, listed: list[dict], by_number: dict | Exception | None):
+    def graphql(query, variables=None, *, allow_partial=False):
+        if "pullRequest(number:" in query:
+            if by_number is None:
+                raise AssertionError("read by number although the search listed it")
+            if isinstance(by_number, Exception):
+                raise by_number
+            return by_number
+        if "q" not in variables:
+            return {f"pr{key[1:]}": {"object": None} for key in variables if key.startswith("s")}
+        if "updated:>=" in variables["q"]:
+            return _search_result(NEWLY_GATED)
+        if variables["q"] == f'repo:{REPO} is:pr is:open label:"fork ci required"':
+            return _search_result(*listed)
+        return _search_result()
+
+    return graphql
+
+
+def _rest_get_for_pull_request_1(path, paginate=False, items_key=None):
+    if path.endswith("/actions/workflows/ci-amd.yml"):
+        return {"state": "active"}
+    if path == f"repos/{REPO}/pulls/1/files?per_page=100":
+        return []
+    if path == f"repos/{REPO}/pulls/1":
+        return {"head": {"sha": "sha1"}, "base": {"ref": "main"}}
+    raise AssertionError(path)
+
+
+@pytest.mark.parametrize(
+    ("listed", "by_number", "commented"),
+    [
+        pytest.param(
+            [], {"repository": {"pr0": {**_pr_node(1), "state": "OPEN"}}}, [1], id="not-yet-listed-by-search"
+        ),
+        pytest.param([_pr_node(1)], None, [1], id="listed-by-search"),
+        pytest.param(
+            [], {"repository": {"pr0": {**_pr_node(1), "state": "CLOSED"}}}, [], id="closed-since-labelled"
+        ),
+        pytest.param([], {"repository": {"pr0": None}}, [], id="deleted-since-labelled"),
+        pytest.param([], {"repository": None}, [], id="repository-not-resolved"),
+    ],
+)
+def test_run_reconcile_reconciles_pull_requests_labelled_in_the_same_run(
+    client, tmp_path, listed, by_number, commented
+):
+    client.graphql.side_effect = _graphql_after_gating_pull_request_1(listed=listed, by_number=by_number)
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = _rest_get_for_pull_request_1
+
+    has_alerts = run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert has_alerts is False
+    client.add_labels.assert_called_once_with(1, ["fork ci required"])
+    assert [call.args[0] for call in client.create_comment.call_args_list] == commented
+
+
+def test_run_reconcile_leaves_pull_requests_it_cannot_read_for_the_next_run(client, tmp_path):
+    client.graphql.side_effect = _graphql_after_gating_pull_request_1(
+        listed=[], by_number=GitHubError("gh api failed: HTTP 502")
+    )
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = _rest_get_for_pull_request_1
+
+    has_alerts = run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert has_alerts is False
+    client.create_comment.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.PASS_TWO_PAGE_SIZE", 2)
+def test_fetch_open_pull_requests_reads_in_batches(client):
+    client.graphql.side_effect = [
+        {"repository": {"pr0": {"number": 1, "state": "OPEN"}, "pr1": {"number": 2, "state": "OPEN"}}},
+        {"repository": {"pr0": {"number": 3, "state": "OPEN"}}},
+    ]
+
+    nodes = fetch_open_pull_requests(client, [1, 2, 3], repo=REPO)
+
+    assert [node["number"] for node in nodes] == [1, 2, 3]
+    queries = [call.args[0] for call in client.graphql.call_args_list]
+    assert "pr1: pullRequest(number: 2)" in queries[0]
+    assert "pr0: pullRequest(number: 3)" in queries[1]
+    assert "number: 3" not in queries[0]
 
 
 def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path):
