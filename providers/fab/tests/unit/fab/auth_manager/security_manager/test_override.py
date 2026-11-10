@@ -248,6 +248,34 @@ class TestFabAirflowSecurityManagerOverride:
         sm._rotate_session_id.assert_not_called()
         sm.update_user_auth_stat.assert_not_called()
 
+    @mock.patch.object(
+        EmptySecurityManager,
+        "auth_user_registration_role",
+        new_callable=mock.PropertyMock,
+        return_value="User",
+    )
+    @mock.patch.object(
+        EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock, return_value=True
+    )
+    def test_auth_user_remote_user_uses_user_created_by_parallel_request(self, _, __):
+        existing = Mock(is_active=True)
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(side_effect=[None, existing])
+        sm.find_role = Mock(return_value=None)
+        sm._hash_password = Mock(return_value="hashed")
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.auth_user_remote_user("alice")
+
+        assert result is existing
+        sm._rotate_session_id.assert_called_once()
+        sm.update_user_auth_stat.assert_called_once_with(existing)
+
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_create_action_returns_existing_on_concurrent_insert(self, mock_log):
         sm = EmptySecurityManager()
