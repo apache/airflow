@@ -38,7 +38,8 @@ def _get_base_path():
     path = conf.get(SECTION, "durable_cache_path", fallback="")
     if not path:
         raise ValueError(
-            "durable=True requires [common.ai] durable_cache_path to be set. "
+            "Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path "
+            "to be set, to say where its journal is kept. "
             "Example: durable_cache_path = file:///tmp/airflow_durable_cache"
         )
     return ObjectStoragePath(path)

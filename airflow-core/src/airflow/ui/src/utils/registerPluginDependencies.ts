@@ -16,23 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
- */
-import prettier from "eslint-plugin-prettier";
+// Plugin UMD bundles expect the host's React object as a global.
+// eslint-disable-next-line @typescript-eslint/no-restricted-imports
+import React from "react";
 
-import { off } from "./off.js";
+import * as ChakraUI from "@chakra-ui/react";
+import * as EmotionReact from "@emotion/react";
+import * as ReactDOM from "react-dom";
+import * as ReactRouterDOM from "react-router-dom";
+import * as ReactJSXRuntime from "react/jsx-runtime";
 
-/**
- * ESLint TypeScript namespace.
- */
-export const prettierNamespace = "prettier";
-
-/**
- * ESLint Prettier rules.
- * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
- */
-export const prettierRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
-  plugins: { [prettierNamespace]: prettier },
-  rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
-});
+export const registerPluginDependencies = () => {
+  Reflect.set(globalThis, "React", React);
+  Reflect.set(globalThis, "ReactDOM", ReactDOM);
+  Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
+  Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
+  Reflect.set(globalThis, "ChakraUI", ChakraUI);
+  Reflect.set(globalThis, "EmotionReact", EmotionReact);
+};

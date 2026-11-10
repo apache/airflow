@@ -128,16 +128,7 @@ def send_email_smtp(
 
     >>> send_email("test@example.com", "foo", "<b>Foo</b> bar", ["/dev/null"], dryrun=True)
     """
-    smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
-
-    if smtp_mail_from is not None:
-        mail_from = smtp_mail_from
-    else:
-        if from_email is None:
-            raise ValueError(
-                "You should set from email - either by smtp/smtp_mail_from config or `from_email` parameter"
-            )
-        mail_from = from_email
+    mail_from = conf.get("smtp", "SMTP_MAIL_FROM", fallback="airflow@example.com")
 
     msg, recipients = build_mime_message(
         mail_from=mail_from,
@@ -236,12 +227,13 @@ def send_mime_email(
     :param conn_id: The ID of the SMTP connection to use.
     :param dryrun: If True, the email will not be sent, but a log message will be generated.
     """
-    smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST")
-    smtp_port = conf.getint("smtp", "SMTP_PORT")
-    smtp_starttls = conf.getboolean("smtp", "SMTP_STARTTLS")
-    smtp_ssl = conf.getboolean("smtp", "SMTP_SSL")
-    smtp_retry_limit = conf.getint("smtp", "SMTP_RETRY_LIMIT")
-    smtp_timeout = conf.getint("smtp", "SMTP_TIMEOUT")
+    # Same defaults as core's [smtp] section, so email keeps working once core stops defining it.
+    smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST", fallback="localhost")
+    smtp_port = conf.getint("smtp", "SMTP_PORT", fallback=25)
+    smtp_starttls = conf.getboolean("smtp", "SMTP_STARTTLS", fallback=True)
+    smtp_ssl = conf.getboolean("smtp", "SMTP_SSL", fallback=False)
+    smtp_retry_limit = conf.getint("smtp", "SMTP_RETRY_LIMIT", fallback=5)
+    smtp_timeout = conf.getint("smtp", "SMTP_TIMEOUT", fallback=30)
     smtp_user = None
     smtp_password = None
 

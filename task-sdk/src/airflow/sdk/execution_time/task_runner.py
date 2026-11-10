@@ -236,6 +236,9 @@ class RuntimeTaskInstance(TaskInstance):
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
+    _state_store_clear_owed: bool = False
+    """True once a successful task has been reported to the supervisor and ``clear_on_success`` still owes the custom backend a delete; finalize() does it last, after every callback and listener, so a slow remote delete cannot eat the task_success_overtime budget ahead of them. finalize() is the seam both the subprocess and the in-process (dag.test()) paths cross."""
+
     _failure_metrics_emitted: bool = False
     """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
 
@@ -620,7 +623,10 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-                xcoms.append(None) if values is None else xcoms.extend(values)
+                if values is None:
+                    xcoms.append(default)
+                else:
+                    xcoms.extend(values)
             # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -680,7 +686,10 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-                xcoms.append(None) if values is None else xcoms.extend(values)
+                if values is None:
+                    xcoms.append(default)
+                else:
+                    xcoms.extend(values)
             # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -1837,10 +1846,52 @@ def run(
                 # a retry policy turned the exception into a reschedule.
                 if error is not None or state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
                     ti._terminal_state_send_failed = True
+            else:
+                if state == TaskInstanceState.SUCCESS:
+                    ti._state_store_clear_owed = True
 
     # Return the message to make unit tests easier too
     ti.state = state
     return state, msg, error
+
+
+def _clear_task_state_store_on_success(context: Context, log: Logger) -> None:
+    """
+    Clear the custom state store backend once the task is recorded as successful.
+
+    Called at the end of finalize(), never before the terminal state is reported: the
+    backend is remote storage, so a failure deleting from it must not turn a task that
+    succeeded into a failed one, and a slow delete must not spend the task_success_overtime
+    budget that the success callbacks and listeners need.
+    """
+    if not conf.getboolean("state_store", "clear_on_success"):
+        return
+    try:
+        # Inside the try: the backend is built on first use, so a bad [workers]
+        # state_store_backend class path raises here for a task that never touched
+        # task_state_store, and @cache does not cache the raise.
+        if _get_worker_state_store_backend() is None:
+            return
+        scope = context["task_state_store"]._scope
+        # Logged before the delete: if it hangs past task_success_overtime, the supervisor
+        # kills the task and this line is the only record of which entries were left.
+        log.info(
+            "Clearing task state as clear_on_success is enabled.",
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            region_id=str(scope.region_id),
+            region_index=scope.region_index,
+        )
+        # clear() rather than a backend-only delete: success callbacks and listeners run
+        # before this and can set() new keys, whose DB refs must go before the objects do.
+        context["task_state_store"].clear()
+    except Exception:
+        log.exception(
+            "Failed to clear task state from custom backend; the task stays successful. Nothing in Airflow "
+            "reclaims these entries -- the database references are already gone and the next run uses a "
+            "different run_id -- so only the storage's own lifecycle or TTL policy will remove them."
+        )
 
 
 def _handle_current_task_success(
@@ -1859,12 +1910,6 @@ def _handle_current_task_success(
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
-
-    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
-        log.info(
-            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
-        )
-        context["task_state_store"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,
@@ -2602,6 +2647,9 @@ def finalize(
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
+
+    if ti._state_store_clear_owed:
+        _clear_task_state_store_on_success(context, log)
 
     log.info("::endgroup::")
 
