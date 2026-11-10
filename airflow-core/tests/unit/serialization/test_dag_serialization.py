@@ -662,6 +662,75 @@ class TestStringifiedDAGs:
         }
 
     @pytest.mark.db_test
+    def test_user_defined_macros_primitives_are_serialized(self):
+        """JSON-safe macro values survive a round-trip through DagSerialization."""
+        dag = DAG(
+            "macro_roundtrip_dag",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+            user_defined_macros={
+                "env": "production",
+                "max_retries": 3,
+                "ratio": 0.75,
+                "flag": True,
+                "nested": {"key": "val"},
+                "items": [1, 2, 3],
+            },
+        )
+        serialized = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(serialized)
+
+        raw_macros = serialized["dag"]["user_defined_macros"]
+        assert raw_macros["env"] == "production"
+        assert raw_macros["max_retries"] == 3
+        assert raw_macros["ratio"] == 0.75
+        assert raw_macros["flag"] is True
+        assert raw_macros["nested"] == {"key": "val"}
+        assert raw_macros["items"] == [1, 2, 3]
+
+        # Round-trip: the deserialized SerializedDAG should expose them
+        # through get_template_env() so templates render correctly.
+        ser_dag = DagSerialization.from_dict(serialized)
+        assert ser_dag.user_defined_macros == raw_macros
+
+        env = ser_dag.get_template_env()
+        assert env.globals["env"] == "production"
+        assert env.globals["max_retries"] == 3
+
+    @pytest.mark.db_test
+    def test_user_defined_macros_callables_are_dropped_with_warning(self, caplog):
+        """Callable macros must not raise — they are dropped and logged at WARNING."""
+        dag = DAG(
+            "callable_macro_dag",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+            user_defined_macros={
+                "greet": lambda name: f"Hello {name}",
+                "site": "airflow.apache.org",
+            },
+        )
+        with caplog.at_level("WARNING", logger="airflow.serialization.serialized_objects"):
+            serialized = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(serialized)
+
+        # The callable must not appear in the serialized form.
+        raw_macros = serialized["dag"]["user_defined_macros"]
+        assert "greet" not in raw_macros
+        assert raw_macros["site"] == "airflow.apache.org"
+
+        # At least one warning must mention the dropped key.
+        assert any("greet" in record.message for record in caplog.records)
+
+    @pytest.mark.db_test
+    def test_dag_without_user_defined_macros_omits_key(self):
+        """DAGs that never set user_defined_macros must not add the key to the payload."""
+        dag = DAG("no_macro_dag", schedule=None, start_date=datetime(2024, 1, 1))
+        serialized = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(serialized)
+
+        assert "user_defined_macros" not in serialized["dag"]
+
+    @pytest.mark.db_test
     def test_dag_serialization_unregistered_custom_timetable(self):
         """Verify serialization fails without timetable registration."""
         dag = get_timetable_based_simple_dag(CustomSerializationTimetable("bar"))

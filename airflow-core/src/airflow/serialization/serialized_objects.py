@@ -1787,6 +1787,15 @@ class DagSerialization(BaseSerialization):
             serialized_dag["edge_info"] = dag.edge_info
             serialized_dag["params"] = cls._serialize_params_dict(dag.params)
 
+            # Carry forward the JSON-safe subset of user_defined_macros so that
+            # the triggerer (which only has the serialized form) can still resolve
+            # primitive template variables.  Callables cannot be reconstructed from
+            # JSON, so we drop them here with a one-time warning per DAG.
+            if dag.user_defined_macros:
+                serialized_dag["user_defined_macros"] = cls._serialize_user_defined_macros(
+                    dag.dag_id, dag.user_defined_macros
+                )
+
             # has_on_*_callback are only stored if the value is True, as the default is False
             for field in _DAG_CALLBACK_FIELDS:
                 if getattr(dag, field):
@@ -1965,6 +1974,39 @@ class DagSerialization(BaseSerialization):
 
         optional_fields = operator_fields - required_fields
         return optional_fields
+
+    @classmethod
+    def _serialize_user_defined_macros(cls, dag_id: str, macros: dict) -> dict:
+        """
+        Return the JSON-safe entries from *macros*, dropping callables with a warning.
+
+        Only ``str``, ``int``, ``float``, ``bool``, ``None``, ``list``, and ``dict``
+        values (recursively composed of the same types) survive serialization.
+        Any callable is skipped — the triggerer cannot reconstruct it from stored
+        JSON, so DAG authors who need callable macros in a trigger context must load
+        the bundle and re-import the DAG file instead.
+        """
+        import json as _json
+
+        safe: dict = {}
+        dropped: list[str] = []
+        for key, value in macros.items():
+            if callable(value):
+                dropped.append(key)
+                continue
+            try:
+                _json.dumps(value)
+                safe[key] = value
+            except (TypeError, ValueError):
+                dropped.append(key)
+        if dropped:
+            log.warning(
+                "DAG %r: the following user_defined_macros are not JSON-serializable and will be "
+                "unavailable in the triggerer: %s",
+                dag_id,
+                ", ".join(dropped),
+            )
+        return safe
 
     @classmethod
     def to_dict(cls, var: Any) -> dict:
