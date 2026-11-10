@@ -35,7 +35,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
 from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
-from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
@@ -46,7 +46,9 @@ from pydantic_ai.messages import (
     ToolReturn,
     ToolReturnPart,
 )
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.settings import ModelSettings
 from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
@@ -60,6 +62,7 @@ from airflow.providers.common.ai.durable.capability import (
     _JournalCodec,
 )
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.exceptions import DurableJournalError, SQLToolsetConnectionError
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
@@ -70,6 +73,7 @@ from unit.common.ai.sqlite_connection import create_orders_table, run_sql, sqlit
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
+    from pydantic_ai.models import Model
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
 PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
@@ -1928,3 +1932,154 @@ class TestReplayUsage:
 
         assert result.output == "done"
         assert usage.requests == 3
+
+
+_DIVERGED_EVENT = (
+    "Durable: the run took a different path from the previous attempt; "
+    "this step and every step after it run again"
+)
+
+
+class TestFallbackChainEdits:
+    """Editing a fallback chain between attempts keeps the steps a surviving member answered."""
+
+    @staticmethod
+    def build_chain(
+        calls: Calls,
+        members: list[tuple[str, float | None]],
+        *,
+        up: set[str],
+        stamped: bool = True,
+    ) -> FallbackModel:
+        def build_member(name: str, temperature: float | None) -> Model:
+            def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                calls.bump(name)
+                if name not in up:
+                    raise ModelHTTPError(500, name)
+                return ModelResponse(parts=[TextPart(f"{name} answered")])
+
+            model = FunctionModel(
+                respond,
+                model_name=name,
+                settings=ModelSettings(temperature=temperature) if temperature is not None else None,
+            )
+            return MemberStampingModel(model) if stamped else model
+
+        return FallbackModel(
+            *(build_member(name, temperature) for name, temperature in members),
+            fallback_on=(ModelAPIError,),
+        )
+
+    @staticmethod
+    def build_agent(chain: FallbackModel) -> Agent[None, str]:
+        return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+    @pytest.mark.parametrize(
+        ("members", "up", "output", "replayed", "calls_by_member"),
+        [
+            pytest.param(
+                [("c", None), ("b", None)], {"c"}, "b answered", 1, {"b": 1, "c": 0}, id="member added before"
+            ),
+            pytest.param(
+                [("b", None), ("a", None)], {"a"}, "b answered", 1, {"b": 1, "a": 1}, id="members reordered"
+            ),
+            pytest.param(
+                [("a", None), ("b", 0.9)], set(), "b answered", 1, {"b": 1}, id="member settings changed"
+            ),
+            pytest.param(
+                [("a", None)], {"a"}, "a answered", 0, {"a": 2, "b": 1}, id="answering member removed"
+            ),
+            pytest.param(
+                [("a", None), ("b2", None)],
+                {"b2"},
+                "b2 answered",
+                0,
+                {"a": 2, "b": 1, "b2": 1},
+                id="answering member's model changed",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_step_replays_only_while_its_answering_member_is_in_the_chain(
+        self, memory_storage, caplog, members, up, output, replayed, calls_by_member
+    ):
+        calls = Calls()
+        first = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+        await attempt(memory_storage, self.build_agent(first))
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            result = await self.build_agent(self.build_chain(calls, members, up=up)).run("go")
+
+        assert result.output == output
+        assert journal.stats.replayed["model"] == replayed
+        assert {name: calls[name] for name in calls_by_member} == calls_by_member
+        reason = "the model that answered this step, function:b, is no longer in the fallback chain"
+        assert ({"event": _DIVERGED_EVENT, "reason": reason} in caplog) is (replayed == 0)
+
+    @pytest.mark.asyncio
+    async def test_a_step_from_an_unstamped_chain_runs_live(self, memory_storage, caplog):
+        calls = Calls()
+        chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"}, stamped=False)
+        await attempt(memory_storage, self.build_agent(chain))
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"}, stamped=False)
+            await self.build_agent(chain).run("go")
+
+        assert journal.stats.replayed["model"] == 0
+        assert calls["b"] == 2
+        reason = "the recorded response does not say which fallback chain member answered it"
+        assert {"event": _DIVERGED_EVENT, "reason": reason} in caplog
+
+    @pytest.mark.asyncio
+    async def test_a_suspended_response_of_a_removed_member_is_not_continued(self, memory_storage):
+        calls = Calls()
+        histories: list[list[ModelMessage]] = []
+
+        def build(members: list[str]) -> Agent[None, str]:
+            def respond_as(name: str):
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    histories.append(messages)
+                    if name == "a" and "b" in members:
+                        raise ModelHTTPError(500, "a")
+                    suspended = name == "b" and calls["b"] == 1
+                    return ModelResponse(
+                        parts=[TextPart(f"{name} segment")],
+                        state="suspended" if suspended else "complete",
+                    )
+
+                return respond
+
+            chain = FallbackModel(
+                *(MemberStampingModel(FunctionModel(respond_as(name), model_name=name)) for name in members),
+                fallback_on=(ModelAPIError,),
+            )
+            return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+        await attempt(memory_storage, build(["a", "b"]))
+        assert calls["b"] == 2
+        histories.clear()
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            await build(["a"]).run("go")
+
+        assert journal.stats.replayed["model"] == 0
+        [history] = histories
+        assert [message for message in history if isinstance(message, ModelResponse)] == []
+
+    @pytest.mark.asyncio
+    async def test_a_model_without_a_chain_keeps_its_fingerprint(self, memory_storage):
+        agent = Agent(
+            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("hi")]), model_name="solo"),
+            name="solo",
+            capabilities=[AirflowDurability()],
+        )
+
+        await attempt(memory_storage, agent)
+
+        [entry] = [entry for entry in memory_storage.steps() if entry["kind"] == "model"]
+        assert entry["fingerprint"] == ("d28a781b26a3c6af5e77d6b2d7f8bd6e41454aa28404beb9b1699c6f6d9d6258")
