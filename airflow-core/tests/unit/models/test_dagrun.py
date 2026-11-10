@@ -43,8 +43,10 @@ from sqlalchemy import (
     func,
     inspect as sa_inspect,
     select,
+    text,
     update,
 )
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -104,6 +106,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
+from airflow.serialization.definitions.dag import _create_alert_session
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -2009,8 +2012,8 @@ class TestDagRun:
         assert deadline.deadline_time == first_deadline_time
 
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_uses_callers_session(self, _, session, deadline_test_dag):
-        """Caller's session must reach Variable.get."""
+    def test_dagrun_deadline_variable_interval_uses_separate_session(self, _, session, deadline_test_dag):
+        """Variable.get must get the alert's own session, not the scheduler's."""
         future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
         scheduler_dag = deadline_test_dag(
@@ -2024,7 +2027,8 @@ class TestDagRun:
         with mock.patch.object(Variable, "get", return_value="60") as mock_get:
             self.create_dag_run(dag=scheduler_dag, session=session)
 
-        mock_get.assert_called_once_with("my_key", session=session)
+        mock_get.assert_called_once_with("my_key", session=mock.ANY)
+        assert mock_get.call_args.kwargs["session"] is not session
 
     def test_dagrun_deadline_logs_when_reference_column_is_null(self, session, deadline_test_dag, caplog):
         scheduler_dag = deadline_test_dag(
@@ -2152,7 +2156,7 @@ class TestDagRun:
     def test_dagrun_deadline_failure_that_detaches_orm_objects_still_skips(
         self, mock_variable_get, _, mock_stats_incr, session, deadline_test_dag
     ):
-        """A failing interval resolution can roll back and close the caller's session underneath
+        """A reference that reaches for the scheduler's session can roll back and close it underneath
         the handler (``create_session`` reusing the scoped session does exactly that), detaching
         every ORM instance. The skip path must still log and count without touching ORM state, and the
         discarded DagRun must surface as an error rather than being returned as created."""
@@ -2187,7 +2191,105 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     @mock.patch.object(Variable, "get")
-    def test_dagrun_deadline_alert_rolling_back_session_raises_instead_of_orphaning_deadline(
+    def test_dagrun_deadline_alert_rolling_back_its_own_session_keeps_dagrun_and_later_alerts(
+        self, mock_variable_get, _, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("missing_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=1),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def rollback_given_session_and_raise(key, session):
+            session.rollback()
+            raise KeyError(key)
+
+        mock_variable_get.side_effect = rollback_given_session_and_raise
+
+        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert dag_run in session
+        session.flush()
+        deadlines = session.scalars(select(Deadline)).all()
+        assert [deadline.dagrun_id for deadline in deadlines] == [dag_run.id]
+
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            pytest.param("UPDATE variable SET val = val WHERE id = -1", id="write"),
+            pytest.param(
+                "SELECT id FROM variable WHERE id = -1 FOR UPDATE",
+                marks=pytest.mark.backend("postgres", "mysql"),
+                id="row_lock",
+            ),
+        ],
+    )
+    def test_deadline_alert_session_is_read_only(self, statement, session):
+        with _create_alert_session() as alert_session:
+            assert alert_session.execute(text("SELECT 1")).scalar() == 1
+            with pytest.raises(DBAPIError):
+                alert_session.execute(text(statement))
+            # The alert can end the transaction or the whole session; neither may lift the restriction.
+            alert_session.rollback()
+            with pytest.raises(DBAPIError):
+                alert_session.execute(text(statement))
+            alert_session.close()
+            with pytest.raises(DBAPIError):
+                alert_session.execute(text(statement))
+
+        # The connection goes back to the shared pool and must not stay read-only.
+        session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(Variable, "get")
+    def test_dagrun_deadline_alert_writing_through_its_session_is_skipped(
+        self, mock_variable_get, _, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("some_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=1),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def write_through_given_session(key, session):
+            session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
+
+        mock_variable_get.side_effect = write_through_given_session
+
+        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert dag_run in session
+        session.flush()
+        deadlines = session.scalars(select(Deadline)).all()
+        assert [deadline.dagrun_id for deadline in deadlines] == [dag_run.id]
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(Variable, "get")
+    def test_dagrun_deadline_alert_rolling_back_schedulers_session_raises_instead_of_orphaning_deadline(
         self, mock_variable_get, _, session, deadline_test_dag
     ):
         scheduler_dag = deadline_test_dag(

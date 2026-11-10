@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import functools
 import itertools
@@ -28,8 +29,9 @@ from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
 import structlog
-from sqlalchemy import func, or_, select, tuple_
+from sqlalchemy import event, func, or_, select, tuple_
 
+from airflow import settings
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
@@ -69,13 +71,14 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import datetime
-    from collections.abc import Collection, Iterable, Sequence
+    from collections.abc import Collection, Iterable, Iterator, Sequence
     from typing import Any, Literal
     from uuid import UUID
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
-    from sqlalchemy.orm import Session
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session, sessionmaker
     from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance
@@ -91,6 +94,63 @@ _DAGRUN_REFERENCE_REQUIRED_COLUMNS = {
     SerializedReferenceModels.DagRunLogicalDateDeadline: "logical_date",
     SerializedReferenceModels.DagRunQueuedAtDeadline: "queued_at",
 }
+
+
+@attrs.define(frozen=True)
+class _DagRunSnapshot:
+    """The fields of ``DeadlineDagRunProtocol``, read off the pending Dag run."""
+
+    dag_id: str
+    logical_date: datetime.datetime | None
+    queued_at: datetime.datetime | None
+
+
+_READ_ONLY_TRANSACTION_STATEMENTS = {
+    "postgresql": "SET TRANSACTION READ ONLY",
+    "mysql": "SET TRANSACTION READ ONLY",
+}
+
+
+@contextlib.contextmanager
+def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Session]) -> Iterator[Session]:
+    # query_only belongs to the connection, not the transaction. The session is bound to a connection
+    # owned here so it is switched off on that same connection before it returns to the pool, even if
+    # the alert closes the session.
+    with engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA query_only = ON")
+        try:
+            with session_maker(bind=connection) as alert_session:
+                yield alert_session
+        finally:
+            connection.rollback()
+            connection.exec_driver_sql("PRAGMA query_only = OFF")
+
+
+@contextlib.contextmanager
+def _create_alert_session() -> Iterator[Session]:
+    """
+    Yield the session deadline alerts are evaluated on, separate from the scheduler's.
+
+    A ``rollback()`` on the scheduler's session would discard the pending Dag run and every other Dag run
+    created in the same tick. This one is never committed and is read-only: a write or row lock would
+    otherwise wait on a lock the scheduler's own transaction holds, and the scheduler waits on the alert.
+    """
+    engine, session_maker = settings.engine, settings.NonScopedSession
+    if engine is None or session_maker is None:
+        raise RuntimeError("Session must be set before!")
+    if engine.dialect.name == "sqlite":
+        with _create_sqlite_alert_session(engine, session_maker) as alert_session:
+            yield alert_session
+        return
+    with session_maker() as alert_session:
+        if read_only_statement := _READ_ONLY_TRANSACTION_STATEMENTS.get(engine.dialect.name):
+
+            def set_transaction_read_only(session, transaction, connection) -> None:
+                connection.exec_driver_sql(read_only_statement)
+
+            # Per transaction: a rollback() inside the alert starts a new one.
+            event.listen(alert_session, "after_begin", set_transaction_read_only)
+        yield alert_session
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -800,78 +860,89 @@ class SerializedDAG:
         dagrun_id = orm_dagrun.id
         dagrun_dag_id = orm_dagrun.dag_id
         bundle_name = orm_dagrun.dag_model.bundle_name
+        dagrun_snapshot = _DagRunSnapshot(
+            dag_id=dagrun_dag_id,
+            logical_date=orm_dagrun.logical_date,
+            queued_at=orm_dagrun.queued_at,
+        )
         stored_alerts = [
             (alert.id, alert.name, alert.reference, alert.interval, alert.callback_def)
             for alert in deadline_alert_records
             if alert
         ]
 
-        for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
-            # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
-            try:
-                deserialized_deadline_alert = decode_deadline_alert(
-                    {
-                        DeadlineAlertFields.NAME: alert_name,
-                        DeadlineAlertFields.REFERENCE: alert_reference,
-                        DeadlineAlertFields.INTERVAL: alert_interval,
-                        DeadlineAlertFields.CALLBACK: alert_callback_def,
-                    }
-                )
-                interval = resolve_deadline_alert_interval(deserialized_deadline_alert, session=session)
-
-                if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
-                    deadline_time = deserialized_deadline_alert.reference.evaluate_with(
-                        session=session,
-                        interval=interval,
-                        dagrun=orm_dagrun,
-                        dag_id=self.dag_id,
-                        run_id=run_id,
+        with _create_alert_session() as alert_session:
+            for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
+                # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
+                try:
+                    deserialized_deadline_alert = decode_deadline_alert(
+                        {
+                            DeadlineAlertFields.NAME: alert_name,
+                            DeadlineAlertFields.REFERENCE: alert_reference,
+                            DeadlineAlertFields.INTERVAL: alert_interval,
+                            DeadlineAlertFields.CALLBACK: alert_callback_def,
+                        }
+                    )
+                    interval = resolve_deadline_alert_interval(
+                        deserialized_deadline_alert, session=alert_session
                     )
 
-                    if deadline_time is not None:
-                        session.add(
-                            Deadline(
-                                deadline_time=deadline_time,
-                                callback=deserialized_deadline_alert.callback,
-                                dagrun_id=dagrun_id,
-                                deadline_alert_id=alert_id,
-                                dag_id=dagrun_dag_id,
-                                bundle_name=bundle_name,
-                            )
-                        )
-                        stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
-                    elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
-                        type(deserialized_deadline_alert.reference)
+                    if isinstance(
+                        deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN
                     ):
-                        log.warning(
-                            "skipping deadline alert because the deadline reference evaluated to None",
+                        deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                            session=alert_session,
+                            interval=interval,
+                            dagrun=dagrun_snapshot,
                             dag_id=self.dag_id,
                             run_id=run_id,
-                            deadline_alert_id=alert_id,
-                            reference_type=deserialized_deadline_alert.reference.reference_name,
-                            required_dagrun_column=required_dagrun_column,
                         )
-            except Exception as exc:
-                if isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc):
-                    # A rejected commit means the scheduler's HA locking is already broken. Recording
-                    # that as a skipped alert would hide it, so let it escape instead.
-                    raise
-                log.exception(
-                    "skipping deadline alert because creating its deadline failed",
-                    dag_id=self.dag_id,
-                    run_id=run_id,
-                    deadline_alert_id=alert_id,
-                )
-                stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
 
-            # An alert can roll the session back, discarding the pending DagRun. Carrying on would
-            # add Deadlines that violate the dagrun_id foreign key, and returning normally would let
-            # the caller treat the missing run as created.
-            if orm_dagrun not in session:
-                raise DagRunRolledBackError(
-                    f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
-                    "while processing deadline alerts"
-                )
+                        if deadline_time is not None:
+                            session.add(
+                                Deadline(
+                                    deadline_time=deadline_time,
+                                    callback=deserialized_deadline_alert.callback,
+                                    dagrun_id=dagrun_id,
+                                    deadline_alert_id=alert_id,
+                                    dag_id=dagrun_dag_id,
+                                    bundle_name=bundle_name,
+                                )
+                            )
+                            stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
+                        elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
+                            type(deserialized_deadline_alert.reference)
+                        ):
+                            log.warning(
+                                "skipping deadline alert because the deadline reference evaluated to None",
+                                dag_id=self.dag_id,
+                                run_id=run_id,
+                                deadline_alert_id=alert_id,
+                                reference_type=deserialized_deadline_alert.reference.reference_name,
+                                required_dagrun_column=required_dagrun_column,
+                            )
+                except Exception as exc:
+                    if isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc):
+                        # A rejected commit means the scheduler's HA locking is already broken. Recording
+                        # that as a skipped alert would hide it, so let it escape instead.
+                        raise
+                    log.exception(
+                        "skipping deadline alert because creating its deadline failed",
+                        dag_id=self.dag_id,
+                        run_id=run_id,
+                        deadline_alert_id=alert_id,
+                    )
+                    stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+
+                # Alerts get their own session, but one that reaches for the scheduler's session
+                # (provide_session, settings.Session) can still roll it back, discarding the pending
+                # DagRun. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
+                # returning normally would let the caller treat the missing run as created.
+                if orm_dagrun not in session:
+                    raise DagRunRolledBackError(
+                        f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
+                        "while processing deadline alerts"
+                    )
 
     @provide_session
     def set_task_instance_state(
