@@ -24,15 +24,21 @@ from python_on_whales import DockerClient
 
 from docker_tests.constants import AIRFLOW_ROOT_PATH
 
+DATABASE_PROBE = ["jobs", "check", "--job-type", "DagProcessorJob", "--hostname", "test-processor"]
+API_PROBE = ["dag-processor", "--check-health"]
+
 
 @pytest.mark.parametrize(
-    ("token_file", "expected_args"),
+    ("use_execution_api", "expected_args"),
     [
-        (None, ["jobs", "check", "--job-type", "DagProcessorJob", "--hostname", "test-processor"]),
-        ("/run/processor.jwt", ["dag-processor", "--check-health"]),
+        (None, DATABASE_PROBE),
+        ("False", DATABASE_PROBE),
+        ("True", API_PROBE),
+        ("t", API_PROBE),
+        ("1", API_PROBE),
     ],
 )
-def test_quick_start_processor_healthcheck_mode(tmp_path, token_file, expected_args):
+def test_quick_start_processor_healthcheck_mode(tmp_path, use_execution_api, expected_args):
     example = AIRFLOW_ROOT_PATH / "airflow-core/docs/howto/docker-compose/docker-compose.yaml"
     healthcheck = yaml.safe_load(example.read_text())["services"]["airflow-dag-processor"]["healthcheck"][
         "test"
@@ -41,9 +47,14 @@ def test_quick_start_processor_healthcheck_mode(tmp_path, token_file, expected_a
     airflow = tmp_path / "airflow"
     airflow.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
     airflow.chmod(0o700)
-    env = {"PATH": str(tmp_path), "HOSTNAME": "test-processor"}
-    if token_file is not None:
-        env["AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE"] = token_file
+    # A token file alone does not enable API mode.
+    env = {
+        "PATH": str(tmp_path),
+        "HOSTNAME": "test-processor",
+        "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE": "/run/processor.jwt",
+    }
+    if use_execution_api is not None:
+        env["AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API"] = use_execution_api
     # Compose unescapes doubled dollar signs before passing CMD-SHELL to the container.
     result = subprocess.run(
         ["/bin/sh", "-c", healthcheck[1].replace("$$", "$")],
@@ -82,6 +93,7 @@ def test_isolated_processor_compose_example(tmp_path, monkeypatch, uid):
     assert not processor.get("env_file")
     assert not credentials.keys() & processor["environment"].keys()
     assert processor["environment"]["CONNECTION_CHECK_MAX_COUNT"] == "0"
+    assert processor["environment"]["AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API"] == "True"
     assert (
         processor["environment"]["AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE"]
         == "/run/dag-processor/processor.jwt"

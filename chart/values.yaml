@@ -2146,7 +2146,7 @@ dagProcessor:
   #     kwargs: {}
 
   # Number of Airflow dag processors in the Deployment. At most 1 when
-  # config.dag_processor.execution_api_token_file is set, since the pods would share one session token.
+  # config.dag_processor.use_execution_api is enabled, since the pods would share one session token.
   replicas: 1
 
   # Max number of old ReplicaSets to retain
@@ -2159,7 +2159,7 @@ dagProcessor:
   args: ["bash", "-c", "exec airflow dag-processor"]
 
   # Update Strategy for dag processors. Ignored when
-  # config.dag_processor.execution_api_token_file is set: those pods share one session
+  # config.dag_processor.use_execution_api is enabled: those pods share one session
   # token, so they are always replaced with the Recreate strategy.
   strategy:
     rollingUpdate:

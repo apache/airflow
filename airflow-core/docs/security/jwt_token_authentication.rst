@@ -734,16 +734,18 @@ one second, and waiting for parsing processes can take another second without a 
 ``health_check_threshold`` above five times that timeout plus three seconds, with additional
 scheduling margin.
 
-For Helm, set the token-file option under ``config.dag_processor`` to select the local
-probe. The chart then replaces processor pods with the ``Recreate`` strategy, because pods
+For Helm, enable ``use_execution_api`` under ``config.dag_processor`` to select the local
+probes, and set ``execution_api_token_file`` there too: the chart refuses to render API mode
+without a token file, and a token file alone keeps the database-backed probe. In API mode the
+chart replaces processor pods with the ``Recreate`` strategy, because pods
 that share a session token cannot run their Jobs side by side, and rejects more than one
-replica for the same reason. It does not select those settings for the
-``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` environment variable, and rejects that
-variable in ``env`` and ``dagProcessor.env``. Do not set it through ``secret``, ``extraEnv``,
-or ``extraEnvFrom`` either; the chart does not check those.
+replica for the same reason. It does not select those settings from the
+``AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API`` or ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE``
+environment variables, and rejects them in ``env`` and ``dagProcessor.env``. Do not set them
+through ``secret``, ``extraEnv``, or ``extraEnvFrom`` either; the chart does not check those.
 Disable the processor's migration-wait init container, provision the catalog
-separately, and remove server credentials from the pod. The Compose example selects the
-local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither the
+separately, and remove server credentials from the pod. The quick-start Compose file selects the
+local probe when ``AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API`` is true. Neither the
 main chart release nor the quick-start Compose file removes shared credentials or adds
 database-denying network policies automatically; the isolated examples below do.
 Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
@@ -845,7 +847,7 @@ To adopt an existing processor Secret while preserving its session:
 
 After preparing the files for a fresh deployment or adoption, start the provisioner
 and then the processor. Replace ``<chart-version>`` with a chart release that supports
-``config.dag_processor.execution_api_token_file``. Earlier releases keep the database-backed
+``config.dag_processor.use_execution_api``. Earlier releases keep the database-backed
 liveness probe, which fails without database credentials, and rolling updates, in which the
 new pod cannot register while the old pod holds the session::
 

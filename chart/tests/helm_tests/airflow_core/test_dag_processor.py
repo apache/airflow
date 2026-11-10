@@ -27,6 +27,8 @@ import yaml
 from chart_utils.helm_template_generator import render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
+API_MODE_CONFIG = {"use_execution_api": "True", "execution_api_token_file": "/run/processor.jwt"}
+
 
 class TestDagProcessor:
     """Tests DAG processor."""
@@ -440,9 +442,17 @@ class TestDagProcessor:
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
-    def test_api_mode_uses_local_liveness_probe(self):
+    @pytest.mark.parametrize("use_execution_api", [True, "True", "true", "t", "1"])
+    def test_api_mode_uses_local_liveness_probe(self, use_execution_api):
         docs = render_chart(
-            values={"config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}}},
+            values={
+                "config": {
+                    "dag_processor": {
+                        "use_execution_api": use_execution_api,
+                        "execution_api_token_file": "/run/processor.jwt",
+                    }
+                }
+            },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         command = jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
@@ -454,7 +464,7 @@ class TestDagProcessor:
     def test_api_mode_replaces_pods_with_recreate(self):
         docs = render_chart(
             values={
-                "config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+                "config": {"dag_processor": API_MODE_CONFIG},
                 "dagProcessor": {
                     "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
                 },
@@ -467,7 +477,7 @@ class TestDagProcessor:
     @pytest.mark.parametrize(("replicas", "rejected"), [(0, False), (1, False), (2, True)])
     def test_api_mode_rejects_replicas_sharing_a_session_token(self, replicas, rejected):
         values = {
-            "config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+            "config": {"dag_processor": API_MODE_CONFIG},
             "dagProcessor": {"replicas": replicas},
         }
         show_only = ["templates/dag-processor/dag-processor-deployment.yaml"]
@@ -479,29 +489,52 @@ class TestDagProcessor:
             assert jmespath.search("spec.replicas", docs[0]) == replicas
 
     @pytest.mark.parametrize(
-        "values",
-        [
-            {"env": [{"name": "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE", "value": "/run/t"}]},
-            {
-                "dagProcessor": {
-                    "env": [{"name": "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE", "value": "/run/t"}]
-                }
-            },
-        ],
-        ids=["env", "dagProcessor.env"],
+        "dag_processor",
+        [{"use_execution_api": "True"}, {"use_execution_api": "True", "execution_api_token_file": ""}],
+        ids=["unset", "empty"],
     )
-    def test_rejects_the_token_file_environment_variable(self, values):
-        with pytest.raises(CalledProcessError, match="config.dag_processor.execution_api_token_file"):
+    def test_api_mode_requires_a_token_file(self, dag_processor):
+        with pytest.raises(
+            CalledProcessError,
+            match="use_execution_api` requires `config.dag_processor.execution_api_token_file",
+        ):
+            render_chart(
+                values={"config": {"dag_processor": dag_processor}},
+                show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+            )
+
+    @pytest.mark.parametrize(
+        "name",
+        ["AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API", "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE"],
+    )
+    @pytest.mark.parametrize("location", ["env", "dagProcessor.env"])
+    def test_rejects_api_mode_environment_variables(self, name, location):
+        env = [{"name": name, "value": "True"}]
+        values = {"env": env} if location == "env" else {"dagProcessor": {"env": env}}
+        with pytest.raises(CalledProcessError, match=f"not the `{name}` environment variable"):
             render_chart(values=values, show_only=["templates/dag-processor/dag-processor-deployment.yaml"])
 
-    @pytest.mark.parametrize("config", [{}, {"dag_processor": None}])
-    def test_database_mode_keeps_database_probe_and_replicas(self, config):
+    @pytest.mark.parametrize(
+        "config",
+        [
+            {},
+            {"dag_processor": None},
+            {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+            {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": "False"}},
+            {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": False}},
+        ],
+        ids=["default", "no-section", "token-file-only", "disabled-string", "disabled-bool"],
+    )
+    def test_database_mode_keeps_database_probe_strategy_and_replicas(self, config):
         docs = render_chart(
             values={"config": config, "dagProcessor": {"replicas": 2}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
         assert jmespath.search("spec.replicas", docs[0]) == 2
+        assert jmespath.search("spec.strategy", docs[0]) == {
+            "rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}
+        }
         container = jmespath.search("spec.template.spec.containers[0]", docs[0])
         assert "readinessProbe" not in container
         assert (
@@ -558,6 +591,7 @@ class TestDagProcessor:
             ("api_auth", "jwt_private_key_path"),
         ):
             assert not config.has_option(section, key)
+        assert config["dag_processor"]["use_execution_api"] == "True"
         assert config["dag_processor"]["execution_api_token_file"] == "/run/dag-processor/processor.jwt"
         policy = yaml.safe_load((examples / "network-policy.yaml").read_text())["spec"]
         labels = deployment["spec"]["template"]["metadata"]["labels"]

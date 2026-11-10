@@ -787,6 +787,15 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "dagProcessor" "nameSuffix" "dag-processor") .) -}}
 {{- end }}
 
+{{/*
+Render "true" when config.dag_processor.use_execution_api enables the Dag processor's API mode.
+Accepts the values Airflow reads as true, so a string "False" keeps database mode.
+*/}}
+{{- define "dagProcessor.useExecutionApi" -}}
+  {{- $value := get (.Values.config.dag_processor | default dict) "use_execution_api" | toString -}}
+  {{- if has (tpl $value . | trim | lower) (list "t" "true" "1") }}true{{ end -}}
+{{- end }}
+
 {{/* Create the name of the pgbouncer service account to use */}}
 {{- define "pgbouncer.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "pgbouncer") .) -}}
@@ -838,7 +847,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    {{- if (get (.Values.config.dag_processor | default dict) "execution_api_token_file") }}
+    {{- if include "dagProcessor.useExecutionApi" . }}
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow dag-processor --check-health
     {{- else }}
