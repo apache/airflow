@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import conf
@@ -56,9 +57,11 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param reattach_on_restart: If True, check for an existing in-progress or completed
-        export operation matching ``body`` on task retry/restart instead of submitting a
-        duplicate export request.
+    :param reattach_on_restart: If True, check for an existing in-progress export operation
+        matching ``body`` before submitting a new export request, and on HTTP 400/409 recover
+        if an in-progress match exists or if a completed match started during the current Dag
+        run. Requires ``outputUriPrefix`` to include an explicit object path prefix (not a
+        bucket-only ``gs://BUCKET_NAME`` URI).
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Time (seconds) to wait between calls to check the operation status
         in deferrable mode.
@@ -102,6 +105,9 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self._validate_inputs()
+        dag_run = context.get("dag_run")
+        start_date = getattr(dag_run, "start_date", None)
+        min_start_time = start_date if isinstance(start_date, datetime) else None
         hook = CloudFirestoreHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -113,6 +119,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
                 body=self.body,
                 project_id=self.project_id,
                 reattach_on_restart=self.reattach_on_restart,
+                min_start_time=min_start_time,
             )
 
         operation = hook.start_export_documents(
@@ -120,6 +127,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
             body=self.body,
             project_id=self.project_id,
             reattach_on_restart=self.reattach_on_restart,
+            min_start_time=min_start_time,
         )
         if operation.get("done"):
             error = operation.get("error")

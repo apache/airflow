@@ -20,6 +20,7 @@ Tests for Google Cloud Firestore
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -51,6 +52,7 @@ TEST_WAITING_OPERATION = {"done": False, "response": "response"}
 TEST_DONE_OPERATION = {"done": True, "response": "response"}
 TEST_ERROR_OPERATION = {"done": True, "response": "response", "error": "error"}
 TEST_PROJECT_ID = "firestore--project-id"
+TEST_MIN_START_TIME = datetime(2026, 10, 13, 12, 0, 0, tzinfo=UTC)
 
 
 class TestCloudFirestoreHookWithPassedProjectId:
@@ -85,9 +87,9 @@ class TestCloudFirestoreHookWithPassedProjectId:
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
-        )
+        mock_operations = service_mock.projects.return_value.databases.return_value.operations.return_value
+        mock_operations.list.return_value.execute.return_value = {}
+        mock_operation_get = mock_operations.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         (mock_operation_get.return_value.execute.return_value) = TEST_DONE_OPERATION
@@ -104,9 +106,9 @@ class TestCloudFirestoreHookWithPassedProjectId:
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
-        )
+        mock_operations = service_mock.projects.return_value.databases.return_value.operations.return_value
+        mock_operations.list.return_value.execute.return_value = {}
+        mock_operation_get = mock_operations.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         execute_mock = mock.Mock(
@@ -126,9 +128,9 @@ class TestCloudFirestoreHookWithPassedProjectId:
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
-        )
+        mock_operations = service_mock.projects.return_value.databases.return_value.operations.return_value
+        mock_operations.list.return_value.execute.return_value = {}
+        mock_operation_get = mock_operations.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
@@ -155,7 +157,7 @@ class TestCloudFirestoreHookWithPassedProjectId:
         ]
 
     @pytest.mark.parametrize(
-        ("body", "operations", "include_completed", "expected_name"),
+        ("body", "operations", "include_completed", "min_start_time", "expected_name"),
         [
             pytest.param(
                 EXPORT_DOCUMENT_BODY,
@@ -214,6 +216,7 @@ class TestCloudFirestoreHookWithPassedProjectId:
                     },
                 ],
                 True,
+                None,
                 "op-in-progress",
                 id="prefers_in_progress_match",
             ),
@@ -230,6 +233,7 @@ class TestCloudFirestoreHookWithPassedProjectId:
                     }
                 ],
                 True,
+                None,
                 "op-completed",
                 id="matches_completed_operation_via_response_uri",
             ),
@@ -247,7 +251,50 @@ class TestCloudFirestoreHookWithPassedProjectId:
                 ],
                 False,
                 None,
+                None,
                 id="ignores_completed_when_include_completed_false",
+            ),
+            pytest.param(
+                EXPORT_DOCUMENT_BODY,
+                [
+                    {
+                        "name": "op-completed-missing-start-time",
+                        "done": True,
+                        "metadata": {"collectionIds": ["test-collection"]},
+                        "response": {"outputUriPrefix": "gs://test-bucket/test-namespace"},
+                    },
+                    {
+                        "name": "op-completed-invalid-start-time",
+                        "done": True,
+                        "metadata": {
+                            "collectionIds": ["test-collection"],
+                            "startTime": "not-a-timestamp",
+                        },
+                        "response": {"outputUriPrefix": "gs://test-bucket/test-namespace"},
+                    },
+                    {
+                        "name": "op-completed-older-run",
+                        "done": True,
+                        "metadata": {
+                            "collectionIds": ["test-collection"],
+                            "startTime": "2026-10-12T12:00:00Z",
+                        },
+                        "response": {"outputUriPrefix": "gs://test-bucket/test-namespace"},
+                    },
+                    {
+                        "name": "op-completed-current-run",
+                        "done": True,
+                        "metadata": {
+                            "collectionIds": ["test-collection"],
+                            "startTime": "2026-10-13T12:05:00",
+                        },
+                        "response": {"outputUriPrefix": "gs://test-bucket/test-namespace"},
+                    },
+                ],
+                True,
+                datetime(2026, 10, 13, 12, 0, 0),
+                "op-completed-current-run",
+                id="filters_completed_by_min_start_time",
             ),
             pytest.param(
                 {"collectionIds": ["test-collection"]},
@@ -260,23 +307,61 @@ class TestCloudFirestoreHookWithPassedProjectId:
                 ],
                 True,
                 None,
+                None,
                 id="returns_none_when_no_target_uri_specified",
+            ),
+            pytest.param(
+                {"outputUriPrefix": "gs://test-bucket", "collectionIds": ["test-collection"]},
+                [
+                    {
+                        "name": "op-bucket-only",
+                        "done": False,
+                        "metadata": {
+                            "outputUriPrefix": "gs://test-bucket",
+                            "collectionIds": ["test-collection"],
+                        },
+                    }
+                ],
+                True,
+                None,
+                None,
+                id="returns_none_when_bucket_only_uri_specified",
             ),
         ],
     )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.list_operations")
     def test_find_matching_export_operation(
-        self, mock_list_ops, body, operations, include_completed, expected_name
+        self, mock_list_ops, body, operations, include_completed, min_start_time, expected_name
     ):
         mock_list_ops.return_value = operations
         result = self.hook.find_matching_export_operation(
-            body=body, project_id=TEST_PROJECT_ID, include_completed=include_completed
+            body=body,
+            project_id=TEST_PROJECT_ID,
+            include_completed=include_completed,
+            min_start_time=min_start_time,
         )
         if expected_name is None:
             assert result is None
         else:
             assert result is not None
             assert result["name"] == expected_name
+
+    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.list_operations")
+    def test_find_matching_export_operation_handles_http_403(self, mock_list_ops):
+        mock_list_ops.side_effect = HttpError(httplib2.Response({"status": 403}), b"Permission denied")
+
+        result = self.hook.find_matching_export_operation(
+            body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID
+        )
+
+        assert result is None
+
+    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.list_operations")
+    def test_find_matching_export_operation_reraises_non_403_http_error(self, mock_list_ops):
+        mock_list_ops.side_effect = HttpError(httplib2.Response({"status": 500}), b"Internal error")
+
+        with pytest.raises(HttpError):
+            self.hook.find_matching_export_operation(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
     @mock.patch(
         "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.find_matching_export_operation"
@@ -317,10 +402,29 @@ class TestCloudFirestoreHookWithPassedProjectId:
             },
         ]
 
-        self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
+        self.hook.export_documents(
+            body=EXPORT_DOCUMENT_BODY,
+            project_id=TEST_PROJECT_ID,
+            min_start_time=TEST_MIN_START_TIME,
+        )
 
         mock_export_documents.assert_called_once()
         mock_operation_get.assert_not_called()
+        assert mock_find_op.call_args_list == [
+            mock.call(
+                body=EXPORT_DOCUMENT_BODY,
+                database_id="(default)",
+                project_id=TEST_PROJECT_ID,
+                include_completed=False,
+            ),
+            mock.call(
+                body=EXPORT_DOCUMENT_BODY,
+                database_id="(default)",
+                project_id=TEST_PROJECT_ID,
+                include_completed=True,
+                min_start_time=TEST_MIN_START_TIME,
+            ),
+        ]
 
     @mock.patch(
         "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.find_matching_export_operation"
@@ -349,9 +453,26 @@ class TestCloudFirestoreHookWithPassedProjectId:
         mock_find_op.return_value = None
 
         with pytest.raises(HttpError):
+            self.hook.start_export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
+
+        assert mock_find_op.call_count == 2
+
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.find_matching_export_operation"
+    )
+    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    def test_start_export_documents_reattach_disabled(self, get_conn_mock, mock_find_op):
+        service_mock = get_conn_mock.return_value
+        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
+        http_400 = HttpError(httplib2.Response({"status": 400}), b"Invalid argument")
+        mock_export_documents.return_value.execute.side_effect = http_400
+
+        with pytest.raises(HttpError):
             self.hook.start_export_documents(
                 body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID, reattach_on_restart=False
             )
+
+        mock_find_op.assert_not_called()
 
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.start_export_documents")
     def test_export_documents_raises_on_done_operation_with_error(self, mock_start_export):
@@ -397,9 +518,9 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
-        )
+        mock_operations = service_mock.projects.return_value.databases.return_value.operations.return_value
+        mock_operations.list.return_value.execute.return_value = {}
+        mock_operation_get = mock_operations.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         mock_operation_get.return_value.execute.return_value = TEST_DONE_OPERATION
@@ -421,9 +542,9 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
-        )
+        mock_operations = service_mock.projects.return_value.databases.return_value.operations.return_value
+        mock_operations.list.return_value.execute.return_value = {}
+        mock_operation_get = mock_operations.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         execute_mock = mock.Mock(
@@ -448,9 +569,9 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         service_mock = get_conn_mock.return_value
 
         mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
-        )
+        mock_operations = service_mock.projects.return_value.databases.return_value.operations.return_value
+        mock_operations.list.return_value.execute.return_value = {}
+        mock_operation_get = mock_operations.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
@@ -490,7 +611,7 @@ class TestCloudFirestoreAsyncHook:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreAsyncHook.get_sync_hook")
     async def test_get_operation(self, mock_get_sync_hook):
-        sync_hook_mock = mock.MagicMock()
+        sync_hook_mock = mock.MagicMock(spec=CloudFirestoreHook)
         sync_hook_mock.get_operation.return_value = TEST_DONE_OPERATION
         mock_get_sync_hook.return_value = sync_hook_mock
 

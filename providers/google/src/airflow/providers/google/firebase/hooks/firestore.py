@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from asgiref.sync import sync_to_async
 from googleapiclient.discovery import build, build_from_document
@@ -36,6 +38,12 @@ from airflow.providers.google.common.hooks.base_google import (
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
+
+
+def _normalize_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 class CloudFirestoreHook(GoogleBaseHook):
@@ -128,15 +136,10 @@ class CloudFirestoreHook(GoogleBaseHook):
             if page_token:
                 list_kwargs["pageToken"] = page_token
             response = operations_resource.list(**list_kwargs).execute(num_retries=self.num_retries)
-            if not isinstance(response, dict):
+            all_operations.extend(response.get("operations", []))
+            page_token = response.get("nextPageToken")
+            if not page_token:
                 break
-            operations = response.get("operations", [])
-            if isinstance(operations, list):
-                all_operations.extend(operations)
-            next_page_token = response.get("nextPageToken")
-            if not isinstance(next_page_token, str) or not next_page_token:
-                break
-            page_token = next_page_token
 
         return all_operations
 
@@ -147,6 +150,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         database_id: str = "(default)",
         project_id: str = PROVIDE_PROJECT_ID,
         include_completed: bool = True,
+        min_start_time: datetime | None = None,
     ) -> dict[str, Any] | None:
         """
         Find an existing running or completed export operation matching the export request body.
@@ -156,15 +160,36 @@ class CloudFirestoreHook(GoogleBaseHook):
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
         :param include_completed: Whether to match already completed operations in addition to
             in-progress operations.
+        :param min_start_time: Optional minimum start time for matching a completed operation.
+            When set, completed operations whose ``metadata.startTime`` is missing or earlier
+            than ``min_start_time`` are ignored.
         """
         target_uri = body.get("outputUriPrefix")
         if not target_uri or not isinstance(target_uri, str):
             return None
+        if not urlsplit(target_uri).path.strip("/"):
+            self.log.warning(
+                "Cannot match existing Firestore export operations when outputUriPrefix %r "
+                "does not include an explicit object path prefix.",
+                target_uri,
+            )
+            return None
         target_collections = sorted(body.get("collectionIds") or [])
         target_namespaces = sorted(body.get("namespaceIds") or [])
 
+        try:
+            operations = self.list_operations(database_id=database_id, project_id=project_id)
+        except HttpError as err:
+            if err.resp.status == 403:
+                self.log.warning(
+                    "Permission denied when listing Firestore operations (datastore.operations.list); "
+                    "skipping reattachment check."
+                )
+                return None
+            raise
+
         completed_match: dict[str, Any] | None = None
-        for op in self.list_operations(database_id=database_id, project_id=project_id):
+        for op in operations:
             if not isinstance(op, dict):
                 continue
             metadata = op.get("metadata")
@@ -198,6 +223,16 @@ class CloudFirestoreHook(GoogleBaseHook):
             if not is_done:
                 return op
             if include_completed and completed_match is None:
+                if min_start_time is not None:
+                    start_time_str = metadata.get("startTime")
+                    if not isinstance(start_time_str, str):
+                        continue
+                    try:
+                        op_start_time = _normalize_utc(datetime.fromisoformat(start_time_str))
+                    except ValueError:
+                        continue
+                    if op_start_time < _normalize_utc(min_start_time):
+                        continue
                 completed_match = op
 
         return completed_match
@@ -209,6 +244,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         database_id: str = "(default)",
         project_id: str = PROVIDE_PROJECT_ID,
         reattach_on_restart: bool = True,
+        min_start_time: datetime | None = None,
     ) -> dict[str, Any]:
         """
         Start a Firestore export or return an existing running/completed operation when reattaching.
@@ -217,8 +253,12 @@ class CloudFirestoreHook(GoogleBaseHook):
         :param database_id: The Database ID.
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
         :param reattach_on_restart: If True, check for an existing in-progress export operation
-            matching ``body`` before submitting a new export request, and recover if the export
-            already completed on a prior attempt.
+            matching ``body`` before submitting a new export request, and on HTTP 400/409 recover
+            if an in-progress match exists or if a completed match started at or after
+            ``min_start_time``. Requires ``outputUriPrefix`` to include an explicit object path
+            prefix (not a bucket-only ``gs://BUCKET_NAME`` URI).
+        :param min_start_time: Minimum operation start time required to accept an already-completed
+            operation when recovering from HTTP 400/409.
         """
         if reattach_on_restart:
             existing_op = self.find_matching_export_operation(
@@ -249,7 +289,8 @@ class CloudFirestoreHook(GoogleBaseHook):
                     body=body,
                     database_id=database_id,
                     project_id=project_id,
-                    include_completed=True,
+                    include_completed=min_start_time is not None,
+                    min_start_time=min_start_time,
                 )
                 if existing_op is not None:
                     if existing_op.get("done"):
@@ -273,6 +314,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         database_id: str = "(default)",
         project_id: str = PROVIDE_PROJECT_ID,
         reattach_on_restart: bool = True,
+        min_start_time: datetime | None = None,
     ) -> None:
         """
         Start a export with the specified configuration.
@@ -283,14 +325,20 @@ class CloudFirestoreHook(GoogleBaseHook):
             https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :param reattach_on_restart: If True, check for an existing running or completed export
-            operation matching ``body`` before submitting a new export request.
+        :param reattach_on_restart: If True, check for an existing in-progress export operation
+            matching ``body`` before submitting a new export request, and on HTTP 400/409 recover
+            if an in-progress match exists or if a completed match started at or after
+            ``min_start_time``. Requires ``outputUriPrefix`` to include an explicit object path
+            prefix (not a bucket-only ``gs://BUCKET_NAME`` URI).
+        :param min_start_time: Minimum operation start time required to accept an already-completed
+            operation when recovering from HTTP 400/409.
         """
         operation = self.start_export_documents(
             body=body,
             database_id=database_id,
             project_id=project_id,
             reattach_on_restart=reattach_on_restart,
+            min_start_time=min_start_time,
         )
         if operation.get("done"):
             if error := operation.get("error"):

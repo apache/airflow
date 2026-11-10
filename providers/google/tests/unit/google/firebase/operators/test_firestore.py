@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -26,6 +28,7 @@ from airflow.providers.google.firebase.triggers.firestore import CloudFirestoreE
 
 TEST_OUTPUT_URI_PREFIX: str = "gs://example-bucket/path"
 TEST_PROJECT_ID: str = "test-project-id"
+TEST_START_DATE = datetime(2026, 10, 13, 12, 0, 0, tzinfo=UTC)
 
 EXPORT_DOCUMENT_BODY = {
     "outputUriPrefix": "gs://test-bucket/test-namespace/",
@@ -42,12 +45,13 @@ class TestCloudFirestoreExportDatabaseOperator:
             gcp_conn_id="google_cloud_default",
             project_id=TEST_PROJECT_ID,
         )
-        op.execute(mock.MagicMock())
+        op.execute({"dag_run": SimpleNamespace(start_date=TEST_START_DATE)})
         mock_firestore_hook.return_value.export_documents.assert_called_once_with(
             body=EXPORT_DOCUMENT_BODY,
             database_id="(default)",
             project_id=TEST_PROJECT_ID,
             reattach_on_restart=True,
+            min_start_time=TEST_START_DATE,
         )
 
     @mock.patch("airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook")
@@ -62,7 +66,7 @@ class TestCloudFirestoreExportDatabaseOperator:
         op.body = None
 
         with pytest.raises(ValueError, match="The required parameter 'body' is missing"):
-            op.execute(mock.MagicMock())
+            op.execute({})
         mock_firestore_hook.return_value.export_documents.assert_not_called()
 
     @mock.patch("airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook")
@@ -81,7 +85,7 @@ class TestCloudFirestoreExportDatabaseOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            op.execute(mock.MagicMock())
+            op.execute({"dag_run": SimpleNamespace(start_date=TEST_START_DATE)})
 
         assert isinstance(exc.value.trigger, CloudFirestoreExportDatabaseTrigger)
         assert exc.value.trigger.operation_name == (
@@ -94,6 +98,7 @@ class TestCloudFirestoreExportDatabaseOperator:
             body=EXPORT_DOCUMENT_BODY,
             project_id=TEST_PROJECT_ID,
             reattach_on_restart=True,
+            min_start_time=TEST_START_DATE,
         )
 
     @mock.patch("airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook")
@@ -110,7 +115,7 @@ class TestCloudFirestoreExportDatabaseOperator:
             deferrable=True,
         )
 
-        result = op.execute(mock.MagicMock())
+        result = op.execute({})
 
         assert result is None
 
@@ -129,7 +134,7 @@ class TestCloudFirestoreExportDatabaseOperator:
         )
 
         with pytest.raises(RuntimeError, match="Export failed"):
-            op.execute(mock.MagicMock())
+            op.execute({})
 
     def test_execute_complete_success(self):
         op = CloudFirestoreExportDatabaseOperator(
@@ -139,7 +144,7 @@ class TestCloudFirestoreExportDatabaseOperator:
             deferrable=True,
         )
         result = op.execute_complete(
-            context=mock.MagicMock(),
+            context={},
             event={
                 "status": "success",
                 "operation_name": "op-123",
@@ -157,7 +162,7 @@ class TestCloudFirestoreExportDatabaseOperator:
         )
         with pytest.raises(RuntimeError, match="Operation failed"):
             op.execute_complete(
-                context=mock.MagicMock(),
+                context={},
                 event={
                     "status": "error",
                     "operation_name": "op-123",
