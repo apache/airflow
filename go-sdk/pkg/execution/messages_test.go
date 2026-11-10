@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -600,33 +601,128 @@ func TestDecodeBodyNormalizesNumbers(t *testing.T) {
 	}
 }
 
-func TestDecodeStartupDetailsNormalizesConfNumbers(t *testing.T) {
-	raw := marshalCompactBody(t, map[string]any{
-		"type": "StartupDetails",
-		"ti": map[string]any{
-			"id":         "550e8400-e29b-41d4-a716-446655440000",
-			"task_id":    "extract",
-			"dag_id":     "tutorial_dag",
-			"run_id":     "manual__2024-01-15",
-			"try_number": 1,
-		},
-		"bundle_info": map[string]any{"name": "example_dags", "version": "1.0.0"},
-		"ti_context": map[string]any{
-			"dag_run": map[string]any{
-				"conf": map[string]any{"rows": 200, "window": map[string]any{"days": 7}},
+func TestDecodeIncomingBodyNormalizesNumbers(t *testing.T) {
+	cases := []struct {
+		name string
+		body map[string]any
+		got  func(msg any) any
+		want any
+	}{
+		{
+			name: "StartupDetails dag run conf",
+			body: map[string]any{
+				"type": "StartupDetails",
+				"ti": map[string]any{
+					"id":         "550e8400-e29b-41d4-a716-446655440000",
+					"task_id":    "extract",
+					"dag_id":     "tutorial_dag",
+					"run_id":     "manual__2024-01-15",
+					"try_number": 1,
+				},
+				"bundle_info": map[string]any{"name": "example_dags", "version": "1.0.0"},
+				"ti_context": map[string]any{
+					"dag_run": map[string]any{
+						"conf": map[string]any{"rows": 200, "window": map[string]any{"days": 7}},
+					},
+				},
 			},
+			got: func(msg any) any {
+				return *msg.(*genmodels.StartupDetails).TIContext.DagRun.Conf
+			},
+			want: genmodels.Conf{"rows": int64(200), "window": map[string]any{"days": int64(7)}},
+		},
+		{
+			name: "DagFileParseRequest callback requests",
+			body: map[string]any{
+				"type":        "DagFileParseRequest",
+				"file":        "/files/dags/tutorial.go",
+				"bundle_name": "example_dags",
+				"bundle_path": "/files/dags",
+				"callback_requests": []any{map[string]any{
+					"type": "TaskCallbackRequest",
+					"ti":   map[string]any{"task_id": "extract", "try_number": 2, "map_index": -1},
+				}},
+			},
+			got: func(msg any) any {
+				return msg.(*genmodels.DagFileParseRequest).CallbackRequests
+			},
+			want: []any{map[string]any{
+				"type": "TaskCallbackRequest",
+				"ti": map[string]any{
+					"task_id":    "extract",
+					"try_number": int64(2),
+					"map_index":  int64(-1),
+				},
+			}},
+		},
+		{
+			name: "ErrorResponse detail",
+			body: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 400, "message": "Unhandled request"},
+			},
+			got: func(msg any) any {
+				return *msg.(*genmodels.ErrorResponse).Detail
+			},
+			want: genmodels.Detail{"status_code": int64(400), "message": "Unhandled request"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			msg, err := decodeIncomingBody(marshalCompactBody(t, tc.body))
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, tc.got(msg))
+		})
+	}
+}
+
+func TestUnmarshalNormalizedMapStructValues(t *testing.T) {
+	// No supervisor message has a map with struct values yet.
+	type entry struct {
+		Value any `msgpack:"value"`
+	}
+	var dst struct {
+		Entries map[string]entry `msgpack:"entries"`
+	}
+	raw := marshalCompactBody(t, map[string]any{
+		"entries": map[string]any{
+			"rows":  map[string]any{"value": 200},
+			"ratio": map[string]any{"value": float32(0.5)},
 		},
 	})
-	body, err := decodeIncomingBody(raw)
-	require.NoError(t, err)
-	details, ok := body.(*genmodels.StartupDetails)
-	require.True(t, ok)
-	require.NotNil(t, details.TIContext.DagRun.Conf)
+	require.NoError(t, unmarshalNormalized(raw, &dst))
 	assert.Equal(
 		t,
-		genmodels.Conf{"rows": int64(200), "window": map[string]any{"days": int64(7)}},
-		*details.TIContext.DagRun.Conf,
+		map[string]entry{"rows": {Value: int64(200)}, "ratio": {Value: float64(0.5)}},
+		dst.Entries,
 	)
+}
+
+func TestCanHoldDecodedAny(t *testing.T) {
+	for _, tc := range []struct {
+		container any
+		want      bool
+	}{
+		{container: []byte(nil), want: false},
+		{container: map[string]string(nil), want: false},
+		{container: []any(nil), want: true},
+		{container: []*genmodels.XComResult(nil), want: true},
+		{container: map[string]genmodels.XComResult(nil), want: true},
+		{container: [][]any(nil), want: true},
+		{container: [][2]any(nil), want: true},
+		{container: []map[string]any(nil), want: true},
+	} {
+		elem := reflect.TypeOf(tc.container).Elem()
+		assert.Equal(t, tc.want, canHoldDecodedAny(elem), "%T", tc.container)
+	}
+}
+
+func TestNormalizeDecodedValueGoInts(t *testing.T) {
+	// msgpack never decodes a number into int or uint, so a decoded body cannot
+	// reach these cases.
+	assert.Equal(t, int64(-7), normalizeDecodedValue(int(-7)))
+	assert.Equal(t, int64(500), normalizeDecodedValue(uint(500)))
 }
 
 func TestIfaceInt(t *testing.T) {

@@ -150,20 +150,20 @@ func normalizeDecodedNumbers(v reflect.Value) {
 			}
 		}
 	case reflect.Slice, reflect.Array:
-		if !mayHoldDecodedAny(v.Type().Elem()) {
+		if !canHoldDecodedAny(v.Type().Elem()) {
 			return
 		}
 		for i := range v.Len() {
 			normalizeDecodedNumbers(v.Index(i))
 		}
 	case reflect.Map:
-		if !mayHoldDecodedAny(v.Type().Elem()) {
+		if !canHoldDecodedAny(v.Type().Elem()) {
 			return
 		}
+		elem := reflect.New(v.Type().Elem()).Elem()
 		iter := v.MapRange()
 		for iter.Next() {
 			// A map value is not addressable, so normalize a copy and store it back.
-			elem := reflect.New(v.Type().Elem()).Elem()
 			elem.Set(iter.Value())
 			normalizeDecodedNumbers(elem)
 			v.SetMapIndex(iter.Key(), elem)
@@ -171,10 +171,10 @@ func normalizeDecodedNumbers(v reflect.Value) {
 	}
 }
 
-// mayHoldDecodedAny reports whether a value of type t can contain an any-typed
+// canHoldDecodedAny reports whether a value of type t can contain an any-typed
 // value, so that normalizeDecodedNumbers skips the elements of a []byte or a
 // map[string]string.
-func mayHoldDecodedAny(t reflect.Type) bool {
+func canHoldDecodedAny(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Interface, reflect.Pointer, reflect.Struct,
 		reflect.Slice, reflect.Array, reflect.Map:
@@ -201,6 +201,10 @@ func normalizeDecodedValue(value any) any {
 		for i, item := range v {
 			v[i] = normalizeDecodedValue(item)
 		}
+	case int:
+		return int64(v)
+	case uint:
+		return normalizeDecodedValue(uint64(v))
 	case int8:
 		return int64(v)
 	case int16:
