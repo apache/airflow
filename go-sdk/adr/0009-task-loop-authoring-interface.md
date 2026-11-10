@@ -184,8 +184,8 @@ type Loop struct {
     Previous any
 }
 
-// UnmarshalPrevious binds Previous to a DTO, the way XComClient.GetXCom decodes into its out
-// parameter. It leaves out untouched when there is no previous iteration.
+// UnmarshalPrevious binds Previous to a DTO, the decoding XComClient.GetXCom's value parameter is
+// reserved for and does not do today. It leaves out untouched when there is no previous iteration.
 func (l Loop) UnmarshalPrevious(out any) error
 
 // XComSequence is the lazy sequence of ADR-0016: every iteration of a loop task read from outside
