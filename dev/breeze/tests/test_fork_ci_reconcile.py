@@ -24,6 +24,7 @@ from unittest import mock
 from urllib.parse import quote
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import fork_ci_reconcile
@@ -46,9 +47,16 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
+    DEFERRED_RUNS_BEFORE_ALERT,
+    JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT,
     JOB_STATUSES_DEFERRED_NOTE,
     JOB_STATUSES_FAILED_REASON,
+    MAX_CI_RUN_STARTED_PER_RUN,
+    MAX_JOB_STATUSES_PER_RUN,
+    MAX_PROJECT_CI_PASSED_PER_RUN,
+    MONITOR_INTERVAL,
     RATE_LIMITED_NOTE,
+    RATE_LIMITED_RUNS_BEFORE_ALERT,
     BaseGateConfigs,
     BypassFinder,
     DraftChange,
@@ -3041,23 +3049,23 @@ def test_run_reconcile_reports_failing_job_statuses_once_when_failing_persists(
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
+    failures = [GitHubError("HTTP 502"), GitHubError("stream ID 1; CANCEL")]
     errors = [
         GitHubError("HTTP 502"),
         GitHubError("HTTP 502"),
         None,
-        GitHubError("HTTP 502"),
-        GitHubError("stream ID 1; CANCEL"),
-        GitHubError("HTTP 502"),
-        GitHubError("stream ID 1; CANCEL"),
+        *(failures[run % 2] for run in range(JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 1)),
     ]
     for error in errors:
         mock_reporter.return_value.report.side_effect = error
         mock_reporter.return_value.report.return_value = None
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, False, False, True, False]
+    assert alerts == [*[False] * (JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 2), True, False]
     assert JOB_STATUSES_FAILED_REASON in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {"1": 4}
+    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {
+        "1": JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 1
+    }
 
 
 @pytest.mark.parametrize(
@@ -3132,14 +3140,14 @@ def test_run_reconcile_reports_deferred_job_statuses_only_when_deferring_persist
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
-    for deferred in ([1], [1], [], [1], [1], [1]):
+    for deferred in ([1], [1], [], *[[1]] * DEFERRED_RUNS_BEFORE_ALERT):
         mock_reporter.return_value.deferred = deferred
         mock_reporter.return_value.delayed = []
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, False, False, True]
+    assert alerts == [*[False] * (DEFERRED_RUNS_BEFORE_ALERT + 2), True]
     assert JOB_STATUSES_DEFERRED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["deferred_runs"] == 3
+    assert json.loads(reported_file.read_text())["deferred_runs"] == DEFERRED_RUNS_BEFORE_ALERT
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():
@@ -3751,7 +3759,10 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
 
 @pytest.mark.parametrize(
     ("fails", "job_status_budget"),
-    [pytest.param(False, 38, id="reported"), pytest.param(True, 20, id="fails")],
+    [
+        pytest.param(False, MAX_JOB_STATUSES_PER_RUN - 2, id="reported"),
+        pytest.param(True, MAX_JOB_STATUSES_PER_RUN - MAX_CI_RUN_STARTED_PER_RUN, id="fails"),
+    ],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
@@ -3869,13 +3880,13 @@ def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
-    for rate_limited in (1, 0, 3, 2):
+    for rate_limited in (1, 0, *[3] * RATE_LIMITED_RUNS_BEFORE_ALERT):
         client.rate_limited = rate_limited
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, True]
+    assert alerts == [*[False] * (RATE_LIMITED_RUNS_BEFORE_ALERT + 1), True]
     assert RATE_LIMITED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["rate_limited_runs"] == 2
+    assert json.loads(reported_file.read_text())["rate_limited_runs"] == RATE_LIMITED_RUNS_BEFORE_ALERT
 
 
 @pytest.mark.parametrize(
@@ -4434,7 +4445,7 @@ def test_run_reconcile_reports_project_ci_passed_after_the_loop(
 
     names = [c[0] for c in order.mock_calls]
     assert names.index("report") > names.index("set_status")
-    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == 5
+    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == MAX_PROJECT_CI_PASSED_PER_RUN
 
 
 def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_passed, client, tmp_path):
@@ -4579,3 +4590,11 @@ def test_state_comment_is_left_for_the_next_run_when_failed_jobs_cannot_be_read(
     assert plan.status == ("failure", RUN_URL, "Fork CI failed - see Details")
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.marker_comment is None
+
+
+def test_monitor_interval_is_the_monitor_workflow_cadence():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github/workflows/fork-ci-monitor.yml").read_text())
+
+    crons = [entry["cron"] for entry in workflow[True]["schedule"]]
+
+    assert crons == [f"*/{MONITOR_INTERVAL // timedelta(minutes=1)} * * * *"]

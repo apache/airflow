@@ -130,8 +130,19 @@ BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
 FORK_BATCH_SIZE = 50
+# The cron interval of fork-ci-monitor.yml. Fork CI reaches a pull request only when the monitor
+# runs, so this is how late it can be; the write budgets and alert thresholds below are per run and
+# derived from it, to keep their hourly totals when it changes.
+MONITOR_INTERVAL = timedelta(minutes=5)
+RUNS_PER_HOUR = timedelta(hours=1) // MONITOR_INTERVAL
+
+
+def count_runs_in(duration: timedelta) -> int:
+    return max(duration // MONITOR_INTERVAL, 1)
+
+
 # Project CI runs created this long ago or later are checked for gate tampering. Several hours
-# overlap the 15-minute cadence, so a tampered run is seen even after the pull request was
+# overlap the monitor's cadence, so a tampered run is seen even after the pull request was
 # pushed again with the gate restored.
 TAMPER_WINDOW = timedelta(hours=6)
 # A ci-amd.yml run in which only the gate executed finishes in about a minute; only longer runs
@@ -172,30 +183,30 @@ UNREPORTED_JOB_NAMES = GATED_RUN_JOB_NAMES | {GATE_JOB_NAME, "Platform: AMD"}
 RUNNING_JOB_STATUSES = frozenset({"queued", "waiting", "pending", "requested", "in_progress"})
 JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
 # Commit statuses count towards GitHub's limit of 500 content-creating requests per hour, shared by
-# every workflow of the repository. At four runs an hour this keeps job statuses to at most about
-# half of it; the rest follow on the next run, failures first. See "Job statuses" in the design doc.
-MAX_JOB_STATUSES_PER_RUN = 40
+# every workflow of the repository. This keeps job statuses to about a third of it; the rest follow
+# on the next run, failures first. See "Job statuses" in the design doc.
+MAX_JOB_STATUSES_PER_RUN = 160 // RUNS_PER_HOUR
 # `CI run started` statuses of pull requests whose CI runs in apache/airflow come out of that budget
 # first: one write per new head commit, which merging waits for, while job statuses are informational.
 # At most this many, so job statuses keep the rest; the first runs after the check became required
 # catch up on the open pull requests a batch at a time, most recently updated first.
-MAX_CI_RUN_STARTED_PER_RUN = 20
+MAX_CI_RUN_STARTED_PER_RUN = 80 // RUNS_PER_HOUR
 # `CI passed` successes for pull requests carrying `use project ci`, written once per new project CI
 # pass, so far fewer than this per run. Revoking a success is never limited.
-MAX_PROJECT_CI_PASSED_PER_RUN = 5
+MAX_PROJECT_CI_PASSED_PER_RUN = max(20 // RUNS_PER_HOUR, 1)
 # The GitHub Actions app, whose check suites are the workflow runs of a commit.
 GITHUB_ACTIONS_APP_ID = 15368
 # A single large fork run can need more writes than one run's budget, which the next run catches up
 # on, so deferring is only reported when it lasts this many consecutive runs: then the budget does
 # not keep up with the pull requests.
-DEFERRED_RUNS_BEFORE_ALERT = 3
+DEFERRED_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=45))
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
-RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+RATE_LIMITED_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=30))
 # Reading a fork run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2
 # stream) that the next run gets past, so a pull request whose job statuses failed is only reported
 # when it failed in this many consecutive runs.
-JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = 3
+JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=45))
 # Fixed text, so the item is posted to Slack once while the failure persists, whatever the error;
 # the run log has each run's error.
 JOB_STATUSES_FAILED_REASON = (
