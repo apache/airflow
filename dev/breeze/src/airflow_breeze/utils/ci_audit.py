@@ -36,7 +36,13 @@ import yaml
 from packaging.version import Version
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, MIN_GH_VERSION
-from airflow_breeze.utils.git_remotes import find_remote, find_remote_for_repo, parse_remotes
+from airflow_breeze.utils.git_remotes import (
+    GITHUB_REMOTE_URL,
+    Remote,
+    find_remote,
+    find_remote_for_repo,
+    parse_remotes,
+)
 
 if TYPE_CHECKING:
     from airflow_breeze.utils.fork_ci_gate import GateConfig
@@ -94,6 +100,23 @@ def _out(result: subprocess.CompletedProcess) -> str:
 def redact_url(url: str) -> str:
     """Drop the credentials an http(s) remote URL may carry, so a finding never prints a token."""
     return re.sub(r"^(https?://)[^@/]+@", r"\1", url)
+
+
+def _fork_url(login: str, remotes: Sequence[Remote]) -> str:
+    candidates = (
+        find_remote(remotes, "origin"),
+        find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY),
+        find_remote(remotes, "upstream"),
+    )
+    for remote in (*(r for r in candidates if r is not None), *remotes):
+        if not remote.url:
+            continue
+        match = GITHUB_REMOTE_URL.match(remote.url)
+        if match:
+            prefix = remote.url[: match.start("repo")]
+            if not prefix.startswith(("http://", "https://")):
+                return f"{prefix}{login}/airflow.git"
+    return f"https://github.com/{login}/airflow.git"
 
 
 def _is_not_found(result: subprocess.CompletedProcess) -> bool:
@@ -242,6 +265,7 @@ def run_audit(
     upstream = find_remote(remotes, "upstream")
     apache = find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY)
     origin = find_remote(remotes, "origin")
+    fork_url = _fork_url(login, remotes)
     # Whether the remotes fix already adds or repoints `origin`, so the fork fix must not add it again.
     adds_origin = False
     if (
@@ -256,7 +280,7 @@ def run_audit(
                     "remotes",
                     setup_status,
                     f"`origin` points at apache/airflow; it should be your fork{setup_note}",
-                    (f"git remote set-url origin https://github.com/{login}/airflow.git",),
+                    (f"git remote set-url origin {fork_url}",),
                 )
             )
             adds_origin = True
@@ -265,7 +289,7 @@ def run_audit(
     elif apache is not None and upstream is None:
         fix = [f"git remote rename {apache.name} upstream"]
         if apache.name == "origin":
-            fix.append(f"git remote add origin https://github.com/{login}/airflow.git")
+            fix.append(f"git remote add origin {fork_url}")
             adds_origin = True
         results.append(
             CheckResult(
@@ -308,11 +332,7 @@ def run_audit(
                 f"no `origin` remote pointing at your fork of apache/airflow{setup_note}",
                 (
                     f"gh repo fork {APACHE_AIRFLOW_GITHUB_REPOSITORY} --remote=false",
-                    *(
-                        ()
-                        if adds_origin
-                        else (f"git remote add origin https://github.com/{login}/airflow.git",)
-                    ),
+                    *(() if adds_origin else (f"git remote add origin {fork_url}",)),
                 ),
             )
         )
