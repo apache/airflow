@@ -34,7 +34,7 @@ from airflow.sdk import BaseHook
 from airflow.utils import yaml
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH
 from tests_common.test_utils.providers import get_suspended_providers_folders
 
@@ -72,6 +72,17 @@ IGNORE_EXAMPLE_DAGS: tuple[str, ...] = (
     "providers/google/tests/system/google/cloud/ray/example_ray_job.py",
 )
 
+EXAMPLE_DAGS_NEEDING_PROVIDERS_EXCLUDED_ON_PYTHON_315: tuple[str, ...] = (
+    "providers/amazon/tests/system/amazon/aws/example_exasol_to_s3.py",
+    "providers/amazon/tests/system/amazon/aws/example_gcs_to_s3.py",
+    "providers/amazon/tests/system/amazon/aws/example_glacier_to_gcs.py",
+    "providers/amazon/tests/system/amazon/aws/example_google_api_sheets_to_s3.py",
+    "providers/amazon/tests/system/amazon/aws/example_google_api_youtube_to_s3.py",
+    "providers/amazon/tests/system/amazon/aws/example_hive_to_dynamodb.py",
+    "providers/amazon/tests/system/amazon/aws/example_mongo_to_s3.py",
+    "providers/amazon/tests/system/amazon/aws/example_salesforce_to_s3.py",
+    "providers/pinecone/tests/system/pinecone/example_pinecone_cohere.py",
+)
 LONGER_IMPORT_TIMEOUTS: dict[str, float] = {
     "providers/google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py": 60
 }
@@ -103,7 +114,9 @@ def get_python_excluded_providers_folders() -> list[str]:
     return excluded_providers
 
 
-def example_not_excluded_dags(xfail_db_exception: bool = False):
+def example_not_excluded_dags(
+    xfail_db_exception: bool = False, xfail_excluded_provider_imports: bool = False
+):
     example_dirs = [
         "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
@@ -130,6 +143,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                     pytest.mark.skip(
                         reason="Excluded from imports, these examples require suspended providers"
                     )
+                )
+
+            if xfail_excluded_provider_imports and candidate.endswith(
+                EXAMPLE_DAGS_NEEDING_PROVIDERS_EXCLUDED_ON_PYTHON_315
+            ):
+                param_marks.append(
+                    xfail_on_python_315("The example imports a provider excluded on Python 3.15")
                 )
 
             if candidate.startswith(tuple(current_python_excluded_providers_folders)):
@@ -197,7 +217,7 @@ def patch_get_dagbag_import_timeout():
 
 @skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
-@pytest.mark.parametrize("example", example_not_excluded_dags())
+@pytest.mark.parametrize("example", example_not_excluded_dags(xfail_excluded_provider_imports=True))
 def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
     dagbag = DagBag(
         dag_folder=example,

@@ -142,12 +142,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-presto[google]
 
 
-==============  ===================================
+==============  =============================================================
 Extra           Dependencies
-==============  ===================================
-``google``      ``apache-airflow-providers-google``
+==============  =============================================================
+``google``      ``apache-airflow-providers-google; python_version != "3.15"``
 ``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
-==============  ===================================
+==============  =============================================================
 
 Downloading official packages
 -----------------------------

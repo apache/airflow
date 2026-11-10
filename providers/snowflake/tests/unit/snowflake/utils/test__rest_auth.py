@@ -39,6 +39,8 @@ from airflow.providers.snowflake.utils._rest_auth import (
     get_cortex_base_url,
 )
 
+from tests_common.test_utils.markers import skip_on_python_315_without
+
 MODULE_PATH = "airflow.providers.snowflake.utils._rest_auth"
 
 CONN_PARAMS_OAUTH = {"account": "airflow", "authenticator": "oauth", "token": "token-1"}
@@ -584,6 +586,7 @@ class TestFetchIdentityTokens:
                 fetch()
         assert installation in str(exc.value)
 
+    @skip_on_python_315_without("azure.identity")
     @pytest.mark.parametrize(("workload", "file_exists"), [(False, False), (True, False), (True, True)])
     @pytest.mark.parametrize("fails", [False, True])
     @mock.patch("azure.identity.ManagedIdentityCredential", autospec=True)

@@ -30,6 +30,7 @@ from airflow_breeze.utils import packages
 from airflow_breeze.utils.packages import (
     PipRequirements,
     _process_line_with_next_version_comment,
+    add_exclusion_markers_to_extras,
     apply_version_suffix_to_non_provider_pyproject_tomls,
     apply_version_suffix_to_provider_pyproject_toml,
     convert_cross_package_dependencies_to_table,
@@ -41,6 +42,7 @@ from airflow_breeze.utils.packages import (
     get_cross_provider_dependencies_for_extras,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
+    get_exclusion_marker,
     get_long_package_name,
     get_min_airflow_version,
     get_pip_package_name,
@@ -644,3 +646,71 @@ def test_process_line_with_next_version_comment(
 
     assert result == (expected_line, expected_modified)
     assert mock_run_command.call_args.args[0] == ["git", "tag", "--list", "providers-common-compat/1.20.0*"]
+
+
+@pytest.mark.parametrize(
+    ("provider_dependencies", "expected"),
+    [
+        pytest.param({}, "", id="not-excluded"),
+        pytest.param({"excluded-python-versions": [], "excluded-platforms": []}, "", id="empty-exclusions"),
+        pytest.param(
+            {"excluded-python-versions": ["3.14", "3.15"]},
+            '; python_version != \\"3.14\\" and python_version != \\"3.15\\"',
+            id="python-minors",
+        ),
+        pytest.param(
+            {"excluded-python-versions": ["3.10.0"]},
+            '; python_full_version != \\"3.10.0.*\\"',
+            id="python-patch",
+        ),
+        pytest.param(
+            {"excluded-python-versions": ["3.15"], "excluded-platforms": ["linux/arm64", "darwin/arm64"]},
+            '; python_version != \\"3.15\\" and platform_machine != \\"aarch64\\" and platform_machine != \\"arm64\\"',
+            id="python-and-platforms",
+        ),
+    ],
+)
+def test_get_exclusion_marker(provider_dependencies, expected):
+    assert get_exclusion_marker(provider_dependencies) == expected
+
+
+def test_add_exclusion_markers_to_extras_marks_extras_that_already_existed():
+    """An extra written before the provider was excluded keeps an unmarked requirement otherwise."""
+    optional_dependencies = [
+        '"microsoft.azure" = [',
+        '    "apache-airflow-providers-microsoft-azure>=12.8.0"',
+        "]",
+        '"amazon" = [',
+        '    "apache-airflow-providers-amazon>=2.6.0",',
+        "]",
+        '"asyncpg" = [',
+        '    "asyncpg>=0.30.0",',
+        "]",
+    ]
+    all_provider_dependencies = {
+        "microsoft.azure": {"excluded-python-versions": ["3.15"]},
+        "amazon": {},
+    }
+
+    assert add_exclusion_markers_to_extras(optional_dependencies, all_provider_dependencies) == [
+        '"microsoft.azure" = [',
+        '    "apache-airflow-providers-microsoft-azure>=12.8.0; python_version != \\"3.15\\""',
+        "]",
+        '"amazon" = [',
+        '    "apache-airflow-providers-amazon>=2.6.0",',
+        "]",
+        '"asyncpg" = [',
+        '    "asyncpg>=0.30.0",',
+        "]",
+    ]
+
+
+def test_add_exclusion_markers_to_extras_leaves_an_existing_marker_alone():
+    optional_dependencies = ['    "apache-airflow-providers-presto>=1.0.0; python_version < \\"3.14\\""']
+
+    assert (
+        add_exclusion_markers_to_extras(
+            optional_dependencies, {"presto": {"excluded-python-versions": ["3.15"]}}
+        )
+        == optional_dependencies
+    )

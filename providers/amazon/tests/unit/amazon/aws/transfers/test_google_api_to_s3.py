@@ -21,8 +21,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow import models
-from airflow.providers.amazon.aws.transfers.google_api_to_s3 import MAX_XCOM_SIZE, GoogleApiToS3Operator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.google")
+
+from airflow import models  # noqa: E402
+from airflow.providers.amazon.aws.transfers.google_api_to_s3 import (  # noqa: E402
+    MAX_XCOM_SIZE,
+    GoogleApiToS3Operator,
+)
 
 # This test mocks json.dumps so it won't work for database isolation mode
 

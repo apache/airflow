@@ -58,7 +58,9 @@ Bug Fixes
     The Cortex Agent hook and operator modules are now ``hooks.cortex_agent`` and
     ``operators.cortex_agent``, and the SQL API hook module is ``hooks.sql_api`` under
     ``airflow.providers.snowflake``. Previously released imports continue to work with
-    deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
+    deprecation warnings. Python 3.15 is supported with ``snowflake-sqlalchemy>=2.1.0``
+    and ``snowflake-connector-python>=5.2.0``. The obsolete SQLAlchemy 2.1 cap has
+    been removed; older Python versions retain their existing dependency floors.
 
 .. note::
 

@@ -47,7 +47,7 @@ from airflow.providers_manager import (
     provider_incompatibility_reason,
 )
 
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -134,6 +134,7 @@ class TestProviderManager:
             assert len(provider_list) > 65
             assert self._caplog.records == []
 
+    @xfail_on_python_315("Plugins of the providers excluded on Python 3.15 are not registered")
     def test_providers_manager_register_plugins(self):
         providers_manager = ProvidersManager()
         providers_manager._provider_dict = LazyDictWithCache()
@@ -318,6 +319,7 @@ class TestProviderManager:
         extra_link_class_names = list(provider_manager.extra_links_class_names)
         assert len(extra_link_class_names) > 6
 
+    @xfail_on_python_315("Logging handlers of the providers excluded on Python 3.15 are not registered")
     def test_logging(self):
         provider_manager = ProvidersManager()
         logging_class_names = list(provider_manager.logging_class_names)
@@ -377,6 +379,7 @@ class TestProviderManager:
         assert [func.__module__ for func in sorted_cli_command_functions] == expected_functions_modules
         assert sorted_cli_command_providers == expected_providers
 
+    @xfail_on_python_315("SQL dialects of the providers excluded on Python 3.15 are not registered")
     def test_dialects(self):
         provider_manager = ProvidersManager()
         dialect_class_names = list(provider_manager.dialects)

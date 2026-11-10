@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-http``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
@@ -58,6 +58,7 @@ PIP package                                 Version required
 ``requests``                                ``>=2.32.0,<3``
 ``requests-toolbelt``                       ``>=1.0.0``
 ``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``pydantic``                                ``>=2.11.0``

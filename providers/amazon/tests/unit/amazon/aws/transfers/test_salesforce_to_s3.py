@@ -20,9 +20,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
-from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.salesforce")
+
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook  # noqa: E402
+from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator  # noqa: E402
+from airflow.providers.salesforce.hooks.salesforce import SalesforceHook  # noqa: E402
 
 pytestmark = pytest.mark.db_test
 

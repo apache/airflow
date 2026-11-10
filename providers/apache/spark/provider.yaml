@@ -94,6 +94,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Apache Spark
     external-doc-url: https://spark.apache.org/

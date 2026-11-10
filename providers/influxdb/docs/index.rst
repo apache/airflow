@@ -106,7 +106,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.17.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
-``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14" and python_version < "3.15"``
+``pandas``                                  ``>=3.0.6; python_version >= "3.15"``
 ``influxdb-client``                         ``>=1.19.0``
 ``influxdb3-python``                        ``>=0.12.0``
 ``requests``                                ``>=2.32.0,<3``

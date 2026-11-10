@@ -23,6 +23,7 @@ from tomllib import loads as load_tomllib
 
 import pytest
 import yaml
+from packaging.requirements import Requirement
 from python_on_whales import DockerException
 
 from docker_tests.constants import AIRFLOW_ROOT_PATH
@@ -36,6 +37,7 @@ from docker_tests.docker_utils import (
 
 PROD_IMAGE_PROVIDERS_FILE_PATH = AIRFLOW_ROOT_PATH / "prod_image_installed_providers.txt"
 AIRFLOW_CORE_PYPROJECT_TOML = AIRFLOW_ROOT_PATH / "airflow-core" / "pyproject.toml"
+AIRFLOW_PYPROJECT_TOML = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 airflow_core_pyproject_toml = load_tomllib(AIRFLOW_CORE_PYPROJECT_TOML.read_text())
 
@@ -85,6 +87,16 @@ def _get_python_minor_version(default_docker_image: str) -> str:
 def _get_excluded_provider_ids(python_minor: str) -> set[str]:
     """Return set of provider IDs excluded for the given Python minor version."""
     return {pid for pid, versions in PROVIDER_PYTHON_EXCLUSIONS.items() if python_minor in versions}
+
+
+def is_extra_empty_for_python(extra: str, python_minor: str) -> bool:
+    """Return True when every requirement of the apache-airflow extra is gated off for the Python minor."""
+    extras = load_tomllib(AIRFLOW_PYPROJECT_TOML.read_text())["project"]["optional-dependencies"]
+    environment = {"python_version": python_minor, "python_full_version": f"{python_minor}.0"}
+    requirements = [Requirement(dependency) for dependency in extras.get(extra, [])]
+    return bool(requirements) and not any(
+        requirement.marker is None or requirement.marker.evaluate(environment) for requirement in requirements
+    )
 
 
 class TestCommands:
@@ -158,7 +170,7 @@ class TestPythonPackages:
     REGULAR_PACKAGE_IMPORTS: dict[str, list[str]] = {
         "amazon": ["boto3", "botocore", "watchtower"],
         "async": ["gevent", "eventlet", "greenlet"],
-        "azure": [
+        "microsoft.azure": [
             "azure.batch",
             "azure.cosmos",
             "azure.datalake.store",
@@ -210,7 +222,7 @@ class TestPythonPackages:
         "ldap": ["ldap"],
         "mysql": ["MySQLdb", *(["mysql"] if bool(find_spec("mysql")) else [])],
         "postgres": ["psycopg2"],
-        "pyodbc": ["pyodbc"],
+        "odbc": ["pyodbc"],
         "redis": ["redis"],
         "sendgrid": ["sendgrid"],
         "sftp/ssh": ["paramiko"],
@@ -235,6 +247,8 @@ class TestPythonPackages:
         # Skip individual provider test cases if the provider is excluded for this Python version
         if package_name in excluded_ids:
             pytest.skip(f"Provider {package_name} is excluded for Python {python_minor}")
+        if is_extra_empty_for_python(package_name, python_minor):
+            pytest.skip(f"Extra {package_name} installs nothing on Python {python_minor}")
         if package_name == "providers":
             excluded_imports = {f"airflow.providers.{pid}" for pid in excluded_ids}
             import_names = [name for name in import_names if name not in excluded_imports]

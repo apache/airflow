@@ -76,7 +76,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.sqlalchemy import with_row_locks
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine
+    from collections.abc import Callable, Coroutine, Sequence
 
     from pydantic import BaseModel
     from sqlalchemy import Select
@@ -452,7 +452,8 @@ class _RequestedWork(Protocol[WorkT]):
     model: type[WorkT]
     kind: Literal["callbacks", "priority"]
 
-    def build_query(self, *, replaying: bool) -> Select[tuple[WorkT]]: ...
+    # Select's generic shape differs in SQLAlchemy 2.0 and 2.1; model defines the result type.
+    def build_query(self, *, replaying: bool) -> Select[Any]: ...
 
     def get_payload(self, work: WorkT) -> tuple[str, CallbackRequest | None]: ...
 
@@ -554,7 +555,7 @@ def _claim_work(
         )
     if not replaying:
         query = with_row_locks(query.limit(body.limit), session=session, skip_locked=True)
-    replay = session.scalars(query).all()
+    replay: Sequence[WorkT] = session.scalars(query).all()
     if not replaying:
         for work in replay:
             work.processor_job_id = job_id

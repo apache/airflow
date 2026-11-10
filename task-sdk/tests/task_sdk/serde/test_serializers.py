@@ -44,7 +44,7 @@ from airflow.sdk.serde import CLASSNAME, DATA, MAX_RECURSION_DEPTH, VERSION, dec
 from airflow.sdk.serde.serializers import builtin
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
@@ -402,6 +402,7 @@ class TestSerializers:
             assert i._storage_options == d._storage_options
             assert d._storage_options is None
 
+    @xfail_on_python_315("deltalake comes from the databricks provider, which is excluded on Python 3.15")
     def test_deltalake_serialize_deserialize(self):
         from airflow.sdk.serde.serializers.deltalake import serialize
 
@@ -424,6 +425,7 @@ class TestSerializers:
             ),
         ],
     )
+    @xfail_on_python_315("deltalake comes from the databricks provider, which is excluded on Python 3.15")
     def test_deltalake_deserialize_errors(self, klass, version, payload, msg):
         from airflow.sdk.serde.serializers.deltalake import deserialize
 

@@ -106,6 +106,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``pymssql``                                 ``>=2.3.5; python_version < "3.14"``
 ``pymssql``                                 ``>=2.3.13; python_version >= "3.14"``
+``pymssql``                                 ``>=2.4.1; python_version >= "3.15"``
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ======================================
 

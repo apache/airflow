@@ -256,3 +256,33 @@ def test_mirror_outputs_the_os_deps_base_digests_of_a_newer_patchlevel_too(mock_
         PINNED_TAG: NEW_DIGEST,
         "3.14.99-debian13-dev": newer_digest,
     }
+
+
+@pytest.mark.parametrize(
+    "args", [pytest.param([], id="all-current-versions"), pytest.param(["--python", "3.15"], id="explicit")]
+)
+@mock.patch(
+    "airflow_breeze.commands.release_management_commands.PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES", ["3.15"]
+)
+def test_mirror_skips_python_versions_without_hardened_images(args):
+    registry = FakeRegistry({})
+    with (
+        mock.patch(
+            "airflow_breeze.commands.release_management_commands.get_latest_hardened_python_patchlevel",
+            autospec=True,
+            return_value=None,
+        ),
+        mock.patch(
+            "airflow_breeze.commands.release_management_commands.run_command",
+            autospec=True,
+            side_effect=registry,
+        ),
+    ):
+        result = CliRunner().invoke(
+            mirror_base_images, args, env={"GITHUB_OUTPUT": None}, catch_exceptions=False
+        )
+
+    assert result.exit_code == 0
+    sources = registry.sources
+    assert not any(source.startswith("dhi.io/python:3.15") for source in sources)
+    assert bool(sources) == (args == [])

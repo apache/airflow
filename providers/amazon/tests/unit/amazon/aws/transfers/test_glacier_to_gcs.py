@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.google")
+
+from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator  # noqa: E402
 
 AWS_CONN_ID = "aws_default"
 BUCKET_NAME = "airflow_bucket"

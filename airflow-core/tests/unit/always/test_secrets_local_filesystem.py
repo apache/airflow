@@ -37,6 +37,7 @@ from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import xfail_on_python_315
 
 
 @contextmanager
@@ -78,7 +79,13 @@ class TestFileParsers:
         ("content", "expected_message"),
         [
             ("[]", "The file should contain the object."),
-            ("key:\n  - item1\n  - item2\ninvalid_yaml: }", "did not find expected"),
+            pytest.param(
+                "key:\n  - item1\n  - item2\ninvalid_yaml: }",
+                "did not find expected",
+                marks=xfail_on_python_315(
+                    "PyYAML has no Python 3.15 wheel and is built without libyaml, whose parser words the error differently"
+                ),
+            ),
             ("", "The file is empty."),
         ],
     )

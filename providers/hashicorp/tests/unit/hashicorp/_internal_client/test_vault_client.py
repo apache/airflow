@@ -28,6 +28,8 @@ from urllib3.util import Retry
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 
+from tests_common.test_utils.markers import xfail_on_python_315
+
 
 class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -252,6 +254,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_key(
         self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
     ):
@@ -309,6 +312,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_adc(
         self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
     ):
@@ -362,6 +366,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_adc_compute_engine_default_email_refresh(
         self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
     ):
@@ -416,6 +421,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_different_auth_mount_point(
         self,
         mock_time,
@@ -477,6 +483,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_dict(
         self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
     ):
@@ -530,6 +537,7 @@ class TestVaultClient:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_error_wrong_type(self, mock_hvac_client, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client

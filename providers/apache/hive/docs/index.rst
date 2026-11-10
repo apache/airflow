@@ -154,8 +154,8 @@ Extra                Dependencies
 ``amazon``           ``apache-airflow-providers-amazon``
 ``microsoft.mssql``  ``apache-airflow-providers-microsoft-mssql``
 ``mysql``            ``apache-airflow-providers-mysql``
-``presto``           ``apache-airflow-providers-presto``
-``samba``            ``apache-airflow-providers-samba``
+``presto``           ``apache-airflow-providers-presto; python_version != "3.15"``
+``samba``            ``apache-airflow-providers-samba; python_version != "3.15"``
 ``sqlalchemy``       ``sqlalchemy>=1.4.54,!=2.1.0``
 ``vertica``          ``apache-airflow-providers-vertica``
 ``GSSAPI``           ``winkerberos>=0.7.0; sys_platform == "win32"``, ``kerberos>=1.3.0; sys_platform != "win32"``

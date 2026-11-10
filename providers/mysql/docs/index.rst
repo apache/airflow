@@ -107,6 +107,7 @@ PIP package                                 Version required
 ``mysql-connector-python``                  ``>=9.1.0; python_version < "3.12"``
 ``mysql-connector-python``                  ``>=9.1.0,!=9.7.0; python_version >= "3.12"``
 ``asyncmy``                                 ``>=0.2.16``
+``asyncmy``                                 ``>=0.2.17; python_version >= "3.15"``
 ``aiomysql``                                ``>=0.2.0``
 ``pymysql``                                 ``>=1.0.3,<1.2``
 ==========================================  =============================================
@@ -145,17 +146,17 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-mysql[aiomysql]
 
 
-==========================  ========================================
+==========================  =============================================================
 Extra                       Dependencies
-==========================  ========================================
+==========================  =============================================================
 ``aiomysql``                ``aiomysql>=0.2.0``
 ``mysql-connector-python``
 ``amazon``                  ``apache-airflow-providers-amazon``
 ``openlineage``             ``apache-airflow-providers-openlineage``
-``presto``                  ``apache-airflow-providers-presto``
-``trino``                   ``apache-airflow-providers-trino``
+``presto``                  ``apache-airflow-providers-presto; python_version != "3.15"``
+``trino``                   ``apache-airflow-providers-trino; python_version != "3.15"``
 ``vertica``                 ``apache-airflow-providers-vertica``
-==========================  ========================================
+==========================  =============================================================
 
 Downloading official packages
 -----------------------------

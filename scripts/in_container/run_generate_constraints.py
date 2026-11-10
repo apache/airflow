@@ -639,6 +639,8 @@ def build_pinned_provider_requirements(
     kept while PyPI serves them. With ``fail_on_pending_candidates`` - the constraints of a final
     release - the lookup sees candidates too, and any provider whose newest version is one fails the
     run instead: it must be released or yanked first.
+
+    Providers not yet published remain bare requirements so locally built first releases can be installed.
     """
     distributions = get_all_active_provider_distributions(python_version)
     kept_pre_releases = kept_pre_releases or {}
@@ -661,11 +663,20 @@ def build_pinned_provider_requirements(
         ]
         if pending:
             exit_on_pending_provider_candidates(pending)
-    return [
-        f"{distribution}=={version}"
-        for distribution, version in zip(distributions, newest_versions)
-        if version is not None
-    ]
+    requirements = []
+    for distribution, version in zip(distributions, newest_versions):
+        # Snowflake 6.20 caps SQLAlchemy below the version required on Python 3.15; 6.21 removes it.
+        # https://github.com/apache/airflow/issues/75118
+        if (
+            distribution == "apache-airflow-providers-snowflake"
+            and Version(python_version).release >= (3, 15)
+            and version is not None
+            and Version(version).release < (6, 21)
+        ):
+            console.print(f"[yellow]Skipping {distribution}=={version}: Python 3.15 requires 6.21 or newer.")
+            continue
+        requirements.append(f"{distribution}=={version}" if version is not None else distribution)
+    return requirements
 
 
 def generate_constraints_source_providers(config_params: ConfigParams) -> None:
@@ -760,8 +771,8 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
         fail_on_pending_candidates=config_params.fail_on_pending_provider_candidates,
     )
     console.print(
-        f"[bright_blue]Pinning {len(pinned_provider_requirements)} provider distributions to the "
-        f"{'newest' if config_params.allow_pre_releases else 'newest final'} versions in PyPI."
+        f"[bright_blue]Installing {len(pinned_provider_requirements)} provider distributions with the "
+        f"{'newest' if config_params.allow_pre_releases else 'newest final'} PyPI versions where available."
     )
 
     result = run_command(
@@ -772,7 +783,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "--no-sources",
             "--exact",
             "--strict",
-            f"apache-airflow[all]=={AIRFLOW_VERSION}",
+            f"apache-airflow=={AIRFLOW_VERSION}",
             f"apache-airflow-core[all]=={AIRFLOW_CORE_VERSION}",
             f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",

@@ -19,8 +19,14 @@ from __future__ import annotations
 import logging
 from unittest import mock
 
-from airflow.models.connection import Connection
-from airflow.providers.teradata.transfers.azure_blob_to_teradata import AzureBlobStorageToTeradataOperator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.microsoft.azure")
+
+from airflow.models.connection import Connection  # noqa: E402
+from airflow.providers.teradata.transfers.azure_blob_to_teradata import (  # noqa: E402
+    AzureBlobStorageToTeradataOperator,
+)
 
 AZURE_CONN_ID = "wasb_default"
 TERADATA_CONN_ID = "teradata_default"
