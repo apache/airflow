@@ -24,7 +24,7 @@ import pytest
 import requests
 from authlib.jose import JsonWebKey, jwt as authlib_jwt
 from authlib.jose.errors import InvalidClaimError
-from flask import Flask
+from flask import Flask, session as flask_session
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -38,6 +38,7 @@ from airflow.providers.fab.auth_manager.models import (
     User,
 )
 from airflow.providers.fab.auth_manager.security_manager.override import (
+    SESSION_TOKEN_GENERATION_KEY,
     AzureTenantResolutionError,
     FabAirflowSecurityManagerOverride,
     FabException,
@@ -422,6 +423,26 @@ class TestFabAirflowSecurityManagerOverride:
         sm.load_user.assert_called_once_with("test_identity")
         assert actual_user is mock_user
         assert mock_g.user is mock_user
+
+    @pytest.mark.parametrize(
+        ("user_token_generation", "loaded"),
+        [
+            pytest.param(0, True, id="before-any-password-change"),
+            pytest.param(1, False, id="after-a-password-change"),
+        ],
+    )
+    def test_load_session_user_counts_session_without_token_generation_as_zero(
+        self, user_token_generation, loaded
+    ):
+        """A Flask session without the key was created before it existed."""
+        sm = EmptySecurityManager()
+        user = Mock(spec=User, token_generation=user_token_generation)
+        app = Flask(__name__)
+        app.secret_key = "test-secret-key"
+
+        with app.test_request_context(), mock.patch.object(sm, "load_user", return_value=user):
+            assert SESSION_TOKEN_GENERATION_KEY not in flask_session
+            assert sm.load_session_user("1") is (user if loaded else None)
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.check_password_hash")
     def test_check_password(self, check_password):

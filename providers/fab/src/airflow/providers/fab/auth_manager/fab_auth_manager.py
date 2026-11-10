@@ -185,6 +185,8 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
 }
 
 CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=30)
+TOKEN_GENERATION_CLAIM = "token_generation"
+
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
@@ -326,14 +328,30 @@ class FabAuthManager(BaseAuthManager[User]):
             raise ValueError(f"User with id {user_id} is not active")
         return user
 
-    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
         user_id = int(token["sub"])
+        # Tokens issued before the claim existed count as the initial generation.
+        token_generation = token.get(TOKEN_GENERATION_CLAIM, 0)
+        if type(token_generation) is not int:
+            raise ValueError(f"Token of user with id {user_id} has an invalid {TOKEN_GENERATION_CLAIM} claim")
+        user = self._get_active_user(user_id)
+        if token_generation > user.token_generation:
+            # The token was issued after a password change that the cached user predates.
+            user = self._fetch_active_user(user_id)
+            self.cache[user_id] = user
+        if token_generation != user.token_generation:
+            raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
+        return user
 
+    @cachedmethod(lambda self: self.cache, key=lambda _, user_id: user_id)
+    def _get_active_user(self, user_id: int) -> User:
+        return self._fetch_active_user(user_id)
+
+    def _fetch_active_user(self, user_id: int) -> User:
         def _fetch_user() -> User:
             with create_session() as session:
                 user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
-                return self._validate_user(user, token["sub"])
+                return self._validate_user(user, str(user_id))
 
         try:
             return _fetch_user()
@@ -379,7 +397,7 @@ class FabAuthManager(BaseAuthManager[User]):
             return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
-        return {"sub": str(user.id)}
+        return {"sub": str(user.id), TOKEN_GENERATION_CLAIM: user.token_generation}
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""

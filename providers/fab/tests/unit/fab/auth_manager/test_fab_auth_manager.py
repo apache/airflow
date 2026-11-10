@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from contextlib import ExitStack, asynccontextmanager, contextmanager, suppress
+from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -26,14 +26,18 @@ from unittest.mock import MagicMock, Mock
 from urllib.parse import urlencode
 
 import pytest
-from flask import g
+from cachetools import TTLCache
+from flask import Flask, g, session as flask_session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
+from flask_login import LoginManager, login_user
+from pydantic import SecretStr
+from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
-from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.fab.www.app import create_app
@@ -44,6 +48,7 @@ from airflow.utils.db import resetdb
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.test_utils import create_user, delete_user
+from unit.fab.utils import client_with_login
 
 with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -57,8 +62,14 @@ from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import UserPatchBody
+from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.models import User
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    SESSION_TOKEN_GENERATION_KEY,
+    FabAirflowSecurityManagerOverride,
+)
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -80,6 +91,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -179,6 +191,50 @@ def user_set(app, user):
 @pytest.fixture
 def auth_manager():
     return FabAuthManager(None)
+
+
+ISSUED_BEFORE_PASSWORD_CHANGE = "was issued before their last password change"
+
+
+def _set_stored_token_generation(user_id: int, token_generation: int) -> None:
+    """Write ``token_generation`` to the database only, leaving any cached ``User`` as it is."""
+    with create_session() as session:
+        session.execute(update(User).where(User.id == user_id).values(token_generation=token_generation))
+
+
+def _get_stored_token_generation(user_id: int) -> int | None:
+    with create_session() as session:
+        return session.scalar(select(User.token_generation).where(User.id == user_id))
+
+
+@contextmanager
+def _spy_on_user_reads():
+    """Count the database reads of the user, cache misses included."""
+    with mock.patch.object(
+        FabAuthManager, "_fetch_active_user", autospec=True, side_effect=FabAuthManager._fetch_active_user
+    ) as fetch_active_user:
+        yield fetch_active_user
+
+
+def _change_password(auth_manager: FabAuthManager, username: str) -> None:
+    FABAuthManagerUsers.update_user(
+        username, UserPatchBody(password=SecretStr("new-password")), update_mask="password"
+    )
+
+
+def _reset_password(auth_manager: FabAuthManager, username: str) -> None:
+    security_manager = auth_manager.security_manager
+    user = security_manager.find_user(username=username)
+    assert user is not None
+    assert security_manager.reset_password(user.id, "new-password")
+
+
+def _get_issued_api_token(response) -> str | None:
+    for cookie in response.headers.getlist("Set-Cookie"):
+        name, _, value = cookie.partition(";")[0].partition("=")
+        if name == COOKIE_NAME_JWT_TOKEN and value:
+            return value
+    return None
 
 
 @pytest.fixture
@@ -439,10 +495,207 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
         assert user.get_id() == result.get_id()
 
+    @pytest.mark.parametrize(
+        ("cached", "stored", "token_generation", "accepted", "user_reads"),
+        [
+            pytest.param(1, 1, 1, True, 0, id="same-as-cached-user"),
+            pytest.param(1, 1, 0, False, 0, id="older-than-cached-user"),
+            pytest.param(1, 2, 2, True, 1, id="newer-than-cached-user"),
+            pytest.param(1, 1, 2, False, 1, id="newer-than-stored-user"),
+            pytest.param(0, 0, None, True, 0, id="no-claim-before-any-password-change"),
+            pytest.param(1, 1, None, False, 0, id="no-claim-after-a-password-change"),
+        ],
+    )
+    def test_deserialize_user_compares_token_generation(
+        self, flask_app, auth_manager_with_appbuilder, cached, stored, token_generation, accepted, user_reads
+    ):
+        """
+        Tokens are compared with the cached user, which is re-read only when the token is newer.
+
+        ``cached`` and ``stored`` are the user's ``token_generation`` in the cache and in the
+        database. A token without the claim was issued before it existed and counts as 0.
+        """
+        user_id = create_user(flask_app, "test_token_generation").id
+        _set_stored_token_generation(user_id, cached)
+        auth_manager_with_appbuilder.cache.clear()
+        auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": cached})
+        _set_stored_token_generation(user_id, stored)
+        token = {"sub": str(user_id)}
+        if token_generation is not None:
+            token["token_generation"] = token_generation
+
+        outcome = (
+            nullcontext() if accepted else pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE)
+        )
+        with _spy_on_user_reads() as fetch_active_user, outcome:
+            assert auth_manager_with_appbuilder.deserialize_user(token).id == user_id
+        assert fetch_active_user.call_count == user_reads
+
+    @pytest.mark.parametrize("token_generation", ["0", 0.0, True, None], ids=["str", "float", "bool", "null"])
+    def test_deserialize_user_rejects_non_integer_token_generation(
+        self, flask_app, auth_manager_with_appbuilder, token_generation
+    ):
+        """A claim that is not an integer fails as an invalid token rather than a server error."""
+        user_id = create_user(flask_app, "test_invalid_token_generation").id
+
+        with pytest.raises(ValueError, match="has an invalid token_generation claim"):
+            auth_manager_with_appbuilder.deserialize_user(
+                {"sub": str(user_id), "token_generation": token_generation}
+            )
+
+    @pytest.mark.parametrize(
+        "update_password",
+        [pytest.param(_change_password, id="change"), pytest.param(_reset_password, id="reset")],
+    )
+    def test_password_update_ends_earlier_tokens_once_cached_user_expires(
+        self, flask_app, auth_manager_with_appbuilder, update_password
+    ):
+        """
+        After a password change or reset, earlier tokens work for at most ``[fab] cache_ttl``.
+
+        Until then, the API server compares tokens with the user it cached before the change.
+        """
+        now = [0]
+        with mock.patch.object(
+            auth_manager_with_appbuilder, "cache", TTLCache(maxsize=1, ttl=30, timer=lambda: now[0])
+        ):
+            user = create_user(flask_app, "test_password_update")
+            user_id, old_token = user.id, auth_manager_with_appbuilder.serialize_user(user)
+            auth_manager_with_appbuilder.deserialize_user(old_token)
+
+            update_password(auth_manager_with_appbuilder, "test_password_update")
+
+            now[0] = 29
+            assert auth_manager_with_appbuilder.deserialize_user(old_token).id == user_id
+            now[0] = 30
+            with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
+                auth_manager_with_appbuilder.deserialize_user(old_token)
+
+    def test_token_issued_after_password_change_ends_earlier_tokens_at_once(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        A token issued after a password change works right away, even where the cached user predates
+        the change, and from then on earlier tokens fail without waiting for the cache to expire.
+        """
+        user_id = create_user(flask_app, "test_stale_cache").id
+        old_token = {"sub": str(user_id), "token_generation": 0}
+        auth_manager_with_appbuilder.cache.clear()
+        auth_manager_with_appbuilder.deserialize_user(old_token)
+        security_manager = auth_manager_with_appbuilder.security_manager
+        assert security_manager.reset_password(user_id, "new-password")
+        new_token = auth_manager_with_appbuilder.serialize_user(security_manager.get_user_by_id(user_id))
+        assert auth_manager_with_appbuilder.cache[user_id].token_generation == 0
+
+        with _spy_on_user_reads() as fetch_active_user:
+            assert auth_manager_with_appbuilder.deserialize_user(new_token).id == user_id
+            with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
+                auth_manager_with_appbuilder.deserialize_user(old_token)
+        assert fetch_active_user.call_count == 1
+
+    def test_login_racing_password_change_issues_token_for_the_generation_it_read(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        A login that checked the old password issues a token for the generation it read, so a
+        password change committed before the token is issued still ends it.
+        """
+        user_id = create_user(flask_app, "test_login_race").id
+        security_manager = auth_manager_with_appbuilder.security_manager
+        record_login = security_manager.update_user_auth_stat
+
+        def change_password_then_record_login(user, success=True):
+            with settings.engine.begin() as connection:
+                connection.execute(
+                    update(User).where(User.id == user_id).values(token_generation=User.token_generation + 1)
+                )
+            record_login(user, success)
+
+        with mock.patch.object(
+            security_manager,
+            "update_user_auth_stat",
+            autospec=True,
+            side_effect=change_password_then_record_login,
+        ):
+            user = security_manager.auth_user_db(
+                "test_login_race", "test_login_race", rotate_session_id=False
+            )
+        token = auth_manager_with_appbuilder.serialize_user(user)
+        auth_manager_with_appbuilder.cache.clear()
+
+        assert _get_stored_token_generation(user_id) == 1
+        with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
+            auth_manager_with_appbuilder.deserialize_user(token)
+
+    def test_concurrent_password_updates_both_increment_token_generation(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        Two password changes made on copies of the user loaded before either commits both count.
+
+        Otherwise the second change would write the value the first one did, and a token issued
+        between the two changes would survive the second.
+        """
+        user_id = create_user(flask_app, "test_concurrent_password_updates").id
+        security_manager = auth_manager_with_appbuilder.security_manager
+
+        with Session(settings.engine) as first, Session(settings.engine) as second:
+            first_copy, second_copy = first.get(User, user_id), second.get(User, user_id)
+            security_manager.set_user_password(first_copy, "first-password")
+            security_manager.set_user_password(second_copy, "second-password")
+            first.commit()
+            second.commit()
+
+        assert _get_stored_token_generation(user_id) == 2
+
+    def test_session_from_before_password_reset_no_longer_issues_api_tokens(self):
+        """
+        The login page issues API tokens from a Flask session only while the session matches the
+        user's ``token_generation``, so a ``securecookie`` session cannot outlive a password reset.
+        """
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                ("fab", "session_backend"): "securecookie",
+            }
+        ):
+            app = create_app(enable_plugins=False)
+        app.config["WTF_CSRF_ENABLED"] = False
+        # Requests run outside this test's app context: a request reuses an active app context,
+        # and with it the user Flask-Login cached in ``g`` by an earlier request.
+        with app.app_context():
+            user_id = create_user(app, "test_session_reset").id
+        old_session = client_with_login(app, username="test_session_reset", password="test_session_reset")
+        assert _get_issued_api_token(old_session.get("/login/"))
+
+        with app.app_context():
+            assert app.appbuilder.sm.reset_password(user_id, "new-password")
+
+        assert _get_issued_api_token(old_session.get("/login/")) is None
+        new_session = client_with_login(app, username="test_session_reset", password="new-password")
+        assert _get_issued_api_token(new_session.get("/login/"))
+
+    def test_login_on_another_flask_app_leaves_its_session_alone(self, flask_app):
+        """Only logins on the FAB app record ``token_generation``, not those on other Flask apps."""
+        other_app = Flask(__name__)
+        other_app.secret_key = "test-secret-key"
+        LoginManager(other_app)
+        user = Mock(spec=["get_id", "is_active"], is_active=True)
+        user.get_id.return_value = "1"
+
+        with other_app.test_request_context():
+            assert login_user(user)
+            assert SESSION_TOKEN_GENERATION_KEY not in flask_session
+
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
-        user = create_user(flask_app, "test")
+        user_id = create_user(flask_app, "test").id
+        _set_stored_token_generation(user_id, 3)
+        user = auth_manager_with_appbuilder.security_manager.get_user_by_id(user_id)
         result = auth_manager_with_appbuilder.serialize_user(user)
-        assert result == {"sub": str(user.id)}
+        assert result == {"sub": str(user_id), "token_generation": 3}
 
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
@@ -1441,6 +1694,7 @@ class TestDeserializeUserSessionCleanup:
         """A transient DB disconnect is recovered by removing session and retrying once."""
         user = Mock()
         user.id = 99996
+        user.token_generation = 0
         original_exc = OperationalError("connection dropped", None, Exception())
         retry_query_result = Mock()
         retry_query_result.one_or_none.return_value = user

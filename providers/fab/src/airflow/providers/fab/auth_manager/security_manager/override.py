@@ -61,7 +61,7 @@ from flask_appbuilder.security.views import (
 )
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
-from flask_login import LoginManager
+from flask_login import LoginManager, user_logged_in
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
 from packaging.version import Version
@@ -156,6 +156,12 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
+# The ``User.token_generation`` a Flask session was created under.
+SESSION_TOKEN_GENERATION_KEY = "_token_generation"
+
+
+def _record_session_token_generation(sender, user, **kwargs) -> None:
+    session[SESSION_TOKEN_GENERATION_KEY] = user.token_generation
 
 
 class FabException(Exception):
@@ -601,7 +607,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         lm = LoginManager(current_app)
         lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
-        lm.user_loader(self.load_user)
+        lm.user_loader(self.load_session_user)
+        # Scoped to this app: ``user_logged_in`` is shared by every Flask app in the process.
+        app = current_app._get_current_object()  # type: ignore[attr-defined]
+        user_logged_in.connect(_record_session_token_generation, sender=app)
         return lm
 
     def create_jwt_manager(self) -> None:
@@ -613,6 +622,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _hash_password(self, password: str) -> str:
         method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
         return generate_password_hash(password, method=method)
+
+    def set_user_password(self, user: User, password: str) -> None:
+        """
+        Set a new password and invalidate the tokens and sessions issued under the old one.
+
+        Nothing is committed: the caller persists both changes together, normally with
+        ``update_user``.
+        """
+        user.password = self._hash_password(password)
+        # Incremented in SQL so that concurrent password changes cannot write the same value.
+        user.token_generation = self.user_model.token_generation + 1
 
     def reset_password(self, userid: int, password: str) -> bool:
         """
@@ -626,7 +646,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = self._hash_password(password)
+        self.set_user_password(user, password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -1623,7 +1643,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return None
         return user
 
-    def load_user(self, pk: int) -> User | None:
+    def load_session_user(self, pk: str) -> User | None:
+        """Load the user of a Flask session, unless the session predates their last password change."""
+        user = self.load_user(pk)
+        # Sessions created before the key existed count as the initial generation.
+        if user is not None and session.get(SESSION_TOKEN_GENERATION_KEY, 0) != user.token_generation:
+            return None
+        return user
+
+    def load_user(self, pk: int | str) -> User | None:
         try:
             user = self.get_user_by_id(int(pk))
             if user and user.is_active:
