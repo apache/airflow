@@ -71,14 +71,14 @@ Airflow reads the bundle like any other Dag file: `ts_hello` shows up in the UI,
 
 The [TypeScript SDK guide][guide] covers:
 
-| Topic                                                                                         | Guide section                                                  |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Task inputs, options, order-only dependencies, task groups, branching, triggering another Dag | [Declaring a Dag in TypeScript][declaring-a-dag-in-typescript] |
-| `approval` and `hitl` tasks that wait for a person                                            | [Human-in-the-loop tasks][human-in-the-loop-tasks]             |
-| `getContext()`, `getClient()` and the `TaskClient`                                            | [Writing tasks][writing-tasks]                                 |
-| Building a bundle with `airflow-ts-pack`                                                      | [Building a bundle][building-a-bundle]                         |
-| Where to deploy a bundle, and the `NodeCoordinator` options                                   | [Deploying][deploying]                                         |
-| What a Dag declared in TypeScript cannot do yet                                               | [Limitations][limitations]                                     |
+| Topic                                                                                                     | Guide section                                                  |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Task inputs, options, order-only dependencies, task groups, task loops, branching, triggering another Dag | [Declaring a Dag in TypeScript][declaring-a-dag-in-typescript] |
+| `approval` and `hitl` tasks that wait for a person                                                        | [Human-in-the-loop tasks][human-in-the-loop-tasks]             |
+| `getContext()`, `getClient()` and the `TaskClient`                                                        | [Writing tasks][writing-tasks]                                 |
+| Building a bundle with `airflow-ts-pack`                                                                  | [Building a bundle][building-a-bundle]                         |
+| Where to deploy a bundle, and the `NodeCoordinator` options                                               | [Deploying][deploying]                                         |
+| What a Dag declared in TypeScript cannot do yet                                                           | [Limitations][limitations]                                     |
 
 See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for a working project.
 
@@ -136,7 +136,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | label(task, text) |
 | capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `task-group` | MAY † | ✓ | 3.4.0 | 1.0.0 | dag.taskGroup |
-| capability: `task-loops` | MAY † | ✗ | – | – |  |
+| capability: `task-loops` | MAY † | ✓ | 3.5.0 | 1.1.0 | taskGroup(...).loop |
 | capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | dag.if |
 | capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | dag.switch |
 | capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | triggerDagRun |

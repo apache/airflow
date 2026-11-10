@@ -36,7 +36,7 @@ import type {
 import { brand, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import type { Dag } from "./dag.js";
-import type { TaskContext } from "./task.js";
+import type { TaskContext, TaskScope } from "./task.js";
 
 /** What an operator may end the task with. */
 export type OperatorOutcome =
@@ -53,6 +53,8 @@ export interface OperatorContext {
   readonly ctx: TaskContext;
   readonly client: CoordinatorClient;
   readonly logs: LogChannel;
+  /** Where the author's callables run, so `getContext()`, `getClient()` and `getLoop()` work in them. */
+  readonly scope: TaskScope;
   /** Bind the task's declared inputs, applying the `withArgNames` renames of `argNames`. */
   resolveArgs(argNames?: ReadonlyMap<string, string>): Promise<object>;
   /** Push `value` under `return_value` when it is given, then succeed. */

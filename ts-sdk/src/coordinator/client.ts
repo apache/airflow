@@ -30,11 +30,15 @@ import type {
 } from "../sdk/client-types.js";
 import { NEVER_EXPIRE } from "../sdk/client-types.js";
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
+import { holdsXComSequence, materializeXComSequences } from "./xcom-sequence.js";
 import type {
   GetVariable,
   PutVariable,
   DeleteVariable,
   GetXCom,
+  GetXComCount,
+  GetXComSequenceItem,
+  GetXComSequenceSlice,
   SetXCom,
   GetConnection,
   SkipDownstreamTasks,
@@ -90,6 +94,25 @@ export interface XComEntry {
 
 const XCOM_ABSENT: XComEntry = { found: false, value: null };
 
+/** The key a task's return value is stored under, as Python `@task` does. */
+export const RETURN_VALUE_KEY = "return_value";
+
+/** Internal: which XCom an internal read is of, beyond what {@link GetXComOpts} names. */
+export interface RuntimeXComOpts extends GetXComOpts {
+  /**
+   * Read the iteration before the running task's own, of a task in the same loop. Only the
+   * runtime reads it, for a loop's previous result, so it is not a public {@link GetXComOpts} field.
+   */
+  readonly previousIteration?: boolean;
+}
+
+/** Internal: which task's values a sequence read is of, in the running task's Dag run. */
+export interface XComSequenceOpts {
+  readonly key: string;
+  readonly taskId: string;
+  readonly previousIteration?: boolean;
+}
+
 /**
  * A task's {@link TaskClient} plus the reads only the runtime itself makes.
  * Handlers are typed against `TaskClient`, so nothing added here is public API.
@@ -102,7 +125,16 @@ export interface CoordinatorClient extends TaskClient {
    * null alike. Argument binding needs them apart: an upstream that pushed no
    * output fails the task, while one that pushed null binds null.
    */
-  getXComEntry(opts: GetXComOpts): Promise<XComEntry>;
+  getXComEntry(opts: RuntimeXComOpts): Promise<XComEntry>;
+
+  /** How many values a sequence read of `opts` covers. */
+  getXComCount(opts: XComSequenceOpts): Promise<number>;
+  /** The value at `offset` of a sequence read, negative counting from the end. */
+  getXComSequenceItem(opts: XComSequenceOpts & { readonly offset: number }): Promise<XComEntry>;
+  /** The values from `start` to `stop` of a sequence read, as Python slices them. */
+  getXComSequenceSlice(
+    opts: XComSequenceOpts & { readonly start?: number; readonly stop?: number },
+  ): Promise<JsonValue[]>;
 
   /** Mark direct downstream tasks of the running task as skipped; none is a no-op. */
   skipDownstreamTasks(taskIds: readonly string[]): Promise<void>;
@@ -341,7 +373,7 @@ export function createCoordinatorClient(
 
     // ---- XCom ----
 
-    async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
+    async getXComEntry(opts: RuntimeXComOpts): Promise<XComEntry> {
       const msg: GetXCom = {
         type: "GetXCom",
         key: opts.key,
@@ -350,6 +382,8 @@ export function createCoordinatorClient(
         run_id: opts.runId ?? ctx.runId,
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
         include_prior_dates: opts.includePriorDates ?? false,
+        // Only set when asked for, so every other read stays what it was on the wire.
+        ...(opts.previousIteration && { previous_iteration: true }),
       };
       const entry = await rpc<XComEntry>(
         "GetXCom",
@@ -367,6 +401,69 @@ export function createCoordinatorClient(
       return entry ?? XCOM_ABSENT;
     },
 
+    async getXComCount(opts: XComSequenceOpts): Promise<number> {
+      const msg: GetXComCount = {
+        type: "GetXComCount",
+        key: opts.key,
+        dag_id: ctx.dagId,
+        run_id: ctx.runId,
+        task_id: opts.taskId,
+        previous_iteration: opts.previousIteration ?? false,
+      };
+      const count = await rpc(
+        "GetXComCount",
+        "XComCountResponse",
+        msg,
+        (body) => body!.len as number,
+        "throw",
+      );
+      return count!;
+    },
+
+    async getXComSequenceItem(opts: XComSequenceOpts & { readonly offset: number }) {
+      const msg: GetXComSequenceItem = {
+        type: "GetXComSequenceItem",
+        key: opts.key,
+        dag_id: ctx.dagId,
+        run_id: ctx.runId,
+        task_id: opts.taskId,
+        offset: opts.offset,
+        previous_iteration: opts.previousIteration ?? false,
+      };
+      const entry = await rpc<XComEntry>(
+        "GetXComSequenceItem",
+        "XComSequenceIndexResult",
+        msg,
+        (body) => ({ found: true, value: (body!.root ?? null) as JsonValue }),
+        XCOM_ABSENT_POLICY,
+      );
+      return entry ?? XCOM_ABSENT;
+    },
+
+    async getXComSequenceSlice(
+      opts: XComSequenceOpts & { readonly start?: number; readonly stop?: number },
+    ): Promise<JsonValue[]> {
+      const msg: GetXComSequenceSlice = {
+        type: "GetXComSequenceSlice",
+        key: opts.key,
+        dag_id: ctx.dagId,
+        run_id: ctx.runId,
+        task_id: opts.taskId,
+        start: opts.start ?? null,
+        stop: opts.stop ?? null,
+        step: null,
+        previous_iteration: opts.previousIteration ?? false,
+      };
+      const values = await rpc(
+        "GetXComSequenceSlice",
+        "XComSequenceSliceResult",
+        msg,
+        (body) => (body!.root ?? []) as JsonValue[],
+        "throw",
+      );
+      return values!;
+    },
+
     async getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null> {
       const { value } = await client.getXComEntry(opts);
       return (value as unknown as T) ?? null;
@@ -376,7 +473,10 @@ export function createCoordinatorClient(
       const msg: SetXCom = {
         type: "SetXCom",
         key: opts.key,
-        value: opts.value,
+        // Awaited only for a sequence, so a push without one leaves before the next call does.
+        value: holdsXComSequence(client, opts.value)
+          ? ((await materializeXComSequences(opts.value)) as JsonValue)
+          : opts.value,
         dag_id: opts.dagId ?? ctx.dagId,
         task_id: opts.taskId ?? ctx.taskId,
         run_id: opts.runId ?? ctx.runId,

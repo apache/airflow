@@ -376,7 +376,7 @@ release that shipped it. See the legend below the tables for what each mark mean
    * - ``task-loops`` (MAY †)
      - ✗
      - ✗
-     - ✗
+     - ✓ 1.1.0
    * - ``if-else-branching`` (SHOULD †)
      - ✓ 1.0.0
      - ✓ 1.0.0

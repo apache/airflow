@@ -23,6 +23,7 @@ export { Bundle } from "./sdk/bundle.js";
 export { TaskHandler } from "./sdk/task-handler.js";
 export { withArgNames } from "./sdk/arg-names.js";
 export { getClient, getContext } from "./sdk/task.js";
+export { getLoop } from "./sdk/loop.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { NEVER_EXPIRE } from "./sdk/client-types.js";
 export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
@@ -35,6 +36,9 @@ export type {
   ConditionElse,
   DeciderArgs,
   DagSpec,
+  LoopOptions,
+  LoopRef,
+  LoopTaskRef,
   Node,
   TaskFactory,
   TaskGroupOptions,
@@ -54,3 +58,5 @@ export type {
   TaskStateStoreSetOpts,
 } from "./sdk/client-types.js";
 export type { TaskContext, TaskFunction } from "./sdk/task.js";
+export type { LoopContext, LoopDecision, UntilCallable } from "./sdk/loop.js";
+export type { XComSequence } from "./sdk/xcom-sequence.js";

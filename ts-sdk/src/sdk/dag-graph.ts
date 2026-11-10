@@ -21,11 +21,13 @@
 // it into the serialized Dag, and the operators that act on a task's downstream read it.
 
 import {
+  getDagLoops,
   getDagOrderEdges,
   getDagTaskGroups,
   getDagTaskInputs,
   isTaskRef,
   type Dag,
+  type LoopRecord,
   type TaskGroupRecord,
 } from "./dag.js";
 
@@ -58,6 +60,11 @@ export interface DagGraph {
    * edge.
    */
   readonly groupEndsReached: Map<string, Map<string, readonly string[]>>;
+  /**
+   * For each loop, keyed by its group ID, the body tasks with no downstream task in the body. A
+   * valid loop has exactly one, its terminal task, which the gate is then linked after.
+   */
+  readonly loopTerminals: Map<string, readonly string[]>;
 }
 
 /**
@@ -72,6 +79,7 @@ export interface DagGraph {
  */
 export function buildDagGraph(dag: Dag): DagGraph {
   const groups = getDagTaskGroups(dag);
+  const loops = getDagLoops(dag);
   const downstreamTaskIds = new Map<string, Set<string>>();
   const groupEdges = new Map<string, GroupEdgeSets>();
   const groupEndsReached = new Map<string, Map<string, readonly string[]>>();
@@ -97,7 +105,7 @@ export function buildDagGraph(dag: Dag): DagGraph {
   // edge that can sit inside a group by now: wiring, and any order-only edge
   // between two tasks. Python resolves them at `>>` time and so is equally
   // order-sensitive, which is what keeps the two in step.
-  const ends = new GroupEnds(groups, downstreamTaskIds);
+  const ends = new GroupEnds(groups, loops, downstreamTaskIds);
 
   // Which group edges each endpoint has, for stepping over a group that holds
   // no tasks.
@@ -189,7 +197,47 @@ export function buildDagGraph(dag: Dag): DagGraph {
       else sets.downstreamTasks.add(downstream);
     }
   }
-  return { downstreamTaskIds, groupEdges, groupEndsReached };
+  const loopTerminals = new Map<string, readonly string[]>();
+  for (const loop of loops.values()) {
+    loopTerminals.set(loop.groupId, linkLoop(loop, ends.members(loop.groupId), downstreamTaskIds));
+  }
+  return { downstreamTaskIds, groupEdges, groupEndsReached, loopTerminals };
+}
+
+/**
+ * Put a loop's gate after its terminal task, and make the gate the loop's only way out.
+ *
+ * Python's `create_loop` does both: `terminal >> gate`, then `redirect_outside_edges_to_gate`. A
+ * task outside the loop that reads a body task waits for the gate instead, because the gate is what
+ * creates the next iteration: depending on the body task alone, it would run after the first
+ * iteration and see only some of them. Its argument still names the body task.
+ *
+ * Returns the body's leaves, which the gate is linked after only when there is exactly one.
+ */
+function linkLoop(
+  loop: LoopRecord,
+  members: ReadonlySet<string>,
+  downstreamTaskIds: Map<string, Set<string>>,
+): string[] {
+  const { gateTaskId } = loop;
+  const body = [...members].filter((task) => task !== gateTaskId);
+  const leaves = body.filter(
+    (task) =>
+      ![...(downstreamTaskIds.get(task) ?? [])].some(
+        (other) => other !== gateTaskId && members.has(other),
+      ),
+  );
+  if (leaves.length === 1) addTo(downstreamTaskIds, leaves[0]!, gateTaskId);
+  for (const task of body) {
+    const edges = downstreamTaskIds.get(task);
+    if (edges === undefined) continue;
+    for (const other of [...edges]) {
+      if (members.has(other)) continue;
+      edges.delete(other);
+      addTo(downstreamTaskIds, gateTaskId, other);
+    }
+  }
+  return leaves;
 }
 
 function addTo(index: Map<string, Set<string>>, key: string, value: string): void {
@@ -201,18 +249,33 @@ function addTo(index: Map<string, Set<string>>, key: string, value: string): voi
 /** The tasks an edge reaches when it points at a group, cached per group. */
 class GroupEnds {
   readonly #groups: ReadonlyMap<string, TaskGroupRecord>;
+  readonly #loops: ReadonlyMap<string, LoopRecord>;
+  readonly #gates: ReadonlySet<string>;
   readonly #downstream: ReadonlyMap<string, ReadonlySet<string>>;
   readonly #members = new Map<string, Set<string>>();
 
   constructor(
     groups: ReadonlyMap<string, TaskGroupRecord>,
+    loops: ReadonlyMap<string, LoopRecord>,
     downstream: ReadonlyMap<string, ReadonlySet<string>>,
   ) {
     this.#groups = groups;
+    this.#loops = loops;
+    this.#gates = new Set([...loops.values()].map((loop) => loop.gateTaskId));
     this.#downstream = downstream;
   }
 
-  /** Tasks in the group with no upstream inside it: where an edge in arrives. */
+  /** Every task the group holds, nested groups included. */
+  members(groupId: string): ReadonlySet<string> {
+    return this.#membersOf(groupId);
+  }
+
+  /**
+   * Tasks in the group with no upstream inside it: where an edge in arrives.
+   *
+   * A loop's gate is never one: it runs after the loop's terminal task, which is linked to it only
+   * once every edge is drawn.
+   */
   roots(groupId: string): string[] {
     const members = this.#membersOf(groupId);
     const hasInternalUpstream = new Set<string>();
@@ -222,14 +285,42 @@ class GroupEnds {
         if (members.has(task)) hasInternalUpstream.add(task);
       }
     }
-    return [...members].filter((task) => !hasInternalUpstream.has(task));
+    return [...members].filter((task) => !hasInternalUpstream.has(task) && !this.#gates.has(task));
   }
 
-  /** Tasks in the group with no downstream inside it: where an edge out leaves. */
+  /**
+   * Tasks in the group with no downstream inside it: where an edge out leaves. A loop's is its gate.
+   *
+   * A nested loop is linked only once every edge is drawn: its terminal task then leads to its gate,
+   * and its body's edges out leave from the gate. So a body task is never a leaf, and the gate is
+   * judged by the edges it will have, as Python's `create_loop` has already moved them.
+   */
   leaves(groupId: string): string[] {
+    const loop = this.#loops.get(groupId);
+    if (loop !== undefined) return [loop.gateTaskId];
     const members = this.#membersOf(groupId);
+    const bodies = new Set<string>();
+    const gateExits = new Map<string, Set<string>>();
+    // A loop the group holds has its gate among the group's tasks; a loop holding the group does not.
+    for (const nested of this.#loops.values()) {
+      if (!members.has(nested.gateTaskId)) continue;
+      const loopMembers = this.#membersOf(nested.groupId);
+      const exits = new Set(this.#downstream.get(nested.gateTaskId));
+      for (const task of loopMembers) {
+        if (task === nested.gateTaskId) continue;
+        bodies.add(task);
+        for (const other of this.#downstream.get(task) ?? []) {
+          if (!loopMembers.has(other)) exits.add(other);
+        }
+      }
+      gateExits.set(nested.gateTaskId, exits);
+    }
     return [...members].filter(
-      (task) => ![...(this.#downstream.get(task) ?? [])].some((other) => members.has(other)),
+      (task) =>
+        !bodies.has(task) &&
+        ![...(gateExits.get(task) ?? this.#downstream.get(task) ?? [])].some((other) =>
+          members.has(other),
+        ),
     );
   }
 
