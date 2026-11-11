@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import fcntl
+import json
 import logging
 import tempfile
 import threading
@@ -36,6 +37,7 @@ from airflow.dag_processing.bundles.base import (
     BundleVersionLock,
     get_bundle_storage_root_path,
 )
+from airflow.dag_processing.bundles.local import LocalDagBundle
 
 from tests_common.test_utils.config import conf_vars
 
@@ -310,6 +312,41 @@ class TestBundleUsageTrackingManager:
                 assert len(lock_files) == expected_remaining
                 bundle_folders = list(b.versions_dir.iterdir())
                 assert len(bundle_folders) == expected_remaining
+
+    @patch.object(LocalDagBundle, "supports_versioning", True)
+    @patch.object(BundleUsageTrackingManager, "remove_stale_bundle_versions_for_bundle", autospec=True)
+    def test_repeated_cleanup_includes_reloaded_bundles(self, mock_remove, tmp_path):
+        config_file = tmp_path / "bundles.json"
+
+        def write_bundles(*names):
+            config_file.write_text(
+                json.dumps(
+                    [
+                        {
+                            "name": name,
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {"path": str(tmp_path)},
+                        }
+                        for name in names
+                    ]
+                )
+            )
+
+        write_bundles("a")
+        with conf_vars(
+            {
+                ("core", "load_examples"): "False",
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                ("dag_processor", "bundle_refresh_check_interval"): "0",
+            }
+        ):
+            manager = BundleUsageTrackingManager()
+            manager.remove_stale_bundle_versions()
+            write_bundles("a", "b")
+            manager.remove_stale_bundle_versions()
+
+        assert [c.kwargs["bundle_name"] for c in mock_remove.call_args_list] == ["a", "a", "b"]
 
 
 class TestBundleVersion:

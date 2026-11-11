@@ -106,6 +106,7 @@ The following config options support this ``_cmd`` and ``_secret`` version:
 * ``smtp_password`` in ``[smtp]`` section
 * ``secret_key`` in ``[api]`` section
 * ``jwt_secret`` in ``[api_auth]`` section
+* ``dag_bundle_config_list`` in ``[dag_processor]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
 the same way the usual config options can. For example:
