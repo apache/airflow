@@ -178,8 +178,11 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
             # A distribution is yielded once per sys.path entry it is found on (e.g. RHEL/Fedora
             # venvs list both lib64/ and lib/ site-packages), possibly in different versions.
             # Only the first one is importable, so it is the only one whose entry points count.
-            dist_metadata = dist.metadata
-            if dist_metadata and (name := dist_metadata.get("Name")):
+            try:
+                name = dist._normalized_name  # type: ignore[attr-defined]
+            except Exception:
+                name = None
+            if name:
                 normalized_name = _normalize_dist_name(name)
                 if normalized_name in seen_dist_names:
                     continue
