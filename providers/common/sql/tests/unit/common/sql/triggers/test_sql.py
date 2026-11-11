@@ -56,7 +56,7 @@ class TestSQLExecuteQueryTrigger:
     def _make_mock_hook(self, supports_async_execution: bool = True):
         mock_hook = mock.MagicMock(spec=DbApiHook)
         mock_hook.arun = mock.AsyncMock()
-        mock_hook.supports_async_execution.return_value = supports_async_execution
+        mock_hook.supports_async_execution = supports_async_execution
         return mock_hook
 
     def test_serialize(self):

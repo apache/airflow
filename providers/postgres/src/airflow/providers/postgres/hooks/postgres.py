@@ -154,6 +154,8 @@ class PostgresHook(DbApiHook):
     hook_name = "Postgres"
     supports_autocommit = True
     supports_executemany = True
+    supports_async_execution = USE_PSYCOPG3
+    supports_readonly_execution = USE_PSYCOPG3
     ignored_extra_options = {
         "iam",
         "redshift",

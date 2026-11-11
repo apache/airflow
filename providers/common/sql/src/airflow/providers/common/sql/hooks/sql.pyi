@@ -68,6 +68,8 @@ class DbApiHook(BaseHook):
     strip_semicolon: bool
     supports_autocommit: bool
     supports_executemany: bool
+    supports_async_execution: bool
+    supports_readonly_execution: bool
     connector: ConnectorProtocol | None
     log_sql: Incomplete
     descriptions: Incomplete

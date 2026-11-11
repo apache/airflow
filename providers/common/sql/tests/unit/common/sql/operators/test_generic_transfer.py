@@ -216,7 +216,7 @@ class TestGenericTransfer:
         self.mocked_destination_hook.reset_mock()
         # The deferred trigger falls back to `DbApiHook.run` for hooks without a real async
         # driver -- a generic mocked hook stands in for the vast majority of DB-specific hooks.
-        self.mocked_source_hook.supports_async_execution.return_value = False
+        self.mocked_source_hook.supports_async_execution = False
         self.mocked_source_hook.descriptions = []
 
         # Set up the side effect for paginated read

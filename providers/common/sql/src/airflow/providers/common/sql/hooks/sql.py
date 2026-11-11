@@ -182,6 +182,10 @@ class DbApiHook(BaseHook):
     supports_autocommit = False
     # Override if this db supports executemany.
     supports_executemany = False
+    # Override if this db supports a native async driver.
+    supports_async_execution = False
+    # Override if this db supports read-only async transactions (like _aenter_read_only).
+    supports_readonly_execution = False
     # Override with the object that exposes the connect method
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
@@ -1155,8 +1159,8 @@ class DbApiHook(BaseHook):
         """
         Open an async connection to the database.
 
-        DB-specific hooks backed by a real async driver override this method. Whether it is
-        overridden is what :meth:`supports_async_execution` reports.
+        DB-specific hooks backed by a real async driver override this method and set
+        :attr:`supports_async_execution`.
         """
         raise NotImplementedError(
             f"{type(self).__name__} does not implement aget_conn. Override it to support "
@@ -1201,14 +1205,6 @@ class DbApiHook(BaseHook):
             yield conn
         finally:
             await self._aclose_conn(conn)
-
-    def supports_async_execution(self) -> bool:
-        """Whether the DB-specific hook overrides :meth:`aget_conn` for a real async driver."""
-        return type(self).aget_conn is not DbApiHook.aget_conn
-
-    def supports_readonly_execution(self) -> bool:
-        """Whether the DB-specific hook overrides :meth:`_aenter_read_only`."""
-        return type(self)._aenter_read_only is not DbApiHook._aenter_read_only
 
     async def _aenter_read_only(self, conn):
         """

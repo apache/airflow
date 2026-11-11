@@ -554,6 +554,10 @@ class TestPostgresHookConnPPG2:
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
+    def test_does_not_support_async_and_readonly_execution(self):
+        assert self.db_hook.supports_async_execution is False
+        assert self.db_hook.supports_readonly_execution is False
+
     def test_sqlalchemy_url(self):
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
@@ -599,6 +603,10 @@ class TestPostgresHookConnPPG3:
         self.db_hook = UnitTestPostgresHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
+
+    def test_supports_async_and_readonly_execution(self):
+        assert self.db_hook.supports_async_execution is True
+        assert self.db_hook.supports_readonly_execution is True
 
     def test_sqlalchemy_url(self):
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")

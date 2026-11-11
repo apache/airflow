@@ -368,18 +368,29 @@ class TestDbApiHook:
             await hook.aget_conn()
 
     @pytest.mark.db_test
-    def test_supports_async_execution_false_by_default(self):
+    def test_async_capability_flags_false_by_default(self):
         hook = mock_db_hook(DbApiHook)
-        assert hook.supports_async_execution() is False
+        assert hook.supports_async_execution is False
+        assert hook.supports_readonly_execution is False
 
     @pytest.mark.db_test
-    def test_supports_async_execution_true_when_aget_conn_overridden(self):
+    def test_async_capability_flags_are_declared_by_the_hook(self):
+        class AsyncDbApiHook(DbApiHook):
+            supports_async_execution = True
+            supports_readonly_execution = True
+
+        hook = mock_db_hook(AsyncDbApiHook)
+        assert hook.supports_async_execution is True
+        assert hook.supports_readonly_execution is True
+
+    @pytest.mark.db_test
+    def test_overriding_aget_conn_does_not_enable_async_execution(self):
         class AsyncDbApiHook(DbApiHook):
             async def aget_conn(self):
                 return MagicMock()
 
         hook = mock_db_hook(AsyncDbApiHook)
-        assert hook.supports_async_execution() is True
+        assert hook.supports_async_execution is False
 
     @pytest.mark.db_test
     @pytest.mark.asyncio

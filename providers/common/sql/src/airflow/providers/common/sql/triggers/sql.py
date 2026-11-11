@@ -146,7 +146,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 " but its provider does not support this. Please set deferrable=False"
                 f" Got {hook.__class__.__name__} with class hierarchy: {hook.__class__.mro()}"
             )
-        if self.read_only and not (hook.supports_async_execution() and hook.supports_readonly_execution()):
+        if self.read_only and not (hook.supports_async_execution and hook.supports_readonly_execution):
             raise NotImplementedError(
                 f"{hook.__class__.__name__} does not support read-only execution, so it cannot run a"
                 " deferred query safely (a triggerer restart could re-run it). Set"
@@ -159,11 +159,11 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         """
         Run the query against ``hook``, using its native async driver if available.
 
-        Hooks without a real async driver (:meth:`DbApiHook.supports_async_execution`) fall back to
+        Hooks without a real async driver (:attr:`DbApiHook.supports_async_execution`) fall back to
         running the synchronous :meth:`DbApiHook.run` in a worker thread, matching the compatibility the
         `GenericTransfer` operator has always relied on for arbitrary DB-specific hooks.
         """
-        if hook.supports_async_execution():
+        if hook.supports_async_execution:
             if fetch_results:
                 return await hook.arun(
                     sql=self.sql,
