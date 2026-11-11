@@ -269,13 +269,45 @@ class TestAdbcHook:
         rows = [("Smith", "Alice"), ("Jones", "Bob")]
         hook.insert_rows("t", rows, target_fields=["last", "first"])
 
-        assert cur.adbc_ingest.called
-        batch = cur.adbc_ingest.call_args[0][1]  # second positional arg is the RecordBatch
+        # Not every table column in table order, so the batch is bound, not ingested.
+        assert not cur.adbc_ingest.called
+        sql, batch = cur.executemany.call_args[0]
+        assert "(last, first)" in sql
         # Schema order must match target_fields, not the table declaration.
         assert batch.schema.names == ["last", "first"]
         # Values must land in the declared column order.
         assert batch.column("last").to_pylist() == ["Smith", "Jones"]
         assert batch.column("first").to_pylist() == ["Alice", "Bob"]
+
+    @pytest.mark.parametrize(
+        ("target_fields", "ingested"),
+        [
+            pytest.param(["first", "last", "age"], True, id="all-columns-in-table-order"),
+            pytest.param(["last", "first", "age"], False, id="all-columns-reordered"),
+            pytest.param(["first", "last"], False, id="subset-in-table-order"),
+        ],
+    )
+    def test_insert_rows_ingests_only_when_target_fields_match_table_columns(self, target_fields, ingested):
+        """Some drivers (e.g. DuckDB) ingest columns by position, so other column lists must bind."""
+        from pyarrow import int64
+
+        self.conn.adbc_get_table_schema.return_value = schema(
+            [field("first", string()), field("last", string()), field("age", int64())]
+        )
+        self.hook._log = mock.MagicMock(spec=logging.Logger)
+        row = {"first": "Alice", "last": "Smith", "age": 30}
+
+        self.hook.insert_rows("t", [tuple(row[name] for name in target_fields)], target_fields=target_fields)
+
+        assert self.cur.adbc_ingest.called is ingested
+        assert self.cur.executemany.called is not ingested
+        batch = (self.cur.adbc_ingest if ingested else self.cur.executemany).call_args[0][1]
+        assert batch.schema.names == target_fields
+        assert batch.to_pylist() == [{name: row[name] for name in target_fields}]
+        bind_note = (
+            "Bulk ingest needs every table column in table order; binding rows to the statement instead"
+        )
+        assert (mock.call(bind_note) in self.hook._log.debug.call_args_list) is not ingested
 
     @pytest.mark.skipif(
         importlib.util.find_spec("adbc_driver_sqlite") is None,
@@ -304,7 +336,7 @@ class TestAdbcHook:
     )
     @pytest.mark.parametrize("fast_executemany", [True, False])
     def test_insert_rows_sqlite_round_trip(self, create_connection_without_db, tmp_path, fast_executemany):
-        """Both load paths must write the same rows, including a target_fields subset."""
+        """A target_fields subset must write the same rows whatever fast_executemany is set to."""
         create_connection_without_db(
             Connection(
                 conn_id="adbc_default",
@@ -327,6 +359,30 @@ class TestAdbcHook:
                 (1, 10, "dflt"),
                 (2, 20, "dflt"),
             ]
+
+    @pytest.mark.skipif(
+        importlib.util.find_spec("adbc_driver_sqlite") is None,
+        reason="adbc_driver_sqlite not installed",
+    )
+    def test_insert_rows_sqlite_bulk_ingest(self, create_connection_without_db, tmp_path):
+        """Rows holding every table column in table order go through the driver's bulk ingest."""
+        create_connection_without_db(
+            Connection(
+                conn_id="adbc_default",
+                conn_type="adbc",
+                extra=json.dumps({"driver": "adbc_driver_sqlite"}),
+            )
+        )
+        hook = AdbcHook()
+        adbc_ingest = Cursor.adbc_ingest
+        with mock.patch.object(AdbcHook, "uri", str(tmp_path / "db.sqlite")):
+            hook.run("CREATE TABLE t (id INTEGER, qty INTEGER)", autocommit=True)
+
+            with mock.patch.object(Cursor, "adbc_ingest", autospec=True, side_effect=adbc_ingest) as ingest:
+                hook.insert_rows("t", [(1, 10), (2, 20)])
+
+            assert ingest.called
+            assert hook.get_records("SELECT id, qty FROM t ORDER BY id") == [(1, 10), (2, 20)]
 
     @pytest.mark.skipif(
         importlib.util.find_spec("adbc_driver_sqlite") is None,
