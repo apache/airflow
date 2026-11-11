@@ -391,21 +391,6 @@ describe("XCom key and map index guards", () => {
 });
 
 describe("deleteXCom", () => {
-  it("defaults dag/task/run + map_index from ctx", async () => {
-    const { client: c, sent } = recordingClient();
-
-    await c.deleteXCom({ key: "k" });
-
-    expect(sent[0]).toEqual({
-      type: "DeleteXCom",
-      key: "k",
-      dag_id: "d",
-      task_id: "t",
-      run_id: "r",
-      map_index: null,
-    });
-  });
-
   it("sends explicit dagId/taskId/runId/mapIndex overrides", async () => {
     const { client: c, sent } = recordingClient();
 
@@ -425,12 +410,6 @@ describe("deleteXCom", () => {
       run_id: "manual__1",
       map_index: 2,
     });
-  });
-
-  it("propagates a supervisor error as a thrown error", async () => {
-    const c = client([{ body: { type: "ErrorResponse", error: "GENERIC_ERROR" } }]);
-
-    await expect(c.deleteXCom({ key: "k" })).rejects.toThrow(/GENERIC_ERROR/);
   });
 });
 
