@@ -60,12 +60,15 @@ class TestChainMapper:
                 "2024-03-15",
                 datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
             ),
-            # A trailing identity with a non-temporal key still has no anchor.
-            (ChainMapper(StartOfDayMapper(), IdentityMapper()), "anything", None),
         ],
     )
     def test_to_partition_date_uses_effective_mapper(self, chain, downstream_key, expected):
         assert chain.to_partition_date(downstream_key) == expected
+
+    def test_to_partition_date_preserves_invalid_key_error_through_trailing_identity(self):
+        chain = ChainMapper(StartOfDayMapper(), IdentityMapper())
+        with pytest.raises(ValueError):
+            chain.to_partition_date("anything")
 
     def test_to_downstream_invalid_non_iterable_return(self):
         sm = ChainMapper(IdentityMapper(), _InvalidReturnMapper())

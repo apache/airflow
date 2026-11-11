@@ -73,12 +73,7 @@ class ChainMapper(PartitionMapper):
         while isinstance(mapper, IdentityMapper) and index > 0:
             index -= 1
             mapper = self.mappers[index]
-        try:
-            return mapper.to_partition_date(downstream_key)
-        except ValueError:
-            # An identity mapper accepts arbitrary keys, even when the preceding mapper's
-            # temporal format cannot decode them.
-            return None
+        return mapper.to_partition_date(downstream_key)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
