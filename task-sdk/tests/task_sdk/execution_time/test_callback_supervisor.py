@@ -797,6 +797,8 @@ class TestSuperviseCallbackExchangesTokenFirst:
         exchanges = 0
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/state"):
+                return httpx2.Response(204)
             nonlocal exchanges
             exchanges += 1
             if exchanges > 1:
