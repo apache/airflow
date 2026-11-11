@@ -1689,6 +1689,7 @@ class TestXComsDeleteEndpoint:
         response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}")
 
         assert response.status_code == 400
+        assert response.json()["detail"] == "Reserved loop XCom key"
         with create_session(scoped=False) as verify:
             assert XComModelV2.get_for_attempt(ti.id, key, session=verify) is not None
 
