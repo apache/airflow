@@ -666,7 +666,73 @@ async def _failed_attempt_then_retry_that_diverges_at_once(memory_storage):
     return retry
 
 
+async def _first_attempt_that_pauses_past_a_step_it_did_not_record(memory_storage) -> DurableRun:
+    """Records a, b and c, runs g live without recording it, records d, then pauses for an approval at 5."""
+    first = DurableJournal(memory_storage).start_run()
+    await first.run("a", kind="tool", fingerprint="a", body=lambda: ok("old a"))
+    await first.run("b", kind="tool", fingerprint="b", body=lambda: ok("old b"))
+    await first.run("c", kind="tool", fingerprint="c", body=lambda: ok("old c"))
+    await first.run("g", kind="tool", fingerprint="g", body=lambda: ok("live g"), replayable=False)
+    await first.run("d", kind="tool", fingerprint="d", body=lambda: ok("old d"))
+    first.claim("approve", kind="other", fingerprint="calls")
+    first.pause()
+    return first
+
+
 class TestPause:
+    @pytest.mark.asyncio
+    async def test_a_pause_on_a_first_attempt_notes_how_far_it_got_and_the_resume_replays_every_step(
+        self, memory_storage
+    ):
+        """The note changes nothing the resume does: no step runs live that the first attempt recorded."""
+        first = await _first_attempt_that_pauses_past_a_step_it_did_not_record(memory_storage)
+
+        assert memory_storage.entries.get(build_run_meta_key(first.key)) == {
+            "diverge_from": None,
+            "high_water": 6,
+            "model_at_fault": False,
+            "paused": False,
+            "tool_failure": None,
+            "last_model": None,
+        }
+        resumed = DurableJournal(memory_storage).start_run()
+        with mock.patch.object(journal_module, "log", spec=["debug", "info", "warning"]) as log:
+            steps = [
+                await resumed.run(name, kind="tool", fingerprint=name, body=lambda: ok("live"))
+                for name in "abc"
+            ]
+            await resumed.run("g", kind="tool", fingerprint="g", body=lambda: ok("live g"), replayable=False)
+            steps.append(await resumed.run("d", kind="tool", fingerprint="d", body=lambda: ok("live")))
+            steps.append(
+                await resumed.run("approve", kind="other", fingerprint="calls", body=lambda: ok("approved"))
+            )
+
+        assert steps == ["old a", "old b", "old c", "old d", "approved"]
+        assert not resumed.diverged
+        log.info.assert_not_called()
+        log.warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cleanup_after_a_shorter_resume_deletes_what_the_first_attempt_recorded_past_a_live_step(
+        self, memory_storage
+    ):
+        """Cleanup reads on only while entries are contiguous, so it relies on the first pause's note."""
+        await _first_attempt_that_pauses_past_a_step_it_did_not_record(memory_storage)
+
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("a", kind="tool", fingerprint="a", body=lambda: ok("live a"))
+        await resumed.run("b", kind="tool", fingerprint="b2", body=lambda: ok("new b"))
+        resumed.claim("approve", kind="other", fingerprint="other calls")
+        resumed.pause()
+
+        again = DurableJournal(memory_storage).start_run()
+        await again.run("a", kind="tool", fingerprint="a", body=lambda: ok("live"))
+        await again.run("b", kind="tool", fingerprint="b2", body=lambda: ok("live"))
+        await again.run("approve", kind="other", fingerprint="other calls", body=lambda: ok("approved"))
+        again.journal.cleanup()
+
+        assert memory_storage.entries == {}
+
     @pytest.mark.asyncio
     async def test_entries_the_attempt_left_unrecorded_below_the_stored_boundary_do_not_replay(
         self, memory_storage
@@ -834,6 +900,141 @@ class TestCompletedRuns:
         b = await later.run("b", kind="tool", fingerprint="b", body=lambda: ok("run again"))
 
         assert (replayed, b) == ("new a", "run again")
+
+    @pytest.mark.asyncio
+    async def test_a_completion_shorter_than_a_paused_first_attempt_leaves_none_of_its_later_steps_to_replay(
+        self, memory_storage
+    ):
+        """
+        The resume took another path and finished sooner, so what the first attempt recorded past it is stale.
+
+        The run's final answer was not kept, so a later attempt asks the model again and goes further.
+        """
+        await _first_attempt_that_pauses_past_a_step_it_did_not_record(memory_storage)
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("a", kind="tool", fingerprint="a", body=lambda: ok("live a"))
+        await resumed.run("b", kind="tool", fingerprint="b2", body=lambda: ok("new b"))
+        memory_storage.refuse.add(build_step_key(0, 2))
+        await resumed.run("final", kind="model", fingerprint="f", body=lambda: ok("answer"))
+        resumed.complete()
+        memory_storage.refuse.clear()
+
+        later = DurableJournal(memory_storage).start_run()
+        await later.run("a", kind="tool", fingerprint="a", body=lambda: ok("live"))
+        await later.run("b", kind="tool", fingerprint="b2", body=lambda: ok("live"))
+        await later.run("final", kind="model", fingerprint="f", body=lambda: ok("asked again"))
+        await later.run("g", kind="tool", fingerprint="g", body=lambda: ok("live g"), replayable=False)
+        d = await later.run("d", kind="tool", fingerprint="d", body=lambda: ok("live d"))
+
+        assert d == "live d"
+
+    @pytest.mark.asyncio
+    async def test_a_later_attempt_as_long_as_a_completion_that_ended_sooner_than_a_pause_writes_nothing(
+        self, memory_storage
+    ):
+        """The completion deleted what the first attempt recorded past its end, so nothing is left there."""
+        await _first_attempt_that_pauses_past_a_step_it_did_not_record(memory_storage)
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("a", kind="tool", fingerprint="a", body=lambda: ok("live a"))
+        await resumed.run("b", kind="tool", fingerprint="b", body=lambda: ok("live b"))
+        resumed.complete()
+        memory_storage.calls.clear()
+
+        later = DurableJournal(memory_storage).start_run()
+        await later.run("a", kind="tool", fingerprint="a", body=lambda: ok("live a"))
+        await later.run("b", kind="tool", fingerprint="b", body=lambda: ok("live b"))
+        later.complete()
+
+        assert [method for method, _ in memory_storage.calls if method != "load"] == []
+
+    @pytest.mark.asyncio
+    async def test_cleanup_deletes_what_a_shorter_completion_could_not_delete_past_a_live_step(
+        self, memory_storage
+    ):
+        """Cleanup reads on only while entries are contiguous, so it relies on the first pause's note."""
+        await _first_attempt_that_pauses_past_a_step_it_did_not_record(memory_storage)
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("a", kind="tool", fingerprint="a", body=lambda: ok("live a"))
+        await resumed.run("b", kind="tool", fingerprint="b", body=lambda: ok("live b"))
+        with mock.patch.object(memory_storage, "delete_steps", autospec=True):
+            resumed.complete()
+
+        resumed.journal.cleanup()
+
+        assert memory_storage.entries == {}
+
+    @pytest.mark.asyncio
+    async def test_ask_model_again_after_a_resume_that_ended_sooner_asks_for_the_resumed_answer_again(
+        self, memory_storage
+    ):
+        """The first attempt's first model request was not kept, so the resume asked it again and finished."""
+        first = DurableJournal(memory_storage).start_run()
+        memory_storage.refuse.add(build_step_key(0, 0))
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("check the date"))
+        memory_storage.refuse.clear()
+        await first.run("today", kind="tool", fingerprint="t", body=lambda: ok("Monday"), replayable=False)
+        await first.run("model", kind="model", fingerprint="m2", body=lambda: ok("send it"))
+        first.claim("send", kind="tool", fingerprint="s")
+        first.pause()
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("model", kind="model", fingerprint="m1", body=lambda: ok("it is Monday"))
+        resumed.complete()
+        assert build_step_key(0, 2) not in memory_storage.entries
+
+        DurableJournal(memory_storage).ask_model_again(0)
+        retry = DurableJournal(memory_storage).start_run()
+        answer = await retry.run("model", kind="model", fingerprint="m1", body=lambda: ok("a new answer"))
+
+        assert answer == "a new answer"
+
+    @pytest.mark.asyncio
+    async def test_a_later_attempt_that_goes_further_than_a_completed_run_reports_no_failure(
+        self, memory_storage
+    ):
+        """
+        A completed run did not fail anywhere, so the steps after it run live without a warning.
+
+        The run's final answer was not kept, so a later attempt asks the model again and goes further.
+        """
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("look it up"))
+        await first.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("$10"), replayable=False)
+        memory_storage.refuse.add(build_step_key(0, 2))
+        await first.run("model", kind="model", fingerprint="m2", body=lambda: ok("it costs $10"))
+        first.complete()
+        memory_storage.refuse.clear()
+
+        later = DurableJournal(memory_storage).start_run()
+        with mock.patch.object(journal_module, "log", spec=["debug", "info", "warning"]) as log:
+            await later.run("model", kind="model", fingerprint="m1", body=lambda: ok("asked again"))
+            await later.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("$10"), replayable=False)
+            await later.run("model", kind="model", fingerprint="m2", body=lambda: ok("check the tax"))
+            await later.run("tax", kind="tool", fingerprint="t", body=lambda: ok("$1"))
+
+        assert not later.diverged
+        log.info.assert_not_called()
+        log.warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ask_model_again_notes_how_far_the_run_got_so_a_shorter_retry_deletes_the_rest(
+        self, memory_storage
+    ):
+        """The output came from a tool after the last model request, and the new answer is plain text."""
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("look it up"))
+        await first.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("$10"))
+        await first.run("model", kind="model", fingerprint="m2", body=lambda: ok("call final_result"))
+        await first.run("final_result", kind="tool", fingerprint="r", body=lambda: ok("it costs $10"))
+        first.complete()
+
+        DurableJournal(memory_storage).ask_model_again(0)
+        retry = DurableJournal(memory_storage).start_run()
+        await retry.run("model", kind="model", fingerprint="m1", body=lambda: ok("asked again"))
+        await retry.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("looked up again"))
+        await retry.run("model", kind="model", fingerprint="m2", body=lambda: ok("a new answer"))
+        retry.complete()
+
+        assert build_step_key(0, 3) not in memory_storage.entries
 
     @pytest.mark.asyncio
     async def test_a_run_that_replayed_in_full_writes_nothing_on_completion(self, memory_storage):

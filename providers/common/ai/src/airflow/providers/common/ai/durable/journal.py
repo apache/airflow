@@ -316,8 +316,9 @@ class DurableRun:
         # rather than where an attempt failed.
         self._paused = False
         # Read with the rest of the run's entry: the position of the run's last model request, noted
-        # by every pause and every completion that writes the entry, and rewritten by a completion
-        # whose last model request is elsewhere, as ``ask_model_again`` trusts it over the steps. A
+        # by every completion that writes the entry and by a pause that trusts this attempt's steps,
+        # and rewritten by a completion whose last model request is elsewhere, as ``ask_model_again``
+        # trusts it over the steps. A pause that only notes how far the attempt got keeps it; a
         # failure and ``ask_model_again`` write the entry without it, so the steps decide then.
         self._noted_last_model: int | None = None
         # Read with the rest of the run's entry: the tool call that failed the previous attempt,
@@ -623,11 +624,22 @@ class DurableRun:
         replay, this attempt has run live from there: what it recorded becomes trusted, and
         the earlier entries at positions it left empty (a call still waiting for approval, a
         tool that raised) are deleted. Positions from here on still run live after the pause.
+        Otherwise it only notes how far this attempt got, when that is further than any before.
         """
         self._load_meta()
         start = min((p for p in (self._diverge_from, self._diverged_at) if p is not None), default=None)
         if start is None or self._position <= start:
-            # This attempt has not run anything live past the untrusted entries yet.
+            # This attempt has not run anything live past the untrusted entries yet. Past a step
+            # it did not record (a tool set to run on every attempt), a later completion or
+            # cleanup cannot find how far it got, so note that and leave the rest as it was.
+            if self._position > self._high_water:
+                self._save_meta(
+                    self._diverge_from,
+                    model_at_fault=self._model_at_fault,
+                    paused=self._paused,
+                    tool_failure=self._tool_failure or None,
+                    last_model=self._noted_last_model,
+                )
             return
         survived = self._delete_unrecorded(range(start, self._position))
         trusted_until = survived[0] if survived else self._position
@@ -648,12 +660,13 @@ class DurableRun:
 
         An earlier attempt that failed left a note saying where a retry stops replaying. Once a
         run succeeds, a later attempt must replay what this one recorded instead, as for a pause,
-        and not an entry an earlier attempt left at a position this one ran without recording.
-        Also notes how far the run went, and where its last model request was, when a step it ran
-        is not in the journal (a tool set to run on every attempt, say), as a later reader cannot
-        find either past such a gap; and rewrites that note when this attempt's last model request
-        is elsewhere. Writes nothing when every step replayed or was recorded and no earlier
-        attempt left a note.
+        and not an entry an earlier attempt left at a position this one ran without recording,
+        or past where this one ended. Also notes how far the run went, and where its last model
+        request was, when a step it ran is not in the journal (a tool set to run on every attempt,
+        say), as a later reader cannot find either past such a gap; and rewrites that note when
+        this attempt's last model request is elsewhere. Writes nothing when every step replayed or
+        was recorded, no earlier attempt left a note, and none went further. Reads back each stale
+        entry it deletes, so that one the storage failed to delete is not trusted.
         """
         self._load_meta()
         gap = len(self._saved | self._replayed) < self._position
@@ -664,12 +677,17 @@ class DurableRun:
             or self._model_at_fault
             or self._tool_failure
             or self._noted_last_model not in (None, self._last_model_position)
+            or self._position < self._high_water
         ):
             return
         end = max(self._high_water, self._position)
-        # Before both points every claimed step replayed, so no position there holds a stale entry.
+        # Before both points every claimed step replayed, so no position there holds a stale entry;
+        # past where this run ended, every entry is an earlier attempt's.
         untrusted = [p for p in (self._diverged_at, self._diverge_from) if p is not None]
-        survived = self._delete_unrecorded(range(min(untrusted, default=end), end))
+        survived = self._delete_unrecorded(range(min([*untrusted, self._position]), end))
+        if not survived:
+            # Nothing is left past where this run ended, so a later run as long has nothing to delete.
+            self._high_water = self._position
         # Every entry left replays on a later attempt, unless one could not be deleted.
         self._save_meta(
             survived[0] if survived else None, model_at_fault=False, last_model=self._last_model_position
