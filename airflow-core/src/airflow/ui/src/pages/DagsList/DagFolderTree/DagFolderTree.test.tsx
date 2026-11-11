@@ -397,3 +397,32 @@ it("selects the correct bundle when names and folder paths contain colons", asyn
   fireEvent.click(screen.getByTitle("c"), { button: 0 });
   await waitFor(() => expect(onSelectFolder).toHaveBeenCalledWith({ bundleName: "a:b", folder: "c" }));
 });
+
+it("reveals the selected folder when bundle and folder names contain pipes", async () => {
+  const folders = [
+    { bundle_name: "a|b", folder: "c" },
+    { bundle_name: "a", folder: "b|c" },
+  ];
+  const onSelectFolder = vi.fn();
+  const { rerender } = render(
+    <DagFolderTree
+      folders={folders}
+      onSelectFolder={onSelectFolder}
+      selectedBundle="a|b"
+      selectedFolder="c"
+    />,
+    { wrapper: BaseWrapper },
+  );
+
+  rerender(
+    <DagFolderTree
+      folders={folders}
+      onSelectFolder={onSelectFolder}
+      selectedBundle="a"
+      selectedFolder="b|c"
+    />,
+  );
+
+  expect(node("b|c")).toHaveAttribute("aria-selected", "true");
+  await waitFor(() => expect(screen.getByTitle("b|c")).toBeVisible());
+});

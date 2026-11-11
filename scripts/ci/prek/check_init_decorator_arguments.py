@@ -188,21 +188,6 @@ def _match_arguments(
             yield f"[red]Type annotation missing on @{deco_name} argument: {attr_name}"
 
 
-def _match_defaults(
-    arg_names: list[str],
-    init_def: tuple[str, list[ast.expr]],
-    deco_def: tuple[str, list[ast.expr]],
-) -> collections.abc.Iterator[str]:
-    init_name, init_defaults = init_def
-    deco_name, deco_defaults = deco_def
-    for i, (ini, dec) in enumerate(zip(init_defaults, deco_defaults), 1):
-        if ast.dump(ini) != ast.dump(dec):  # Poorly implemented equality check.
-            yield (
-                f"[red]Argument {arg_names[i]!r} default mismatch: "
-                f"{init_name} has {ast.unparse(ini)} but @{deco_name} has {ast.unparse(dec)}"
-            )
-
-
 def check_dag_init_decorator_arguments() -> int:
     dag_mod = ast.parse(DAG_PY.read_text("utf-8"), str(DAG_PY))
     tg_mod = ast.parse(TG_PY.read_text("utf-8"), str(TG_PY))

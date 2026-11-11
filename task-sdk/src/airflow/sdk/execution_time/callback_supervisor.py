@@ -33,18 +33,21 @@ import structlog
 from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
+from airflow.sdk.api.datamodels._generated import CallbackTerminalState
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
     handle_get_variable_keys,
+    handle_get_xcom,
     handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import (
@@ -78,12 +81,44 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 
 # The set of messages that a callback subprocess can send to the supervisor.
-# This is a minimal subset of ToSupervisor: read-only access to Connections
-# and Variables, plus MaskSecret for the secrets masker.
+# This is a minimal subset of ToSupervisor: read-only access to Connections,
+# Variables, and XCom values, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
+    GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
     Field(discriminator="type"),
 ]
+
+
+def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
+    """
+    Add an ``xcom_pull`` helper bound to the callback's Dag run to its context.
+
+    Callbacks have no task instance, so the helper takes ``dag_id`` and ``dag_run_id`` from the
+    ``dag_run`` in the context and the callback only names the task to pull from.
+    """
+    context = callback_kwargs.get("context")
+    if not isinstance(context, dict):
+        return
+    dag_run = context.get("dag_run")
+    if not isinstance(dag_run, dict) or not dag_run.get("dag_id") or not dag_run.get("dag_run_id"):
+        log.warning("Callback context has no Dag run, so xcom_pull is not available")
+        return
+
+    def xcom_pull(
+        task_id: str, *, key: str = "return_value", map_index: int | None = None, default: Any = None
+    ) -> Any:
+        from airflow.sdk.execution_time.xcom import XCom
+
+        value = XCom.get_one(
+            key=key,
+            dag_id=dag_run["dag_id"],
+            run_id=dag_run["dag_run_id"],
+            task_id=task_id,
+            map_index=map_index,
+        )
+        return default if value is None else value
+
+    context["xcom_pull"] = xcom_pull
 
 
 SERDE_KWARGS_ENCODING = "serde"
@@ -209,9 +244,10 @@ class CallbackSubprocess(WatchedSubprocess):
     Uses the WatchedSubprocess infrastructure for fork/monitor/signal handling
     while keeping a simple lifecycle: start, run callback, exit.
 
-    Provides a limited set of comms channels (Connections and Variables) so
-    that callback code can access runtime services like
-    ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
+    Provides a limited set of comms channels (Connections, Variables, and XCom)
+    so that callback code can access runtime services like
+    ``Connection.get()``, ``Variable.get()``, and ``context["xcom_pull"]()`` via
+    the supervisor's API client.
     """
 
     client: Client  # The HTTP client to use for communication with the API server.
@@ -270,6 +306,7 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
+            _add_xcom_pull_to_context(callback_kwargs)
             success, error_msg = execute_callback(
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
@@ -391,6 +428,8 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
+        elif isinstance(msg, GetXCom):
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
         else:
@@ -465,7 +504,13 @@ def supervise_callback(
             logger = structlog.get_logger(logger_name="callback").bind()
 
         # Swap the single-use callback token for an execution token before any context read.
+        # A failure here leaves the row QUEUED; the scheduler's executor-event fallback in
+        # _process_executor_events is what marks it failed, so finish() is deliberately not
+        # reached on this path.
         client.callbacks.run(UUID(id))
+
+        terminal_state = CallbackTerminalState.FAILED
+        terminal_output: str | None = None
 
         try:
             process = CallbackSubprocess.start(
@@ -489,9 +534,22 @@ def supervise_callback(
                 exit_code=exit_code,
                 duration=end - start,
             )
-            if exit_code != 0:
-                raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
-            return exit_code
+            if exit_code == 0:
+                terminal_state = CallbackTerminalState.SUCCESS
+            else:
+                terminal_output = f"Callback subprocess exited with code {exit_code}"
+        except Exception as e:
+            terminal_output = f"Callback supervisor error: {type(e).__name__}: {e}"
+            raise
         finally:
+            try:
+                client.callbacks.finish(UUID(id), state=terminal_state, output=terminal_output)
+            except Exception:
+                log.exception("Failed to report final callback state", workload_id=id)
+
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+
+    if exit_code != 0:
+        raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
+    return exit_code

@@ -346,6 +346,9 @@ NOTE: Jobs are added to a queue and processed in order.  Given the potential wai
 and the fact that the optional timeout parameter is measured in hours, deferrable mode is
 recommended over "wait_for_completion" in this case.
 
+By default the operator waits for the job to complete. Set ``success_state="scheduled"`` to stop
+waiting once Bedrock has queued the job. This applies to both "wait_for_completion" and deferrable mode.
+
 Example using an Amazon Bedrock Batch Inference Job:
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py

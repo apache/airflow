@@ -65,7 +65,7 @@ describe("loopsForNode", () => {
 const pass = (iteration: number | undefined): LoopOption => ({ iteration, loopId: "batch" }) as LoopOption;
 
 // [whole loop, then the passes newest first]
-const OPTIONS = [pass(undefined), pass(2), pass(1), pass(0)];
+const OPTIONS = [pass(undefined), pass(3), pass(2), pass(1)];
 
 describe("selectActivePass", () => {
   it("takes the pass the server resolved for the row", () => {
@@ -79,17 +79,17 @@ describe("selectActivePass", () => {
   });
 
   it("falls back to the newest pass when nothing pins one", () => {
-    expect(selectActivePass(OPTIONS, new URLSearchParams())?.iteration).toBe(2);
+    expect(selectActivePass(OPTIONS, new URLSearchParams())?.iteration).toBe(3);
   });
 
   it("reads a pass pinned as a filter", () => {
-    expect(selectActivePass(OPTIONS, new URLSearchParams("iteration=0"))?.iteration).toBe(0);
+    expect(selectActivePass(OPTIONS, new URLSearchParams("iteration=1"))?.iteration).toBe(1);
   });
 
   it("ignores a pass belonging to a different loop", () => {
-    const params = new URLSearchParams("loop_id=other&iteration=0");
+    const params = new URLSearchParams("loop_id=other&iteration=1");
 
-    expect(selectActivePass(OPTIONS, params)?.iteration).toBe(2);
+    expect(selectActivePass(OPTIONS, params)?.iteration).toBe(3);
   });
 });
 

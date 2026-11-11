@@ -214,7 +214,12 @@ def get_mapped_task_instances(
     dag_bag: DagBagDep,
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -560,7 +565,12 @@ def get_task_instances(
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -642,7 +652,10 @@ def get_task_instances(
     ] = None,
     iteration: Annotated[
         int | None,
-        Query(ge=0, description="Narrow ``loop_id`` to a single pass of that loop."),
+        Query(
+            ge=1,
+            description="Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.",
+        ),
     ] = None,
     cursor: str | None = Query(
         None,

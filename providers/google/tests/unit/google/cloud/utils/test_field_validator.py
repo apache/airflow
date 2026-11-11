@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.providers.google.cloud.utils.field_validator import (
@@ -313,3 +315,43 @@ class TestGcpBodyFieldValidator:
 
         validator = GcpBodyFieldValidator(specification, "v1")
         validator.validate(body)
+
+    @pytest.mark.parametrize(
+        ("field_api_version", "should_warn"),
+        [
+            pytest.param("v1", False, id="matching-api-version"),
+            pytest.param("v1beta2", True, id="other-api-version"),
+        ],
+    )
+    def test_validate_warns_only_for_fields_of_other_api_version(self, field_api_version, should_warn):
+        specification = [
+            dict(name="name", allow_empty=False),
+            dict(name="versioned_field", optional=True, api_version=field_api_version),
+        ]
+        validator = GcpBodyFieldValidator(specification, "v1")
+        with mock.patch.object(validator.log, "warning") as mock_warning:
+            validator.validate({"name": "value", "versioned_field": "present"})
+        assert mock_warning.called is should_warn
+
+    @pytest.mark.parametrize(
+        ("field_api_version", "should_warn"),
+        [
+            pytest.param("v1", False, id="matching-api-version"),
+            pytest.param("v1beta2", True, id="other-api-version"),
+        ],
+    )
+    def test_validate_warns_only_for_union_fields_of_other_api_version(self, field_api_version, should_warn):
+        specification = [
+            dict(
+                name="an_union",
+                type="union",
+                optional=True,
+                fields=[
+                    dict(name="variant", regexp=r"^.+$", api_version=field_api_version),
+                ],
+            ),
+        ]
+        validator = GcpBodyFieldValidator(specification, "v1")
+        with mock.patch.object(validator.log, "warning") as mock_warning:
+            validator.validate({"variant": "abc"})
+        assert mock_warning.called is should_warn

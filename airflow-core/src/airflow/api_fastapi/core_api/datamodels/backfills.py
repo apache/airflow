@@ -37,7 +37,7 @@ class BackfillPostBody(StrictBaseModel):
     run_backwards: bool = False
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
-    max_active_runs: int = 10
+    max_active_runs: int = Field(default=10, ge=1)
     run_on_latest_version: bool | None = Field(
         default=None,
         description="Run on the latest bundle version of the Dag for each backfilled run. "

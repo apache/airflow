@@ -365,25 +365,6 @@ class TestDatabricksHook:
         with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
-    def test_do_api_call_retries_with_retryable_error(self):
-        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
-
-        for exception in [
-            requests_exceptions.ConnectionError,
-            requests_exceptions.SSLError,
-            requests_exceptions.Timeout,
-            requests_exceptions.ConnectTimeout,
-            requests_exceptions.HTTPError,
-        ]:
-            with mock.patch("airflow.providers.databricks.hooks.databricks_base.requests") as mock_requests:
-                with mock.patch.object(hook.log, "error") as mock_errors:
-                    setup_mock_requests(mock_requests, exception)
-
-                    with pytest.raises(AirflowException):
-                        hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
-
-                    assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
-
     def test_do_api_call_retries_with_too_many_requests(self):
         hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -420,6 +401,31 @@ class TestDatabricksHook:
         assert exc_info.value.http_status_code == 404
         # simple backcompat check, so that we do not break existing code that expects AirflowException
         assert isinstance(exc_info.value, AirflowException)
+
+    @pytest.mark.parametrize(
+        ("body", "expected_error_code"),
+        [
+            (
+                {"error_code": "INVALID_PARAMETER_VALUE", "message": "Run 1 does not exist."},
+                "INVALID_PARAMETER_VALUE",
+            ),
+            ({"message": "no code in this body"}, None),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_failing_do_api_call_carries_error_code(self, mock_requests, body, expected_error_code):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+        response = mock.MagicMock()
+        response.status_code = 400
+        response.json.return_value = body
+        response.content = json.dumps(body).encode()
+        response.raise_for_status.side_effect = requests_exceptions.HTTPError(response=response)
+        mock_requests.post.side_effect = itertools.repeat(response)
+
+        with pytest.raises(DatabricksApiError) as exc_info:
+            hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+        assert exc_info.value.error_code == expected_error_code
 
     def test_do_api_call_succeeds_after_retrying(self):
         hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)

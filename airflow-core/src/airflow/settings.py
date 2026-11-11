@@ -26,6 +26,7 @@ import warnings
 from collections.abc import Callable, Mapping
 from functools import cache, partial
 from importlib import metadata
+from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal
 
 import pluggy
@@ -63,12 +64,12 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 
 _USE_PSYCOPG3: bool
 try:
-    from importlib.util import find_spec
-
     _USE_PSYCOPG3 = find_spec("psycopg") is not None
 
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
+
+_USE_ASYNCMY = find_spec("asyncmy") is not None
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -266,7 +267,7 @@ def _get_async_conn_uri_from_sync(sync_uri):
     AIO_LIBS_MAPPING = {
         "sqlite": "aiosqlite",
         "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
-        "mysql": "aiomysql",
+        "mysql": "asyncmy" if _USE_ASYNCMY else "aiomysql",
     }
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
@@ -504,6 +505,7 @@ def _configure_async_session() -> None:
         connect_args=_get_connect_args("async"),
         engine_args=engine_args,
     )
+    setup_event_handlers(async_engine.sync_engine)
     AsyncSession = async_sessionmaker(
         bind=async_engine,
         class_=SAAsyncSession,

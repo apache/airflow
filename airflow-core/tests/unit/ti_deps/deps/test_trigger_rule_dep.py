@@ -75,7 +75,7 @@ def test_outside_dependency_observes_only_latest_live_loop_gate(dag_maker, sessi
         run_id=dr.run_id,
         dag_version_id=previous.dag_version_id,
         region_id=previous.region_id,
-        region_index=1,
+        region_index=2,
         state=latest_state,
     )
     session.add(latest)

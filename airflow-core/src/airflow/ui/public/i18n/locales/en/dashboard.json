@@ -54,6 +54,7 @@
   },
   "history": "History",
   "importErrors": {
+    "bundle": "Bundle",
     "dagImportError_one": "Dag Import Error",
     "dagImportError_other": "Dag Import Errors",
     "searchByFile": "Search by file",

@@ -23,15 +23,19 @@ import threading
 import weakref
 from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import attrs
 import structlog
 from starlette.requests import Request
 
+from airflow.process_context import force_server_context
+
 if TYPE_CHECKING:
     import httpx2
+    from a2wsgi.asgi_typing import ASGIApp
     from fastapi import FastAPI
+    from starlette.types import Receive, Scope, Send
 
 logger = structlog.get_logger(logger_name=__name__)
 
@@ -61,6 +65,7 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
     from airflow.api_fastapi.execution_api.security import (
         _IN_PROCESS_NON_TI_CALLER,
         _IN_PROCESS_TRIGGERER_ID,
+        ASSET_WATCHER_ID,
         _jwt_bearer,
     )
 
@@ -70,7 +75,7 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
         ti_id = UUID(
             request.path_params.get("task_instance_id")
             or request.headers.get("X-Airflow-In-Process-Attempt-Id")
-            or "00000000-0000-0000-0000-000000000000"
+            or str(ASSET_WATCHER_ID)
         )
         # Watchers and other trusted in-process callers may have no task identity.
         request.scope[_IN_PROCESS_NON_TI_CALLER] = (
@@ -88,6 +93,17 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
     app.dependency_overrides[has_xcom_access] = always_allow
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        with force_server_context():
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -95,6 +111,10 @@ class InProcessExecutionAPI:
 
     The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
     needed so that we can use the sync httpx2 client
+
+    Requests are always dispatched in a server process context, with no way to opt out: this app *is*
+    the server side of the Execution API, and in a single process its route handlers would otherwise
+    read the caller's ``SUPERVISOR_COMMS`` and re-enter the API through the Task SDK.
     """
 
     _app: FastAPI | None = None
@@ -118,7 +138,6 @@ class InProcessExecutionAPI:
 
         return self._app
 
-    # httpx2, not httpx: the only consumers are Task SDK clients, which subclass httpx2.Client.
     @cached_property
     def transport(self) -> httpx2.WSGITransport:
         import httpx2
@@ -131,7 +150,10 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
-        middleware = ASGIMiddleware(self.app, loop=loop)
+        app = self.app
+        # a2wsgi types ASGI scopes and messages as TypedDict unions and Starlette as mutable mappings,
+        # so no app typed against Starlette matches a2wsgi's ``ASGIApp``.
+        middleware = ASGIMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -141,7 +163,7 @@ class InProcessExecutionAPI:
         cm = AsyncExitStack()
 
         # Wait for startup so callers see a ready app and the finalizer can close an entered context.
-        asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
+        asyncio.run_coroutine_threadsafe(start_lifespan(cm, app), loop).result()
 
         transport = httpx2.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
@@ -155,4 +177,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx2.ASGITransport:
         import httpx2
 
-        return httpx2.ASGITransport(app=self.app)
+        return httpx2.ASGITransport(app=_RequestScopedServerContextApp(self.app))

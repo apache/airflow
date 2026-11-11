@@ -313,7 +313,9 @@ def get_upstream_asset_events(
     )
     events = session.scalars(events_select).unique().all()
     return AssetEventCollectionResponse(
-        asset_events=serialize_asset_events(events, session=session),
+        asset_events=serialize_asset_events(
+            events, readable_dag_ids=readable_asset_events_filter.value, session=session
+        ),
         total_entries=len(events),
     )
 
@@ -468,7 +470,7 @@ def clear_dag_runs(
             )
         )
     return DAGRunCollectionResponse(
-        dag_runs=cleared_runs,
+        dag_runs=[DAGRunResponse.model_validate(cleared_run) for cleared_run in cleared_runs],
         total_entries=len(cleared_runs),
     )
 
@@ -518,7 +520,14 @@ def get_dag_runs(
     offset: QueryOffset,
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory(
+                "start_date", DagRun, null_lower_bound_clause=DagRun.end_date.is_(None)
+            )
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],

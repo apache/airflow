@@ -17,7 +17,7 @@
  * under the License.
  */
 
-export { Dag, label } from "./sdk/dag.js";
+export { Dag, Label } from "./sdk/dag.js";
 export { triggerDagRun } from "./sdk/trigger-dag-run.js";
 export { Bundle } from "./sdk/bundle.js";
 export { TaskHandler } from "./sdk/task-handler.js";

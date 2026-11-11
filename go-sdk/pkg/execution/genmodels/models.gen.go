@@ -18,8 +18,6 @@
 
 package genmodels
 
-import "time"
-
 type ArgBindings []TaskArgBinding
 
 type ArgValueSchema map[string]JsonValue
@@ -57,7 +55,7 @@ type AssetEventDagRunReference struct {
 	SourceTaskID interface{} `msgpack:"source_task_id"`
 
 	// Timestamp corresponds to the JSON schema field "timestamp".
-	Timestamp time.Time `msgpack:"timestamp"`
+	Timestamp Time `msgpack:"timestamp"`
 }
 
 // Asset event schema with fields that are needed for Runtime.
@@ -90,7 +88,7 @@ type AssetEventResponse struct {
 	SourceTaskID interface{} `msgpack:"source_task_id,omitempty"`
 
 	// Timestamp corresponds to the JSON schema field "timestamp".
-	Timestamp time.Time `msgpack:"timestamp"`
+	Timestamp Time `msgpack:"timestamp"`
 }
 
 // Response to GetAssetEvent request.
@@ -222,6 +220,8 @@ type BundleInfo struct {
 	// VersionData corresponds to the JSON schema field "version_data".
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
+
+type ChosenOptions []string
 
 type ClearAssetStateStoreByName struct {
 	// Name corresponds to the JSON schema field "name".
@@ -443,7 +443,7 @@ type DagResult struct {
 	IsPaused bool `msgpack:"is_paused"`
 
 	// NextDagrun corresponds to the JSON schema field "next_dagrun".
-	NextDagrun interface{} `msgpack:"next_dagrun"`
+	NextDagrun *Time `msgpack:"next_dagrun"`
 
 	// Owners corresponds to the JSON schema field "owners".
 	Owners interface{} `msgpack:"owners"`
@@ -474,28 +474,28 @@ type DagRun struct {
 	DagID string `msgpack:"dag_id"`
 
 	// DataIntervalEnd corresponds to the JSON schema field "data_interval_end".
-	DataIntervalEnd interface{} `msgpack:"data_interval_end"`
+	DataIntervalEnd *Time `msgpack:"data_interval_end"`
 
 	// DataIntervalStart corresponds to the JSON schema field "data_interval_start".
-	DataIntervalStart interface{} `msgpack:"data_interval_start"`
+	DataIntervalStart *Time `msgpack:"data_interval_start"`
 
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate interface{} `msgpack:"end_date"`
+	EndDate *Time `msgpack:"end_date"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate interface{} `msgpack:"logical_date"`
+	LogicalDate *Time `msgpack:"logical_date"`
 
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note,omitempty"`
 
 	// PartitionDate corresponds to the JSON schema field "partition_date".
-	PartitionDate interface{} `msgpack:"partition_date,omitempty"`
+	PartitionDate *Time `msgpack:"partition_date,omitempty"`
 
 	// PartitionKey corresponds to the JSON schema field "partition_key".
 	PartitionKey interface{} `msgpack:"partition_key"`
 
 	// RunAfter corresponds to the JSON schema field "run_after".
-	RunAfter time.Time `msgpack:"run_after"`
+	RunAfter Time `msgpack:"run_after"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -504,7 +504,7 @@ type DagRun struct {
 	RunType DagRunType `msgpack:"run_type"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date"`
+	StartDate *Time `msgpack:"start_date"`
 
 	// State corresponds to the JSON schema field "state".
 	State DagRunState `msgpack:"state"`
@@ -522,16 +522,16 @@ type DagRunAssetReference struct {
 	DagID string `msgpack:"dag_id"`
 
 	// DataIntervalEnd corresponds to the JSON schema field "data_interval_end".
-	DataIntervalEnd interface{} `msgpack:"data_interval_end"`
+	DataIntervalEnd *Time `msgpack:"data_interval_end"`
 
 	// DataIntervalStart corresponds to the JSON schema field "data_interval_start".
-	DataIntervalStart interface{} `msgpack:"data_interval_start"`
+	DataIntervalStart *Time `msgpack:"data_interval_start"`
 
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate interface{} `msgpack:"end_date"`
+	EndDate *Time `msgpack:"end_date"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate interface{} `msgpack:"logical_date"`
+	LogicalDate *Time `msgpack:"logical_date"`
 
 	// PartitionKey corresponds to the JSON schema field "partition_key".
 	PartitionKey interface{} `msgpack:"partition_key"`
@@ -540,7 +540,7 @@ type DagRunAssetReference struct {
 	RunID string `msgpack:"run_id"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date"`
+	StartDate *Time `msgpack:"start_date"`
 
 	// State corresponds to the JSON schema field "state".
 	State string `msgpack:"state"`
@@ -570,28 +570,28 @@ type DagRunResult struct {
 	DagID string `msgpack:"dag_id"`
 
 	// DataIntervalEnd corresponds to the JSON schema field "data_interval_end".
-	DataIntervalEnd interface{} `msgpack:"data_interval_end"`
+	DataIntervalEnd *Time `msgpack:"data_interval_end"`
 
 	// DataIntervalStart corresponds to the JSON schema field "data_interval_start".
-	DataIntervalStart interface{} `msgpack:"data_interval_start"`
+	DataIntervalStart *Time `msgpack:"data_interval_start"`
 
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate interface{} `msgpack:"end_date"`
+	EndDate *Time `msgpack:"end_date"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate interface{} `msgpack:"logical_date"`
+	LogicalDate *Time `msgpack:"logical_date"`
 
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note,omitempty"`
 
 	// PartitionDate corresponds to the JSON schema field "partition_date".
-	PartitionDate interface{} `msgpack:"partition_date,omitempty"`
+	PartitionDate *Time `msgpack:"partition_date,omitempty"`
 
 	// PartitionKey corresponds to the JSON schema field "partition_key".
 	PartitionKey interface{} `msgpack:"partition_key"`
 
 	// RunAfter corresponds to the JSON schema field "run_after".
-	RunAfter time.Time `msgpack:"run_after"`
+	RunAfter Time `msgpack:"run_after"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -600,7 +600,7 @@ type DagRunResult struct {
 	RunType DagRunType `msgpack:"run_type"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date"`
+	StartDate *Time `msgpack:"start_date"`
 
 	// State corresponds to the JSON schema field "state".
 	State DagRunState `msgpack:"state"`
@@ -827,13 +827,13 @@ type GetAssetByURI struct {
 
 type GetAssetEventByAsset struct {
 	// After corresponds to the JSON schema field "after".
-	After interface{} `msgpack:"after,omitempty"`
+	After *Time `msgpack:"after,omitempty"`
 
 	// Ascending corresponds to the JSON schema field "ascending".
 	Ascending *bool `msgpack:"ascending,omitempty"`
 
 	// Before corresponds to the JSON schema field "before".
-	Before interface{} `msgpack:"before,omitempty"`
+	Before *Time `msgpack:"before,omitempty"`
 
 	// Extra corresponds to the JSON schema field "extra".
 	Extra *Extra `msgpack:"extra,omitempty"`
@@ -860,7 +860,7 @@ type GetAssetEventByAsset struct {
 
 type GetAssetEventByAssetAlias struct {
 	// After corresponds to the JSON schema field "after".
-	After interface{} `msgpack:"after,omitempty"`
+	After *Time `msgpack:"after,omitempty"`
 
 	// AliasName corresponds to the JSON schema field "alias_name".
 	AliasName string `msgpack:"alias_name"`
@@ -869,7 +869,7 @@ type GetAssetEventByAssetAlias struct {
 	Ascending *bool `msgpack:"ascending,omitempty"`
 
 	// Before corresponds to the JSON schema field "before".
-	Before interface{} `msgpack:"before,omitempty"`
+	Before *Time `msgpack:"before,omitempty"`
 
 	// Extra corresponds to the JSON schema field "extra".
 	Extra *Extra `msgpack:"extra,omitempty"`
@@ -995,7 +995,7 @@ type GetPreviousDagRun struct {
 	DagID string `msgpack:"dag_id"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate time.Time `msgpack:"logical_date"`
+	LogicalDate Time `msgpack:"logical_date"`
 
 	// State corresponds to the JSON schema field "state".
 	State interface{} `msgpack:"state,omitempty"`
@@ -1010,7 +1010,7 @@ type GetPreviousTI struct {
 	DagID string `msgpack:"dag_id"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate interface{} `msgpack:"logical_date,omitempty"`
+	LogicalDate *Time `msgpack:"logical_date,omitempty"`
 
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex *int `msgpack:"map_index,omitempty"`
@@ -1261,6 +1261,27 @@ type HITLDetailRequestResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Response to GetHITLDetailResponse request.
+type HITLDetailResponseResult struct {
+	// ChosenOptions corresponds to the JSON schema field "chosen_options".
+	ChosenOptions *ChosenOptions `msgpack:"chosen_options"`
+
+	// ParamsInput corresponds to the JSON schema field "params_input".
+	ParamsInput *ParamsInput `msgpack:"params_input,omitempty"`
+
+	// RespondedAt corresponds to the JSON schema field "responded_at".
+	RespondedAt *Time `msgpack:"responded_at"`
+
+	// RespondedByUser corresponds to the JSON schema field "responded_by_user".
+	RespondedByUser *HITLUser `msgpack:"responded_by_user,omitempty"`
+
+	// ResponseReceived corresponds to the JSON schema field "response_received".
+	ResponseReceived bool `msgpack:"response_received"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Schema for a Human-in-the-loop users.
 type HITLUser struct {
 	// ID corresponds to the JSON schema field "id".
@@ -1295,7 +1316,7 @@ type LazyDeserializedDAG struct {
 	Data Data `msgpack:"data"`
 
 	// LastLoaded corresponds to the JSON schema field "last_loaded".
-	LastLoaded interface{} `msgpack:"last_loaded,omitempty"`
+	LastLoaded *Time `msgpack:"last_loaded,omitempty"`
 }
 
 // One positional stub-task argument carrying an inline literal from the Dag file.
@@ -1316,10 +1337,14 @@ type LiteralArgBinding struct {
 	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
 }
 
-type LogicalDates []time.Time
+type LogicalDates []Time
 
 // Pinned loop definition and enclosing iteration for a task execution.
 type LoopContext struct {
+	// ForkedFromRegionID corresponds to the JSON schema field
+	// "forked_from_region_id".
+	ForkedFromRegionID *string `msgpack:"forked_from_region_id,omitempty"`
+
 	// Index corresponds to the JSON schema field "index".
 	Index int `msgpack:"index"`
 
@@ -1329,11 +1354,20 @@ type LoopContext struct {
 	// NodeID corresponds to the JSON schema field "node_id".
 	NodeID string `msgpack:"node_id"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID string `msgpack:"region_id"`
+
+	// ResumesFromIndex corresponds to the JSON schema field "resumes_from_index".
+	ResumesFromIndex *int `msgpack:"resumes_from_index,omitempty"`
+
 	// TerminalIsMapped corresponds to the JSON schema field "terminal_is_mapped".
 	TerminalIsMapped bool `msgpack:"terminal_is_mapped"`
 
 	// TerminalTaskID corresponds to the JSON schema field "terminal_task_id".
 	TerminalTaskID string `msgpack:"terminal_task_id"`
+
+	// Trajectory corresponds to the JSON schema field "trajectory".
+	Trajectory int `msgpack:"trajectory"`
 }
 
 // A loop gate's evaluation of its “until“ callable.
@@ -1375,16 +1409,16 @@ type ParamsInput map[string]interface{}
 
 type PrevSuccessfulDagRunResult struct {
 	// DataIntervalEnd corresponds to the JSON schema field "data_interval_end".
-	DataIntervalEnd interface{} `msgpack:"data_interval_end,omitempty"`
+	DataIntervalEnd *Time `msgpack:"data_interval_end,omitempty"`
 
 	// DataIntervalStart corresponds to the JSON schema field "data_interval_start".
-	DataIntervalStart interface{} `msgpack:"data_interval_start,omitempty"`
+	DataIntervalStart *Time `msgpack:"data_interval_start,omitempty"`
 
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate interface{} `msgpack:"end_date,omitempty"`
+	EndDate *Time `msgpack:"end_date,omitempty"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date,omitempty"`
+	StartDate *Time `msgpack:"start_date,omitempty"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -1408,10 +1442,10 @@ type PreviousTIResponse struct {
 	Duration interface{} `msgpack:"duration,omitempty"`
 
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate interface{} `msgpack:"end_date,omitempty"`
+	EndDate *Time `msgpack:"end_date,omitempty"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate interface{} `msgpack:"logical_date,omitempty"`
+	LogicalDate *Time `msgpack:"logical_date,omitempty"`
 
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
@@ -1426,7 +1460,7 @@ type PreviousTIResponse struct {
 	RunID string `msgpack:"run_id"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date,omitempty"`
+	StartDate *Time `msgpack:"start_date,omitempty"`
 
 	// State corresponds to the JSON schema field "state".
 	State interface{} `msgpack:"state,omitempty"`
@@ -1458,7 +1492,7 @@ type PutVariable struct {
 	Type string `msgpack:"type,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 type RenderedFields map[string]JsonValue
@@ -1466,10 +1500,10 @@ type RenderedFields map[string]JsonValue
 // Update a task instance state to reschedule/up_for_reschedule.
 type RescheduleTask struct {
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate time.Time `msgpack:"end_date"`
+	EndDate Time `msgpack:"end_date"`
 
 	// RescheduleDate corresponds to the JSON schema field "reschedule_date".
-	RescheduleDate time.Time `msgpack:"reschedule_date"`
+	RescheduleDate Time `msgpack:"reschedule_date"`
 
 	// State corresponds to the JSON schema field "state".
 	State string `msgpack:"state,omitempty"`
@@ -1486,7 +1520,7 @@ type ResendLoggingFD struct {
 // Update a task instance state to up_for_retry.
 type RetryTask struct {
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate time.Time `msgpack:"end_date"`
+	EndDate Time `msgpack:"end_date"`
 
 	// RenderedMapIndex corresponds to the JSON schema field "rendered_map_index".
 	RenderedMapIndex interface{} `msgpack:"rendered_map_index,omitempty"`
@@ -1572,7 +1606,7 @@ type SetRenderedMapIndex struct {
 
 type SetTaskStateStore struct {
 	// ExpiresAt corresponds to the JSON schema field "expires_at".
-	ExpiresAt interface{} `msgpack:"expires_at"`
+	ExpiresAt *Time `msgpack:"expires_at"`
 
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
@@ -1637,7 +1671,7 @@ type StartupDetails struct {
 	SentryIntegration string `msgpack:"sentry_integration"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate time.Time `msgpack:"start_date"`
+	StartDate Time `msgpack:"start_date"`
 
 	// TI corresponds to the JSON schema field "ti".
 	TI TaskInstance `msgpack:"ti"`
@@ -1655,7 +1689,7 @@ type States []string
 // registering asset events.
 type SucceedTask struct {
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate time.Time `msgpack:"end_date"`
+	EndDate Time `msgpack:"end_date"`
 
 	// LoopDecision corresponds to the JSON schema field "loop_decision".
 	LoopDecision *LoopDecisionPayload `msgpack:"loop_decision,omitempty"`
@@ -1696,9 +1730,18 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
+	// The execution_timeout in seconds set on a task a language SDK runs, from its
+	// serialized Dag. Unset when the task sets none. Zero means no timeout and a
+	// negative value has already elapsed, as for a Python task. A Python task runs
+	// its own timer in the task runner instead, and gets no value here.
+	ExecutionTimeout interface{} `msgpack:"execution_timeout,omitempty"`
+
+	// ExpandedTICount corresponds to the JSON schema field "expanded_ti_count".
+	ExpandedTICount *int `msgpack:"expanded_ti_count,omitempty"`
+
 	// FirstTaskRescheduleStartDate corresponds to the JSON schema field
 	// "first_task_reschedule_start_date".
-	FirstTaskRescheduleStartDate interface{} `msgpack:"first_task_reschedule_start_date,omitempty"`
+	FirstTaskRescheduleStartDate *Time `msgpack:"first_task_reschedule_start_date,omitempty"`
 
 	// Loop corresponds to the JSON schema field "loop".
 	Loop *LoopContext `msgpack:"loop,omitempty"`
@@ -1719,7 +1762,7 @@ type TIRunContext struct {
 	ShouldRetry bool `msgpack:"should_retry,omitempty"`
 
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date,omitempty"`
+	StartDate *Time `msgpack:"start_date,omitempty"`
 
 	// TaskRescheduleCount corresponds to the JSON schema field
 	// "task_reschedule_count".
@@ -1734,20 +1777,52 @@ type TIRunContext struct {
 
 type TaskArgBinding interface{}
 
-type TriggerKwargs map[string]interface{}
+type TaskBreadcrumbsResult struct {
+	// Breadcrumbs corresponds to the JSON schema field "breadcrumbs".
+	Breadcrumbs []TaskBreadcrumbsResultBreadcrumbsElem `msgpack:"breadcrumbs"`
 
-type Warnings []interface{}
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
+type TaskBreadcrumbsResultBreadcrumbsElem map[string]interface{}
+
+// Task callback status information.
+//
+// A Class with information about the success/failure TI callback to be executed.
+// Currently, only failure
+// callbacks when tasks are externally killed or experience heartbeat timeouts are
+// run via DagFileProcessorProcess.
+type TaskCallbackRequest struct {
+	// BundleName corresponds to the JSON schema field "bundle_name".
+	BundleName string `msgpack:"bundle_name"`
+
+	// BundleVersion corresponds to the JSON schema field "bundle_version".
+	BundleVersion interface{} `msgpack:"bundle_version"`
+
+	// ContextFromServer corresponds to the JSON schema field "context_from_server".
+	ContextFromServer *TIRunContext `msgpack:"context_from_server,omitempty"`
+
+	// Filepath corresponds to the JSON schema field "filepath".
+	Filepath string `msgpack:"filepath"`
+
+	// Msg corresponds to the JSON schema field "msg".
+	Msg interface{} `msgpack:"msg,omitempty"`
+
+	// TaskCallbackType corresponds to the JSON schema field "task_callback_type".
+	TaskCallbackType interface{} `msgpack:"task_callback_type,omitempty"`
+
+	// TI corresponds to the JSON schema field "ti".
+	TI TaskInstance `msgpack:"ti"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
+}
 
 type TaskIds []string
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
 
 // Schema for TaskInstance model with minimal required fields needed for Runtime.
 type TaskInstance struct {
@@ -1788,84 +1863,32 @@ type TaskInstance struct {
 	TryNumber int `msgpack:"try_number"`
 }
 
-const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
-const TaskInstanceStateDeferred TaskInstanceState = "deferred"
-const TaskInstanceStateSkipped TaskInstanceState = "skipped"
-const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
-const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
-const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-const TaskInstanceStateFailed TaskInstanceState = "failed"
-const TaskInstanceStateRestarting TaskInstanceState = "restarting"
-const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRunning TaskInstanceState = "running"
-const TaskInstanceStateQueued TaskInstanceState = "queued"
-
-const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
-const TaskInstanceStateRemoved TaskInstanceState = "removed"
-
 type TaskInstanceState string
 
+const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
+const TaskInstanceStateDeferred TaskInstanceState = "deferred"
+const TaskInstanceStateFailed TaskInstanceState = "failed"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
+const TaskInstanceStateRemoved TaskInstanceState = "removed"
+const TaskInstanceStateRestarting TaskInstanceState = "restarting"
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
+const TaskInstanceStateSkipped TaskInstanceState = "skipped"
+const TaskInstanceStateSuccess TaskInstanceState = "success"
+const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
+const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
+const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
+
 type TaskOutlets []AssetProfile
-
-type TaskBreadcrumbsResultBreadcrumbsElem map[string]interface{}
-
-type TaskBreadcrumbsResult struct {
-	// Breadcrumbs corresponds to the JSON schema field "breadcrumbs".
-	Breadcrumbs []TaskBreadcrumbsResultBreadcrumbsElem `msgpack:"breadcrumbs"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
-// Task callback status information.
-//
-// A Class with information about the success/failure TI callback to be executed.
-// Currently, only failure
-// callbacks when tasks are externally killed or experience heartbeat timeouts are
-// run via DagFileProcessorProcess.
-type TaskCallbackRequest struct {
-	// BundleName corresponds to the JSON schema field "bundle_name".
-	BundleName string `msgpack:"bundle_name"`
-
-	// BundleVersion corresponds to the JSON schema field "bundle_version".
-	BundleVersion interface{} `msgpack:"bundle_version"`
-
-	// ContextFromServer corresponds to the JSON schema field "context_from_server".
-	ContextFromServer *TIRunContext `msgpack:"context_from_server,omitempty"`
-
-	// Filepath corresponds to the JSON schema field "filepath".
-	Filepath string `msgpack:"filepath"`
-
-	// Msg corresponds to the JSON schema field "msg".
-	Msg interface{} `msgpack:"msg,omitempty"`
-
-	// TaskCallbackType corresponds to the JSON schema field "task_callback_type".
-	TaskCallbackType interface{} `msgpack:"task_callback_type,omitempty"`
-
-	// TI corresponds to the JSON schema field "ti".
-	TI TaskInstance `msgpack:"ti"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-
-	// VersionData corresponds to the JSON schema field "version_data".
-	VersionData *VersionData `msgpack:"version_data,omitempty"`
-}
 
 // Response containing the first reschedule date for a task instance.
 type TaskRescheduleStartDate struct {
 	// StartDate corresponds to the JSON schema field "start_date".
-	StartDate interface{} `msgpack:"start_date"`
+	StartDate *Time `msgpack:"start_date"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type TaskStateState string
-
-const TaskStateStateFailed TaskStateState = "failed"
-const TaskStateStateSkipped TaskStateState = "skipped"
-const TaskStateStateRemoved TaskStateState = "removed"
 
 // Update a task's state.
 //
@@ -1875,7 +1898,7 @@ const TaskStateStateRemoved TaskStateState = "removed"
 // - anything else = FAILED
 type TaskState struct {
 	// EndDate corresponds to the JSON schema field "end_date".
-	EndDate interface{} `msgpack:"end_date,omitempty"`
+	EndDate *Time `msgpack:"end_date,omitempty"`
 
 	// LoopDecision corresponds to the JSON schema field "loop_decision".
 	LoopDecision *LoopDecisionPayload `msgpack:"loop_decision,omitempty"`
@@ -1892,6 +1915,12 @@ type TaskState struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+type TaskStateState string
+
+const TaskStateStateFailed TaskStateState = "failed"
+const TaskStateStateRemoved TaskStateState = "removed"
+const TaskStateStateSkipped TaskStateState = "skipped"
 
 // Response to GetTaskStateStore; wraps the generated API response for supervisor
 // to worker comms.
@@ -1913,6 +1942,21 @@ type TaskStatesResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type Warnings []interface{}
+
+type TriggerKwargs map[string]interface{}
+
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value string `msgpack:"value"`
+}
+
 type TriggerDagRun struct {
 	// Conf corresponds to the JSON schema field "conf".
 	Conf *Conf `msgpack:"conf,omitempty"`
@@ -1921,7 +1965,7 @@ type TriggerDagRun struct {
 	DagID string `msgpack:"dag_id"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate interface{} `msgpack:"logical_date,omitempty"`
+	LogicalDate *Time `msgpack:"logical_date,omitempty"`
 
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note,omitempty"`
@@ -1933,7 +1977,7 @@ type TriggerDagRun struct {
 	ResetDagRun interface{} `msgpack:"reset_dag_run,omitempty"`
 
 	// RunAfter corresponds to the JSON schema field "run_after".
-	RunAfter interface{} `msgpack:"run_after,omitempty"`
+	RunAfter *Time `msgpack:"run_after,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1952,8 +1996,6 @@ type UpdateDagRunNote struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
@@ -1997,7 +2039,7 @@ type VariableResult struct {
 	Type string `msgpack:"type,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value string `msgpack:"value"`
 }
 
 // One positional stub-task argument pulled from an upstream task's XCom.
