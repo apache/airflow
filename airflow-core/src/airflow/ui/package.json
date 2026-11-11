@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.3.4",
-    "@chakra-ui/react": "~3.37.0",
+    "@chakra-ui/react": "~3.38.0",
     "@emotion/react": "^11.14.0",
     "@guanmingchiu/sqlparser-ts": "^0.63.0",
     "@lezer/highlight": "^1.2.5",
