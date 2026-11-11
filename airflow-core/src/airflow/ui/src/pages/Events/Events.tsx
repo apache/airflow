@@ -41,6 +41,7 @@ import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
 import { EventsFilters } from "./EventsFilters";
+import { useDefaultAfter } from "./useDefaultAfter";
 
 type EventsColumn = {
   dagId?: string;
@@ -199,7 +200,9 @@ export const Events = () => {
   const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
-  const afterFilter = searchParams.get(AFTER_PARAM);
+  const defaultAfter = useDefaultAfter(dagId === undefined);
+
+  const afterFilter = searchParams.get(AFTER_PARAM) ?? defaultAfter ?? null;
   const beforeFilter = searchParams.get(BEFORE_PARAM);
   const dagIdFilter = searchParams.get(DAG_ID_PARAM);
   const eventTypeFilter = searchParams.get(EVENT_TYPE_PARAM);
