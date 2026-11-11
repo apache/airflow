@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -35,14 +36,18 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
     delete,
+    event,
+    insert,
     select,
+    union,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, Session, mapped_column, object_session, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
+from airflow.utils.helpers import chunks
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
@@ -51,7 +56,6 @@ if TYPE_CHECKING:
     from typing import Any, TypeAlias
 
     from sqlalchemy import Insert
-    from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
 
     from airflow.models.dag import DagModel
@@ -1055,3 +1059,131 @@ class PartitionedAssetKeyLog(Base):
     def __repr__(self):
         args = (f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key)
         return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class PartitionWakeReason(StrEnum):
+    """Why an :class:`AssetPartitionDagRunWake` row was written."""
+
+    KEY_LOG = "key_log"
+    DAG_CHANGED = "dag_changed"
+    ASSET_ACTIVATED = "asset_activated"
+    RESYNC = "resync"
+    COALESCED = "coalesced"
+
+
+class AssetPartitionDagRunWake(Base):
+    """
+    Request for the scheduler to evaluate pending :class:`AssetPartitionDagRun` rows.
+
+    The scheduler evaluates a pending partition Dag run when a row asks for it: one with its
+    ``apdr_id``, written with each key log, or one for its Dag with a null ``apdr_id``, written when
+    the Dag's timetable changes or an asset it is scheduled on is activated. A row is written in the
+    same transaction as the change it reports, and the scheduler deletes only the rows it read, by
+    primary key, so a row written while the scheduler evaluates the run survives and wakes it again.
+
+    No foreign key and no unique key, so that writing a row never waits on the scheduler's lock of
+    the run, and never conflicts with a row the scheduler already read.
+    """
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    apdr_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    reason: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "asset_partition_dag_run_wake"
+    __table_args__ = (
+        Index("idx_apdr_wake_apdr_id", apdr_id),
+        Index("idx_apdr_wake_target_dag_id", target_dag_id, apdr_id),
+        {"sqlite_autoincrement": True},
+    )
+
+    @classmethod
+    def add_for_activated_assets(cls, assets: Iterable[AssetModel], *, session: Session) -> None:
+        """
+        Ask the scheduler to evaluate the pending runs of every Dag scheduled on *assets* again.
+
+        Key logs of an inactive asset do not count towards its runs, so activating the asset can
+        satisfy runs that already hold its key logs.
+        """
+        dag_ids: set[str] = set()
+        # Each asset takes four bind parameters, its id twice, its name and its uri; SQLite before 3.32
+        # allows only 999 per statement.
+        for chunk in chunks(list(assets), 999 // 4):
+            ids = [asset.id for asset in chunk]
+            dag_ids.update(
+                session.scalars(
+                    union(
+                        select(DagScheduleAssetReference.dag_id).where(
+                            DagScheduleAssetReference.asset_id.in_(ids)
+                        ),
+                        select(DagScheduleAssetNameReference.dag_id).where(
+                            DagScheduleAssetNameReference.name.in_({asset.name for asset in chunk})
+                        ),
+                        select(DagScheduleAssetUriReference.dag_id).where(
+                            DagScheduleAssetUriReference.uri.in_({asset.uri for asset in chunk})
+                        ),
+                        select(DagScheduleAssetAliasReference.dag_id)
+                        .join(
+                            alias_association_table,
+                            alias_association_table.c.alias_id == DagScheduleAssetAliasReference.alias_id,
+                        )
+                        .where(alias_association_table.c.asset_id.in_(ids)),
+                    )
+                )
+            )
+        if dag_ids:
+            now = timezone.utcnow()
+            session.execute(
+                insert(cls.__table__),
+                [
+                    {
+                        "target_dag_id": dag_id,
+                        "reason": PartitionWakeReason.ASSET_ACTIVATED,
+                        "created_at": now,
+                    }
+                    for dag_id in sorted(dag_ids)
+                ],
+            )
+
+
+_PARTITION_KEY_LOGS_FLUSHED = "airflow_partition_key_logs_flushed"
+
+
+@event.listens_for(PartitionedAssetKeyLog, "after_insert")
+def _collect_partition_key_log(mapper, connection, target: PartitionedAssetKeyLog) -> None:
+    if (session := object_session(target)) is not None:
+        session.info.setdefault(_PARTITION_KEY_LOGS_FLUSHED, []).append(
+            (target.asset_partition_dag_run_id, target.target_dag_id)
+        )
+
+
+@event.listens_for(Session, "before_flush")
+def _reset_partition_key_logs(session: Session, flush_context, instances) -> None:
+    # A flush that failed after inserting key logs leaves them collected; they were rolled back.
+    session.info.pop(_PARTITION_KEY_LOGS_FLUSHED, None)
+
+
+@event.listens_for(Session, "after_flush")
+def _wake_partition_dag_runs(session: Session, flush_context) -> None:
+    """
+    Write a wake row for every key log the flush inserted, in the same transaction.
+
+    Every key log that a session flush inserts gets its row here, whichever asset manager adds it. Key
+    logs inserted with a Core or bulk insert get none; the scheduler's periodic resync evaluates their runs.
+    """
+    if not (flushed := session.info.pop(_PARTITION_KEY_LOGS_FLUSHED, None)):
+        return
+    now = timezone.utcnow()
+    session.connection().execute(
+        insert(AssetPartitionDagRunWake.__table__),
+        [
+            {
+                "apdr_id": apdr_id,
+                "target_dag_id": target_dag_id,
+                "reason": PartitionWakeReason.KEY_LOG,
+                "created_at": now,
+            }
+            for apdr_id, target_dag_id in flushed
+        ],
+    )

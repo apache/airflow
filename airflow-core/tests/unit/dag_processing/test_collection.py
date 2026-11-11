@@ -55,6 +55,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
     AssetModel,
+    AssetPartitionDagRunWake,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
 )
@@ -91,10 +92,12 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.triggers.base import BaseEventTrigger
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_dag_bundles,
     clear_db_dags,
@@ -619,6 +622,7 @@ class TestAssetModelOperationSyncAssetActive:
         clear_db_dags()
         clear_db_assets()
         clear_db_triggers()
+        clear_db_apdr()
 
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
@@ -687,6 +691,59 @@ class TestAssetModelOperationSyncAssetActive:
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()
         assert orm_assets["myasset", "file://myasset/"].active is None, "should not activate due to conflict"
+
+    @staticmethod
+    def _sync_and_activate(dag) -> None:
+        # The Dag processor syncs the assets of each file in a session of its own.
+        with create_session(scoped=False) as parse_session:
+            asset_op = AssetModelOperation.collect({dag.dag_id: LazyDeserializedDAG.from_dag(dag)})
+            orm_assets = asset_op.sync_assets(session=parse_session)
+            parse_session.flush()
+            asset_op.activate_assets_if_possible(orm_assets.values(), session=parse_session)
+
+    @staticmethod
+    def _read_dag_level_wakes(session) -> list[tuple[str, str]]:
+        wake = AssetPartitionDagRunWake
+        return [
+            (dag_id, reason)
+            for dag_id, reason in session.execute(
+                select(wake.target_dag_id, wake.reason).where(wake.apdr_id.is_(None))
+            )
+        ]
+
+    def test_activating_an_inactive_asset_wakes_the_dags_scheduled_on_it(self, dag_maker, session):
+        with dag_maker(dag_id="consumer", schedule=[Asset(name="myasset", uri="file://myasset/")]) as dag:
+            EmptyOperator(task_id="mytask")
+        session.execute(delete(AssetActive))
+        session.commit()
+
+        self._sync_and_activate(dag)
+
+        assert self._read_dag_level_wakes(session) == [("consumer", "asset_activated")]
+
+    def test_activating_a_new_or_an_active_asset_wakes_no_dag(self, dag_maker, session):
+        with dag_maker(dag_id="consumer", schedule=[Asset(name="myasset", uri="file://myasset/")]) as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        assert self._read_dag_level_wakes(session) == []
+
+        self._sync_and_activate(dag)
+
+        assert self._read_dag_level_wakes(session) == []
+
+    def test_asset_a_conflict_keeps_inactive_wakes_no_dag(self, dag_maker, session):
+        with dag_maker(dag_id="consumer", schedule=[Asset(name="myasset", uri="file://myasset/")]) as dag:
+            EmptyOperator(task_id="mytask")
+        session.execute(delete(AssetActive))
+        conflicting = SerializedAsset("myasset", "file://different/asset", "", {}, [])
+        session.add(AssetModel.from_serialized(conflicting))
+        session.flush()
+        session.add(AssetActive.for_asset(conflicting))
+        session.commit()
+
+        self._sync_and_activate(dag)
+
+        assert self._read_dag_level_wakes(session) == []
 
 
 @pytest.mark.need_serialized_dag

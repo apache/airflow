@@ -2984,6 +2984,20 @@ scheduler:
       type: integer
       example: ~
       default: "1000"
+    asset_partition_resync_interval:
+      description: |
+        How often (in seconds) the scheduler evaluates every pending partition-driven Dag run once,
+        whether or not anything asked for it. Otherwise the scheduler evaluates a pending run only
+        when a key log is added to it, when its Dag's timetable changes, or when an asset its Dag is
+        scheduled on is activated. This pass also evaluates key logs that were written without such a
+        request: for example, by components that still run an older Airflow version during a rolling
+        upgrade, or by code that inserts key logs in bulk rather than through a session. Each scheduler
+        also runs one pass when it starts. A pass starts when the previous one is complete and this
+        interval has passed since that one started.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "3600"
     use_job_schedule:
       description: |
         Set to ``False`` to stop the scheduler creating Dag runs on its own, whether a Dag is due

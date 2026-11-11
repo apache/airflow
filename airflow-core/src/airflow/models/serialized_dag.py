@@ -28,7 +28,19 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, ForeignKey, Index, LargeBinary, String, Uuid, exists, select, tuple_, update
+from sqlalchemy import (
+    JSON,
+    ForeignKey,
+    Index,
+    LargeBinary,
+    String,
+    Uuid,
+    event,
+    exists,
+    select,
+    tuple_,
+    update,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
@@ -39,6 +51,9 @@ from airflow.configuration import conf
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
+    AssetPartitionDagRun,
+    AssetPartitionDagRunWake,
+    PartitionWakeReason,
 )
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
@@ -62,6 +77,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
+    from sqlalchemy.sql.selectable import Exists
 
     from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -728,18 +744,29 @@ class SerializedDagModel(Base):
             return False
 
         has_task_instances: bool = False
+        has_pending_partition_dag_runs: bool | None = None
         if dag_version:
-            has_task_instances = bool(
-                session.scalar(
+            # Both lookups in one round trip: rewriting a Dag counts against the Dag processor's
+            # statement budget per file.
+            has_task_instances, has_pending_partition_dag_runs = (
+                bool(found)
+                for found in session.execute(
                     select(
                         exists().where(
                             # Using dag_id filter to speed up query via the composite index.
                             TaskInstance.dag_id == dag.dag_id,
                             TaskInstance.dag_version_id == dag_version.id,
-                        )
+                        ),
+                        cls._build_pending_partition_dag_runs_check(dag.dag_id),
                     )
-                )
+                ).one()
             )
+        wake_partition_dag_runs = serialized_dag_hash != new_dag_hash and cls._changes_partition_evaluation(
+            dag,
+            dag_version,
+            has_pending_partition_dag_runs=has_pending_partition_dag_runs,
+            session=session,
+        )
 
         if dag_version and not has_task_instances:
             # This is for dynamic DAGs that the hashes changes often. We should update
@@ -763,6 +790,8 @@ class SerializedDagModel(Base):
             if getattr(result, "rowcount", 0) == 0:
                 # No rows updated - serialized DAG doesn't exist
                 return False
+            if wake_partition_dag_runs:
+                cls._wake_partition_dag_runs(dag.dag_id, session=session)
 
             if deadline_uuid_mapping:
                 updated_serialized_dag = session.scalar(
@@ -810,6 +839,8 @@ class SerializedDagModel(Base):
         new_serialized_dag = cls(dag, _dag_hash=new_dag_hash)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
+        if wake_partition_dag_runs:
+            cls._wake_partition_dag_runs(dag.dag_id, session=session)
 
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
@@ -819,6 +850,58 @@ class SerializedDagModel(Base):
             tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
         )
         return True
+
+    @staticmethod
+    def _build_pending_partition_dag_runs_check(dag_id: str) -> Exists:
+        return exists().where(
+            AssetPartitionDagRun.target_dag_id == dag_id,
+            AssetPartitionDagRun.created_dag_run_id.is_(None),
+        )
+
+    @classmethod
+    def _changes_partition_evaluation(
+        cls,
+        dag: LazyDeserializedDAG,
+        dag_version: DagVersion | None,
+        *,
+        has_pending_partition_dag_runs: bool | None,
+        session: Session,
+    ) -> bool:
+        """
+        Return whether writing *dag* can change the evaluation of its pending partition Dag runs.
+
+        Evaluation and the stale-run cleanup read only the timetable, which holds the asset condition
+        and the partition mappers, so a change anywhere else in the Dag cannot change their result.
+        Whether the Dag has pending runs is looked up here when the caller passes None.
+        """
+        if not dag.timetable.partitioned:
+            if has_pending_partition_dag_runs is None:
+                has_pending_partition_dag_runs = bool(
+                    session.scalar(select(cls._build_pending_partition_dag_runs_check(dag.dag_id)))
+                )
+            if not has_pending_partition_dag_runs:
+                return False
+        if dag_version is None:
+            return True
+        previous = session.execute(
+            select(cls._data, cls._data_compressed).where(cls.dag_version_id == dag_version.id)
+        ).one_or_none()
+        if previous is None:
+            return True
+        data, data_compressed = previous
+        if data_compressed:
+            previous_data = json.loads(zlib.decompress(data_compressed))
+        elif isinstance(data, str):
+            previous_data = json.loads(data)
+        else:
+            previous_data = data or {}
+        return previous_data.get("dag", {}).get("timetable") != dag.data.get("dag", {}).get("timetable")
+
+    @staticmethod
+    def _wake_partition_dag_runs(dag_id: str, *, session: Session) -> None:
+        # Written with the definition, so the scheduler reads this definition, or a later one,
+        # whenever it reads the row.
+        session.add(AssetPartitionDagRunWake(target_dag_id=dag_id, reason=PartitionWakeReason.DAG_CHANGED))
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
@@ -1021,3 +1104,15 @@ class SerializedDagModel(Base):
         resolver = _DagDependenciesResolver(dag_id_dependencies=dag_depdendencies, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag
+
+    def _drop_decoded_data(self) -> None:
+        self.__data_cache = None
+
+
+@event.listens_for(SerializedDagModel, "expire")
+def _drop_decoded_data_on_expire(target: SerializedDagModel | None, attrs) -> None:
+    # Expiring reloads the columns but not the data decoded from them. Without this, a session that
+    # rolls back and reads the row again after an in-place write would keep serving the old data.
+    # The target is None for an instance that is already garbage collected.
+    if target is not None:
+        target._drop_decoded_data()

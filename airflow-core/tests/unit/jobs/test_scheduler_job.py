@@ -20,7 +20,9 @@ from __future__ import annotations
 import contextlib
 import datetime
 import logging
+import math
 import os
+import random
 import re
 import time
 from collections import Counter, deque
@@ -39,9 +41,22 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import (
+    Delete,
+    create_engine,
+    delete,
+    event as sa_event,
+    func,
+    insert,
+    inspect,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.dialects import mysql
-from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import joinedload, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -73,6 +88,8 @@ from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
+    _PartitionLoop,
+    _PartitionSweep,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -82,8 +99,10 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    AssetPartitionDagRunWake,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    PartitionWakeReason,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.callback import Callback, CallbackKey, ExecutorCallback
@@ -166,7 +185,7 @@ from airflow.timetables.simple import (
 from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
+from airflow.utils.sqlalchemy import CommitProhibitorGuard, prohibit_commit, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -4800,6 +4819,21 @@ class TestSchedulerJob:
         self.job_runner._run_scheduler_loop()
 
         call_regular_interval.assert_any_call(mock.ANY, 123.0, cleanup_processor_metadata, non_fatal=True)
+
+    @conf_vars({("scheduler", "parsing_cleanup_interval"): "123"})
+    @mock.patch.object(EventScheduler, "call_regular_interval", autospec=True)
+    def test_partition_wake_cleanup_runs_on_the_parsing_cleanup_interval(self, call_regular_interval):
+        scheduler_job = Job()
+        scheduler_job.heartbeat = mock.create_autospec(scheduler_job.heartbeat)
+        self.job_runner = SchedulerJobRunner(
+            job=scheduler_job, num_runs=1, executors=[MockExecutor(do_update=False)]
+        )
+
+        self.job_runner._run_scheduler_loop()
+
+        call_regular_interval.assert_any_call(
+            mock.ANY, 123.0, self.job_runner._clean_up_partition_wakes, non_fatal=True
+        )
 
     def test_adopt_or_reset_orphaned_tasks(self, dag_maker, session):
         with dag_maker("test_execute_helper_reset_orphaned_tasks", session=session):
@@ -14462,13 +14496,17 @@ def custom_partition_mapper_patch() -> Callable[[], ExitStack]:
 
 @pytest.fixture
 def clear_asset_partition_rows() -> Iterator:
+    # dag_maker leaves the assets of its Dags behind. A test that deactivates assets, followed by one that
+    # declares the same assets again, would see wake rows for their activation.
     clear_db_apdr()
     clear_db_pakl()
+    clear_db_assets()
 
     yield
 
     clear_db_apdr()
     clear_db_pakl()
+    clear_db_assets()
 
 
 def _produce_and_register_asset_event(
@@ -15952,14 +15990,22 @@ def test_partitioned_dag_run_rollup_survives_scheduler_restart_partial_arrival(
     assert partition_dags == {"rollup-consumer"}
 
 
-@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
+def test_pending_apdr_select_locks_rows_for_skip_locked_claim(dag_maker: DagMaker, session: Session):
     """
     The pending-APDR select must wrap the query in ``with_row_locks(skip_locked=True)``
     so HA scheduler replicas don't both grab the same satisfied APDR and race the
     ``created_dag_run_id`` UPDATE (which would orphan whichever DagRun loses the race).
     """
+    # The claim runs its locking query only when it has a pending run to evaluate.
+    _make_n_satisfied_apdrs(
+        consumer_dag_id="locked-consumer",
+        asset=Asset(name="locked-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
@@ -15976,33 +16022,6 @@ def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
     assert call.kwargs["skip_locked"] is True
     assert call.kwargs["key_share"] is False
     assert call.kwargs["session"] is session
-
-
-@pytest.mark.db_test
-@pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_pending_apdr_select_breaks_tie_on_id(session: Session):
-    """
-    Two APDRs sharing a ``created_at`` (possible under bulk asset-event ingestion)
-    must be ordered by ``id`` ascending so concurrent HA scheduler ticks pick the
-    same LIMIT slice — otherwise replicas can disagree on which APDRs the LIMIT
-    selects even when the row lock would otherwise prevent the duplicate fire.
-    """
-    shared_ts = timezone.utcnow()
-    first_inserted = AssetPartitionDagRun(target_dag_id="d1", partition_key="b", created_at=shared_ts)
-    session.add(first_inserted)
-    session.flush()
-    second_inserted = AssetPartitionDagRun(target_dag_id="d2", partition_key="a", created_at=shared_ts)
-    session.add(second_inserted)
-    session.flush()
-
-    fetched = session.scalars(
-        select(AssetPartitionDagRun)
-        .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-    ).all()
-
-    assert first_inserted.id < second_inserted.id
-    assert [a.id for a in fetched] == [first_inserted.id, second_inserted.id]
 
 
 @pytest.mark.need_serialized_dag
@@ -16402,6 +16421,7 @@ def _make_n_satisfied_apdrs(
     partition_keys: list[str],
     session: Session,
     dag_maker: DagMaker,
+    producer_prefix: str = "asset-event-producer",
 ) -> list[AssetPartitionDagRun]:
     """Build a consumer Dag plus *N* satisfied APDRs (one per partition_key)."""
     with dag_maker(
@@ -16417,7 +16437,7 @@ def _make_n_satisfied_apdrs(
 
     return [
         _produce_and_register_asset_event(
-            dag_id=f"asset-event-producer-{i}",
+            dag_id=f"{producer_prefix}-{i}",
             asset=asset,
             partition_key=key,
             session=session,
@@ -16434,7 +16454,7 @@ def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: 
     cap == APDR count: every pending APDR fires in a single tick.
 
     Pairs with :func:`test_partition_cap_at_n_minus_one_leaves_one_pending` to pin
-    the ``LIMIT`` boundary against off-by-one regressions (``>`` vs ``>=``).
+    the per-loop budget against off-by-one regressions (``>`` vs ``>=``).
     """
     apdrs = _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-n",
@@ -16463,10 +16483,11 @@ def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, se
     """
     cap == APDR count - 1: oldest cap APDRs fire, the newest remains pending.
 
-    FIFO ordering means the *last-created* APDR is the one left for the next
-    tick. Together with :func:`test_partition_cap_at_exactly_n_processes_all`
-    this pins the ``LIMIT`` boundary — a ``LIMIT N-1`` regression would still
-    pass the at-cap test, but the older sibling here would fail to fire.
+    Within a Dag the oldest request for evaluation comes first, so the *last-created*
+    APDR is the one left for the next tick. Together with
+    :func:`test_partition_cap_at_exactly_n_processes_all` this pins the per-loop budget — a
+    budget of N-1 would still pass the at-cap test, but the older sibling here would fail
+    to fire.
     """
     apdrs = _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-n-minus-one",
@@ -16475,13 +16496,6 @@ def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, se
         session=session,
         dag_maker=dag_maker,
     )
-    # Pin created_at so FIFO ordering is stable across fast in-memory runs —
-    # otherwise three APDRs created in the same microsecond tie under
-    # ``ORDER BY created_at`` and "which two fire" becomes nondeterministic.
-    base = timezone.utcnow()
-    for i, apdr in enumerate(apdrs):
-        apdr.created_at = base + timedelta(seconds=i)
-    session.commit()
 
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
@@ -16543,11 +16557,13 @@ def test_partitioned_dag_run_skips_when_asset_is_inactive(dag_maker: DagMaker, s
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partitioned_dag_run_resumes_when_asset_reactivates(dag_maker: DagMaker, session: Session):
     """
-    A frozen APDR fires automatically once its asset is reactivated.
+    A frozen APDR fires once its asset is reactivated, at the latest in the next resync pass.
 
     Pairs with :func:`test_partitioned_dag_run_skips_when_asset_is_inactive` to pin
-    the freeze ↔ resume contract: deactivation halts fire, reactivation resumes it
-    without any other state change.
+    the freeze ↔ resume contract: deactivation halts fire, reactivation resumes it. The
+    scheduler and the Dag processor ask for an evaluation when they activate an asset
+    (:func:`test_activating_an_asset_wakes_the_pending_runs_frozen_on_it`); an
+    ``AssetActive`` row inserted any other way waits for the resync.
     """
     asset = Asset(name="asset-reactivate")
     [apdr] = _make_n_satisfied_apdrs(
@@ -16559,19 +16575,1270 @@ def test_partitioned_dag_run_resumes_when_asset_reactivates(dag_maker: DagMaker,
     )
     _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
 
+    runner = _make_partition_runner(startup_pass=False)
+    _run_partition_loops(runner, session)
+    assert not _is_fired(apdr, session)
+
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=True)
+    _run_partition_loops(runner, session)
+    assert not _is_fired(apdr, session)
+
+    runner._partition_next_resync_at = 0.0
+    _run_partition_loops(runner, session)
+    assert _is_fired(apdr, session)
+
+
+# ---------------------------------------------------------------------------
+# Signal-driven evaluation of pending partition Dag runs.
+#
+# The scheduler evaluates a pending run when an AssetPartitionDagRunWake row asks
+# for it, and every pending run in its startup and periodic resync passes. These
+# tests drive whole loops, because the claim keeps its in-memory progress only
+# once a loop commits.
+# ---------------------------------------------------------------------------
+
+
+def _make_partition_runner(*, startup_pass: bool = True, per_loop: int | None = None) -> SchedulerJobRunner:
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
-    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
-    session.refresh(apdr)
-    assert apdr.created_dag_run_id is None
-    assert partition_dags == set()
+    if not startup_pass:
+        # No resync pass is due, so only the wake rows decide which pending runs are evaluated.
+        runner._partition_next_resync_at = math.inf
+    if per_loop is not None:
+        runner._max_partition_dag_runs_per_loop = per_loop
+    return runner
 
-    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=True)
-    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+def _run_partition_loops(runner: SchedulerJobRunner, session: Session, loops: int = 1) -> None:
+    """Run the Dag run creation step of *loops* scheduler loops, each of which commits."""
+    for _ in range(loops):
+        with prohibit_commit(session) as guard:
+            runner._create_dagruns_for_dags(guard, session)
+
+
+def _read_wakes(session: Session) -> list[tuple[int | None, str, str]]:
+    wake = AssetPartitionDagRunWake
+    return [
+        (apdr_id, dag_id, reason)
+        for apdr_id, dag_id, reason in session.execute(
+            select(wake.apdr_id, wake.target_dag_id, wake.reason).order_by(wake.id)
+        )
+    ]
+
+
+def _make_blocked_apdrs(
+    *, consumer_dag_id: str, partition_keys: list[str], session: Session, dag_maker: DagMaker
+) -> list[AssetPartitionDagRun]:
+    """Build a consumer Dag on ``a & b`` plus one pending APDR per key that only ``a`` has reached."""
+    asset_a = Asset(name=f"{consumer_dag_id}-a")
+    asset_b = Asset(name=f"{consumer_dag_id}-b")
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+    return [
+        _produce_and_register_asset_event(
+            dag_id=f"{consumer_dag_id}-producer-{i}",
+            asset=asset_a,
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+        for i, key in enumerate(partition_keys, start=1)
+    ]
+
+
+def _widen_to_either_asset(consumer_dag_id: str, *, session: Session) -> None:
+    """Rewrite a ``_make_blocked_apdrs`` consumer on ``a | b``, through the Dag processor's write."""
+    with DAG(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name=f"{consumer_dag_id}-a") | Asset(name=f"{consumer_dag_id}-b"),
+            default_partition_mapper=IdentityMapper(),
+        ),
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        EmptyOperator(task_id="hi")
+    sync_dag_to_db(dag, session=session)
+    session.commit()
+
+
+def _is_fired(apdr: AssetPartitionDagRun, session: Session) -> bool:
     session.refresh(apdr)
-    assert apdr.created_dag_run_id is not None
-    assert partition_dags == {"reactivate-asset-consumer"}
+    return apdr.created_dag_run_id is not None
+
+
+def _delete_wakes(session: Session) -> None:
+    """Drop every wake row, as for key logs written by a writer that writes none."""
+    session.execute(delete(AssetPartitionDagRunWake))
+    session.commit()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_signal_of_a_dag_is_not_held_back_by_older_signals_of_another(
+    dag_maker: DagMaker, session: Session
+):
+    blocked = _make_blocked_apdrs(
+        consumer_dag_id="waiting-consumer",
+        partition_keys=[f"k{i}" for i in range(5)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    [ready] = _make_n_satisfied_apdrs(
+        consumer_dag_id="ready-consumer",
+        asset=Asset(name="ready-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_partition_runner(startup_pass=False, per_loop=3)
+
+    _run_partition_loops(runner, session)
+
+    assert _is_fired(ready, session)
+    assert not any(_is_fired(apdr, session) for apdr in blocked)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_pending_partition_dag_run_without_a_signal_waits_for_the_periodic_resync(
+    dag_maker: DagMaker, session: Session
+):
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="unsignalled-consumer",
+        asset=Asset(name="unsignalled-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    runner = _make_partition_runner(startup_pass=False)
+
+    _run_partition_loops(runner, session, loops=2)
+    assert not _is_fired(apdr, session)
+
+    runner._partition_next_resync_at = 0.0
+    _run_partition_loops(runner, session)
+    assert _is_fired(apdr, session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_startup_pass_evaluates_pending_partition_dag_runs_without_a_signal(
+    dag_maker: DagMaker, session: Session
+):
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="startup-consumer",
+        asset=Asset(name="startup-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+
+    _run_partition_loops(_make_partition_runner(), session)
+
+    assert _is_fired(apdr, session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_wake_row_written_while_its_run_is_evaluated_survives(dag_maker: DagMaker, session: Session):
+    [apdr] = _make_blocked_apdrs(
+        consumer_dag_id="late-wake-consumer", partition_keys=["k"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_partition_runner(startup_pass=False)
+    evaluate = SchedulerJobRunner._evaluate_partition_dag_runs
+    late_wake_ids: list[int] = []
+
+    def evaluate_while_a_producer_writes(self, pending_apdrs, *, session):
+        with create_session(scoped=False) as producer:
+            late = AssetPartitionDagRunWake(
+                apdr_id=apdr.id, target_dag_id=apdr.target_dag_id, reason=PartitionWakeReason.KEY_LOG
+            )
+            producer.add(late)
+            producer.flush()
+            late_wake_ids.append(late.id)
+        return evaluate(self, pending_apdrs, session=session)
+
+    with mock.patch.object(
+        SchedulerJobRunner,
+        "_evaluate_partition_dag_runs",
+        autospec=True,
+        side_effect=evaluate_while_a_producer_writes,
+    ):
+        _run_partition_loops(runner, session)
+
+    assert session.scalars(select(AssetPartitionDagRunWake.id)).all() == late_wake_ids
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_signals_of_dags_that_cannot_run_wait_without_holding_back_other_dags(
+    dag_maker: DagMaker, session: Session
+):
+    """The requests of Dags that cannot run are kept, and do not take the loop from those of other Dags."""
+    paused = [
+        _make_n_satisfied_apdrs(
+            consumer_dag_id=f"paused-consumer-{i}",
+            asset=Asset(name=f"paused-asset-{i}"),
+            partition_keys=["k"],
+            session=session,
+            dag_maker=dag_maker,
+            producer_prefix=f"paused-producer-{i}",
+        )[0]
+        for i in range(2)
+    ]
+    session.execute(update(DagModel).where(DagModel.dag_id.like("paused-consumer-%")).values(is_paused=True))
+    [running] = _make_n_satisfied_apdrs(
+        consumer_dag_id="running-consumer",
+        asset=Asset(name="running-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+        producer_prefix="running-producer",
+    )
+    runner = _make_partition_runner(startup_pass=False, per_loop=1)
+
+    _run_partition_loops(runner, session)
+    assert _is_fired(running, session)
+    assert not any(_is_fired(apdr, session) for apdr in paused)
+    assert _read_wakes(session) == [
+        (paused[0].id, "paused-consumer-0", "key_log"),
+        (paused[1].id, "paused-consumer-1", "key_log"),
+    ]
+
+    session.execute(update(DagModel).where(DagModel.dag_id.like("paused-consumer-%")).values(is_paused=False))
+    session.commit()
+    _run_partition_loops(runner, session, loops=2)
+    assert all(_is_fired(apdr, session) for apdr in paused)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_MAX_ORPHANED_WAKE_ROWS", 1)
+def test_wake_rows_of_runs_that_fired_or_were_deleted_are_deleted(dag_maker: DagMaker, session: Session):
+    fired, deleted = _make_blocked_apdrs(
+        consumer_dag_id="orphan-consumer", partition_keys=["k1", "k2"], session=session, dag_maker=dag_maker
+    )
+    deleted_id = deleted.id
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == fired.id)
+        .values(created_dag_run_id=session.scalar(select(DagRun.id).limit(1)), pending_partition_key=None)
+    )
+    session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id == deleted_id))
+    session.commit()
+    assert len(_read_wakes(session)) == 2
+    runner = _make_partition_runner(startup_pass=False)
+
+    # One row per loop, the oldest first.
+    _run_partition_loops(runner, session)
+    assert _read_wakes(session) == [(deleted_id, "orphan-consumer", "key_log")]
+
+    _run_partition_loops(runner, session)
+    assert _read_wakes(session) == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("reusing_dag_can_run", [True, False])
+def test_wake_row_of_a_reused_run_id_does_not_hold_back_the_run_that_reuses_it(
+    dag_maker: DagMaker, session: Session, reusing_dag_can_run: bool
+):
+    """SQLite gives a deleted run's id to the next run, maybe of another Dag; its old wake rows remain."""
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="reusing-consumer",
+        asset=Asset(name="reusing-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _make_blocked_apdrs(consumer_dag_id="old-owner", partition_keys=[], session=session, dag_maker=dag_maker)
+    # The deleted run's row is older than the row of the run that took its id, so it is read first.
+    session.add(AssetPartitionDagRunWake(id=-1, apdr_id=apdr.id, target_dag_id="old-owner", reason="key_log"))
+    session.commit()
+    assert _read_wakes(session) == [
+        (apdr.id, "old-owner", "key_log"),
+        (apdr.id, "reusing-consumer", "key_log"),
+    ]
+    session.execute(
+        update(DagModel)
+        .where(DagModel.dag_id == "reusing-consumer")
+        .values(is_paused=not reusing_dag_can_run)
+    )
+    session.commit()
+
+    _run_partition_loops(_make_partition_runner(startup_pass=False), session)
+
+    assert _is_fired(apdr, session) is reusing_dag_can_run
+    # The old owner's row is dropped either way; the reusing run's row waits while its Dag cannot run.
+    assert _read_wakes(session) == ([] if reusing_dag_can_run else [(apdr.id, "reusing-consumer", "key_log")])
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_timetable_change_wakes_every_pending_run_of_the_dag(dag_maker: DagMaker, session: Session):
+    blocked = _make_blocked_apdrs(
+        consumer_dag_id="widened-consumer",
+        partition_keys=[f"k{i}" for i in range(5)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_partition_runner(startup_pass=False, per_loop=2)
+    _run_partition_loops(runner, session, loops=3)
+    assert _read_wakes(session) == []
+
+    _widen_to_either_asset("widened-consumer", session=session)
+    assert _read_wakes(session) == [(None, "widened-consumer", "dag_changed")]
+
+    # One loop starts the fan-out over the Dag's pending runs; then two runs fire per loop.
+    _run_partition_loops(runner, session, loops=4)
+    assert all(_is_fired(apdr, session) for apdr in blocked)
+    assert _read_wakes(session) == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_pausing_a_dag_stops_the_partition_fan_out_over_its_pending_runs(
+    dag_maker: DagMaker, session: Session
+):
+    blocked = _make_blocked_apdrs(
+        consumer_dag_id="paused-mid-fan-out",
+        partition_keys=[f"k{i}" for i in range(6)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    runner = _make_partition_runner(startup_pass=False, per_loop=2)
+    _run_partition_loops(runner, session, loops=3)
+    _widen_to_either_asset("paused-mid-fan-out", session=session)
+    _run_partition_loops(runner, session, loops=2)
+    assert sum(_is_fired(apdr, session) for apdr in blocked) == 2
+
+    session.execute(update(DagModel).where(DagModel.dag_id == "paused-mid-fan-out").values(is_paused=True))
+    session.commit()
+    _run_partition_loops(runner, session, loops=2)
+    assert sum(_is_fired(apdr, session) for apdr in blocked) == 2
+
+    session.execute(update(DagModel).where(DagModel.dag_id == "paused-mid-fan-out").values(is_paused=False))
+    session.commit()
+    _run_partition_loops(runner, session, loops=4)
+    assert all(_is_fired(apdr, session) for apdr in blocked)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_many_dag_level_partition_signals_do_not_hold_back_a_key_log_signal(
+    dag_maker: DagMaker, session: Session
+):
+    """More Dag-level requests than twice the budget, with their fan-outs running, leave a key-log request in the read."""
+    dag_count = 11
+    for i in range(dag_count):
+        _make_blocked_apdrs(
+            consumer_dag_id=f"fanned-out-{i}",
+            partition_keys=["k1", "k2"],
+            session=session,
+            dag_maker=dag_maker,
+        )
+    runner = _make_partition_runner(startup_pass=False, per_loop=5)
+    _run_partition_loops(runner, session, loops=5)
+    assert _read_wakes(session) == []
+    session.add_all(
+        AssetPartitionDagRunWake(target_dag_id=f"fanned-out-{i}", reason=PartitionWakeReason.DAG_CHANGED)
+        for i in range(dag_count)
+    )
+    session.commit()
+    # Starts the fan-outs, which then share one slot per loop.
+    _run_partition_loops(runner, session)
+
+    [signalled] = _make_n_satisfied_apdrs(
+        consumer_dag_id="signalled-consumer",
+        asset=Asset(name="signalled-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+        producer_prefix="signalled-producer",
+    )
+    _run_partition_loops(runner, session)
+
+    assert _is_fired(signalled, session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_FAN_OUT_STARTS_PER_LOOP", 1)
+def test_running_partition_fan_out_does_not_hide_the_dag_level_signal_of_another_dag(
+    dag_maker: DagMaker, session: Session
+):
+    """A Dag-level row stays until its fan-out is done, so the read takes one more such row per fan-out."""
+    _make_blocked_apdrs(
+        consumer_dag_id="long-fan-out",
+        partition_keys=[f"k{i}" for i in range(6)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    [widened] = _make_blocked_apdrs(
+        consumer_dag_id="widened-later", partition_keys=["k"], session=session, dag_maker=dag_maker
+    )
+    _delete_wakes(session)
+    session.add(
+        AssetPartitionDagRunWake(target_dag_id="long-fan-out", reason=PartitionWakeReason.DAG_CHANGED)
+    )
+    session.commit()
+    runner = _make_partition_runner(startup_pass=False, per_loop=1)
+    # Starts the fan-out over six runs, of which it then evaluates one per loop.
+    _run_partition_loops(runner, session)
+
+    _widen_to_either_asset("widened-later", session=session)
+    _run_partition_loops(runner, session, loops=2)
+
+    assert _is_fired(widened, session)
+    assert "long-fan-out" in runner._partition_fan_out
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_FAN_OUT_STARTS_PER_LOOP", 1)
+def test_partition_fan_outs_start_with_the_dag_level_signal_that_waited_longest(
+    dag_maker: DagMaker, session: Session
+):
+    for dag_id in ("waited-longest", "asked-later"):
+        _make_blocked_apdrs(
+            consumer_dag_id=dag_id, partition_keys=["k"], session=session, dag_maker=dag_maker
+        )
+    _delete_wakes(session)
+    for dag_id in ("waited-longest", "asked-later"):
+        session.add(AssetPartitionDagRunWake(target_dag_id=dag_id, reason=PartitionWakeReason.DAG_CHANGED))
+        session.commit()
+    runner = _make_partition_runner(startup_pass=False)
+
+    _run_partition_loops(runner, session)
+
+    assert "waited-longest" in runner._partition_fan_out
+    assert "asked-later" not in runner._partition_fan_out
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("schedule", ["asset", "alias"])
+def test_pending_runs_of_a_dag_that_is_no_longer_partitioned_are_dropped(
+    dag_maker: DagMaker, session: Session, schedule: str
+):
+    """A Dag scheduled on aliases only stamps the same empty fingerprint whether it is partitioned or not."""
+    if schedule == "asset":
+        [apdr] = _make_blocked_apdrs(
+            consumer_dag_id="unpartitioned-consumer",
+            partition_keys=["k"],
+            session=session,
+            dag_maker=dag_maker,
+        )
+    else:
+        with dag_maker(
+            dag_id="unpartitioned-consumer",
+            schedule=PartitionedAssetTimetable(assets=AssetAlias("alias-only")),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+        # An alias gives the fingerprint no asset to describe.
+        apdr = AssetPartitionDagRun(
+            target_dag_id="unpartitioned-consumer",
+            partition_key="k",
+            pending_partition_key="k",
+            rollup_fingerprint={},
+        )
+        session.add(apdr)
+        session.commit()
+    runner = _make_partition_runner(startup_pass=False)
+    _run_partition_loops(runner, session)
+
+    with DAG(dag_id="unpartitioned-consumer", schedule="@daily", start_date=DEFAULT_DATE) as dag:
+        EmptyOperator(task_id="hi")
+    sync_dag_to_db(dag, session=session)
+    session.commit()
+    _run_partition_loops(runner, session, loops=2)
+
+    assert session.get(AssetPartitionDagRun, apdr.id) is None
+    assert _read_wakes(session) == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("activator", ["scheduler", "dag_processor"])
+def test_activating_an_asset_wakes_the_pending_runs_frozen_on_it(
+    dag_maker: DagMaker, session: Session, activator: str
+):
+    asset = Asset(name="frozen-asset")
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="frozen-consumer",
+        asset=asset,
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == "frozen-consumer"))
+    assert bundle_name is not None
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
+    runner = _make_partition_runner(startup_pass=False)
+    _run_partition_loops(runner, session)
+    assert not _is_fired(apdr, session)
+    assert _read_wakes(session) == []
+
+    if activator == "scheduler":
+        runner._update_asset_orphanage(session=session)
+    else:
+        with DAG(dag_id="asset-redeclarer", schedule=None, start_date=DEFAULT_DATE) as redeclarer:
+            EmptyOperator(task_id="hi", outlets=[asset])
+        # The Dag processor parses each file in a session of its own.
+        with create_session(scoped=False) as parse_session:
+            SerializedDAG.bulk_write_to_db(bundle_name, None, [redeclarer], session=parse_session)
+    session.commit()
+    try:
+        assert _read_wakes(session) == [(None, "frozen-consumer", "asset_activated")]
+
+        _run_partition_loops(runner, session, loops=2)
+        assert _is_fired(apdr, session)
+    finally:
+        # dag_maker cleans up only the Dags it made.
+        session.execute(delete(DagModel).where(DagModel.dag_id == "asset-redeclarer"))
+        session.commit()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_startup_pass_leaves_a_dag_level_signal_for_a_dag_that_cannot_run(
+    dag_maker: DagMaker, session: Session
+):
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="paused-at-startup",
+        asset=Asset(name="paused-at-startup-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    session.execute(update(DagModel).where(DagModel.dag_id == "paused-at-startup").values(is_paused=True))
+    session.commit()
+    runner = _make_partition_runner()
+
+    _run_partition_loops(runner, session)
+    assert not _is_fired(apdr, session)
+    assert _read_wakes(session) == [(None, "paused-at-startup", "resync")]
+    # The next pass finds the Dag still paused, and its Dag-level row still there.
+    runner._partition_next_resync_at = 0.0
+    _run_partition_loops(runner, session)
+    assert _read_wakes(session) == [(None, "paused-at-startup", "resync")]
+
+    session.execute(update(DagModel).where(DagModel.dag_id == "paused-at-startup").values(is_paused=False))
+    session.commit()
+    _run_partition_loops(runner, session, loops=2)
+    assert _is_fired(apdr, session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_resync_leaves_a_dag_level_signal_past_the_rows_a_running_fan_out_read(
+    dag_maker: DagMaker, session: Session
+):
+    """A running fan-out deletes the Dag-level rows it read once it is done with the runs it read then."""
+    dag_ids = ["fanning-out-1", "fanning-out-2", "fanning-out-3"]
+    for dag_id in dag_ids:
+        _make_blocked_apdrs(
+            consumer_dag_id=dag_id, partition_keys=["k1", "k2"], session=session, dag_maker=dag_maker
+        )
+    _delete_wakes(session)
+    session.add_all(
+        AssetPartitionDagRunWake(target_dag_id=dag_id, reason=PartitionWakeReason.DAG_CHANGED)
+        for dag_id in dag_ids
+    )
+    session.commit()
+    runner = _make_partition_runner(startup_pass=False, per_loop=2)
+    # Starts the three fan-outs. The next loop's fan-out window holds only the first two, so pausing
+    # fanning-out-3 does not drop its fan-out.
+    _run_partition_loops(runner, session)
+    session.execute(update(DagModel).where(DagModel.dag_id == "fanning-out-3").values(is_paused=True))
+    session.commit()
+    # A periodic pass that serves fanning-out-3 first.
+    runner._partition_resync_passes = 1
+    runner._partition_next_resync_at = 0.0
+    rng = mock.create_autospec(random.Random, instance=True)
+    rng.randrange.return_value = 2
+    runner._partition_rng = rng
+
+    _run_partition_loops(runner, session)
+    assert (None, "fanning-out-3", "resync") in _read_wakes(session)
+
+    # A run that no wake row asks for, as only a pass would find it.
+    session.execute(update(DagModel).where(DagModel.dag_id == "fanning-out-3").values(is_paused=False))
+    session.commit()
+    for name in ("a", "b"):
+        late = _produce_and_register_asset_event(
+            dag_id=f"fanning-out-3-late-producer-{name}",
+            asset=Asset(name=f"fanning-out-3-{name}"),
+            partition_key="k3",
+            session=session,
+            dag_maker=dag_maker,
+        )
+    session.execute(delete(AssetPartitionDagRunWake).where(AssetPartitionDagRunWake.apdr_id == late.id))
+    session.commit()
+
+    _run_partition_loops(runner, session, loops=10)
+    assert _is_fired(late, session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_resync_keeps_a_share_of_each_loop_while_signals_fill_it(
+    dag_maker: DagMaker, session: Session
+):
+    _make_blocked_apdrs(
+        consumer_dag_id="busy-consumer",
+        partition_keys=[f"k{i}" for i in range(25)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    unsignalled = _make_n_satisfied_apdrs(
+        consumer_dag_id="resynced-consumer",
+        asset=Asset(name="resynced-asset"),
+        partition_keys=["k1", "k2"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    session.execute(
+        delete(AssetPartitionDagRunWake).where(AssetPartitionDagRunWake.target_dag_id == "resynced-consumer")
+    )
+    session.commit()
+    # A share of one run per loop, given to the Dags of the pass in turn: the pass starts at
+    # busy-consumer, whose next run is past the ones the signals read takes, then resynced-consumer.
+    runner = _make_partition_runner(per_loop=10)
+    rng = mock.create_autospec(random.Random, instance=True)
+    rng.randrange.return_value = 0
+    runner._partition_rng = rng
+
+    _run_partition_loops(runner, session, loops=2)
+
+    assert sum(_is_fired(apdr, session) for apdr in unsignalled) == 1
+    assert any(dag_id == "busy-consumer" for _, dag_id, _ in _read_wakes(session))
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_retried_loop_evaluates_the_partition_resync_runs_its_rolled_back_attempt_took(
+    dag_maker: DagMaker, session: Session
+):
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="retried-consumer",
+        asset=Asset(name="retried-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    runner = _make_partition_runner()
+    create_dag_runs = SchedulerJobRunner._create_dag_runs
+    attempts: list[int] = []
+
+    def fail_once(self, dag_models, session):
+        attempts.append(len(attempts))
+        if len(attempts) == 1:
+            raise OperationalError("SELECT 1", {}, Exception("deadlock"))
+        return create_dag_runs(self, dag_models, session)
+
+    with mock.patch.object(SchedulerJobRunner, "_create_dag_runs", autospec=True, side_effect=fail_once):
+        _run_partition_loops(runner, session)
+
+    assert len(attempts) == 2
+    assert _is_fired(apdr, session)
+    assert (
+        session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == "retried-consumer"))
+        == 1
+    )
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_resync_read_that_fails_is_read_again_by_the_retried_loop(
+    dag_maker: DagMaker, session: Session
+):
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="read-again-consumer",
+        asset=Asset(name="read-again-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    runner = _make_partition_runner()
+    read = SchedulerJobRunner._read_pending_partition_dag_runs
+    attempts: list[int] = []
+
+    def fail_once(*, session):
+        attempts.append(len(attempts))
+        if len(attempts) == 1:
+            raise OperationalError("SELECT 1", {}, Exception("connection lost"))
+        return read(session=session)
+
+    with mock.patch.object(
+        SchedulerJobRunner, "_read_pending_partition_dag_runs", autospec=True, side_effect=fail_once
+    ):
+        _run_partition_loops(runner, session)
+
+    assert len(attempts) == 2
+    assert _is_fired(apdr, session)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "asset_partition_resync_interval"): "60"})
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_resync_runs_again_once_the_interval_has_passed_since_the_last_pass_started(
+    mock_stats, dag_maker: DagMaker, session: Session
+):
+    first, second = _make_n_satisfied_apdrs(
+        consumer_dag_id="periodic-consumer",
+        asset=Asset(name="periodic-asset"),
+        partition_keys=["k1", "k2"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    read = SchedulerJobRunner._read_pending_partition_dag_runs
+    with (
+        mock.patch("airflow.jobs.scheduler_job_runner.time.monotonic", autospec=True) as clock,
+        mock.patch.object(
+            SchedulerJobRunner, "_read_pending_partition_dag_runs", autospec=True, side_effect=read
+        ) as reads,
+    ):
+        clock.return_value = 1000.0
+        # One run per loop, so that the startup pass is still running once the next one is due.
+        runner = _make_partition_runner(per_loop=1)
+        _run_partition_loops(runner, session)
+        clock.return_value = 1061.0
+        _run_partition_loops(runner, session)
+        assert _is_fired(first, session)
+        assert _is_fired(second, session)
+        assert reads.call_count == 1
+
+        # Due since 1060, so the next loop starts a pass, over no pending run; the one after is due at 1122.
+        clock.return_value = 1062.0
+        _run_partition_loops(runner, session)
+        assert reads.call_count == 2
+        [later] = _make_n_satisfied_apdrs(
+            consumer_dag_id="periodic-consumer-later",
+            asset=Asset(name="periodic-asset-later"),
+            partition_keys=["k"],
+            session=session,
+            dag_maker=dag_maker,
+            producer_prefix="periodic-producer-later",
+        )
+        _delete_wakes(session)
+        clock.return_value = 1121.0
+        _run_partition_loops(runner, session)
+        assert not _is_fired(later, session)
+        assert reads.call_count == 2
+
+        mock_stats.reset_mock()
+        clock.return_value = 1123.0
+        _run_partition_loops(runner, session)
+        assert _is_fired(later, session)
+        assert reads.call_count == 3
+
+    mock_stats.incr.assert_any_call("scheduler.asset_partitions.resync_fired", 1, tags={"pass": "periodic"})
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_FAN_OUT_STARTS_PER_LOOP", 1)
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_runs_a_dag_level_row_asked_for_are_not_counted_as_found_by_the_resync(
+    mock_stats, dag_maker: DagMaker, session: Session
+):
+    """The first loop reads the Dag-level row of one Dag, and leaves the row of the other for a later loop."""
+    dag_ids = ["requested-consumer", "requested-later-consumer"]
+    blocked = [
+        apdr
+        for dag_id in dag_ids
+        for apdr in _make_blocked_apdrs(
+            consumer_dag_id=dag_id, partition_keys=["k1", "k2"], session=session, dag_maker=dag_maker
+        )
+    ]
+    runner = _make_partition_runner(startup_pass=False, per_loop=2)
+    _run_partition_loops(runner, session, loops=2)
+    for dag_id in dag_ids:
+        _widen_to_either_asset(dag_id, session=session)
+    # A periodic pass that runs while the fan-outs of the Dag-level rows do.
+    runner._partition_resync_passes = 1
+    runner._partition_next_resync_at = 0.0
+    rng = mock.create_autospec(random.Random, instance=True)
+    rng.randrange.return_value = 0
+    runner._partition_rng = rng
+
+    _run_partition_loops(runner, session, loops=4)
+
+    assert all(_is_fired(apdr, session) for apdr in blocked)
+    assert [
+        c for c in mock_stats.incr.mock_calls if c.args[0] == "scheduler.asset_partitions.resync_fired"
+    ] == []
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_resync_counts_a_run_only_when_no_running_fan_out_holds_it(
+    mock_stats, dag_maker: DagMaker, session: Session
+):
+    """A fan-out evaluates the pending runs it read when it started; its Dag-level row asks for those only."""
+    *_, held = _make_blocked_apdrs(
+        consumer_dag_id="fanned-out-consumer",
+        partition_keys=[f"k{i}" for i in range(4)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    session.add(
+        AssetPartitionDagRunWake(target_dag_id="fanned-out-consumer", reason=PartitionWakeReason.DAG_CHANGED)
+    )
+    session.commit()
+    runner = _make_partition_runner(startup_pass=False, per_loop=2)
+    # Starts the fan-out over the four runs.
+    _run_partition_loops(runner, session)
+    # Satisfied once the fan-out has started, with no wake row: a run the fan-out holds, and a later one.
+    for name, key in (("b", "k3"), ("a", "late"), ("b", "late")):
+        satisfied = _produce_and_register_asset_event(
+            dag_id=f"fanned-out-consumer-producer-{key}-{name}",
+            asset=Asset(name=f"fanned-out-consumer-{name}"),
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+    late = satisfied
+    session.execute(
+        delete(AssetPartitionDagRunWake).where(AssetPartitionDagRunWake.apdr_id.in_([held.id, late.id]))
+    )
+    session.commit()
+    runner._partition_resync_passes = 1
+    runner._partition_next_resync_at = 0.0
+    rng = mock.create_autospec(random.Random, instance=True)
+    rng.randrange.return_value = 0
+    runner._partition_rng = rng
+
+    _run_partition_loops(runner, session, loops=2)
+    assert _is_fired(held, session)
+    assert not _is_fired(late, session)
+    assert "fanned-out-consumer" in runner._partition_fan_out
+
+    _run_partition_loops(runner, session)
+
+    assert _is_fired(late, session)
+    assert [
+        c for c in mock_stats.incr.mock_calls if c.args[0] == "scheduler.asset_partitions.resync_fired"
+    ] == [mock.call("scheduler.asset_partitions.resync_fired", 1, tags={"pass": "periodic"})]
+
+
+def test_partition_sweep_holds_only_the_runs_left_to_evaluate():
+    sweep = _PartitionSweep()
+    sweep.add("dag", [5, 1, 3])
+    sweep.commit(done={"dag": {3}}, dropped=(), served=0)
+
+    assert [apdr_id for apdr_id in range(7) if sweep.holds("dag", apdr_id)] == [1, 5]
+    assert not sweep.holds("other-dag", 1)
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("flag", ["is_paused", "is_draining", "is_stale"])
+def test_partition_run_of_a_dag_that_stops_running_during_the_loop_is_not_created(
+    dag_maker: DagMaker, session: Session, flag: str
+):
+    [apdr] = _make_blocked_apdrs(
+        consumer_dag_id="stopping-consumer", partition_keys=["k"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_partition_runner(startup_pass=False)
+    _run_partition_loops(runner, session)
+    _widen_to_either_asset("stopping-consumer", session=session)
+    # Starts the fan-out over the Dag's pending runs.
+    _run_partition_loops(runner, session)
+    read_eligibility = SchedulerJobRunner._read_dag_eligibility
+
+    def stop_the_dag_after_the_check(dag_ids, *, session):
+        can_run = read_eligibility(dag_ids, session=session)
+        session.execute(update(DagModel).where(DagModel.dag_id == "stopping-consumer").values({flag: True}))
+        return can_run
+
+    with mock.patch.object(
+        SchedulerJobRunner, "_read_dag_eligibility", autospec=True, side_effect=stop_the_dag_after_the_check
+    ):
+        _run_partition_loops(runner, session)
+
+    assert not _is_fired(apdr, session)
+    assert _read_wakes(session) == [(None, "stopping-consumer", "dag_changed")]
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_fan_out_keeps_a_share_of_each_loop_while_signals_fill_it(
+    dag_maker: DagMaker, session: Session
+):
+    _make_blocked_apdrs(
+        consumer_dag_id="busy-consumer",
+        partition_keys=[f"k{i}" for i in range(20)],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    widened = _make_blocked_apdrs(
+        consumer_dag_id="widened-consumer",
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    session.execute(
+        delete(AssetPartitionDagRunWake).where(AssetPartitionDagRunWake.target_dag_id == "widened-consumer")
+    )
+    session.commit()
+    _widen_to_either_asset("widened-consumer", session=session)
+    runner = _make_partition_runner(startup_pass=False, per_loop=10)
+    # Starts the fan-out, while ten of the busy Dag's requests take the loop.
+    _run_partition_loops(runner, session)
+
+    _run_partition_loops(runner, session)
+
+    assert sum(_is_fired(apdr, session) for apdr in widened) == 1
+    assert any(dag_id == "busy-consumer" for _, dag_id, _ in _read_wakes(session))
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_idle_partition_claim_issues_one_query_and_writes_nothing(dag_maker: DagMaker, session: Session):
+    # The first definition of a partitioned Dag asks to evaluate its pending runs, of which there are
+    # none, so the loop that reads the row is done with it; the requests of a paused Dag wait for it.
+    with DAG(
+        dag_id="first-definition",
+        schedule=PartitionedAssetTimetable(assets=Asset(name="first-definition-asset")),
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        EmptyOperator(task_id="hi")
+    sync_dag_to_db(dag, session=session)
+    try:
+        with dag_maker(dag_id="paused-dag", schedule=None, session=session):
+            EmptyOperator(task_id="hi")
+        session.execute(update(DagModel).where(DagModel.dag_id == "paused-dag").values(is_paused=True))
+        session.add(AssetPartitionDagRunWake(apdr_id=1, target_dag_id="paused-dag", reason="key_log"))
+        session.add(AssetPartitionDagRunWake(target_dag_id="paused-dag", reason="dag_changed"))
+        session.commit()
+        assert sorted(_read_wakes(session), key=str) == [
+            (1, "paused-dag", "key_log"),
+            (None, "first-definition", "dag_changed"),
+            (None, "paused-dag", "dag_changed"),
+        ]
+        runner = _make_partition_runner()
+        _run_partition_loops(runner, session)
+        assert _read_wakes(session) == [(1, "paused-dag", "key_log"), (None, "paused-dag", "dag_changed")]
+
+        # The signal read alone, so nothing is written.
+        with assert_queries_count(1):
+            runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    finally:
+        # dag_maker cleans up only the Dags it made.
+        session.rollback()
+        session.execute(delete(DagModel).where(DagModel.dag_id == "first-definition"))
+        session.commit()
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_clean_up_partition_wakes_drops_rows_of_deleted_dags_and_merges_rows_of_dags_that_cannot_run(
+    dag_maker: DagMaker, session: Session
+):
+    for dag_id, is_paused in (("cannot-run", True), ("can-run", False)):
+        with dag_maker(dag_id=dag_id, schedule=None, session=session):
+            EmptyOperator(task_id="hi")
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_paused=is_paused))
+    session.add_all(
+        AssetPartitionDagRunWake(apdr_id=apdr_id, target_dag_id=dag_id, reason="key_log")
+        for dag_id in ("deleted", "cannot-run", "can-run")
+        for apdr_id in (1, 2, 3)
+    )
+    session.commit()
+
+    _make_partition_runner()._clean_up_partition_wakes()
+
+    assert sorted(_read_wakes(session), key=str) == sorted(
+        [
+            (None, "cannot-run", "coalesced"),
+            (1, "can-run", "key_log"),
+            (2, "can-run", "key_log"),
+            (3, "can-run", "key_log"),
+        ],
+        key=str,
+    )
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    ("batches", "expected"),
+    [
+        pytest.param(20, [(None, "stale-consumer", "coalesced")], id="within-a-firing"),
+        # One batch finds no row of a deleted Dag; each of the other two merges 500 rows into one.
+        pytest.param(
+            3,
+            [(apdr_id, "stale-consumer", "key_log") for apdr_id in range(1001, 1201)]
+            + [(None, "stale-consumer", "coalesced")] * 2,
+            id="past-the-batches-of-a-firing",
+        ),
+    ],
+)
+def test_clean_up_partition_wakes_merges_a_large_backlog_of_a_dag_in_batches(
+    dag_maker: DagMaker, session: Session, batches: int, expected: list[tuple[int | None, str, str]]
+):
+    with dag_maker(dag_id="stale-consumer", schedule=None, session=session):
+        EmptyOperator(task_id="hi")
+    session.execute(update(DagModel).where(DagModel.dag_id == "stale-consumer").values(is_stale=True))
+    session.execute(
+        insert(AssetPartitionDagRunWake),
+        [
+            {"apdr_id": apdr_id, "target_dag_id": "stale-consumer", "reason": "key_log"}
+            for apdr_id in range(1, 1201)
+        ],
+    )
+    session.commit()
+
+    with mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_WAKE_CLEANUP_BATCHES", batches):
+        _make_partition_runner()._clean_up_partition_wakes()
+
+    assert _read_wakes(session) == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner._PARTITION_WAKE_CLEANUP_BATCHES", 3)
+def test_clean_up_partition_wakes_merges_the_dags_that_waited_longest_first(
+    dag_maker: DagMaker, session: Session
+):
+    dag_ids = [f"paused-{i}" for i in range(4)]
+    for dag_id in dag_ids:
+        with dag_maker(dag_id=dag_id, schedule=None, session=session):
+            EmptyOperator(task_id="hi")
+    session.execute(update(DagModel).where(DagModel.dag_id.in_(dag_ids)).values(is_paused=True))
+    session.add_all(
+        AssetPartitionDagRunWake(apdr_id=apdr_id, target_dag_id=dag_id, reason="key_log")
+        for dag_id in dag_ids
+        for apdr_id in (1, 2)
+    )
+    session.commit()
+    runner = _make_partition_runner()
+
+    # A firing of three batches: one finds no row of a deleted Dag, two merge the first Dags.
+    runner._clean_up_partition_wakes()
+    merged = {dag_id for _, dag_id, reason in _read_wakes(session) if reason == "coalesced"}
+    assert merged == {"paused-0", "paused-1"}
+    # A new request each makes them qualify again, behind the Dags that were not merged yet.
+    session.add_all(
+        AssetPartitionDagRunWake(apdr_id=3, target_dag_id=dag_id, reason="key_log") for dag_id in merged
+    )
+    session.commit()
+
+    runner._clean_up_partition_wakes()
+
+    assert {dag_id for _, dag_id, reason in _read_wakes(session) if reason == "coalesced"} == set(dag_ids)
+    assert [dag_id for _, dag_id, _ in _read_wakes(session)].count("paused-2") == 1
+    assert [dag_id for _, dag_id, _ in _read_wakes(session)].count("paused-3") == 1
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch("airflow.jobs.scheduler_job_runner.stats", autospec=True)
+def test_partition_claim_reports_its_metrics_once_the_loop_commits(
+    mock_stats, dag_maker: DagMaker, session: Session
+):
+    [unsignalled] = _make_n_satisfied_apdrs(
+        consumer_dag_id="resync-found-consumer",
+        asset=Asset(name="resync-found-asset"),
+        partition_keys=["k"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    _delete_wakes(session)
+    [waiting] = _make_blocked_apdrs(
+        consumer_dag_id="still-waiting", partition_keys=["k"], session=session, dag_maker=dag_maker
+    )
+    session.execute(
+        update(AssetPartitionDagRunWake).values(created_at=timezone.utcnow() - timedelta(minutes=10))
+    )
+    # The request of a run that is gone is older, but no run waits on it.
+    session.add(
+        AssetPartitionDagRunWake(
+            apdr_id=waiting.id + 1000,
+            target_dag_id="still-waiting",
+            reason="key_log",
+            created_at=timezone.utcnow() - timedelta(days=1),
+        )
+    )
+    session.commit()
+    runner = _make_partition_runner()
+
+    def get_partition_metric_calls() -> list:
+        return [c for c in mock_stats.mock_calls if c.args and "asset_partitions" in str(c.args[0])]
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    assert get_partition_metric_calls() == []
+
+    runner._commit_partition_loop()
+
+    mock_stats.incr.assert_any_call("scheduler.asset_partitions.evaluated", 2)
+    mock_stats.incr.assert_any_call("scheduler.asset_partitions.resync_fired", 1, tags={"pass": "startup"})
+    [lag] = [c for c in mock_stats.gauge.mock_calls if c.args[0] == "scheduler.asset_partitions.wake_lag"]
+    assert 600 <= lag.args[1] < 3600
+    [duration] = [c for c in mock_stats.timing.mock_calls if "asset_partitions" in c.args[0]]
+    assert duration.args[0] == "scheduler.asset_partitions.resync_pass_duration"
+    assert _is_fired(unsignalled, session)
+    assert not _is_fired(waiting, session)
+
+    mock_stats.reset_mock()
+    _run_partition_loops(runner, session)
+    assert get_partition_metric_calls() == [mock.call.gauge("scheduler.asset_partitions.wake_lag", 0)]
+
+
+@conf_vars({("scheduler", "asset_partition_resync_interval"): "0"})
+def test_asset_partition_resync_interval_must_be_positive():
+    with pytest.raises(ValueError, match="asset_partition_resync_interval must be greater than 0"):
+        SchedulerJobRunner(job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor()])
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_fan_out_keeps_a_pending_run_another_transaction_holds(
+    dag_maker: DagMaker, session: Session
+):
+    held, free = _make_blocked_apdrs(
+        consumer_dag_id="held-consumer", partition_keys=["k1", "k2"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_partition_runner(startup_pass=False)
+    _run_partition_loops(runner, session)
+    _widen_to_either_asset("held-consumer", session=session)
+
+    with create_session(scoped=False) as holder:
+        holder.execute(
+            select(AssetPartitionDagRun.id).where(AssetPartitionDagRun.id == held.id).with_for_update()
+        )
+        _run_partition_loops(runner, session, loops=3)
+        assert _is_fired(free, session)
+        assert not _is_fired(held, session)
+        assert _read_wakes(session) == [(None, "held-consumer", "dag_changed")]
+
+    _run_partition_loops(runner, session, loops=2)
+    assert _is_fired(held, session)
+    assert _read_wakes(session) == []
+
+
+@pytest.mark.backend("postgres")
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partition_claim_skips_the_wake_rows_another_transaction_holds(dag_maker: DagMaker, session: Session):
+    """Another scheduler can delete the same orphan and Dag-level rows; the loop does not wait for it."""
+    [fired] = _make_blocked_apdrs(
+        consumer_dag_id="held-orphan-consumer", partition_keys=["k"], session=session, dag_maker=dag_maker
+    )
+    session.execute(
+        update(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id == fired.id)
+        .values(created_dag_run_id=session.scalar(select(DagRun.id).limit(1)), pending_partition_key=None)
+    )
+    with dag_maker(dag_id="no-pending-runs", schedule=None, session=session):
+        EmptyOperator(task_id="hi")
+    session.add(AssetPartitionDagRunWake(target_dag_id="no-pending-runs", reason="dag_changed"))
+    session.commit()
+    held = sorted(session.scalars(select(AssetPartitionDagRunWake.id)).all())
+    assert len(held) == 2
+    runner = _make_partition_runner(startup_pass=False)
+
+    with create_session(scoped=False) as holder:
+        holder.execute(
+            select(AssetPartitionDagRunWake.id).where(AssetPartitionDagRunWake.id.in_(held)).with_for_update()
+        )
+        # Outside the retries of the scheduler loop, whose next attempt would run without the
+        # timeout, so that a lock wait fails the claim.
+        session.execute(text("SET LOCAL lock_timeout = '1s'"))
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        session.commit()
+        runner._commit_partition_loop()
+        assert sorted(session.scalars(select(AssetPartitionDagRunWake.id)).all()) == held
+
+    _run_partition_loops(runner, session)
+    assert _read_wakes(session) == []
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_two_schedulers_claim_disjoint_pending_partition_dag_runs(dag_maker: DagMaker, session: Session):
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="ha-consumer",
+        asset=Asset(name="ha-asset"),
+        partition_keys=["k1", "k2", "k3", "k4"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    first, second = (_make_partition_runner(startup_pass=False, per_loop=2) for _ in range(2))
+
+    with create_session(scoped=False) as other:
+        claimed_first = {
+            apdr.id for apdr in first._claim_partition_dag_runs(_PartitionLoop(None), session=session).apdrs
+        }
+        claimed_second = {
+            apdr.id for apdr in second._claim_partition_dag_runs(_PartitionLoop(None), session=other).apdrs
+        }
+        other.rollback()
+    session.rollback()
+
+    assert len(claimed_first) == 2
+    assert len(claimed_second) == 2
+    assert claimed_first.isdisjoint(claimed_second)
+    assert claimed_first | claimed_second == {apdr.id for apdr in apdrs}
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_producer_does_not_wait_on_the_partition_claim(dag_maker: DagMaker, session: Session):
+    [apdr] = _make_blocked_apdrs(
+        consumer_dag_id="claimed-consumer", partition_keys=["k"], session=session, dag_maker=dag_maker
+    )
+    runner = _make_partition_runner(startup_pass=False)
+    claim = runner._claim_partition_dag_runs(_PartitionLoop(None), session=session)
+    assert [claimed.id for claimed in claim.apdrs] == [apdr.id]
+
+    # A connection that is closed rather than pooled, so that its lock timeout does not outlive the test.
+    engine = create_engine(settings.get_engine().url, **settings.prepare_engine_args(pool_class=NullPool))
+    try:
+        with sessionmaker(engine).begin() as producer:
+            if engine.dialect.name == "postgresql":
+                producer.execute(text("SET LOCAL lock_timeout = '1s'"))
+            else:
+                producer.execute(text("SET SESSION innodb_lock_wait_timeout = 1"))
+            producer.add(
+                PartitionedAssetKeyLog(
+                    asset_id=1,
+                    asset_event_id=1,
+                    asset_partition_dag_run_id=apdr.id,
+                    source_partition_key="k",
+                    target_dag_id="claimed-consumer",
+                    target_partition_key="k",
+                )
+            )
+            producer.flush()
+    finally:
+        engine.dispose()
+    session.rollback()
+
+    assert len(_read_wakes(session)) == 2
 
 
 # ---------------------------------------------------------------------------

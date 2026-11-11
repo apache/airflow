@@ -256,6 +256,25 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.asset_partitions.evaluated"
+    description: "Number of pending partition-driven Dag runs the scheduler evaluated: the runs that a key
+    log, a timetable change or an asset activation asked it to evaluate, and the runs of its resync passes."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.asset_partitions.resync_fired"
+    description: "Number of partition-driven Dag runs created for pending runs that only a resync pass found,
+    with no request to evaluate them. Metric with pass tagging: ``startup`` for the pass a scheduler runs
+    when it starts, which also evaluates the runs left from before an upgrade, and ``periodic`` for the
+    later passes. A periodic count above 0 means that a change reached no request: key logs written without
+    one, for example by components that still run an older Airflow version or by a bulk insert; an alias
+    newly linked to an asset that was already active; or a result that changed while the timetable, the key
+    logs and the active assets did not, as with a custom partition mapper that reads the clock."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["pass"]
+
   - name: "scheduler.loop_exceptions"
     description: "Number of times the scheduler loop exited with an unhandled exception.
     Metric with exception_class tagging."
@@ -403,6 +422,15 @@ metrics:
   - name: "asset.orphaned"
     description: "Number of assets marked as orphans because they are no longer referenced
     in Dag schedule parameters or task outlets"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.asset_partitions.wake_lag"
+    description: "Seconds since the oldest waiting request to evaluate a pending partition-driven Dag run
+    of a Dag that can run (not paused, draining or stale) was written, as one scheduler last read it; 0
+    once none is waiting. A value that keeps growing means the scheduler is asked to evaluate more runs
+    than it evaluates per loop."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -909,6 +937,13 @@ metrics:
 
   - name: "scheduler.critical_section_query_duration"
     description: "Milliseconds spent running the critical section task instance query"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.asset_partitions.resync_pass_duration"
+    description: "Milliseconds one scheduler took to evaluate every pending partition-driven Dag run once, in
+    the resync pass it runs when it starts or in a periodic one."
     type: "timer"
     legacy_name: "-"
     name_variables: []

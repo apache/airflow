@@ -702,6 +702,31 @@ uses ``StartOfDayMapper`` (which expects a timestamp-like key), no downstream
 partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
+While partitions wait for their upstream events, Airflow keeps pending
+partition-driven Dag runs for them. The scheduler evaluates a pending run, and creates
+its Dag run once the condition is met, when something happens that can change the
+result: an asset event reaches the run, the Dag's timetable changes, or an asset that
+the Dag is scheduled on becomes active. A run that keeps waiting, such as a rollup whose
+window is not complete yet, is not evaluated again until then, so it cannot hold the
+others back. Each scheduler also evaluates every pending run once when it starts, and
+then once every :ref:`[scheduler] asset_partition_resync_interval
+<config:scheduler__asset_partition_resync_interval>`. These passes catch asset events
+that were recorded without a request for evaluation, for example by components that
+still run an older Airflow version during an upgrade. The
+``scheduler.asset_partitions.wake_lag`` metric reports how long the oldest request has
+waited, and ``scheduler.asset_partitions.resync_fired`` counts the Dag runs that only
+such a pass found.
+
+This relies on the evaluation of a pending run depending only on the Dag's timetable,
+the partition keys that reached the run, which assets are active, and how the Dag's
+asset references and aliases resolve. A new link from an alias to an asset that is
+already active is picked up only by the next pass. Custom partition mappers, rollup
+windows and timetables must keep to this: for example, a mapper that reads the clock,
+or fails now and then, has its runs evaluated again only by the next pass. A run whose
+evaluation fails because of the Dag itself, for example because its mapper raises, is
+not evaluated again on every loop either: only when an asset event reaches it, the Dag's
+timetable changes, an asset that the Dag is scheduled on becomes active, or a pass runs.
+
 Inside partitioned Dag runs, access the resolved partition through
 ``dag_run.partition_key``. When the consumer's partition mapper can
 resolve the key to a ``datetime``, that value is also available as

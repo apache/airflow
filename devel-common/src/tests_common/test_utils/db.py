@@ -466,10 +466,13 @@ def clear_db_pakl():
 def clear_db_apdr():
     if not AIRFLOW_V_3_2_PLUS:
         return
-    from airflow.models.asset import AssetPartitionDagRun
+    from airflow.models import asset
 
     with create_session() as session:
-        session.execute(delete(AssetPartitionDagRun))
+        session.execute(delete(asset.AssetPartitionDagRun))
+        # Wake rows outlive their run, and SQLite reuses run ids once the table is empty.
+        if wake := getattr(asset, "AssetPartitionDagRunWake", None):
+            session.execute(delete(wake))
 
 
 @_retry_db
