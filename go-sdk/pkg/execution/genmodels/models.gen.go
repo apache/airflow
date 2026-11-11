@@ -805,6 +805,7 @@ const ErrorTypeGENERICERROR ErrorType = "GENERIC_ERROR"
 const ErrorTypePERMISSIONDENIED ErrorType = "PERMISSION_DENIED"
 const ErrorTypeTASKSTORENOTFOUND ErrorType = "TASK_STORE_NOT_FOUND"
 const ErrorTypeVARIABLENOTFOUND ErrorType = "VARIABLE_NOT_FOUND"
+const ErrorTypeXCOMBACKENDERROR ErrorType = "XCOM_BACKEND_ERROR"
 const ErrorTypeXCOMNOTFOUND ErrorType = "XCOM_NOT_FOUND"
 
 // A task in another Dag that clearing the reporting task also clears, as resolved
@@ -1889,25 +1890,25 @@ type TriggerKwargs map[string]interface{}
 
 type VersionData map[string]interface{}
 
-type TaskInstanceState string
-
 const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
 const TaskInstanceStateDeferred TaskInstanceState = "deferred"
 const TaskInstanceStateSkipped TaskInstanceState = "skipped"
 const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
 const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
 const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-
 const TaskInstanceStateFailed TaskInstanceState = "failed"
+
 const TaskInstanceStateRestarting TaskInstanceState = "restarting"
 const TaskInstanceStateSuccess TaskInstanceState = "success"
 const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
 
 type TaskOutlets []AssetProfile
 
-const TaskInstanceStateQueued TaskInstanceState = "queued"
 const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
 const TaskInstanceStateRemoved TaskInstanceState = "removed"
+
+type TaskInstanceState string
 
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
