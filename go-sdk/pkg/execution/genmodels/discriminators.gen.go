@@ -36,6 +36,7 @@ const (
 	TypeCreateHITLDetailPayload     = "CreateHITLDetailPayload"
 	TypeDRCount                     = "DRCount"
 	TypeDagCallbackRequest          = "DagCallbackRequest"
+	TypeDagCallbacksStarted         = "DagCallbacksStarted"
 	TypeDagFileParseRequest         = "DagFileParseRequest"
 	TypeDagFileParsingResult        = "DagFileParsingResult"
 	TypeDagResult                   = "DagResult"
@@ -159,6 +160,9 @@ func EnsureType(m any) any {
 		return b
 	case DagCallbackRequest:
 		b.Type = TypeDagCallbackRequest
+		return b
+	case DagCallbacksStarted:
+		b.Type = TypeDagCallbacksStarted
 		return b
 	case DagFileParseRequest:
 		b.Type = TypeDagFileParseRequest

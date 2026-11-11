@@ -167,6 +167,14 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
+ARG_KEEP_UNCONFIGURED_BUNDLES = Arg(
+    ("--keep-unconfigured-bundles",),
+    help=(
+        "Keep catalog entries active for bundles this host does not configure. "
+        "Use on a host that configures only some of the deployment's bundles"
+    ),
+    action="store_true",
+)
 ARG_START_DATE = Arg(
     ("-s", "--start-date"),
     help=(
@@ -2326,6 +2334,16 @@ core_commands: list[CLICommand] = [
         help="Start a dag processor instance",
         func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor"),
         args=(
+            Arg(
+                ("--check-health",),
+                action="store_true",
+                help="Check the API-mode processor's local loop heartbeat and exit",
+            ),
+            Arg(
+                ("--check-ready",),
+                action="store_true",
+                help="Check the API-mode processor's loop and API heartbeat and exit",
+            ),
             ARG_PID,
             ARG_DAEMON,
             ARG_BUNDLE_NAME,
@@ -2336,6 +2354,17 @@ core_commands: list[CLICommand] = [
             ARG_VERBOSE,
             ARG_DEV,
         ),
+    ),
+    ActionCommand(
+        name="dag-processor-sync-bundles",
+        help="Provision the Dag bundle catalog from a trusted host",
+        description=(
+            "Synchronize configured bundles with the metadata database and exit without starting a "
+            "processor. Run on a trusted host with database access and the Fernet key used to sign "
+            "bundle URLs, regardless of whether use_execution_api is enabled."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor_sync_bundles"),
+        args=(ARG_KEEP_UNCONFIGURED_BUNDLES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="dag-processor-token",

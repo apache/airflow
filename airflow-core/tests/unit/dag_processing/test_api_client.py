@@ -46,6 +46,8 @@ from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import GetVariable, GetXCom, MaskSecret, VariableResult
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
+from unit.dag_processing.requested_work_helpers import make_work
+
 
 @pytest.fixture
 def token_file(tmp_path):
@@ -1229,3 +1231,94 @@ def test_catalog_read_waits_for_a_slow_response_and_retries_only_when_asked(
     assert timeout["connect"] <= 1
     assert timeout["pool"] <= 1
     assert timeout["read"] == client.timeout.read > 1
+
+
+def test_work_claims_and_acknowledgments_wait_for_a_slow_response(make_client, make_registration_response):
+    client, requests = make_client(
+        make_registration_response(), httpx2.Response(200, json=[]), httpx2.Response(204)
+    )
+    client.register_job()
+    work = make_work(bundle_name="bundle-a", relative_fileloc="dag.py")
+
+    client.claim_work("callbacks", ["bundle-a"], 1)
+    client.acknowledge_work("callbacks", work)
+
+    for request in requests[1:]:
+        timeout = request.extensions["timeout"]
+        assert timeout["connect"] <= 1
+        assert timeout["pool"] <= 1
+        assert timeout["read"] == client.timeout.read > 1
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        httpx2.ReadError("Lost claim response"),
+        httpx2.Response(503),
+        httpx2.Response(200, json=[{"id": "incomplete"}]),
+    ],
+    ids=["lost_response", "server_error", "invalid_response"],
+)
+def test_claim_sequence_survives_retries_and_renewal_then_advances_per_kind(
+    make_client, make_registration_response, kind, failure
+):
+    client, requests = make_client(
+        make_registration_response(),
+        failure,
+        make_registration_response(),
+        httpx2.Response(200, json=[]),
+        httpx2.Response(200, json=[]),
+        httpx2.Response(200, json=[]),
+    )
+    client.register_job()
+    with pytest.raises((httpx2.HTTPError, ValueError)):
+        client.claim_work(kind, ["bundle-a"], 2)
+
+    client.register_job()
+    assert client.claim_work(kind, ["bundle-b"], 5) == []
+    other_kind = "callbacks" if kind == "priority" else "priority"
+    assert client.claim_work(other_kind, ["bundle-a"], 2) == []
+    assert client.claim_work(kind, ["bundle-b"], 5) == []
+
+    assert requests[1].content == requests[3].content
+    original = json.loads(requests[1].content)
+    assert original["claim_sequence"] == 1
+    assert original["bundle_names"] == ["bundle-a"]
+    assert original["limit"] == 2
+    assert json.loads(requests[4].content)["claim_sequence"] == 1
+    subsequent = json.loads(requests[5].content)
+    assert subsequent["claim_sequence"] == 2
+    assert subsequent["claim_id"] != original["claim_id"]
+    assert subsequent["bundle_names"] == ["bundle-b"]
+    assert subsequent["limit"] == 5
+
+
+@pytest.mark.parametrize(
+    ("bundle_names", "limit", "sent_limits"),
+    [
+        pytest.param([], 5, [], id="no_bundles_sends_no_request"),
+        pytest.param(["bundle-a"], 500, [100], id="limit_capped_at_api_maximum"),
+    ],
+)
+def test_claim_work_stays_within_the_claim_body_bounds(
+    make_client, make_registration_response, bundle_names, limit, sent_limits
+):
+    client, requests = make_client(make_registration_response(), httpx2.Response(200, json=[]))
+    client.register_job()
+
+    assert client.claim_work("callbacks", bundle_names, limit) == []
+
+    assert [json.loads(request.content)["limit"] for request in requests[1:]] == sent_limits
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_work_acknowledgment_sends_only_the_claim_identity(make_client, make_registration_response, kind):
+    client, requests = make_client(make_registration_response(), httpx2.Response(204))
+    client.register_job()
+    work = make_work(bundle_name="bundle-a", relative_fileloc="dag.py")
+
+    client.acknowledge_work(kind, work)
+
+    assert requests[-1].url.path == f"/execution/jobs/1/requested-work/{kind}/{work.id}/ack"
+    assert json.loads(requests[-1].content) == {"claim_id": str(work.claim_id)}

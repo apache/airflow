@@ -917,6 +917,19 @@
       "title": "DagCallbackRequest",
       "type": "object"
     },
+    "DagCallbacksStarted": {
+      "description": "Request permission to begin a callback batch after importing its Dag file.",
+      "properties": {
+        "type": {
+          "const": "DagCallbacksStarted",
+          "default": "DagCallbacksStarted",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "DagCallbacksStarted",
+      "type": "object"
+    },
     "DagFileParseRequest": {
       "description": "Request for DAG File Parsing.\n\nThis is the request that the manager will send to the DAG parser with the dag file and\nany other necessary metadata.",
       "properties": {

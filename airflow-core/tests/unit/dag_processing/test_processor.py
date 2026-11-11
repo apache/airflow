@@ -17,18 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
 import os
 import pathlib
+import signal
 import sys
 import textwrap
 import typing
 import uuid
 import zipfile
 from collections.abc import Callable, Iterable
-from socket import socket, socketpair
+from concurrent.futures import ThreadPoolExecutor
+from socket import SHUT_RDWR, socket, socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import ANY, MagicMock, PropertyMock, patch
 
@@ -57,12 +60,15 @@ from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
+    _CALLBACK_TARGETS_MISSING_EXIT_CODE,
     BaseDagFileProcessorProcess,
+    DagCallbacksStarted,
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
     ToDagProcessor,
     ToManager,
+    _DagParseCommsDecoder,
     _execute_callbacks,
     _execute_dag_callbacks,
     _execute_email_callbacks,
@@ -78,7 +84,8 @@ from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.execution_time import comms, supervisor
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time import comms, supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetTaskStates,
@@ -246,6 +253,57 @@ class TestDagFileProcessor:
         assert result.import_errors != {}
         if result.import_errors:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
+
+    @pytest.mark.parametrize(
+        ("variable_response", "targets_missing"),
+        [
+            pytest.param(httpx2.Response(400, json={"detail": "rejected"}), True, id="api-request-failed"),
+            pytest.param(
+                httpx2.Response(404, json={"detail": {"reason": "not_found"}}), False, id="variable-missing"
+            ),
+        ],
+    )
+    @conf_vars({("dag_processor", "use_execution_api"): "True"})
+    def test_callback_process_reports_missing_targets_only_after_api_failure(
+        self, tmp_path: pathlib.Path, variable_response, targets_missing
+    ):
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=[
+                DagCallbackRequest(
+                    filepath=str(path.relative_to(tmp_path)),
+                    dag_id="test_abc",
+                    run_id="run",
+                    bundle_name="testing",
+                    bundle_version=None,
+                )
+            ],
+            logger=MagicMock(spec=FilteringBoundLogger),
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=Client(
+                base_url=None,
+                token="",
+                dry_run=True,
+                transport=httpx2.MockTransport(lambda request: variable_response),
+            ),
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        assert proc.callback_targets_missing is targets_missing
+        assert proc.exited_cleanly is not targets_missing
 
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
@@ -719,6 +777,224 @@ def test_parse_file_with_task_callbacks(spy_agency):
     )
 
     assert called is True
+
+
+def _make_callback_request(dag_id: str, task_id: str | None) -> CallbackRequest:
+    if task_id is None:
+        return DagCallbackRequest(
+            filepath="A",
+            msg="Message",
+            dag_id=dag_id,
+            run_id="run",
+            bundle_name="testing",
+            bundle_version=None,
+        )
+    ti = TIDataModel(
+        id=uuid.uuid4(),
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id="run",
+        map_index=-1,
+        try_number=1,
+        dag_version_id=uuid.uuid4(),
+    )
+    return TaskCallbackRequest(filepath="A", msg="Message", ti=ti, bundle_name="testing", bundle_version=None)
+
+
+@pytest.mark.parametrize(
+    ("loaded_dag_ids", "targets", "api_request_failed", "exits", "expected_calls"),
+    [
+        pytest.param([], [("a", None), ("a", "t")], True, True, [], id="dag-not-loaded"),
+        pytest.param(["a"], [("a", "missing")], True, True, [], id="task-not-loaded"),
+        pytest.param(["a"], [("a", None), ("b", None)], True, False, ["a"], id="one-of-two-dags-loaded"),
+        pytest.param([], [("a", None)], False, False, [], id="no-api-request-failed"),
+    ],
+)
+@conf_vars({("dag_processor", "use_execution_api"): "True"})
+@patch.object(_DagParseCommsDecoder, "send", autospec=True)
+def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
+    send, spy_agency, monkeypatch, loaded_dag_ids, targets, api_request_failed, exits, expected_calls
+):
+    calls: list[str] = []
+    with DAG(dag_id="a", on_failure_callback=lambda context: calls.append("a")) as dag_a:
+        BaseOperator(task_id="t", on_failure_callback=lambda context: calls.append("a.t"))
+    dag_b = DAG(dag_id="b", on_failure_callback=lambda context: calls.append("b"))
+    dags = {"a": dag_a, "b": dag_b}
+
+    def fake_collect_dags(self, *args, **kwargs):
+        for dag_id in loaded_dag_ids:
+            self.dags[dag_id] = dags[dag_id]
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+    comms_decoder = _DagParseCommsDecoder(socket=MagicMock(spec=socket))
+    comms_decoder._received_api_error = api_request_failed
+    monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms_decoder, raising=False)
+    msg = DagFileParseRequest(
+        file="A",
+        bundle_path="test",
+        bundle_name="testing",
+        callback_requests=[_make_callback_request(dag_id, task_id) for dag_id, task_id in targets],
+    )
+
+    if exits:
+        with pytest.raises(SystemExit) as exit_info:
+            _parse_file(msg, log=structlog.get_logger())
+        assert exit_info.value.code == _CALLBACK_TARGETS_MISSING_EXIT_CODE
+    else:
+        assert _parse_file(msg, log=structlog.get_logger()) is None
+    assert calls == expected_calls
+    if expected_calls:
+        send.assert_called_once_with(comms_decoder, DagCallbacksStarted())
+    else:
+        send.assert_not_called()
+
+
+@pytest.mark.parametrize("acknowledged", [False, True])
+@conf_vars({("dag_processor", "use_execution_api"): "True"})
+@patch("airflow.dag_processing.processor._execute_callbacks", autospec=True)
+@patch("airflow.dag_processing.processor.BundleDagBag", autospec=True)
+def test_callbacks_wait_for_start_acknowledgment(dagbag, execute, monkeypatch, acknowledged):
+    dagbag.return_value.dags = {"a": DAG("a")}
+    request = DagFileParseRequest(
+        file="A",
+        bundle_path="test",
+        bundle_name="testing",
+        callback_requests=[_make_callback_request("a", None)],
+    )
+    child, parent = socketpair()
+    with child, parent, ThreadPoolExecutor(max_workers=1) as executor:
+        child.settimeout(2)
+        parent.settimeout(2)
+        decoder = _DagParseCommsDecoder(
+            socket=child, body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor)
+        )
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", decoder, raising=False)
+        result = executor.submit(_parse_file, request, structlog.get_logger())
+        try:
+            assert b"DagCallbacksStarted" in parent.recv(4096)
+            execute.assert_not_called()
+            parent.sendall(
+                comms._ResponseFrame(
+                    id=0,
+                    body=comms.OKResponse(ok=True).model_dump() if acknowledged else None,
+                    error=None
+                    if acknowledged
+                    else comms.ErrorResponse(error=ErrorType.GENERIC_ERROR).model_dump(),
+                ).as_bytes()
+            )
+            if acknowledged:
+                assert result.result(timeout=2) is None
+                execute.assert_called_once_with(dagbag.return_value, request.callback_requests, ANY)
+            else:
+                with pytest.raises(AirflowRuntimeError):
+                    result.result(timeout=2)
+                execute.assert_not_called()
+        finally:
+            # CommsDecoder uses blocking reads, including when an assertion above fails before the response.
+            parent.shutdown(SHUT_RDWR)
+
+
+@pytest.mark.parametrize(
+    "send",
+    [
+        pytest.param(lambda comms_decoder, msg: comms_decoder.send(msg), id="send"),
+        pytest.param(lambda comms_decoder, msg: asyncio.run(comms_decoder.asend(msg)), id="asend"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("error", "api_request_failed"),
+    [
+        pytest.param(ErrorType.API_SERVER_ERROR, True, id="api-request-failed"),
+        pytest.param(ErrorType.GENERIC_ERROR, False, id="unhandled-request"),
+    ],
+)
+def test_comms_decoder_records_only_failed_api_requests(send, error, api_request_failed):
+    reader, writer = socketpair()
+    with reader, writer:
+        writer.sendall(
+            comms._ResponseFrame(id=0, error=comms.ErrorResponse(error=error).model_dump()).as_bytes()
+        )
+        comms_decoder = _DagParseCommsDecoder(
+            socket=reader, body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor)
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            send(comms_decoder, GetVariable(key="key"))
+
+        assert comms_decoder.api_request_failed is api_request_failed
+        writer.sendall(comms._ResponseFrame(id=1).as_bytes())
+        send(comms_decoder, GetVariable(key="other"))
+
+    assert comms_decoder.api_request_failed is api_request_failed
+
+
+@pytest.mark.parametrize(
+    "send",
+    [lambda decoder, msg: decoder.send(msg), lambda decoder, msg: asyncio.run(decoder.asend(msg))],
+    ids=["send", "asend"],
+)
+@patch.object(_DagParseCommsDecoder, "_read_frame", autospec=True, side_effect=TimeoutError("interrupted"))
+def test_comms_decoder_retains_unanswered_request_after_interruption(read_frame, send):
+    reader, writer = socketpair()
+    with reader, writer:
+        decoder = _DagParseCommsDecoder(socket=reader)
+        with pytest.raises(TimeoutError, match="interrupted"):
+            send(decoder, GetVariable(key="key"))
+        assert decoder.api_request_failed
+        other = decoder._make_frame(GetVariable(key="other"))
+        decoder._from_frame(comms._ResponseFrame(id=other.id))
+        assert decoder.api_request_failed
+        decoder._from_frame(comms._ResponseFrame(id=other.id - 1))
+        assert not decoder.api_request_failed
+
+
+@pytest.mark.parametrize("api_mode", [True, False])
+def test_callback_import_timeout_with_unanswered_api_request_requests_redelivery(
+    tmp_path, monkeypatch, configure_testing_dag_bundle, api_mode
+):
+    dag_file = tmp_path / "blocked_variable.py"
+    dag_file.write_text(
+        "from airflow.sdk import DAG, Variable\n"
+        "value = Variable.get('blocked_variable')\n"
+        "dag = DAG('blocked_variable', on_failure_callback=lambda context: None)\n"
+    )
+    request = DagFileParseRequest(
+        file=str(dag_file),
+        bundle_path=str(tmp_path),
+        bundle_name="testing",
+        callback_requests=[
+            DagCallbackRequest(
+                filepath=dag_file.name,
+                bundle_name="testing",
+                bundle_version=None,
+                dag_id="blocked_variable",
+                run_id="run",
+            )
+        ],
+    )
+    child, parent = socketpair()
+    with (
+        child,
+        parent,
+        configure_testing_dag_bundle(tmp_path),
+        conf_vars(
+            {
+                ("core", "dagbag_import_timeout"): "0.1",
+                ("core", "load_examples"): "False",
+                ("dag_processor", "use_execution_api"): str(api_mode),
+            }
+        ),
+    ):
+        decoder = _DagParseCommsDecoder(socket=child)
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", decoder, raising=False)
+        if api_mode:
+            with pytest.raises(SystemExit) as exit_info:
+                _parse_file(request, log=structlog.get_logger())
+            assert exit_info.value.code == _CALLBACK_TARGETS_MISSING_EXIT_CODE
+        else:
+            assert _parse_file(request, log=structlog.get_logger()) is None
+        parent.settimeout(1)
+        assert b"blocked_variable" in parent.recv(4096)
 
 
 @conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
@@ -2451,7 +2727,7 @@ class TestDagFileProcessorProcess:
         "message_type",
         sorted(
             set(typing.get_args(typing.get_args(ToManager)[0]))
-            - {DagFileParsingResult, comms.GetPrevSuccessfulDagRun},
+            - {DagCallbacksStarted, DagFileParsingResult, comms.GetPrevSuccessfulDagRun},
             key=str,
         ),
         ids=lambda message_type: message_type.__name__,
@@ -2517,6 +2793,26 @@ class TestDagFileProcessorProcess:
 
         assert proc.parsing_result is result
         send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_callback_start_is_recorded_before_acknowledgment(self, send_msg, proc, tmp_path):
+        assert not proc.callbacks_started
+
+        def acknowledge(processor, message, **kwargs):
+            assert processor.callbacks_started
+
+        send_msg.side_effect = acknowledge
+        with DagProcessorAPIClient(
+            base_url="http://unused/", token_file=tmp_path / "missing-token", hostname="processor-1"
+        ) as client:
+            proc.client = client
+            message = TypeAdapter[ToManager](ToManager).validate_json('{"type":"DagCallbacksStarted"}')
+            proc._handle_request(message, structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(proc, comms.OKResponse(ok=True), request_id=42, error=None)
+        assert proc.callbacks_started
+        assert client.job_id is None
+        assert proc._api_parse_context is None
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
     def test_previous_successful_run_is_answered_locally(self, send_msg, proc):
@@ -2818,10 +3114,27 @@ class TestBaseDagFileProcessorProcess:
 class TestMultiTeamCallbackMetrics:
     """Tests for team_name tag on dag.callback_exceptions in multi-team mode."""
 
-    @conf_vars({("core", "multi_team"): "true"})
-    @patch("airflow.dag_processing.processor.DagModel.get_team_name", return_value="team_alpha")
-    @patch("airflow.dag_processing.processor.stats.incr")
-    def test_callback_exception_includes_team_name(self, mock_incr, mock_get_team_name, spy_agency):
+    @pytest.mark.parametrize("api_mode", [False, True], ids=["database", "api"])
+    @conf_vars(
+        {
+            ("core", "multi_team"): "true",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [
+                    {
+                        "name": "testing",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {},
+                        "team_name": "configured_team",
+                    }
+                ]
+            ),
+        }
+    )
+    @patch(
+        "airflow.dag_processing.processor.DagModel.get_team_name", autospec=True, return_value="team_alpha"
+    )
+    @patch("airflow.dag_processing.processor.stats.incr", autospec=True)
+    def test_callback_exception_includes_team_name(self, mock_incr, mock_get_team_name, spy_agency, api_mode):
         def failing_callback(context):
             raise RuntimeError("boom")
 
@@ -2846,11 +3159,18 @@ class TestMultiTeamCallbackMetrics:
         )
 
         log = structlog.get_logger()
-        _execute_dag_callbacks(dagbag, request, log)
+        if api_mode:
+            mock_get_team_name.side_effect = AssertionError("API mode must not query the metadata database")
+        with conf_vars({("dag_processor", "use_execution_api"): str(api_mode)}):
+            _execute_dag_callbacks(dagbag, request, log)
 
+        if api_mode:
+            mock_get_team_name.assert_not_called()
+        else:
+            mock_get_team_name.assert_called_once_with("test_dag")
         mock_incr.assert_called_once_with(
             "dag.callback_exceptions",
-            tags={"dag_id": "test_dag", "team_name": "team_alpha"},
+            tags={"dag_id": "test_dag", "team_name": "configured_team" if api_mode else "team_alpha"},
         )
 
     @conf_vars({("core", "multi_team"): "false"})
@@ -2890,3 +3210,19 @@ class TestMultiTeamCallbackMetrics:
             "dag.callback_exceptions",
             tags={"dag_id": "test_dag"},
         )
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "exited_cleanly"),
+    [
+        pytest.param(None, False, id="running"),
+        pytest.param(0, True, id="clean_exit"),
+        pytest.param(1, False, id="failed"),
+        pytest.param(-signal.SIGTERM, False, id="stopped_by_signal"),
+    ],
+)
+def test_exited_cleanly_requires_a_zero_exit_status(exit_code, exited_cleanly):
+    process = MagicMock(spec=BaseDagFileProcessorProcess)
+    process._check_subprocess_exit.return_value = exit_code
+
+    assert BaseDagFileProcessorProcess.exited_cleanly.fget(process) is exited_cleanly
