@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from enum import Enum
@@ -530,10 +531,6 @@ def get_provider_yaml(provider_id: str) -> Path:
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     toml_content = pyproject_toml_file_path.read_text()
     syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
     try:
@@ -615,7 +612,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.10"
+    python_requires = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}.*"

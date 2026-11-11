@@ -90,9 +90,11 @@ from airflow_breeze.global_constants import (
     ALL_TEST_TYPE,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
+    PROVIDER_TEST_SPLITS,
     TESTCONTAINERS_IMAGES_BY_PROVIDER,
     GroupOfTests,
     all_selective_core_test_types,
+    get_provider_split_test_types,
     providers_test_type,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -127,6 +129,8 @@ from airflow_breeze.utils.run_tests import (
     are_all_test_paths_excluded,
     file_name_from_test_type,
     generate_args_for_pytest,
+    get_selected_test_paths,
+    is_path_under_any,
     is_provider_selected_in_test_types,
     run_docker_compose_tests,
 )
@@ -202,6 +206,8 @@ TEST_PROGRESS_REGEXP = (
     r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|airflow-ctl/tests/.*|.*=====.*"
 )
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
+# pytest.ExitCode.NO_TESTS_COLLECTED - spelled out so that breeze does not have to import pytest
+PYTEST_NO_TESTS_COLLECTED_EXIT_CODE = 5
 
 
 def _run_test(
@@ -268,13 +274,21 @@ def _run_test(
         integration=shell_params.integration,
     )
     pytest_args.extend(extra_pytest_args)
-    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
-    # Which might be the case if we are ignoring some providers during compatibility checks
-    pytest_args_before_skip = pytest_args
-    pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
-    # If no test directory is left (all positional args were excluded/ignored), skip
-    if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
+    # Drop the test paths the test type selects under an "--ignore=FOLDER" argument, which is the case when
+    # some providers are skipped during compatibility checks: pytest runs an explicitly selected path even
+    # when it or an ancestor is ignored. Paths the user passes explicitly go to pytest as they are.
+    ignored_folders = [arg.removeprefix("--ignore=") for arg in pytest_args if arg.startswith("--ignore=")]
+    selected_paths = get_selected_test_paths(
+        test_group=shell_params.test_group,
+        test_type=shell_params.test_type,
+        skip_db_tests=shell_params.skip_db_tests,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        integration=shell_params.integration,
+    )
+    ignored_selections = {path for path in selected_paths if is_path_under_any(path, ignored_folders)}
+    if selected_paths and ignored_selections == set(selected_paths):
         return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
+    pytest_args = [arg for arg in pytest_args if arg not in ignored_selections]
     run_cmd.extend(pytest_args)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
@@ -291,6 +305,14 @@ def _run_test(
             output_outside_the_group=output_outside_the_group,
             env=env,
         )
+        if shell_params.run_db_tests_only and result.returncode == PYTEST_NO_TESTS_COLLECTED_EXIT_CODE:
+            # --run-db-tests-only deselects non-DB tests at collection time, so a test type without DB
+            # tests collects nothing. This must be decided here, per test type: the parallel run turns
+            # any non-zero code into exit code 1, which looks the same as a failing test.
+            get_console(output=output).print(
+                f"[info]No DB tests collected for {shell_params.test_type}. Nothing to run.[/]"
+            )
+            return 0, f"No DB tests collected: {shell_params.test_type}"
         if result.returncode != 0:
             notify_on_unhealthy_backend_container(
                 project_name=compose_project_name, backend=shell_params.backend, output=output
@@ -381,6 +403,11 @@ def _run_tests_in_pool(
     # tests are still running. We are only adding here test types that take more than 2 minutes to run
     # on a fast machine in parallel
     sorting_order = [
+        *(
+            test_type
+            for provider_id in PROVIDER_TEST_SPLITS
+            for test_type in get_provider_split_test_types(provider_id)
+        ),
         "Providers[standard]",
         "Providers[amazon]",
         "Providers[google]",
@@ -1525,6 +1552,7 @@ option_e2e_test_mode = click.option(
             "go_sdk",
             "openlineage",
             "ts_sdk",
+            "yaml_dag",
         ],
         case_sensitive=False,
     ),

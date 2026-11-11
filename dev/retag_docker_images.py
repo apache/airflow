@@ -32,7 +32,7 @@ import subprocess
 
 import rich_click as click
 
-PYTHON_VERSIONS = ["3.10", "3.11", "3.12"]
+PYTHON_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 
 GHCR_IO_PREFIX = "ghcr.io"
 

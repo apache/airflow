@@ -35,7 +35,8 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 
-import { ErrorPage } from "./Error";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { loadRouteModule, reloadAfterFailedRouteModuleLoad } from "src/utils/routeModule";
 
 export type PluginProps = {
   asset?: AssetResponse;
@@ -52,19 +53,29 @@ export type PluginProps = {
 
 type PluginComponentType = FC<PluginProps>;
 
+const loadPluginDependencies = async () => {
+  const { registerPluginDependencies } = await import("src/utils/registerPluginDependencies");
+
+  registerPluginDependencies();
+};
+
 export const loadPlugin = (
   reactApp: ReactAppResponse,
   importBundle: (url: string) => Promise<unknown> = (url) => import(/* @vite-ignore */ url),
+  loadDependencies: () => Promise<void> = loadPluginDependencies,
 ): Promise<{ default: PluginComponentType }> => {
   (globalThis as Record<string, unknown>).AirflowPlugin = undefined;
 
   // We are assuming the plugin manager is trusted and the bundle_url is safe
-  return importBundle(new URL(reactApp.bundle_url, document.baseURI).href)
+  return loadRouteModule(() =>
+    loadDependencies().then(() => importBundle(new URL(reactApp.bundle_url, document.baseURI).href)),
+  )
     .then(() => {
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
       let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
-        PluginComponentType | undefined;
+        | PluginComponentType
+        | undefined;
 
       if (pluginComponent === undefined) {
         pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;
@@ -79,15 +90,21 @@ export const loadPlugin = (
       return { default: pluginComponent };
     })
     .catch((error: unknown) => {
+      reloadAfterFailedRouteModuleLoad();
+
       // eslint-disable-next-line no-console
       console.error("Component failed to load:", error);
 
-      return { default: ErrorPage };
+      // A plugin that will not load is a deployment problem, not this page's. Rendering an error
+      // page in its slot would bury whatever the user actually came for, so the slot stays empty
+      // and the console carries the reason.
+      return { default: () => null };
     });
 };
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { assetId, dagId, mapIndex, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
 
   // Context objects are not part of the route, so resolve them from the query cache. Each query
   // is gated on the route params it needs, so it stays disabled where those params are absent
@@ -111,6 +128,7 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     {
+      ...coordinates,
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
       mapIndex: mapIndex === undefined ? -1 : parseInt(mapIndex, 10),
@@ -146,9 +164,11 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
   // under globalThis[reactApp.name], which we then use as the default export.
   const LazyPlugin = lazy(() => loadPlugin(reactApp));
+  // A base plugin sits above every page, so a spinner there shows on every full page load.
+  const fallback = reactApp.destination === "base" ? null : <Spinner />;
 
   return (
-    <Suspense fallback={<Spinner />}>
+    <Suspense fallback={fallback}>
       <LazyPlugin {...pluginProps} />
     </Suspense>
   );

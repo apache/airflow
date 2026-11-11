@@ -40,6 +40,9 @@ class WorkerApiDocs:
         description="For dynamically mapped tasks the mapping number, -1 if the task is not mapped.",
     )
     state = Path(title="Task State", description="State of the assigned task under execution.")
+    task_instance_id_description = (
+        "Attempt UUID of the job; tells apart task instances that share the other key fields."
+    )
 
 
 class EdgeJobBase(BaseModel):
@@ -178,6 +181,10 @@ class PushLogsBody(BaseModel):
 
     log_chunk_time: Annotated[datetime, Field(description="Time of the log chunk at point of sending.")]
     log_chunk_data: Annotated[str, Field(description="Log chunk data as incremental log text.")]
+    task_instance_id: Annotated[
+        UUID | None,
+        Field(description=WorkerApiDocs.task_instance_id_description),
+    ] = None
 
 
 class WorkerRegistrationReturn(BaseModel):

@@ -220,7 +220,7 @@ Copy    → "Αντιγραφή"
 **DO:**
 
 - Use formal Greek ("εσείς/σας" form) throughout
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{type}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{type}}`, etc.
 - Apply correct Greek genitive case for "of X" constructions
 - Provide `_one` and `_other` suffixes for every plural key
 - Translate "Asset" as "Οντότητα" (Greek-specific — not kept in English)

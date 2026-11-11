@@ -25,8 +25,9 @@ import (
 	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
-// IfRef is a condition that [DagRef.If] added to a Dag. [IfRef.Then] names the task that runs
-// when the condition is true, and [IfRef.Else] names the task that runs when it is false.
+// IfRef is a condition that [DagRef.If] or [TaskGroupRef.If] added to a Dag. [IfRef.Then] names
+// the task that runs when the condition is true, and [IfRef.Else] names the task that runs when it
+// is false.
 type IfRef struct {
 	// task is the task that runs the condition function. thenTask and elseTask run after task,
 	// but neither takes the result of task.
@@ -62,7 +63,7 @@ type IfRef struct {
 // When the task runs, the result of fn decides what it skips:
 //   - true skips the task from Else, or nothing if there is no task from Else
 //   - false skips the task from Then
-//   - an error fails the task, which then skips nothing
+//   - an error fails the task, which then pushes no XCom and skips nothing
 //
 // A task from Then or Else runs after the condition, so naming it records an edge from the
 // condition to it, as [TaskRef.Before] would. Declaring that edge as well changes nothing.
@@ -78,15 +79,21 @@ type IfRef struct {
 // If panics for the same reasons as DagRef.Task does for a Go function. It also panics if fn
 // comes from [TriggerDagRun] or does not return (bool, error).
 func (d *DagRef) If(fn any, opts ...TaskOption) *IfRef {
+	return d.addIf("airflow.DagRef.If", nil, fn, opts)
+}
+
+// addIf adds a condition for DagRef.If and TaskGroupRef.If. group is the task group that the
+// condition is added through, and nil for DagRef.If.
+func (d *DagRef) addIf(method string, group *TaskGroupRef, fn any, opts []TaskOption) *IfRef {
 	if _, ok := fn.(TriggerDagRunTask); ok {
 		panic(fmt.Sprintf(
-			"airflow.DagRef.If: Dag %q: fn comes from airflow.TriggerDagRun, "+
+			"%s: Dag %q: fn comes from airflow.TriggerDagRun, "+
 				"but a condition function is a Go function that returns (bool, error)",
-			d.dagID,
+			method, d.dagID,
 		))
 	}
 	ifRef := &IfRef{}
-	d.addTask("airflow.DagRef.If", fn, opts, ifRef)
+	d.addTask(method, group, fn, opts, ifRef)
 	return ifRef
 }
 
@@ -100,8 +107,9 @@ func (d *DagRef) If(fn any, opts ...TaskOption) *IfRef {
 // condition as a parameter.
 //
 // Then panics if:
-//   - g is not the IfRef that DagRef.If returned, for example a copy of that IfRef
-//   - task is nil, or DagRef.Task did not add task to the Dag of the condition
+//   - g is not the IfRef that DagRef.If or TaskGroupRef.If returned, for example a copy of it
+//   - task is nil, or neither DagRef.Task nor TaskGroupRef.Task added task to the Dag of the
+//     condition
 //   - the condition already has a task from Then
 //   - task is the task from Else
 //   - the Dag is already registered
@@ -124,8 +132,8 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 	method := "airflow.IfRef." + side
 	// When the condition task runs, it reads the tasks from Then and Else from the IfRef that If
 	// returned. A task given to a copy of that IfRef would never reach the condition task.
-	if g == nil || g.task == nil || g.task.ifRef != g {
-		panic(method + ": DagRef.If did not return the *airflow.IfRef")
+	if g == nil || g.task == nil || g.task.decider != g {
+		panic(method + ": DagRef.If or TaskGroupRef.If did not return the *airflow.IfRef")
 	}
 	condition, d := g.task.taskID, g.task.dag
 	d.mu.Lock()
@@ -152,7 +160,8 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 	// A zero TaskRef and a copy of a TaskRef get here.
 	case d.tasksByID[task.taskID] != task:
 		panic(fmt.Sprintf(
-			"%s: condition %q of Dag %q got a *airflow.TaskRef that DagRef.Task did not return",
+			"%s: condition %q of Dag %q got a *airflow.TaskRef that DagRef.Task or "+
+				"TaskGroupRef.Task did not return",
 			method, condition, d.dagID,
 		))
 	}
@@ -181,13 +190,10 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 	d.addEdgeLocked(g.task, task, "")
 }
 
-// wrapCondition wraps fn as the task of g. The task skips the side of g that the result of fn
-// does not take.
-func (g *IfRef) wrapCondition(fn any) (bundle.Task, error) {
+// wrap wraps fn as the task of g. The task skips the side of g that the result of fn does not
+// take.
+func (g *IfRef) wrap(fn any) (bundle.Task, error) {
 	fnType := reflect.TypeOf(fn)
-	// DagRef.Task also takes a function whose last result has a concrete type that implements
-	// error. A nil value of that type becomes a non-nil error when the runtime reads it, so the
-	// condition task would always fail.
 	if fnType.NumOut() != 2 ||
 		fnType.Out(0) != reflect.TypeFor[bool]() ||
 		fnType.Out(1) != reflect.TypeFor[error]() {
@@ -196,20 +202,22 @@ func (g *IfRef) wrapCondition(fn any) (bundle.Task, error) {
 			funcName(fn), describeResults(fnType),
 		)
 	}
-	return bundle.NewPositionalBranchFunction(fn, g.findSkipped)
+	return bundle.NewPositionalBranchFunction(fn, g.decide)
 }
 
-// findSkipped returns the task_id of the task on the side of g that result does not take. It
-// returns nil when that side has no task.
-func (g *IfRef) findSkipped(result any) []string {
+func (g *IfRef) bind(task *TaskRef) { g.task = task }
+
+// decide returns result as the value to push. It also returns the task_id of the task on the side
+// of g that result does not take, when that side has a task.
+func (g *IfRef) decide(result any) (any, []string, error) {
 	notTaken := g.thenTask
 	if result.(bool) {
 		notTaken = g.elseTask
 	}
 	if notTaken == nil {
-		return nil
+		return result, nil, nil
 	}
-	return []string{notTaken.taskID}
+	return result, []string{notTaken.taskID}, nil
 }
 
 func describeResults(fnType reflect.Type) string {

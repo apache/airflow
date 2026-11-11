@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Any, overload
 
@@ -29,29 +30,54 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
 
+def _drain_result_sets(cursor) -> None:
+    """
+    Consume all remaining rows and result sets of the cursor.
+
+    vertica-python streams results: an error raised by a statement other than the first one in a
+    multi-statement query is only reported once the client reads up to it. ``nextset()`` alone is
+    not enough: it skips the rest of the current result set, including an error that arrives after
+    the set has started returning rows (e.g. ``SELECT a/b FROM t`` failing on its second row), and
+    on vertica-python < 1.3.5 skipping can hang instead. So every result set is read row by row
+    with ``fetchone()``, which raises on such an error, before moving to the next one.
+
+    ``nextset()`` also overwrites ``cursor.description`` with the columns of each next result set,
+    while ``DbApiHook.run`` reads it after the handler returns. The description of the result set
+    the handler consumed is restored, so that ``hook.descriptions`` matches the returned rows.
+
+    See https://github.com/apache/airflow/issues/32993 and
+    https://github.com/vertica/vertica-python/issues/197.
+    """
+    description = cursor.description
+    while True:
+        while cursor.fetchone() is not None:
+            pass
+        if not cursor.nextset():
+            break
+    cursor.description = description
+
+
+def _with_result_set_drain(handler: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    """Wrap a cursor handler so that all result sets are consumed after the handler has run."""
+
+    @functools.wraps(handler)
+    def wrapper(cursor):
+        result = handler(cursor)
+        _drain_result_sets(cursor)
+        return result
+
+    return wrapper
+
+
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     """
-    Replace the default DbApiHook fetch_all_handler in order to fix this issue https://github.com/apache/airflow/issues/32993.
+    Return all rows of the current result set, then consume the remaining result sets.
 
-    Returned value will not change after the initial call of fetch_all_handler, all the remaining code is here
-    only to make vertica client throws error.
-    With Vertica, if you run the following sql (with split_statements set to false):
-
-    INSERT INTO MyTable (Key, Label) values (1, 'test 1');
-    INSERT INTO MyTable (Key, Label) values (1, 'test 2');
-    INSERT INTO MyTable (Key, Label) values (3, 'test 3');
-
-    each insert will have its own result set and if you don't try to fetch data of those result sets
-    you won't detect error on the second insert.
+    Kept for backward compatibility: ``VerticaHook.run`` now drains the result sets for every
+    handler, so passing ``fetch_all_handler`` is enough. See https://github.com/apache/airflow/issues/32993.
     """
     result = fetch_all_handler(cursor)
-    # loop on all statement result sets to get errors
-    if cursor.description is not None:
-        while cursor.nextset():
-            if cursor.description is not None:
-                row = cursor.fetchone()
-                while row:
-                    row = cursor.fetchone()
+    _drain_result_sets(cursor)
     return result
 
 
@@ -59,7 +85,8 @@ class VerticaHook(DbApiHook):
     """
     Interact with Vertica.
 
-    This hook use a customized version of default fetch_all_handler named vertica_fetch_all_handler.
+    ``run`` consumes all rows and result sets after each executed statement, whatever the handler is,
+    so that an error raised by any statement of a multi-statement query is not silently ignored.
     """
 
     conn_name_attr = "vertica_conn_id"
@@ -205,8 +232,18 @@ class VerticaHook(DbApiHook):
         """
         Overwrite the common sql run.
 
-        Will automatically replace fetch_all_handler by vertica_fetch_all_handler.
+        vertica-python only reports an error raised by a statement once its result set is reached, so
+        every result set is consumed after each executed statement, whatever the handler is (including
+        when no handler is passed). Otherwise a failing statement in a multi-statement query could be
+        silently ignored.
         """
-        if handler == fetch_all_handler:
-            handler = vertica_fetch_all_handler
-        return DbApiHook.run(self, sql, autocommit, parameters, handler, split_statements, return_last)
+        if handler is None:
+            DbApiHook.run(
+                self, sql, autocommit, parameters, _drain_result_sets, split_statements, return_last
+            )
+            # Without a handler, DbApiHook.run does not collect descriptions; keep that behaviour.
+            self.descriptions = []
+            return None
+        return DbApiHook.run(
+            self, sql, autocommit, parameters, _with_result_set_drain(handler), split_statements, return_last
+        )

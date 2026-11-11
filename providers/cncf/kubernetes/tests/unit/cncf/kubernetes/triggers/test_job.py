@@ -84,8 +84,10 @@ class TestKubernetesJobTrigger:
         }
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("poll_interval", [0.5, 60])
     @mock.patch(f"{TRIGGER_CLASS}.hook")
-    async def test_run_success(self, mock_hook, trigger):
+    async def test_run_success(self, mock_hook, trigger, poll_interval):
+        trigger.poll_interval = poll_interval
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
@@ -103,7 +105,9 @@ class TestKubernetesJobTrigger:
 
         event_actual = await trigger.run().asend(None)
 
-        mock_hook.wait_until_job_complete.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
+        mock_hook.wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=poll_interval
+        )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
         assert event_actual == TriggerEvent(
@@ -174,7 +178,9 @@ class TestKubernetesJobTrigger:
 
         event_actual = await trigger.run().asend(None)
 
-        mock_hook.wait_until_job_complete.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
+        mock_hook.wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL
+        )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
         assert event_actual == TriggerEvent(
@@ -205,3 +211,10 @@ class TestKubernetesJobTrigger:
             cluster_context=CLUSTER_CONTEXT,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{HOOK_PATH}.close", autospec=True)
+    async def test_cleanup_closes_hook(self, mock_close, trigger):
+        await trigger.cleanup()
+
+        mock_close.assert_awaited_once_with(trigger.hook)

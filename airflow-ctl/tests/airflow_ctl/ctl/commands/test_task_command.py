@@ -23,21 +23,26 @@ from unittest import mock
 import httpx
 import pytest
 
+from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
+    StructuredLogMessage,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
     TaskInstanceState,
 )
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import task_command
 
+MAPPED_TASK_DETAIL = "Task instance is mapped, add the map_index value to the URL"
 
-def _make_server_error(status_code: int) -> ServerResponseError:
+
+def _make_server_error(status_code: int, detail: str = "boom") -> ServerResponseError:
     request = httpx.Request("GET", "http://testserver/api/v2/dags/test_dag/dagRuns/test_run")
-    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    response = httpx.Response(status_code, request=request, json={"detail": detail})
     return ServerResponseError(message="boom", request=request, response=response)
 
 
@@ -50,7 +55,7 @@ class TestFailedDeps:
     dag_id = "test_dag"
     run_id = "test_run"
     task_id = "test_task"
-    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
     def _make_task_instance(self, state: TaskInstanceState | None) -> TaskInstanceResponse:
         return TaskInstanceResponse(
@@ -59,6 +64,7 @@ class TestFailedDeps:
             dag_id=self.dag_id,
             dag_run_id=self.run_id,
             map_index=-1,
+            in_loop=False,
             logical_date=self.logical_date,
             run_after=self.logical_date,
             state=state,
@@ -309,19 +315,30 @@ class TestFailedDeps:
         )
 
     @pytest.mark.parametrize(
-        ("extra_args", "expected_message"),
+        ("extra_args", "detail", "expected_message"),
         [
-            ([], "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"),
+            (
+                [],
+                "boom",
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found",
+            ),
             (
                 ["--map-index", "3"],
+                "boom",
                 "Task instance for task 'test_task' with map index 3 in Dag run 'test_run' "
                 "of Dag 'test_dag' not found",
             ),
+            (
+                [],
+                MAPPED_TASK_DETAIL,
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found. "
+                "The task is mapped; pass --map-index to select one of its task instances",
+            ),
         ],
     )
-    def test_failed_deps_task_instance_not_found(self, extra_args, expected_message, capsys):
+    def test_failed_deps_task_instance_not_found(self, extra_args, detail, expected_message, capsys):
         api_client = self._make_api_client()
-        api_client.task_instances.get_dependencies.side_effect = _make_server_error(404)
+        api_client.task_instances.get_dependencies.side_effect = _make_server_error(404, detail)
 
         with pytest.raises(SystemExit, match="1"):
             task_command.failed_deps(
@@ -391,7 +408,7 @@ class TestStatesForDagRun:
     parser = cli_parser.get_parser()
     dag_id = "test_dag"
     run_id = "test_run"
-    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
     def _make_task_instance(
         self,
@@ -408,6 +425,7 @@ class TestStatesForDagRun:
             dag_id=self.dag_id,
             dag_run_id=self.run_id,
             map_index=map_index,
+            in_loop=False,
             logical_date=self.logical_date,
             run_after=self.logical_date,
             state=state,
@@ -449,8 +467,8 @@ class TestStatesForDagRun:
 
     @mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole")
     def test_states_for_dag_run_by_run_id(self, mock_console_cls):
-        start_date = datetime.datetime(2025, 1, 1, 1, tzinfo=datetime.timezone.utc)
-        end_date = datetime.datetime(2025, 1, 1, 2, tzinfo=datetime.timezone.utc)
+        start_date = datetime.datetime(2025, 1, 1, 1, tzinfo=datetime.UTC)
+        end_date = datetime.datetime(2025, 1, 1, 2, tzinfo=datetime.UTC)
         api_client = self._make_api_client(
             [
                 self._make_task_instance("task_a", start_date=start_date, end_date=end_date),
@@ -487,6 +505,20 @@ class TestStatesForDagRun:
             ],
             output="json",
         )
+
+    def test_states_for_dag_run_not_found_prints_ids_containing_markup(self, capsys):
+        api_client = mock.MagicMock(spec=Client)
+        api_client.task_instances.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.states_for_dag_run(
+                self.parser.parse_args(["tasks", "states-for-dag-run", "my_dag[/y]", "run_[/x]"]),
+                api_client=api_client,
+            )
+
+        output = capsys.readouterr().out
+        assert "run_[/x]" in output
+        assert "my_dag[/y]" in output
 
     @mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole")
     def test_states_for_dag_run_by_logical_date(self, mock_console_cls):
@@ -643,3 +675,406 @@ class TestStatesForDagRun:
             task_command.states_for_dag_run(self.parser.parse_args(argv), api_client=api_client)
 
         assert ctx.value is error
+
+
+class TestState:
+    parser = cli_parser.get_parser()
+    dag_id = "test_dag"
+    run_id = "test_run"
+    task_id = "test_task"
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
+
+    def _make_task_instance(self, state: TaskInstanceState | None) -> TaskInstanceResponse:
+        return TaskInstanceResponse(
+            id=uuid.uuid4(),
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            map_index=-1,
+            in_loop=False,
+            logical_date=self.logical_date,
+            run_after=self.logical_date,
+            state=state,
+            start_date=None,
+            end_date=None,
+            try_number=1,
+            max_tries=0,
+            task_display_name=self.task_id,
+            dag_display_name=self.dag_id,
+            pool="default_pool",
+            pool_slots=1,
+            executor_config="{}",
+            duration=None,
+            hostname=None,
+            unixname=None,
+            queue=None,
+            priority_weight=None,
+            operator=None,
+            operator_name=None,
+            queued_when=None,
+            scheduled_when=None,
+            pid=None,
+            executor=None,
+            note=None,
+            rendered_map_index=None,
+            trigger=None,
+            triggerer_job=None,
+            dag_version=None,
+        )
+
+    def _make_api_client(self, state: TaskInstanceState | None = TaskInstanceState.SUCCESS) -> mock.MagicMock:
+        api_client = mock.MagicMock()
+        api_client.dag_runs.list.return_value.dag_runs = [mock.MagicMock(dag_run_id=self.run_id)]
+        api_client.task_instances.get.return_value = self._make_task_instance(state=state)
+        return api_client
+
+    def test_state_by_run_id(self, capsys):
+        api_client = self._make_api_client(state=TaskInstanceState.SUCCESS)
+
+        task_command.state(
+            self.parser.parse_args(["tasks", "state", self.dag_id, self.task_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        api_client.dag_runs.list.assert_not_called()
+        api_client.task_instances.get.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "success\n"
+
+    def test_state_by_logical_date(self, capsys):
+        api_client = self._make_api_client(state=TaskInstanceState.RUNNING)
+
+        task_command.state(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "state",
+                    self.dag_id,
+                    self.task_id,
+                    "--logical-date",
+                    self.logical_date.isoformat(),
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.dag_runs.list.assert_called_once_with(
+            dag_id=self.dag_id,
+            logical_date_gte=self.logical_date,
+            logical_date_lte=self.logical_date,
+            order_by="-id",
+            limit=1,
+            suppress_error_log=True,
+        )
+        api_client.task_instances.get.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "running\n"
+
+    def test_state_with_map_index(self, capsys):
+        api_client = self._make_api_client(state=TaskInstanceState.SUCCESS)
+
+        task_command.state(
+            self.parser.parse_args(
+                ["tasks", "state", self.dag_id, self.task_id, self.run_id, "--map-index", "3"]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.get.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=3,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "success\n"
+
+    def test_state_prints_none_when_task_instance_has_no_state(self, capsys):
+        api_client = self._make_api_client(state=None)
+
+        task_command.state(
+            self.parser.parse_args(["tasks", "state", self.dag_id, self.task_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        assert capsys.readouterr().out == "None\n"
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [
+            [],
+            ["test_run", "--logical-date", "2025-01-01T00:00:00+00:00"],
+        ],
+        ids=["neither", "both"],
+    )
+    def test_state_requires_exactly_one_of_run_id_and_logical_date(self, extra_args, capsys):
+        api_client = self._make_api_client()
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.state(
+                self.parser.parse_args(["tasks", "state", self.dag_id, self.task_id, *extra_args]),
+                api_client=api_client,
+            )
+
+        api_client.task_instances.get.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Provide either run_id or --logical-date, but not both"
+        )
+
+    @pytest.mark.parametrize(
+        ("logical_date", "expected_message"),
+        [
+            ("not-a-date", "Invalid --logical-date: 'not-a-date'"),
+            ("2025-01-01T00:00:00", "--logical-date must include a timezone offset"),
+        ],
+        ids=["unparsable", "naive"],
+    )
+    def test_state_rejects_bad_logical_date(self, logical_date, expected_message, capsys):
+        api_client = self._make_api_client()
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.state(
+                self.parser.parse_args(
+                    ["tasks", "state", self.dag_id, self.task_id, "--logical-date", logical_date]
+                ),
+                api_client=api_client,
+            )
+
+        api_client.dag_runs.list.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == expected_message
+
+    @pytest.mark.parametrize("list_failure", ["no_matching_run", "dag_not_found_404"])
+    def test_state_dag_run_not_found_by_logical_date(self, list_failure, capsys):
+        api_client = self._make_api_client()
+        if list_failure == "no_matching_run":
+            api_client.dag_runs.list.return_value.dag_runs = []
+        else:
+            api_client.dag_runs.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.state(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "state",
+                        self.dag_id,
+                        self.task_id,
+                        "--logical-date",
+                        self.logical_date.isoformat(),
+                    ]
+                ),
+                api_client=api_client,
+            )
+
+        api_client.task_instances.get.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Dag run for test_dag with logical date '2025-01-01T00:00:00+00:00' not found"
+        )
+
+    @pytest.mark.parametrize(
+        ("extra_args", "detail", "expected_message"),
+        [
+            (
+                [],
+                "boom",
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found",
+            ),
+            (
+                ["--map-index", "3"],
+                "boom",
+                "Task instance for task 'test_task' with map index 3 in Dag run 'test_run' "
+                "of Dag 'test_dag' not found",
+            ),
+            (
+                [],
+                MAPPED_TASK_DETAIL,
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found. "
+                "The task is mapped; pass --map-index to select one of its task instances",
+            ),
+        ],
+    )
+    def test_state_task_instance_not_found(self, extra_args, detail, expected_message, capsys):
+        api_client = self._make_api_client()
+        api_client.task_instances.get.side_effect = _make_server_error(404, detail)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.state(
+                self.parser.parse_args(
+                    ["tasks", "state", self.dag_id, self.task_id, self.run_id, *extra_args]
+                ),
+                api_client=api_client,
+            )
+
+        assert _normalize_rich_output(capsys.readouterr().out) == expected_message
+
+    def test_state_reraises_non_404_error(self):
+        api_client = self._make_api_client()
+        api_client.task_instances.get.side_effect = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError):
+            task_command.state(
+                self.parser.parse_args(["tasks", "state", self.dag_id, self.task_id, self.run_id]),
+                api_client=api_client,
+            )
+
+
+class TestLogs:
+    parser = cli_parser.get_parser()
+    dag_id = "test_dag"
+    run_id = "test_run"
+    task_id = "test_task"
+
+    def _make_log_response(self, content: list[StructuredLogMessage] | list[str]) -> TaskInstancesLogResponse:
+        return TaskInstancesLogResponse(content=content, continuation_token=None)
+
+    def _make_structured_content(self) -> list[StructuredLogMessage]:
+        return [
+            StructuredLogMessage(
+                timestamp=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+                event="INFO - hello",
+            ),
+            StructuredLogMessage(
+                timestamp=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+                event="plain line",
+            ),
+        ]
+
+    def test_logs_with_try_number(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(self._make_structured_content())
+
+        task_command.logs(
+            self.parser.parse_args(
+                ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.logs.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            try_number=1,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "INFO - hello\nplain line\n"
+
+    def test_logs_requires_try_number(self, capsys):
+        with pytest.raises(SystemExit, match="2"):
+            self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id])
+        assert "--try-number" in capsys.readouterr().err
+
+    def test_logs_prints_plain_string_entries(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(["plain line"])
+
+        task_command.logs(
+            self.parser.parse_args(
+                ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+            ),
+            api_client=api_client,
+        )
+
+        assert capsys.readouterr().out == "plain line\n"
+
+    def test_logs_with_explicit_try_number_and_map_index(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(self._make_structured_content())
+
+        task_command.logs(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "logs",
+                    self.dag_id,
+                    self.run_id,
+                    self.task_id,
+                    "--try-number",
+                    "2",
+                    "--map-index",
+                    "3",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.logs.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            try_number=2,
+            map_index=3,
+            suppress_error_log=True,
+        )
+
+    def test_logs_task_instance_not_found(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.logs(
+                self.parser.parse_args(
+                    ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+                ),
+                api_client=api_client,
+            )
+
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"
+        )
+
+    def test_logs_reraises_non_404_error(self):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.side_effect = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError):
+            task_command.logs(
+                self.parser.parse_args(
+                    ["tasks", "logs", self.dag_id, self.run_id, self.task_id, "--try-number", "1"]
+                ),
+                api_client=api_client,
+            )
+
+
+@pytest.mark.parametrize(
+    ("command", "argv", "api_method"),
+    [
+        pytest.param(
+            task_command.failed_deps,
+            ["tasks", "failed-deps", "my_dag", "my_task[/x]", "my_run"],
+            "get_dependencies",
+            id="failed-deps",
+        ),
+        pytest.param(
+            task_command.state,
+            ["tasks", "state", "my_dag", "my_task[/x]", "my_run"],
+            "get",
+            id="state",
+        ),
+        pytest.param(
+            task_command.logs,
+            ["tasks", "logs", "my_dag", "my_run", "my_task[/x]", "--try-number", "1"],
+            "logs",
+            id="logs",
+        ),
+    ],
+)
+def test_task_instance_not_found_prints_task_id_containing_markup(command, argv, api_method, capsys):
+    api_client = mock.MagicMock(spec=Client)
+    getattr(api_client.task_instances, api_method).side_effect = _make_server_error(404)
+
+    with pytest.raises(SystemExit, match="1"):
+        command(cli_parser.get_parser().parse_args(argv), api_client=api_client)
+
+    assert "'my_task[/x]'" in _normalize_rich_output(capsys.readouterr().out)

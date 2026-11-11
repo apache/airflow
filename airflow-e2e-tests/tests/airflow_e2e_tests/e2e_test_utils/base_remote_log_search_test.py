@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -62,7 +62,7 @@ class BaseRemoteLoggingSearchTest:
 
         resp = self.airflow_client.trigger_dag(
             self.dag_id,
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+            json={"logical_date": datetime.now(UTC).isoformat()},
         )
         run_id = resp["dag_run_id"]
         state = self.airflow_client.wait_for_dag_run(
@@ -117,7 +117,7 @@ class BaseRemoteLoggingSearchTest:
         self.airflow_client.un_pause_dag(dag_id)
         resp = self.airflow_client.trigger_dag(
             dag_id,
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+            json={"logical_date": datetime.now(UTC).isoformat()},
         )
         run_id = resp["dag_run_id"]
         state = self.airflow_client.wait_for_dag_run(dag_id=dag_id, run_id=run_id)

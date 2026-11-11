@@ -91,7 +91,7 @@ The following terms **must remain in English unchanged** (case-sensitive):
 **DO:**
 
 - Use polite register for all user-facing labels.
-- Preserve all i18next placeholders: `{{count}}`, `{{dagId}}`.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagId}}`.
 - Follow the spacing rules strictly.
 
 **DON'T:**

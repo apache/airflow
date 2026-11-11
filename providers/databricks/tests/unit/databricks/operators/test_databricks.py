@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
-import warnings
+import json
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
@@ -41,7 +41,6 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, 
 from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
-    _DURABLE_UNSET,
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
@@ -49,7 +48,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
-    _warn_and_disable_durable_pre_3_3,
+    _is_run_missing_error,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -346,6 +345,39 @@ def make_run_with_state_mock(
             },
         }
     )
+
+
+def make_api_error(status_code: int, error_code: str, message: str) -> DatabricksApiError:
+    body = json.dumps({"error_code": error_code, "message": message})
+    return DatabricksApiError(
+        f"Response: {body}, Status Code: {status_code}",
+        http_status_code=status_code,
+        error_code=error_code,
+    )
+
+
+class TestIsRunMissingError:
+    @pytest.mark.parametrize(
+        ("status_code", "error_code", "message", "expected"),
+        [
+            (400, "INVALID_PARAMETER_VALUE", "Run 999 does not exist.", True),
+            (400, "INVALID_PARAMETER_VALUE", "Run: 999 in job: 42 doesn't exist", True),
+            (400, "RESOURCE_DOES_NOT_EXIST", "Run 999 does not exist.", True),
+            (404, "RESOURCE_DOES_NOT_EXIST", "Run 999 does not exist.", True),
+            # A status code on its own proves nothing: an unauthenticated proxy can answer 404.
+            (404, "", "Run 999 does not exist.", False),
+            # Same code, but bad input rather than a lost run: must stay an error.
+            (400, "INVALID_PARAMETER_VALUE", "Invalid value for run_id: 'abc'", False),
+            (403, "PERMISSION_DENIED", "User not authorized", False),
+            (500, "INTERNAL_ERROR", "Run 999 does not exist.", False),
+        ],
+    )
+    def test_detects_only_a_lost_run(self, status_code, error_code, message, expected):
+        assert _is_run_missing_error(make_api_error(status_code, error_code, message)) is expected
+
+    def test_unparsed_error_code_is_not_a_lost_run(self):
+        exc = DatabricksApiError("Response: Bad Gateway, Status Code: 502", http_status_code=502)
+        assert _is_run_missing_error(exc) is False
 
 
 class TestDatabricksCreateJobsOperator:
@@ -2232,7 +2264,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run.side_effect = [
-            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            make_api_error(400, "INVALID_PARAMETER_VALUE", "Run 999 does not exist."),
             self._state("TERMINATED", "SUCCESS"),
         ]
         task_store = MagicMock(spec_set=["get", "set"])
@@ -2242,6 +2274,23 @@ class TestDatabricksSubmitRunOperatorDurable:
         db_mock.submit_run.assert_called_once()
         task_store.set.assert_called_once_with("databricks_run_id", RUN_ID)
         assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_does_not_resubmit_when_the_stored_run_id_is_rejected_as_malformed(self, db_mock_class):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.side_effect = make_api_error(
+            400, "INVALID_PARAMETER_VALUE", "Invalid value for run_id: 'abc'"
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = 999
+
+        with pytest.raises(DatabricksApiError):
+            op.execute(self._context(task_store))
+
+        db_mock.submit_run.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_false_never_touches_task_state_store(self, db_mock_class):
@@ -3587,9 +3636,9 @@ class TestDatabricksRunNowOperatorDurable:
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
-        # the stored run's history has expired -> get_run 404s; the fresh run then polls to success.
+        # the stored run's history has expired -> get_run rejects it; the fresh run polls to success.
         db_mock.get_run.side_effect = [
-            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            make_api_error(400, "INVALID_PARAMETER_VALUE", "Run 999 does not exist."),
             self._state("TERMINATED", "SUCCESS"),
         ]
         task_store = MagicMock(spec_set=["get", "set"])
@@ -3600,6 +3649,21 @@ class TestDatabricksRunNowOperatorDurable:
         db_mock.run_now.assert_called_once()
         task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
         assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_does_not_resubmit_when_the_stored_run_id_is_rejected_as_malformed(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.side_effect = make_api_error(
+            400, "INVALID_PARAMETER_VALUE", "Invalid value for run_id: 'abc'"
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = 999
+
+        with pytest.raises(DatabricksApiError):
+            op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_false_never_touches_task_state_store(self, db_mock_class):
@@ -5270,18 +5334,3 @@ class TestDatabricksTaskOperator:
 
         operator.monitor_databricks_job()
         assert mock_databricks_hook.return_value.get_run.call_count == 3
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False

@@ -76,8 +76,35 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
+DEFAULT_SENSITIVE_FIELD_NAMES = frozenset(
+    {
+        "app_key",
+        "certificate",
+        "credential",
+        "keytab",
+        "kube_config",
+        "oauth",
+        "routing_key",
+        "thumbprint",
+        "write_key",
+    }
+)
+"""
+Names of fields (Connection extra, Variable key name etc.) that are sensitive only as a whole name.
+
+Matching these as substrings would also hide non-secret fields such as ``kube_config_path`` or
+``credential_config_file``. The ``extra__<conn_type>__<name>`` form of each name matches too.
+"""
+
 SECRETS_TO_SKIP_MASKING = {"airflow"}
 """Common terms that should be excluded from masking in both production and tests"""
+
+# Word boundaries inside camelCase / PascalCase names: "privateKey" -> "private_Key",
+# "APIKey" -> "API_Key". Applied before lowercasing so multi-word sensitive field names
+# (``private_key``, ``connection_string``...) also match camelCase keys.
+_CAMEL_LOWER_UPPER_RE = re.compile(r"([a-z0-9])([A-Z])")
+_CAMEL_ACRONYM_RE = re.compile(r"([A-Z]+)([A-Z][a-z])")
+_NON_WORD_RE = re.compile(r"\W+")
 
 
 def should_hide_value_for_key(name):
@@ -334,7 +361,9 @@ class SecretsMasker(logging.Filter):
         *,
         replacement: str = "***",
     ) -> Redacted:
-        if depth > max_depth or isinstance(item, str):
+        # The key is sensitive, so every leaf is replaced whatever its type: a numeric secret
+        # (e.g. a PIN that json.loads() turned into an int) must not come back in the clear.
+        if depth > max_depth or not isinstance(item, (dict, tuple, set, list)):
             return replacement
         if isinstance(item, dict):
             return {
@@ -350,16 +379,19 @@ class SecretsMasker(logging.Filter):
             return list(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
-        return item
+        # Fail closed if a container type is added to the walk above without a branch here.
+        return replacement
 
     def _redact(
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
     ) -> Redacted:
         try:
-            # Key-name-based redaction is unbounded by depth — sensitive keys
-            # must fail closed at any nesting level. The depth cutoff below is
-            # only used to bound the work of pattern-based string masking and
-            # to terminate recursion through self-referential iterables.
+            # Both key-name-based and pattern-based redaction apply at any
+            # nesting depth: a registered secret or a sensitive key must fail
+            # closed wherever it sits in the structure. ``max_depth`` only bounds
+            # the fail-closed walk of a value already known to be sensitive
+            # (``_redact_all``); self-referential structures are stopped by
+            # Python's recursion limit and the except clause below.
             if name and self.should_hide_value_for_key(name):
                 return self._redact_all(item, depth, max_depth, replacement=replacement)
             # Always walk dicts so deeper sensitive keys are still caught;
@@ -395,11 +427,6 @@ class SecretsMasker(logging.Filter):
                     )
                     for subval in item
                 ]
-            # The depth cutoff only bounds the work of pattern-based string
-            # masking below — key-name redaction (dicts and iterables above) is
-            # unbounded so sensitive keys fail closed at any depth.
-            if depth > max_depth:
-                return item
             if isinstance(item, Enum):
                 return self._redact(
                     item=item.value, name=name, depth=depth, max_depth=max_depth, replacement=replacement
@@ -442,17 +469,13 @@ class SecretsMasker(logging.Filter):
         old_item: Redactable,
         *,
         name: str | None,
-        depth: int,
-        max_depth: int,
         force_sensitive: bool = False,
         replacement: str,
     ) -> Redacted:
         """Merge a redacted item with its original unredacted counterpart."""
-        if depth > max_depth:
-            if isinstance(new_item, str) and new_item == "***":
-                return old_item
-            return new_item
-
+        # Walk containers at any depth, as _redact does, or a deeply nested secret is saved as "***".
+        # A subtree _redact_all cut off at max_depth arrives as "***" with force_sensitive set, and the
+        # last branch below restores it.
         try:
             # Determine if we should treat this as sensitive
             is_sensitive = force_sensitive or (name is not None and self.should_hide_value_for_key(name))
@@ -475,8 +498,6 @@ class SecretsMasker(logging.Filter):
                             new_item[key],
                             old_item[key],
                             name=child_name,
-                            depth=depth + 1,
-                            max_depth=max_depth,
                             force_sensitive=is_sensitive,
                             replacement=replacement,
                         )
@@ -497,8 +518,6 @@ class SecretsMasker(logging.Filter):
                                     new_item[i],
                                     old_item[i],
                                     name=None,
-                                    depth=depth + 1,
-                                    max_depth=max_depth,
                                     force_sensitive=is_sensitive,
                                     replacement=replacement,
                                 )
@@ -522,7 +541,7 @@ class SecretsMasker(logging.Filter):
                 return old_item
             return new_item
 
-        except (TypeError, AttributeError, ValueError):
+        except (TypeError, AttributeError, ValueError, RecursionError):
             return new_item
 
     def redact(
@@ -557,13 +576,14 @@ class SecretsMasker(logging.Filter):
         Takes a user-modified redacted item and merges it with the original unredacted item.
         For sensitive fields that still contain "***" (or whatever the ``replacement`` is specified as), the
         original value is restored. For fields that have been updated, the new value is preserved.
+
+        ``max_depth`` is ignored and kept for backward compatibility. Containers are walked at any
+        depth; a sensitive subtree that ``redact`` collapsed at its ``max_depth`` is restored whole.
         """
         return self._merge(
             new_item,
             old_item,
             name=name,
-            depth=0,
-            max_depth=max_depth or self.MAX_RECURSION_DEPTH,
             force_sensitive=False,
             replacement=replacement,
         )
@@ -588,9 +608,15 @@ class SecretsMasker(logging.Filter):
         Name might be a Variable name, or key in conn.extra_dejson, for example.
         """
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
-            name = name.strip().lower()
-            normalized = re.sub(r"\W+", "_", name)
-            return any(s in normalized for s in self.sensitive_variables_fields)
+            name = name.strip()
+            normalized = _NON_WORD_RE.sub("_", name.lower())
+            split = _CAMEL_ACRONYM_RE.sub(r"\1_\2", _CAMEL_LOWER_UPPER_RE.sub(r"\1_\2", name))
+            split = _NON_WORD_RE.sub("_", split.lower())
+            if any(form.rsplit("__", 1)[-1] in DEFAULT_SENSITIVE_FIELD_NAMES for form in (normalized, split)):
+                return True
+            # Check both forms so fields configured without separators (e.g. ``mysensitivekey``)
+            # keep matching camelCase keys such as ``mySensitiveKey``.
+            return any(s in normalized or s in split for s in self.sensitive_variables_fields)
         return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):
@@ -630,7 +656,9 @@ class SecretsMasker(logging.Filter):
                         self.patterns.add(pattern)
                         new_mask = True
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                # Regex alternation takes the first alternative that matches, not the longest, so
+                # longer secrets must come first or a secret that is a prefix of another leaves its tail.
+                self.replacer = re.compile("|".join(sorted(self.patterns, key=len, reverse=True)))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
@@ -711,4 +739,4 @@ class RedactedIO(TextIO):
         return self.target.write(s)
 
     def writelines(self, lines) -> None:
-        self.target.writelines(lines)
+        self.target.writelines(str(redact(line)) for line in lines)

@@ -27,7 +27,7 @@ and deployed to `airflow.apache.org/registry/`.
 
 ### Prerequisites
 
-- Python 3.10+ (for metadata extraction)
+- Python 3.11+ (for metadata extraction)
 - Node.js 20+ and pnpm 9+
 - `pyyaml` Python package (`uv pip install pyyaml`)
 
@@ -103,6 +103,10 @@ gitignored. Only `exploreCategories.js`, `statsData.js`, `latestVersionData.js`,
 **`extract_metadata.py`** (runs on host) walks every `providers/*/provider.yaml` and:
 
 1. **Parses provider metadata** — name, description, versions, dependencies
+   - **Drops unreleased entries** — skips providers with `state: not-ready` and keeps only
+     versions with a `providers-<id>/<version>` git tag. With no tags at all (a fork clone),
+     it warns and keeps every version; `registry-build.yml` refuses a live build in that case.
+     `--allow-unreleased` turns the filter off.
 2. **Fetches PyPI download stats** — calls `pypistats.org/api/packages/{name}/recent`
 3. **Resolves logos** — checks `public/logos/` for matching images
 4. **Determines AIP-95 lifecycle stage** — reads `lifecycle` from `provider.yaml`

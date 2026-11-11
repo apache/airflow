@@ -20,7 +20,7 @@ import copy
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -43,6 +43,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
 from airflow.providers.openlineage.sqlparser import SQLParser
+from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 
 QUERY_JOB_PROPERTIES = {
     "configuration": {
@@ -113,7 +114,7 @@ def read_common_json_file(rel: str):
 
 
 def make_task_instance():
-    logical_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    logical_date = datetime(2024, 1, 1, tzinfo=UTC)
     dag_run = MagicMock(
         logical_date=logical_date,
         clear_number=0,
@@ -497,10 +498,10 @@ class TestBigQueryOpenLineageMixin:
         assert mock_emit_query_lineage.call_args.kwargs["task_instance"] is mock_ti
         assert mock_emit_query_lineage.call_args.kwargs["job_name"] == "dag_id.task_id.query.1"
         assert mock_emit_query_lineage.call_args.kwargs["start_time"] == datetime.fromtimestamp(
-            self.query_job_details["statistics"]["startTime"] / 1000, tz=timezone.utc
+            self.query_job_details["statistics"]["startTime"] / 1000, tz=UTC
         )
         assert mock_emit_query_lineage.call_args.kwargs["end_time"] == datetime.fromtimestamp(
-            self.query_job_details["statistics"]["endTime"] / 1000, tz=timezone.utc
+            self.query_job_details["statistics"]["endTime"] / 1000, tz=UTC
         )
 
     @patch.object(
@@ -645,7 +646,7 @@ class TestBigQueryOpenLineageMixin:
             return [input_table2], [output_table2]
 
         mock_get_inputs_and_outputs.side_effect = get_inputs_and_outputs
-        mock_resolve_task_emission_policy.return_value = MagicMock(emit=True)
+        mock_resolve_task_emission_policy.return_value = EmissionPolicy.defaults()
 
         lineage = self.operator.get_openlineage_facets_on_complete(make_task_instance())
 
@@ -830,7 +831,7 @@ class TestBigQueryOpenLineageMixin:
     @pytest.mark.parametrize(
         ("value", "expected"),
         [
-            ("1600000000000", datetime(2020, 9, 13, 12, 26, 40, tzinfo=timezone.utc)),
+            ("1600000000000", datetime(2020, 9, 13, 12, 26, 40, tzinfo=UTC)),
             (None, None),
             ("not-a-timestamp", None),
         ],

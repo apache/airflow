@@ -37,7 +37,7 @@ def test_sbom_core_job_resolves_constraints_reference(
     tmp_path, constraints_reference, expected_constraints_reference
 ):
     job = SbomCoreJob(
-        python_version="3.10",
+        python_version="3.11",
         target_path=tmp_path / "output.json",
         airflow_version="3.2.0",
         application_root_path=FILES_SBOM_PATH,
@@ -84,7 +84,7 @@ def test_update_sbom_information_with_airflow_root_path_skips_released_versions_
             include_success_outputs=False,
             package_filter="apache-airflow",
             parallelism=1,
-            python_versions="3.10",
+            python_versions="3.11",
             remote_name="origin",
             run_in_parallel=False,
             skip_cleanup=False,
@@ -123,7 +123,7 @@ def test_update_sbom_information_with_site_archive_path_keeps_stable_lookup(tmp_
             include_success_outputs=False,
             package_filter="apache-airflow",
             parallelism=1,
-            python_versions="3.10",
+            python_versions="3.11",
             remote_name="origin",
             run_in_parallel=False,
             skip_cleanup=False,

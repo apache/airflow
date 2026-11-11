@@ -17,21 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import threading
 import time
-from contextlib import suppress
+from contextlib import contextmanager, suppress
+from datetime import UTC, timedelta
 from importlib import import_module
 from io import StringIO
-from unittest.mock import MagicMock, call, mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
     MetaData,
     Table,
+    event,
     func,
     insert,
     inspect,
@@ -43,16 +47,28 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
 
-from airflow import DAG
+from airflow import DAG, settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    DagScheduleAssetReference,
+    asset_alias_asset_event_association_table,
+    association_table,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import LegacyTaskDataOwner
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.xcom import XComModel, XComModelV1, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -74,8 +90,17 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import CompactUUID
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.attempt_ownership import (
+    COORDINATES,
+    CURRENT_ID,
+    HISTORY_ID,
+    NOW,
+    ownership_session as ownership_session,
+    table,
+)
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
@@ -88,6 +113,21 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
+
+
+@contextmanager
+def capture_sql_statements(session):
+    statements = []
+    bind = session.get_bind()
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(bind, "before_cursor_execute", capture)
+    try:
+        yield statements
+    finally:
+        event.remove(bind, "before_cursor_execute", capture)
 
 
 @pytest.fixture(autouse=True)
@@ -188,15 +228,15 @@ class TestDBCleanup:
         session.commit.assert_not_called()
 
     @pytest.mark.parametrize(
-        "table_names",
+        ("table_names", "expected_count"),
         [
-            ["xcom", "log"],
-            None,
+            (["xcom", "log"], 3),
+            (None, None),
         ],
     )
     @patch("airflow.utils.db_cleanup._cleanup_table")
     @patch("airflow.utils.db_cleanup._confirm_delete", new=MagicMock())
-    def test_run_cleanup_tables(self, clean_table_mock, table_names):
+    def test_run_cleanup_tables(self, clean_table_mock, table_names, expected_count):
         """
         ``_cleanup_table`` should be called for each table in subset if one
         is provided else should be called for all tables.
@@ -207,7 +247,89 @@ class TestDBCleanup:
             verbose=None,
         )
         run_cleanup(**base_kwargs, table_names=table_names)
-        assert clean_table_mock.call_count == len(table_names) if table_names else len(config_dict)
+        if expected_count is None:
+            existing = set(inspect(settings.engine).get_table_names())
+            expected_count = len(config_dict.keys() & existing)
+        assert clean_table_mock.call_count == expected_count
+
+    @pytest.mark.parametrize(
+        ("requested", "selected", "archive_source"),
+        [
+            ("xcom", ["xcom_v1", "xcom_v2"], "xcom"),
+            ("xcom_v2", ["xcom_v2"], "xcom"),
+            ("task_instance_history", ["task_instance_history"], "task_instance_history"),
+        ],
+    )
+    def test_legacy_table_names_select_current_physical_tables_and_archives(
+        self, requested, selected, archive_source
+    ):
+        names, _ = _effective_table_names(table_names=[requested])
+        assert set(names) == set(selected)
+
+        with create_session() as session:
+            archive = f"{ARCHIVE_TABLE_PREFIX}{archive_source}__20260929"
+            with patch("airflow.utils.db_cleanup.inspect", autospec=True) as inspect_mock:
+                inspect_mock.return_value.get_table_names.return_value = [archive]
+                assert _get_archived_table_names([requested], session) == [archive]
+
+    def test_history_alias_selects_only_history_archives(self):
+        history_archive = f"{ARCHIVE_TABLE_PREFIX}task_instance_history__20260929"
+        attempt_archives = [
+            f"{ARCHIVE_TABLE_PREFIX}{name}__20261005"
+            for name in ("task_instance", "xcom_v2", "rtif_v2", "task_instance_note", "hitl_detail")
+        ]
+
+        with create_session() as session:
+            with patch("airflow.utils.db_cleanup.inspect", autospec=True) as inspect_mock:
+                inspect_mock.return_value.get_table_names.return_value = [history_archive, *attempt_archives]
+                assert _get_archived_table_names(["task_instance_history"], session) == [history_archive]
+                assert set(_get_archived_table_names(["task_instance"], session)) == {
+                    history_archive,
+                    *attempt_archives,
+                }
+
+    def test_task_instance_history_alias_cleans_only_older_tries(self, ownership_session):
+        session = ownership_session
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["task_instance_history"],
+            confirm=False,
+            skip_archive=True,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.get(TaskInstance, HISTORY_ID) is None
+        assert session.get(TaskInstance, CURRENT_ID) is not None
+
+    def test_xcom_v2_cleanup_removes_shadowed_legacy_value(self, ownership_session):
+        session = ownership_session
+        XComModel.set_for_attempt(
+            task_instance_id=CURRENT_ID, key="return_value", value={"new": True}, session=session
+        )
+        session.execute(sa.update(XComModelV2).values(timestamp=NOW))
+        session.execute(
+            sa.text("UPDATE xcom_v1 SET timestamp = :future"), {"future": NOW + timedelta(days=30)}
+        )
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["xcom_v2"],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.scalar(sa.text("SELECT count(*) FROM xcom_v1")) == 0
+        assert session.scalar(sa.text("SELECT count(*) FROM xcom_v2")) == 0
+        archives = _get_archived_table_names(["xcom_v2"], session)
+        assert any(name.startswith(f"{ARCHIVE_TABLE_PREFIX}xcom_v1__") for name in archives)
 
     @patch("airflow.utils.db_cleanup._cleanup_table")
     @patch("airflow.utils.db_cleanup._confirm_delete")
@@ -547,15 +669,14 @@ class TestDBCleanup:
         clear_db_callbacks()
 
     @pytest.mark.parametrize(
-        ("skip_archive", "expected_archives"),
-        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
+        ("skip_archive", "batch_size", "expected_archives"),
+        [
+            pytest.param(True, None, 0, id="skip_archive"),
+            pytest.param(True, 2, 0, id="skip_archive_batched"),
+            pytest.param(False, None, 1, id="do_archive"),
+        ],
     )
-    def test__skip_archive(self, skip_archive, expected_archives):
-        """
-        Verify that running cleanup_table with drops the archives when requested.
-
-        Archived tables from DB migration should be kept when skip_archive is True.
-        """
+    def test__skip_archive(self, skip_archive, batch_size, expected_archives, capsys):
         base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
         num_tis = 10
         create_tis(
@@ -567,17 +688,214 @@ class TestDBCleanup:
             for name in _get_archived_table_names(["dag_run"], session):
                 session.execute(text(f"DROP TABLE IF EXISTS {name}"))
             clean_before_date = base_date.add(days=5)
+            with capture_sql_statements(session) as statements:
+                _cleanup_table(
+                    **config_dict["dag_run"].__dict__,
+                    clean_before_timestamp=clean_before_date,
+                    dry_run=False,
+                    session=session,
+                    table_names=["dag_run"],
+                    skip_archive=skip_archive,
+                    batch_size=batch_size,
+                )
+            model = config_dict["dag_run"].orm_model
+            assert session.scalar(select(func.count()).select_from(model)) == 5
+            archives = [
+                name
+                for name in _get_archived_table_names(["dag_run"], session)
+                if name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag_run__")
+            ]
+            assert len(archives) == expected_archives
+
+        output = capsys.readouterr().out
+        archive_statements = [sql for sql in statements if ARCHIVE_TABLE_PREFIX in sql]
+        if skip_archive:
+            assert archive_statements == []
+            assert "Moving data from dag_run to table" not in output
+            if batch_size:
+                assert "Performing Delete from dag_run (batch 3, max 2 rows)..." in output
+        else:
+            assert archive_statements
+            assert "Moving data from dag_run to table" in output
+
+    def test_skip_archive_keeps_latest_dag_run_per_dag(self):
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"testing-{uuid4()}"
+        dag_ids = [f"test-dag-{uuid4()}", f"test-dag-{uuid4()}"]
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            for dag_id in dag_ids:
+                session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+                for day in range(3):
+                    session.add(
+                        DagRun(
+                            dag_id,
+                            run_id=f"{dag_id}-{day}",
+                            run_type=DagRunType.SCHEDULED,
+                            start_date=base_date.add(days=day),
+                        )
+                    )
+            session.commit()
+
             _cleanup_table(
                 **config_dict["dag_run"].__dict__,
-                clean_before_timestamp=clean_before_date,
+                clean_before_timestamp=base_date.add(days=10),
                 dry_run=False,
                 session=session,
                 table_names=["dag_run"],
-                skip_archive=skip_archive,
+                skip_archive=True,
             )
-            model = config_dict["dag_run"].orm_model
-            assert session.scalar(select(func.count()).select_from(model)) == 5
-            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+
+            remaining = session.execute(
+                select(DagRun.dag_id, DagRun.start_date).where(DagRun.dag_id.in_(dag_ids))
+            ).all()
+
+        assert set(remaining) == {(dag_id, base_date.add(days=2)) for dag_id in dag_ids}
+
+    @pytest.mark.parametrize(
+        "batch_size",
+        [pytest.param(None, id="unbatched"), pytest.param(2, id="batched")],
+    )
+    def test_skip_archive_deletes_xcom_rows_with_composite_primary_key(self, batch_size):
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        create_tis(base_date=base_date, num_tis=3)
+
+        with create_session() as session:
+            task_instances = session.scalars(select(TaskInstance).order_by(TaskInstance.start_date)).all()
+            session.add_all(
+                LegacyTaskDataOwner(
+                    dag_id=task_instance.dag_id,
+                    task_id=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    map_index=task_instance.map_index,
+                    task_instance_id=task_instance.id,
+                )
+                for task_instance in task_instances
+            )
+            session.flush()
+            for index, task_instance in enumerate(task_instances):
+                session.add(
+                    XComModelV1(
+                        dag_run_id=task_instance.dag_run.id,
+                        task_id=task_instance.task_id,
+                        map_index=task_instance.map_index,
+                        key=f"key-{index}",
+                        dag_id=task_instance.dag_id,
+                        run_id=task_instance.run_id,
+                        value=index,
+                        timestamp=base_date.add(days=index),
+                    )
+                )
+            session.commit()
+
+            _cleanup_table(
+                **config_dict["xcom_v1"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["xcom_v1"],
+                skip_archive=True,
+                batch_size=batch_size,
+            )
+
+            assert session.scalar(select(func.count()).select_from(XComModelV1)) == 0
+            assert not any(
+                table_name.startswith(ARCHIVE_TABLE_PREFIX)
+                for table_name in _get_archived_table_names(["xcom_v1"], session)
+            )
+
+    @pytest.mark.parametrize(
+        ("batch_size", "clean_before_days", "expected_found_line", "expected_delete_lines"),
+        [
+            pytest.param(
+                None,
+                5,
+                "Found 5 rows in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run...",
+                    "Deleted 5 rows from dag_run.",
+                ],
+                id="unbatched",
+            ),
+            pytest.param(
+                2,
+                5,
+                "Found 5 rows in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run (batch 1, max 2 rows)...",
+                    "Deleted 2 rows from dag_run (batch 1).",
+                    "Performing Delete from dag_run (batch 2, max 2 rows)...",
+                    "Deleted 2 rows from dag_run (batch 2).",
+                    "Performing Delete from dag_run (batch 3, max 2 rows)...",
+                    "Deleted 1 row from dag_run (batch 3).",
+                ],
+                id="batched",
+            ),
+            pytest.param(
+                None,
+                1,
+                "Found 1 row in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run...",
+                    "Deleted 1 row from dag_run.",
+                ],
+                id="singular",
+            ),
+        ],
+    )
+    def test_cleanup_progress_names_table(
+        self, batch_size, clean_before_days, expected_found_line, expected_delete_lines, capsys
+    ):
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        create_tis(base_date=base_date, num_tis=10)
+
+        with create_session() as session:
+            for name in _get_archived_table_names(["dag_run"], session):
+                session.execute(text(f"DROP TABLE IF EXISTS {name}"))
+
+            capsys.readouterr()
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=base_date.add(days=clean_before_days),
+                dry_run=False,
+                session=session,
+                table_names=["dag_run"],
+                skip_archive=False,
+                batch_size=batch_size,
+            )
+
+        output_lines = capsys.readouterr().out.splitlines()
+        assert expected_found_line in output_lines
+        for line in expected_delete_lines:
+            assert line in output_lines
+        moving_lines = [line for line in output_lines if line.startswith("Moving data")]
+        assert moving_lines
+        assert all(
+            line.startswith(f"Moving data from dag_run to table {ARCHIVE_TABLE_PREFIX}dag_run__")
+            for line in moving_lines
+        )
+        assert output_lines[-1] == "Finished Performing Delete from dag_run"
+
+    @patch("airflow.utils.db_cleanup._build_query", autospec=True)
+    def test_cleanup_progress_uses_schema_qualified_table_name(self, build_query_mock, capsys):
+        build_query_mock.return_value = select(literal(1))
+        orm_model = Table("log", MetaData(), schema="audit")
+
+        with create_session() as session:
+            _cleanup_table(
+                orm_model=orm_model,
+                recency_column=None,
+                keep_last=False,
+                keep_last_filters=None,
+                keep_last_group_by=None,
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=UTC),
+                dry_run=True,
+                session=session,
+            )
+
+        assert "Found 1 row in table audit.log meeting deletion criteria." in capsys.readouterr().out
 
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
         """db clean must skip dag_version rows still referenced by a task instance.
@@ -650,14 +968,31 @@ class TestDBCleanup:
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
-    def test_do_delete_skip_if_referenced_guards_against_race(self):
+    @pytest.mark.parametrize(
+        ("skip_archive", "extra_unreferenced", "expected_count"),
+        [
+            pytest.param(True, 0, None, id="direct-whole-batch-skipped"),
+            pytest.param(True, 1, None, id="direct-partial-skip"),
+            pytest.param(False, 0, "1 of 1", id="archive-whole-batch-skipped"),
+            pytest.param(False, 1, "1 of 2", id="archive-partial-skip"),
+        ],
+    )
+    def test_do_delete_skip_if_referenced_guards_against_race(
+        self, skip_archive, extra_unreferenced, expected_count, cap_structlog
+    ):
         """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
 
         Reproduces the real race: the dag_version row passes the SELECT filter and is
-        archived, and only then does a task_instance referencing it appear.  The
-        skip_if_referenced guard on the DELETE must skip the row instead of failing with
-        IntegrityError, and the loop must still drain because the next SELECT pass
-        re-evaluates the same NOT EXISTS guard and excludes it.
+        selected, and only then does a task_instance referencing it appear. The
+        skip_if_referenced guard must skip the row instead of failing with IntegrityError,
+        and the loop must still drain because the next SELECT pass re-evaluates the same
+        NOT EXISTS guard and excludes it.
+
+        Parametrized over how many *unreferenced* rows share the pass, because the guard
+        skipping part of a batch is not the same as it skipping all of it.  The archive has
+        already committed a copy of every row the SELECT found, so a skipped row is both
+        archived and still live and must be reported either way. The direct-delete path
+        instead re-evaluates the selection inside the DELETE and never copies the row.
         """
         from airflow.utils.db import reflect_tables
 
@@ -671,29 +1006,36 @@ class TestDBCleanup:
             session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
             session.flush()
 
-            raced_old = DagVersion(
-                dag_id=dag_id,
-                version_number=1,
-                bundle_name=bundle_name,
-                created_at=base_date,
-                last_updated=base_date,
-            )
-            # dag_version is keep_last per dag_id, so a lone version is always the
-            # keep_last survivor and is never eligible for deletion.  A second, newer
-            # version takes that role and leaves raced_old as the deletion candidate.
+            # The first is the row the race pins mid-pass; any extras are unreferenced and
+            # must still be deleted in the same pass, which is what makes the skip partial.
+            eligible = [
+                DagVersion(
+                    dag_id=dag_id,
+                    version_number=n + 1,
+                    bundle_name=bundle_name,
+                    created_at=base_date.add(minutes=n),
+                    last_updated=base_date.add(minutes=n),
+                )
+                for n in range(1 + extra_unreferenced)
+            ]
+            # dag_version is keep_last per dag_id, so the newest version is always the
+            # keep_last survivor and is never eligible for deletion.  It is what leaves
+            # the versions above as deletion candidates.
             latest = DagVersion(
                 dag_id=dag_id,
-                version_number=2,
+                version_number=len(eligible) + 1,
                 bundle_name=bundle_name,
-                created_at=base_date.add(minutes=1),
-                last_updated=base_date.add(minutes=1),
+                created_at=base_date.add(minutes=len(eligible)),
+                last_updated=base_date.add(minutes=len(eligible)),
             )
-            session.add_all([raced_old, latest])
+            session.add_all([*eligible, latest])
             session.flush()
-            raced_old_id, latest_id = raced_old.id, latest.id
+            raced_old_id = eligible[0].id
+            unreferenced_ids = {version.id for version in eligible[1:]}
+            latest_id = latest.id
 
             # Query built while nothing references raced_old, so the first SELECT pass
-            # returns it and _do_delete archives it.
+            # returns it.
             cfg = config_dict["dag_version"]
             query = _build_query(
                 **cfg.__dict__,
@@ -713,14 +1055,10 @@ class TestDBCleanup:
             raced = False
 
             def reflect_and_race(tables, session, **kwargs):
-                # _do_delete reflects both source and target right after committing the
-                # archive CTAS and right before building the DELETE — this is the only
-                # seam between the two that fits the race window.  MySQL reflects the
-                # target alone earlier in the same pass, so keying on the two-table call
-                # covers both branches.  If this call site moves, the test stops
-                # reproducing the race and the ``raced`` assertion below will catch it.
                 nonlocal raced
-                if not raced and len(tables) == 2:
+                direct_delete_seam = skip_archive and tables == ["dag_version"]
+                archive_delete_seam = not skip_archive and len(tables) == 2
+                if not raced and (direct_delete_seam or archive_delete_seam):
                     raced = True
                     session.add_all([dag_run, ti])
                     session.commit()
@@ -730,7 +1068,7 @@ class TestDBCleanup:
                 _do_delete(
                     query=query,
                     orm_model=cfg.orm_model,
-                    skip_archive=True,
+                    skip_archive=skip_archive,
                     session=session,
                     batch_size=None,
                     skip_if_referenced=cfg.skip_if_referenced,
@@ -742,6 +1080,14 @@ class TestDBCleanup:
         assert raced, "the TI was never inserted mid-pass; the race was not reproduced"
         assert raced_old_id in remaining, "dag_version referenced by a task_instance must not be deleted"
         assert latest_id in remaining, "the keep_last survivor must not be deleted"
+        assert not unreferenced_ids & remaining, "unreferenced dag_versions must still be deleted"
+        if expected_count is not None:
+            # The count distinguishes a partial skip from a whole-batch one. The partial
+            # case is what a ``deleted == 0`` condition stays silent for.
+            assert {
+                "event": re.compile(rf"{expected_count} rows from dag_version are still referenced"),
+                "log_level": "warning",
+            } in cap_structlog, cap_structlog.entries
 
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
@@ -776,24 +1122,55 @@ class TestDBCleanup:
                 # "dagrun_id" intentionally omitted from extra_columns
             )
 
-    def test_do_delete_rolls_back_before_drop_on_failure(self):
+    def test_do_delete_checks_batch_existence_without_counting_rows(self):
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value.dialect.name = "sqlite"
+        session.scalars.return_value.one.return_value = False
+        _, source_table, _, query = _build_do_delete_test_objects()
+
+        _do_delete(
+            query=query,
+            orm_model=source_table,
+            skip_archive=False,
+            session=session,
+            batch_size=100,
+        )
+
+        existence_query = session.scalars.call_args.args[0]
+        compiled_query = str(existence_query.compile()).lower()
+        assert "exists" in compiled_query
+        assert "count(" not in compiled_query
+        session.execute.assert_not_called()
+
+    @patch("airflow.utils.db_cleanup.reflect_tables", autospec=True)
+    def test_do_delete_reflects_direct_source_once_across_batches(self, reflect_tables_mock):
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value.dialect.name = "sqlite"
+        session.scalars.return_value.one.side_effect = [True, True, False]
+        metadata, source_table, _, query = _build_do_delete_test_objects()
+        reflect_tables_mock.return_value = metadata
+
+        _do_delete(
+            query=query,
+            orm_model=source_table,
+            skip_archive=True,
+            session=session,
+            batch_size=100,
+        )
+
+        reflect_tables_mock.assert_called_once_with(["dag_version"], session)
+        assert session.commit.call_count == 2
+
+    def test_do_delete_directly_rolls_back_on_failure(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
-        tracker = MagicMock()
-        tracker.attach_mock(session, "session")
+        session.scalars.return_value.one.return_value = 1
 
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
+        metadata, source_table, _target_table, query = _build_do_delete_test_objects()
         delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
-        session.execute.side_effect = [None, None, delete_failure]
+        session.execute.side_effect = delete_failure
 
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop") as drop_mock,
-        ):
-            tracker.attach_mock(drop_mock, "drop")
+        with patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata):
             with pytest.raises(IntegrityError) as exc_info:
                 _do_delete(
                     query=query,
@@ -805,31 +1182,19 @@ class TestDBCleanup:
 
         assert exc_info.value is delete_failure
         session.rollback.assert_called_once_with()
-        session.connection.assert_called_once_with()
         assert session.get_bind.call_count == 1
-        drop_mock.assert_called_once_with(bind=session.connection.return_value)
-
-        rollback_call_index = tracker.mock_calls.index(call.session.rollback())
-        drop_call_index = tracker.mock_calls.index(call.drop(bind=session.connection.return_value))
-        commit_call_index = tracker.mock_calls.index(call.session.commit(), drop_call_index)
-        assert rollback_call_index < drop_call_index < commit_call_index
 
     def test_do_delete_propagates_original_error_when_rollback_fails(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
+        session.scalars.return_value.one.return_value = 1
 
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
+        metadata, source_table, _target_table, query = _build_do_delete_test_objects()
         delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
-        session.execute.side_effect = [None, None, delete_failure]
+        session.execute.side_effect = delete_failure
         session.rollback.side_effect = OperationalError("ROLLBACK", {}, Exception("connection lost"))
 
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop") as drop_mock,
-        ):
+        with patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata):
             with pytest.raises(IntegrityError) as exc_info:
                 _do_delete(
                     query=query,
@@ -841,25 +1206,25 @@ class TestDBCleanup:
 
         assert exc_info.value is delete_failure
         session.rollback.assert_called_once_with()
-        drop_mock.assert_called_once_with(bind=session.connection.return_value)
 
     @pytest.mark.parametrize(
         ("skip_archive", "expected_commit_count"),
-        [pytest.param(True, 3, id="skip_archive"), pytest.param(False, 2, id="keep_archive")],
+        [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="keep_archive")],
     )
     def test_do_delete_success_does_not_call_rollback(self, skip_archive, expected_commit_count):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
+        if skip_archive:
+            session.execute.side_effect = [MagicMock(rowcount=1)]
+        else:
+            session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
+        metadata, source_table, _target_table, query = _build_do_delete_test_objects()
 
         with (
             patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
             patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop") as drop_mock,
         ):
             _do_delete(
                 query=query,
@@ -871,79 +1236,10 @@ class TestDBCleanup:
 
         session.rollback.assert_not_called()
         assert session.commit.call_count == expected_commit_count
-        if skip_archive:
-            session.connection.assert_called_once_with()
-            drop_mock.assert_called_once_with(bind=session.connection.return_value)
-        else:
-            session.connection.assert_not_called()
-            drop_mock.assert_not_called()
+        session.connection.assert_not_called()
 
-    def test_do_delete_original_error_survives_archive_drop_failure(self):
-        """On the failure path, a drop/commit error in the finally block must not
-        replace the original delete error (nailo2c review, #66296)."""
-        session = MagicMock(spec=Session)
-        session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
-
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-        delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
-        session.execute.side_effect = [None, None, delete_failure]
-        drop_failure = OperationalError("DROP TABLE", {}, Exception("server has gone away"))
-
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop", side_effect=drop_failure) as drop_mock,
-        ):
-            with pytest.raises(IntegrityError) as exc_info:
-                _do_delete(
-                    query=query,
-                    orm_model=source_table,
-                    skip_archive=True,
-                    session=session,
-                    batch_size=None,
-                )
-
-        assert exc_info.value is delete_failure
-        drop_mock.assert_called_once_with(bind=session.connection.return_value)
-
-    def test_do_delete_success_propagates_archive_drop_error(self):
-        """On the success path, a drop/commit failure is a real error and must
-        still surface (the failure-path guard must not swallow it)."""
-        session = MagicMock(spec=Session)
-        session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
-
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-        drop_failure = OperationalError("DROP TABLE", {}, Exception("disk full"))
-
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop", side_effect=drop_failure),
-        ):
-            with pytest.raises(OperationalError) as exc_info:
-                _do_delete(
-                    query=query,
-                    orm_model=source_table,
-                    skip_archive=True,
-                    session=session,
-                    batch_size=None,
-                )
-
-        assert exc_info.value is drop_failure
-        session.rollback.assert_not_called()
-
-    @patch("airflow.utils.db.reflect_tables")
-    def test_skip_archive_failure_will_remove_table(self, reflect_tables_mock):
-        """
-        Verify that running cleanup_table with skip_archive = True, and failure happens.
-
-        The archive table should be removed from db if any exception.
-        """
+    @patch("airflow.utils.db_cleanup.reflect_tables")
+    def test_skip_archive_failure_does_not_create_archive_table(self, reflect_tables_mock):
         reflect_tables_mock.side_effect = SQLAlchemyError("Deletion failed")
         base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
         num_tis = 10
@@ -1079,7 +1375,6 @@ class TestDBCleanup:
             "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
-            "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
@@ -1094,10 +1389,16 @@ class TestDBCleanup:
             "asset_partition_dag_run",
             "asset_watcher",  # cascade from trigger
             "dag_favorite",  # cascade from dag
+            "dag_processor_publication_receipt",  # cascade from job
+            "dag_processor_work_claim",  # cascade from job
             "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
+            "dynamic_region",  # cascade from dag_run; archived with it, never aged out on its own
             "hitl_detail",  # cascade from task_instance
             "hitl_detail_history",  # cascade from task_instance_history
             "job_team",  # cascade from job
+            "legacy_task_data_owner",  # cascade from task_instance
+            "rtif_v1",  # cascade from legacy_task_data_owner
+            "rtif_v2",  # cascade from task_instance
             "task_inlet_asset_reference",  # cascade from dag
         }
 
@@ -1422,6 +1723,411 @@ class TestDBCleanup:
         )
         cleanup_table_mock.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("parent", "dry_run", "skip_archive"),
+        [
+            pytest.param("task_instance", False, False, id="task_instance"),
+            pytest.param("dag_run", False, False, id="dag_run"),
+            pytest.param("task_instance", True, False, id="dry_run"),
+            pytest.param("task_instance", False, True, id="skip_archive"),
+        ],
+    )
+    @pytest.mark.execution_timeout(10)
+    def test_cleanup_archives_owned_data_newer_than_parent_cutoff(
+        self, ownership_session, parent, dry_run, skip_archive
+    ):
+        session = ownership_session
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
+        XComModel.set_for_attempt(task_instance_id=CURRENT_ID, key="new", value=123, session=session)
+        session.execute(sa.update(XComModelV2).values(timestamp=NOW + timedelta(days=30)))
+        session.execute(
+            sa.text("UPDATE xcom_v1 SET timestamp = :future"), {"future": NOW + timedelta(days=30)}
+        )
+        session.commit()
+        owned_tables = [
+            "task_instance",
+            "xcom_v1",
+            "xcom_v2",
+            "rtif_v1",
+            "legacy_task_data_owner",
+            "task_reschedule",
+            "task_instance_note",
+            "hitl_detail",
+        ]
+        rows = {
+            name: [dict(row) for row in session.execute(sa.text(f"SELECT * FROM {name}")).mappings()]
+            for name in owned_tables
+        }
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=[parent],
+            dry_run=dry_run,
+            skip_archive=skip_archive,
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        archived = not (dry_run or skip_archive)
+        archive_names = _get_archived_table_names([parent], session)
+        for name, expected in rows.items():
+            assert session.scalar(sa.text(f"SELECT count(*) FROM {name}")) == (
+                len(expected) if dry_run else 0
+            )
+            archives = [
+                archive for archive in archive_names if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}{name}__")
+            ]
+            archived_rows = [
+                dict(row)
+                for archive in archives
+                for row in session.execute(sa.text(f"SELECT * FROM {archive}")).mappings()
+            ]
+            assert sorted(archived_rows, key=repr) == sorted(expected if archived else [], key=repr), (
+                name,
+                archives,
+            )
+            if not archived:
+                assert archives == []
+
+    @pytest.mark.execution_timeout(10)
+    def test_cleanup_reuses_child_archives_across_parent_batches(self, ownership_session):
+        session = ownership_session
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
+        for attempt in session.scalars(sa.select(TaskInstance)):
+            XComModel.set_for_attempt(
+                task_instance_id=attempt.id, key="per_attempt", value=str(attempt.id), session=session
+            )
+        session.commit()
+        expected = {
+            name: session.scalar(sa.text(f"SELECT count(*) FROM {name}"))
+            for name in ("xcom_v1", "xcom_v2", "rtif_v1", "legacy_task_data_owner")
+        }
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["task_instance"],
+            batch_size=1,
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        archives = _get_archived_table_names(["task_instance"], session)
+        parent_archives = [
+            archive for archive in archives if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}task_instance__")
+        ]
+        assert len(parent_archives) == 2
+        for name, count in expected.items():
+            child_archives = [
+                archive
+                for archive in archives
+                if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}{name}__")
+                and re.fullmatch(r"[0-9a-f]{16}", archive.rsplit("__", 1)[-1])
+            ]
+            assert len(child_archives) == 1
+            all_archives = [
+                archive for archive in archives if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}{name}__")
+            ]
+            assert (
+                sum(
+                    session.scalar(sa.select(sa.func.count()).select_from(sa.table(archive)))
+                    for archive in all_archives
+                )
+                == count
+            )
+
+    @pytest.mark.execution_timeout(10)
+    def test_dag_run_cleanup_archives_its_regions(self, ownership_session):
+        session = ownership_session
+        region_id = uuid4()
+        session.execute(
+            sa.insert(DynamicRegion).values(
+                id=region_id,
+                dag_id=COORDINATES["dag_id"],
+                run_id=COORDINATES["run_id"],
+                node_id="loop",
+                family_root_id=region_id,
+                path=b"",
+                created_at=NOW - timedelta(days=100),
+            )
+        )
+        session.execute(sa.update(TaskInstance).values(region_id=region_id))
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["dag_run"],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.scalar(sa.select(sa.func.count()).select_from(DynamicRegion)) == 0
+        archived = [
+            archive
+            for archive in _get_archived_table_names(["dag_run"], session)
+            if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}dynamic_region__")
+        ]
+        archived_ids = [
+            row[0]
+            for archive in archived
+            for row in session.execute(sa.text(f"SELECT id FROM {archive}").columns(id=CompactUUID()))
+        ]
+        assert archived_ids == [region_id]
+
+    @pytest.mark.parametrize("include", [True, False])
+    @pytest.mark.execution_timeout(10)
+    def test_cleanup_scopes_attempt_cascade_to_selected_dag(self, ownership_session, include):
+        session = ownership_session
+        other_id = uuid4()
+        session.execute(
+            table(session.connection(), "dag_run")
+            .insert()
+            .values(
+                id=42,
+                dag_id="other",
+                run_id="manual",
+                run_type="manual",
+                run_after=NOW,
+                state="success",
+                start_date=NOW,
+            )
+        )
+        session.execute(
+            table(session.connection(), "task_instance", "id")
+            .insert()
+            .values(
+                id=other_id,
+                dag_id="other",
+                task_id="task",
+                run_id="manual",
+                region_index=-1,
+                state="success",
+                try_number=1,
+                working_set=True,
+                pool="default_pool",
+                pool_slots=1,
+                start_date=NOW,
+            )
+        )
+        session.execute(sa.update(TaskInstance).where(TaskInstance.id == CURRENT_ID).values(start_date=NOW))
+        for attempt_id in (CURRENT_ID, other_id):
+            XComModel.set_for_attempt(task_instance_id=attempt_id, key="new", value=123, session=session)
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["dag_run"],
+            dag_ids=["ownership"] if include else None,
+            exclude_dag_ids=None if include else ["other"],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert (
+            session.scalar(
+                sa.select(sa.func.count()).select_from(TaskInstance).where(TaskInstance.id == CURRENT_ID)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(XComModelV2)
+                .where(XComModelV2.task_instance_id == CURRENT_ID)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                sa.select(sa.func.count()).select_from(TaskInstance).where(TaskInstance.id == other_id)
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(XComModelV2)
+                .where(XComModelV2.task_instance_id == other_id)
+            )
+            == 1
+        )
+
+
+class TestAssetEventCleanup:
+    CUTOFF = pendulum.datetime(2024, 1, 2, tz="UTC")
+
+    @pytest.fixture
+    def asset_events(self, session):
+        drop_tables_with_prefix(ARCHIVE_TABLE_PREFIX)
+        assets = [AssetModel(name=f"asset-{i}", uri=f"test://asset-{i}") for i in range(3)]
+        session.add_all(assets)
+        session.flush()
+        asset_ids = [asset.id for asset in assets]
+        events = [
+            AssetEvent(asset_id=asset_id, source_dag_id=source, timestamp=self.CUTOFF.add(days=offset))
+            for asset_id in asset_ids
+            for source in ("producer", "other", None)
+            for offset in (-1, 0, 1)
+        ]
+        session.add_all(events)
+        session.flush()
+        rows = {event.id: (event.asset_id, event.source_dag_id, event.timestamp) for event in events}
+        session.commit()
+        yield asset_ids, rows
+        drop_tables_with_prefix(ARCHIVE_TABLE_PREFIX)
+
+    @pytest.mark.parametrize(
+        ("dry_run", "skip_archive", "batch_size", "dag_ids", "exclude_dag_ids", "sources"),
+        [
+            pytest.param(False, False, None, None, None, {"producer", "other", None}, id="archive"),
+            pytest.param(False, False, 2, None, None, {"producer", "other", None}, id="batched-archive"),
+            pytest.param(False, True, 2, None, None, {"producer", "other", None}, id="batched-skip-archive"),
+            pytest.param(True, False, 2, None, None, {"producer", "other", None}, id="dry-run"),
+            pytest.param(False, True, 2, ["producer"], None, {"producer"}, id="include-dag"),
+            pytest.param(False, True, 2, None, ["other"], {"producer", None}, id="exclude-dag"),
+            pytest.param(
+                False, True, 2, ["producer", "other"], ["other"], {"producer"}, id="intersect-dag-filters"
+            ),
+        ],
+    )
+    def test_cleanup_selected_assets(
+        self,
+        asset_events,
+        session,
+        dag_maker,
+        capsys,
+        dry_run,
+        skip_archive,
+        batch_size,
+        dag_ids,
+        exclude_dag_ids,
+        sources,
+    ):
+        asset_ids, rows = asset_events
+        selected_assets = asset_ids[:2]
+        with dag_maker("asset_cleanup_consumer", session=session):
+            pass
+        dag_run = dag_maker.create_dagrun()
+        dag_run_id, dag_id = dag_run.id, dag_run.dag_id
+        alias = AssetAliasModel(name="cleanup-alias")
+        session.add(alias)
+        session.flush()
+        alias_id = alias.id
+        session.add_all(DagScheduleAssetReference(asset_id=asset_id, dag_id=dag_id) for asset_id in asset_ids)
+        session.add_all(
+            AssetDagRunQueue(asset_event_id=event_id, asset_id=row[0], target_dag_id=dag_id)
+            for event_id, row in rows.items()
+        )
+        session.execute(
+            association_table.insert(),
+            [{"dag_run_id": dag_run_id, "event_id": event_id} for event_id in rows],
+        )
+        session.execute(
+            asset_alias_asset_event_association_table.insert(),
+            [{"alias_id": alias_id, "event_id": event_id} for event_id in rows],
+        )
+        session.commit()
+        matching = {
+            event_id
+            for event_id, (asset_id, source, timestamp) in rows.items()
+            if asset_id in selected_assets and source in sources and timestamp < self.CUTOFF
+        }
+
+        run_cleanup(
+            clean_before_timestamp=self.CUTOFF,
+            table_names=["asset_event"],
+            asset_ids=selected_assets,
+            dag_ids=dag_ids,
+            exclude_dag_ids=exclude_dag_ids,
+            dry_run=dry_run,
+            skip_archive=skip_archive,
+            batch_size=batch_size,
+            confirm=False,
+            error_on_cleanup_failure=True,
+            session=session,
+        )
+
+        remaining = set(rows) if dry_run else set(rows) - matching
+        assert set(session.scalars(select(AssetEvent.id))) == remaining
+        assert set(session.scalars(select(AssetDagRunQueue.asset_event_id))) == remaining
+        assert set(session.scalars(select(association_table.c.event_id))) == remaining
+        assert set(session.scalars(select(asset_alias_asset_event_association_table.c.event_id))) == remaining
+        assert set(session.scalars(select(AssetModel.id))) == set(asset_ids)
+        assert session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id)) == dag_id
+        assert session.scalar(select(DagRun.id).where(DagRun.id == dag_run_id)) == dag_run_id
+        assert session.scalar(select(AssetAliasModel.id)) == alias_id
+        assert set(session.scalars(select(DagScheduleAssetReference.asset_id))) == set(asset_ids)
+
+        archives = [
+            name
+            for name in _get_archived_table_names(["asset_event"], session)
+            if name.startswith(f"{ARCHIVE_TABLE_PREFIX}asset_event__")
+        ]
+        if dry_run or skip_archive:
+            assert archives == []
+        else:
+            archived_ids = {
+                event_id
+                for name in archives
+                for event_id in session.scalars(select(sa.column("id")).select_from(sa.table(name)))
+            }
+            assert archived_ids == matching
+            assert len(archives) == (len(matching) // batch_size if batch_size else 1)
+        if dry_run:
+            output = capsys.readouterr().out
+            assert f"Restricting cleanup to asset IDs {selected_assets!r}." in output
+            assert f"Found {len(matching)} rows in table asset_event meeting deletion criteria." in output
+
+    @pytest.mark.parametrize("empty_selection", [False, True])
+    def test_asset_filter_is_request_local(self, asset_events, session, empty_selection):
+        asset_ids, rows = asset_events
+        selected = [] if empty_selection else asset_ids[:1]
+        run_cleanup(
+            clean_before_timestamp=self.CUTOFF,
+            table_names=["asset_event"],
+            asset_ids=selected,
+            skip_archive=True,
+            confirm=False,
+            error_on_cleanup_failure=True,
+            session=session,
+        )
+        deleted = {
+            event_id
+            for event_id, (asset_id, _, timestamp) in rows.items()
+            if asset_id in selected and timestamp < self.CUTOFF
+        }
+        assert set(session.scalars(select(AssetEvent.id))) == set(rows) - deleted
+
+        run_cleanup(
+            clean_before_timestamp=self.CUTOFF,
+            table_names=["asset_event"],
+            asset_ids=None,
+            skip_archive=True,
+            confirm=False,
+            error_on_cleanup_failure=True,
+            session=session,
+        )
+        assert set(session.scalars(select(AssetEvent.id))) == {
+            event_id for event_id, (_, _, timestamp) in rows.items() if timestamp >= self.CUTOFF
+        }
+
+    @patch("builtins.input", autospec=True, return_value="cancel")
+    def test_confirmation_includes_asset_ids(self, mock_input, capsys):
+        with pytest.raises(SystemExit, match="User did not confirm"):
+            run_cleanup(
+                clean_before_timestamp=self.CUTOFF,
+                table_names=["asset_event"],
+                asset_ids=[1, 2],
+            )
+        assert "for asset IDs [1, 2]" in capsys.readouterr().out
+
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     from tests_common.test_utils.taskinstance import create_task_instance
@@ -1487,7 +2193,7 @@ class TestTaskStoreCleanup:
             expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="job_id",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -1498,7 +2204,7 @@ class TestTaskStoreCleanup:
             never_expire = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="result",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -1509,7 +2215,7 @@ class TestTaskStoreCleanup:
             not_yet_expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="future_key",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -1561,7 +2267,6 @@ class TestConnectionTestRequestCleanup:
 
     def test_extra_filters_keep_in_flight_rows(self):
         """Even past the cutoff, PENDING/QUEUED/RUNNING rows survive cleanup; SUCCESS/FAILED don't."""
-        from datetime import timezone
 
         import uuid6
 
@@ -1577,7 +2282,7 @@ class TestConnectionTestRequestCleanup:
                 ct = ConnectionTestRequest(connection_id=f"cleanup_probe_{state.value}", conn_type="http")
                 ct.id = uuid6.uuid7()
                 ct.state = state
-                ct.updated_at = old.in_timezone(timezone.utc)
+                ct.updated_at = old.in_timezone(UTC)
                 s.add(ct)
                 seeded[state.value] = str(ct.id)
             s.commit()
@@ -2120,7 +2825,7 @@ class TestTaskRescheduleCleanup:
             assert session.scalar(select(func.count(TaskInstance.id))) == 0
             assert session.scalar(select(func.count(TaskReschedule.id))) == 0
             archives = _get_archived_table_names(["task_reschedule"], session)
-            assert len(archives) == 1
+            assert len(archives) == 2
 
 
 @pytest.mark.backend("postgres")

@@ -21,8 +21,8 @@
   "asset_other": "Zasoby",
   "assetEvent_few": "Zdarzenia zasobów",
   "assetEvent_many": "Zdarzeń zasobów",
-  "assetEvent_one": "Zdarzenie Zasobu",
-  "assetEvent_other": "Zdarzenia Zasobów",
+  "assetEvent_one": "Zdarzenie zasobu",
+  "assetEvent_other": "Zdarzenia zasobów",
   "assetInactive": {
     "tooltip": "Zasób nadrzędny został deaktywowany; harmonogram wstrzymuje ocenę partycji do czasu jego ponownej aktywacji."
   },
@@ -56,6 +56,7 @@
   "dagBundle_other": "Paczki Dagów",
   "dagDetails": {
     "activeRuns": "Aktywne wykonania",
+    "bundleVersion": "Wersja paczki",
     "catchup": "Nadrabianie zaległości",
     "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
@@ -71,7 +72,7 @@
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
     "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
-    "nextRun": "Następne Wykonanie",
+    "nextRun": "Następne wykonanie",
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
@@ -88,7 +89,7 @@
       "mean": "Średnia",
       "mode": "Dominanta"
     },
-    "expectedDuration": "Oczekiwany Czas Trwania",
+    "expectedDuration": "Oczekiwany czas trwania",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
     "mappedPartitionKey": "Zmapowany klucz partycji",
     "partitionDate": "Data partycji",
@@ -97,8 +98,8 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
-    "triggeredBy": "Uruchomiony jako",
-    "triggeringUser": "Użytkownik który uruchomił"
+    "triggeredBy": "Uruchomione przez",
+    "triggeringUser": "Użytkownik, który uruchomił"
   },
   "dagRun_few": "Wykonania",
   "dagRun_many": "Wykonań",
@@ -106,7 +107,6 @@
   "dagRun_other": "Wykonania",
   "dagRunId": "Identyfikator wykonania",
   "dagRunState": "Stan wykonania Daga",
-  "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "delete": "Usuń",
   "diff": "Porównaj",
   "diffCompareWith": "Porównaj z",
@@ -132,6 +132,7 @@
     "home": "Strona główna",
     "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
+    "reload": "Odśwież stronę",
     "title": "Błąd"
   },
   "errors": {
@@ -148,25 +149,32 @@
     "collapse": "Zwiń",
     "expand": "Rozwiń",
     "hotkey": "e",
-    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
+    "tooltip": "Naciśnij {{hotkey}}, aby przełączyć rozwijanie"
   },
   "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON",
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
     "any": "Dowolne",
+    "hiddenAsset": "Ukryty zasób",
     "or": "LUB"
   },
   "filter": "Filtr",
   "filters": {
     "addFilter": "Dodaj filtr",
+    "allIterations": "Wszystkie",
     "completedAt": "Zakończono o",
     "date": "Data",
     "durationFrom": "Czas trwania od",
     "durationTo": "Czas trwania do",
     "endTime": "Czas zakończenia",
+    "iteration": "Iteracja",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
+    "loop": "Pętla",
+    "loopAllIterations": "{{loop}}: wszystkie",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Wybierz pętlę",
     "maxActiveRunsFrom": "Maksymalna liczba aktywnych wykonań od",
     "maxActiveRunsTo": "Maksymalna liczba aktywnych wykonań do",
     "removeFilter": "Usuń filtr",
@@ -176,6 +184,7 @@
     "selectDateRange": "Wybierz zakres dat",
     "selectDateTime": "Wybierz datę i godzinę",
     "startTime": "Czas rozpoczęcia",
+    "switchIteration": "Przełącz iterację",
     "time": "Godzina"
   },
   "fullscreen": {
@@ -184,6 +193,12 @@
   "generateToken": "Wygeneruj token",
   "includedIn": "Zawarte w",
   "key": "Klucz",
+  "loading": "Ładowanie…",
+  "logLevel": {
+    "hide": "Ukryj poziomy logów",
+    "hotkey": "l",
+    "show": "Pokaż poziomy logów"
+  },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -194,7 +209,7 @@
     "confirm": "Potwierdź",
     "delete": {
       "button": "Usuń",
-      "confirmation": "Jesteś pewien, że chcesz usunąć {{resourceName}}? Ta operacja nie może być cofnięta."
+      "confirmation": "Czy na pewno chcesz usunąć {{resourceName}}? Tej operacji nie można cofnąć."
     },
     "save": "Zapisz"
   },
@@ -210,7 +225,8 @@
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
-  "noItemsFound": "Nie znaleziono modelu {{modelName}}",
+  "no": "Nie",
+  "noItemsFound": "Nie znaleziono: {{modelName}}",
   "note": {
     "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
@@ -222,6 +238,10 @@
     "write": "Napisz"
   },
   "overallStatus": "Stan ogólny",
+  "pagination": {
+    "nextPage": "Następna strona",
+    "previousPage": "Poprzednia strona"
+  },
   "partition_few": "Partycje",
   "partition_many": "Partycji",
   "partition_one": "Partycja",
@@ -234,10 +254,10 @@
     "receivedAssetEvents": "Otrzymane zdarzenia zasobów"
   },
   "pause": "Wstrzymaj",
-  "pendingDagRun_few": "{{count}} oczekujące wykonania Dagów",
-  "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
-  "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
-  "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
+  "pendingDagRun_few": "{{count, number}} oczekujące wykonania Dagów",
+  "pendingDagRun_many": "{{count, number}} oczekujących wykonań Dagów",
+  "pendingDagRun_one": "{{count, number}} oczekujące wykonanie Daga",
+  "pendingDagRun_other": "{{count, number}} oczekujących wykonań Dagów",
   "presetFilters": {
     "deleteTitle": "Usuń zapisany filtr",
     "deleteWarning": "Zapisane filtry są przechowywane wyłącznie w tej przeglądarce.",
@@ -274,7 +294,8 @@
   "search": {
     "advanced": {
       "description": "Dopasuj w dowolnym miejscu wartości (wyszukiwanie podciągu). Wolniejsze w dużych wdrożeniach, ponieważ nie może użyć domyślnego indeksu B-drzewa. Szczegóły w sekcji dokumentacji o niestandardowych indeksach metadanych.",
-      "title": "Dopasuj w dowolnym miejscu"
+      "title": "Dopasuj w dowolnym miejscu",
+      "toggleLabel": "Przełącz wyszukiwanie z dopasowaniem w dowolnym miejscu"
     }
   },
   "security": {
@@ -288,6 +309,10 @@
   "selected": "Wybrano",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Domyślnie zachowuj wpisy magazynu stanu zadania podczas czyszczenia instancji zadań, zamiast je usuwać.",
+        "label": "Zachowuj stan zadania przy czyszczeniu"
+      },
       "preventRunningTask": {
         "helper": "Pomijaj aktualnie uruchomione zadania podczas czyszczenia instancji zadań.",
         "label": "Zapobiegaj czyszczeniu uruchomionych zadań"
@@ -301,6 +326,13 @@
         "label": "Domyślny wybór przy czyszczeniu zadań"
       },
       "title": "Czyszczenie"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Pokazuj ostatnie stany zadań każdego Daga na liście Dagów. Wyłącz, aby ich nie ładować, co może pomóc we wdrożeniach z wieloma Dagami.",
+        "label": "Pokazuj ostatnie zadania"
+      },
+      "title": "Lista Dagów"
     },
     "description": "Te preferencje są zapisywane tylko w tej przeglądarce i obowiązują w całej aplikacji.",
     "general": {
@@ -319,6 +351,10 @@
         "helper": "Kierunek układu grafów Dagów i zasobów, dla których nie ustawiono go indywidualnie.",
         "label": "Domyślny kierunek grafu"
       },
+      "taskGroupsExpanded": {
+        "helper": "Rozwijaj grupy zadań w Dagach, dla których nie zapisano wyboru grup. Istniejące wybory są zachowywane.",
+        "label": "Domyślnie rozwijaj grupy zadań"
+      },
       "title": "Graf"
     },
     "marking": {
@@ -327,6 +363,13 @@
         "label": "Domyślny wybór przy oznaczaniu"
       },
       "title": "Oznaczanie"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Wybór dokonany w konkretnym polu wyszukiwania i udostępnione linki nadal mają pierwszeństwo.",
+        "label": "Domyślnie dopasowuj w dowolnym miejscu"
+      },
+      "title": "Wyszukiwanie"
     },
     "taskInstance": {
       "defaultTab": {
@@ -366,10 +409,13 @@
       "scrollBottom": "Przewiń do dołu",
       "scrollTop": "Przewiń do góry",
       "searchDags": "Szukaj Dagów",
+      "selectGridCellRange": "Wybierz zakres instancji zadań lub grup zadań",
       "showHelp": "Pokaż skróty klawiszowe",
       "toggleExpand": "Rozwiń lub zwiń wszystkie grupy",
       "toggleFullscreen": "Przełącz pełny ekran",
       "toggleGraphGrid": "Przełącz widok grafu / siatki",
+      "toggleGridCellSelection": "Dodaj lub usuń instancję zadania albo grupę zadań z zaznaczenia",
+      "toggleLogLevel": "Przełącz poziomy logów",
       "toggleSource": "Przełącz źródła",
       "toggleTaskGroup": "Rozwiń lub zwiń grupę zadań",
       "toggleTimestamp": "Przełącz znaczniki czasu",
@@ -403,11 +449,12 @@
     "no_status": "Brak stanu",
     "none": "Brak stanu",
     "open": "Otwarte",
+    "pending": "Oczekujące",
     "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
-    "running": "Wykonane",
+    "running": "Wykonywane",
     "scheduled": "Zaplanowane",
     "skipped": "Pominięte",
     "success": "Sukces",
@@ -416,10 +463,12 @@
     "upstream_failed": "Niepowodzenie poprzednika"
   },
   "switchDag": "Przełącz $t(dag_one)",
+  "switchDagRun": "Przełącz wykonanie",
+  "switchMapIndex": "Przełącz indeks mapowania",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
-    "filterByTag": "Filtruj Dagi według tagu",
+    "filterByTag": "Filtruj Dagi według etykiety",
     "filterColumns": "Filtruj kolumny tabeli",
     "filterReset_few": "Resetuj filtry",
     "filterReset_many": "Resetuj filtry",
@@ -459,7 +508,7 @@
   "taskGroup_many": "Grup zadań",
   "taskGroup_one": "Grupa zadań",
   "taskGroup_other": "Grupy zadań",
-  "taskId": "Identyfikator Zadania",
+  "taskId": "Identyfikator zadania",
   "taskInstance": {
     "additionalAttributes": "Dodatkowe atrybuty instancji zadania",
     "dagVersion": "Wersja Daga",
@@ -467,6 +516,9 @@
     "executorConfig": "Konfiguracja wykonawcy",
     "hostname": "Nazwa hosta",
     "id": "ID",
+    "iteration": "Iteracja",
+    "loopDecision": "Decyzja",
+    "loopIterations": "Wykonane iteracje",
     "maxTries": "Maksymalna liczba prób",
     "pid": "PID",
     "pool": "Pula",
@@ -475,7 +527,13 @@
     "queue": "Kolejka",
     "queuedWhen": "Zakolejkowano o",
     "renderedMapIndex": "Wyrenderowany indeks mapowania",
+    "retryAt": "Ponowna próba o",
     "scheduledWhen": "Zaplanowano o",
+    "stateReason": "Przyczyna stanu",
+    "stateReasonSummary": {
+      "failed": "Zatrzymano przy próbie {{tryNumber}} z {{totalTries}}",
+      "upForRetry": "Ponawianie po próbie {{tryNumber}} z {{totalTries}}"
+    },
     "trigger": "Wyzwalacz",
     "triggerer": {
       "assigned": "Przypisany wyzwalacz",
@@ -488,22 +546,27 @@
     },
     "unixname": "Nazwa użytkownika systemu Unix"
   },
-  "taskInstance_few": "Instancje Zadań",
-  "taskInstance_many": "Instancji Zadań",
-  "taskInstance_one": "Instancja Zadania",
-  "taskInstance_other": "Instancje Zadań",
+  "taskInstance_few": "Instancje zadań",
+  "taskInstance_many": "Instancji zadań",
+  "taskInstance_one": "Instancja zadania",
+  "taskInstance_other": "Instancje zadań",
   "teams": {
-    "more_few": "i jeszcze {{count}}",
-    "more_many": "i jeszcze {{count}}",
-    "more_one": "i jeszcze {{count}}",
-    "more_other": "i jeszcze {{count}}",
+    "more_few": "i jeszcze {{count, number}}",
+    "more_many": "i jeszcze {{count, number}}",
+    "more_one": "i jeszcze {{count, number}}",
+    "more_other": "i jeszcze {{count, number}}",
     "none": "Brak zespołu",
     "title": "Zespoły"
   },
   "timeRange": {
+    "anyTime": "Dowolny czas",
+    "in": "w okresie",
+    "last7Days": "Ostatnie 7 dni",
     "last12Hours": "Ostatnie 12 godzin",
     "last24Hours": "Ostatnie 24 godziny",
+    "last30Days": "Ostatnie 30 dni",
     "lastHour": "Ostatnia godzina",
+    "latestRun": "Ostatnie wykonanie",
     "pastWeek": "Poprzedni tydzień"
   },
   "timestamp": {
@@ -516,27 +579,27 @@
     "current-timezone": "Obecny czas w",
     "placeholder": "Wybierz strefę czasową",
     "title": "Wybierz strefę czasową",
-    "utc": "UTC (Uniwersalny Czas Koordynowany)"
+    "utc": "UTC (uniwersalny czas koordynowany)"
   },
   "toaster": {
     "bulkClear": {
       "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie wyczyszczono {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie usunięto {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie zaktualizowano {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
@@ -557,7 +620,7 @@
     "import": {
       "error": "Nie udało się wykonać żądania importu {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "description": "Pomyślnie zaimportowano {{count, number}} {{resourceName}}.",
         "title": "Wysłano żądanie importu {{resourceName}}"
       }
     },
@@ -593,8 +656,9 @@
   "value": "Wartość",
   "wrap": {
     "hotkey": "w",
-    "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
+    "tooltip": "Naciśnij {{hotkey}}, aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
-  }
+  },
+  "yes": "Tak"
 }

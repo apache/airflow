@@ -21,7 +21,7 @@ from __future__ import annotations
 import lzma
 import os
 import zlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -112,11 +112,6 @@ _MEDIA_FORMATS = frozenset({"jpeg", "jpg", "pdf", "png"})
 class ObjectStorageToolset(AirflowToolset):
     """
     Give an agent read-only access to the files under one object-storage path.
-
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
 
     Exposes three tools, ``list_files``, ``get_file_info`` and ``read_file``, rooted at
     ``path``, which is any location Airflow's
@@ -379,7 +374,7 @@ def _as_iso(modified: Any) -> str | None:
     if isinstance(modified, datetime):
         return modified.isoformat()
     if isinstance(modified, (int, float)) and modified > 0:
-        return datetime.fromtimestamp(modified, tz=timezone.utc).isoformat()
+        return datetime.fromtimestamp(modified, tz=UTC).isoformat()
     return None
 
 

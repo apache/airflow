@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -106,7 +106,7 @@ def test_trigger_dag_populates_partition_date_for_cron_partition_timetable(dag_m
 
     assert dag_run is not None
     assert dag_run.partition_key == "2025-06-01T00:00:00"
-    assert dag_run.partition_date == datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert dag_run.partition_date == datetime(2025, 6, 1, 0, 0, 0, tzinfo=UTC)
 
 
 def test_trigger_dag_raises_invalid_partition_key_for_cron_partition_timetable(dag_maker, session):

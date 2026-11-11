@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from airflow.sdk import DAG, task
 
@@ -47,7 +47,7 @@ with DAG(
             "table": table,
             "map_index": ti.map_index,
             "row_count": row_count,
-            "processed_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
+            "processed_at": datetime.now(tz=UTC).isoformat(timespec="seconds"),
         }
         task_state_store.set("status", "complete")
         task_state_store.set("result", result)

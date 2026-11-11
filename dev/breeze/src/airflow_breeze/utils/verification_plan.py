@@ -46,11 +46,15 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ),
     ),
     "run_api_codegen": (("schema", "breeze testing python-api-client-tests", "breeze"),),
-    "run_go_sdk_tests": (("unit", "cd go-sdk && go test ./...", "host"),),
+    "run_go_sdk_tests": (
+        ("unit", "cd go-sdk && go test ./...", "host"),
+        ("unit", "cd go-sdk && go test -race ./...", "host"),
+    ),
     "run_java_sdk_tests": (
         ("unit", "cd java-sdk && ./gradlew test", "host"),
         ("docs", "breeze build-docs --sdk-docs-only --sdk=java", "breeze"),
     ),
+    "run_ts_sdk_tests": (("unit", "cd ts-sdk && pnpm install --frozen-lockfile && pnpm test", "host"),),
     "run_ts_sdk_docs": (("docs", "breeze build-docs --sdk-docs-only --sdk=typescript", "breeze"),),
     "run_agent_framework_tests": (
         (
@@ -63,14 +67,33 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
             'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh google-adk"',
             "breeze",
         ),
+        (
+            "unit",
+            'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh openai-agents"',
+            "breeze",
+        ),
+        (
+            "unit",
+            'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh llama-index"',
+            "breeze",
+        ),
     ),
     "run_breeze_integration_tests": (
         ("unit", "cd dev/breeze && uv run --locked pytest", "host"),
         ("unit", "cd dev/breeze && uv run --locked pytest -m integration_tests", "host"),
     ),
+    "run_shared_distributions_tests": (
+        (
+            "unit",
+            'for dist in shared/*/; do (cd "$dist" && uv run --exact --group dev pytest -n auto) || exit 1; done',
+            "host",
+        ),
+    ),
+    "run_translation_check": (("ui", "breeze ui check-translation-completeness", "host"),),
 }
 
-# Gated CI jobs that need a cluster, a prod image or an e2e stack; classified only, never printed.
+# Gated CI jobs that need a cluster, a prod image, an e2e stack or released Airflow versions; classified
+# only, never printed.
 NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
     {
         "run_kubernetes_tests",
@@ -89,6 +112,12 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
         "run_openlineage_e2e_tests",
         "run_openlineage_e2e_compat_tests",
         "run_ts_sdk_e2e_tests",
+        "run_yaml_dag_e2e_tests",
+        "run_generic_prod_image_tests",
+        "run_generic_basic_tests",
+        "run_image_build_time_check",
+        "run_docs_publish",
+        "run_providers_compatibility_tests",
     }
 )
 
@@ -148,18 +177,10 @@ def build_local_verification_plan(
             VerificationItem("docs", f"breeze build-docs {sc.docs_list_as_string}".rstrip(), "breeze")
         )
     if full:
-        # Jobs CI runs on every PR regardless of the change.
+        # Breeze's unit tests run on every PR regardless of the change.
         breeze_tests = VerificationItem("unit", "cd dev/breeze && uv run --locked pytest", "host")
         if breeze_tests not in items:
             items.append(breeze_tests)
-        if dists := " ".join(sorted(json.loads(sc.shared_distributions_as_json))):
-            items.append(
-                VerificationItem(
-                    "unit",
-                    f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
-                    "host",
-                )
-            )
     return {
         "base_ref": base_ref,
         "default_python_version": sc.default_python_version,

@@ -31,8 +31,8 @@ import (
 )
 
 // Task is one registered task that the coordinator runtime can execute. Bundle
-// authors do not implement this directly. airflow.TaskHandler, airflow.DagRef.Task
-// and airflow.DagRef.If wrap a plain Go function into a Task.
+// authors do not implement this directly. airflow.TaskHandler, airflow.DagRef.Task,
+// airflow.DagRef.If and airflow.DagRef.Switch wrap a plain Go function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
 }
@@ -57,12 +57,31 @@ type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
 }
 
+// SerializedDag is one Dag from airflow.Dag, serialized for the Dag processor. Data is nil when
+// Err is set.
+type SerializedDag struct {
+	DagID string
+	Data  map[string]any
+	Err   error
+}
+
+// DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
+// order.
+type DagSerializer interface {
+	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
+}
+
+// DagSourceLister reports the source file that declared each Dag of a bundle, by dag_id.
+type DagSourceLister interface {
+	ListDagSourceFiles() map[string]string
+}
+
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string
 	plan     *binding.Plan
-	// findSkipped is nil unless the task comes from NewPositionalBranchFunction.
-	findSkipped func(result any) []string
+	// decide is nil unless the task comes from NewPositionalBranchFunction.
+	decide DecideFunc
 }
 
 var _ Task = (*taskFunction)(nil)
@@ -76,19 +95,26 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 	return newTaskFunction(fn, binding.AnalyzePositional, nil)
 }
 
+// DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
+// returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
+// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
+// fails the task.
+type DecideFunc func(result any) (value any, skipped []string, err error)
+
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
 // that are downstream of it. fn must return a result and an error. Before fn runs, Execute checks
-// that the runtime can skip tasks, and writes an empty list to the skipmixin_key XCom of the task.
-// When fn returns a nil error, Execute passes the result to findSkipped. If findSkipped returns
-// task_ids, Execute records them in that XCom and skips those tasks.
-func NewPositionalBranchFunction(fn any, findSkipped func(result any) []string) (Task, error) {
-	return newTaskFunction(fn, binding.AnalyzePositional, findSkipped)
+// that the runtime can skip tasks. When fn returns a nil error, Execute passes the result to
+// decide and pushes the value that decide returns. If decide also returns task_ids, Execute
+// records them in the skipmixin_key XCom of the task and skips those tasks. When fn or decide
+// returns an error, the task fails without pushing an XCom.
+func NewPositionalBranchFunction(fn any, decide DecideFunc) (Task, error) {
+	return newTaskFunction(fn, binding.AnalyzePositional, decide)
 }
 
 func newTaskFunction(
 	fn any,
 	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
-	findSkipped func(result any) []string,
+	decide DecideFunc,
 ) (Task, error) {
 	// The kind comes first: Value.Pointer panics on an int, and Value.Type on an untyped nil.
 	v := reflect.ValueOf(fn)
@@ -96,9 +122,9 @@ func newTaskFunction(
 		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
 	}
 	f := &taskFunction{
-		fn:          v,
-		fullName:    runtime.FuncForPC(v.Pointer()).Name(),
-		findSkipped: findSkipped,
+		fn:       v,
+		fullName: runtime.FuncForPC(v.Pointer()).Name(),
+		decide:   decide,
 	}
 	if err := f.validateFn(v.Type(), analyze); err != nil {
 		return nil, err
@@ -117,8 +143,8 @@ func (f *taskFunction) Execute(
 		return err
 	}
 	var branch *branchRun
-	if f.findSkipped != nil {
-		if branch, err = startBranch(ctx, sdkClient); err != nil {
+	if f.decide != nil {
+		if branch, err = startBranch(ctx); err != nil {
 			return err
 		}
 	}
@@ -157,20 +183,28 @@ func (f *taskFunction) call(
 			)
 		}
 	}
+	if err != nil {
+		return err
+	}
+	if branch != nil {
+		// The task pushes the value that decide returns.
+		value, skipped, err := f.decide(retValues[0].Interface())
+		if err != nil {
+			return err
+		}
+		rv := reflect.ValueOf(value)
+		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
+			if err := pushReturnValue(ctx, value, sdkClient); err != nil {
+				return err
+			}
+		}
+		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
+	}
 	// If there are two results, convert the first only if it's not a nil pointer
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
-		res := retValues[0].Interface()
-		f.sendXcom(ctx, res, sdkClient, logger)
+		return pushReturnValue(ctx, retValues[0].Interface(), sdkClient)
 	}
-	if err == nil && branch != nil {
-		return branch.skipDownstream(
-			ctx,
-			sdkClient,
-			f.findSkipped(retValues[0].Interface()),
-			logger,
-		)
-	}
-	return err
+	return nil
 }
 
 // skipMixinXComKey is the key of the XCom that lists the tasks a task skipped. When one of those
@@ -200,25 +234,25 @@ type branchRun struct {
 }
 
 // startBranch runs before fn, so that a runtime that cannot skip tasks fails the task before fn
-// has any effect. It writes an empty list to the skipmixin_key XCom because the Go runtime does
-// not delete the XComs of earlier tries. Without the write, NotPreviouslySkippedDep could read
-// the list of an earlier try after this try fails or skips nothing. The list must be empty rather
-// than null, because NotPreviouslySkippedDep cannot read null.
-func startBranch(ctx context.Context, client sdk.Client) (*branchRun, error) {
+// has any effect.
+func startBranch(ctx context.Context) (*branchRun, error) {
 	skip, ok := ctx.Value(skipDownstreamTasksKey{}).(func(context.Context, []string) error)
 	if !ok {
 		return nil, errors.New("the task runtime cannot skip downstream tasks")
 	}
-	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
-	if !ok {
-		return nil, errors.New("task runtime context is missing")
-	}
-	ti := runtimeContext.TaskInstance()
-	err := client.PushXCom(ctx, ti, skipMixinXComKey, map[string][]string{"skipped": {}})
+	ti, err := taskInstanceFrom(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("clearing the %s XCom: %w", skipMixinXComKey, err)
+		return nil, err
 	}
 	return &branchRun{skip: skip, ti: ti}, nil
+}
+
+func taskInstanceFrom(ctx context.Context) (sdk.TaskInstance, error) {
+	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		return sdk.TaskInstance{}, errors.New("task runtime context is missing")
+	}
+	return runtimeContext.TaskInstance(), nil
 }
 
 // skipDownstream records taskIDs in the skipmixin_key XCom, and then skips those tasks.
@@ -242,27 +276,17 @@ func (b *branchRun) skipDownstream(
 	return nil
 }
 
-func (f *taskFunction) sendXcom(
-	ctx context.Context,
-	value any,
-	c sdk.XComClient,
-	logger *slog.Logger,
-) {
-	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
-	if !ok {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
-		return
-	}
-	ti := runtimeContext.TaskInstance()
-	err := c.PushXCom(ctx, sdk.TaskInstance{
-		DagID:    ti.DagID,
-		RunID:    ti.RunID,
-		TaskID:   ti.TaskID,
-		MapIndex: ti.MapIndex,
-	}, sdk.XComReturnValueKey, value)
+// pushReturnValue pushes the task's return value. A failure fails the task: leaving it successful
+// would only move the error to the downstream tasks, which fail later on the XCom that is not there.
+func pushReturnValue(ctx context.Context, value any, c sdk.XComClient) error {
+	ti, err := taskInstanceFrom(ctx)
 	if err != nil {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
+		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
+	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, value); err != nil {
+		return fmt.Errorf("setting the return value XCom: %w", err)
+	}
+	return nil
 }
 
 func (f *taskFunction) validateFn(

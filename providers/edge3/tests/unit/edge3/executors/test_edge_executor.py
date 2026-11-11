@@ -844,7 +844,9 @@ class _WorkloadFactory:
             session.execute(delete(EdgeJobModel))
             session.commit()
 
-    def _make_execute_task(self, task_id: str = "test_task", dag_id: str = "test_dag") -> ExecuteTask:
+    def _make_execute_task(
+        self, task_id: str = "test_task", dag_id: str = "test_dag", priority_weight: int = 1
+    ) -> ExecuteTask:
         ti = TaskInstanceDTO(
             id=uuid4(),
             dag_version_id=uuid4(),
@@ -855,7 +857,7 @@ class _WorkloadFactory:
             map_index=-1,
             pool_slots=1,
             queue="default",
-            priority_weight=1,
+            priority_weight=priority_weight,
         )
         return ExecuteTask(
             ti=ti,
@@ -1074,6 +1076,19 @@ class TestQueueWorkload(_WorkloadFactory):
             assert len(jobs) == 1
             assert jobs[0].state == TaskInstanceState.QUEUED
 
+    def test_queue_workload_stores_task_priority_weight(self):
+        executor = EdgeExecutor()
+
+        with create_session() as session:
+            executor.queue_workload(self._make_execute_task(priority_weight=42), session=session)
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)).priority_weight == 42
+
+        with create_session() as session:
+            executor.queue_workload(self._make_execute_task(priority_weight=7), session=session)
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)).priority_weight == 7
+
     def test_queue_workload_execute_callback(self):
         executor = EdgeExecutor()
         workload = self._make_execute_callback()
@@ -1089,6 +1104,19 @@ class TestQueueWorkload(_WorkloadFactory):
             assert job.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}"
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
+
+    def test_queue_workload_stores_command_longer_than_2048_chars(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_callback()
+        workload.callback.data["kwargs"]["context"] = {"dag_run": {"conf": {"payload": "x" * 4096}}}
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            assert job is not None
+            assert job.command == workload.model_dump_json()
 
     def test_queue_workload_execute_callback_existing_job(self):
         executor = EdgeExecutor()
@@ -1314,7 +1342,7 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
             seconds=conf.getint("scheduler", "task_instance_heartbeat_timeout") + 1
         )
         session.flush()
-        ti.handle_failure("worker lost", session=session)
+        ti = ti.handle_failure("worker lost", session=session)
         session.refresh(ti)
         assert ti.id != workload.ti.id
         assert ti.state == TaskInstanceState.UP_FOR_RETRY

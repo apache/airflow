@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { DagScheduleAssetReference, TaskOutletAssetReference } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, expect, it, vi } from "vitest";

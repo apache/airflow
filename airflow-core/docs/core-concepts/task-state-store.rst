@@ -30,7 +30,9 @@ Task State Store
 
 .. versionadded:: 3.3
 
-Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
+Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``region_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
+
+``region_id`` is the all-zero UUID for task instances outside any dynamic region. Task instances created by dynamically expanded work, such as a loop, belong to a region, and two of them can share the same ``dag_id``, ``run_id``, ``task_id`` and ``map_index``. A custom backend must therefore include ``region_id`` in its uniqueness key.
 
 Because it outlives a worker crash and stays readable by the next attempt, the task state store is the mechanism behind :ref:`durable execution <concepts-durable-execution>`, where a task continues
 from where it stopped instead of repeating work or submitting a duplicate external job. Provider operators that advertise a ``durable`` parameter are built on the API described here.
@@ -315,5 +317,21 @@ When ``[state_store] clear_on_success = True``, all task state store keys for a 
 .. note::
 
    ``clear_on_success`` clears **task state store only**. Asset store is scoped to the asset, not the task instance, and is never affected by this setting. Asset store persists across runs and must be cleared explicitly.
+
+.. note::
+
+   With a custom ``[workers] state_store_backend``, the worker deletes the backend's entries only
+   after the success has been reported, once the task's callbacks and listeners have run. If that
+   deletion fails the task stays successful and the failure is logged. The Dag id, run id, task id
+   and region of the entries are logged just before the deletion starts.
+
+   Those entries are then orphaned: the API server has already removed the metadata-DB references,
+   ``airflow state-store clean`` covers the metastore backend only, and
+   :meth:`~airflow.sdk.state.BaseStoreBackend.cleanup` is a no-op unless your backend implements
+   it. Because the storage scope includes the run id, the next Dag run writes elsewhere rather than
+   overwriting them. Removing them is up to your storage's own lifecycle or TTL policy, or a
+   ``cleanup()`` implementation on your backend. Nothing in Airflow calls ``cleanup()`` for a
+   worker backend, so it has to be called from your own maintenance process, as described in
+   :doc:`/administration-and-deployment/task-and-asset-state-store-cleanup`.
 
 See :doc:`/administration-and-deployment/task-and-asset-state-store` for full configuration details.

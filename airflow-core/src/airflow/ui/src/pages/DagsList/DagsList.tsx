@@ -16,235 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { Box, Flex, HStack, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiSidebar } from "react-icons/fi";
+import { LuFolderInput, LuFolderOutput } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type {
-  DagRunState,
-  DagSchedulingState,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
-import { ActionBar, IconButton, RouterLink, Tooltip } from "src/system-components";
+import { ActionBar, IconButton, Tooltip } from "src/system-components";
 
 import { DagsLayout } from "src/layouts/DagsLayout";
 
-import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
-import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
-import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
-import {
-  SelectionHeaderCheckbox,
-  SelectionProvider,
-  SelectionRowCheckbox,
-  useRowSelection,
-} from "src/components/DataTable/useRowSelection";
+import { SelectionProvider, useRowSelection } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import { DrainingBadge } from "src/components/DrainingBadge";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
+import {
+  pausedStateFromSearchParams,
+  pausedStateToQuery,
+} from "src/components/FilterBar/filters/pausedStateParams";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
 import { SearchBar } from "src/components/SearchBar";
-import { TeamName } from "src/components/TeamName";
-import { TogglePause } from "src/components/TogglePause";
-import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
 import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_FOLDERS_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useConfig } from "src/queries/useConfig";
 import { useDagFolders } from "src/queries/useDagFolders";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
-import { useDocumentTitle } from "src/utils";
+import { useRecentTaskStateCounts } from "src/queries/useRecentTaskStateCounts";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import BulkPauseDrainDagsButton from "./BulkPauseDrainDagsButton";
 import BulkUnpauseDagsButton from "./BulkUnpauseDagsButton";
 import { DagCard } from "./DagCard";
 import { DagFolderTree, type FolderSelection } from "./DagFolderTree";
-import { DagRunStateCounts } from "./DagRunStateCounts";
-import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
-import { Schedule } from "./Schedule";
+import { createColumns, getRowKey } from "./DagsListColumns";
+import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
 import { SortSelect } from "./SortSelect";
-
-const getRowKey = (dag: DAGWithLatestDagRunsResponse) => dag.dag_id;
-
-type GetColumnsParams = {
-  readonly multiTeam: boolean;
-};
-
-type RunStateCountsContext = {
-  readonly countsByDag: Record<string, Record<string, number> | undefined>;
-  readonly isLoading: boolean;
-  readonly stateCountLimit: number | undefined;
-};
-
-const createColumns = (
-  translate: (key: string, options?: Record<string, unknown>) => string,
-  runStateContext: RunStateCountsContext,
-  { multiTeam }: GetColumnsParams,
-): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
-  {
-    accessorKey: "select",
-    cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
-    enableHiding: false,
-    enableSorting: false,
-    header: () => <SelectionHeaderCheckbox colorPalette="brand" />,
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "is_paused",
-    cell: ({ row: { original } }) => (
-      <TogglePause
-        dagDisplayName={original.dag_display_name}
-        dagId={original.dag_id}
-        hasUnfinishedRuns={original.has_unfinished_runs}
-        isPaused={original.is_paused}
-        schedulingState={original.scheduling_state}
-      />
-    ),
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "dag_display_name",
-    cell: ({ row: { original } }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
-        {original.dag_display_name}
-      </RouterLink>
-    ),
-    header: () => translate("dagId"),
-  },
-  {
-    accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => (
-      <Schedule
-        assetExpression={original.asset_expression}
-        dagId={original.dag_id}
-        timetableDescription={original.timetable_description}
-        timetablePartitioned={original.timetable_partitioned}
-        timetableSummary={original.timetable_summary}
-      />
-    ),
-    enableSorting: false,
-    header: () => translate("dagDetails.schedule"),
-  },
-  {
-    accessorKey: "next_dagrun",
-    cell: ({ row: { original } }) =>
-      original.is_paused ? undefined : original.scheduling_state === "draining" ? (
-        <DrainingBadge />
-      ) : Boolean(original.next_dagrun_run_after) ? (
-        <DagRunInfo
-          logicalDate={original.next_dagrun_logical_date}
-          runAfter={original.next_dagrun_run_after as string}
-        />
-      ) : undefined,
-    header: () => translate("dagDetails.nextRun"),
-  },
-  {
-    accessorKey: "last_run_run_after",
-    cell: ({ row: { original } }) =>
-      original.latest_dag_runs[0] ? (
-        <RouterLink
-          fontWeight="bold"
-          to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}
-        >
-          <DagRunInfo
-            endDate={original.latest_dag_runs[0].end_date}
-            logicalDate={original.latest_dag_runs[0].logical_date}
-            runAfter={original.latest_dag_runs[0].run_after}
-            startDate={original.latest_dag_runs[0].start_date}
-            state={original.latest_dag_runs[0].state}
-          />
-        </RouterLink>
-      ) : undefined,
-    header: () => translate("dagDetails.latestRun"),
-  },
-  {
-    accessorKey: "run_state_counts",
-    cell: ({ row: { original } }) => (
-      <DagRunStateCounts
-        compact
-        counts={runStateContext.countsByDag[original.dag_id]}
-        dagId={original.dag_id}
-        isLoading={runStateContext.isLoading}
-        stateCountLimit={runStateContext.stateCountLimit}
-      />
-    ),
-    enableSorting: false,
-    header: () => translate("dags:runStateCounts.label"),
-  },
-  {
-    accessorKey: "tags",
-    cell: ({
-      row: {
-        original: { tags },
-      },
-    }) => <DagTags hideIcon tags={tags} />,
-    enableSorting: false,
-    header: () => translate("dagDetails.tags"),
-  },
-  ...(multiTeam
-    ? [
-        {
-          accessorKey: "team_name",
-          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) => (
-            <TeamName teamName={original.team_name} />
-          ),
-          enableSorting: false,
-          header: () => translate("dagDetails.team"),
-        },
-      ]
-    : []),
-  {
-    accessorKey: "pending_actions",
-    cell: ({ row: { original: dag } }) => <NeedsReviewBadge pendingActions={dag.pending_actions} />,
-    enableSorting: false,
-    header: "",
-  },
-  {
-    accessorKey: "trigger",
-    cell: ({ row: { original } }) => (
-      <TriggerDAGButton
-        allowedRunTypes={original.allowed_run_types}
-        dagDisplayName={original.dag_display_name}
-        dagId={original.dag_id}
-        isPaused={original.is_paused}
-      />
-    ),
-    enableSorting: false,
-    header: "",
-  },
-  {
-    accessorKey: "favourite",
-    cell: ({ row: { original } }) => (
-      <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} />
-    ),
-    enableHiding: false,
-    enableSorting: false,
-    header: "",
-  },
-  {
-    accessorKey: "delete",
-    cell: ({ row: { original } }) => (
-      <DeleteDagButton dagDisplayName={original.dag_display_name} dagId={original.dag_id} />
-    ),
-    enableSorting: false,
-    header: "",
-  },
-];
+import { MAX_RECENT_RUNS } from "./recentRunsLayout";
 
 const {
   DAG_BUNDLE,
@@ -252,32 +68,87 @@ const {
   DAG_RUN_STATE,
   DAG_RUN_STATE_WITHIN_HOURS,
   FAVORITE,
+  HAS_IMPORT_ERRORS,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
   NEEDS_REVIEW,
   OFFSET,
   OWNERS,
-  PAUSED,
-  SCHEDULING_STATE,
   TAGS,
   TAGS_MATCH_MODE,
   TEAMS,
   TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
-  card: ({ row }) => (
+// Both the component and the CardDef holding it are module-level constants: `flexRender` renders
+// `card` as a component type, so rebuilding either per render would remount every card on each
+// auto-refresh tick. The counts it needs come from context instead — see `DagsListCountsContext`.
+const DagCardCell = ({ row }: { readonly row: DAGWithLatestDagRunsResponse }) => {
+  const { recentTasks, runStateCounts } = useDagsListCounts();
+
+  return (
     <DagCard
       dag={row}
-      runStateCounts={runStateContext.countsByDag[row.dag_id]}
-      runStateCountsLoading={runStateContext.isLoading}
-      stateCountLimit={runStateContext.stateCountLimit}
+      recentTasks={recentTasks}
+      runStateCounts={runStateCounts.countsByDag[row.dag_id]}
+      runStateCountsLoading={runStateCounts.isLoading}
+      stateCountLimit={runStateCounts.stateCountLimit}
     />
-  ),
+  );
+};
+
+const CARD_DEF: CardDef<DAGWithLatestDagRunsResponse> = {
+  card: DagCardCell,
   meta: {
     customSkeleton: <Skeleton height="140px" width="100%" />,
   },
-});
+};
+
+// Extracted so the list's own tree stays within the JSX depth limit, and because the bar is a
+// self-contained thing: it only needs the selection, not the table around it.
+const BulkActionBar = ({
+  clearSelections,
+  deselectKeys,
+  open,
+  selectedCount,
+  selectedDags,
+}: {
+  readonly clearSelections: () => void;
+  readonly deselectKeys: (keys: Array<string>) => void;
+  readonly open: boolean;
+  readonly selectedCount: number;
+  readonly selectedDags: Array<DAGWithLatestDagRunsResponse>;
+}) => {
+  // Default namespace: `selected` lives in `common`, not `dags`.
+  const { i18n, t: translate } = useTranslation();
+
+  return (
+    <ActionBar.Root closeOnInteractOutside={false} open={open}>
+      <ActionBar.Content>
+        <ActionBar.SelectionTrigger>
+          {formatNumber(selectedCount, i18n.language)} {translate("selected")}
+        </ActionBar.SelectionTrigger>
+        <ActionBar.Separator />
+        <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+        <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+        <ActionBar.CloseTrigger onClick={clearSelections} />
+      </ActionBar.Content>
+    </ActionBar.Root>
+  );
+};
+
+// While the folder drawer is open, the toggle reaches back across the gap to the drawer and shares
+// its background, so the drawer reads as opening out of the button.
+const OPEN_FOLDER_TOGGLE_PROPS = {
+  bg: "bg.muted",
+  borderEndRadius: "full",
+  borderStartRadius: 0,
+  flexShrink: 0,
+  marginStart: -4,
+  paddingStart: 4,
+  variant: "ghost",
+  width: "52px",
+} as const;
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
@@ -286,13 +157,14 @@ export const DagsList = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
-  const dagRunsLimit = display === "card" ? 14 : 1;
+  const dagRunsLimit = display === "card" ? MAX_RECENT_RUNS : 1;
 
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  const showPaused = searchParams.get(PAUSED);
-  const schedulingState = searchParams.get(SCHEDULING_STATE) as DagSchedulingState | null;
+  // Derived through the pill's own mapping so the query can never filter on more than the pill shows.
+  const { paused, schedulingState } = pausedStateToQuery(pausedStateFromSearchParams(searchParams));
   const showFavorites = searchParams.get(FAVORITE);
+  const importErrors = searchParams.get(HAS_IMPORT_ERRORS);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
@@ -359,22 +231,20 @@ export const DagsList = () => {
     setSearchParams(searchParams);
   };
 
-  // No param means no paused filtering. usePausedDefault seeds the configured default on load,
-  // so an absent param after that is the user having removed the pill to see every Dag.
-  let paused = undefined;
   let isFavorite = undefined;
+  let hasImportErrors = undefined;
   let pendingHitl = undefined;
-
-  if (showPaused === "true") {
-    paused = true;
-  } else if (showPaused === "false") {
-    paused = false;
-  }
 
   if (showFavorites === "true") {
     isFavorite = true;
   } else if (showFavorites === "false") {
     isFavorite = false;
+  }
+
+  if (importErrors === "true") {
+    hasImportErrors = true;
+  } else if (importErrors === "false") {
+    hasImportErrors = false;
   }
 
   if (pendingReviews === "true") {
@@ -383,13 +253,15 @@ export const DagsList = () => {
     pendingHitl = false;
   }
 
-  const { data, error, isFetching, isLoading } = useDags({
+  const { data, error, isLoading } = useDags({
     advancedSearch: advancedSearch.enabled,
     bundleName: selectedBundle,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     dagRunState,
     dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
+    excludeStale: hasImportErrors !== true,
+    hasImportErrors,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
@@ -399,7 +271,7 @@ export const DagsList = () => {
     paused,
     pendingHitl,
     relativeFilelocPrefix: selectedFolder,
-    schedulingState: schedulingState ?? undefined,
+    schedulingState,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,
@@ -410,7 +282,7 @@ export const DagsList = () => {
     dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
     dags: data?.dags,
   });
-  const runStateContext: RunStateCountsContext = {
+  const runStateCounts: RunStateCounts = {
     countsByDag: Object.fromEntries(
       (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
     ),
@@ -418,8 +290,15 @@ export const DagsList = () => {
     stateCountLimit: runStateCountsData?.state_count_limit,
   };
 
-  const columns = createColumns(translate, runStateContext, { multiTeam: multiTeamEnabled });
-  const cardDef = createCardDef(runStateContext);
+  const recentTasks = useRecentTaskStateCounts(data?.dags);
+  // Resolved once for the whole list and handed to the cards and cells through context;
+  // see `DagsListCountsProvider` for why these cannot be threaded through the renderers.
+  const pluginActions = usePluginActions("dag");
+
+  const columns = createColumns(translate, {
+    multiTeam: multiTeamEnabled,
+    showRecentTasks: recentTasks.show,
+  });
 
   const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
@@ -454,7 +333,16 @@ export const DagsList = () => {
         {/* Only show the folder sidebar when there is something to navigate; deployments with all
             Dags at the bundle root would otherwise get an empty panel. */}
         {showFolderTree ? (
-          <Box flexShrink={0} overflowY="auto" position="sticky" top={0} width="280px">
+          <Box
+            bg="bg.muted"
+            borderRadius="md"
+            flexShrink={0}
+            overflowY="auto"
+            p={3}
+            position="sticky"
+            top={0}
+            width="280px"
+          >
             <DagFolderTree
               folders={folders}
               isLoading={foldersLoading}
@@ -465,81 +353,77 @@ export const DagsList = () => {
           </Box>
         ) : undefined}
         <Box flex={1} minWidth={0}>
-          <SelectionProvider
-            allRowsSelected={allRowsSelected}
-            onRowSelect={handleRowSelect}
-            onSelectAll={handleSelectAll}
-            selectedRows={selectedRows}
-          >
-            <DataTable
-              cardDef={cardDef}
-              columns={columns}
-              data={data?.dags ?? []}
-              displayMode={display}
-              enableMultiSort
-              errorMessage={<ErrorAlert error={error} />}
-              filterActions={
-                <VStack alignItems="flex-start" gap={2} w="100%">
-                  <SearchBar
-                    advancedSearch={advancedSearch}
-                    defaultValue={dagDisplayNamePattern}
-                    onChange={handleSearchChange}
-                    placeholder={translate("dags:search.dags")}
-                  />
-                  <DagsFilters />
-                </VStack>
-              }
-              headingExtra={<DagImportErrors iconOnly />}
-              initialState={tableURLState}
-              isFetching={isFetching}
-              isLoading={isLoading}
-              modelName="common:dag"
-              onDisplayToggleChange={handleDisplayToggleChange}
-              onStateChange={setTableURLState}
-              presentationActions={
-                hasFolderTree || display === "card" ? (
-                  <>
-                    {hasFolderTree ? (
-                      <Tooltip
-                        content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                        openDelay={200}
-                        portalled
-                      >
-                        <IconButton
-                          aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                          onClick={() => setShowFolders(!showFolders)}
-                          size="sm"
-                          variant={showFolders ? "solid" : "outline"}
-                        >
-                          <FiSidebar />
-                        </IconButton>
-                      </Tooltip>
-                    ) : undefined}
-                    {display === "card" ? (
+          <PluginActionsProvider value={pluginActions}>
+            <DagsListCountsProvider recentTasks={recentTasks} runStateCounts={runStateCounts}>
+              <SelectionProvider
+                allRowsSelected={allRowsSelected}
+                onRowSelect={handleRowSelect}
+                onSelectAll={handleSelectAll}
+                selectedRows={selectedRows}
+              >
+                <DataTable
+                  cardDef={CARD_DEF}
+                  columns={columns}
+                  data={data?.dags ?? []}
+                  displayMode={display}
+                  enableMultiSort
+                  errorMessage={<ErrorAlert error={error} />}
+                  filterActions={
+                    <VStack alignItems="flex-start" gap={2} w="100%">
+                      <SearchBar
+                        advancedSearch={advancedSearch}
+                        defaultValue={dagDisplayNamePattern}
+                        onChange={handleSearchChange}
+                        placeholder={translate("dags:search.dags")}
+                      />
+                      <HStack alignItems="flex-start" gap={1} w="100%">
+                        {hasFolderTree ? (
+                          <Tooltip
+                            content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                            openDelay={200}
+                            portalled
+                          >
+                            <IconButton
+                              aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                              aria-pressed={showFolders}
+                              onClick={() => setShowFolders(!showFolders)}
+                              {...(showFolders
+                                ? OPEN_FOLDER_TOGGLE_PROPS
+                                : { borderRadius: "full", variant: "outline" })}
+                            >
+                              {showFolders ? <LuFolderOutput /> : <LuFolderInput />}
+                            </IconButton>
+                          </Tooltip>
+                        ) : undefined}
+                        <DagsFilters />
+                      </HStack>
+                    </VStack>
+                  }
+                  headingExtra={<DagImportErrors iconOnly />}
+                  initialState={tableURLState}
+                  isLoading={isLoading}
+                  modelName="common:dag"
+                  onDisplayToggleChange={handleDisplayToggleChange}
+                  onStateChange={setTableURLState}
+                  presentationActions={
+                    display === "card" ? (
                       <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
-                    ) : undefined}
-                  </>
-                ) : undefined
-              }
-              showDisplayToggle
-              skeletonCount={display === "card" ? 5 : undefined}
-              total={totalEntries}
-            />
-            <ActionBar.Root
-              closeOnInteractOutside={false}
-              open={display === "table" && selectedRows.size > 0}
-            >
-              <ActionBar.Content>
-                <ActionBar.SelectionTrigger>
-                  {selectedRows.size} {translate("selected")}
-                </ActionBar.SelectionTrigger>
-                <ActionBar.Separator />
-                <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
-                <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
-                <ActionBar.CloseTrigger onClick={clearSelections} />
-              </ActionBar.Content>
-            </ActionBar.Root>
-          </SelectionProvider>
+                    ) : undefined
+                  }
+                  showDisplayToggle
+                  skeletonCount={display === "card" ? 5 : undefined}
+                  total={totalEntries}
+                />
+                <BulkActionBar
+                  clearSelections={clearSelections}
+                  deselectKeys={deselectKeys}
+                  open={display === "table" && selectedRows.size > 0}
+                  selectedCount={selectedRows.size}
+                  selectedDags={selectedDags}
+                />
+              </SelectionProvider>
+            </DagsListCountsProvider>
+          </PluginActionsProvider>
         </Box>
       </Flex>
     </DagsLayout>
