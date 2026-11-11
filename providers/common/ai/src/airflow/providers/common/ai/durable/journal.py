@@ -299,7 +299,7 @@ class DurableRun:
         self._saved: set[int] = set()
         # Every position this attempt sent a write for, including writes reported as failed,
         # which may still have landed; cleanup of a run no earlier attempt started deletes these.
-        self._written: set[int] = set()
+        self._written_positions: set[int] = set()
         # The position of the last model step this attempt claimed.
         self._last_model_position: int | None = None
         # Read with the rest of the run's entry: whether the previous attempt failed because
@@ -486,7 +486,7 @@ class DurableRun:
         self._last_saved = max(self._last_saved, position)
         if not self.journal._ensure_runs_listed():
             return False
-        self._written.add(position)
+        self._written_positions.add(position)
         if not self.journal.storage.save_step(build_step_key(self.key, position), entry):
             return False
         self._saved.add(position)
@@ -701,10 +701,10 @@ class DurableRun:
         """Delete this run's steps. Call only once the run, and anything that consumes it, has succeeded."""
         self.journal._delete_runs([self])
 
-    def _keys(self) -> list[str]:
+    def _get_keys(self) -> list[str]:
         """Return the keys this run may hold in the journal: its steps, from any attempt, and its entry."""
         if not self._started_before:
-            keys = [build_step_key(self.key, position) for position in sorted(self._written)]
+            keys = [build_step_key(self.key, position) for position in sorted(self._written_positions)]
             return [*keys, build_run_meta_key(self.key)] if self._meta_written else keys
         self._load_meta()
         end = max(self._high_water, self._position)
@@ -859,7 +859,7 @@ class DurableJournal:
         listed, the shorter list is saved after it. The runs' keys go first, so a task killed
         partway through keeps the list that leads a later cleanup to what is left.
         """
-        keys = [key for durable_run in runs for key in durable_run._keys()]
+        keys = [key for durable_run in runs for key in durable_run._get_keys()]
         deleted = {durable_run.key for durable_run in runs}
         known = self._load_known_runs()
         self._known_runs = [key for key in known if key not in deleted]
