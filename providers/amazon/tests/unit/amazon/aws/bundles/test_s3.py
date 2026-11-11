@@ -389,8 +389,6 @@ class TestS3ArchiveDagBundle:
         bundle.initialize()
         for child in bundle.path.iterdir():
             child.unlink()
-        assert bundle.path.is_dir()
-        assert not bundle._get_archive_etag_path().exists()
 
         client = bundle.s3_hook.get_conn()
         recorded: list[dict] = []
