@@ -95,6 +95,14 @@ private class FakeTrigger(
     xComs += key to value
   }
 
+  override fun deleteXCom(
+    key: String,
+    dagId: String,
+    taskId: String,
+    runId: String,
+    mapIndex: Int,
+  ): Unit = throw UnsupportedOperationException("not used in test")
+
   override fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")
 
   override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")

@@ -36,6 +36,8 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
@@ -726,6 +728,45 @@ class CommsTest {
     runBlocking { fromClient.flushAndClose() }
     Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
     comm.close()
+  }
+
+  private fun xComTaskInstance(mapIndex: Int?) =
+    StartupDetails().also {
+      it.ti =
+        TaskInstance().also { ti ->
+          ti.dagId = "d"
+          ti.taskId = "t"
+          ti.runId = "r"
+          ti.mapIndex = mapIndex
+        }
+    }
+
+  @ParameterizedTest(name = "key {1} with task map index {0} sends map_index {2}")
+  @CsvSource(value = ["2, return_value, 2", "0, custom_key, 0", "null, custom_key, -1"], nullValues = ["null"])
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteXComSendsKeyAndCurrentTaskInstance(
+    mapIndex: Int?,
+    key: String,
+    expectedMapIndex: Long,
+  ) {
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex)) { it.deleteXCom(key) }
+
+    Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals("DeleteXCom", body["type"])
+    Assertions.assertEquals(key, body["key"])
+    Assertions.assertEquals("d", body["dag_id"])
+    Assertions.assertEquals("t", body["task_id"])
+    Assertions.assertEquals("r", body["run_id"])
+    Assertions.assertEquals(expectedMapIndex, body["map_index"])
+  }
+
+  @Test
+  @DisplayName("deleteXCom raises ApiError when the supervisor reports an error")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteXComRaisesApiErrorOnErrorResponse() {
+    val (_, failure) = roundTrip(::errorResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom("return_value") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
   @Test

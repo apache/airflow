@@ -62,6 +62,7 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.12")
 
     testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
