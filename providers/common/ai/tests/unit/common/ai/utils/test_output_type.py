@@ -35,9 +35,9 @@ from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.utils.output_type import (
     _is_container_mismatch,
+    _is_model_dump_required,
     dump_output_for_xcom,
     dump_output_to_json,
-    is_model_dump_required,
     rehydrate_pydantic_output,
 )
 
@@ -252,15 +252,15 @@ class TestIsModelDumpRequired:
     )
     @requires_walker
     def test_is_true_when_the_worker_registers_no_class_for_the_output(self, output, output_type, expected):
-        result = is_model_dump_required(output, output_type)
+        result = _is_model_dump_required(output, output_type)
 
         assert result is expected
 
     @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
     def test_requires_a_dump_without_the_sdk_walker(self):
-        assert is_model_dump_required(A(x=1), [A, int]) is True
-        assert is_model_dump_required([A(x=1)], list[A]) is True
-        assert is_model_dump_required(5, list[A]) is False
+        assert _is_model_dump_required(A(x=1), [A, int]) is True
+        assert _is_model_dump_required([A(x=1)], list[A]) is True
+        assert _is_model_dump_required(5, list[A]) is False
 
 
 class TestIsModelDumpRequiredForContainerOutputs:
@@ -276,7 +276,7 @@ class TestIsModelDumpRequiredForContainerOutputs:
     )
     @requires_walker
     def test_is_false_for_a_registered_shape_or_an_output_without_a_model(self, output, output_type):
-        assert is_model_dump_required(output, output_type) is False
+        assert _is_model_dump_required(output, output_type) is False
 
     @pytest.mark.parametrize(
         ("output", "output_type"),
@@ -292,7 +292,7 @@ class TestIsModelDumpRequiredForContainerOutputs:
     def test_is_true_for_models_inside_a_container_the_worker_registers_no_class_for(
         self, output, output_type
     ):
-        assert is_model_dump_required(output, output_type) is True
+        assert _is_model_dump_required(output, output_type) is True
 
 
 class TestDumpOutputForXcom:
@@ -338,7 +338,7 @@ class TestDumpOutputForXcom:
     def test_dumps_the_whole_output_when_only_some_of_its_models_are_unregistered(self):
         output = [A(x=1), Item(n=1)]
 
-        assert is_model_dump_required(output, A) is True
+        assert _is_model_dump_required(output, A) is True
         assert dump_output_for_xcom(output, A, serialize_output=False) == [{"x": 1}, {"n": 1}]
 
     @pytest.mark.parametrize("model_cls", [SerializationAlias, SerializedByAlias])
@@ -513,6 +513,13 @@ class TestRehydratePydanticOutput:
     )
     def test_returns_raw_when_list_cannot_be_unioned(self, output_type):
         assert rehydrate_pydantic_output(output_type, "1", serialize_output=False) == "1"
+
+    @mock.patch("airflow.providers.common.ai.utils.output_type.TypeAdapter", autospec=True)
+    def test_propagates_type_error_from_type_adapter(self, mock_type_adapter):
+        mock_type_adapter.side_effect = TypeError("broken schema")
+
+        with pytest.raises(TypeError, match="broken schema"):
+            rehydrate_pydantic_output(int, "1", serialize_output=False)
 
     def test_rejects_edit_matching_no_list_candidate(self):
         with pytest.raises(ReviewedOutputValidationError):

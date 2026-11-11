@@ -46,13 +46,14 @@ _MAX_SHOWN_CHARS = 200
 _CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, KeyError, IndexError)
 
 
-def is_model_dump_required(output: Any, output_type: Any) -> bool:
+def _is_model_dump_required(output: Any, output_type: Any) -> bool:
     """
     Tell whether an output holding ``BaseModel`` instances must be pushed to XCom dumped.
 
     The instances are looked up in the output itself, as ``_iter_models_in_output`` walks it: the elements
-    of a list, tuple (a NamedTuple included), set or frozenset, and the keys and values of a dict. A downstream task can load a model from XCom only if the worker
-    registered the model's class, and the worker registers the classes ``iter_pydantic_models`` finds in
+    of a list, tuple (a NamedTuple included), set or frozenset, and the keys and values of a dict. A
+    downstream task can load a model from XCom only if the worker registered the model's class, and the
+    worker registers the classes ``iter_pydantic_models`` finds in
     ``output_type``. It finds none in a list of output types, an output marker, an output function, a
     ``TypeAliasType`` or a ``NewType``, so an instance of a class it did not find is dumped. Without
     ``iter_pydantic_models`` (Airflow < 3.3 or an older task-sdk) the worker registers no class, so every
@@ -74,7 +75,7 @@ def dump_output_for_xcom(output: Any, output_type: Any, *, serialize_output: boo
     """
     if serialize_output and isinstance(output, BaseModel):
         return output.model_dump()
-    if not is_model_dump_required(output, output_type):
+    if not _is_model_dump_required(output, output_type):
         return output
     return to_jsonable_python(output, by_alias=False)
 
@@ -143,15 +144,19 @@ def rehydrate_pydantic_output(
     if output_type is str:
         return raw
     declared_type = output_type
-    try:
-        if isinstance(output_type, (list, tuple)):
-            # pydantic-ai treats a list of output types as "any of these".
+    if isinstance(output_type, (list, tuple)):
+        # pydantic-ai treats a list of output types as "any of these". Unioning an empty list or output
+        # markers is a ``TypeError``, and leaves the output as it is.
+        try:
             output_type = reduce(operator.or_, output_type)
+        except TypeError:
+            return raw
+    # A pydantic-ai output marker (``ToolOutput``, ``NativeOutput``, ...) is not a type, and
+    # ``TypeAdapter`` fails on it with an ``AttributeError``.
+    try:
         adapter: TypeAdapter[Any] = TypeAdapter(output_type)
         is_output_function = _is_output_function(adapter.core_schema)
-    # A pydantic-ai output marker (``ToolOutput``, ``NativeOutput``, ...) is not a type, and
-    # ``TypeAdapter`` fails on it with an ``AttributeError``. Unioning an empty list or markers is a ``TypeError``.
-    except (PydanticUserError, AttributeError, TypeError):
+    except (PydanticUserError, AttributeError):
         return raw
     if is_output_function:
         return raw
