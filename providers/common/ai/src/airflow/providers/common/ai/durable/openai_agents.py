@@ -282,25 +282,24 @@ def _answer_approvals(
         # The call comes back the same on every resume, as the answer that made it replays.
         # Its fingerprint keeps an answer from applying to a different call that reuses its id.
         key = f"{durable_run.key}:{call.call_id}:{_build_tool_fingerprint(call.name, call.arguments, call.call_id)}"
-        try:
-            answer = request_input(
-                subject=f"{item.agent.name} wants to call {item.tool_name}",
-                body=_describe_call(item),
-                options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
-                # An empty default, not None: some UI versions show a null one as "[object Object]".
-                params={
-                    "reason": Param(
-                        "",
-                        type=["string", "null"],
-                        description="Sent to the agent when you reject the call (optional).",
-                    )
-                },
-                key=key,
-            )
-        except RuntimeError as error:
-            # Raised by request_input() when the answer the task resumed with is for a call that
-            # this run never reached; asking again would never end.
-            _did_not_come_back(durable_run, error)
+        if _answer_left_unread(durable_run, answered, asking=key):
+            # The task resumed with an answer to a call this run never reached; asking about
+            # this one instead would never end, and request_input() refuses to.
+            _did_not_come_back(durable_run, stopped_at_another_call=True)
+        answer = request_input(
+            subject=f"{item.agent.name} wants to call {item.tool_name}",
+            body=_describe_call(item),
+            options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
+            # An empty default, not None: some UI versions show a null one as "[object Object]".
+            params={
+                "reason": Param(
+                    "",
+                    type=["string", "null"],
+                    description="Sent to the agent when you reject the call (optional).",
+                )
+            },
+            key=key,
+        )
         answered.add(key)
         responder = LLMApprovalMixin._describe_responder(dict(answer))
         if answer["chosen_options"] == [LLMApprovalMixin.APPROVE]:
@@ -315,8 +314,13 @@ def _answer_approvals(
     return state
 
 
-def _answer_left_unread(durable_run: DurableRun, answered: set[str]) -> bool:
-    """Whether the task resumed with an answer to an approval of this run that the run never asked again for."""
+def _answer_left_unread(durable_run: DurableRun, answered: set[str], *, asking: str | None = None) -> bool:
+    """
+    Whether the task resumed with an answer to an approval of this run that the run never asked again for.
+
+    ``asking`` is the key the run is about to ask for; an answer already given to it is read
+    by that call rather than left unread.
+    """
     try:
         # Optional: the answer log comes with request_input(), newer than the standard provider common.ai requires.
         from airflow.providers.standard.utils.hitl import answer_log_var
@@ -327,19 +331,20 @@ def _answer_left_unread(durable_run: DurableRun, answered: set[str]) -> bool:
         answer_log is not None
         and answer_log.latest.startswith(f"{durable_run.key}:")
         and answer_log.latest not in answered
+        and (asking is None or asking not in answer_log.answers)
     )
 
 
-def _did_not_come_back(durable_run: DurableRun, cause: BaseException | None = None) -> NoReturn:
+def _did_not_come_back(durable_run: DurableRun, *, stopped_at_another_call: bool = False) -> NoReturn:
     """
     Fail the task resumed with an answer whose call the run never reached again.
 
-    ``cause`` is set when the run stopped at another call that needs approval (a clear asks
-    about that one), and ``None`` when it finished without one (a clear replays the result).
+    ``stopped_at_another_call`` is set when the run stopped at another call that needs approval
+    (a clear asks about that one), and not when it finished without one (a clear replays the result).
     """
     then = (
         "Clear the task to ask about the call it stopped at instead."
-        if cause is not None
+        if stopped_at_another_call
         else "It finished without that call; clearing the task replays that result without asking."
     )
     error = DurableJournalError(
@@ -349,7 +354,7 @@ def _did_not_come_back(durable_run: DurableRun, cause: BaseException | None = No
         f"while the task waited. {then}"
     )
     durable_run.fail(error)
-    raise error from cause
+    raise error
 
 
 def _get_request_input() -> Callable[..., InputResponse] | None:
@@ -394,7 +399,11 @@ def _why_approval_cannot_pause(result: RunResult, has_session: bool) -> str | No
                 "records, such as an agent used through as_tool() or reached through handoff(), "
                 "so its call would not come back the same when the task resumes"
             )
-    task = get_current_context()["task"]
+    try:
+        task = get_current_context()["task"]
+    except RuntimeError:
+        # A journal set with journal_scope() outside a running task, such as in a unit test.
+        return "there is no running task to pause"
     if not isinstance(task, PythonOperator):
         return f"request_input() can pause a @task or PythonOperator, and this is a {type(task).__name__}"
     return None

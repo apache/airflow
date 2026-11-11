@@ -70,6 +70,7 @@ from airflow.providers.common.ai.exceptions import DurableJournalError, Unsuppor
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
+from airflow.providers.standard.operators.hitl import request_input
 from airflow.sdk import DAG, BaseOperator, task
 from airflow.sdk.execution_time.comms import AwaitInputTask, CreateHITLDetailPayload, SetXCom
 from airflow.sdk.execution_time.task_runner import run
@@ -1361,6 +1362,25 @@ class TestDurableExceptions:
 
         assert calls == []
 
+    def test_outside_a_task_a_run_that_stops_for_approval_fails_naming_the_tool(self):
+        """A journal set in a unit test has no task to pause, so the run fails as it does without request_input()."""
+        calls: list[str] = []
+
+        with (
+            journal_scope(DurableJournal(MemoryStorage(), clean_up_after_run=True)),
+            pytest.raises(
+                UnsupportedToolDeferralError,
+                match=r"approval to call lookup \(analyst\).*there is no running task to pause",
+            ),
+        ):
+            run_durably_sync(
+                Agent(name="analyst", model=_ScriptedModel(), tools=[_lookup_tool(calls)]),
+                "go",
+                run_config=NO_TRACING,
+            )
+
+        assert calls == []
+
     def test_a_clear_after_an_agent_tool_stopped_for_approval_asks_again_from_that_turn(self):
         """Earlier turns replay; the agent tool's answer, given while its own run waited, does not."""
         storage, calls = MemoryStorage(), []
@@ -1687,6 +1707,26 @@ class TestToolApproval:
         assert calls == ["x0"]
         # Kept for a clear, which replays the finished run instead of starting it over.
         assert storage.steps() != []
+
+    def test_an_error_asking_for_approval_fails_the_task_with_that_error(self, reviewer):
+        """Only an answer the run did not come back to fails it for good; any other error is retried."""
+        calls: list[str] = []
+        failing = mock.create_autospec(
+            request_input, side_effect=RuntimeError("the API server dropped the connection")
+        )
+        agent = Agent(name="analyst", model=_ScriptedModel(), tools=[_lookup_tool(calls)])
+
+        with mock.patch(
+            "airflow.providers.common.ai.durable.openai_agents._get_request_input",
+            autospec=True,
+            return_value=failing,
+        ):
+            state, error = reviewer.run(_agent_task(MemoryStorage(), agent, []))
+
+        assert state == TaskInstanceState.FAILED
+        assert type(error) is RuntimeError
+        assert str(error) == "the API server dropped the connection"
+        assert calls == []
 
     def test_a_task_that_runs_another_agent_first_resumes_past_it(self, reviewer):
         """The answer belongs to the second agent's run, so the first one finishing does not claim it."""
