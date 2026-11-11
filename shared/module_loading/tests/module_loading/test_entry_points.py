@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from unittest import mock
 
@@ -35,7 +36,7 @@ class MockDistribution:
 
     @property
     def _normalized_name(self) -> str:
-        return self.metadata["Name"]  # type: ignore[index]
+        return re.sub(r"[-_.]+", "_", self.metadata["Name"]).lower()  # type: ignore[index]
 
 
 class MockMetadata:
