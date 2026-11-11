@@ -25,7 +25,7 @@ from airflow.exceptions import SerializationError
 from airflow.providers.common.compat.sdk import DAG, task_group
 from airflow.providers.standard.decorators.stub import stub
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS, AIRFLOW_V_3_5_PLUS
 
 
 def _to_dict(dag):
@@ -276,6 +276,9 @@ class TestStubTaskflowArgs:
         with pytest.raises(SerializationError, match="nested inside"):
             _to_dict(dag)
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
     def test_mapped_upstream_output_binds_as_sequence(self):
         def fn_produce(n: int): ...
 
@@ -290,6 +293,9 @@ class TestStubTaskflowArgs:
             "task_id": "fn_produce",
         }
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
     @pytest.mark.parametrize(
         "make_value",
         [
@@ -305,6 +311,9 @@ class TestStubTaskflowArgs:
         with pytest.raises(SerializationError, match="whole map"):
             _to_dict(dag)
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
     def test_expand_builds_mapped_stub_with_param_bindings(self):
         """A mapped stub's bindings are all ``param`` entries: values resolve per map index."""
         with DAG(dag_id="d") as dag:
@@ -325,6 +334,9 @@ class TestStubTaskflowArgs:
             ("retries_num", "param"),
         ]
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
     def test_stub_with_args_inside_mapped_task_group_captures_bindings(self):
         @task_group
         def group(n):

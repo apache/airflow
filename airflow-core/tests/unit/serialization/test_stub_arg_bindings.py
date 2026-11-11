@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import datetime
-import sys
 import typing
 from typing import Any
 
@@ -149,19 +148,19 @@ from airflow.serialization.stub_arg_bindings import (
     ],
 )
 def test_infer_value_schema(annotation, expected):
-    assert _infer_value_schema(annotation, "t", "p") == expected
+    assert _infer_value_schema(annotation) == expected
 
 
 def test_infer_value_schema_cache_returns_isolated_copies():
-    first = _infer_value_schema(dict, "t", "p")
-    second = _infer_value_schema(dict, "t", "p")
+    first = _infer_value_schema(dict)
+    second = _infer_value_schema(dict)
     assert first == second
     assert first is not second, "callers embed and serialize the fragment, so it must not alias the cache"
 
 
 def test_infer_value_schema_unhashable_annotation_generates_uncached():
     annotation = typing.Annotated[int, {"unhashable": True}]
-    assert _infer_value_schema(annotation, "t", "p") == {"type": "integer", "format": "int64"}
+    assert _infer_value_schema(annotation) == {"type": "integer", "format": "int64"}
 
 
 def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
@@ -177,16 +176,7 @@ def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
     # unschemable path, where a naive ``except TypeError`` retry would re-raise and crash.
     class _Unschemable: ...
 
-    assert _infer_value_schema(_Unschemable, "t", "p") is None
-
-
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="pydantic reads typing.TypedDict from Python 3.12")
-def test_infer_value_schema_rejects_typing_typeddict_before_py312():
-    class Row(typing.TypedDict):
-        a: int
-
-    with pytest.raises(ValueError, match="use typing_extensions.TypedDict"):
-        _infer_value_schema(list[Row], "t", "p")
+    assert _infer_value_schema(_Unschemable) is None
 
 
 def fn_extract(): ...
@@ -239,7 +229,7 @@ class TestMappedStubArgBindings:
 
     def test_untyped_params_omit_value_schema(self):
         with DAG(dag_id="d"):
-            result = stub(fn_untyped).expand(a=[1], b=[2])
+            result = stub(fn_untyped).partial(a=1).expand(b=[2])
 
         assert self.get_hook_fields(result.operator) == {
             "_arg_bindings": [{"name": "a", "kind": "param"}, {"name": "b", "kind": "param"}]
@@ -398,6 +388,101 @@ class TestMappedStubArgBindings:
         with pytest.raises(ValueError, match="not JSON-serializable"):
             self.get_hook_fields(result.operator)
 
+    def test_multi_kwarg_expand_records_dag_file_key_order(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_untyped).expand(b=[1], a=[2])
+
+        assert self.get_hook_fields(result.operator) == {
+            "_arg_bindings": [
+                {"name": "a", "kind": "param", "expand_keys": ["b", "a"]},
+                {"name": "b", "kind": "param", "expand_keys": ["b", "a"]},
+            ]
+        }
+
+    def test_literal_dict_expand_value_rejected(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).partial(country="uk").expand(extracted={"b": {}, "a": {}})
+
+        with pytest.raises(ValueError, match="expands over a dict"):
+            self.get_hook_fields(result.operator)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"partial": {"cfg": {"a": 1}}, "expand": {"x": ["a"]}}, id="partial"),
+            pytest.param({"partial": {}, "expand": {"x": ["a"], "cfg": [{}]}}, id="expand"),
+        ],
+    )
+    def test_non_json_unused_default_allowed(self, kwargs):
+        not_jsonable = object()
+
+        def fn(x: str, cfg=not_jsonable): ...
+
+        with DAG(dag_id="d"):
+            result = stub(fn).partial(**kwargs["partial"]).expand(**kwargs["expand"])
+
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
+        assert "default" not in params[1]
+
+    def test_zip_fillvalue_not_json_rejected(self):
+        with DAG(dag_id="d"):
+            result = (
+                stub(fn_untyped)
+                .partial(a=1)
+                .expand(b=stub(fn_extract)().zip(stub(fn_extract)(), fillvalue=float("nan")))
+            )
+
+        with pytest.raises(ValueError, match="not JSON-serializable"):
+            self.get_hook_fields(result.operator)
+
+    @pytest.mark.parametrize("strict", [True, False])
+    def test_expand_kwargs_mapping_overriding_partial(self, strict):
+        with DAG(dag_id="d"):
+            result = (
+                stub(fn_transform).partial(country="uk").expand_kwargs([{"country": "fr"}], strict=strict)
+            )
+
+        if strict:
+            with pytest.raises(ValueError, match=r"passes \['country'\], which partial\(\) already sets"):
+                self.get_hook_fields(result.operator)
+        else:
+            assert self.get_hook_fields(result.operator)["_arg_bindings"]
+
+    @pytest.mark.parametrize(
+        "make_mappings",
+        [
+            pytest.param(lambda out: out, id="upstream-output"),
+            pytest.param(lambda out: [{"country": "uk"}, out], id="upstream-item"),
+        ],
+    )
+    @pytest.mark.parametrize("strict", [True, False])
+    def test_mapped_whole_output_fallback_of_upstream_mapping(self, make_mappings, strict):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            result = (
+                stub(fn_transform)
+                .partial(extracted=vals)
+                .expand_kwargs(make_mappings(stub(fn_extract)()), strict=strict)
+            )
+
+        if strict:
+            assert self.get_hook_fields(result.operator)["_arg_bindings"]
+        else:
+            with pytest.raises(ValueError, match="which no binding can carry"):
+                self.get_hook_fields(result.operator)
+
+    def test_expand_kwargs_mapped_whole_output_item_rejected(self):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            result = stub(fn_transform).expand_kwargs([vals])
+
+        with pytest.raises(ValueError, match="a list rather than a dict"):
+            self.get_hook_fields(result.operator)
+
     def test_mapped_stub_inside_mapped_task_group_unconstructible(self):
         """The SDK bans expansion inside an expanded group outright, so no guard is needed here."""
 
@@ -496,6 +581,59 @@ class TestTaskGroupMemberArgBindings:
             group.expand(country=make_value(stub(fn_extract)(), stub(fn_extract)()))
 
         with pytest.raises(ValueError, match=match):
+            build_arg_bindings(captured["op"].operator)
+
+    def test_group_multi_kwarg_expand_records_dag_file_key_order(self):
+        captured = {}
+
+        @task_group
+        def group(b, a):
+            captured["op"] = stub(fn_untyped)(a, b)
+
+        with DAG(dag_id="d"):
+            group.expand(b=[1], a=[2])
+
+        assert build_arg_bindings(captured["op"].operator) == [
+            {
+                "name": "a",
+                "kind": "param",
+                "group_arg": {"group_id": "group", "key": "a"},
+                "expand_keys": ["b", "a"],
+            },
+            {
+                "name": "b",
+                "kind": "param",
+                "group_arg": {"group_id": "group", "key": "b"},
+                "expand_keys": ["b", "a"],
+            },
+        ]
+
+    def test_group_literal_dict_expand_value_rejected(self):
+        captured = {}
+
+        @task_group
+        def group(country):
+            captured["op"] = stub(fn_transform)(country, {})
+
+        with DAG(dag_id="d"):
+            group.expand(country={"uk": 1, "fr": 2})
+
+        with pytest.raises(ValueError, match="expands over a dict"):
+            build_arg_bindings(captured["op"].operator)
+
+    def test_group_expand_kwargs_mapped_whole_output_item_rejected(self):
+        captured = {}
+
+        def fn_produce(n: int): ...
+
+        @task_group
+        def group(country):
+            captured["op"] = stub(fn_transform)(country, {})
+
+        with DAG(dag_id="d"):
+            group.expand_kwargs([stub(fn_produce).expand(n=[1, 2])])
+
+        with pytest.raises(ValueError, match="a list rather than a dict"):
             build_arg_bindings(captured["op"].operator)
 
     def test_group_expand_over_outermost_map_is_param(self):
