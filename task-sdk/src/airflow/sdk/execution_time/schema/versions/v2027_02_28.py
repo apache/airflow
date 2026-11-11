@@ -126,8 +126,16 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
 
     @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
     def remove_mapped_arg_bindings(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``arg_bindings`` holding any shape an older runtime cannot read."""
+        """
+        Strip ``arg_bindings`` holding any shape an older runtime cannot read, for a mapped task instance.
+
+        It keeps the earlier behavior, which ignored a mapped stub's arguments. Any other task instance
+        keeps its bindings, whose only new shape is the ``sequence`` kind, so the older runtime refuses
+        that kind instead of running the task with no arguments.
+        """
         ti_context = response.body.get("ti_context") or {}
+        if response.body["ti"].get("map_index", -1) < 0:
+            return
         if any(_is_mapped_binding(binding) for binding in ti_context.get("arg_bindings") or ()):
             ti_context.pop("arg_bindings")
 

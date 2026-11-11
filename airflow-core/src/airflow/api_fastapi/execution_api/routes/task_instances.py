@@ -146,7 +146,10 @@ tracer = trace.get_tracer(__name__)
         [
             (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
             (status.HTTP_409_CONFLICT, "The TI is already in the requested state"),
-            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+            (
+                HTTP_422_UNPROCESSABLE_CONTENT,
+                "Invalid payload for the state transition, or the stub task's arguments cannot be delivered",
+            ),
             (
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "The serialized TaskFlow arg spec for this stub task is not valid",
@@ -399,8 +402,17 @@ def ti_run(
             try:
                 arg_bindings = get_arg_bindings(serialized_task, ti, dag_bag=dag_bag, session=session)
             except UndeliverableMappedArgBindingsError as e:
+                log.warning(
+                    "Stub task arg_bindings cannot be delivered",
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    ti_id=str(task_instance_id),
+                    reason=str(e),
+                )
+                # Not a 5xx: the cause is in the Dag or its data, so the client must not retry.
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
                     detail={
                         "reason": "invalid_arg_bindings",
                         "message": f"The stub task's TaskFlow arguments cannot be delivered: {e}.",

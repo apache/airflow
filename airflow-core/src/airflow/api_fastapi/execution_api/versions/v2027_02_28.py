@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from cadwyn import (
     RequestInfo,
     ResponseInfo,
@@ -27,8 +29,15 @@ from cadwyn import (
     endpoint,
     schema,
 )
+from pydantic import Field
+from typing_extensions import TypeAliasType
 
-from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import XComRef, _ArgBindingBase
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
+    LiteralArgBinding,
+    XComArgBinding,
+    XComRef,
+    _ArgBindingBase,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 
@@ -107,17 +116,25 @@ class AddCallbackStateEndpoint(VersionChange):
     )
 
 
+TaskArgBinding = TypeAliasType(
+    "TaskArgBinding",
+    Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")],
+)
+"""The ``TaskArgBinding`` union before this version, named alike so older schemas keep the definition name."""
+
+
 class AddMappedStubArgBindings(VersionChangeWithSideEffects):
     """
     Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
 
-    Older clients keep the earlier behavior: a mapped stub gets no ``arg_bindings``, and a run context
-    holding any of the new shapes drops ``arg_bindings`` entirely.
+    Older clients keep the earlier behavior for a mapped stub, which gets no ``arg_bindings``. Any other
+    stub whose bindings need this version fails ``ti_run``.
     """
 
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("arg_bindings").had(type=list[TaskArgBinding] | None),
         schema(XComRef).field("map_index").didnt_exist,
         schema(XComRef).field("element_index").didnt_exist,
         schema(_ArgBindingBase).field("apply_map").didnt_exist,

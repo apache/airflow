@@ -661,6 +661,7 @@ class TestRealBundleArgBindingsDowngrade:
     ):
         from airflow.sdk.api.datamodels._generated import TaskArgBinding
 
+        startup_details.ti.map_index = 0
         startup_details.ti_context.arg_bindings = [
             *startup_details.ti_context.arg_bindings,
             TaskArgBinding.model_validate(binding),
@@ -669,6 +670,20 @@ class TestRealBundleArgBindingsDowngrade:
             "ti_context"
         ]
         assert "arg_bindings" not in context
+
+    def test_downgrade_keeps_sequence_binding_of_unmapped_task_for_previous_version(
+        self, real_migrator, startup_details
+    ):
+        from airflow.sdk.api.datamodels._generated import TaskArgBinding
+
+        sequence = {"name": "totals", "kind": "sequence", "task_id": "transform"}
+        startup_details.ti_context.arg_bindings = [TaskArgBinding.model_validate(sequence)]
+        context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[
+            "ti_context"
+        ]
+        assert [(binding["kind"], binding["task_id"]) for binding in context["arg_bindings"]] == [
+            ("sequence", "transform")
+        ]
 
     def test_downgrade_keeps_plain_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[

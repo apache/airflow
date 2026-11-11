@@ -167,6 +167,7 @@ class SchedulerDictOfListsExpandInput:
     def resolve_expansion_sub_indexes(
         self,
         map_index: int,
+        keys: Sequence[str],
         run_id: str,
         *,
         session: Session,
@@ -178,13 +179,18 @@ class SchedulerDictOfListsExpandInput:
         Server-side counterpart of the SDK's ``DictOfListsExpandInput._expand_mapped_field``: the
         cross product of the expanded kwargs is ordered with the last kwarg varying fastest.
 
+        :param keys: The expanded kwargs in Dag-file order. The stored Dag may have re-ordered
+            ``value``, e.g. on a Postgres JSONB column or when serialized Dags are compressed.
         :raises NotFullyPopulated: if upstream map lengths are not all known yet.
-        :raises ValueError: if an expanded kwarg's recorded length is zero, e.g. an upstream was
-            cleared and re-ran to an empty list after this task instance was expanded.
+        :raises ValueError: if *keys* are not the expanded kwargs, or an expanded kwarg's recorded
+            length is zero, e.g. an upstream was cleared and re-ran to an empty list after this task
+            instance was expanded.
         """
+        if sorted(keys) != sorted(self.value):
+            raise ValueError(f"expected the expanded kwargs {sorted(self.value)}, got {list(keys)}")
         lengths = self._get_map_lengths(run_id, session=session, producer_contexts=producer_contexts)
         sub_indexes = {}
-        for key in reversed(self.value):
+        for key in reversed(keys):
             if (length := lengths[key]) < 1:
                 raise ValueError(f"cannot decompose map index over expanded kwarg {key!r} of length 0")
             sub_indexes[key] = map_index % length

@@ -94,6 +94,7 @@ class _ArgParam:
     value_schema: dict[str, Any] | None = None
     default: Any | ArgNotSet = NOTSET
     group_arg: _GroupArg | None = None
+    expand_keys: Sequence[str] | None = None
 
     @classmethod
     def from_entry(cls, entry: Mapping[str, Any]) -> _ArgParam:
@@ -103,6 +104,7 @@ class _ArgParam:
             value_schema=entry.get("value_schema"),
             default=entry.get("default", NOTSET),
             group_arg=None if group_arg is None else _GroupArg(group_arg["group_id"], group_arg["key"]),
+            expand_keys=entry.get("expand_keys"),
         )
 
     def build(self, binding_cls: type[_BindingT], **fields: Any) -> _BindingT:
@@ -126,10 +128,12 @@ def derive_mapped_arg_bindings(
     :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index.
     """
     resolver = TaskCoordinateResolver(dag_bag, session)
-    map_index = resolver.public_map_index(ti, dag_version_id=ti.dag_version_id)
-    if map_index < 0:
-        raise UndeliverableMappedArgBindingsError("the task instance has not been expanded to a map index")
     try:
+        map_index = resolver.public_map_index(ti, dag_version_id=ti.dag_version_id)
+        if map_index < 0:
+            raise UndeliverableMappedArgBindingsError(
+                "the task instance has not been expanded to a map index"
+            )
         return _MappedArgBindingDeriver(task, ti, map_index, resolver, session).derive(entries)
     except NotFullyPopulated as e:
         raise UndeliverableMappedArgBindingsError(
@@ -137,9 +141,20 @@ def derive_mapped_arg_bindings(
         )
     except ValidationError as e:
         raise UndeliverableMappedArgBindingsError(f"a binding is not valid: {e}")
+    except UndeliverableMappedArgBindingsError:
+        raise
+    except ValueError as e:
+        raise UndeliverableMappedArgBindingsError(str(e)) from e
 
 
 class _MappedArgBindingDeriver:
+    """
+    Derive one map index's bindings from the serialized Dag.
+
+    Parse time rejects the shapes some branches raise for, so only a Dag serialized by an older core
+    reaches those branches.
+    """
+
     def __init__(
         self,
         task: Operator,
@@ -153,6 +168,8 @@ class _MappedArgBindingDeriver:
         self.map_index = map_index
         self.resolver = resolver
         self.session = session
+        self._sub_indexes: dict[int, dict[str, int]] = {}
+        self._lengths: dict[int, int] = {}
 
     @property
     def dag(self) -> SerializedDAG:
@@ -201,10 +218,15 @@ class _MappedArgBindingDeriver:
         partial_kwargs = self.task.partial_kwargs.get("op_kwargs") or {}
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
             if param.name in expand_input.value:
-                index = self._get_sub_indexes(expand_input)[param.name]
+                index = self._get_sub_indexes(expand_input, param.expand_keys)[param.name]
                 return self._bind_element(param, expand_input.value[param.name], index)
-        elif binding := self._bind_mapping_entry(
-            param, expand_input, param.name, fallback=lambda: self._get_fallback(param, partial_kwargs)
+        # With strict=True a mapping cannot override partial(), so the partial() value binds as it is.
+        # A mapping read from an upstream output that also has the key fails the Python task, but
+        # no binding can express that check.
+        elif not (self.task._disallow_kwargs_override and param.name in partial_kwargs) and (
+            binding := self._bind_mapping_entry(
+                param, expand_input, param.name, fallback=lambda: self._get_fallback(param, partial_kwargs)
+            )
         ):
             return binding
         if param.name in partial_kwargs:
@@ -215,7 +237,7 @@ class _MappedArgBindingDeriver:
         group = cast("SerializedMappedTaskGroup", self.dag.task_group_dict[group_arg.group_id])
         expand_input = group._expand_input
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
-            index = self._get_sub_indexes(expand_input)[group_arg.key]
+            index = self._get_sub_indexes(expand_input, param.expand_keys)[group_arg.key]
             return self._bind_element(param, expand_input.value[group_arg.key], index)
         if binding := self._bind_mapping_entry(param, expand_input, group_arg.key, fallback=lambda: None):
             return binding
@@ -229,17 +251,23 @@ class _MappedArgBindingDeriver:
             )
         return param.build(LiteralArgBinding, kind="literal", value=param.default, from_default=True)
 
-    def _get_sub_indexes(self, expand_input: SchedulerDictOfListsExpandInput) -> dict[str, int]:
+    def _get_sub_indexes(
+        self, expand_input: SchedulerDictOfListsExpandInput, keys: Sequence[str] | None
+    ) -> dict[str, int]:
         # Outside a mapped task group, a single expanded kwarg is the whole expansion, so the
         # map index is already its element index and no upstream length needs loading.
         if len(expand_input.value) == 1 and self.task.get_closest_mapped_task_group() is None:
             return dict.fromkeys(expand_input.value, self.map_index)
-        try:
-            return expand_input.resolve_expansion_sub_indexes(
-                self.map_index, self.ti.run_id, session=self.session, producer_contexts=self.producer_contexts
+        if (sub_indexes := self._sub_indexes.get(id(expand_input))) is None:
+            sub_indexes = self._sub_indexes[id(expand_input)] = expand_input.resolve_expansion_sub_indexes(
+                self.map_index,
+                # Parse time records the order only when there are several expanded kwargs.
+                keys or list(expand_input.value),
+                self.ti.run_id,
+                session=self.session,
+                producer_contexts=self.producer_contexts,
             )
-        except ValueError as e:
-            raise UndeliverableMappedArgBindingsError(str(e))
+        return sub_indexes
 
     def _bind_mapping_entry(
         self,
@@ -278,7 +306,11 @@ class _MappedArgBindingDeriver:
     def _select_kwarg(
         binding: TaskArgBinding, key: str, fallback: XComRef | LiteralValue | None
     ) -> TaskArgBinding:
-        if not isinstance(binding, XComArgBinding):
+        # A zip() element is a tuple, which only a map() can turn into a dict.
+        if not (
+            isinstance(binding, XComArgBinding)
+            or (isinstance(binding, TupleArgBinding) and binding.apply_map)
+        ):
             raise UndeliverableMappedArgBindingsError("expand_kwargs() expects a list of dicts")
         update: dict[str, Any] = {"kwarg": key}
         if fallback is not None:
@@ -313,7 +345,6 @@ class _MappedArgBindingDeriver:
             case SchedulerPlainXComArg(operator=producer):
                 return self._bind_upstream(param, producer)
             case SchedulerXComArg():
-                # Parse time rejects this shape, so only a Dag serialized by an older core reaches it.
                 raise UndeliverableMappedArgBindingsError(
                     f"parameter {param.name!r} receives a whole map(), zip() or concat() result"
                 )
@@ -330,7 +361,6 @@ class _MappedArgBindingDeriver:
             case int(map_index):
                 return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, map_index=map_index)
             case _:
-                # Parse time rejects this shape, so only a Dag serialized by an older core reaches it.
                 raise UndeliverableMappedArgBindingsError(
                     f"parameter {param.name!r} reads task {producer.task_id!r}, which is mapped again "
                     "inside the mapped task group they share"
@@ -391,7 +421,6 @@ class _MappedArgBindingDeriver:
             case SchedulerConcatXComArg():
                 return self._locate_ref(*self._find_concatenated(arg, index))
             case _:
-                # Parse time rejects this shape, so only a Dag serialized by an older core reaches it.
                 raise UndeliverableMappedArgBindingsError(
                     "a map() must be outermost and a zip() cannot be inside another zip()"
                 )
@@ -406,11 +435,13 @@ class _MappedArgBindingDeriver:
         raise UndeliverableMappedArgBindingsError(f"concat() has no element at index {index}")
 
     def _get_length(self, arg: SchedulerXComArg) -> int:
-        length = get_task_map_length(
-            arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
-        )
-        if length is None:
-            raise NotFullyPopulated({repr(arg)})
+        if (length := self._lengths.get(id(arg))) is None:
+            length = get_task_map_length(
+                arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
+            )
+            if length is None:
+                raise NotFullyPopulated({repr(arg)})
+            self._lengths[id(arg)] = length
         return length
 
     def _get_relevant_map_indexes(self, producer: Operator) -> int | range | None:

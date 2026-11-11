@@ -153,7 +153,8 @@
         "value": {},
         "from_default": { "type": "boolean" },
         "default": {},
-        "group_arg": { "type": "object" }
+        "group_arg": { "type": "object" },
+        "expand_keys": { "type": "array", "items": { "type": "string" } }
       },
       "required": [ "name", "kind" ]
     },

@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_mapped_arg_bindings
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import (
+    UndeliverableMappedArgBindingsError,
+    derive_mapped_arg_bindings,
+)
 from airflow.serialization.definitions.mappedoperator import is_mapped
 
 if TYPE_CHECKING:
@@ -71,15 +74,24 @@ def get_arg_bindings(
     Return the TaskFlow arg spec of *task* if it is a stub task.
 
     A stub whose arguments differ per map index gets its spec derived for this map index; a Dag
-    serialized before such a stub had bindings keeps the legacy ignored-args behavior.
+    serialized before such a stub had bindings keeps the legacy ignored-args behavior. So does a
+    mapped stub for a client older than 2027-02-28.
 
-    :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index.
+    :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index, or
+        the client is too old to receive the stub's bindings.
     """
     if not task.is_stub or (arg_bindings := task.arg_bindings) is None:
         return None
-    if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
-        if not client_supports_mapped_arg_bindings():
+    per_map_index = is_mapped(task) or task.get_closest_mapped_task_group() is not None
+    if not client_supports_mapped_arg_bindings():
+        if is_mapped(task):
             return None
+        if per_map_index or any(entry["kind"] == "sequence" for entry in arg_bindings):
+            raise UndeliverableMappedArgBindingsError(
+                "they need a client at Execution API version 2027-02-28 or later"
+            )
+        return arg_bindings
+    if per_map_index:
         return derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
     return arg_bindings
 
