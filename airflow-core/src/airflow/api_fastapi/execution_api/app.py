@@ -42,7 +42,11 @@ from airflow.api_fastapi.auth.tokens import (
 )
 from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
-from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY, require_auth
+from airflow.api_fastapi.execution_api.security import (
+    _REQUEST_SCOPE_TOKEN_KEY,
+    is_execution_token_renewable,
+    require_auth,
+)
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -159,7 +163,7 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                 token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
                 refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
                 valid_left = int(claims.get("exp", 0)) - now
-                if valid_left <= refresh_when_less_than:
+                if valid_left <= refresh_when_less_than and await is_execution_token_renewable(token):
                     async with svcs.Container(request.app.state.svcs_registry) as services:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
