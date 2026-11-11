@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Business logic backing the task-instance execution routes."""
 
 from __future__ import annotations
 
@@ -80,20 +81,25 @@ def get_arg_bindings(
     :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index, or
         the client is too old to receive the stub's bindings.
     """
+    from airflow.api_fastapi.execution_api.versions.v2027_02_28 import is_mapped_arg_binding
+
     if not task.is_stub or (arg_bindings := task.arg_bindings) is None:
         return None
-    per_map_index = is_mapped(task) or task.get_closest_mapped_task_group() is not None
-    if not client_supports_mapped_arg_bindings():
-        if is_mapped(task):
-            return None
-        if per_map_index or any(entry["kind"] == "sequence" for entry in arg_bindings):
-            raise UndeliverableMappedArgBindingsError(
-                "they need a client at Execution API version 2027-02-28 or later"
-            )
-        return arg_bindings
-    if per_map_index:
-        return derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
-    return arg_bindings
+    supported = client_supports_mapped_arg_bindings()
+    if is_mapped(task) and not supported:
+        return None
+    bindings: list[TaskArgBinding] | list[dict[str, Any]] = arg_bindings
+    if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
+        bindings = derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
+    if not supported and any(is_mapped_arg_binding(_dump(binding)) for binding in bindings):
+        raise UndeliverableMappedArgBindingsError(
+            "they need a client at Execution API version 2027-02-28 or later"
+        )
+    return bindings
+
+
+def _dump(binding: TaskArgBinding | dict[str, Any]) -> dict[str, Any]:
+    return binding if isinstance(binding, dict) else binding.model_dump(exclude_unset=True)
 
 
 def get_execution_timeout(task: SerializedOperator) -> float | None:

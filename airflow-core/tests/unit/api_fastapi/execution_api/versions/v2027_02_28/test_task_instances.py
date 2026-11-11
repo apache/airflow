@@ -148,15 +148,20 @@ class TestMappedStubArgBindingsBackwardCompat:
         assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
         assert "2027-02-28 or later" in response.json()["detail"]["message"]
 
-    def test_old_version_rejects_mapped_task_group_member_with_args(self, old_ver_client, dag_maker):
+    def test_old_version_rejects_mapped_task_group_member_reading_a_group_row(
+        self, old_ver_client, dag_maker
+    ):
         with dag_maker("test_group_member_arg_bindings_compat", serialized=True):
 
             @task.stub
-            def transform(country: str): ...
+            def prepare(country: str): ...
+
+            @task.stub
+            def transform(prepared): ...
 
             @task_group
             def group(country):
-                transform(country)
+                transform(prepare(country))
 
             group.expand(country=["uk", "fr"])
 
@@ -173,6 +178,28 @@ class TestMappedStubArgBindingsBackwardCompat:
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
             {"name": "totals", "kind": "sequence", "task_id": "transform"}
+        ]
+
+    def test_old_version_keeps_plain_bindings_of_mapped_task_group_member(self, old_ver_client, dag_maker):
+        with dag_maker("test_group_member_plain_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=["uk", "fr"])
+
+        ti = dag_maker.create_dagrun().get_task_instance("group.transform", map_index=0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"}
         ]
 
     def test_old_version_keeps_plain_arg_bindings(self, old_ver_client, dag_maker):
