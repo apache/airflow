@@ -83,3 +83,13 @@ class MakeVariableValueNonNullable(VersionChange):
         """Keep the old behavior of storing ``str(None)`` when an older client sets null."""
         if "val" in request.body and request.body["val"] is None:
             request.body["val"] = "None"
+
+
+class AddCallbackStateEndpoint(VersionChange):
+    """Add the callback terminal-state endpoint."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
+    )

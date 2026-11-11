@@ -144,6 +144,11 @@ def _setup_instructions(fork: str) -> str:
     )
 
 
+_CHANGES_CI_FILES = (
+    "this pull request changes files that decide which CI jobs run and where (`.github/`, the breeze "
+    "sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those changed files."
+)
+
 _STATE_TEXTS = {
     "setup_required": "**Fork CI: setup required.** CI for this pull request has not run in your fork yet, "
     "because the `Tests (AMD)` workflow is not enabled there.",
@@ -151,19 +156,25 @@ _STATE_TEXTS = {
     "run for the latest commit of this pull request. Push the branch again to start it.",
     "running": "**Fork CI: running.** CI for the latest commit is running in your fork.",
     "failed": "**Fork CI: failed.** CI for the latest commit failed in your fork. Fix the failures and "
-    "push again; this pull request stays a draft until the run is green.",
+    "push again.",
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is "
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
-    "fork, but this pull request changes files that decide which CI jobs run and where (`.github/`, "
-    "the breeze sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those "
-    "changed files. A maintainer will review the change and run project CI for it before it can be "
-    "merged.",
+    f"fork, but {_CHANGES_CI_FILES} A maintainer will review the change and run project CI for it before "
+    "it can be merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
     "the contributor's fork; see the comment below.",
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
+}
+
+_AUTHOR_DRAFT_TEXTS = {
+    "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
+    "draft, so maintainers do not review it yet. Mark it ready for review when it is.",
+    "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
+    f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
+    "will review the change and run project CI for it.",
 }
 
 
@@ -175,8 +186,11 @@ def behind_warning(behind: int, *, base_ref: str) -> str:
     )
 
 
-def state_comment(marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main") -> str:
-    parts = [render_marker(marker), _STATE_TEXTS[marker.state], WHY_FORK_CI]
+def state_comment(
+    marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main", author_draft: bool = False
+) -> str:
+    text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
+    parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
     if (
         marker.state in ("green", "green_unverified")
         and marker.behind is not None

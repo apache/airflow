@@ -84,6 +84,7 @@ from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.fork_compare import get_upstream_file
 from airflow_breeze.utils.functools_cache import clearable_cache
+from airflow_breeze.utils.import_graph import find_reachable_providers
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
 from airflow_breeze.utils.path_utils import (
@@ -101,6 +102,7 @@ DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
+IMPORT_GRAPH_NARROWING_LABEL = "import graph narrowing"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
@@ -199,6 +201,11 @@ class FileGroupForCi(Enum):
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
+    IMAGE_BUILD_FILES = auto()
+    DOCS_PUBLISH_FILES = auto()
+    SHARED_DISTRIBUTION_FILES = auto()
+    UI_I18N_FILES = auto()
+    COMPAT_TESTS_HIDDEN_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -234,6 +241,14 @@ LANG_SDK_CONFORMANCE_SHARED_FILES = (
     r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
     r"^airflow-core/src/airflow/serialization/schema\.json$",
     r"^scripts/ci/lang_sdk_serialization/.*",
+)
+
+# Where Breeze reads the version of each distribution: its tests and the published-docs version check.
+VERSION_FILES = (
+    r"^airflow-core/src/airflow/__init__\.py$",
+    r"^task-sdk/src/airflow/sdk/__init__\.py$",
+    r"^airflow-ctl/src/airflowctl/__init__\.py$",
+    r"^chart/Chart\.yaml$",
 )
 
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
@@ -667,6 +682,58 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # Core executor sources - redis is celery's broker/result backend, so the
             # core "redis" integration is exercised when the executor framework changes.
             r"^airflow-core/src/airflow/executors/.*",
+        ],
+        # The CI image is built from these before the sources are copied in; any other change reuses the
+        # cached layers, so the build-time check has nothing new to measure. Breeze's FILES_FOR_REBUILD_CHECK
+        # are these or ENVIRONMENT_FILES. The build first regenerates the provider dependencies with the
+        # prek script, which is not an ENVIRONMENT_FILES match.
+        FileGroupForCi.IMAGE_BUILD_FILES: [
+            r"^scripts/ci/prek/(common_prek_utils|update_providers_dependencies)\.py$",
+            r"^Dockerfile",
+            r"^\.dockerignore$",
+            r"^scripts/docker/",
+            r".*hatch_build\.py$",
+            r"^generated/",
+            r"^uv\.lock$",
+            r".*pyproject\.toml$",
+        ],
+        # What publishing the built docs and validating their versions depends on. A docstring change
+        # rebuilds the docs but cannot change what is published.
+        FileGroupForCi.DOCS_PUBLISH_FILES: [
+            r"^docs/",
+            r"^.*/docs/",
+            r"^providers-summary-docs/",
+            r"^docker-stack-docs/",
+            r".*/provider\.yaml$",
+            r".*/changelog\.rst$",
+            r"^RELEASE_NOTES\.rst$",
+            r"^chart/RELEASE_NOTES\.rst$",
+            r".*pyproject\.toml$",
+            r"^devel-common/src/sphinx_exts/",
+            *VERSION_FILES,
+        ],
+        # The shared distributions' tests install devel-common as their test dependency, and with it the
+        # local apache-airflow-mypy distribution in dev/mypy.
+        FileGroupForCi.SHARED_DISTRIBUTION_FILES: [
+            r"^shared/",
+            r"^devel-common/",
+            r"^dev/mypy/",
+            r"^pyproject\.toml$",
+            r"^uv\.lock$",
+        ],
+        FileGroupForCi.UI_I18N_FILES: [
+            r"^airflow-core/src/airflow/ui/public/i18n/",
+        ],
+        # The provider compatibility tests install the released Airflow and Task SDK from PyPI and run with
+        # the two source trees hidden (scripts/ci/docker-compose/remove-sources.yml). They do not collect the
+        # Task SDK tests or read these docs. On the host, Breeze reads the version files and non-Python files
+        # of the source trees, and prek reads any nested config, so the docs match by document type only.
+        FileGroupForCi.COMPAT_TESTS_HIDDEN_FILES: [
+            r"^airflow-core/src/(?!airflow/__init__\.py$).*\.py$",
+            r"^task-sdk/src/(?!airflow/sdk/__init__\.py$).*\.py$",
+            r"^task-sdk/tests/.*\.py$",
+            r"^(airflow-core|task-sdk)/docs/.*\.(rst|md|txt|png|gif|svg|jpe?g|puml|md5sum|csv)$",
+            r"^airflow-core/newsfragments/[^/]+\.rst$",
         ],
     }
 )
@@ -1691,9 +1758,26 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_generic_basic_tests(self) -> bool:
-        """The basic tests of Airflow itself that run for every change: the standalone Airflow and the
-        shared distributions."""
+        """The standalone Airflow test, which runs for every change."""
         return True
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_shared_distributions_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.SHARED_DISTRIBUTION_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_translation_check(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_I18N_FILES)
+
+    @cached_property
+    def run_image_build_time_check(self) -> bool:
+        return self.ci_image_build and self._should_be_run(FileGroupForCi.IMAGE_BUILD_FILES)
+
+    @cached_property
+    def run_docs_publish(self) -> bool:
+        return self.docs_build and self._should_be_run(FileGroupForCi.DOCS_PUBLISH_FILES)
 
     @cached_property
     @_scoped_to_component_branch
@@ -1851,11 +1935,13 @@ class SelectiveChecks:
                 candidate_test_types.add("Providers")
         elif affected_providers:
             suspended = set(get_suspended_provider_ids())
-            providers_to_test = [p for p in affected_providers if p not in suspended]
+            providers_to_test = self._narrow_providers_by_import_graph(
+                [p for p in affected_providers if p not in suspended]
+            )
             if split_to_individual_providers:
                 for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
-            else:
+            elif providers_to_test:
                 providers_to_test = self._add_providers_sharing_test_process_state(
                     providers_to_test, changed_providers=self._find_changed_providers(), suspended=suspended
                 )
@@ -1864,6 +1950,33 @@ class SelectiveChecks:
         console_print("[warning]Selected providers test type candidates to run:[/]")
         console_print(sorted_candidate_test_types)
         return sorted_candidate_test_types
+
+    @cached_property
+    def _import_graph_narrowing_enabled(self) -> bool:
+        # Pushes to main stay coarse, so what a narrowed PR misses still fails before the next canary.
+        return self._is_pull_request_like() and (
+            IMPORT_GRAPH_NARROWING_LABEL in self._pr_labels
+            or os.environ.get("IMPORT_GRAPH_NARROWING", "").casefold() == "true"
+        )
+
+    def _narrow_providers_by_import_graph(self, providers: list[str]) -> list[str]:
+        """
+        Drop the upstream and downstream providers whose tests cannot import any changed file.
+
+        Off by default: the providers the import graph would drop are only printed (shadow mode), so
+        the gap can be measured from the build-info logs before the label or variable turns it on.
+        """
+        changed = self._find_changed_providers()
+        reachable = find_reachable_providers(AIRFLOW_ROOT_PATH, self._files, set(providers) - changed)
+        if reachable is None:
+            console_print("[info]Import graph narrowing: a changed file can be imported dynamically.[/]")
+            return providers
+        dropped = sorted(p for p in providers if p not in changed and p not in reachable)
+        if not self._import_graph_narrowing_enabled:
+            console_print(f"[info]Import graph narrowing (shadow mode) would drop providers: {dropped}[/]")
+            return providers
+        console_print(f"[info]Import graph narrowing dropped providers: {dropped}[/]")
+        return [p for p in providers if p not in dropped]
 
     def _find_changed_providers(self) -> set[str]:
         """Providers whose own files changed, without their upstream and downstream dependents."""
@@ -2162,6 +2275,24 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    def generate_pypi_constraints(self) -> bool:
+        # Without a dependency or tooling change this resolution only reports on the state of PyPI,
+        # which the canary runs cover. Their dependency report and `update-constraints` read its output.
+        if not self.ci_image_build:
+            return False
+        return (
+            self.upgrade_to_newer_dependencies
+            or self.is_uv_lock_update
+            or self.full_tests_needed
+            or self._is_canary_run()
+        )
+
+    @cached_property
+    def generate_constraints(self) -> bool:
+        # The PROD image build reads the source-providers constraints the job always generates.
+        return self.generate_pypi_constraints or self.prod_image_build
+
+    @cached_property
     def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
@@ -2183,7 +2314,15 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(file.startswith(("airflow-core/src/airflow/", "airflow-core/docs/")) for file in self._files):
+        # Core and Task SDK release together, so either side's docs may link to a page in the
+        # other that is not published yet. Building both resolves those links locally.
+        core_or_task_sdk_changed = any(
+            file.startswith(
+                ("airflow-core/src/airflow/", "airflow-core/docs/", "task-sdk/src/", "task-sdk/docs/")
+            )
+            for file in self._files
+        )
+        if core_or_task_sdk_changed:
             packages.append("apache-airflow")
         if any(file.startswith("providers-summary-docs/") for file in self._files):
             packages.append("apache-airflow-providers")
@@ -2191,7 +2330,7 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
-        if any(file.startswith("task-sdk/src/") for file in self._files):
+        if core_or_task_sdk_changed:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
@@ -2568,6 +2707,24 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_providers_compatibility_tests(self) -> bool:
+        """False when every changed file is hidden from the provider compatibility tests.
+
+        A Task SDK change selects all providers, but the compatibility tests run them against released
+        Airflow and Task SDK distributions, so the result cannot differ from the last canary run.
+        """
+        if self.full_tests_needed or self.upgrade_to_newer_dependencies:
+            return True
+        hidden_files = self._matching_files(FileGroupForCi.COMPAT_TESTS_HIDDEN_FILES, CI_FILE_GROUP_MATCHES)
+        if self._files and set(hidden_files) == set(self._files):
+            console_print(
+                "[warning]Provider compatibility tests skipped: every changed file is hidden from them[/]"
+            )
+            return False
+        return True
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:

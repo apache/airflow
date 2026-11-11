@@ -853,6 +853,7 @@ httplib
 HttpRequest
 https
 httpx
+huggingface
 hvac
 hyperparameter
 hyperparameters

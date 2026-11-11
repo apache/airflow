@@ -69,6 +69,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     ReturnNotFoundForMissingDagRun,
 )
 from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
+    AddCallbackStateEndpoint,
     AddDagProcessorJobEndpoints,
     AddExecutionTimeoutToTIRunContext,
     MakeVariableValueNonNullable,
@@ -81,6 +82,7 @@ bundle = VersionBundle(
         AddDagProcessorJobEndpoints,
         AddExecutionTimeoutToTIRunContext,
         MakeVariableValueNonNullable,
+        AddCallbackStateEndpoint,
     ),
     Version(
         "2026-10-30",
