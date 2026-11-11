@@ -21,9 +21,10 @@ Recovering from failures
 ========================
 
 An agent task can fail partway through a run: the model provider goes down or rate
-limits the task, or the worker running it dies. Two settings keep the work the agent
+limits the task, or the worker running it dies. Two features keep the work the agent
 already did: ``fallback_conn_ids`` moves a failed model request to another connection,
-and ``durable=True`` lets an Airflow retry replay the steps an earlier attempt
+and durable execution, on by default for a task that can retry on Airflow 3.3 and later
+(see :doc:`durable_execution`), lets an Airflow retry replay the steps an earlier attempt
 completed. To decide whether a failure is worth retrying at all, see
 :doc:`retry_policies`.
 
@@ -44,13 +45,14 @@ What each failure costs
    * - Every connection in the chain fails, and the task raises
        ``FallbackChainExhaustedError`` (a ``pydantic_ai.exceptions.FallbackExceptionGroup``;
        see :doc:`provider_fallback` for which tasks raise it)
-     - Airflow ``retries`` with ``durable=True``
+     - Airflow ``retries``, with durable execution
      - Replayed. The retry replays the steps an earlier attempt recorded, whichever
        connection answered them, and continues on the first connection that answers now.
    * - The worker dies, or the task hits its ``execution_timeout``
-     - Airflow ``retries`` with ``durable=True``
+     - Airflow ``retries``, with durable execution
      - Replayed, as above. A step that was still running runs again.
-   * - Either of the last two, without ``durable=True``
+   * - Either of the last two, without durable execution (``durable=False``, or Airflow
+       before 3.3 without ``durable=True``)
      - Airflow ``retries``
      - Run again from the start: every model call is paid for again and every tool runs
        again.
@@ -67,15 +69,16 @@ attempt waits for the SDK's default of 600 seconds. Both SDKs also wait out a 42
 ``Retry-After`` header before retrying: the OpenAI SDK for up to two minutes, the
 Anthropic SDK for as long as the header asks.
 
-On Airflow before 3.3 the journal is a file under ``[common.ai] durable_cache_path``; a
+On Airflow before 3.3 durable execution is off unless the task sets ``durable=True``, and
+the journal is a file under ``[common.ai] durable_cache_path``; a
 retry that runs on another worker replays only if that path is shared storage. See
 :doc:`durable_execution`.
 
 Keep a run going through an outage
 ----------------------------------
 
-This task declares both settings: a standby connection for a failed request, and a
-journal for a failed attempt:
+This task has both: a standby connection for a failed request, and, because its
+``retries`` let it retry, a journal for a failed attempt:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_recovery.py
     :language: python
@@ -114,7 +117,7 @@ and the model that finished the run:
     Retrying request to /responses in 0.849597 seconds
     ::group::Tool call: get_schema
     ...
-    Durable: replayed 0 steps (0 model, 0 tool, 0 other), recorded 7 new steps (4 model, 3 tool, 0 other)
+    Durable (on by default): replayed 0 steps (0 model, 0 tool, 0 other), recorded 7 new steps (4 model, 3 tool, 0 other)
     ::group::LLM run complete: model=claude-sonnet-5, requests=4, tool_calls=3, input_tokens=5135, output_tokens=334, total_tokens=5469
     Tool call sequence: list_tables -> get_schema -> query
 
@@ -125,7 +128,7 @@ primary's ``timeout`` short.
 Retries after the whole chain fails
 -----------------------------------
 
-With ``durable=True``, each step is recorded in the task instance's journal whichever
+Under durable execution, each step is recorded in the task instance's journal whichever
 connection answered it. When every connection fails, the operator (or ``@task.llm`` /
 ``@task.agent``) raises ``FallbackChainExhaustedError``, and a plain ``@task`` with
 ``AirflowDurability`` raises the bare ``FallbackExceptionGroup`` (see
@@ -188,11 +191,13 @@ What is not covered
   needs, so a chain cannot include Claude on Vertex AI. A Vertex AI connection reaches
   Gemini.
 - Failover and replay cover pydantic-ai agents only: ``fallback_conn_ids`` on the
-  pydantic-ai hooks and the operators built on them, and replay through ``durable=True``
-  or the ``AirflowDurability`` capability in a plain ``@task``. A Strands
+  pydantic-ai hooks and the operators built on them, and replay through durable execution
+  in ``AgentOperator`` and ``@task.agent`` or the ``AirflowDurability`` capability in a
+  plain ``@task``. A Strands
   Agents agent run through ``invoke_durably`` resumes from its own checkpoint on
   Airflow 3.3 and later (:ref:`howto/frameworks:strands-durable`), and a retried
   ``LLMBatchOperator`` re-attaches to its running batch (:ref:`llm-batch-reattach`).
 - A ``ManagedAgentToolset`` runs again on every attempt unless it is built with
   ``replayable=True``. Durable execution cannot be combined with a
-  ``SandboxToolset``; see the limitations in :doc:`durable_execution`.
+  ``SandboxToolset``: by default the operator turns it off for that task and logs why,
+  and ``durable=True`` raises; see the limitations in :doc:`durable_execution`.

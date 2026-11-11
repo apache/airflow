@@ -19,9 +19,10 @@ Example Dag: an agent task that keeps its progress through a provider outage.
 
 ``fallback_conn_ids`` moves a failed model request to the next connection inside the
 attempt, and that connection continues the run from the same message history.
-``durable=True`` keeps what each attempt completed, so when every connection fails, or
-the worker running the task dies, the retry replays those steps and continues the run
-on whichever connection answers.
+Durable execution, on by default on Airflow 3.3+ because the task can retry, keeps what
+each attempt completed, so when every connection fails, or the worker running the task
+dies, the retry replays those steps and continues the run on whichever connection
+answers.
 
 Prerequisites:
   - Connection ``llm_primary`` with ``conn_type='pydanticai'``, ``password=<API key>``
@@ -30,7 +31,8 @@ Prerequisites:
     and ``extra='{"model": "anthropic:claude-sonnet-5"}'``
   - Connection ``warehouse`` to a database with an ``orders`` table
   - The provider installed with the ``anthropic``, ``openai`` and ``sql`` extras
-  - On Airflow before 3.3, ``[common.ai] durable_cache_path`` set to shared storage
+  - On Airflow before 3.3, ``durable=True`` on the task and ``[common.ai] durable_cache_path``
+    set to shared storage
 """
 
 from __future__ import annotations
@@ -60,7 +62,6 @@ if SQLToolset is not None:
             prompt="Which region placed the most orders, and what share of all orders is that?",
             llm_conn_id="llm_primary",
             fallback_conn_ids=["llm_standby"],
-            durable=True,
             system_prompt="You are a SQL analyst. Use the tools to answer with data.",
             toolsets=[SQLToolset(db_conn_id="warehouse", allowed_tables=["orders"], max_rows=20)],
         )

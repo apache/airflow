@@ -294,8 +294,8 @@ Differences from ``AgentOperator``
 The loop is Codex's, so what ``AgentOperator`` builds on top of Pydantic AI does not apply:
 
 - A task retry runs the loop again from the start. Tools that change data must be safe
-  to repeat, because there is no step-level replay as with
-  ``AgentOperator(durable=True)``.
+  to repeat, because there is no step-level replay as with ``AgentOperator``'s durable
+  execution.
 - There is no human review step like ``AgentOperator(enable_hitl_review=True)``, and no
   per-call approval: the adapter has no equivalent of the Claude adapter's ``can_use_tool``.
 - A toolset's connection ID is used as written. It is not rendered as a template, so
