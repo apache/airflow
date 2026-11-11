@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.fab.www.app import create_app
@@ -272,6 +273,10 @@ class TestFabAuthManager:
         with pytest.raises(ValueError, match=f"User with id {user.id} is not active"):
             await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
 
+    @pytest.mark.skipif(
+        not hasattr(BaseAuthManager, "deserialize_user_async"),
+        reason="This Airflow version has no async user deserialization hook",
+    )
     @mock.patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
         autospec=True,
