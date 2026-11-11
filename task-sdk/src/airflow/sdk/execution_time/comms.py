@@ -198,7 +198,7 @@ def _encode_large_ints(value: Any) -> Any:
 def _decode_msgpack_ext(code: int, data: memoryview) -> Any:
     if code == MSGPACK_HUGEINT:
         return int.from_bytes(data, "big", signed=True)
-    return msgspec.msgpack.Ext(code, data)
+    return msgspec.msgpack.Ext(code, bytes(data))
 
 
 class _FrameMixin:
@@ -215,9 +215,7 @@ class _FrameMixin:
                 raise
             # Keep the usual path free of a Python traversal of every message.
             frame = cast("_RequestFrame | _ResponseFrame", self)
-            fields = {"body": _encode_large_ints(frame.body)}
-            if isinstance(frame, _ResponseFrame):
-                fields["error"] = _encode_large_ints(frame.error)
+            fields = {name: _encode_large_ints(getattr(frame, name)) for name in frame._payload_fields}
             self._encoder.encode_into(msgspec.structs.replace(frame, **fields), buffer, 4)
 
         n = len(buffer) - 4
@@ -229,6 +227,8 @@ class _FrameMixin:
 
 
 class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
+    _payload_fields: ClassVar[tuple[str, ...]] = ("body",)
+
     id: int
     """
     The request id, set by the sender.
@@ -252,6 +252,8 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
 
 
 class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
+    _payload_fields: ClassVar[tuple[str, ...]] = ("body", "error")
+
     id: int
     """
     The id of the request this is a response to
