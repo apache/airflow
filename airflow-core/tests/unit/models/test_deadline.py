@@ -758,7 +758,7 @@ class TestDeadlineReference:
 
 class TestCustomDeadlineReference:
     @staticmethod
-    def _reference_named(name, module):
+    def create_custom_ref_named(name, module):
         """Build a valid reference class with a chosen ``__name__`` and module path."""
         reference = type(
             name,
@@ -868,11 +868,11 @@ class TestCustomDeadlineReference:
         The shorthand must point at the new class's instance, not keep the one belonging to the class
         object the re-parse replaced.
         """
-        first = self._reference_named("Reparsed", "team_a.refs")
+        first = self.create_custom_ref_named("Reparsed", "team_a.refs")
         DeadlineReference._add_custom_reference_to_namespace(first)
         assert DeadlineReference.Reparsed.__class__ is first
 
-        second = self._reference_named("Reparsed", "team_a.refs")
+        second = self.create_custom_ref_named("Reparsed", "team_a.refs")
         assert second is not first
         DeadlineReference._add_custom_reference_to_namespace(second)
 
@@ -880,11 +880,11 @@ class TestCustomDeadlineReference:
 
     def test_reparsing_the_same_reference_replaces_its_types_entry(self):
         """A re-parse must replace the reference's classification entry rather than append beside it."""
-        first = self._reference_named("Reparsed", "team_a.refs")
+        first = self.create_custom_ref_named("Reparsed", "team_a.refs")
         DeadlineReference._add_custom_reference_to_namespace(first)
         after_first = DeadlineReference.TYPES.DAGRUN_CREATED
 
-        second = self._reference_named("Reparsed", "team_a.refs")
+        second = self.create_custom_ref_named("Reparsed", "team_a.refs")
         DeadlineReference._add_custom_reference_to_namespace(second)
 
         assert len(DeadlineReference.TYPES.DAGRUN_CREATED) == len(after_first)
@@ -893,11 +893,11 @@ class TestCustomDeadlineReference:
 
     def test_reclassifying_a_reference_moves_it_between_types(self):
         """Re-registering under a different classification must not leave it in the one it left."""
-        first = self._reference_named("Reclassified", "team_a.refs")
+        first = self.create_custom_ref_named("Reclassified", "team_a.refs")
         DeadlineReference._add_custom_reference_to_namespace(first)
         assert first in DeadlineReference.TYPES.DAGRUN_CREATED
 
-        second = self._reference_named("Reclassified", "team_a.refs")
+        second = self.create_custom_ref_named("Reclassified", "team_a.refs")
         DeadlineReference._add_custom_reference_to_namespace(second, DeadlineReference.TYPES.DAGRUN_QUEUED)
 
         assert second in DeadlineReference.TYPES.DAGRUN_QUEUED
@@ -911,13 +911,14 @@ class TestCustomDeadlineReference:
         A Dag file is written against the short name, so letting the last import win means the same
         Dag silently evaluates a different class after a restart.
         """
-        first = self._reference_named("Contested", "team_a.refs")
-        second = self._reference_named("Contested", "team_b.reports")
+        first = self.create_custom_ref_named("Contested", "team_a.refs")
+        second = self.create_custom_ref_named("Contested", "team_b.reports")
 
-        DeadlineReference._add_custom_reference_to_namespace(first)
+        # Queued rather than the default, so the timing check below cannot pass on the class default.
+        DeadlineReference._add_custom_reference_to_namespace(first, DeadlineReference.TYPES.DAGRUN_QUEUED)
         assert DeadlineReference.Contested.__class__ is first
 
-        DeadlineReference._add_custom_reference_to_namespace(second)
+        DeadlineReference._add_custom_reference_to_namespace(second, DeadlineReference.TYPES.DAGRUN_QUEUED)
 
         assert not hasattr(DeadlineReference, "Contested")
         assert {
@@ -926,13 +927,16 @@ class TestCustomDeadlineReference:
         } in cap_structlog
 
         # Both remain valid references; only the shorthand is gone.
-        assert first in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert second in DeadlineReference.TYPES.DAGRUN_CREATED
+        assert first in DeadlineReference.TYPES.DAGRUN_QUEUED
+        assert second in DeadlineReference.TYPES.DAGRUN_QUEUED
+        assert first.evaluation_timing == second.evaluation_timing == DAGRUN_QUEUED_TIMING
 
     def test_a_contested_name_is_not_rebound_by_a_later_claimant(self):
         """A third claim is recorded alongside the others, and still does not get the shorthand."""
         for module in ("team_a.refs", "team_b.reports", "team_c.other"):
-            DeadlineReference._add_custom_reference_to_namespace(self._reference_named("Contested", module))
+            DeadlineReference._add_custom_reference_to_namespace(
+                self.create_custom_ref_named("Contested", module)
+            )
 
         assert not hasattr(DeadlineReference, "Contested")
         assert DeadlineReference._contested_reference_names["Contested"] == [
@@ -941,17 +945,30 @@ class TestCustomDeadlineReference:
             "team_c.other.Contested",
         ]
 
+    def test_an_invalid_claim_does_not_unbind_the_existing_one(self):
+        """A claim that fails validation must leave the namespace as it found it."""
+        first = self.create_custom_ref_named("Contested", "team_a.refs")
+        DeadlineReference._add_custom_reference_to_namespace(first)
+
+        with pytest.raises(ValueError, match="Invalid deadline reference type"):
+            DeadlineReference._add_custom_reference_to_namespace(
+                self.create_custom_ref_named("Contested", "team_b.reports"), ("not", "a", "valid", "timing")
+            )
+
+        assert DeadlineReference.Contested.__class__ is first
+        assert "Contested" not in DeadlineReference._contested_reference_names
+
     def test_shadowing_a_builtin_reference_raises(self):
         """A builtin must never be unbound, so this is an error rather than a contested name."""
         with pytest.raises(ValueError, match="DeadlineReference.DAGRUN_QUEUED_AT already exists"):
             DeadlineReference._add_custom_reference_to_namespace(
-                self._reference_named("DAGRUN_QUEUED_AT", "team_a.refs")
+                self.create_custom_ref_named("DAGRUN_QUEUED_AT", "team_a.refs")
             )
 
         assert DeadlineReference.DAGRUN_QUEUED_AT is not None
 
     def test_register_custom_reference_is_a_deprecated_shim(self):
-        reference = self._reference_named("ViaShim", "team_a.refs")
+        reference = self.create_custom_ref_named("ViaShim", "team_a.refs")
 
         with pytest.warns(RemovedInAirflow4Warning, match="register_custom_reference is deprecated"):
             result = DeadlineReference.register_custom_reference(reference)

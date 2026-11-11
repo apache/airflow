@@ -368,6 +368,16 @@ class DeadlineReference:
         name = reference_class.__name__
         key = qualname(reference_class)
 
+        for candidate in cls.TYPES._CLASSIFICATIONS:
+            if deadline_reference_type is getattr(cls.TYPES, candidate):
+                classification = candidate
+                break
+        else:
+            raise ValueError(
+                f"Invalid deadline reference type {deadline_reference_type}; "
+                "must be a valid DeadlineReference.TYPES option."
+            )
+
         if name in cls._contested_reference_names:
             # There is a conflict; do not register the short name.
             claimed_names = cls._contested_reference_names[name]
@@ -408,17 +418,6 @@ class DeadlineReference:
 
         if cls._custom_reference_name_map.get(name) == key:
             logger.info("Added DeadlineReference.%s (%s)", name, key)
-
-        # Resolve which classification this reference belongs in.
-        for candidate in cls.TYPES._CLASSIFICATIONS:
-            if deadline_reference_type is getattr(cls.TYPES, candidate):
-                classification = candidate
-                break
-        else:
-            raise ValueError(
-                f"Invalid deadline reference type {deadline_reference_type}; "
-                "must be a valid DeadlineReference.TYPES option."
-            )
 
         # A contested class is still a valid reference: it serializes under its own qualname and
         # resolves through the plugin registry, so only the shorthand is withheld.  Drop any earlier
