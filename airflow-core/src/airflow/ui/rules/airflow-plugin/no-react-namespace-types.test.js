@@ -16,12 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import typescriptParser from "@typescript-eslint/parser";
-import { RuleTester } from "eslint";
+import { RuleTester } from "oxlint/plugins-dev";
+import { describe, it } from "vitest";
 
 import { noReactNamespaceTypes } from "./no-react-namespace-types.js";
 
-const ruleTester = new RuleTester({ languageOptions: { parser: typescriptParser } });
+RuleTester.describe = describe;
+RuleTester.it = it;
+
+const ruleTester = new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } });
 
 ruleTester.run("no-react-namespace-types", noReactNamespaceTypes, {
   invalid: [
