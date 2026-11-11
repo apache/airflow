@@ -350,7 +350,8 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         sequence: int,
         files: Collection[str],
         failed_sources: Collection[str],
-    ) -> None:
+        parse_files: Collection[DagFileInfo] = (),
+    ) -> list[DagFileInfo]:
         """Acknowledge missing files only after an authoritative inventory newer than their claims."""
         failed = set(failed_sources)
         for key, claim in list(self._priority_claims.items()):
@@ -363,6 +364,20 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
             ):
                 self._pending_work_acks.append(("priority", item))
                 del self._priority_claims[key]
+
+        unassigned = {
+            claim.work.relative_fileloc
+            for claim in self._priority_claims.values()
+            if claim.work.bundle_name == bundle_name
+            and claim.attempt_id is None
+            and sequence >= claim.inventory_sequence
+        }
+        if not unassigned:
+            return []
+        # A claim can precede the download of its archive. Resolve it from the refreshed inventory.
+        # Match enclosing paths even when discovery could not read the archive's members.
+        containers = {parent for location in unassigned for parent in Path(location).parents}
+        return [file for file in parse_files if file.rel_path in containers]
 
     def bundle_unusable(self, bundle_name: str, *, active_attempts: Collection[UUID]) -> None:
         """Release unusable-bundle requests except those still assigned to active attempts."""

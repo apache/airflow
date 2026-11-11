@@ -118,8 +118,10 @@ class RequestedWorkSource:
         sequence: int,
         files: Collection[str],
         failed_sources: Collection[str],
-    ) -> None:
-        """Reconcile priority requests against the bundle's accepted inventory."""
+        parse_files: Collection[DagFileInfo] = (),
+    ) -> list[DagFileInfo]:
+        """Reconcile claims with accepted inventory and return physical files needing priority parses."""
+        return []
 
     def bundle_unusable(self, bundle_name: str, *, active_attempts: Collection[UUID]) -> None:
         """Finish requests for an unusable bundle unless their attempts are still active."""

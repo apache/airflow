@@ -22,6 +22,8 @@ New bodies in this version:
 
 - ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
   Human-in-the-loop response.
+- ``DagCallbacksStarted``: a parsed callback batch requests the manager's permission to
+  begin execution, allowing timeouts before that permission to be retried safely.
 """
 
 from __future__ import annotations

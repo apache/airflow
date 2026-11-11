@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 from unittest import mock
+from zipfile import ZipFile
 
 import pytest
 from uuid6 import uuid7
@@ -28,16 +29,21 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagBundleInventoryBody,
     DagBundleInventoryResponse,
     DagBundleStateResponse,
-    ProcessorWorkItem,
 )
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.bundles.base import BaseDagBundle, DagBundleRefreshError
 from airflow.dag_processing.bundles.local import LocalDagBundle
-from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager, PendingBundleInventory
+from airflow.dag_processing.manager import (
+    DagFileInfo,
+    DagFileProcessorManager,
+    DagFileStat,
+    PendingBundleInventory,
+)
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
+from airflow.utils.file import find_enclosing_file
 
-from unit.dag_processing.requested_work_helpers import get_api_work_source
+from unit.dag_processing.requested_work_helpers import get_api_work_source, make_work
 
 
 @pytest.fixture
@@ -66,9 +72,7 @@ def api_manager(tmp_path):
     manager._bundle_parse_sources[bundle.name] = DagParseSource(
         refresh_generation=3, bundle_revision=revision, inventory_sequence=7
     )
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
-    )
+    work = make_work(bundle_name=bundle.name, relative_fileloc="a.py")
     client.claim_work.return_value = [work]
     return manager, client, bundle, file, work
 
@@ -127,6 +131,74 @@ def test_inventory_created_before_claim_cannot_acknowledge_new_missing_file_requ
 
     assert (work.id, work.claim_id) not in get_api_work_source(manager)._priority_claims
     assert get_api_work_source(manager)._pending_work_acks == [("priority", work)]
+
+
+@pytest.mark.parametrize("path_state", ["present", "missing", "unreadable"])
+@pytest.mark.parametrize("readable_inventory", [True, False])
+@mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+@mock.patch("airflow.dag_processing.api_requested_work.find_enclosing_file", autospec=True)
+def test_priority_archive_resolves_again_after_refresh(
+    resolve_path, create, api_manager, path_state, readable_inventory
+):
+    manager, client, bundle, original, _ = api_manager
+    original.absolute_path.unlink()
+    archive = DagFileInfo(
+        bundle_name=bundle.name,
+        bundle_path=bundle.path,
+        rel_path=Path("archive.zip"),
+        definition_locs=frozenset({"archive.zip/member.py"}),
+    )
+
+    def write_archive():
+        if not readable_inventory:
+            archive.absolute_path.write_bytes(b"damaged archive")
+            return
+        with ZipFile(archive.absolute_path, "w") as output:
+            output.writestr("member.py", "from airflow.sdk import DAG\ndag = DAG('archived')\n")
+
+    if path_state != "missing":
+        write_archive()
+    resolve_path.side_effect = (
+        OSError("Temporary filesystem failure") if path_state == "unreadable" else find_enclosing_file
+    )
+    work = make_work(bundle.name, "archive.zip/member.py")
+    client.claim_work.return_value = [work]
+    manager._file_stats[archive] = DagFileStat(run_count=1)
+    manager._num_run = 1
+    known_files = {bundle.name: {archive}}
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    processor.had_callbacks = False
+    create.return_value = processor
+
+    manager._queue_requested_files_for_parsing()
+    if path_state == "missing":
+        write_archive()
+    manager._refresh_dag_bundles(known_files)
+    manager._start_new_processes()
+
+    source = get_api_work_source(manager)
+    assert source.has_outstanding_work()
+    assert not manager.max_runs_reached()
+    assert manager._processors == {archive: processor}
+    assert source._priority_claims[work.id, work.claim_id].attempt_id == processor.id
+    assert (
+        source.inventory_published(
+            bundle.name,
+            sequence=manager._dispatch_sequence,
+            files=["archive.zip", "archive.zip/member.py"],
+            failed_sources=[],
+            parse_files=[archive],
+        )
+        == []
+    )
+
+    manager._processors.pop(archive)
+    source.attempt_finished(processor.id, had_callbacks=False)
+    source.flush()
+    client.acknowledge_work.assert_called_once_with("priority", work)
+    assert not source.has_outstanding_work()
+    assert manager.max_runs_reached()
 
 
 @pytest.mark.parametrize("callback_version", [None, "v1"])
@@ -196,6 +268,7 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
         processor.id = uuid7()
         processor.had_callbacks = True
         processor.api_request_error = None
+        processor.callback_targets_missing = False
         processor.is_ready = True
         processor.start_time = 0
         processor.parse_source = source

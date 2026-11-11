@@ -153,8 +153,15 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
+class DagCallbacksStarted(BaseModel):
+    """Request permission to begin a callback batch after importing its Dag file."""
+
+    type: Literal["DagCallbacksStarted"] = "DagCallbacksStarted"
+
+
 ToManagerMessage = (
     DagFileParsingResult
+    | DagCallbacksStarted
     | GetConnection
     | GetVariable
     | GetVariableKeys
@@ -195,16 +202,27 @@ ToDagProcessor = Annotated[
 
 @attrs.define()
 class _DagParseCommsDecoder(CommsDecoder[ToDagProcessor, ToManager]):
-    api_request_failed: bool = attrs.field(default=False, init=False)
-    """Whether the Dag processor could not answer a request of this process through the Execution API."""
+    _received_api_error: bool = attrs.field(default=False, init=False)
+    _pending_request_ids: set[int] = attrs.field(factory=set, init=False)
+
+    @property
+    def api_request_failed(self) -> bool:
+        """Include unanswered requests interrupted by the Dag import timeout."""
+        return self._received_api_error or bool(self._pending_request_ids)
+
+    def _make_frame(self, msg: ToManagerMessage):
+        frame = super()._make_frame(msg)
+        self._pending_request_ids.add(frame.id)
+        return frame
 
     def _from_frame(self, frame) -> ToDagProcessor | None:
-        # Both send() and asend() decode their response here.
+        # Match IDs so another response cannot hide an interrupted sync or async request.
+        self._pending_request_ids.discard(frame.id)
         try:
             return super()._from_frame(frame)
         except AirflowRuntimeError as error:
             if error.error.error == ErrorType.API_SERVER_ERROR:
-                self.api_request_failed = True
+                self._received_api_error = True
             raise
 
 
@@ -279,6 +297,9 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     if msg.callback_requests:
         targets_loaded = any(_is_callback_target_loaded(bag, request) for request in msg.callback_requests)
+        if targets_loaded and conf.getboolean("dag_processor", "use_execution_api"):
+            # Wait for the manager to record this before any callback can produce side effects.
+            cast("_DagParseCommsDecoder", task_runner.SUPERVISOR_COMMS).send(DagCallbacksStarted())
         # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
         if not targets_loaded and _has_api_request_failed():
@@ -369,6 +390,8 @@ def _get_dag_with_task(
 
 
 def _has_api_request_failed() -> bool:
+    if not conf.getboolean("dag_processor", "use_execution_api"):
+        return False
     comms_decoder = getattr(task_runner, "SUPERVISOR_COMMS", None)
     return isinstance(comms_decoder, _DagParseCommsDecoder) and comms_decoder.api_request_failed
 
@@ -481,7 +504,7 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
                         "team_name": (
                             (
                                 get_configured_bundle_team_names().get(request.bundle_name)
-                                if conf.get("dag_processor", "execution_api_token_file", fallback=None)
+                                if conf.getboolean("dag_processor", "use_execution_api", fallback=False)
                                 else DagModel.get_team_name(request.dag_id)
                             )
                             if conf.getboolean("core", "multi_team")
@@ -674,6 +697,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     parse_source: DagParseSource = attrs.field(factory=DagParseSource)
     dispatch_sequence: int = 0
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
+    callbacks_started: bool = False
 
     client: Client | None = None
     """
@@ -717,6 +741,12 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         self.parsing_result = msg
         return None, {}
 
+    def _handle_callbacks_started(
+        self, msg: DagCallbacksStarted, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self.callbacks_started = True
+        return OKResponse(ok=True), {}
+
     def _handle_previous_successful_dag_run(
         self, msg: GetPrevSuccessfulDagRun, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
@@ -749,12 +779,16 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         **dict(
             [
                 register_request_method(DagFileParsingResult, _handle_parsing_result),
+                register_request_method(DagCallbacksStarted, _handle_callbacks_started),
                 register_request_method(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run),
             ]
         ),
     }
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        if isinstance(msg, DagCallbacksStarted):
+            super()._handle_request(msg, log, req_id)
+            return
         if self.client is None and isinstance(msg, self._client_request_types):
             self.send_msg(
                 None,

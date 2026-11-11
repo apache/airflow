@@ -24,9 +24,7 @@ from unittest import mock
 import httpx2
 import pytest
 from sqlalchemy.orm import Session
-from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
 from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 from airflow.dag_processing.api_client import (
     DagProcessorAPIClient,
@@ -42,7 +40,7 @@ from airflow.jobs.dag_processor_job_runner import DagProcessorHeartbeatTimeout, 
 from airflow.jobs.job import Job, JobState, run_job
 
 from tests_common.test_utils.config import conf_vars
-from unit.dag_processing.requested_work_helpers import get_api_work_source
+from unit.dag_processing.requested_work_helpers import get_api_work_source, make_work
 
 
 @pytest.fixture
@@ -137,9 +135,7 @@ def test_exit_signal_during_a_parse_request_acknowledges_with_the_job_credential
         client._parse_context.get()
     )
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
-    )
+    work = make_work(bundle_name="testing", relative_fileloc="a.py")
     get_api_work_source(manager)._pending_work_acks = [("callbacks", work)]
 
     def answer_parse_request(processor):

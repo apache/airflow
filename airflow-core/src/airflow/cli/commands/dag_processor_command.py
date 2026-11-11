@@ -29,6 +29,7 @@ from airflow.dag_processing.bundles.manager import (
 )
 from airflow.dag_processing.health import check_processor_health
 from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import get_execution_api_server_url
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
@@ -69,7 +70,7 @@ def _get_team_names(bundle_names: list[str] | None) -> list[str]:
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     if args.bundle_name:
-        if conf.get("dag_processor", "execution_api_token_file", fallback=None):
+        if conf.getboolean("dag_processor", "use_execution_api"):
             # Bundle constructors can read secrets; defer them until the API client is registered.
             if unknown := set(args.bundle_name) - _load_bundle_config_snapshot().names:
                 raise SystemExit(f"Bundles not found: {', '.join(sorted(unknown))}")
@@ -86,9 +87,10 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
 
 @enable_memray_trace(component=MemrayTraceComponents.dag_processor)
 def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
-    if not (token_file := conf.get("dag_processor", "execution_api_token_file", fallback=None)):
+    if not conf.getboolean("dag_processor", "use_execution_api"):
         run_job(job=job_runner.job, execute_callable=job_runner._execute)
         return
+    token_file = _get_execution_api_token_file()
 
     # The client loads FastAPI and the Execution API versions, which database mode does not need.
     from airflow.dag_processing.api_client import DagProcessorAPIClient
@@ -105,15 +107,25 @@ def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
         job_runner.run_with_api(client)
 
 
+def _get_execution_api_token_file() -> str:
+    token_file = conf.get("dag_processor", "execution_api_token_file", fallback=None)
+    if not token_file:
+        raise AirflowConfigException(
+            "[dag_processor] use_execution_api requires a credential: configure execution_api_token_file"
+        )
+    return token_file
+
+
 @providers_configuration_loaded
 def dag_processor(args):
     """Start Airflow Dag Processor Job."""
     if getattr(args, "check_health", False) or getattr(args, "check_ready", False):
-        if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
+        if not conf.getboolean("dag_processor", "use_execution_api"):
             raise SystemExit("Local health probes require Dag processor API mode")
         return check_processor_health(readiness=getattr(args, "check_ready", False))
-    if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
+    if not conf.getboolean("dag_processor", "use_execution_api"):
         return _run_with_action_log(_start_dag_processor, args)
+    _get_execution_api_token_file()
     if getattr(args, "verbose", False):
         cli_utils.set_verbose_logging()
     return _start_dag_processor(args)
@@ -131,9 +143,7 @@ def _run_with_action_log(func: Callable[[Any], Any], args: Any) -> Any:
 @providers_configuration_loaded
 def dag_processor_sync_bundles(args) -> None:
     """Provision the bundle catalog from a trusted host with database access."""
-    if args.bundle_name:
-        cli_utils.validate_dag_bundle_arg(args.bundle_name)
-    DagFileProcessorManager(max_runs=0, bundle_names_to_parse=args.bundle_name).sync_bundles()
+    DagFileProcessorManager(max_runs=0).sync_bundles(deactivate_missing=not args.keep_unconfigured_bundles)
 
 
 def _start_dag_processor(args):

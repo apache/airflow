@@ -451,6 +451,7 @@ def test_normal_processor_command_uses_authenticated_api(
         }
     ]
     config = {
+        ("dag_processor", "use_execution_api"): "True",
         ("dag_processor", "execution_api_token_file"): str(provision_token()),
         ("dag_processor", "health_check_file"): str(tmp_path / "processor-health.json"),
         ("core", "execution_api_server_url"): api_url,
