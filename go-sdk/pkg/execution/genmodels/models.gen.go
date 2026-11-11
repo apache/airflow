@@ -814,7 +814,7 @@ type ExternalClearTargetPayload struct {
 	DagID string `msgpack:"dag_id"`
 
 	// LogicalDate corresponds to the JSON schema field "logical_date".
-	LogicalDate time.Time `msgpack:"logical_date"`
+	LogicalDate Time `msgpack:"logical_date"`
 
 	// RecursionDepth corresponds to the JSON schema field "recursion_depth".
 	RecursionDepth int `msgpack:"recursion_depth"`
