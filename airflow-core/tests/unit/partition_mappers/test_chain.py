@@ -67,7 +67,7 @@ class TestChainMapper:
 
     def test_to_partition_date_preserves_invalid_key_error_through_trailing_identity(self):
         chain = ChainMapper(StartOfDayMapper(), IdentityMapper())
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="does not match format"):
             chain.to_partition_date("anything")
 
     def test_to_downstream_invalid_non_iterable_return(self):
