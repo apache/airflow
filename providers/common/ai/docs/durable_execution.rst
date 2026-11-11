@@ -109,7 +109,7 @@ makes to the API server while the agent waits. A first attempt reads back only t
 of agent runs the task started (and, in ``AgentOperator``, the run id), since no earlier
 attempt recorded anything; a retry also looks up each step of a run an earlier attempt
 started, and stops looking once the run takes a different path from that attempt.
-When the task succeeds, its journal is deleted, one call per entry.
+When the agent run succeeds, its journal is deleted, one call per entry.
 
 On **Airflow before 3.3** the journal is a JSON file on ObjectStorage, and the location
 must be set:
