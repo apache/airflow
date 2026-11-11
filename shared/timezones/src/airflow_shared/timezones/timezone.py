@@ -312,6 +312,11 @@ def initialize(default_timezone: str) -> None:
         _Timezone.initialized_timezone = parse_timezone(default_timezone)
 
 
+def get_default_timezone() -> FixedTimezone | Timezone:
+    """Return the default timezone set by :func:`initialize`."""
+    return _Timezone.initialized_timezone
+
+
 def from_timestamp(timestamp: int | float, tz: str | FixedTimezone | Timezone = utc) -> DateTime:
     """
     Parse timestamp and return DateTime in a given time zone.

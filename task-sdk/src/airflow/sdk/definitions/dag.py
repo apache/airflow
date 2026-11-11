@@ -41,7 +41,7 @@ from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
 from airflow.sdk._shared.dagnode.cycle import detect_cycle
-from airflow.sdk._shared.timezones.timezone import _Timezone
+from airflow.sdk._shared.timezones.timezone import get_default_timezone
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
@@ -133,6 +133,13 @@ _DAG_HASH_ATTRS = frozenset(
 def _is_core_timetable(schedule: ScheduleArg) -> TypeIs[CoreTimetable]:
     core_timetables = sys.modules.get("airflow.timetables.base")
     return core_timetables is not None and isinstance(schedule, core_timetables.Timetable)
+
+
+def _get_default_dag_timezone() -> Timezone | FixedTimezone:
+    core_settings = sys.modules.get("airflow.settings")
+    if core_settings is not None:
+        return core_settings.TIMEZONE
+    return get_default_timezone()
 
 
 def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> BaseTimetable:
@@ -707,10 +714,10 @@ class DAG:
         if start_date:
             if not isinstance(start_date, datetime):
                 start_date = timezone.parse(start_date)
-            tzinfo = start_date.tzinfo or _Timezone.initialized_timezone
+            tzinfo = start_date.tzinfo or _get_default_dag_timezone()
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
         else:
-            tz = _Timezone.initialized_timezone
+            tz = _get_default_dag_timezone()
 
         return tz
 

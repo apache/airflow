@@ -27,6 +27,7 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow import settings as core_settings
 from airflow.sdk import (
     DAG,
     Asset,
@@ -135,7 +136,7 @@ class TestDag:
         assert dag.default_args["start_date"].tzinfo == dag.default_args["end_date"].tzinfo
 
     @pytest.mark.parametrize("start_date", [None, datetime(2024, 1, 1)], ids=["no-start-date", "naive"])
-    def test_default_timezone_without_core_settings(self, monkeypatch, start_date):
+    def test_default_timezone_without_core_settings_is_the_sdk_timezone(self, monkeypatch, start_date):
         sdk_default = pendulum.timezone("Europe/Amsterdam")
         monkeypatch.setattr(_Timezone, "initialized_timezone", sdk_default)
         monkeypatch.delitem(sys.modules, "airflow.settings", raising=False)
@@ -143,14 +144,23 @@ class TestDag:
         dag = DAG("dag", schedule=None, start_date=start_date)
 
         assert dag.timezone == sdk_default
-        assert "airflow.settings" not in sys.modules
+
+    @pytest.mark.parametrize("start_date", [None, datetime(2024, 1, 1)], ids=["no-start-date", "naive"])
+    def test_default_timezone_with_core_settings_is_the_core_timezone(self, monkeypatch, start_date):
+        core_default = pendulum.timezone("Asia/Tokyo")
+        monkeypatch.setattr(_Timezone, "initialized_timezone", pendulum.timezone("Europe/Amsterdam"))
+        monkeypatch.setattr(core_settings, "TIMEZONE", core_default)
+
+        dag = DAG("dag", schedule=None, start_date=start_date)
+
+        assert dag.timezone == core_default
 
     def test_schedule_check_does_not_import_core_timetables(self, monkeypatch):
         monkeypatch.delitem(sys.modules, "airflow.timetables.base", raising=False)
 
         DAG("dag", schedule="@daily")
 
-        assert "airflow.timetables.base" not in sys.modules
+        assert sys.modules.get("airflow.timetables.base") is None
 
     def test_dag_as_context_manager(self):
         """
