@@ -141,6 +141,23 @@ def runs_in_helper(xcom: type[BaseXCom]) -> bool:
     return xcom is not BaseXCom
 
 
+def send_unless_exited(
+    process: WatchedSubprocess,
+    msg: BaseModel | None,
+    request_id: int,
+    error: ErrorResponse | None = None,
+    **dump_opts: bool,
+) -> bool:
+    """Send ``msg`` to ``process``, and return False instead once the process has exited."""
+    if process.stdin not in process._open_sockets:
+        return False
+    try:
+        process.send_msg(msg, request_id=request_id, error=error, **dump_opts)
+    except (BrokenPipeError, ConnectionResetError):
+        return False
+    return True
+
+
 _PendingCall = tuple[XComBackendCall, Callable[[XComBackendResult], None]]
 
 
@@ -201,19 +218,14 @@ class XComBackendProcess(WatchedSubprocess):
             return
         if self._stopping:
             request_id, self._call_request_id = self._call_request_id, None
-            # The process may be dead already.
-            with contextlib.suppress(OSError):
-                self.send_msg(XComBackendCall(hook="exit"), request_id=request_id)
+            send_unless_exited(self, XComBackendCall(hook="exit"), request_id)
             return
         if not self._queued_calls:
             return
         call, self._running_call = self._queued_calls.popleft()
         request_id, self._call_request_id = self._call_request_id, None
-        try:
-            self.send_msg(call, request_id=request_id)
-        except OSError as e:
-            # The process has died before the close of its stdin was handled.
-            self._fail_waiting_calls(f"The XCom backend process could not be sent a call: {e}")
+        if not send_unless_exited(self, call, request_id):
+            self._fail_waiting_calls("The XCom backend process exited before it was sent a call")
 
     def _fail_waiting_calls(self, error: str) -> None:
         """Answer every call the process has not answered with ``error``."""

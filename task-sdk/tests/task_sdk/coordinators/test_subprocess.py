@@ -1524,6 +1524,7 @@ class TestPopenActivitySubprocessXComBackend:
                 logs_server=MagicMock(spec=socket.socket),
             )
             proc.ti = ti  # type: ignore[assignment]
+            proc._open_sockets[proc.stdin] = "requests"
             proc._xcom_backend = _InProcessXComBackend(xcom)  # type: ignore[assignment]
             procs.append(proc)
             return proc
@@ -1847,15 +1848,34 @@ class TestPopenActivitySubprocessXComBackend:
             ),
         ],
     )
-    def test_a_runtime_that_has_exited_is_not_answered(self, make_proc, xcom, msg, api_request):
+    @pytest.mark.parametrize(
+        ("stdin_open", "send_error"),
+        [
+            pytest.param(False, None, id="exit-handled"),
+            pytest.param(True, BrokenPipeError("Broken pipe"), id="exit-not-yet-handled"),
+        ],
+    )
+    def test_a_runtime_that_has_exited_is_not_answered(
+        self, make_proc, captured_logs, xcom, msg, api_request, stdin_open, send_error
+    ):
         """The runtime can exit while its call runs, such as when its task is killed."""
         api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
         proc = make_proc(xcom, api)
-        cast("MagicMock", proc.stdin).sendall.side_effect = OSError(9, "Bad file descriptor")
+        if not stdin_open:
+            del proc._open_sockets[proc.stdin]
+        cast("MagicMock", proc.stdin).sendall.side_effect = send_error
 
         proc._handle_request(msg, log, 1)
 
         assert api_request in api.requests
+        assert {
+            "event": "The runtime exited before its XCom request was answered",
+            "request_id": 1,
+            "level": "warning",
+            "logger": "task",
+            "timestamp": ANY,
+            "loc": ANY,
+        } in captured_logs
 
     @patch.object(XComBackendProcess, "start", autospec=True)
     def test_starts_one_backend_process_for_the_task(self, mock_start, make_proc):

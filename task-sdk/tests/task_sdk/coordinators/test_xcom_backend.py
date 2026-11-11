@@ -329,7 +329,13 @@ class TestXComBackendProcessSendCall:
         yield proc
         proc.selector.close()
 
-    def test_a_call_sent_before_the_process_asks_is_held_until_it_does(self, backend, on_result):
+    @pytest.fixture
+    def live_backend(self, backend):
+        backend._open_sockets[backend.stdin] = "requests"
+        return backend
+
+    def test_a_call_sent_before_the_process_asks_is_held_until_it_does(self, live_backend, on_result):
+        backend = live_backend
         call = XComBackendCall(hook="purge", key="return_value", value={})
 
         backend.send_call(call, on_result)
@@ -341,8 +347,9 @@ class TestXComBackendProcessSendCall:
         assert cast("MagicMock", backend.stdin).sendall.call_count == 1
         assert _decode_sent_call(backend.stdin)["hook"] == "purge"
 
-    def test_calls_sent_while_one_runs_are_answered_in_order(self, backend, on_result):
+    def test_calls_sent_while_one_runs_are_answered_in_order(self, live_backend, on_result):
         """A runtime can send several XCom requests at once, and each one gets its own result."""
+        backend = live_backend
         log = structlog.get_logger(logger_name="task")
         backend._handle_await_call(AwaitXComBackendCall(), log, req_id=1)
 
@@ -395,13 +402,13 @@ class TestXComBackendProcessSendCall:
 
         on_result.assert_called_once_with(XComBackendResult(error="The XCom backend process was stopped"))
 
-    def test_a_stopping_process_is_sent_exit_instead_of_a_queued_call(self, backend, on_result):
+    def test_a_stopping_process_is_sent_exit_instead_of_a_queued_call(self, live_backend, on_result):
         """A queued call would run for a task that is already over, so it fails before the wait."""
+        backend = live_backend
         log = structlog.get_logger(logger_name="task")
         backend._handle_await_call(AwaitXComBackendCall(), log, req_id=1)
         backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
         backend.send_call(XComBackendCall(hook="load", key="second", value={}), on_result)
-        backend._open_sockets[backend.stdin] = "requests"
 
         def answer_the_running_call(**_):
             backend._handle_result(XComBackendResult(value="first value"), log, req_id=2)
@@ -444,13 +451,14 @@ class TestXComBackendProcessSendCall:
 
         assert service.call_count == 2
 
-    def test_a_call_that_cannot_be_sent_fails_rather_than_waits(self, backend, on_result):
+    def test_a_call_that_cannot_be_sent_fails_rather_than_waits(self, live_backend, on_result):
         """The process can die between its stdin closing and that close being handled."""
+        backend = live_backend
         cast("MagicMock", backend.stdin).sendall.side_effect = BrokenPipeError("Broken pipe")
         backend._handle_await_call(AwaitXComBackendCall(), structlog.get_logger(logger_name="task"), req_id=1)
 
         backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
 
         on_result.assert_called_once_with(
-            XComBackendResult(error="The XCom backend process could not be sent a call: Broken pipe")
+            XComBackendResult(error="The XCom backend process exited before it was sent a call")
         )

@@ -64,6 +64,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     XComBackendError,
     XComBackendProcess,
     runs_in_helper,
+    send_unless_exited,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
@@ -668,7 +669,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     ) -> None:
         """Send ``call`` to the XCom backend process, which starts on the first call it handles."""
         if self._xcom_backend is not None and not self._xcom_backend.can_run_a_call:
-            # The process has exited.
             self._stop_xcom_backend()
         if self._xcom_backend is None:
             self._xcom_backend = XComBackendProcess.start(
@@ -698,10 +698,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         """
 
         def answer(resp: BaseModel | None, error: ErrorResponse | None, **dump_opts: bool) -> None:
-            try:
-                self.send_msg(resp, request_id=req_id, error=error, **dump_opts)
-            except OSError:
-                # The runtime has exited.
+            if not send_unless_exited(self, resp, req_id, error, **dump_opts):
                 self.process_log.warning(
                     "The runtime exited before its XCom request was answered", request_id=req_id
                 )
