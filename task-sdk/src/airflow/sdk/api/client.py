@@ -1269,7 +1269,7 @@ API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=None)
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 # The callback token exchange waits for one answer as long as the usual retries would wait on timeouts.
-API_CALLBACK_RUN_READ_TIMEOUT = API_TIMEOUT * API_RETRIES
+API_CALLBACK_RUN_READ_TIMEOUT = API_TIMEOUT * max(API_RETRIES, 1)
 API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
 API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
 API_CLIENT_USE_PUBLIC_CERTS = conf.getboolean("api", "client_use_public_certs", fallback=True)
