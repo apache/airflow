@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import pendulum
 
-from airflow import settings
 from airflow._shared.observability.metrics import stats
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
@@ -882,8 +881,6 @@ class BaseExecutor(LoggingMixin):
             ``"airflow supervisor: <workload.display_name>"``.
         :return: Exit code of the process.
         """
-        settings.ensure_initialized(orm=False)
-
         if subprocess_logs_to_stdout is None:
             subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
 

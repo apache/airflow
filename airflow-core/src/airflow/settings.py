@@ -884,6 +884,7 @@ def import_local_settings():
 
 
 _initialized = False
+_initialized_without_orm = False
 
 
 def initialize(*, orm: bool = True):
@@ -892,7 +893,7 @@ def initialize(*, orm: bool = True):
 
     :param orm: Whether to configure the metadata database engine.
     """
-    global _initialized
+    global _initialized, _initialized_without_orm
     configure_vars()
     prepare_syspath_for_config_and_plugins()
     policy_mgr = get_policy_plugin_manager()
@@ -923,6 +924,7 @@ def initialize(*, orm: bool = True):
     # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
     _initialized = True
+    _initialized_without_orm = not orm
 
 
 def ensure_initialized(*, orm: bool = True) -> None:
@@ -936,6 +938,10 @@ def ensure_initialized(*, orm: bool = True) -> None:
     """
     if not _initialized:
         initialize(orm=orm)
+    elif orm and _initialized_without_orm:
+        raise RuntimeError(
+            "Airflow was initialized without the metadata database engine (orm=False) in this process."
+        )
 
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,

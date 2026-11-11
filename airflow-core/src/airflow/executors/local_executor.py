@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from airflow import settings
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import state_class_for_key
@@ -78,6 +79,8 @@ def _run_worker(
 
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    settings.ensure_initialized(orm=False)
 
     log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())

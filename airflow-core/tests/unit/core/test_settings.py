@@ -611,16 +611,19 @@ class TestEnsureInitialized:
     @mock.patch("airflow.settings.atexit.register", autospec=True)
     @mock.patch("airflow.settings.conf.mask_secrets", autospec=True)
     @mock.patch("airflow.settings.configure_orm", autospec=True)
-    def test_initialize_without_orm_skips_only_the_engine_and_runs_once(
+    def test_initialize_without_orm_skips_only_the_engine(
         self, mock_configure_orm, mock_mask_secrets, mock_atexit_register, monkeypatch
     ):
         monkeypatch.setattr(settings, "_initialized", False)
+        monkeypatch.setattr(settings, "_initialized_without_orm", False)
 
         settings.initialize(orm=False)
-        settings.ensure_initialized()
+        settings.ensure_initialized(orm=False)
 
         mock_configure_orm.assert_not_called()
         mock_mask_secrets.assert_called_once_with()
+        with pytest.raises(RuntimeError, match="without the metadata database engine"):
+            settings.ensure_initialized()
 
 
 class TestDisposeOrm:
