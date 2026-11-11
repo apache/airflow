@@ -864,3 +864,17 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             response = test_client.get("/eventLogs", params={"cursor": ""})
         assert response.status_code == 200
         assert response.json()["total_entries"] is None
+
+    def test_cursor_pagination_keeps_filters_on_every_page(self, test_client):
+        events = []
+        cursor = ""
+        while cursor is not None:
+            response = test_client.get(
+                "/eventLogs", params={"limit": 1, "dag_id": DAG_ID, "order_by": "event", "cursor": cursor}
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            events.extend(log["event"] for log in body["event_logs"])
+            cursor = body["next_cursor"]
+
+        assert events == [EVENT_WITH_OWNER_AND_TASK_INSTANCE, TASK_INSTANCE_EVENT]
