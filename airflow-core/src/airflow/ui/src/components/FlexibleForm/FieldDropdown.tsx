@@ -49,7 +49,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       value: toOptionValue(value),
     })) ?? [];
 
-  const currentValue = options.find((opt) => opt.value === toOptionValue(param.value as ParamValue)) ?? null;
+  const currentValue = options.find((opt) => opt.value === toOptionValue(param.value)) ?? null;
 
   const handleChange = (
     selected: SingleValue<{

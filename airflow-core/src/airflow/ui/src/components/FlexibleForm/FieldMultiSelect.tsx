@@ -44,7 +44,7 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
 
   // Initialize `selectedOptions` directly from `paramsDict`
   const [selectedOptions, setSelectedOptions] = useState(
-    Array.isArray(param.value) ? (param.value as Array<ParamValue>).map(toOption) : [],
+    Array.isArray(param.value) ? param.value.map(toOption) : [],
   );
 
   // Handle changes to the select field
