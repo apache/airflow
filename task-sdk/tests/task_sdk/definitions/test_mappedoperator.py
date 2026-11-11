@@ -150,6 +150,11 @@ class _RunsOnWorkerEmptyOperator(_ItemEmptyOperator):
     inherits_from_empty_operator = False
 
 
+class _ReportsClearTargetEmptyOperator(_ItemEmptyOperator):
+    def get_external_clear_target(self, context):
+        return None
+
+
 class _ItemMockOperator(MockOperator):
     def __init__(self, *, item=None, **kwargs):
         super().__init__(**kwargs)
@@ -161,6 +166,7 @@ class _ItemMockOperator(MockOperator):
     [
         pytest.param(_ItemEmptyOperator, True, id="empty-subclass"),
         pytest.param(_RunsOnWorkerEmptyOperator, False, id="empty-subclass-opted-out"),
+        pytest.param(_ReportsClearTargetEmptyOperator, False, id="empty-subclass-reports-clear-target"),
         pytest.param(_ItemMockOperator, False, id="not-empty"),
     ],
 )

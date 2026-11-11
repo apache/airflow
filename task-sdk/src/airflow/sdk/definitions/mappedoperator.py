@@ -51,6 +51,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     is_mappable,
 )
 from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions.external_clear import SupportsExternalClearTarget
 
 if TYPE_CHECKING:
     import datetime
@@ -254,7 +255,12 @@ class OperatorPartial:
             template_fields_renderers=self.operator_class.template_fields_renderers,
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
-            is_empty=self.operator_class.inherits_from_empty_operator is True,
+            # Only a class attribute set to True counts; a property cannot be evaluated without an instance.
+            # A mapped task's clear target is known only once it runs, so an operator that reports one runs.
+            is_empty=(
+                self.operator_class.inherits_from_empty_operator is True
+                and not issubclass(self.operator_class, SupportsExternalClearTarget)
+            ),
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
             can_skip_downstream=issubclass(self.operator_class, SkipMixin),
             is_stub=self.operator_class.is_stub,

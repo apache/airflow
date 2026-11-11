@@ -9,8 +9,9 @@ To keep a clear inside one Dag, untick "Clear tasks in dependent Dags" in the cl
 follows ``include_downstream``.
 
 With a release of ``apache-airflow-providers-standard`` that supports this, an ``ExternalTaskMarker`` whose
-target needs no rendering is stored with the Dag version and still never runs. A marker with a templated
-``external_dag_id``, ``external_task_id`` or ``logical_date`` runs on a worker instead, where its templates
-render, so it uses a worker slot on every run. A templated marker reports its target only when it succeeds,
-so clearing a run where it has not succeeded (it failed, or an upstream task did) does not cascade. A run on
+target needs no rendering is stored with the Dag version and still never runs. A mapped marker, or one with a
+templated ``external_dag_id``, ``external_task_id`` or ``logical_date``, runs on a worker instead, where its
+templates render, so it uses a worker slot on every run. Such a marker reports its target only when it
+succeeds, so clearing a run where it has never succeeded (it failed, or an upstream task did) does not
+cascade. A run on
 a Dag version serialized before the upgrade does not cascade either.
