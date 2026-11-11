@@ -47,13 +47,13 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
     DeserializingResultError,
 )
-from airflow.models.variable import Variable
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowSkipException,
     BaseBranchOperator,
     KeywordParameters,
     SkipMixin,
+    Variable,
     context_merge,
 )
 from airflow.providers.common.compat.standard.operators import (
