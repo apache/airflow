@@ -796,7 +796,10 @@ def set_xcom(
     responses={
         **create_openapi_http_exception_doc(
             [
-                (status.HTTP_400_BAD_REQUEST, "The target is in a loop the caller is not in"),
+                (
+                    status.HTTP_400_BAD_REQUEST,
+                    "The key is reserved, or the target is in a loop the caller is not in",
+                ),
                 (status.HTTP_409_CONFLICT, "Several live task instances match the producer"),
             ]
         ),
@@ -815,6 +818,9 @@ def delete_xcom(
     token=_TriggerAwareTIToken,
 ):
     """Delete a single XCom Value."""
+    if key.startswith(LOOP_XCOM_PREFIX):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
+
     owner = _find_writer_id(
         token,
         dag_id=dag_id,
