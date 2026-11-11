@@ -80,6 +80,19 @@ class TestCommsModels:
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
 
+    def test_unknown_extension_does_not_alias_receive_buffer(self, socket_pair):
+        reader, _ = socket_pair
+        frame = _ResponseFrame(id=1, body={"extension": msgspec.msgpack.Ext(1, b"abc")})
+        receive_buffer = bytearray(msgspec.msgpack.encode(frame))
+        decoded = CommsDecoder(socket=reader).resp_decoder.decode(receive_buffer)
+
+        offset = receive_buffer.index(b"abc")
+        receive_buffer[offset : offset + 3] = b"XYZ"
+
+        extension = decoded.body["extension"]
+        assert extension.code == 1
+        assert bytes(extension.data) == b"abc"
+
     @pytest.mark.parametrize(
         "value",
         [-(2**63) - 1, 2**64, -(2**4096), 2**4096],
