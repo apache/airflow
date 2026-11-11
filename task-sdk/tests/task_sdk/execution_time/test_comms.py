@@ -95,8 +95,16 @@ class TestCommsDecoder:
 
     @pytest.mark.parametrize(
         "value",
-        [-(2**63) - 1, 2**64, -(2**4096), 2**4096],
-        ids=["negative", "positive", "huge-negative", "huge-positive"],
+        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, -(2**4096), 2**4096, str(2**64)],
+        ids=[
+            "min-int64",
+            "max-uint64",
+            "negative",
+            "positive",
+            "huge-negative",
+            "huge-positive",
+            "large-number-string",
+        ],
     )
     def test_receive_large_integers(self, socket_pair, value):
         reader, writer = socket_pair
@@ -108,7 +116,7 @@ class TestCommsDecoder:
 
         assert isinstance(received, XComResult)
         assert received.value == payload
-        assert type(received.value["nested"][0]) is int
+        assert type(received.value["nested"][0]) is type(value)
         assert type(received.value["bool"]) is bool
 
     def test_large_integer_extension_can_be_disabled(self):

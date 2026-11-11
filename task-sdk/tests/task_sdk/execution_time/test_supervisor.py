@@ -1027,11 +1027,6 @@ class TestWatchedSubprocess:
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
     @pytest.mark.parametrize("log_to_file", [False, True])
-    @pytest.mark.parametrize(
-        "conf_value",
-        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, str(2**64)],
-        ids=["min-int64", "max-uint64", "below-int64", "above-uint64", "large-number-string"],
-    )
     def test_run_simple_dag(
         self,
         test_dags_dir,
@@ -1041,13 +1036,12 @@ class TestWatchedSubprocess:
         client_with_ti_start,
         tmp_path,
         log_to_file,
-        conf_value,
     ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
-        client_with_ti_start.task_instances.start.return_value.dag_run.conf = {"large_integer": conf_value}
+        client_with_ti_start.task_instances.start.return_value.dag_run.conf = {"large_integer": 2**64}
 
         dagfile_path = test_dags_dir
         ti = TaskInstance(
