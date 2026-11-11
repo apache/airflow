@@ -379,7 +379,6 @@ class DeadlineReference:
             )
 
         if name in cls._contested_reference_names:
-            # There is a conflict; do not register the short name.
             claimed_names = cls._contested_reference_names[name]
             if key not in claimed_names:
                 claimed_names.append(key)
@@ -406,13 +405,13 @@ class DeadlineReference:
                     ", ".join(sorted((previous, key))),
                 )
         elif hasattr(cls, name):
-            # Custom reference name can not shadow built-in references.
+            # Raise rather than contest the name: contesting calls delattr, which would unbind a
+            # built-in for every Dag that uses it.
             raise ValueError(
                 f"{key} cannot be added to the DeadlineReference namespace as {name!r}, because "
                 f"DeadlineReference.{name} already exists.  Rename the class."
             )
         else:
-            # New reference class name, no collisions.
             setattr(cls, name, reference_instance)
             cls._custom_reference_name_map[name] = key
 
