@@ -3816,7 +3816,7 @@ def test_generate_constraints(files, pr_labels, github_event, expected_constrain
                 "docs-list-as-string": "amazon apache.arrow apache.drill apache.druid apache.hive apache.iceberg "
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks duckdb "
                 "elasticsearch exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
-                "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
+                "oracle pgvector postgres presto sas slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
         ),

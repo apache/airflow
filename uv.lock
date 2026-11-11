@@ -142,6 +142,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-sas = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-sftp = false
@@ -289,6 +290,7 @@ members = [
     "apache-airflow-providers-redis",
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-samba",
+    "apache-airflow-providers-sas",
     "apache-airflow-providers-segment",
     "apache-airflow-providers-sendgrid",
     "apache-airflow-providers-sftp",
@@ -8197,6 +8199,73 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-sas"
+version = "1.0.0"
+source = { editable = "providers/sas" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-ssh" },
+    { name = "asyncssh" },
+    { name = "methodtools" },
+    { name = "pandas" },
+    { name = "paramiko" },
+    { name = "pyarrow" },
+]
+
+[package.optional-dependencies]
+polars = [
+    { name = "polars" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-ssh" },
+    { name = "apache-airflow-task-sdk" },
+    { name = "polars" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
+    { name = "asyncssh", marker = "python_full_version < '3.14'", specifier = ">=2.15.0" },
+    { name = "asyncssh", marker = "python_full_version >= '3.14'", specifier = ">=2.22.0" },
+    { name = "methodtools", specifier = ">=0.4.7" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "paramiko", specifier = ">=4.0.0" },
+    { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
+    { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
+    { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
+    { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
+]
+provides-extras = ["polars"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "polars", specifier = ">=1.26.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
