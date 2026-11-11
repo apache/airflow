@@ -599,7 +599,8 @@ The ``TaskClient``
    * - ``setXCom({ key, value, ... })``
      - Publishes an XCom value. The target and ``mapIndex`` default the same way as for ``getXCom``.
    * - ``deleteXCom({ key, ... })``
-     - Removes an XCom value.
+     - Removes an XCom value. The target and ``mapIndex`` default the same way as for ``getXCom``. Deleting
+       another task's ``return_value`` removes the value that downstream tasks read as that task's output.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.

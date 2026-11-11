@@ -105,11 +105,15 @@ export interface TaskClient {
   /**
    * Delete an XCom value.
    *
-   * Target fields default to the current task's context.
+   * Target fields default to the current task's context; see
+   * {@link DeleteXComOpts} for how `mapIndex` defaults.
    *
    * Resolves whether or not anything was deleted. A key with no stored value
    * and a target task that does not exist both succeed, so a resolved promise
    * is not proof that an XCom was removed.
+   *
+   * @throws `TypeError` when `key` is not a string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key` is empty, or `mapIndex` is not an integer.
    */
   deleteXCom(opts: DeleteXComOpts): Promise<void>;
 
