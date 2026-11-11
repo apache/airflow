@@ -173,9 +173,10 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
             # A distribution is yielded once per sys.path entry it is found on (e.g. RHEL/Fedora
             # venvs list both lib64/ and lib/ site-packages), possibly in different versions.
             # Only the first one is importable, so it is the only one whose entry points count.
-            # _normalized_name is private, but importlib.metadata.entry_points() deduplicates on it
-            # too. It comes from the .dist-info directory name, while dist.metadata would parse the
-            # METADATA file of every installed distribution.
+            # No public API returns the name without parsing METADATA. _normalized_name is private,
+            # but Python's own importlib.metadata.entry_points() deduplicates on it too, and it comes
+            # from the .dist-info directory name. AttributeError is not caught, so a Python without
+            # it fails loudly here.
             try:
                 name = dist._normalized_name  # type: ignore[attr-defined]
             except (KeyError, TypeError):
