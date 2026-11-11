@@ -28,6 +28,12 @@ from chart_utils.helm_template_generator import render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
 API_MODE_CONFIG = {"use_execution_api": "True", "execution_api_token_file": "/run/processor.jwt"}
+API_MODE_COMMENT_VALUES = [
+    "True # enabled",
+    " \tTrUe \t# enabled",
+    "1# enabled",
+    '{{ "TrUe # enabled" }}',
+]
 
 
 class TestDagProcessor:
@@ -442,7 +448,7 @@ class TestDagProcessor:
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
-    @pytest.mark.parametrize("use_execution_api", [True, "True", "true", "t", "1"])
+    @pytest.mark.parametrize("use_execution_api", [True, "True", "true", "t", "1", *API_MODE_COMMENT_VALUES])
     def test_api_mode_uses_local_liveness_probe(self, use_execution_api):
         docs = render_chart(
             values={
@@ -461,10 +467,11 @@ class TestDagProcessor:
         assert "airflow dag-processor --check-ready" in readiness[-1]
         assert "airflow jobs check" not in command
 
-    def test_api_mode_replaces_pods_with_recreate(self):
+    @pytest.mark.parametrize("use_execution_api", ["True", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_replaces_pods_with_recreate(self, use_execution_api):
         docs = render_chart(
             values={
-                "config": {"dag_processor": API_MODE_CONFIG},
+                "config": {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": use_execution_api}},
                 "dagProcessor": {
                     "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
                 },
@@ -475,9 +482,10 @@ class TestDagProcessor:
         assert jmespath.search("spec.strategy", docs[0]) == {"type": "Recreate"}
 
     @pytest.mark.parametrize(("replicas", "rejected"), [(0, False), (1, False), (2, True)])
-    def test_api_mode_rejects_replicas_sharing_a_session_token(self, replicas, rejected):
+    @pytest.mark.parametrize("use_execution_api", ["True", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_rejects_replicas_sharing_a_session_token(self, replicas, rejected, use_execution_api):
         values = {
-            "config": {"dag_processor": API_MODE_CONFIG},
+            "config": {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": use_execution_api}},
             "dagProcessor": {"replicas": replicas},
         }
         show_only = ["templates/dag-processor/dag-processor-deployment.yaml"]
@@ -487,13 +495,14 @@ class TestDagProcessor:
         else:
             docs = render_chart(values=values, show_only=show_only)
             assert jmespath.search("spec.replicas", docs[0]) == replicas
+            assert jmespath.search("spec.strategy", docs[0]) == {"type": "Recreate"}
 
-    @pytest.mark.parametrize(
-        "dag_processor",
-        [{"use_execution_api": "True"}, {"use_execution_api": "True", "execution_api_token_file": ""}],
-        ids=["unset", "empty"],
-    )
-    def test_api_mode_requires_a_token_file(self, dag_processor):
+    @pytest.mark.parametrize("token_file", [None, ""], ids=["unset", "empty"])
+    @pytest.mark.parametrize("use_execution_api", ["True", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_requires_a_token_file(self, token_file, use_execution_api):
+        dag_processor = {"use_execution_api": use_execution_api}
+        if token_file is not None:
+            dag_processor["execution_api_token_file"] = token_file
         with pytest.raises(
             CalledProcessError,
             match="use_execution_api` requires `config.dag_processor.execution_api_token_file",
