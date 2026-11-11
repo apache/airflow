@@ -69,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    ExternalClearTargetPayload,
     HITLUser,
     LoopDecisionPayload,
     PreviousTIResponse,
@@ -2787,6 +2788,12 @@ REQUEST_TEST_CASES = [
             end_date=timezone.parse("2024-10-31T12:00:00Z"),
             rendered_map_index="test success task",
             loop_decision=LoopDecisionPayload(stop=True, reason="converged"),
+            external_clear_target=ExternalClearTargetPayload(
+                dag_id="child",
+                task_id="wait",
+                logical_date=timezone.parse("2024-10-31T00:00:00Z"),
+                recursion_depth=2,
+            ),
         ),
         client_mock=ClientMock(
             method_path="task_instances.succeed",
@@ -2797,6 +2804,12 @@ REQUEST_TEST_CASES = [
                 "when": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test success task",
                 "loop_decision": LoopDecisionPayload(stop=True, reason="converged"),
+                "external_clear_target": ExternalClearTargetPayload(
+                    dag_id="child",
+                    task_id="wait",
+                    logical_date=timezone.parse("2024-10-31T00:00:00Z"),
+                    recursion_depth=2,
+                ),
             },
         ),
         test_id="succeed_task",

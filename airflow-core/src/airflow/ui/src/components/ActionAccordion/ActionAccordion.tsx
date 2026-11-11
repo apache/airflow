@@ -52,11 +52,10 @@ const TasksTable = ({
   readonly tasks: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation();
-  const columns = getColumns(
-    translate,
-    selection,
-    tasks.some((task) => task.loop_iteration !== null && task.loop_iteration !== undefined),
-  );
+  const columns = getColumns(translate, selection, {
+    hasLoopIteration: tasks.some((task) => task.loop_iteration !== null && task.loop_iteration !== undefined),
+    hasMultipleDags: new Set(tasks.map((task) => task.dag_id)).size > 1,
+  });
 
   return (
     <DataTable
