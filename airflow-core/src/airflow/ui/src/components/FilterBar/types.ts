@@ -30,7 +30,14 @@ export type CompositeFilterValue = Record<string, string>;
 // A ``boolean`` filter's value is the string ``"true"``; absent means off. Keeping it a
 // string avoids ``isValidFilterValue`` treating ``false`` as a value worth writing to the URL.
 export type FilterValue =
-  Array<string> | CompositeFilterValue | Date | DateRangeValue | number | string | null | undefined;
+  | Array<string>
+  | CompositeFilterValue
+  | Date
+  | DateRangeValue
+  | number
+  | string
+  | null
+  | undefined;
 
 export type FilterConfig = {
   readonly defaultValue?: FilterValue;
