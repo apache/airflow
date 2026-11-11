@@ -196,7 +196,8 @@ class QdrantSearchOperator(BaseOperator):
             query=self.query,
             query_filter=self.query_filter,
             search_params=self.search_params,
-            limit=self.limit,
+            # A templated limit renders as a str unless the Dag renders native objects.
+            limit=int(self.limit),
             offset=self.offset,
             with_payload=self.with_payload,
             with_vectors=self.with_vectors,

@@ -175,6 +175,39 @@ class TestQdrantSearchOperator:
 
         assert mock_hook.search.call_args.kwargs["using"] == "text-embedding"
 
+    def test_template_fields_are_rendered(self):
+        op = QdrantSearchOperator(
+            task_id="search",
+            conn_id="{{ params.conn_id }}",
+            collection_name="{{ params.collection }}",
+            query="{{ params.point_id }}",
+            query_filter={"must": [{"key": "year", "match": {"value": "{{ params.year }}"}}]},
+            limit="{{ params.k }}",
+        )
+
+        params = {"conn_id": "qdrant_prod", "collection": "docs", "point_id": "p1", "year": 2025, "k": 3}
+        op.render_template_fields(context={"params": params})
+
+        assert op.conn_id == "qdrant_prod"
+        assert op.collection_name == "docs"
+        assert op.query == "p1"
+        assert op.query_filter == {"must": [{"key": "year", "match": {"value": "2025"}}]}
+        assert op.limit == "3"
+
+    def test_a_templated_limit_reaches_the_hook_as_an_int(self):
+        """Without native rendering, ``limit`` renders as a str, which the gRPC client rejects."""
+        op = QdrantSearchOperator(
+            task_id="search", collection_name=self.COLLECTION, query=self.QUERY, limit="{{ params.k }}"
+        )
+        op.render_template_fields(context={"params": {"k": 3}})
+        mock_hook = Mock(spec=QdrantHook)
+        mock_hook.search.return_value = []
+        op.hook = mock_hook
+
+        op.execute(context=Context())
+
+        assert mock_hook.search.call_args.kwargs["limit"] == 3
+
     def test_default_conn_id_matches_hook(self):
         """The operator's default ``conn_id`` matches ``QdrantHook.default_conn_name``.
 
