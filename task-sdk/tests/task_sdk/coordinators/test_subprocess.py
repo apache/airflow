@@ -77,7 +77,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, ProcessTracker
+from airflow.sdk.execution_time.supervisor import MIN_HEARTBEAT_INTERVAL, ActivitySubprocess, ProcessTracker
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
 from airflow.sdk.serde import serialize
 
@@ -1597,6 +1597,20 @@ class TestPopenActivitySubprocessXComBackend:
         assert error["error"] == ErrorType.XCOM_BACKEND_ERROR.value
         assert "not.importable.Thing" in error["detail"]["message"]
 
+    def test_set_xcom_reports_an_api_rejection_as_an_api_server_error(self, make_proc):
+        """The backend has stored the value, so the failure is the API server's."""
+        api = _FakeApi({("POST", _XCOM_PATH): (422, {"detail": "rejected"})})
+        proc = make_proc(_RefXCom, api)
+
+        proc._handle_request(
+            SetXCom(key="summary", value=1, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        error = _sent_error(proc)
+        assert error["error"] == ErrorType.API_SERVER_ERROR.value
+        assert error["detail"]["status_code"] == 422
+        assert error["detail"]["detail"] == {"detail": "rejected"}
+
     def test_set_xcom_rejects_a_loop_task_when_the_backend_cannot_tell_iterations_apart(self, make_proc):
         api = _FakeApi()
         proc = make_proc(
@@ -1921,6 +1935,26 @@ class TestPopenActivitySubprocessXComBackend:
 
         backend.stop.assert_called_once_with()
         assert proc._xcom_backend is None
+
+    @patch.object(_PopenActivitySubprocess, "_send_heartbeat_if_needed", autospec=True)
+    def test_heartbeats_while_it_waits_for_a_call(self, mock_heartbeat, make_proc):
+        """The server already runs the task, so a slow call must not let its heartbeat lapse."""
+        proc = make_proc(_RefXCom, _FakeApi())
+        backend = proc._xcom_backend = _DeferredXComBackend(_RefXCom)  # type: ignore[assignment]
+        waits: list[float] = []
+
+        def service(self, max_wait_time):
+            waits.append(max_wait_time)
+            if len(waits) == 2:
+                backend.answer_next()
+
+        with patch.object(
+            _PopenActivitySubprocess, "_service_subprocess", autospec=True, side_effect=service
+        ):
+            proc._run_xcom_backend_call(XComBackendCall(hook="purge", key="summary", value=1))
+
+        assert waits == [MIN_HEARTBEAT_INTERVAL, MIN_HEARTBEAT_INTERVAL]
+        assert mock_heartbeat.call_count == 2
 
     @patch.object(ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=RuntimeError("boom"))
     def test_stops_the_backend_process_when_the_task_process_is_done(self, mock_monitor, make_proc):

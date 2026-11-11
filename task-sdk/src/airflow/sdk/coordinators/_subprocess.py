@@ -48,6 +48,7 @@ import structlog
 
 from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.bases.xcom import (
     XComCoordinate,
@@ -92,6 +93,7 @@ from airflow.sdk.execution_time.request_handlers import (
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
+    MIN_HEARTBEAT_INTERVAL,
     ActivitySubprocess,
     NeverRaised,
     ProcessTracker,
@@ -728,7 +730,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         deadline = time.monotonic() + _XCOM_BACKEND_CALL_TIMEOUT
         # The task has not started, so it has no requests to read.
         while not answer and (now := time.monotonic()) < deadline:
-            self._service_subprocess(max_wait_time=deadline - now)
+            self._service_subprocess(max_wait_time=min(deadline - now, MIN_HEARTBEAT_INTERVAL))
+            self._send_heartbeat_if_needed()
         if not answer:
             # The process is still running the call.
             self._stop_xcom_backend()
@@ -846,7 +849,16 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
 
 def _build_request_error(exc: Exception) -> ErrorResponse:
-    """Report ``exc`` to the runtime as an XCom backend failure rather than an API server one."""
+    """Report ``exc`` to the runtime as an XCom backend failure, unless the API server rejected the request."""
+    if isinstance(exc, ServerResponseError):
+        return ErrorResponse(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": exc.response.status_code,
+                "message": str(exc),
+                "detail": exc.response.json(),
+            },
+        )
     return ErrorResponse(
         error=ErrorType.XCOM_BACKEND_ERROR,
         detail={"status_code": None, "message": str(exc), "exception_type": type(exc).__name__},
