@@ -710,6 +710,8 @@ The ``Client``
        :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
      - Publishes an XCom value. The value must be JSON-serializable.
+   * - ``deleteXCom(key)``
+     - Deletes an XCom the running task pushed under that key. Returns normally when no such XCom exists.
    * - ``getTaskStateStore()``
      - This task instance's key/value store, with ``get``, ``set``, ``delete`` and ``clear``. See
        :ref:`java-sdk/task-state-store`.
