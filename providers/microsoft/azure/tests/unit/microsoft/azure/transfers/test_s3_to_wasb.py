@@ -148,6 +148,14 @@ class TestS3ToAzureBlobStorageOperator:
             ),
             (
                 MOCK_FILES,
+                [f"{PREFIX}//{f}" for f in MOCK_FILES[1:]],
+                [MOCK_FILES[0]],
+                PREFIX,
+                f"{PREFIX}/",
+                False,
+            ),
+            (
+                MOCK_FILES,
                 [f"{PREFIX}/{f}" for f in MOCK_FILES[1:]],
                 MOCK_FILES,
                 PREFIX,
