@@ -46,6 +46,18 @@ V1EnvVar = TypeVar("V1EnvVar")
 Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list[Any]
 Redacted: TypeAlias = Redactable | str
 
+# Container types the masker walks into. A type missing here is returned as it is, so a secret inside it
+# reaches the logs unmasked.
+_REDACTABLE_CONTAINERS = (
+    dict,
+    tuple,
+    set,
+    frozenset,
+    list,
+    collections.deque,
+    collections.abc.Mapping,
+)
+
 log = logging.getLogger(__name__)
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
@@ -363,19 +375,19 @@ class SecretsMasker(logging.Filter):
     ) -> Redacted:
         # The key is sensitive, so every leaf is replaced whatever its type: a numeric secret
         # (e.g. a PIN that json.loads() turned into an int) must not come back in the clear.
-        if depth > max_depth or not isinstance(item, (dict, tuple, set, list)):
+        if depth > max_depth or not isinstance(item, _REDACTABLE_CONTAINERS):
             return replacement
-        if isinstance(item, dict):
+        if isinstance(item, (dict, collections.abc.Mapping)):
             return {
                 dict_key: self._redact_all(subval, depth + 1, max_depth, replacement=replacement)
                 for dict_key, subval in item.items()
             }
-        if isinstance(item, (tuple, set)):
+        if isinstance(item, (tuple, set, frozenset)):
             # Turn set in to tuple!
             return tuple(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
-        if isinstance(item, list):
+        if isinstance(item, (list, collections.deque)):
             return list(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
@@ -412,7 +424,7 @@ class SecretsMasker(logging.Filter):
             # caught at any nesting depth. Self-referential iterables hit Python's
             # own recursion limit and are caught by the except clause below, which
             # fails closed.
-            if isinstance(item, (tuple, set)):
+            if isinstance(item, (tuple, set, frozenset)):
                 # Turn set in to tuple!
                 return tuple(
                     self._redact(
@@ -420,7 +432,7 @@ class SecretsMasker(logging.Filter):
                     )
                     for subval in item
                 )
-            if isinstance(item, list):
+            if isinstance(item, (list, collections.deque)):
                 return [
                     self._redact(
                         subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
@@ -447,6 +459,12 @@ class SecretsMasker(logging.Filter):
                     # the structure.
                     return self.replacer.sub(replacement, str(item))
                 return item
+            # Mapping types other than ``dict`` (e.g. ``MappingProxyType``). Checked last so the common
+            # leaf types do not pay for an ABC ``isinstance``.
+            if isinstance(item, collections.abc.Mapping):
+                return self._redact(
+                    item=dict(item), name=name, depth=depth, max_depth=max_depth, replacement=replacement
+                )
             return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)

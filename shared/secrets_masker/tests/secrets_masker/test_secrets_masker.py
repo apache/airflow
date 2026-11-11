@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import collections
 import contextlib
 import inspect
 import logging
@@ -23,6 +24,7 @@ import logging.config
 import os
 import sys
 import textwrap
+import types
 from enum import Enum
 from io import StringIO
 from unittest.mock import patch
@@ -647,6 +649,33 @@ class TestSecretsMasker:
             filt.add_mask(secret[:length])
 
         assert filt.redact(f"token={secret};") == "token=***;"
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(frozenset({"hunter2-secret"}), ("***",), id="frozenset"),
+            pytest.param(collections.deque(["hunter2-secret"]), ["***"], id="deque"),
+            pytest.param(
+                types.MappingProxyType({"note": "hunter2-secret"}), {"note": "***"}, id="mapping-proxy"
+            ),
+            pytest.param({"a": {"b": frozenset({"hunter2-secret"})}}, {"a": {"b": ("***",)}}, id="nested"),
+        ],
+    )
+    def test_redact_masks_secret_in_container_types(self, value, expected):
+        filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
+        filt.add_mask("hunter2-secret")
+
+        assert filt.redact(value) == expected
+
+    def test_redact_masks_every_leaf_of_other_container_types_under_a_sensitive_name(self):
+        filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
+        filt.add_mask("hunter2-secret")
+
+        redacted = filt.redact({"password": frozenset({"abcdef"}), "token": collections.deque([12345])})
+
+        assert redacted == {"password": ("***",), "token": ["***"]}
 
     @pytest.mark.parametrize(
         ("name", "value", "expected"),
