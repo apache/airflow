@@ -256,7 +256,7 @@ def _send_task_failure_requests(
     task: Operator | None,
     executor: BaseExecutor,
     msg: str,
-    send_callback: bool,
+    needs_callback: bool,
     coordinates: TaskCoordinateResolver,
     session: Session,
     log: Logger,
@@ -269,7 +269,7 @@ def _send_task_failure_requests(
     Returns False if the requests were needed but ``dag_version_id`` could not be resolved.
     """
     send_email = task is not None and bool(task.email) and (task.email_on_failure or task.email_on_retry)
-    if not (send_callback or send_email):
+    if not (needs_callback or send_email):
         return True
     if send_email:
         log.info("Sending email request for task %s to DAG Processor", ti)
@@ -288,7 +288,7 @@ def _send_task_failure_requests(
         connections=[],
         xcom_keys_to_clear=[],
     )
-    if send_callback:
+    if needs_callback:
         executor.send_callback(
             TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
@@ -1884,8 +1884,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(state, session=session)
                     continue
                 ti.task = task
-                send_callback = task.has_on_retry_callback or task.has_on_failure_callback
-                if send_callback:
+                needs_callback = task.has_on_retry_callback or task.has_on_failure_callback
+                if needs_callback:
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
@@ -1894,7 +1894,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     task=task,
                     executor=executor,
                     msg=msg,
-                    send_callback=send_callback,
+                    needs_callback=needs_callback,
                     coordinates=coordinates,
                     session=session,
                     log=cls.logger(),
@@ -3674,7 +3674,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task = None
             # handle_failure() reads retries and fail_fast from ti.task.
             ti.task = task
-            send_callback = task is not None and (task.has_on_failure_callback or task.has_on_retry_callback)
+            needs_callback = task is not None and (task.has_on_failure_callback or task.has_on_retry_callback)
             # Unlike process_executor_events, a missing dag_version_id only drops the requests here; the TI
             # is still failed so it doesn't sit in queued.
             _send_task_failure_requests(
@@ -3682,7 +3682,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task=task,
                 executor=executor,
                 msg=msg,
-                send_callback=send_callback,
+                needs_callback=needs_callback,
                 coordinates=coordinates,
                 session=session,
                 log=self.log,
@@ -4266,7 +4266,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor=self.executor,
                     msg=msg,
                     map_index=callback_map_index,
-                    send_callback=True,
+                    needs_callback=True,
                     coordinates=coordinates,
                     session=session,
                     log=self.log,
