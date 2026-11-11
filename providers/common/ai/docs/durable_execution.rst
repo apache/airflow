@@ -368,8 +368,9 @@ its calls run again on every attempt, while the steps around them still replay.
 
 A result has to survive a JSON round trip to be recorded. Bytes a tool returns, on their
 own or as values anywhere inside dicts and lists, are recorded as base64, and a retry
-replays the same bytes. Only ``bytes`` is converted. ``bytearray``, ``memoryview``, sets
-or frozensets of bytes, and bytes in a field of a dataclass or Pydantic model are not:
+replays the same bytes. Only ``bytes`` is converted. ``bytearray``, ``memoryview``, a
+``set`` or ``frozenset`` of bytes, and bytes in a field of a dataclass or Pydantic model
+are not:
 depending on the pydantic-ai version and the toolset, such a result fails the task, or
 it comes back changed (as text, a list or a dict), which can make the steps after that
 tool call run again. Put bytes in a dict instead. A result the journal cannot encode,
