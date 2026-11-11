@@ -19,8 +19,11 @@ from __future__ import annotations
 import asyncio
 import collections
 import contextlib
+import dataclasses
 import datetime
 import json
+import logging
+from collections.abc import Container
 from typing import Any
 from unittest import mock
 
@@ -51,6 +54,8 @@ from agents.retry import ModelRetryBackoffSettings, ModelRetrySettings
 from agents.tool_context import ToolContext
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from pydantic import BaseModel
+from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.durable.base import build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
@@ -61,7 +66,8 @@ from airflow.providers.common.ai.durable.openai_agents import (
     run_durably_sync,
 )
 from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
-from airflow.providers.common.ai.tools import AirflowTool, ToolResult
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
 
 from unit.common.ai.durable.memory_storage import MemoryStorage
@@ -155,6 +161,98 @@ class _CountingTool:
             parameters={"type": "object", "properties": {"key": {"type": "string"}}},
             function=function,
         )
+
+
+class _ToolsetLookup:
+    """
+    A ``lookup`` tool from a pydantic-ai toolset, which counts the calls that reached it.
+
+    It raises ``ModelRetry``, a failure the model can correct, for the keys in ``retry``, and
+    ``RuntimeError``, which fails the try, for those in ``broken``, after sleeping
+    ``delays[key]`` seconds; a key without a delay answers without awaiting.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_retries: int,
+        retry: Container[str],
+        broken: Container[str] = (),
+        delays: dict[str, float] | None = None,
+        sequential: bool = False,
+    ) -> None:
+        self.max_retries = max_retries
+        self.retry = retry
+        self.broken = broken
+        self.delays = delays or {}
+        self.sequential = sequential
+        self.calls = 0
+
+    def tool(self) -> AirflowTool:
+        async def lookup(key: str) -> str:
+            self.calls += 1
+            if key in self.delays:
+                await asyncio.sleep(self.delays[key])
+            if key in self.broken:
+                raise RuntimeError(f"the warehouse dropped the connection looking up {key}")
+            if key in self.retry:
+                raise ModelRetry(f"There is no {key}.")
+            return f"{key}=42"
+
+        # A fresh tool per attempt, as a retried task builds its agent again.
+        toolset = FunctionToolset([lookup], max_retries=self.max_retries, sequential=self.sequential)
+        (tool,) = airflow_tools_from_toolset(toolset)
+        return tool
+
+
+class _TurnsModel(Model):
+    """
+    Asks for one ``lookup`` per key of each turn, all of a turn's in one response, then answers.
+
+    ``fail_on_answer`` makes the request that would answer raise, as a crashed worker would leave it.
+    """
+
+    def __init__(self, turns: list[list[str]], *, fail_on_answer: bool = False) -> None:
+        self.turns = turns
+        self.fail_on_answer = fail_on_answer
+        self.calls = 0
+
+    async def get_response(self, system_instructions, input, *args: Any, **kwargs: Any) -> ModelResponse:
+        self.calls += 1
+        answered = sum(
+            1
+            for item in (input if isinstance(input, list) else [])
+            if isinstance(item, dict) and item.get("type") == "function_call_output"
+        )
+        done = 0
+        output: list[ResponseFunctionToolCall | ResponseOutputMessage] = []
+        for keys in self.turns:
+            if answered == done:
+                output = [
+                    ResponseFunctionToolCall(
+                        id=f"fc-{key}",
+                        call_id=f"call-{key}",
+                        name="lookup",
+                        arguments=json.dumps({"key": key}),
+                        type="function_call",
+                    )
+                    for key in keys
+                ]
+                break
+            done += len(keys)
+        else:
+            if self.fail_on_answer:
+                raise RuntimeError("worker lost")
+            text = ResponseOutputText(text="answer", type="output_text", annotations=[])
+            output = [
+                ResponseOutputMessage(
+                    id="msg", role="assistant", status="completed", type="message", content=[text]
+                )
+            ]
+        return ModelResponse(output=list(output), usage=Usage(), response_id=f"resp-{self.calls}")
+
+    def stream_response(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
 
 
 class _ParallelModel(Model):
@@ -266,7 +364,13 @@ class _Report(BaseModel):
     rows: int
 
 
-def _attempt(storage: MemoryStorage, model: Model, tool: _CountingTool, prompt: str = "go", **kwargs: Any):
+def _attempt(
+    storage: MemoryStorage,
+    model: Model,
+    tool: _CountingTool | _ToolsetLookup,
+    prompt: str = "go",
+    **kwargs: Any,
+):
     """Run one task attempt: a fresh journal over the storage the attempts share."""
     agent = Agent(name="analyst", model=model, tools=AirflowTools(tool.tool()))
     journal = DurableJournal(storage, clean_up_after_run=True)
@@ -620,6 +724,224 @@ class TestRunDurably:
         assert len(calls) == 2
         # The answer that asked for the lookup replays; only the final answer is asked for.
         assert retry_model.calls == 1
+
+    def test_a_replayed_correctable_failure_counts_against_the_tools_retry_limit(self, caplog):
+        """Across attempts the tool gets max_retries corrections in all, not max_retries per attempt."""
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=2, retry={"k0", "k1", "k2"})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool)
+        tool.calls = 0
+
+        # The replayed failure of k0 is the first correction, k1 the second, and k2 one too many.
+        with (
+            caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.tools._from_toolset"),
+            pytest.raises(ToolCallError, match="lookup kept failing after 2 correction"),
+        ):
+            _attempt(storage, _ScriptedModel(lookups=3), tool)
+        assert tool.calls == 2
+        # The line the guide quotes, so a task log shows why the limit ran out early.
+        assert [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "airflow.providers.common.ai.tools._from_toolset"
+        ] == ["Tool lookup: an earlier attempt left 1 of its 2 correction(s) used"]
+
+    def test_a_count_recorded_for_a_tool_since_swapped_for_a_custom_one_replays_without_running_it(self):
+        """A Dag edit between tries put a tool of the same name and schema, with no retry budget, in its place."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry=set())
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool)
+        custom_calls = []
+
+        async def custom(arguments: dict[str, Any]) -> ToolResult:
+            custom_calls.append(arguments["key"])
+            return ToolResult(f"{arguments['key']}=custom")
+
+        agent = Agent(
+            name="analyst",
+            model=_ScriptedModel(),
+            tools=AirflowTools(dataclasses.replace(tool.tool(), function=custom)),
+        )
+        with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+            result = run_durably_sync(agent, "go", run_config=NO_TRACING)
+
+        assert custom_calls == []
+        assert result.final_output == "answer: k0=42"
+
+    def test_a_run_that_used_up_a_tools_retry_limit_asks_the_model_again_on_retry(self):
+        """The model's answers used the limit up, so a retry asks it again rather than replaying them."""
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"k0", "k1"})
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            _attempt(storage, _ScriptedModel(lookups=2), tool)
+        tool.calls = 0
+        retry_model = _ScriptedModel(lookups=1)
+
+        result, _ = _attempt(storage, retry_model, tool)
+
+        # The answer that asked for k1 is asked for again, and this time the model answers.
+        assert retry_model.calls == 1
+        assert tool.calls == 0
+        assert result.final_output.startswith("answer: ")
+
+    def test_a_replayed_success_starts_the_tools_retry_count_over(self):
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"k0", "k2"})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(lookups=2, fail_on_answer=True), tool)
+        tool.calls = 0
+
+        # k1 succeeded after k0 failed, so k2 is the one correction the limit allows.
+        result, _ = _attempt(storage, _ScriptedModel(lookups=3), tool)
+
+        assert tool.calls == 1
+        assert result.final_output.startswith("answer: ")
+
+    def test_parallel_calls_replay_the_count_they_left_in_the_order_they_finished(self):
+        """
+        Live, b fails and then a, still running, succeeds, so d is the first correction again.
+
+        A replay reaches a and b in the order they started, which would count d as the second.
+        """
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"b", "d"}, delays={"a": 0.05})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _TurnsModel([["a", "b"]], fail_on_answer=True), tool)
+        tool.calls = 0
+
+        result, _ = _attempt(storage, _TurnsModel([["a", "b"], ["d"]]), tool)
+
+        assert result.final_output == "answer"
+        assert tool.calls == 1
+
+    def test_a_third_attempt_counts_the_corrections_of_both_earlier_attempts(self):
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=2, retry={"k0", "k1", "k2"})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(lookups=1, fail_on_answer=True), tool)
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(lookups=2, fail_on_answer=True), tool)
+        tool.calls = 0
+
+        # k0 from the first attempt and k1 from the second are both corrections already used.
+        with pytest.raises(ToolCallError, match="lookup kept failing after 2 correction"):
+            _attempt(storage, _ScriptedModel(lookups=3), tool)
+        assert tool.calls == 1
+
+    @pytest.mark.parametrize("sequential", [False, True], ids=["parallel", "sequential"])
+    def test_a_live_failure_alongside_a_replayed_one_counts_once(self, sequential):
+        """b failed the first try outright; on the retry it fails in a way the model can correct, as a did."""
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"a", "b"}, broken={"b"}, sequential=sequential)
+        with pytest.raises(ToolCallError, match="warehouse dropped the connection"):
+            _attempt(storage, _TurnsModel([["a", "b"]]), tool)
+        tool.broken, tool.calls = (), 0
+
+        result, _ = _attempt(storage, _TurnsModel([["a", "b"]]), tool)
+
+        assert result.final_output == "answer"
+        assert tool.calls == 1
+
+    def test_a_replayed_success_does_not_hide_a_live_failure_alongside_it(self):
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"b", "d"}, broken={"b"})
+        with pytest.raises(ToolCallError, match="warehouse dropped the connection"):
+            _attempt(storage, _TurnsModel([["a", "b"]]), tool)
+        tool.broken, tool.calls = (), 0
+
+        # b fails live before a's replay restores its success, which must not wipe b's correction:
+        # b is the first correction and d one too many.
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            _attempt(storage, _TurnsModel([["a", "b"], ["d"]]), tool)
+        assert tool.calls == 2
+
+    def test_each_agent_run_in_a_task_restores_its_own_count(self):
+        """A second run_durably call in the task replays its count after a first one ran live."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry={"k1", "k2"})
+
+        def attempt(second: _ScriptedModel) -> None:
+            tools = AirflowTools(tool.tool())
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                run_durably_sync(
+                    Agent(name="a", model=_ScriptedModel(), tools=tools), "1", run_config=NO_TRACING
+                )
+                run_durably_sync(Agent(name="b", model=second, tools=tools), "2", run_config=NO_TRACING)
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(lookups=2, fail_on_answer=True))
+        tool.calls = 0
+
+        # The first run succeeded, so it runs live again; the second's k1 is its one correction.
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            attempt(_ScriptedModel(lookups=3))
+        assert tool.calls == 2
+
+    def test_a_custom_tool_that_calls_a_toolset_tool_replays_without_running(self):
+        storage = MemoryStorage()
+        inner = _ToolsetLookup(max_retries=1, retry=set())
+        outer_calls = []
+
+        def custom_tool() -> AirflowTool:
+            lookup = inner.tool()
+
+            async def function(arguments: dict[str, Any]) -> ToolResult:
+                outer_calls.append(arguments["key"])
+                return await lookup.call(arguments)
+
+            return dataclasses.replace(lookup, function=function)
+
+        def attempt(model: Model) -> Any:
+            agent = Agent(name="analyst", model=model, tools=AirflowTools(custom_tool()))
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                return run_durably_sync(agent, "go", run_config=NO_TRACING)
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(fail_on_answer=True))
+
+        result = attempt(_ScriptedModel())
+
+        assert outer_calls == ["k0"]
+        assert result.final_output == "answer: k0=42"
+
+    def test_a_tool_rebuilt_without_the_replay_hook_replays_its_result_as_text(self):
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry=set())
+
+        def attempt(model: Model) -> Any:
+            tools = [dataclasses.replace(function_tool) for function_tool in AirflowTools(tool.tool())]
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                return run_durably_sync(
+                    Agent(name="analyst", model=model, tools=tools), "go", run_config=NO_TRACING
+                )
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(fail_on_answer=True))
+
+        assert attempt(_ScriptedModel()).final_output == "answer: k0=42"
+
+    def test_a_used_up_limit_inside_an_agent_used_as_a_tool_fails_that_call_not_the_model(self):
+        """The outer model's answer was fine: the retry replays it and runs the inner agent again."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry={"k0", "k1"})
+
+        def attempt(outer: _ScriptedModel) -> None:
+            specialist = Agent(name="specialist", model="inner", tools=AirflowTools(tool.tool()))
+            lead = Agent(
+                name="lead",
+                model=outer,
+                tools=[specialist.as_tool("lookup", "Ask the specialist.", failure_error_function=None)],
+            )
+            config = RunConfig(tracing_disabled=True, model_provider=_Provider(_ScriptedModel(lookups=2)))
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                run_durably_sync(lead, "go", run_config=config)
+
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            attempt(_ScriptedModel(argument="input"))
+        outer = _ScriptedModel(argument="input")
+
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            attempt(outer)
+
+        assert outer.calls == 0
 
     def test_a_run_with_a_session_runs_live_on_retry(self, tmp_path):
         """The session already holds the failed try's prompt, so the first request differs."""

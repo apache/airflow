@@ -32,9 +32,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.37.0",
+    "@chakra-ui/react": "^3.38.0",
     "@emotion/react": "^11.14.0",
-    "@tanstack/react-query": "^5.105.2",
+    "@tanstack/react-query": "^5.106.1",
     "@types/semver": "^7.8.0",
     "axios": "^1.21.0",
     "next-themes": "^0.4.6",
@@ -44,7 +44,7 @@
     "react-icons": "^5.7.0",
     "react-router-dom": "^7.18.5",
     "react-timeago": "^8.3.0",
-    "semver": "^7.8.5",
+    "semver": "^7.8.6",
     "use-debounce": "^10.1.1"
   },
   "devDependencies": {
@@ -80,7 +80,7 @@
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vite-plugin-css-injected-by-js": "^5.0.3",
     "vite-plugin-dts": "^5.1.2",
     "vitest": "^4.1.12"
