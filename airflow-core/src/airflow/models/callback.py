@@ -91,6 +91,9 @@ class CallbackType(str, Enum):
     EXECUTOR = "executor"
     DAG_PROCESSOR = "dag_processor"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class CallbackDefinitionProtocol(Protocol):
     """Protocol for TaskSDK Callback definition."""
