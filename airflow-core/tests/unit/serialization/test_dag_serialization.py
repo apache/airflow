@@ -1667,6 +1667,7 @@ class TestStringifiedDAGs:
             "has_on_failure_callback",
             "dag_dependencies",
             "params",
+            "user_defined_macros",
         }
 
         keys_for_backwards_compat: set = {
