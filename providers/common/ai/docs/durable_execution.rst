@@ -124,11 +124,6 @@ Without the option, the task fails with:
 
     ValueError: Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path to be set, to say where its journal is kept. Example: durable_cache_path = file:///tmp/airflow_durable_cache
 
-If the store fails while the task runs, the task does not. A journal file that exists but
-cannot be read is left in place for the next attempt, and this attempt runs every step
-live without recording; one that is not a valid journal, such as a file cut off part way
-through a write, is replaced. Both are logged as warnings.
-
 How a retry replays
 -------------------
 

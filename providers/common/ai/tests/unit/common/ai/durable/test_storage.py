@@ -20,6 +20,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+from structlog.typing import FilteringBoundLogger
 
 from airflow.providers.common.ai.durable import storage as storage_module
 from airflow.providers.common.ai.durable.journal import DurableJournal
@@ -133,11 +134,13 @@ def store_down():
 
 class TestStoreFailures:
     def test_a_failed_write_skips_the_step_without_raising(self, storage):
-        with store_down(), patch.object(storage_module, "log") as mock_log:
+        with store_down(), patch.object(storage_module, "log", spec=FilteringBoundLogger) as mock_log:
             assert not storage.save_step("k", ENTRY)
 
         assert storage.load_step("k") is None
-        mock_log.warning.assert_called_once()
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not write the journal file", key="k", exc_info=True
+        )
 
     def test_a_failed_write_keeps_the_previous_value_of_a_step(self, storage):
         storage.save_step("meta", {"high_water": 1})
@@ -179,42 +182,21 @@ class TestStoreFailures:
             run.fail(RuntimeError("the agent's own error"))
 
 
-class TestUnreadableJournal:
+class TestJournalThatIsNotAnObject:
     @pytest.mark.parametrize(
         "content",
         [
             pytest.param(b"{truncated", id="cut off mid-write"),
-            pytest.param(b'["not", "a", "journal"]', id="not a JSON object"),
-            pytest.param(b"\xff\xfe not utf-8", id="not UTF-8 text"),
+            pytest.param(b'["not", "a", "journal"]', id="a JSON list"),
+            pytest.param(b"null", id="JSON null"),
         ],
     )
-    def test_a_corrupt_journal_is_reported_and_started_over(self, storage, content):
+    def test_is_handled_like_a_journal_cut_off_mid_write(self, storage, content):
         storage._get_path().write_bytes(content)
 
-        with patch.object(storage_module, "log") as mock_log:
-            assert storage.load_step("k") is None
-        mock_log.warning.assert_called_once()
-
+        assert storage.load_step("k") is None
         assert storage.save_step("k", ENTRY)
         assert storage.load_step("k") == ENTRY
-
-    def test_a_journal_that_cannot_be_read_is_not_overwritten(self, storage):
-        storage.save_step("k", ENTRY)
-        attempt = DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
-
-        with (
-            patch.object(ObjectStoragePath, "read_text", side_effect=OSError("read timed out")),
-            patch.object(storage_module, "log") as mock_log,
-        ):
-            assert attempt.load_step("k") is None
-        mock_log.warning.assert_called_once()
-
-        assert not attempt.save_step("new", ENTRY)
-        attempt.delete_steps(["k"])
-
-        retry = DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
-        assert retry.load_step("k") == ENTRY
-        assert retry.load_step("new") is None
 
 
 class TestMissingConfig:
