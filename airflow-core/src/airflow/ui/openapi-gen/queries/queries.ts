@@ -1025,9 +1025,19 @@ export const useEventLogServiceGetEventLog = <TData = Common.EventLogServiceGetE
 /**
 * Get Event Logs
 * Get all Event Logs.
+*
+* Supports two pagination modes:
+*
+* **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+*
+* **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+* When `cursor` is provided, `offset` is ignored and `total_entries` is ``null``, so the listing
+* never counts the table. ``next_cursor`` is ``null`` when there are no more pages;
+* ``previous_cursor`` is ``null`` on the first page.
 * @param data The data for the request.
 * @param data.regionId
 * @param data.regionIndex
+* @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
@@ -1059,9 +1069,10 @@ export const useEventLogServiceGetEventLog = <TData = Common.EventLogServiceGetE
 * @returns EventLogCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGetEventLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }: {
+export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGetEventLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ after, before, cursor, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }: {
   after?: string;
   before?: string;
+  cursor?: string;
   dagId?: string;
   dagIdPattern?: string;
   dagIdPrefixPattern?: string;
@@ -1090,7 +1101,7 @@ export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGet
   taskInstanceId?: string;
   teams?: string[];
   tryNumber?: number;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }, queryKey), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, cursor, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }, queryKey), queryFn: () => EventLogService.getEventLogs({ after, before, cursor, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }) as TData, ...options });
 /**
 * Get Extra Links
 * Get extra links for task instance.

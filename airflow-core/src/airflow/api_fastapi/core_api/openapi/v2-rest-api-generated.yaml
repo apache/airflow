@@ -4865,7 +4865,25 @@ paths:
       tags:
       - Event Log
       summary: Get Event Logs
-      description: Get all Event Logs.
+      description: 'Get all Event Logs.
+
+
+        Supports two pagination modes:
+
+
+        **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+
+        **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
+        from the response).
+
+        When `cursor` is provided, `offset` is ignored and `total_entries` is ``null``,
+        so the listing
+
+        never counts the table. ``next_cursor`` is ``null`` when there are no more
+        pages;
+
+        ``previous_cursor`` is ``null`` on the first page.'
       operationId: get_event_logs
       security:
       - OAuth2PasswordBearer: []
@@ -4889,6 +4907,20 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
+          title: Cursor
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: limit
         in: query
         required: false
@@ -16676,14 +16708,32 @@ components:
           type: array
           title: Event Logs
         total_entries:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Total Entries
+          description: Exact number of matching items for offset pagination. ``null``
+            for cursor pagination, which never counts the matching rows.
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Token pointing to the next page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when there is no next page.
+        previous_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Previous Cursor
+          description: Token pointing to the previous page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when on the first page.
       type: object
       required:
       - event_logs
-      - total_entries
       title: EventLogCollectionResponse
-      description: Event Log Collection Response.
+      description: Event Log collection response supporting both offset and cursor
+        pagination.
     EventLogResponse:
       properties:
         event_log_id:

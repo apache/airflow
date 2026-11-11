@@ -829,3 +829,38 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         mock_is_authorized_view.assert_called_once_with(
             access_view=AccessView.AUDIT_LOGS_ALL, user=mock.ANY, team_name=None
         )
+
+    @pytest.mark.parametrize("order_by", ["-when", "event", "owner", "-event_log_id"])
+    def test_cursor_pagination_forward_then_previous_page(self, test_client, order_by):
+        """Every row is reached once going forward, and previous_cursor retraces the same pages."""
+        forward_pages = []
+        cursor = ""
+        while cursor is not None:
+            response = test_client.get(
+                "/eventLogs", params={"limit": 3, "order_by": order_by, "cursor": cursor}
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            forward_pages.append(body)
+            cursor = body["next_cursor"]
+
+        forward_ids = [log["event_log_id"] for page in forward_pages for log in page["event_logs"]]
+        assert len(forward_pages) == 2
+        assert len(forward_ids) == len(set(forward_ids)) == 4
+        assert forward_pages[0]["previous_cursor"] is None
+
+        response = test_client.get(
+            "/eventLogs",
+            params={"limit": 3, "order_by": order_by, "cursor": forward_pages[-1]["previous_cursor"]},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert [log["event_log_id"] for log in body["event_logs"]] == forward_ids[:3]
+        assert body["previous_cursor"] is None
+        assert body["next_cursor"] is not None
+
+    def test_cursor_pagination_does_not_count_rows(self, test_client):
+        with assert_queries_count(2):
+            response = test_client.get("/eventLogs", params={"cursor": ""})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] is None

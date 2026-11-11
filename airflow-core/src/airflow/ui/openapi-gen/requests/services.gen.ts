@@ -2498,9 +2498,19 @@ export class EventLogService {
     /**
      * Get Event Logs
      * Get all Event Logs.
+     *
+     * Supports two pagination modes:
+     *
+     * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+     *
+     * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is ``null``, so the listing
+     * never counts the table. ``next_cursor`` is ``null`` when there are no more pages;
+     * ``previous_cursor`` is ``null`` on the first page.
      * @param data The data for the request.
      * @param data.regionId
      * @param data.regionIndex
+     * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
@@ -2539,6 +2549,7 @@ export class EventLogService {
             query: {
                 region_id: data.regionId,
                 region_index: data.regionIndex,
+                cursor: data.cursor,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,

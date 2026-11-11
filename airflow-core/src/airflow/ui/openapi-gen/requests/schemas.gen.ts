@@ -5748,14 +5748,46 @@ export const $EventLogCollectionResponse = {
             title: 'Event Logs'
         },
         total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries',
+            description: 'Exact number of matching items for offset pagination. ``null`` for cursor pagination, which never counts the matching rows.'
+        },
+        next_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Next Cursor',
+            description: 'Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.'
+        },
+        previous_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Previous Cursor',
+            description: 'Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.'
         }
     },
     type: 'object',
-    required: ['event_logs', 'total_entries'],
+    required: ['event_logs'],
     title: 'EventLogCollectionResponse',
-    description: 'Event Log Collection Response.'
+    description: 'Event Log collection response supporting both offset and cursor pagination.'
 } as const;
 
 export const $EventLogResponse = {

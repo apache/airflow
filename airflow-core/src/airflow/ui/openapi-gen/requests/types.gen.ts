@@ -1602,11 +1602,22 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Event Log Collection Response.
+ * Event Log collection response supporting both offset and cursor pagination.
  */
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
-    total_entries: number;
+    /**
+     * Exact number of matching items for offset pagination. ``null`` for cursor pagination, which never counts the matching rows.
+     */
+    total_entries?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -4739,6 +4750,10 @@ export type GetEventLogResponse = EventLogResponse;
 export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".

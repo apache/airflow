@@ -2690,11 +2690,31 @@ class DryRunBackfillCollectionResponse(BaseModel):
 
 class EventLogCollectionResponse(BaseModel):
     """
-    Event Log Collection Response.
+    Event Log collection response supporting both offset and cursor pagination.
     """
 
     event_logs: Annotated[list[EventLogResponse], Field(title="Event Logs")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    total_entries: Annotated[
+        int | None,
+        Field(
+            description="Exact number of matching items for offset pagination. ``null`` for cursor pagination, which never counts the matching rows.",
+            title="Total Entries",
+        ),
+    ] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.",
+            title="Next Cursor",
+        ),
+    ] = None
+    previous_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.",
+            title="Previous Cursor",
+        ),
+    ] = None
 
 
 class ExternalViewResponse(BaseModel):
