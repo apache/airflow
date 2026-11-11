@@ -455,15 +455,11 @@ Parameters
 - ``emit_message_history``: Push the post-run transcript to XCom under the key
   ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
   otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
-- ``serialize_output``: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with ``model_dump()``
-  before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their types. A model inside a
-  list, tuple, set or dict is left for the XCom serializer when the worker registers its class. A
-  model whose class the worker cannot register from ``output_type`` (for example ``[MyModel, int]``,
-  an output marker or function, a ``TypeAliasType`` or a ``NewType``) is dumped to JSON-compatible
-  values with ``pydantic_core.to_jsonable_python``, using field names rather than aliases: as the
-  output itself when this is ``False``, and always when it is inside a list, tuple, set or dict (the
-  whole output is dumped then). Default ``False`` -- a registered Pydantic instance flows through
-  XCom unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+  ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their types.
+  Default ``False``: a model whose class the worker registers from ``output_type`` flows through XCom
+  unchanged. Some outputs are pushed as dicts either way; see
+  :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review

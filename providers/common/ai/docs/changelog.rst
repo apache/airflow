@@ -47,28 +47,31 @@ Changelog
 .. note::
   **Significant change: output serialization of the LLM operators**
 
-  ``LLMOperator``, ``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent``
-  now share one helper, ``dump_output_for_xcom``, to decide which models they push to XCom as
-  dicts. When the worker cannot register a model class (``output_type`` is a list of output types
-  such as ``[Summary, int]``, an output marker, an output function, a ``TypeAliasType`` or a
-  ``NewType``), every model in the output is pushed as a JSON-compatible dict, including models
-  inside a list, tuple, set or dict. ``LLMOperator`` and ``LLMFileAnalysisOperator`` pushed such
-  models as instances in 1.1.0, so for them this is a change.
+  ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator`` now push a model as a
+  JSON-compatible dict, where 1.1.0 pushed it as a model instance, in these cases:
 
-  On Airflow < 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
-  class at all, so ``list[MyModel]`` and other containers of models are pushed as dicts for all
-  five. ``AgentOperator`` and ``@task.agent`` already did this in 1.1.0; ``LLMOperator``,
-  ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed instances there and now push dicts. This
-  includes a top-level model: with ``serialize_output=True`` it is dumped with ``model_dump()``
-  (Python field values kept), and otherwise to JSON values with field names rather than aliases.
-  ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed a top-level model as an
-  instance there in 1.1.0 unless ``serialize_output=True`` was set. A downstream task reads
-  ``result["field"]`` and needs no entry in ``[core] allowed_deserialization_classes``.
+  * On Airflow 3.3 and later, the model is itself the output, ``serialize_output`` is not set,
+    and ``output_type`` is one the worker cannot register a class for (a list of output types
+    such as ``[Summary, int]``, an output marker, an output function, a ``TypeAliasType`` or a
+    ``NewType``).
+  * On Airflow 3.3 and later, the model is inside a list, tuple, set or dict in the output and
+    the worker cannot register its class, whether or not ``serialize_output`` is set.
+  * On Airflow < 3.3, the model is inside a list, tuple, set or dict in the output, whatever the
+    ``output_type`` (for example ``list[MyModel]``).
 
-  For ``AgentOperator`` and ``@task.agent``, whenever a model in the output is dumped (for example
-  with ``output_type=[Summary, int]``, and on Airflow < 3.3 too), compared with 1.1.0: a model with
-  ``serialize_by_alias=True`` now arrives with its field names (``full_name``, not ``fullName``); a
-  tuple in the output arrives as a list; a ``date`` next to the model arrives as a string.
+  When a model inside a list, tuple, set or dict is dumped, the whole output is dumped with
+  it, so a tuple in the output arrives as a list and a ``date`` next to the model arrives as a
+  string. A downstream task indexes the dict (``result["field"]``) instead of using attribute
+  access. As in 1.1.0, a model that is itself the output is dumped with ``model_dump()`` when
+  ``serialize_output=True`` is set or on Airflow < 3.3.
+
+  ``AgentOperator`` and ``@task.agent`` already pushed these models as dicts in 1.1.0.
+  Compared with 1.1.0, when they dump to JSON values, a model that sets
+  ``serialize_by_alias=True`` now arrives with its field names (``full_name``, not
+  ``fullName``), a tuple in the output arrives as a list, and a ``date`` next to the model
+  arrives as a string. A model inside a set is now dumped too, and the set arrives as a list.
+  A model that is itself the output and is dumped with ``model_dump()`` keeps its aliases, as
+  in 1.1.0. See :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
 
 .. note::
   **Signature change: MCP ``tool_prefix``**

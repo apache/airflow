@@ -73,10 +73,7 @@ A model at the top level is still dumped with plain ``model_dump()`` when
 condition is enough. A plain ``Enum`` member (one that does not also subclass
 ``str`` or ``int``), an ``HttpUrl`` or a ``Path`` in that model then stays a
 Python object. The default XCom backend cannot serialize these objects, so the
-XCom push fails with ``TypeError``. Before Airflow 3.3 the worker registers no
-model class, so all five operators and decorators push a model inside a list,
-tuple or dict as a JSON-compatible dict for every ``output_type``, not only for
-the output types listed above.
+XCom push fails with ``TypeError``.
 
 Upgrading from common.ai 1.0.0 to 1.1.0 can change the type that a downstream
 task receives:
@@ -112,46 +109,37 @@ class is not auto-registered. Add the class qualified name to
 ``[core] allowed_deserialization_classes`` (or a glob that matches it) to make
 that pattern work.
 
-If a downstream consumer needs the dict shape (e.g. forwarding to an external
-system that expects JSON-style payloads), the operator can push the model dumped
-instead of as an instance. Whether it does depends on ``serialize_output``:
+.. _structured-output-dict-shape:
+
+When a model arrives as a dict
+------------------------------
+
+``LLMOperator``, ``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent``
+decide in the same way whether a model is pushed as an instance or dumped. Set
+``serialize_output=True`` when a downstream consumer needs the dict shape (for example to forward
+it to a system that expects JSON-style payloads).
 
 * With ``serialize_output=True``, an output that is itself a model is dumped with ``model_dump()``, so
   field types such as ``date`` and ``Decimal`` are kept.
 * A model inside a list, tuple, set or dict is not dumped when the worker registers its class
   (``output_type=list[MyModel]`` on Airflow 3.3 and later). The XCom serializer pushes it as an
-  instance, with or without ``serialize_output``.
-* A model whose class the worker cannot register is dumped to JSON values, whatever ``serialize_output``
-  says. The one exception is a model that is itself the output when ``serialize_output=True``: it is
-  still dumped, but in Python mode as the first bullet describes. The worker registers the classes it
-  finds by reading ``output_type``, and finds none in a list of types such as
-  ``output_type=[MyModel, int]``, so a ``MyModel`` output of that shape is dumped.
-* ``LLMOperator``, ``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent`` dump the
-  whole output with ``to_jsonable_python``, using field names rather than aliases (also for a model that
-  sets ``serialize_by_alias=True``), as soon as it holds such a model in a list, tuple, set or dict, as a
-  set member or as a dict key. A ``date`` or ``Decimal`` next to the model becomes a string.
+  instance, with or without ``serialize_output``, unless the output also holds a model whose class
+  the worker does not register (see the next bullets).
+* On Airflow 3.3 and later, a model whose class the worker cannot register is dumped to JSON values
+  when it is itself the output and ``serialize_output`` is ``False``. With ``serialize_output=True`` it is dumped with
+  ``model_dump()`` as the first bullet describes. The worker registers the classes it finds by
+  reading ``output_type`` and finds none in a list of types such as ``output_type=[MyModel, int]``.
+* The operator dumps the whole output with ``to_jsonable_python``, using field names rather than
+  aliases (also for a model that sets ``serialize_by_alias=True``), as soon as it holds such a model
+  in a list, tuple, set or dict, or as a set member or a dict key. A ``date`` or ``Decimal`` next to
+  the model becomes a string, a set becomes a list, and a model used as a dict key becomes its
+  string form.
+* Before Airflow 3.3 the worker registers no class. A model that is itself the output is then dumped
+  with ``model_dump()`` whether or not ``serialize_output`` is set, and an output that holds a model
+  in a list, tuple, set or dict is dumped as the previous bullet describes, for every
+  ``output_type``.
 
 In a dump to JSON values, ``HttpUrl``, ``Path`` and ``Enum`` fields become plain JSON values. A model
 that is itself the output with ``serialize_output=True`` keeps its Python field values instead, so an
 ``HttpUrl``, a ``Path`` or a plain ``Enum`` member in it stays an object that the default XCom backend
 cannot serialize.
-
-Behaviour of the LLM operators after 1.1.0
--------------------------------------------
-
-The changelog note above 1.1.0 describes changes made after that release. ``LLMOperator``,
-``@task.llm``, ``LLMFileAnalysisOperator``, ``AgentOperator`` and ``@task.agent`` share one
-helper, ``dump_output_for_xcom``, and behave as follows:
-
-* A model whose class the worker registers is left for the XCom serializer, in a container or not.
-  A top-level model is dumped with ``model_dump()`` (Python field values kept) when
-  ``serialize_output=True`` is set.
-* A model whose class the worker cannot register is dumped to JSON values, also inside a list,
-  tuple, set or dict.
-* Before Airflow 3.3, or with a task-sdk that has no deserialization walker, the worker registers no
-  class, so every model is dumped, a top-level one included. A top-level model is dumped with
-  ``model_dump()`` when ``serialize_output=True`` is set, and otherwise to JSON values with field
-  names rather than aliases, like a model inside a list, tuple, set or dict. ``LLMOperator``,
-  ``@task.llm`` and ``LLMFileAnalysisOperator`` pushed ``list[MyModel]``, and a top-level model
-  without ``serialize_output=True``, as instances there in 1.1.0 and now push dicts;
-  ``AgentOperator`` and ``@task.agent`` already dumped containers.
