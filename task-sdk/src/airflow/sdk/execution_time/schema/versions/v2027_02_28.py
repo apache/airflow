@@ -30,10 +30,8 @@ from typing import Any
 
 from cadwyn import (
     RequestInfo,
-    ResponseInfo,
     VersionChange,
     convert_request_to_next_version_for,
-    convert_response_to_previous_version_for,
     schema,
 )
 
@@ -46,7 +44,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComArgBinding,
     XComSequenceArgBinding,
 )
-from airflow.sdk.execution_time.comms import PutVariable, StartupDetails
+from airflow.sdk.execution_time.comms import PutVariable
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -108,7 +106,8 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
     Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
 
     The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
-    the two migrations are not confused.
+    the two migrations are not confused. The supervisor does not start a task on an older runtime
+    when any binding needs this version, so no binding is dropped on the way down.
     """
 
     description = __doc__
@@ -124,23 +123,9 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
         ),
     )
 
-    @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
-    def remove_mapped_arg_bindings(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """
-        Strip ``arg_bindings`` holding any shape an older runtime cannot read, for a mapped task instance.
 
-        It keeps the earlier behavior, which ignored a mapped stub's arguments. Any other task instance
-        keeps its bindings, whose only new shape is the ``sequence`` kind, so the older runtime refuses
-        that kind instead of running the task with no arguments.
-        """
-        ti_context = response.body.get("ti_context") or {}
-        if response.body["ti"].get("map_index", -1) < 0:
-            return
-        if any(_is_mapped_binding(binding) for binding in ti_context.get("arg_bindings") or ()):
-            ti_context.pop("arg_bindings")
-
-
-def _is_mapped_binding(binding: dict[str, Any]) -> bool:
+def is_mapped_arg_binding(binding: dict[str, Any]) -> bool:
+    """Whether *binding* uses a shape or field this version added."""
     if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
         return True
     return any(

@@ -43,6 +43,7 @@ from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
     XComSequenceArgBinding,
     get_arg_bindings_adapter,
 )
+from airflow.models.dynamic_region import select_current_producer_ids
 from airflow.models.expandinput import (
     NotFullyPopulated,
     SchedulerDictOfListsExpandInput,
@@ -50,6 +51,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import _get_relevant_map_indexes
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count, is_mapped
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.definitions.xcom_arg import (
@@ -134,17 +136,13 @@ def derive_mapped_arg_bindings(
             raise UndeliverableMappedArgBindingsError(
                 "the task instance has not been expanded to a map index"
             )
-        return _MappedArgBindingDeriver(task, ti, map_index, resolver, session).derive(entries)
+        return _MappedArgBindingDeriver(task, ti, map_index, resolver, session=session).derive(entries)
     except NotFullyPopulated as e:
         raise UndeliverableMappedArgBindingsError(
             f"upstream map lengths are not yet known for {sorted(e.missing)}"
         )
     except ValidationError as e:
         raise UndeliverableMappedArgBindingsError(f"a binding is not valid: {e}")
-    except UndeliverableMappedArgBindingsError:
-        raise
-    except ValueError as e:
-        raise UndeliverableMappedArgBindingsError(str(e)) from e
 
 
 class _MappedArgBindingDeriver:
@@ -161,6 +159,7 @@ class _MappedArgBindingDeriver:
         ti: TaskInstance,
         map_index: int,
         resolver: TaskCoordinateResolver,
+        *,
         session: Session,
     ) -> None:
         self.task = task
@@ -200,8 +199,6 @@ class _MappedArgBindingDeriver:
                 return self._bind_group_arg(param, param.group_arg)
             case "param" if is_mapped(self.task):
                 return self._bind_mapped_param(param)
-            case "param":
-                return self._bind_default(param)
             case "xcom" | "sequence":
                 # Parse time cannot tell which rows of an upstream output this map index reads.
                 if (producer := self.dag.task_dict.get(entry["task_id"])) is None:
@@ -259,15 +256,25 @@ class _MappedArgBindingDeriver:
         if len(expand_input.value) == 1 and self.task.get_closest_mapped_task_group() is None:
             return dict.fromkeys(expand_input.value, self.map_index)
         if (sub_indexes := self._sub_indexes.get(id(expand_input))) is None:
-            sub_indexes = self._sub_indexes[id(expand_input)] = expand_input.resolve_expansion_sub_indexes(
-                self.map_index,
-                # Parse time records the order only when there are several expanded kwargs.
-                keys or list(expand_input.value),
-                self.ti.run_id,
-                session=self.session,
-                producer_contexts=self.producer_contexts,
-            )
+            lengths = {key: self._get_value_length(value) for key, value in expand_input.value.items()}
+            try:
+                sub_indexes = expand_input.resolve_expansion_sub_indexes(
+                    self.map_index,
+                    # Parse time records the order only when there are several expanded kwargs.
+                    keys or list(expand_input.value),
+                    lengths,
+                )
+            except ValueError as e:
+                raise UndeliverableMappedArgBindingsError(str(e))
+            self._sub_indexes[id(expand_input)] = sub_indexes
         return sub_indexes
+
+    def _get_value_length(self, value: Any) -> int:
+        if isinstance(value, _XComRef):
+            value = value.deref(self.dag)
+        if isinstance(value, SchedulerXComArg):
+            return self._get_length(value)
+        return len(value)
 
     def _bind_mapping_entry(
         self,
@@ -376,10 +383,8 @@ class _MappedArgBindingDeriver:
                 return self._locate(param, arg, index).model_copy(update={"apply_map": True})
             case SchedulerXComArg():
                 return self._locate(param, value, index)
-            case Mapping():
-                items: Sequence[Any] = list(value.items())
             case Sequence() if not isinstance(value, str):
-                items = value
+                items: Sequence[Any] = value
             case _:
                 items = ()
         if not 0 <= index < len(items):
@@ -415,7 +420,9 @@ class _MappedArgBindingDeriver:
             # forbids expanding inside a mapped task group, and a group expands only over outputs
             # of tasks outside it.
             case SchedulerPlainXComArg(operator=producer) if producer.get_needs_expansion():
-                return XComRef(kind="xcom", task_id=producer.task_id, map_index=index)
+                return XComRef(
+                    kind="xcom", task_id=producer.task_id, map_index=self._find_row_map_index(producer, index)
+                )
             case SchedulerPlainXComArg(operator=producer):
                 return XComRef(kind="xcom", task_id=producer.task_id, element_index=index)
             case SchedulerConcatXComArg():
@@ -435,14 +442,60 @@ class _MappedArgBindingDeriver:
         raise UndeliverableMappedArgBindingsError(f"concat() has no element at index {index}")
 
     def _get_length(self, arg: SchedulerXComArg) -> int:
-        if (length := self._lengths.get(id(arg))) is None:
-            length = get_task_map_length(
-                arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
-            )
-            if length is None:
-                raise NotFullyPopulated({repr(arg)})
-            self._lengths[id(arg)] = length
+        """Get the length of *arg* as ``get_task_map_length`` does, loading each upstream length once."""
+        if (length := self._lengths.get(id(arg))) is not None:
+            return length
+        match arg:
+            case SchedulerMapXComArg():
+                length = self._get_length(arg.arg)
+            case SchedulerZipXComArg():
+                lengths = [self._get_length(zipped) for zipped in arg.args]
+                length = max(lengths) if is_arg_set(arg.fillvalue) else min(lengths)
+            case SchedulerConcatXComArg():
+                length = sum(self._get_length(concatenated) for concatenated in arg.args)
+            case _:
+                loaded = get_task_map_length(
+                    arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
+                )
+                if loaded is None:
+                    raise NotFullyPopulated({repr(arg)})
+                length = loaded
+        self._lengths[id(arg)] = length
         return length
+
+    def _find_row_map_index(self, producer: Operator, offset: int) -> int:
+        """
+        Find the map index of row *offset* of a mapped task's output.
+
+        A mapped instance that returned nothing has no row, so the Python task runner reads the rows
+        that exist in map index order, and a row's offset can be lower than its map index.
+        """
+        read = XComModel.get_many(
+            run_id=self.ti.run_id,
+            key=XCOM_RETURN_KEY,
+            producer_ids=select_current_producer_ids(
+                dag_id=producer.dag_id,
+                run_id=self.ti.run_id,
+                task_id=producer.task_id,
+                is_mapped=is_mapped(producer),
+                context=self.producer_contexts.get(producer.task_id),
+                session=self.session,
+            ),
+        )
+        entity = xcom_entity(read)
+        map_index = self.session.scalar(
+            read.order_by(None)
+            .where(entity.map_index >= 0)
+            .with_only_columns(entity.map_index)
+            .order_by(entity.map_index)
+            .offset(offset)
+            .limit(1)
+        )
+        if map_index is None:
+            raise UndeliverableMappedArgBindingsError(
+                f"task {producer.task_id!r} has no output row at index {offset}"
+            )
+        return map_index
 
     def _get_relevant_map_indexes(self, producer: Operator) -> int | range | None:
         if self.task.get_closest_mapped_task_group() is None:

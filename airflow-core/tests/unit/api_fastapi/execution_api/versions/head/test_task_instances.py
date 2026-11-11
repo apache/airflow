@@ -67,7 +67,6 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
-from airflow.models.expandinput import SchedulerDictOfListsExpandInput
 from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -77,6 +76,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.serialization.definitions.xcom_arg import get_task_map_length
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -1290,7 +1290,7 @@ class TestTIRunState:
         ]
 
     def test_ti_run_resolves_mapped_stub_over_mapped_upstream(self, client, dag_maker):
-        """Expanding over a mapped upstream binds the upstream XCom row at the same map index."""
+        """Expanding over a mapped upstream binds its row at this offset, skipping instances that pushed nothing."""
         with dag_maker("test_mapped_stub_mapped_upstream", serialized=True):
 
             @task.stub
@@ -1299,9 +1299,14 @@ class TestTIRunState:
             @task.stub
             def transform(extracted: dict): ...
 
-            transform.expand(extracted=seed.expand(n=[1, 2]))
+            transform.expand(extracted=seed.expand(n=[1, 2, 3]))
 
         dr = dag_maker.create_dagrun()
+        for seed_ti in dr.get_task_instances(session=dag_maker.session):
+            if seed_ti.task_id == "seed" and seed_ti.map_index != 1:
+                XComModel.set_for_attempt(
+                    task_instance_id=seed_ti.id, key="return_value", value={}, session=dag_maker.session
+                )
         ti = dr.get_task_instance("transform", session=dag_maker.session)
         ti.map_index = 1
         ti.set_state(State.QUEUED, session=dag_maker.session)
@@ -1315,7 +1320,7 @@ class TestTIRunState:
                 "kind": "xcom",
                 "value_schema": {"type": "object", "additionalProperties": True},
                 "task_id": "seed",
-                "map_index": 1,
+                "map_index": 2,
             }
         ]
 
@@ -1366,16 +1371,41 @@ class TestTIRunState:
             ti.set_state(State.QUEUED)
         dag_maker.session.flush()
 
-        with mock.patch.object(
-            SchedulerDictOfListsExpandInput,
-            "_get_map_lengths",
-            autospec=True,
-            side_effect=SchedulerDictOfListsExpandInput._get_map_lengths,
-        ) as get_map_lengths:
-            response = client.patch(f"/execution/task-instances/{tis[1].id}/run", json=self.RUN_PAYLOAD)
+        response = client.patch(f"/execution/task-instances/{tis[1].id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
         assert [binding["value"] for binding in response.json()["arg_bindings"]] == ["x", 2]
-        get_map_lengths.assert_called_once()
+
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.services.stub_arg_bindings.get_task_map_length",
+        autospec=True,
+        side_effect=get_task_map_length,
+    )
+    def test_ti_run_loads_each_upstream_length_once(
+        self, mock_get_task_map_length, client, dag_maker, session
+    ):
+        with dag_maker("test_mapped_stub_length_loads", serialized=True, session=session):
+
+            @task.stub
+            def countries(): ...
+
+            @task.stub
+            def regions(): ...
+
+            @task.stub
+            def transform(pair: list, scale: int): ...
+
+            transform.expand(pair=countries().zip(regions()), scale=[1, 2])
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "countries", ["uk", "fr"], session=session)
+        self._push_return_value(dr, "regions", ["eu", "eu"], session=session)
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=1, session=session)
+        assert response.status_code == 200
+        assert sorted(call.args[0].operator.task_id for call in mock_get_task_map_length.call_args_list) == [
+            "countries",
+            "regions",
+        ]
 
     @mock.patch("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", True)
     def test_ti_run_decomposes_multi_kwarg_mapped_task_group_in_dag_file_order(
@@ -1664,18 +1694,17 @@ class TestTIRunState:
             },
         ]
 
-    def test_ti_run_ignores_args_for_legacy_serialized_mapped_stub(self, client, dag_maker):
+    @mock.patch(
+        "airflow.serialization.stub_arg_bindings.build_mapped_arg_bindings", autospec=True, return_value=None
+    )
+    def test_ti_run_ignores_args_for_legacy_serialized_mapped_stub(self, _, client, dag_maker):
         """A mapped stub serialized without bindings keeps the ignored-args behavior."""
-        with mock.patch(
-            "airflow.serialization.stub_arg_bindings.build_mapped_arg_bindings",
-            return_value=None,
-        ):
-            with dag_maker("test_mapped_stub_legacy", serialized=True):
+        with dag_maker("test_mapped_stub_legacy", serialized=True):
 
-                @task.stub
-                def transform(country: str): ...
+            @task.stub
+            def transform(country: str): ...
 
-                transform.expand(country=["uk", "fr"])
+            transform.expand(country=["uk", "fr"])
 
         dr = dag_maker.create_dagrun()
         ti = next(t for t in dr.get_task_instances() if t.map_index == 0)
@@ -1762,28 +1791,6 @@ class TestTIRunState:
             "task_id": "transform",
             "ti_id": str(ti.id),
         } in caplog
-
-    @mock.patch.object(
-        TaskCoordinateResolver,
-        "public_map_index",
-        autospec=True,
-        side_effect=ValueError("pinned Dag missing"),
-    )
-    def test_ti_run_reports_resolver_error_as_undeliverable(self, _, client, dag_maker):
-        with dag_maker("test_mapped_stub_resolver_error", serialized=True):
-
-            @task.stub
-            def transform(country: str): ...
-
-            transform.expand(country=["uk"])
-
-        (ti,) = dag_maker.create_dagrun().get_task_instances()
-        ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-
-        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
-        assert response.status_code == 422
-        assert "pinned Dag missing" in response.json()["detail"]["message"]
 
     def test_ti_run_rejects_zero_length_expansion_on_stub(self, client, dag_maker, session):
         """An upstream re-run to an empty list after expansion fails structurally, not with a crash."""

@@ -656,34 +656,19 @@ class TestRealBundleArgBindingsDowngrade:
             pytest.param({"name": "row", "kind": "literal", "value": 1, "apply_map": True}, id="apply-map"),
         ],
     )
-    def test_downgrade_strips_mapped_arg_bindings_for_previous_version(
-        self, real_migrator, startup_details, binding
-    ):
-        from airflow.sdk.api.datamodels._generated import TaskArgBinding
+    def test_is_mapped_arg_binding(self, binding):
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import is_mapped_arg_binding
 
-        startup_details.ti.map_index = 0
-        startup_details.ti_context.arg_bindings = [
-            *startup_details.ti_context.arg_bindings,
-            TaskArgBinding.model_validate(binding),
-        ]
-        context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[
-            "ti_context"
-        ]
-        assert "arg_bindings" not in context
+        assert is_mapped_arg_binding(binding)
+        assert not is_mapped_arg_binding({"name": "row", "kind": "xcom", "task_id": "extract"})
 
-    def test_downgrade_keeps_sequence_binding_of_unmapped_task_for_previous_version(
-        self, real_migrator, startup_details
-    ):
-        from airflow.sdk.api.datamodels._generated import TaskArgBinding
+    @pytest.mark.parametrize(("version", "expected"), [("2026-10-30", False), ("2027-02-28", True)])
+    def test_has_mapped_arg_bindings_change(self, real_migrator, version, expected):
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
+            AddMappedStubArgBindingsToSupervisorTIRunContext,
+        )
 
-        sequence = {"name": "totals", "kind": "sequence", "task_id": "transform"}
-        startup_details.ti_context.arg_bindings = [TaskArgBinding.model_validate(sequence)]
-        context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[
-            "ti_context"
-        ]
-        assert [(binding["kind"], binding["task_id"]) for binding in context["arg_bindings"]] == [
-            ("sequence", "transform")
-        ]
+        assert real_migrator.has_change(version, AddMappedStubArgBindingsToSupervisorTIRunContext) is expected
 
     def test_downgrade_keeps_plain_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[

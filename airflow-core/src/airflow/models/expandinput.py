@@ -165,13 +165,7 @@ class SchedulerDictOfListsExpandInput:
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
     def resolve_expansion_sub_indexes(
-        self,
-        map_index: int,
-        keys: Sequence[str],
-        run_id: str,
-        *,
-        session: Session,
-        producer_contexts: Mapping[str, ProducerContext] | None = None,
+        self, map_index: int, keys: Sequence[str], lengths: Mapping[str, int]
     ) -> dict[str, int]:
         """
         Decompose a task instance's map index into one index per expanded kwarg.
@@ -181,14 +175,13 @@ class SchedulerDictOfListsExpandInput:
 
         :param keys: The expanded kwargs in Dag-file order. The stored Dag may have re-ordered
             ``value``, e.g. on a Postgres JSONB column or when serialized Dags are compressed.
-        :raises NotFullyPopulated: if upstream map lengths are not all known yet.
-        :raises ValueError: if *keys* are not the expanded kwargs, or an expanded kwarg's recorded
-            length is zero, e.g. an upstream was cleared and re-ran to an empty list after this task
-            instance was expanded.
+        :param lengths: The map length of each expanded kwarg.
+        :raises ValueError: if *keys* are not the expanded kwargs, or an expanded kwarg's length is
+            zero, e.g. an upstream was cleared and re-ran to an empty list after this task instance
+            was expanded.
         """
         if sorted(keys) != sorted(self.value):
             raise ValueError(f"expected the expanded kwargs {sorted(self.value)}, got {list(keys)}")
-        lengths = self._get_map_lengths(run_id, session=session, producer_contexts=producer_contexts)
         sub_indexes = {}
         for key in reversed(keys):
             if (length := lengths[key]) < 1:
