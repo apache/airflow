@@ -47,7 +47,7 @@ QdrantSearchOperator
 
 Use the :class:`~airflow.providers.qdrant.operators.qdrant.QdrantSearchOperator` to
 run a vector similarity search against a Qdrant collection and pull the top-k
-matches back into the DAG for downstream tasks (for example, a retrieval step
+matches back into the Dag for downstream tasks (for example, a retrieval step
 in a RAG pipeline).
 
 Using the Operator
