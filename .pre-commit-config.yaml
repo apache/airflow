@@ -399,6 +399,13 @@ repos:
         language: python
         pass_filenames: false
         files: ^shared/.*$
+      - id: check-ci-gate-needs
+        name: Check the CI passed gate job needs every CI job
+        description: Auto-merge waits for "CI passed"; a job missing from its needs could fail without stopping a merge
+        entry: ./scripts/ci/prek/check_ci_gate_needs.py
+        language: python
+        pass_filenames: false
+        files: ^\.github/workflows/ci-amd-arm\.yml$|^scripts/ci/prek/check_ci_gate_needs\.py$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/prek/check_shared_distributions_usage.py
