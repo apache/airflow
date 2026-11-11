@@ -36,6 +36,8 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
@@ -739,40 +741,23 @@ class CommsTest {
         }
     }
 
-  @Test
-  @DisplayName("deleteXCom sends the key and the current task instance")
+  @ParameterizedTest(name = "key {1} with task map index {0} sends map_index {2}")
+  @CsvSource(value = ["2, return_value, 2", "0, custom_key, 0", "null, custom_key, -1"], nullValues = ["null"])
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
-  fun deleteXComSendsKeyAndCurrentTaskInstance() {
-    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = 2)) { it.deleteXCom("return_value") }
+  fun deleteXComSendsKeyAndCurrentTaskInstance(
+    mapIndex: Int?,
+    key: String,
+    expectedMapIndex: Long,
+  ) {
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex)) { it.deleteXCom(key) }
 
     Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
     Assertions.assertEquals("DeleteXCom", body["type"])
-    Assertions.assertEquals("return_value", body["key"])
+    Assertions.assertEquals(key, body["key"])
     Assertions.assertEquals("d", body["dag_id"])
     Assertions.assertEquals("t", body["task_id"])
     Assertions.assertEquals("r", body["run_id"])
-    Assertions.assertEquals(2L, body["map_index"])
-  }
-
-  @Test
-  @DisplayName("deleteXCom sends an explicit key")
-  @Timeout(value = 30, unit = TimeUnit.SECONDS)
-  fun deleteXComSendsExplicitKey() {
-    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = 0)) { it.deleteXCom("custom_key") }
-
-    Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
-    Assertions.assertEquals("custom_key", body["key"])
-    Assertions.assertEquals(0L, body["map_index"])
-  }
-
-  @Test
-  @DisplayName("deleteXCom resolves an unmapped task instance's map index to -1")
-  @Timeout(value = 30, unit = TimeUnit.SECONDS)
-  fun deleteXComResolvesUnmappedMapIndexToNegativeOne() {
-    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom("return_value") }
-
-    Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
-    Assertions.assertEquals(-1L, body["map_index"])
+    Assertions.assertEquals(expectedMapIndex, body["map_index"])
   }
 
   @Test
