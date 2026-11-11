@@ -85,6 +85,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai import Agent
     from pydantic_ai.agent import AgentRunResult
+    from pydantic_ai.output import OutputSpec
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.usage import UsageLimits
 
@@ -148,7 +149,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     :param output_type: Expected output type. Default ``str``. A single type
         (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
         union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
-        as alternatives (a union). For a ``BaseModel`` subclass, the model instance is
+        as alternatives (a union). pydantic-ai output markers (``ToolOutput(...)``,
+        ``NativeOutput(...)``) and output functions are also accepted.
+        For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
         directly, except inside a list of types, where it is returned as a ``dict``
         because the worker registers only the classes it finds in a single type or a union.
@@ -274,7 +277,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type | UnionType | Sequence[type] = str,
+        output_type: OutputSpec[Any] | UnionType = str,
         model_settings: ModelSettings | None = None,
         output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,

@@ -105,6 +105,7 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.capabilities import AgentCapability
     from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.output import OutputSpec
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
@@ -279,7 +280,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param output_type: Expected output type. Default ``str``. A single type
         (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
         union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
-        as alternatives (a union). For a ``BaseModel`` subclass, the model instance is
+        as alternatives (a union). pydantic-ai output markers (``ToolOutput(...)``,
+        ``NativeOutput(...)``) and output functions are also accepted.
+        For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
         directly, except inside a list of types, where it is returned as a ``dict``
         because the worker registers only the classes it finds in a single type or a union.
@@ -516,7 +519,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type | UnionType | Sequence[type] = str,
+        output_type: OutputSpec[Any] | UnionType = str,
         toolsets: list[AbstractToolset] | None = None,
         capabilities: list[AgentCapability[Any]] | None = None,
         enable_tool_logging: bool = True,
