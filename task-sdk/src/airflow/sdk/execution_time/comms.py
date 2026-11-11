@@ -118,6 +118,8 @@ _trace_propagator = TraceContextTextMapPropagator()
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.api.client import ServerResponseError
+
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
@@ -806,6 +808,18 @@ class ErrorResponse(BaseModel):
     error: ErrorType = ErrorType.GENERIC_ERROR
     detail: dict | None = None
     type: Literal["ErrorResponse"] = "ErrorResponse"
+
+    @classmethod
+    def from_server_error(cls, error: ServerResponseError) -> ErrorResponse:
+        """Build the response that tells a task the API server rejected its request."""
+        return cls(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": error.response.status_code,
+                "message": str(error),
+                "detail": error.response.json(),
+            },
+        )
 
 
 class OKResponse(BaseModel):

@@ -94,6 +94,7 @@ from airflow.sdk.execution_time.request_handlers import (
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
     MIN_HEARTBEAT_INTERVAL,
+    SERVER_TERMINATED,
     ActivitySubprocess,
     NeverRaised,
     ProcessTracker,
@@ -129,6 +130,14 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subpr
 _XCOM_BACKEND_CALL_TIMEOUT = 60.0
 # The default ``xcom_key`` of ``BaseOperatorLink`` starts with this prefix.
 _EXTRA_LINK_XCOM_KEY_PREFIX = "_link_"
+
+
+class _TaskStoppedError(Exception):
+    """The task was stopped while the supervisor waited for an XCom backend call, which may have failed."""
+
+    def __init__(self, error: str | None) -> None:
+        super().__init__(error)
+        self.error = error
 
 
 # The tail of each stream is kept: a runtime that fails to start reports why at the end.
@@ -623,23 +632,43 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 )
                 if purge is not None:
                     self._run_xcom_backend_call(purge)
+            except _TaskStoppedError as e:
+                if self._terminal_state == SERVER_TERMINATED:
+                    # wait() reports that the server stopped this try.
+                    self.process_log.warning(
+                        "Stopped clearing XComs; the server stopped the task", key=key, error=e.error
+                    )
+                    self.kill(signal.SIGKILL)
+                    return None
+                self.process_log.error(
+                    "Stopped clearing XComs; the task process has exited",
+                    key=key,
+                    exit_code=self._exit_code,
+                    error=e.error,
+                )
+                self._fail_before_start(
+                    ti_context, f"The task process exited with code {self._exit_code} before the task started"
+                )
+                return None
             except Exception as e:
                 self.process_log.exception("Failed to clear XCom; not running the task", key=key)
-                end_date = datetime.now(tz=UTC)
-                reason = f"Failed to clear XCom {key!r}: {e}"
-                # wait() sends this outcome to the server after the runtime process exits, the same
-                # way it sends an outcome that the runtime itself reported.
-                self._pending_terminal_state_msg = (
-                    RetryTask(end_date=end_date, retry_reason=reason)
-                    if ti_context.should_retry
-                    else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
-                )
-                self.kill(signal.SIGKILL)
+                self._fail_before_start(ti_context, f"Failed to clear XCom {key!r}: {e}")
                 return None
         # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.
         return ti_context.model_copy(update={"xcom_keys_to_clear": []})
+
+    def _fail_before_start(self, ti_context: TIRunContext, reason: str) -> None:
+        end_date = datetime.now(tz=UTC)
+        # wait() sends this outcome to the server after the runtime process exits, the same
+        # way it sends an outcome that the runtime itself reported.
+        self._pending_terminal_state_msg = (
+            RetryTask(end_date=end_date, retry_reason=reason)
+            if ti_context.should_retry
+            else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
+        )
+        self.kill(signal.SIGKILL)
 
     def wait(self) -> int:
         code = super().wait()
@@ -723,21 +752,29 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         """
         Run ``call`` and wait for it, for a caller with no request loop to return to.
 
+        :raises _TaskStoppedError: when the task is stopped before the call returns or as it returns.
         :raises XComBackendError: when the call fails or is not answered in time.
         """
         answer: list[XComBackendResult] = []
         self._start_xcom_backend_call(call, answer.append)
         deadline = time.monotonic() + _XCOM_BACKEND_CALL_TIMEOUT
         # The task has not started, so it has no requests to read.
-        while not answer and (now := time.monotonic()) < deadline:
+        while not answer and not self._is_stopped() and (now := time.monotonic()) < deadline:
             self._service_subprocess(max_wait_time=min(deadline - now, MIN_HEARTBEAT_INTERVAL))
             self._send_heartbeat_if_needed()
+        error = answer[0].error if answer else "The XCom backend did not answer in time"
         if not answer:
             # The process is still running the call.
             self._stop_xcom_backend()
-            raise XComBackendError("The XCom backend did not answer in time")
-        if (error := answer[0].error) is not None:
+        if self._is_stopped():
+            # The task must not start, even after a call that succeeded.
+            raise _TaskStoppedError(error)
+        if error is not None:
             raise XComBackendError(error)
+
+    def _is_stopped(self) -> bool:
+        # kill() can fail to stop the process, so a server stop counts on its own.
+        return self._exit_code is not None or self._terminal_state == SERVER_TERMINATED
 
     def _handle_set_xcom(
         self, msg: SetXCom, log: FilteringBoundLogger, req_id: int
@@ -851,14 +888,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 def _build_request_error(exc: Exception) -> ErrorResponse:
     """Report ``exc`` to the runtime as an XCom backend failure, unless the API server rejected the request."""
     if isinstance(exc, ServerResponseError):
-        return ErrorResponse(
-            error=ErrorType.API_SERVER_ERROR,
-            detail={
-                "status_code": exc.response.status_code,
-                "message": str(exc),
-                "detail": exc.response.json(),
-            },
-        )
+        return ErrorResponse.from_server_error(exc)
     return ErrorResponse(
         error=ErrorType.XCOM_BACKEND_ERROR,
         detail={"status_code": None, "message": str(exc), "exception_type": type(exc).__name__},

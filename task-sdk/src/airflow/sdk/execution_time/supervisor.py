@@ -1193,27 +1193,11 @@ class WatchedSubprocess:
                 with self._request_scope(request):
                     self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
                 # Generic exception handling so a transient network error (httpx2.ConnectError /
                 # httpx2.TimeoutException) or any other exception

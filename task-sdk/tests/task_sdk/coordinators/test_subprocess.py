@@ -77,7 +77,12 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
-from airflow.sdk.execution_time.supervisor import MIN_HEARTBEAT_INTERVAL, ActivitySubprocess, ProcessTracker
+from airflow.sdk.execution_time.supervisor import (
+    MIN_HEARTBEAT_INTERVAL,
+    SERVER_TERMINATED,
+    ActivitySubprocess,
+    ProcessTracker,
+)
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
 from airflow.sdk.serde import serialize
 
@@ -1495,6 +1500,20 @@ def _sent_error(proc: _PopenActivitySubprocess) -> Any:
 _XCOM_PATH = "/xcoms/tutorial_dag/run_1/task_1/summary"
 
 
+_STORED_SUMMARY = {("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})}
+_SERVER_STOP = {"_terminal_state": SERVER_TERMINATED, "_exit_code": -signal.SIGTERM}
+
+
+def _stop_the_task(stop: dict[str, Any]) -> Callable[[_PopenActivitySubprocess], None]:
+    """Return a heartbeat that sets ``stop`` on the supervisor, as a real one does when it stops the task."""
+
+    def heartbeat(supervisor: _PopenActivitySubprocess) -> None:
+        for name, value in stop.items():
+            setattr(supervisor, name, value)
+
+    return heartbeat
+
+
 class TestPopenActivitySubprocessXComBackend:
     @pytest.fixture(autouse=True)
     def _clear_ref_xcom(self):
@@ -1771,7 +1790,7 @@ class TestPopenActivitySubprocessXComBackend:
         ],
     )
     def test_delete_xcom_purges_it_from_the_backend(self, make_proc, xcom, requests, purged):
-        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        api = _FakeApi(_STORED_SUMMARY)
         proc = make_proc(xcom, api)
 
         proc._handle_request(
@@ -1782,7 +1801,7 @@ class TestPopenActivitySubprocessXComBackend:
         assert _RefXCom.purged == purged
 
     def test_clearing_purges_the_xcoms_from_the_backend(self, make_proc, make_ti_context):
-        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        api = _FakeApi(_STORED_SUMMARY)
         proc = make_proc(_RefXCom, api)
         ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["summary"]})
 
@@ -1831,9 +1850,93 @@ class TestPopenActivitySubprocessXComBackend:
             "loc": ANY,
         } in captured_logs
 
+    @pytest.mark.parametrize(
+        ("stop", "xcom", "answers", "error"),
+        [
+            pytest.param(_SERVER_STOP, _RefXCom, False, "did not answer", id="unanswered"),
+            pytest.param(_SERVER_STOP, _RefXCom, True, None, id="answered"),
+            pytest.param(_SERVER_STOP, _FailingPurgeXCom, True, "purge refused", id="purge-failed"),
+            # kill() can give up on a process that does not exit.
+            pytest.param(
+                {"_terminal_state": SERVER_TERMINATED}, _RefXCom, False, "did not answer", id="kill-failed"
+            ),
+        ],
+    )
+    # Without the stop, the test waits out this timeout and then fails the try.
+    @patch("airflow.sdk.coordinators._subprocess._XCOM_BACKEND_CALL_TIMEOUT", 1.0)
+    @patch.object(_PopenActivitySubprocess, "kill", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "_service_subprocess", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "_send_heartbeat_if_needed", autospec=True)
+    def test_clearing_leaves_the_outcome_to_the_server_once_it_stops_the_task(
+        self,
+        mock_heartbeat,
+        mock_service,
+        mock_kill,
+        make_proc,
+        make_ti_context,
+        captured_logs,
+        stop,
+        xcom,
+        answers,
+        error,
+    ):
+        proc = make_proc(xcom, _FakeApi(_STORED_SUMMARY))
+        backend = proc._xcom_backend = _DeferredXComBackend(xcom)  # type: ignore[assignment]
+        if answers:
+            mock_service.side_effect = lambda _, max_wait_time: backend.answer_next()
+        mock_heartbeat.side_effect = _stop_the_task(stop)
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["summary"]})
+
+        prepared = proc._prepare_ti_context(proc.ti, ti_context)
+
+        assert prepared is None
+        assert proc._pending_terminal_state_msg is None
+        mock_kill.assert_called_once_with(proc, signal.SIGKILL)
+        [stopped] = [
+            e for e in captured_logs if e["event"] == "Stopped clearing XComs; the server stopped the task"
+        ]
+        assert stopped["key"] == "summary"
+        assert stopped["error"] is None if error is None else error in stopped["error"]
+
+    @pytest.mark.parametrize(
+        ("xcom", "answers"),
+        [
+            pytest.param(_RefXCom, False, id="unanswered"),
+            pytest.param(_RefXCom, True, id="answered"),
+            # The exit, not the purge that failed as it happened, is why the task did not run.
+            pytest.param(_FailingPurgeXCom, True, id="purge-failed"),
+        ],
+    )
+    @patch("airflow.sdk.coordinators._subprocess._XCOM_BACKEND_CALL_TIMEOUT", 1.0)
+    @patch.object(_PopenActivitySubprocess, "_service_subprocess", autospec=True)
+    @patch.object(
+        _PopenActivitySubprocess,
+        "_send_heartbeat_if_needed",
+        autospec=True,
+        side_effect=_stop_the_task({"_exit_code": 1}),
+    )
+    def test_clearing_fails_the_try_once_the_task_process_exits(
+        self, mock_heartbeat, mock_service, make_proc, make_ti_context, xcom, answers
+    ):
+        # The runtime crashed, or was killed after too many failed heartbeats, so it never ran.
+        proc = make_proc(xcom, _FakeApi(_STORED_SUMMARY))
+        backend = proc._xcom_backend = _DeferredXComBackend(xcom)  # type: ignore[assignment]
+        if answers:
+            mock_service.side_effect = lambda _, max_wait_time: backend.answer_next()
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["summary"]})
+
+        prepared = proc._prepare_ti_context(proc.ti, ti_context)
+
+        assert prepared is None
+        assert isinstance(proc._pending_terminal_state_msg, TaskState)
+        assert proc._pending_terminal_state_msg.state == TaskInstanceState.FAILED
+        assert proc._pending_terminal_state_msg.retry_reason == (
+            "The task process exited with code 1 before the task started"
+        )
+
     def test_delete_request_fails_when_the_xcom_cannot_be_purged(self, make_proc):
         # Same reason: a Python task that calls XCom.delete fails when purge raises.
-        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        api = _FakeApi(_STORED_SUMMARY)
         proc = make_proc(_FailingPurgeXCom, api)
 
         proc._handle_request(
@@ -1873,7 +1976,7 @@ class TestPopenActivitySubprocessXComBackend:
         self, make_proc, captured_logs, xcom, msg, api_request, stdin_open, send_error
     ):
         """The runtime can exit while its call runs, such as when its task is killed."""
-        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        api = _FakeApi(_STORED_SUMMARY)
         proc = make_proc(xcom, api)
         if not stdin_open:
             del proc._open_sockets[proc.stdin]
