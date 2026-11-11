@@ -61,8 +61,8 @@ class BaseDeadlineReference(ABC):
     attribute of an ``AirflowPlugin``; see :external:doc:`howto/deadline-alerts`.
     """
 
-    # Set by ``register_custom_reference`` and persisted by the serializer, because the in-memory
-    # ``DeadlineReference.TYPES`` registry only exists in the process that ran the Dag file.
+    # Set by ``_add_custom_reference_to_namespace`` and persisted by the serializer, because the
+    # in-memory ``DeadlineReference.TYPES`` registry only exists in the process that ran the Dag file.
     evaluation_timing: str = DAGRUN_CREATED_TIMING
 
     @property
@@ -446,7 +446,7 @@ class DeadlineReference:
         """
         Add a custom deadline reference to the DeadlineReference namespace.
 
-        .. deprecated:: 3.4.0
+        .. deprecated:: 3.5.0
             Use the ``@deadline_reference`` decorator instead.  Despite its name this method never
             registered anything with the scheduler; see
             :meth:`_add_custom_reference_to_namespace`.
