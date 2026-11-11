@@ -35,7 +35,7 @@ except Exception:
     SQLToolset = None  # type: ignore[assignment,misc]
 
 # ---------------------------------------------------------------------------
-# 1. Durable AgentOperator: a retry replays the steps the failed attempt completed
+# 1. AgentOperator: a retry replays the steps the failed attempt completed
 # ---------------------------------------------------------------------------
 
 
@@ -44,7 +44,7 @@ if SQLToolset is not None:
 
     @dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)}, tags=["example"])
     def example_agent_durable_operator():
-        """Agent with durable execution: a retry replays the steps the failed attempt completed."""
+        """The task can retry, so durable execution is on: a retry replays the steps the failed attempt completed."""
         AgentOperator(
             task_id="durable_analyst",
             prompt="What are the top 5 customers by order count?",
@@ -53,7 +53,6 @@ if SQLToolset is not None:
                 "You are a SQL analyst. Use the available tools to explore "
                 "the schema and answer the question with data."
             ),
-            durable=True,
             toolsets=[
                 SQLToolset(
                     db_conn_id="postgres_default",
@@ -69,7 +68,7 @@ if SQLToolset is not None:
 
 
 # ---------------------------------------------------------------------------
-# 2. Durable @task.agent decorator
+# 2. @task.agent decorator
 # ---------------------------------------------------------------------------
 
 
@@ -81,7 +80,6 @@ if SQLToolset is not None:
         @task.agent(
             llm_conn_id="pydanticai_default",
             system_prompt="You are a data analyst. Use tools to answer questions.",
-            durable=True,
             toolsets=[
                 SQLToolset(
                     db_conn_id="postgres_default",
@@ -145,7 +143,6 @@ if SQLToolset is not None:
             task_id="durable_freshness_check",
             prompt="Which tables in load_log have not been loaded today?",
             llm_conn_id="pydanticai_default",
-            durable=True,
             toolsets=[
                 FunctionToolset(tools=[Tool(today, metadata={"airflow": False})], id="calendar"),
                 SQLToolset(db_conn_id="postgres_default", allowed_tables=["load_log"]),
@@ -185,7 +182,6 @@ def example_agent_durable_toolsets_without_id():
         task_id="durable_order_status",
         prompt="Where is order 4411?",
         llm_conn_id="pydanticai_default",
-        durable=True,
         toolsets=[FunctionToolset(tools=[get_order]), carrier_tools],
     )
 
@@ -193,3 +189,30 @@ def example_agent_durable_toolsets_without_id():
 # [END howto_agent_durable_toolsets_without_id]
 
 example_agent_durable_toolsets_without_id()
+
+
+# ---------------------------------------------------------------------------
+# 6. Turn durable execution off for one task
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_durable_opt_out]
+def reserve_slot(day: str) -> str:
+    """Hold a delivery slot in an in-memory booking session that ends with the attempt."""
+    return f"slot held for {day}"
+
+
+@dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)}, tags=["example"])
+def example_agent_durable_opt_out():
+    AgentOperator(
+        task_id="book_delivery",
+        prompt="Book a delivery slot for Friday.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[FunctionToolset(tools=[reserve_slot])],
+        durable=False,
+    )
+
+
+# [END howto_agent_durable_opt_out]
+
+example_agent_durable_opt_out()

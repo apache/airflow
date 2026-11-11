@@ -42,6 +42,7 @@ from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
+from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.journal import DurableRun
 from airflow.providers.common.ai.exceptions import (
     ToolApprovalAlreadyRequestedError,
@@ -369,6 +370,21 @@ class TestResume:
         assert "refunded order 1" in output
         assert "order 1 costs $10" in output
         assert _TOOL_APPROVAL_TRANSCRIPT_KEY not in store.data
+
+    def test_a_pause_from_before_the_durable_default_resumes_without_a_journal(self):
+        """A task that paused before an upgrade turned durable execution on by default still finishes."""
+        shop, store = _Shop(), _FakeTaskStateStore()
+        paused = _pause(
+            _operator(_lookup_and_refund, [shop.toolset()], retries=2, durable=False), _context(store)
+        )
+
+        resumed = _operator(_lookup_and_refund, [shop.toolset()], retries=2)
+        output = resumed.resume_after_tool_approval(_context(store), **paused.kwargs, event=APPROVE)
+
+        assert shop.calls == [("lookup", 1), ("refund", 1)]
+        assert "refunded order 1" in output
+        capabilities = resumed.llm_hook.create_agent.call_args.kwargs["capabilities"]
+        assert not [c for c in capabilities if isinstance(c, AirflowDurability)]
 
     def test_the_resumed_run_can_be_cancelled_by_on_kill(self):
         shop, store = _Shop(), _FakeTaskStateStore()

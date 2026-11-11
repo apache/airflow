@@ -27,7 +27,7 @@ import asyncio
 import base64
 import dataclasses
 import functools
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
@@ -70,7 +70,7 @@ from unit.common.ai.sqlite_connection import create_orders_table, run_sql, sqlit
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
-    from pydantic_ai.toolsets.abstract import ToolsetTool
+    from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
 PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
@@ -1742,6 +1742,151 @@ class TestCapabilityOperations:
         await agent.run("go")
 
         assert calls["accrue"] == 1
+
+
+class _NestingToolset(_WarehouseToolset):
+    """A warehouse toolset whose ``query`` tool runs ``work`` inside its own step."""
+
+    def __init__(
+        self, calls: Calls, work: Callable[[RunContext[Any]], Awaitable[None]], *, replayable: bool = True
+    ) -> None:
+        super().__init__(calls, replayable=replayable)
+        self._work = work
+
+    async def execute_tool(self, name, tool_args, *, ctx, tool) -> Any:
+        self._calls.bump("query")
+        await self._work(ctx)
+        return "3 rows"
+
+
+class TestNestedOperationsInToolSteps:
+    """
+    A durable operation or an agent run started inside a tool's step belongs to that step.
+
+    On retry the step replays and the work inside it does not run, so it must not have taken
+    positions of its own in the outer run: the steps after the tool would move and run again.
+    """
+
+    @pytest.mark.parametrize("toolset_kind", ["airflow", "function"])
+    @pytest.mark.parametrize("nested", ["durable_operation", "agent"])
+    @pytest.mark.asyncio
+    async def test_steps_after_the_tool_replay(self, memory_storage, toolset_kind, nested):
+        calls = await self._fail_then_retry(memory_storage, toolset_kind, nested)
+
+        assert calls["query"] == 1
+        assert calls["notify"] == 1
+        # One accrual per model response, the last of them live on the retry, plus the tool's
+        # own; the replayed ones do not run again.
+        assert calls["accrue"] == (4 if nested == "durable_operation" else 3)
+        assert calls["sub_model"] == (1 if nested == "agent" else 0)
+
+    @pytest.mark.asyncio
+    async def test_an_operation_inside_a_tool_that_runs_on_every_attempt_runs_with_it(self, memory_storage):
+        """The tool runs again on retry, and so does the operation it calls; the steps after it replay."""
+        calls = await self._fail_then_retry(memory_storage, "airflow", "durable_operation", replayable=False)
+
+        assert calls["query"] == 2
+        assert calls["notify"] == 1
+        # Three accruals on the first attempt; on the retry the tool's own and the last model response's.
+        assert calls["accrue"] == 5
+
+    @pytest.mark.asyncio
+    async def test_an_agent_a_tool_runs_records_its_own_operations(self, memory_storage):
+        """The inner agent's operations are steps of the inner run, so a tool that runs again replays them."""
+        calls = Calls()
+        fail_after_sub = [True]
+
+        def sub_model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("sub_model")
+            return ModelResponse(parts=[TextPart("sub done")])
+
+        async def work(ctx: RunContext[Any]) -> None:
+            sub = Agent(
+                FunctionModel(sub_model), name="sub", capabilities=[AirflowDurability(), _Ledger(calls)]
+            )
+            await sub.run("go")
+            if fail_after_sub[0]:
+                fail_after_sub[0] = False
+                raise RuntimeError("worker died after the inner agent finished")
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(Calls(), "query", fail_final=[False])),
+                name="outer",
+                toolsets=[_NestingToolset(calls, work)],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        await attempt(memory_storage, build())
+
+        # The tool ran twice; the inner agent's model request and its accrual replayed the second time.
+        assert (calls["query"], calls["sub_model"], calls["accrue"]) == (2, 1, 1)
+
+    @staticmethod
+    async def _fail_then_retry(
+        memory_storage, toolset_kind: str, nested: str, *, replayable: bool = True
+    ) -> Calls:
+        calls = Calls()
+        fail_final = [True]
+        ledger = _Ledger(calls)
+
+        def sub_model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("sub_model")
+            return ModelResponse(parts=[TextPart("sub done")])
+
+        async def work(ctx: RunContext[Any]) -> None:
+            if nested == "durable_operation":
+                await ledger.accrue(ctx, 5)
+            else:
+                sub = Agent(FunctionModel(sub_model), name="sub", capabilities=[AirflowDurability()])
+                await sub.run("go")
+
+        def outer_model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            match responses_so_far(messages):
+                case 0:
+                    return ModelResponse(parts=[ToolCallPart("query", {"sql": "select 1"})])
+                case 1:
+                    return ModelResponse(parts=[ToolCallPart("notify", {})])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            return ModelResponse(parts=[TextPart("done")])
+
+        def build() -> Agent[None, str]:
+            alerts = FunctionToolset(id="alerts")
+
+            @alerts.tool_plain
+            def notify() -> str:
+                calls.bump("notify")
+                return "sent"
+
+            warehouse: AbstractToolset[Any]
+            if toolset_kind == "airflow":
+                warehouse = _NestingToolset(calls, work, replayable=replayable)
+            else:
+                function_toolset = FunctionToolset(id="warehouse")
+
+                @function_toolset.tool
+                async def query(ctx: RunContext[Any], sql: str) -> str:
+                    calls.bump("query")
+                    await work(ctx)
+                    return "3 rows"
+
+                warehouse = function_toolset
+
+            return Agent(
+                FunctionModel(outer_model),
+                name="analyst",
+                toolsets=[warehouse, alerts],
+                capabilities=[AirflowDurability(), ledger],
+            )
+
+        with pytest.raises(RuntimeError):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        assert (await attempt(memory_storage, build())).output == "done"
+        return calls
 
 
 class TestRuns:
