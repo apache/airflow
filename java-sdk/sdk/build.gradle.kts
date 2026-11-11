@@ -34,7 +34,7 @@ plugins {
     // jsonschema2pojo 1.3.3 targets Java 17:
     // https://github.com/joelittlejohn/jsonschema2pojo/blob/jsonschema2pojo-1.3.3/jsonschema2pojo-gradle-plugin/build.gradle#L45-L48
     id("org.jsonschema2pojo") version "1.2.2"
-    kotlin("plugin.serialization") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.21"
 }
 
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
@@ -46,7 +46,7 @@ val dagSchemaInput = layout.projectDirectory.file("schema/dag-schema.json")
 val dagDslDir = layout.buildDirectory.dir("generated-resources/dsl/src/main/kotlin")
 
 dependencies {
-    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.5")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.22")
@@ -57,12 +57,12 @@ dependencies {
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
     implementation("org.msgpack:msgpack-core:0.9.12")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.12")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")
 }
 
 // jsonSchema2Pojo does not accept the single JSON Schema file directly.
