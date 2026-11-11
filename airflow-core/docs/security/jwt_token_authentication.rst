@@ -426,21 +426,27 @@ expiry. The token must be valid at the start of the request for refresh to occur
 
 1. After each response, the middleware checks the token's remaining validity.
 2. If less than **20%** of the total validity remains (minimum 30 seconds), the server
-   checks that the work the token was issued for is unfinished (see below) and generates
+   checks that the work the token was issued for is still in progress (see below) and generates
    a new token preserving all original claims (including ``scope`` and ``sub``).
 3. The refreshed token is returned in the ``Refreshed-API-Token`` response header.
 4. The client's ``_update_auth()`` hook detects this header and transparently updates
    the ``BearerAuth`` instance for subsequent requests.
 
-A token is refreshed only while the work named by its ``sub`` claim is unfinished:
+A token is refreshed only while the work named by its ``sub`` claim is still in progress:
 
-* a task attempt that is the latest try of its task instance and is not in a terminal state
-  (``success``, ``failed``, ``skipped``, ``upstream_failed``, ``removed``);
+* a task attempt that is the latest try of its task instance and is in the ``running`` state;
 * a callback that is not in a terminal state (``success``, ``failed``);
 * the asset watcher identity, which has no lifecycle.
 
 For any other subject, such as a finished, archived or deleted task attempt, the request
 is still served but no refreshed token is returned, so the token stops working when it expires.
+
+A task attempt that is not running has no worker to hold a token. This includes an attempt that
+is parked (``deferred``, ``up_for_reschedule``, ``awaiting_input``) and one that is waiting to
+start again (``scheduled``, ``queued``). A trigger runs in the Triggerer, which does not use the
+worker's token, and the worker that resumes the attempt receives a new token when it starts.
+The new token names the same task attempt, so a token from before the wait that has not yet
+expired when the attempt runs again is refreshed again from then on.
 
 The middleware only refreshes ``execution``-scoped tokens. ``workload``-scoped tokens are
 sized to span the queued-timeout window and are explicitly skipped by the middleware —
@@ -452,8 +458,9 @@ Task-token revocation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Task Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
-(default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware`` while their work is
-unfinished, so a token outlives its task attempt or callback by at most one validity period.
+(default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware`` while their task
+attempt is running or their callback is unfinished, so a token outlives that work by at most one
+validity period.
 ``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
 they expire naturally after their validity period. Processor and parsing credentials additionally
 require an open, owning Job, as described under "Dag processor HTTP client credentials" below.
