@@ -20,12 +20,34 @@ import json
 from unittest.mock import Mock, patch
 
 import pytest
+from qdrant_client import QdrantClient, models
 
 from airflow.providers.common.compat.sdk import Context
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook
 from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator, QdrantSearchOperator
 
 qdrant_client = pytest.importorskip("qdrant_client")
+
+DEFAULT_ARGUMENTS = {
+    "query_filter": None,
+    "search_params": None,
+    "limit": 10,
+    "offset": None,
+    "with_payload": True,
+    "with_vectors": False,
+    "score_threshold": None,
+}
+ALL_OPTIONAL_ARGUMENTS = {
+    "query_filter": models.Filter(
+        must=[models.FieldCondition(key="year", match=models.MatchValue(value=2025))]
+    ),
+    "search_params": models.SearchParams(hnsw_ef=128),
+    "limit": 7,
+    "offset": 2,
+    "with_payload": ["title"],
+    "with_vectors": True,
+    "score_threshold": 0.5,
+}
 
 
 class TestQdrantIngestOperator:
@@ -97,8 +119,20 @@ class TestQdrantSearchOperator:
 
         assert result == [{"id": "a", "score": 0.9, "payload": {"text": "hi"}}]
 
-    def test_execute_delegates_default_arguments_to_hook(self):
-        """``execute`` forwards each constructor field to ``hook.search`` at its default.
+    @pytest.mark.parametrize(
+        ("optional_kwargs", "expected"),
+        [
+            pytest.param({}, DEFAULT_ARGUMENTS, id="defaults"),
+            pytest.param(ALL_OPTIONAL_ARGUMENTS, ALL_OPTIONAL_ARGUMENTS, id="all optional arguments"),
+            pytest.param(
+                {"query_points_kwargs": {"using": "text-embedding"}},
+                {**DEFAULT_ARGUMENTS, "using": "text-embedding"},
+                id="query_points_kwargs",
+            ),
+        ],
+    )
+    def test_execute_forwards_constructor_arguments_to_hook(self, optional_kwargs, expected):
+        """Every constructor argument reaches ``hook.search`` on the right keyword.
 
         Catches drift between the operator constructor and the hook signature.
         """
@@ -106,6 +140,7 @@ class TestQdrantSearchOperator:
             task_id="search",
             collection_name=self.COLLECTION,
             query=self.QUERY,
+            **optional_kwargs,
         )
         mock_hook = Mock(spec=QdrantHook)
         mock_hook.search.return_value = []
@@ -114,66 +149,8 @@ class TestQdrantSearchOperator:
         op.execute(context=Context())
 
         mock_hook.search.assert_called_once_with(
-            collection_name=self.COLLECTION,
-            query=self.QUERY,
-            query_filter=None,
-            search_params=None,
-            limit=10,
-            offset=None,
-            with_payload=True,
-            with_vectors=False,
-            score_threshold=None,
+            collection_name=self.COLLECTION, query=self.QUERY, **expected
         )
-
-    def test_execute_forwards_all_optional_arguments(self):
-        """Every optional constructor arg reaches ``hook.search`` on the right keyword."""
-        query_filter = Mock(name="filter")
-        search_params = Mock(name="params")
-        op = QdrantSearchOperator(
-            task_id="search",
-            collection_name=self.COLLECTION,
-            query=self.QUERY,
-            query_filter=query_filter,
-            search_params=search_params,
-            limit=7,
-            offset=2,
-            with_payload=["title"],
-            with_vectors=True,
-            score_threshold=0.5,
-        )
-        mock_hook = Mock(spec=QdrantHook)
-        mock_hook.search.return_value = []
-        op.hook = mock_hook
-
-        op.execute(context=Context())
-
-        mock_hook.search.assert_called_once_with(
-            collection_name=self.COLLECTION,
-            query=self.QUERY,
-            query_filter=query_filter,
-            search_params=search_params,
-            limit=7,
-            offset=2,
-            with_payload=["title"],
-            with_vectors=True,
-            score_threshold=0.5,
-        )
-
-    def test_execute_forwards_query_points_kwargs(self):
-        """Arguments the operator does not name, such as ``using`` for named vectors, reach the hook."""
-        op = QdrantSearchOperator(
-            task_id="search",
-            collection_name=self.COLLECTION,
-            query=self.QUERY,
-            query_points_kwargs={"using": "text-embedding"},
-        )
-        mock_hook = Mock(spec=QdrantHook)
-        mock_hook.search.return_value = []
-        op.hook = mock_hook
-
-        op.execute(context=Context())
-
-        assert mock_hook.search.call_args.kwargs["using"] == "text-embedding"
 
     def test_template_fields_are_rendered(self):
         op = QdrantSearchOperator(
@@ -227,8 +204,6 @@ class TestQdrantSearchOperatorAgainstLocalQdrant:
 
     @pytest.fixture
     def client(self):
-        from qdrant_client import QdrantClient
-
         return QdrantClient(":memory:")
 
     @staticmethod
@@ -239,8 +214,6 @@ class TestQdrantSearchOperatorAgainstLocalQdrant:
         return op.execute(context=Context())
 
     def test_finds_what_the_ingest_operator_wrote(self, client):
-        from qdrant_client import models
-
         client.create_collection(
             "docs", vectors_config=models.VectorParams(size=4, distance=models.Distance.COSINE)
         )
@@ -270,8 +243,6 @@ class TestQdrantSearchOperatorAgainstLocalQdrant:
         assert json.loads(json.dumps(results)) == results
 
     def test_named_vectors_are_searched_through_query_points_kwargs(self, client):
-        from qdrant_client import models
-
         client.create_collection(
             "multi",
             vectors_config={
@@ -304,4 +275,5 @@ class TestQdrantSearchOperatorAgainstLocalQdrant:
         )
 
         assert results[0]["payload"] == {"name": "dog"}
+        assert results[0]["vector"] == {"text": [0.0, 1.0, 0.0], "image": [1.0, 0.0]}
         assert json.loads(json.dumps(results)) == results

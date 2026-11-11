@@ -20,6 +20,8 @@ import json
 from unittest.mock import Mock, patch
 
 import pytest
+from qdrant_client import QdrantClient, models
+from qdrant_client.http.models import QueryResponse
 from qdrant_client.models import ScoredPoint
 
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook
@@ -134,10 +136,10 @@ class TestQdrantHook:
 
         conn.delete_collection.assert_called_once_with(collection_name=self.collection_name)
 
-    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn", spec=QdrantClient)
     def test_search_returns_json_serializable_dicts(self, conn):
         """``ScoredPoint`` objects are not XCom-serializable, so ``search`` returns plain dicts."""
-        conn.query_points.return_value = Mock(
+        conn.query_points.return_value = QueryResponse(
             points=[
                 ScoredPoint(
                     id="5c56c793-69f3-4fbf-87e6-c4bf54c28c26",
@@ -159,16 +161,18 @@ class TestQdrantHook:
         assert results[0]["vector"] == [0.1, 0.2]
         assert json.loads(json.dumps(results)) == results
 
-    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn", spec=QdrantClient)
     def test_search_uses_query_points_and_forwards_arguments(self, conn):
-        """``search`` calls ``query_points`` (modern API) with all arguments forwarded.
+        """``search`` calls ``query_points`` with every argument forwarded.
 
-        Guards against a regression to the deprecated ``search()`` API and against
-        silently dropping optional parameters.
+        Each argument differs from its default, so a parameter that is dropped or
+        replaced by its default fails the assertion.
         """
-        conn.query_points.return_value = Mock(points=[])
-        query_filter = Mock(name="filter")
-        search_params = Mock(name="params")
+        conn.query_points.return_value = QueryResponse(points=[])
+        query_filter = models.Filter(
+            must=[models.FieldCondition(key="year", match=models.MatchValue(value=2025))]
+        )
+        search_params = models.SearchParams(hnsw_ef=128)
 
         self.qdrant_hook.search(
             collection_name=self.collection_name,
@@ -178,11 +182,10 @@ class TestQdrantHook:
             limit=7,
             offset=2,
             with_payload=["title"],
-            with_vectors=False,
+            with_vectors=True,
             score_threshold=0.5,
         )
 
-        conn.search.assert_not_called()
         conn.query_points.assert_called_once_with(
             collection_name=self.collection_name,
             query=[1.0, 2.0, 3.0],
@@ -191,18 +194,18 @@ class TestQdrantHook:
             limit=7,
             offset=2,
             with_payload=["title"],
-            with_vectors=False,
+            with_vectors=True,
             score_threshold=0.5,
         )
 
-    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn", spec=QdrantClient)
     def test_search_forwards_extra_kwargs(self, conn):
         """Extra ``**kwargs`` (e.g. ``using`` for named vectors) reach ``query_points``.
 
         Keeps the hook forward-compatible with future ``query_points`` parameters
         (hybrid search, named vectors) without needing to enumerate them here.
         """
-        conn.query_points.return_value = Mock(points=[])
+        conn.query_points.return_value = QueryResponse(points=[])
 
         self.qdrant_hook.search(
             collection_name=self.collection_name,
