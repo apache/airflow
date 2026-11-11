@@ -127,11 +127,6 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together``
-    Durable replay matches each step to the one at the same position in the previous
-    attempt, which a human review loop's regenerations do not keep. Pick one. See
-    :doc:`durable_execution`.
-
 ``durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather')``
     Durable replay records each call of a pydantic-ai ``MCPToolset`` under the toolset's
     id, and none is derived from the server's URL or command. Set ``id=`` on the toolset

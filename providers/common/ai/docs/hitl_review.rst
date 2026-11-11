@@ -171,6 +171,60 @@ navigate to
     :start-after: [START howto_operator_agent_hitl_review]
     :end-before: [END howto_operator_agent_hitl_review]
 
+.. _hitl-review-durable:
+
+With durable execution
+----------------------
+
+With ``durable=True`` (see :doc:`durable_execution`), the first output and every
+regeneration are agent runs in the task's journal, so a retry replays them instead of
+calling the model and the tools again (on Airflow 3.1 and 3.2, only the first output; see the
+end of this section). Each regeneration logs its own ``Durable:`` line in the task log, after
+the first run's.
+
+On Airflow 3.3 and later, each request for changes is also kept in the task state store
+beside the journal, with the round it was given in and a digest of the output the reviewer
+read. When
+the task fails after the review has started (a regeneration hits a failing tool or an
+unavailable model, or the review times out) the retry replays the first output, applies the
+recorded feedback to it without asking, replays each regeneration, and shows the reviewer
+the first round nobody has answered yet. The HITL Review tab shows the replayed rounds with
+their feedback. The task log has a line for each:
+
+.. code-block:: text
+
+    Applying the feedback given on iteration 1 in an earlier attempt: Mention that Atlas Pro drove most of the growth.
+
+Each regeneration runs under the first run's id with ``-review-<n>`` appended, ``n`` being the
+round whose feedback it follows, the same on every attempt, so capabilities that keep state by
+run id find it again on a retry.
+
+Feedback applies only to the output it was given on. When a replayed run produces a
+different output, for example because a tool that :ref:`runs on every attempt
+<durable-tool-opt-out>` returned something new, the reviewer is asked again from that round,
+the feedback recorded for later rounds is dropped, and this warning is in the task log:
+
+.. code-block:: text
+
+    The output of iteration 1 is not the one the reviewer asked to change in an earlier attempt, so the reviewer is asked again.
+
+A review that ends in **Reject**, or in ``HITLMaxIterationsError``, fails the task, and the
+retry starts the review over: the recorded feedback is dropped, and the model is asked again
+for the first output. The tool calls before that answer replay, so the retry does not repeat
+their side effects. Without durable execution a retry runs everything again, tools included.
+The attempt that ended logs:
+
+.. code-block:: text
+
+    The review ended without an approved output; a retry asks the model again for the first output and starts the review over.
+
+When the reviewer approves, the task deletes the journal and the recorded feedback. A clear
+that deletes the task's state (:ref:`durable-clear`) starts the agent and the review over.
+
+On Airflow 3.1 and 3.2, where the review polls instead of parking, feedback is not recorded:
+a retry replays the first output and asks the reviewer about every round again, and each
+regeneration after an answer runs again, its model requests and tool calls included.
+
 REST API
 --------
 

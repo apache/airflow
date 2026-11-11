@@ -465,6 +465,7 @@ class TestHITLReviewMixin:
 
         with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
             op._poll_loop(
+                context={"task_instance": ti},
                 ti=ti,
                 session=session,
                 message_history=[],
@@ -497,6 +498,7 @@ class TestHITLReviewMixin:
         ).model_dump(mode="json")
 
         result = op._poll_loop(
+            context={"task_instance": ti},
             ti=ti,
             session=session,
             message_history=[],
@@ -531,6 +533,7 @@ class TestHITLReviewMixin:
 
         with pytest.raises(HITLRejectException, match="rejected at iteration 1"):
             op._poll_loop(
+                context={"task_instance": ti},
                 ti=ti,
                 session=session,
                 message_history=[],

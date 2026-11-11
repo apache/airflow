@@ -22,8 +22,9 @@ import copy
 import hashlib
 import json
 import sys
-from collections.abc import Awaitable, Callable, Iterable, Sequence
-from contextlib import nullcontext
+import uuid
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Sequence
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from functools import cached_property
@@ -46,6 +47,7 @@ from pydantic_ai.toolsets import DynamicToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.usage import RunUsage
 from pydantic_core import to_jsonable_python
+from typing_extensions import TypedDict
 
 from airflow.providers.common.ai.durable.capability import (
     DURABLE_UNIT_TOOLSETS,
@@ -56,10 +58,12 @@ from airflow.providers.common.ai.durable.capability import (
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import (
     DurableJournal,
+    JournalStats,
     build_task_storage,
     journal_scope,
 )
 from airflow.providers.common.ai.exceptions import (
+    HITLMaxIterationsError,
     ToolApprovalAlreadyRequestedError,
     ToolApprovalError,
     UnsupportedToolDeferralError,
@@ -108,7 +112,7 @@ from airflow.providers.common.compat.version_compat import (
     AIRFLOW_V_3_3_PLUS,
     AIRFLOW_V_3_4_PLUS,
 )
-from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 
 if AIRFLOW_V_3_3_PLUS:
     # Per-tool approval parks the task in AWAITING_INPUT, which older Airflow versions do not have.
@@ -137,6 +141,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.providers.common.ai.durable.capability import _GivenIds
+    from airflow.providers.common.ai.utils.hitl_review import AgentSessionData
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -150,6 +155,10 @@ _TOOL_APPROVAL_REQUESTED_KEY = "common_ai_tool_approval_requested"
 # Under durable, every answer a reviewer gave this task instance's agent run, kept with the journal
 # and deleted with it, so a resume, a later pause or a retry applies each to the calls it was for.
 _TOOL_APPROVAL_ANSWERS_KEY = "common_ai_tool_approval_answers"
+# Under durable, each request for changes in the HITL review, kept beside the journal until the review
+# is approved or ends without approval, so a retry applies them to the outputs it replays instead of
+# asking the reviewer again.
+_HITL_REVIEW_ANSWERS_KEY = "common_ai_hitl_review_answers"
 # Airflow 3.4 replaces a repeat approval request's details and clears the earlier answer, so a
 # run can pause again; see ``_pause_for_tool_approval`` for why 3.3 cannot.
 _REPEAT_APPROVAL_SUPPORTED = AIRFLOW_V_3_4_PLUS
@@ -281,6 +290,16 @@ def _refuse_external_calls(requests: DeferredToolRequests) -> None:
         )
 
 
+def _refuse_unsupported_approval(requests: DeferredToolRequests) -> NoReturn:
+    """Fail on tool calls that need approval where the task cannot pause for it."""
+    raise UnsupportedToolDeferralError(
+        "The agent called tools that need approval "
+        f"({', '.join(call.tool_name for call in requests.approvals)}), but tool approval "
+        "needs Airflow 3.3+ and is not available with enable_hitl_review, a CodeMode "
+        "capability or a SandboxToolset."
+    )
+
+
 def _fingerprint_call_content(call: ToolCallPart) -> str | None:
     """Fingerprint what a reviewer sees of a call, its tool and arguments, but not the id the model gave it."""
     return fingerprint_tool_call(call.tool_name, call.args_as_dict(), None)
@@ -337,6 +356,17 @@ class _ToolApprovalAnswer:
             toolset_ids=stored["toolset_ids"],
             approval=True if denied is None else ToolDenied(denied),
         )
+
+
+class _ReviewAnswer(TypedDict):
+    """A request for changes, with its review round and the sha256 of the output the reviewer read."""
+
+    iteration: int
+    output_sha256: str
+    feedback: str
+
+
+_REVIEW_ANSWERS_ADAPTER: TypeAdapter[list[_ReviewAnswer]] = TypeAdapter(list[_ReviewAnswer])
 
 
 @dataclass
@@ -552,7 +582,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         whatever the sandbox holds now. With a pydantic-ai-harness ``CodeMode``
         capability, a retry runs each ``run_code`` snippet again and replays the
         tool calls it makes; ``CodeMode``'s ``eager`` and ``speculate`` options are
-        off while the run is durable.
+        off while the run is durable. With ``enable_hitl_review``, every review round
+        goes into the journal too; see :ref:`hitl-review-durable`.
     :param cache_prompt: When ``True`` (default), asks the provider to cache the
         tool definitions, system prompt and conversation so far, so the next
         request in the run -- and a mapped task's other instances within the
@@ -763,9 +794,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise AirflowOptionalProviderFeatureException(
                 "Human in the loop functionality needs Airflow 3.1+."
             )
-
-        if durable and enable_hitl_review:
-            raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
         if durable and any(
             isinstance(capability, AirflowDurability) for capability in self._declared_capabilities
@@ -1205,9 +1233,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         run_kwargs: dict[str, Any],
     ) -> Any:
         """Run ``self.prompt`` via ``_run_agent_tracked``, reporting usage-at-failure on any raise."""
-        scope = journal_scope(self._durable_journal) if self._durable_journal is not None else nullcontext()
         try:
-            with scope:
+            with self._journal_scope():
                 result, _ = self._run_agent_tracked(agent, self.prompt, run_usage=run_usage, **run_kwargs)
             return result
         except BaseException as error:
@@ -1224,6 +1251,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                     ),
                 }
             raise
+
+    def _journal_scope(self) -> AbstractContextManager[DurableJournal | None]:
+        """Run the code in the ``with`` block under the task's journal, when the task is durable."""
+        return journal_scope(self._durable_journal) if self._durable_journal is not None else nullcontext()
 
     def execute(self, context: Context) -> Any:
         # Coerced first so a bad rendered value fails before the expensive setup below.
@@ -1332,13 +1363,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         if self.enable_hitl_review:
             self._output_under_review = output
-            # On Airflow 3.3+ this parks the task, and the review ends in resume_hitl_review.
-            approved = self.run_hitl_review(
-                context,
-                output,
-                message_history=result.all_messages(),
-            )
-            return self.complete_hitl_review(context, approved, state=None)
+            with self._durable_review(context):
+                # On Airflow 3.3+ this parks the task, and the review ends in resume_hitl_review.
+                approved = self.run_hitl_review(
+                    context,
+                    output,
+                    message_history=result.all_messages(),
+                )
+                return self.complete_hitl_review(context, approved, state=None)
 
         output = self._convert_output_for_xcom(output)
 
@@ -1381,12 +1413,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if not self._supports_tool_approval():
             # Reached where approval is unsupported (a durable run's approval step is not added
             # then), or with DeferredToolRequests in a user-set output_type.
-            raise UnsupportedToolDeferralError(
-                "The agent called tools that need approval "
-                f"({', '.join(call.tool_name for call in requests.approvals)}), but tool approval "
-                "needs Airflow 3.3+ and is not available with enable_hitl_review, a CodeMode "
-                "capability or a SandboxToolset."
-            )
+            _refuse_unsupported_approval(requests)
         store = context["task_state_store"]
         self._refuse_repeat_approval_request(context, requests.approvals)
         transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
@@ -1850,8 +1877,99 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                     self.output_type, saved["output_json"], serialize_output=False, is_edited=False
                 )
             )
+        if self._durable_journal is not None:
+            # The approved output is the task's result, so nothing replays the review again.
+            self._durable_journal.cleanup()
+            self._delete_review_answers(context)
         self._clear_usage_budget(context)
         return result
+
+    def resume_hitl_review(
+        self,
+        context: Context,
+        iteration: int,
+        deadline: str | None,
+        state_sha256: str,
+        event: dict[str, Any],
+    ) -> Any:
+        if self.durable:
+            # The regeneration after round ``iteration`` is the journal's run ``iteration``, in this
+            # process as on a retry that replays the rounds before it; run 0 made the first output.
+            self._durable_journal = DurableJournal(self._build_durable_storage(context), first_run=iteration)
+        with self._durable_review(context):
+            return super().resume_hitl_review(context, iteration, deadline, state_sha256, event)
+
+    @contextmanager
+    def _durable_review(self, context: Context) -> Iterator[None]:
+        """Under durable, make a review that ends in a reject or ``max_hitl_iterations`` start over on retry."""
+        try:
+            yield
+        except (HITLRejectException, HITLMaxIterationsError):
+            if (journal := self._durable_journal) is not None:
+                # Replaying would show the reviewer the outputs of this review again. The retry asks
+                # the model again for the first output, replaying the tool calls before it, and
+                # regenerates from there.
+                self.log.info(
+                    "The review ended without an approved output; a retry asks the model again for "
+                    "the first output and starts the review over."
+                )
+                journal.ask_model_again(0)
+                self._delete_review_answers(context)
+            raise
+
+    @staticmethod
+    def _stored_review_answers(context: Context) -> list[_ReviewAnswer]:
+        return _REVIEW_ANSWERS_ADAPTER.validate_python(
+            context["task_state_store"].get(_HITL_REVIEW_ANSWERS_KEY) or []
+        )
+
+    def _recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None:
+        if self._durable_journal is None:
+            return None
+        answers = self._stored_review_answers(context)
+        if (answer := next((a for a in answers if a["iteration"] == session.iteration), None)) is None:
+            return None
+        if answer["output_sha256"] != hashlib.sha256(session.current_output.encode()).hexdigest():
+            # The replay went another way, such as after a change to the Dag.
+            self.log.warning(
+                "The output of iteration %d is not the one the reviewer asked to change in an earlier "
+                "attempt, so the reviewer is asked again.",
+                session.iteration,
+            )
+            return None
+        return answer["feedback"]
+
+    def _record_review_feedback(self, context: Context, session: AgentSessionData, feedback: str) -> None:
+        if self._durable_journal is None:
+            return
+        # The regenerations after this round's earlier answer, on an earlier attempt, followed from
+        # that answer; one that replayed a first step with no fingerprint would bring it back.
+        self._durable_journal.drop_runs_from(session.iteration)
+        if "task_state_store" not in context:
+            # Before Airflow 3.3 the review polls, and a retry asks the reviewer again.
+            return
+        # The answers for later rounds followed from this round's old answer, if it had one.
+        answers = [
+            answer
+            for answer in self._stored_review_answers(context)
+            if answer["iteration"] < session.iteration
+        ]
+        answers.append(
+            _ReviewAnswer(
+                iteration=session.iteration,
+                output_sha256=hashlib.sha256(session.current_output.encode()).hexdigest(),
+                feedback=feedback,
+            )
+        )
+        context["task_state_store"].set(
+            _HITL_REVIEW_ANSWERS_KEY,
+            _REVIEW_ANSWERS_ADAPTER.dump_python(answers, mode="json"),
+            retention=NEVER_EXPIRE,
+        )
+
+    def _delete_review_answers(self, context: Context) -> None:
+        if (store := context.get("task_state_store")) is not None:
+            self._delete_approval_state(store, _HITL_REVIEW_ANSWERS_KEY)
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """
@@ -1878,9 +1996,32 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # `self._run_usage` with whatever produced the output under review.
             self._run_usage = RunUsage()
         run_usage: RunUsage = self._run_usage
-        result, regen_usage = self._run_agent_tracked(
-            agent, feedback, run_usage=run_usage, message_history=messages, usage_limits=usage_limits
-        )
+        run_kwargs: dict[str, Any] = {}
+        journal = self._durable_journal
+        if journal is not None:
+            # Each regeneration logs what it replayed and recorded, like the run before the review.
+            journal.stats = JournalStats()
+            # The same id on every attempt, as for the first run; a new one per round, as pydantic-ai
+            # refuses an id already in the conversation.
+            run_id = journal.get_run_id(default=uuid.uuid4().hex)
+            run_kwargs["run_id"] = f"{run_id}-review-{journal.next_run_number}"
+        try:
+            with self._journal_scope():
+                result, regen_usage = self._run_agent_tracked(
+                    agent,
+                    feedback,
+                    run_usage=run_usage,
+                    message_history=messages,
+                    usage_limits=usage_limits,
+                    **run_kwargs,
+                )
+        finally:
+            if journal is not None:
+                journal.log_summary(self.log)
+        if isinstance(result.output, DeferredToolRequests):
+            # The first run's check in _complete_run: a review cannot pause for tool approval.
+            _refuse_external_calls(result.output)
+            _refuse_unsupported_approval(result.output)
         # This regeneration's own delta, not `result.usage` -- which, when `run_usage` is
         # shared, is the seeded cumulative object, not what this call alone contributed.
         log_run_summary(self.log, result, usage=regen_usage)

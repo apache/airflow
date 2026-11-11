@@ -138,7 +138,8 @@ Without it, a step larger than ``[state_store] max_value_storage_bytes`` (64 KB 
 default) is still written to the database, and the task log warns that it exceeds the
 limit.
 
-When the agent run succeeds, its journal is deleted. On 3.3 and later, every step the
+When the agent run succeeds, its journal is deleted; with ``enable_hitl_review``, once the
+reviewer approves (:ref:`hitl-review-durable`). On 3.3 and later, every step the
 agent completes is one write to the task state store, a call the task makes to the API
 server while the agent waits. A first attempt reads back only the list of agent runs the
 task started (and, in ``AgentOperator``, the run id), since no earlier attempt recorded
@@ -267,6 +268,11 @@ row, the next retry asks the model again, as described above. ``SQLToolset`` use
 split: a statement the database rejects is a ``ModelRetry`` and replays, while failing to
 reach the database raises, so the retry queries it again rather than handing the model the
 old failure.
+
+With ``enable_hitl_review``, the first output and each regeneration after feedback are
+runs in the same journal, and on Airflow 3.3 and later a retry applies the feedback the
+reviewer already gave instead of asking again; a review that ends in a reject starts over
+with a new answer from the model (:ref:`hitl-review-durable`).
 
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool
@@ -521,8 +527,8 @@ offered the tool, and the task is not retried:
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review`` or a ``SandboxToolset``.
-  ``AgentOperator`` raises ``ValueError`` for both when the Dag is parsed.
+- ``durable=True`` cannot be combined with a ``SandboxToolset``. ``AgentOperator`` raises
+  ``ValueError`` when the Dag is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 

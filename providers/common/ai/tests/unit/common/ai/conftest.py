@@ -188,6 +188,8 @@ def task_state_store_accessor():
     accessor.get.side_effect = lambda key, default=None: store.get(key, default)
     accessor.set.side_effect = lambda key, value, retention=None: store.__setitem__(key, value)
     accessor.delete.side_effect = lambda key: store.pop(key, None)
+    # What the store holds, for a test that checks which keys are left.
+    accessor.data = store
     return accessor
 
 
