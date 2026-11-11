@@ -23,6 +23,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
+import { DagsListSearchContext } from "src/context/dagsListSearch";
 import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { DagsButton } from "./DagsButton";
@@ -44,6 +45,17 @@ describe("DagsButton", () => {
     render(<DagsButton authorizedMenuItems={["Dags"]} />, { wrapper: Wrapper });
 
     expect(getLink()).toHaveAttribute("href", "/dags");
+  });
+
+  it("links to the Dags page with the remembered list query", () => {
+    render(
+      <DagsListSearchContext.Provider value="tags=example">
+        <DagsButton authorizedMenuItems={["Dags"]} />
+      </DagsListSearchContext.Provider>,
+      { wrapper: Wrapper },
+    );
+
+    expect(getLink()).toHaveAttribute("href", "/dags?tags=example");
   });
 
   it.each(["/dags", "/dags/example_dag/runs"])("is highlighted on %s", (path) => {
