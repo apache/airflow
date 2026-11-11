@@ -52,6 +52,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     GateChangeFinder,
     JobStatusReporter,
     Plan,
+    Projection,
     PullRequestChangedError,
     PullRequestSnapshot,
     apply_plan,
@@ -59,10 +60,12 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     build_slack_payload,
     changes_ci_definition,
     classify,
+    compute_projection,
     count_commits_behind,
     discover,
     drop_reported,
     fetch_fork_observations,
+    fetch_open_pull_requests,
     fetch_workflow_state,
     find_ci_run_since,
     find_heads_shared_across_bases,
@@ -235,19 +238,118 @@ def test_setup_required_comment_gives_the_command():
         pytest.param(ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL), None, id="running"),
         pytest.param(
             ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
-            True,
+            None,
             id="failed",
         ),
         pytest.param(ForkObservation(workflow_state="disabled_fork"), True, id="setup-required"),
     ],
 )
-def test_non_green_removes_review_label_and_drafts_only_when_the_author_must_act(fork, draft):
+def test_non_green_removes_review_label_and_drafts_only_without_a_fork_run(fork, draft):
     pr = _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"))
 
     plan, _, _ = _classify(pr, fork)
 
     assert plan.draft is draft
     assert plan.remove_labels == ["ready for maintainer review"]
+
+
+@pytest.mark.parametrize(
+    ("state", "author_draft", "expected"),
+    [
+        pytest.param(
+            ForkState.SETUP_REQUIRED,
+            False,
+            Projection(draft=True, ready_for_review=False, needs_project_ci=False),
+            id="setup-required",
+        ),
+        pytest.param(
+            ForkState.AWAITING_PUSH,
+            False,
+            Projection(draft=True, ready_for_review=False, needs_project_ci=False),
+            id="awaiting-push",
+        ),
+        pytest.param(
+            ForkState.FAILED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="failed",
+        ),
+        pytest.param(
+            ForkState.FAILED,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="failed-author-draft",
+        ),
+        pytest.param(
+            ForkState.RUNNING,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="running",
+        ),
+        pytest.param(
+            ForkState.GREEN,
+            False,
+            Projection(draft=False, ready_for_review=True, needs_project_ci=False),
+            id="green",
+        ),
+        pytest.param(
+            ForkState.GREEN,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="green-author-draft",
+        ),
+        pytest.param(
+            ForkState.GREEN_UNVERIFIED,
+            False,
+            Projection(draft=False, ready_for_review=False, needs_project_ci=True),
+            id="unverified",
+        ),
+        pytest.param(
+            ForkState.GREEN_UNVERIFIED,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="unverified-author-draft",
+        ),
+        pytest.param(
+            ForkState.RELEASED,
+            False,
+            Projection(draft=False, ready_for_review=None, needs_project_ci=False),
+            id="released",
+        ),
+        pytest.param(
+            ForkState.RELEASED,
+            True,
+            Projection(draft=None, ready_for_review=None, needs_project_ci=False),
+            id="released-author-draft",
+        ),
+        pytest.param(
+            ForkState.UNGATED,
+            False,
+            Projection(draft=False, ready_for_review=None, needs_project_ci=False),
+            id="ungated",
+        ),
+        pytest.param(
+            ForkState.CLOSED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="closed",
+        ),
+        pytest.param(
+            ForkState.GATE_BYPASSED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="gate-bypassed",
+        ),
+        pytest.param(
+            ForkState.GATE_MODIFIED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="gate-modified",
+        ),
+    ],
+)
+def test_projection_table(state, author_draft, expected):
+    assert compute_projection(state, author_draft=author_draft) == expected
 
 
 def test_green_undrafts_what_the_bot_drafted():
@@ -257,11 +359,22 @@ def test_green_undrafts_what_the_bot_drafted():
     assert plan.add_labels == ["ready for maintainer review"]
 
 
-def test_green_keeps_an_author_draft():
-    plan, _, _ = _classify(_pr(last_draft_actor="someone"), GREEN)
+@pytest.mark.parametrize(
+    "last_draft_actor",
+    [
+        pytest.param("someone", id="drafted-by-author"),
+        pytest.param(None, id="opened-as-draft"),
+    ],
+)
+def test_green_keeps_an_author_draft_out_of_the_review_queue(last_draft_actor):
+    pr = _pr(last_draft_actor=last_draft_actor, labels=("fork ci required", "ready for maintainer review"))
+
+    plan, _, _ = _classify(pr, GREEN)
 
     assert plan.draft is None
     assert plan.add_labels == []
+    assert plan.remove_labels == ["ready for maintainer review"]
+    assert "Mark it ready for review when it is." in plan.marker_comment
 
 
 def test_green_labels_a_ready_pull_request():
@@ -291,18 +404,27 @@ def test_green_is_not_trusted_when_ci_files_change():
 
 
 @pytest.mark.parametrize(
-    ("last_draft_actor", "expected_draft"),
+    ("last_draft_actor", "expected_draft", "expected_labels", "expected_text"),
     [
-        pytest.param("github-actions[bot]", False, id="bot-draft-undrafted"),
-        pytest.param("someone", None, id="author-draft-kept"),
+        pytest.param(
+            "github-actions[bot]",
+            False,
+            ["needs project ci"],
+            "run project CI for it before it can be merged",
+            id="bot-draft-undrafted",
+        ),
+        pytest.param("someone", None, [], "Once you mark it ready for review", id="author-draft-kept"),
     ],
 )
-def test_green_unverified_does_not_keep_a_bot_draft(last_draft_actor, expected_draft):
+def test_green_unverified_does_not_keep_a_bot_draft(
+    last_draft_actor, expected_draft, expected_labels, expected_text
+):
     plan, _, _ = _classify(_pr(last_draft_actor=last_draft_actor), GREEN, changes_ci_files=True)
 
     assert plan.state == ForkState.GREEN_UNVERIFIED
     assert plan.draft is expected_draft
-    assert plan.add_labels == ["needs project ci"]
+    assert plan.add_labels == expected_labels
+    assert expected_text in plan.marker_comment
 
 
 LABELLED = ("fork ci required", "needs project ci")
@@ -759,7 +881,7 @@ def test_gate_tampering_closes(pr_overrides, checked):
     assert plan.close is checked
     if checked:
         assert plan.state == ForkState.GATE_BYPASSED
-        assert plan.draft is True
+        assert plan.draft is None
         assert plan.status == (
             "error",
             PROJECT_RUN_URL,
@@ -2880,7 +3002,7 @@ def test_a_change_to_the_gate_closes():
 
     assert plan.state == ForkState.GATE_MODIFIED
     assert plan.close is True
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
         "error",
@@ -3238,6 +3360,109 @@ def test_gate_change_finder_aborts_when_the_pull_request_changed(client, head_sh
 
     with pytest.raises(PullRequestChangedError, match=match):
         finder.find(_pr())
+
+
+NEWLY_GATED = {**_pr_node(1), "labels": {"nodes": []}}
+
+
+def _graphql_after_gating_pull_request_1(*, listed: list[dict], by_number: dict | Exception | None):
+    def graphql(query, variables=None, *, allow_partial=False):
+        if "pullRequest(number:" in query:
+            if by_number is None:
+                raise AssertionError("read by number although the search listed it")
+            if isinstance(by_number, Exception):
+                raise by_number
+            return by_number
+        if "q" not in variables:
+            return {f"pr{key[1:]}": {"object": None} for key in variables if key.startswith("s")}
+        if "updated:>=" in variables["q"]:
+            return _search_result(NEWLY_GATED)
+        if variables["q"] == f'repo:{REPO} is:pr is:open label:"fork ci required"':
+            return _search_result(*listed)
+        return _search_result()
+
+    return graphql
+
+
+def _rest_get_for_pull_request_1(path, paginate=False, items_key=None):
+    if path.endswith("/actions/workflows/ci-amd.yml"):
+        return {"state": "active"}
+    if path == f"repos/{REPO}/pulls/1/files?per_page=100":
+        return []
+    if path == f"repos/{REPO}/pulls/1":
+        return {"head": {"sha": "sha1"}, "base": {"ref": "main"}}
+    raise AssertionError(path)
+
+
+@pytest.mark.parametrize(
+    ("listed", "by_number", "commented"),
+    [
+        pytest.param(
+            [], {"repository": {"pr0": {**_pr_node(1), "state": "OPEN"}}}, [1], id="not-yet-listed-by-search"
+        ),
+        pytest.param([_pr_node(1)], None, [1], id="listed-by-search"),
+        pytest.param(
+            [], {"repository": {"pr0": {**_pr_node(1), "state": "CLOSED"}}}, [], id="closed-since-labelled"
+        ),
+        pytest.param([], {"repository": {"pr0": None}}, [], id="deleted-since-labelled"),
+        pytest.param([], {"repository": None}, [], id="repository-not-resolved"),
+    ],
+)
+def test_run_reconcile_reconciles_pull_requests_labelled_in_the_same_run(
+    client, tmp_path, listed, by_number, commented
+):
+    client.graphql.side_effect = _graphql_after_gating_pull_request_1(listed=listed, by_number=by_number)
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = _rest_get_for_pull_request_1
+
+    has_alerts = run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert has_alerts is False
+    client.add_labels.assert_called_once_with(1, ["fork ci required"])
+    assert [call.args[0] for call in client.create_comment.call_args_list] == commented
+
+
+def test_run_reconcile_leaves_pull_requests_it_cannot_read_for_the_next_run(client, tmp_path):
+    client.graphql.side_effect = _graphql_after_gating_pull_request_1(
+        listed=[], by_number=GitHubError("gh api failed: HTTP 502")
+    )
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = _rest_get_for_pull_request_1
+
+    has_alerts = run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert has_alerts is False
+    client.create_comment.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.PASS_TWO_PAGE_SIZE", 2)
+def test_fetch_open_pull_requests_reads_in_batches(client):
+    client.graphql.side_effect = [
+        {"repository": {"pr0": {"number": 1, "state": "OPEN"}, "pr1": {"number": 2, "state": "OPEN"}}},
+        {"repository": {"pr0": {"number": 3, "state": "OPEN"}}},
+    ]
+
+    nodes = fetch_open_pull_requests(client, [1, 2, 3], repo=REPO)
+
+    assert [node["number"] for node in nodes] == [1, 2, 3]
+    queries = [call.args[0] for call in client.graphql.call_args_list]
+    assert "pr1: pullRequest(number: 2)" in queries[0]
+    assert "pr0: pullRequest(number: 3)" in queries[1]
+    assert "number: 3" not in queries[0]
 
 
 def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path):

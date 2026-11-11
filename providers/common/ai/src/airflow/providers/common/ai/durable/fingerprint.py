@@ -105,7 +105,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
-from pydantic_core import to_jsonable_python
+from pydantic_core import PydanticSerializationError, to_jsonable_python
 
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
@@ -472,6 +472,12 @@ def _guide(adapter: TypeAdapter[Any], payload: Any) -> tuple[Any, bool]:
     try:
         guide = adapter.dump_python(payload)
     except TypeError:
+        return None, False
+    except PydanticSerializationError as exc:
+        # pydantic-ai 2.66 serializes a tool return through a wrapping field serializer, and pydantic
+        # re-raises the ``TypeError`` from inside it as this error, keeping only its message.
+        if "unhashable type" not in str(exc):
+            raise
         return None, False
     return guide, _check_guide(guide)
 

@@ -55,7 +55,7 @@ Gradle only appends to the file, so the script empties the component list before
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
-Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, the JDK auto-provisioned by the foojay resolver, and the Supervisor Schema fetched by `:sdk:syncSupervisorSchema`.
+Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, and the JDK auto-provisioned by the foojay resolver.
 
 ## Building documentation
 
@@ -360,8 +360,11 @@ manager, before sending the vote — should run against the source package in
 1. **Checksum.** Confirm the published SHA-512 matches the downloaded tarball:
 
    ```bash
-   sha512sum -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   shasum -a 512 -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
    ```
+
+   `shasum` ships with both macOS and most Linux distributions; `sha512sum -c`
+   works too on Linux but is not installed on macOS by default.
 
 2. **Signature.** Import the `KEYS` file and verify the GPG signature:
 
@@ -388,6 +391,16 @@ manager, before sending the vote — should run against the source package in
    ```
 
    Any remaining diff output is unexpected and should block the vote.
+
+   If the vote email says the source package was built from a commit before the
+   tag, diff the tarball against that commit instead, then confirm the tag adds
+   nothing to the SDK directory except the version bump. Limit the diff to the
+   SDK directory; the tag usually sits on a release branch, so an unscoped diff
+   also lists unrelated commits that landed in between:
+
+   ```bash
+   git -C tag-checkout diff <SOURCE-COMMIT> java-sdk/<VERSION>-rc<N> --stat -- java-sdk/
+   ```
 
 4. **No binary files.** ASF source releases must not contain compiled code.
    Scan for anything that isn't text:

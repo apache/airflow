@@ -370,7 +370,8 @@ that has an ``arr`` column but no ``revenue`` column:
 
 A toolset's tool may fail this way once in a row by default; pass ``max_retries`` to the
 toolset to allow more. The count starts over after a call that succeeds and on every run
-of the agent. A tool still failing after that raises
+of the agent, except that a retry of a durable run counts the failures it replays as well
+(see :ref:`howto/frameworks:openai-agents-durable`). A tool still failing after that raises
 :class:`~airflow.providers.common.ai.tools.ToolCallError` out of ``Runner.run`` and
 ``Runner.run_sync``, so the task fails and Airflow's own retry takes over. Catch it as
 ``ToolCallError``; the traceback names a private subclass of it. For the same query sent
@@ -591,12 +592,25 @@ starting agent and of the agents in its ``handoffs`` list, and an agent used thr
 ``as_tool``, which replays as one call. Recorded tool results pass through Airflow's
 secret masker before they are saved, and a replayed model call reports no token usage.
 
+A failure the model could correct, which an ``AirflowTools`` tool answers with
+``{"error": ...}``, is recorded and replays like any other result, together with how many of
+the tool's corrections were used when it finished. The replay restores that count, so the
+retry limit spans the task's tries: a model that used one of two corrections before the
+crash has one left on the retry, not two. A run that used the limit up fails on the model's
+answers, so each retry asks the model once more, with the errors it already got in its
+history. The task log notes when a replay changes the count:
+
+.. code-block:: text
+
+    Tool query: an earlier attempt left 1 of its 2 correction(s) used
+
 From the first call that differs, that call and every call after it run live:
 
 - A retry whose prompt, instructions, model settings or tools differ from the failed
   try's runs everything live from the first call that sees the difference.
 - When the run failed because of the model's answers (``MaxTurnsExceeded``,
-  ``ModelBehaviorError``, ``ModelRefusalError``, or an output or tool input guardrail),
+  ``ModelBehaviorError``, ``ModelRefusalError``, an output or tool input guardrail, or an
+  ``AirflowTools`` tool that used up its retry limit),
   replaying those answers would fail it the same way, so the retry asks the model again
   from its last request.
 

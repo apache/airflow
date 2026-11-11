@@ -16,10 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import collections
 import contextlib
+import dataclasses
 import datetime
 import json
+import logging
+from collections.abc import Container
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -27,25 +33,40 @@ pytest.importorskip("agents")
 
 from agents import (
     Agent,
+    AgentHooks,
     Model,
     ModelProvider,
     ModelResponse,
     ModelSettings,
+    ModelTracing,
     RunConfig,
+    RunHooks,
     SQLiteSession,
+    ToolGuardrailFunctionOutput,
     ToolOutputText,
     Usage,
     function_tool,
+    handoff,
+    tool_input_guardrail,
 )
 from agents.exceptions import MaxTurnsExceeded, ModelBehaviorError
 from agents.retry import ModelRetryBackoffSettings, ModelRetrySettings
+from agents.tool_context import ToolContext
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from pydantic import BaseModel
+from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.durable.base import build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
-from airflow.providers.common.ai.durable.openai_agents import _get_durable_tool, run_durably_sync
-from airflow.providers.common.ai.tools import AirflowTool, ToolResult
+from airflow.providers.common.ai.durable.openai_agents import (
+    _build_tool_fingerprint,
+    _DurableModel,
+    _get_durable_tool,
+    run_durably_sync,
+)
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
+from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
 
 from unit.common.ai.durable.memory_storage import MemoryStorage
@@ -139,6 +160,193 @@ class _CountingTool:
         )
 
 
+class _ToolsetLookup:
+    """
+    A ``lookup`` tool from a pydantic-ai toolset, which counts the calls that reached it.
+
+    It raises ``ModelRetry``, a failure the model can correct, for the keys in ``retry``, and
+    ``RuntimeError``, which fails the try, for those in ``broken``, after sleeping
+    ``delays[key]`` seconds; a key without a delay answers without awaiting.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_retries: int,
+        retry: Container[str],
+        broken: Container[str] = (),
+        delays: dict[str, float] | None = None,
+        sequential: bool = False,
+    ) -> None:
+        self.max_retries = max_retries
+        self.retry = retry
+        self.broken = broken
+        self.delays = delays or {}
+        self.sequential = sequential
+        self.calls = 0
+
+    def tool(self) -> AirflowTool:
+        async def lookup(key: str) -> str:
+            self.calls += 1
+            if key in self.delays:
+                await asyncio.sleep(self.delays[key])
+            if key in self.broken:
+                raise RuntimeError(f"the warehouse dropped the connection looking up {key}")
+            if key in self.retry:
+                raise ModelRetry(f"There is no {key}.")
+            return f"{key}=42"
+
+        # A fresh tool per attempt, as a retried task builds its agent again.
+        toolset = FunctionToolset([lookup], max_retries=self.max_retries, sequential=self.sequential)
+        (tool,) = airflow_tools_from_toolset(toolset)
+        return tool
+
+
+class _TurnsModel(Model):
+    """
+    Asks for one ``lookup`` per key of each turn, all of a turn's in one response, then answers.
+
+    ``fail_on_answer`` makes the request that would answer raise, as a crashed worker would leave it.
+    """
+
+    def __init__(self, turns: list[list[str]], *, fail_on_answer: bool = False) -> None:
+        self.turns = turns
+        self.fail_on_answer = fail_on_answer
+        self.calls = 0
+
+    async def get_response(self, system_instructions, input, *args: Any, **kwargs: Any) -> ModelResponse:
+        self.calls += 1
+        answered = sum(
+            1
+            for item in (input if isinstance(input, list) else [])
+            if isinstance(item, dict) and item.get("type") == "function_call_output"
+        )
+        done = 0
+        output: list[ResponseFunctionToolCall | ResponseOutputMessage] = []
+        for keys in self.turns:
+            if answered == done:
+                output = [
+                    ResponseFunctionToolCall(
+                        id=f"fc-{key}",
+                        call_id=f"call-{key}",
+                        name="lookup",
+                        arguments=json.dumps({"key": key}),
+                        type="function_call",
+                    )
+                    for key in keys
+                ]
+                break
+            done += len(keys)
+        else:
+            if self.fail_on_answer:
+                raise RuntimeError("worker lost")
+            text = ResponseOutputText(text="answer", type="output_text", annotations=[])
+            output = [
+                ResponseOutputMessage(
+                    id="msg", role="assistant", status="completed", type="message", content=[text]
+                )
+            ]
+        return ModelResponse(output=list(output), usage=Usage(), response_id=f"resp-{self.calls}")
+
+    def stream_response(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
+
+
+class _ParallelModel(Model):
+    """
+    Asks for one ``lookup`` per key in a single response, then answers with their results.
+
+    The calls get the ids ``call-<key>``. ``fail_on_answer`` makes the request that would
+    answer raise, as a crashed worker would leave it.
+    """
+
+    def __init__(self, keys: tuple[str, ...] = ("a", "b"), *, fail_on_answer: bool = False) -> None:
+        self.keys = keys
+        self.fail_on_answer = fail_on_answer
+        self.calls = 0
+
+    async def get_response(self, system_instructions, input, *args: Any, **kwargs: Any) -> ModelResponse:
+        self.calls += 1
+        outputs = [
+            item["output"]
+            for item in (input if isinstance(input, list) else [])
+            if isinstance(item, dict) and item.get("type") == "function_call_output"
+        ]
+        output: list[ResponseFunctionToolCall | ResponseOutputMessage]
+        if not outputs:
+            output = [
+                ResponseFunctionToolCall(
+                    id=f"fc-{key}",
+                    call_id=f"call-{key}",
+                    name="lookup",
+                    arguments=json.dumps({"key": key}),
+                    type="function_call",
+                )
+                for key in self.keys
+            ]
+        else:
+            if self.fail_on_answer:
+                raise RuntimeError("worker lost")
+            text = ResponseOutputText(text=f"answer: {sorted(outputs)}", type="output_text", annotations=[])
+            output = [
+                ResponseOutputMessage(
+                    id="msg", role="assistant", status="completed", type="message", content=[text]
+                )
+            ]
+        return ModelResponse(output=list(output), usage=Usage(), response_id=f"resp-{self.calls}")
+
+    def stream_response(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
+
+
+class _SleepingTools:
+    """
+    A ``lookup`` tool with controllable timing and failures.
+
+    It sleeps ``body_delays[key]`` seconds, fails for the keys in ``failing``, and counts the calls per key.
+    """
+
+    def __init__(self, body_delays: dict[str, float] | None = None, failing: set[str] | None = None) -> None:
+        self.body_delays = body_delays or {}
+        self.failing = failing or set()
+        self.calls: collections.Counter[str] = collections.Counter()
+
+    def tools(self) -> list[Any]:
+        async def function(arguments: dict[str, Any]) -> ToolResult:
+            key = arguments["key"]
+            self.calls[key] += 1
+            await asyncio.sleep(self.body_delays.get(key, 0))
+            if key in self.failing:
+                raise RuntimeError(f"lookup {key} failed")
+            return ToolResult(f"{key}=42")
+
+        return AirflowTools(
+            AirflowTool(
+                name="lookup",
+                description="Look a key up.",
+                parameters={"type": "object", "properties": {"key": {"type": "string"}}},
+                function=function,
+            )
+        )
+
+
+class _TransferModel(Model):
+    """Hands the run over to the ``specialist`` agent on its first request."""
+
+    async def get_response(self, system_instructions, input, *args: Any, **kwargs: Any) -> ModelResponse:
+        call = ResponseFunctionToolCall(
+            id="fc-transfer",
+            call_id="call-transfer",
+            name="transfer_to_specialist",
+            arguments="{}",
+            type="function_call",
+        )
+        return ModelResponse(output=[call], usage=Usage(), response_id="resp-transfer")
+
+    def stream_response(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
+
+
 class _Provider(ModelProvider):
     """Resolves every model name to one model."""
 
@@ -153,7 +361,13 @@ class _Report(BaseModel):
     rows: int
 
 
-def _attempt(storage: MemoryStorage, model: Model, tool: _CountingTool, prompt: str = "go", **kwargs: Any):
+def _attempt(
+    storage: MemoryStorage,
+    model: Model,
+    tool: _CountingTool | _ToolsetLookup,
+    prompt: str = "go",
+    **kwargs: Any,
+):
     """Run one task attempt: a fresh journal over the storage the attempts share."""
     agent = Agent(name="analyst", model=model, tools=AirflowTools(tool.tool()))
     journal = DurableJournal(storage, clean_up_after_run=True)
@@ -500,6 +714,224 @@ class TestRunDurably:
         # The answer that asked for the lookup replays; only the final answer is asked for.
         assert retry_model.calls == 1
 
+    def test_a_replayed_correctable_failure_counts_against_the_tools_retry_limit(self, caplog):
+        """Across attempts the tool gets max_retries corrections in all, not max_retries per attempt."""
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=2, retry={"k0", "k1", "k2"})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool)
+        tool.calls = 0
+
+        # The replayed failure of k0 is the first correction, k1 the second, and k2 one too many.
+        with (
+            caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.tools._from_toolset"),
+            pytest.raises(ToolCallError, match="lookup kept failing after 2 correction"),
+        ):
+            _attempt(storage, _ScriptedModel(lookups=3), tool)
+        assert tool.calls == 2
+        # The line the guide quotes, so a task log shows why the limit ran out early.
+        assert [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "airflow.providers.common.ai.tools._from_toolset"
+        ] == ["Tool lookup: an earlier attempt left 1 of its 2 correction(s) used"]
+
+    def test_a_count_recorded_for_a_tool_since_swapped_for_a_custom_one_replays_without_running_it(self):
+        """A Dag edit between tries put a tool of the same name and schema, with no retry budget, in its place."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry=set())
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool)
+        custom_calls = []
+
+        async def custom(arguments: dict[str, Any]) -> ToolResult:
+            custom_calls.append(arguments["key"])
+            return ToolResult(f"{arguments['key']}=custom")
+
+        agent = Agent(
+            name="analyst",
+            model=_ScriptedModel(),
+            tools=AirflowTools(dataclasses.replace(tool.tool(), function=custom)),
+        )
+        with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+            result = run_durably_sync(agent, "go", run_config=NO_TRACING)
+
+        assert custom_calls == []
+        assert result.final_output == "answer: k0=42"
+
+    def test_a_run_that_used_up_a_tools_retry_limit_asks_the_model_again_on_retry(self):
+        """The model's answers used the limit up, so a retry asks it again rather than replaying them."""
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"k0", "k1"})
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            _attempt(storage, _ScriptedModel(lookups=2), tool)
+        tool.calls = 0
+        retry_model = _ScriptedModel(lookups=1)
+
+        result, _ = _attempt(storage, retry_model, tool)
+
+        # The answer that asked for k1 is asked for again, and this time the model answers.
+        assert retry_model.calls == 1
+        assert tool.calls == 0
+        assert result.final_output.startswith("answer: ")
+
+    def test_a_replayed_success_starts_the_tools_retry_count_over(self):
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"k0", "k2"})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(lookups=2, fail_on_answer=True), tool)
+        tool.calls = 0
+
+        # k1 succeeded after k0 failed, so k2 is the one correction the limit allows.
+        result, _ = _attempt(storage, _ScriptedModel(lookups=3), tool)
+
+        assert tool.calls == 1
+        assert result.final_output.startswith("answer: ")
+
+    def test_parallel_calls_replay_the_count_they_left_in_the_order_they_finished(self):
+        """
+        Live, b fails and then a, still running, succeeds, so d is the first correction again.
+
+        A replay reaches a and b in the order they started, which would count d as the second.
+        """
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"b", "d"}, delays={"a": 0.05})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _TurnsModel([["a", "b"]], fail_on_answer=True), tool)
+        tool.calls = 0
+
+        result, _ = _attempt(storage, _TurnsModel([["a", "b"], ["d"]]), tool)
+
+        assert result.final_output == "answer"
+        assert tool.calls == 1
+
+    def test_a_third_attempt_counts_the_corrections_of_both_earlier_attempts(self):
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=2, retry={"k0", "k1", "k2"})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(lookups=1, fail_on_answer=True), tool)
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt(storage, _ScriptedModel(lookups=2, fail_on_answer=True), tool)
+        tool.calls = 0
+
+        # k0 from the first attempt and k1 from the second are both corrections already used.
+        with pytest.raises(ToolCallError, match="lookup kept failing after 2 correction"):
+            _attempt(storage, _ScriptedModel(lookups=3), tool)
+        assert tool.calls == 1
+
+    @pytest.mark.parametrize("sequential", [False, True], ids=["parallel", "sequential"])
+    def test_a_live_failure_alongside_a_replayed_one_counts_once(self, sequential):
+        """b failed the first try outright; on the retry it fails in a way the model can correct, as a did."""
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"a", "b"}, broken={"b"}, sequential=sequential)
+        with pytest.raises(ToolCallError, match="warehouse dropped the connection"):
+            _attempt(storage, _TurnsModel([["a", "b"]]), tool)
+        tool.broken, tool.calls = (), 0
+
+        result, _ = _attempt(storage, _TurnsModel([["a", "b"]]), tool)
+
+        assert result.final_output == "answer"
+        assert tool.calls == 1
+
+    def test_a_replayed_success_does_not_hide_a_live_failure_alongside_it(self):
+        storage = MemoryStorage()
+        tool = _ToolsetLookup(max_retries=1, retry={"b", "d"}, broken={"b"})
+        with pytest.raises(ToolCallError, match="warehouse dropped the connection"):
+            _attempt(storage, _TurnsModel([["a", "b"]]), tool)
+        tool.broken, tool.calls = (), 0
+
+        # b fails live before a's replay restores its success, which must not wipe b's correction:
+        # b is the first correction and d one too many.
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            _attempt(storage, _TurnsModel([["a", "b"], ["d"]]), tool)
+        assert tool.calls == 2
+
+    def test_each_agent_run_in_a_task_restores_its_own_count(self):
+        """A second run_durably call in the task replays its count after a first one ran live."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry={"k1", "k2"})
+
+        def attempt(second: _ScriptedModel) -> None:
+            tools = AirflowTools(tool.tool())
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                run_durably_sync(
+                    Agent(name="a", model=_ScriptedModel(), tools=tools), "1", run_config=NO_TRACING
+                )
+                run_durably_sync(Agent(name="b", model=second, tools=tools), "2", run_config=NO_TRACING)
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(lookups=2, fail_on_answer=True))
+        tool.calls = 0
+
+        # The first run succeeded, so it runs live again; the second's k1 is its one correction.
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            attempt(_ScriptedModel(lookups=3))
+        assert tool.calls == 2
+
+    def test_a_custom_tool_that_calls_a_toolset_tool_replays_without_running(self):
+        storage = MemoryStorage()
+        inner = _ToolsetLookup(max_retries=1, retry=set())
+        outer_calls = []
+
+        def custom_tool() -> AirflowTool:
+            lookup = inner.tool()
+
+            async def function(arguments: dict[str, Any]) -> ToolResult:
+                outer_calls.append(arguments["key"])
+                return await lookup.call(arguments)
+
+            return dataclasses.replace(lookup, function=function)
+
+        def attempt(model: Model) -> Any:
+            agent = Agent(name="analyst", model=model, tools=AirflowTools(custom_tool()))
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                return run_durably_sync(agent, "go", run_config=NO_TRACING)
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(fail_on_answer=True))
+
+        result = attempt(_ScriptedModel())
+
+        assert outer_calls == ["k0"]
+        assert result.final_output == "answer: k0=42"
+
+    def test_a_tool_rebuilt_without_the_replay_hook_replays_its_result_as_text(self):
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry=set())
+
+        def attempt(model: Model) -> Any:
+            tools = [dataclasses.replace(function_tool) for function_tool in AirflowTools(tool.tool())]
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                return run_durably_sync(
+                    Agent(name="analyst", model=model, tools=tools), "go", run_config=NO_TRACING
+                )
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(fail_on_answer=True))
+
+        assert attempt(_ScriptedModel()).final_output == "answer: k0=42"
+
+    def test_a_used_up_limit_inside_an_agent_used_as_a_tool_fails_that_call_not_the_model(self):
+        """The outer model's answer was fine: the retry replays it and runs the inner agent again."""
+        storage, tool = MemoryStorage(), _ToolsetLookup(max_retries=1, retry={"k0", "k1"})
+
+        def attempt(outer: _ScriptedModel) -> None:
+            specialist = Agent(name="specialist", model="inner", tools=AirflowTools(tool.tool()))
+            lead = Agent(
+                name="lead",
+                model=outer,
+                tools=[specialist.as_tool("lookup", "Ask the specialist.", failure_error_function=None)],
+            )
+            config = RunConfig(tracing_disabled=True, model_provider=_Provider(_ScriptedModel(lookups=2)))
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                run_durably_sync(lead, "go", run_config=config)
+
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            attempt(_ScriptedModel(argument="input"))
+        outer = _ScriptedModel(argument="input")
+
+        with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
+            attempt(outer)
+
+        assert outer.calls == 0
+
     def test_a_run_with_a_session_runs_live_on_retry(self, tmp_path):
         """The session already holds the failed try's prompt, so the first request differs."""
         storage, tool = MemoryStorage(), _CountingTool()
@@ -519,3 +951,377 @@ class TestRunDurably:
 
         assert result.final_output == "answer: k0=42"
         assert model.calls == 2
+
+
+class _SlowRunHooks(RunHooks):
+    """Makes every tool call wait ``delays[call id]`` seconds before it is invoked."""
+
+    def __init__(self, delays: dict[str, float]) -> None:
+        self.delays = delays
+
+    async def on_tool_start(self, context, agent, tool) -> None:
+        await asyncio.sleep(self.delays[context.tool_call_id])
+
+
+class _SlowAgentHooks(AgentHooks):
+    """Makes every tool call of the agent wait ``delays[call id]`` seconds before it is invoked."""
+
+    def __init__(self, delays: dict[str, float]) -> None:
+        self.delays = delays
+
+    async def on_tool_start(self, context, agent, tool) -> None:
+        await asyncio.sleep(self.delays[context.tool_call_id])
+
+
+def _attempt_parallel(
+    storage: MemoryStorage,
+    model: Model,
+    tools: _SleepingTools,
+    *,
+    agent_hooks: AgentHooks | None = None,
+    guardrail_delays: dict[str, float] | None = None,
+    rejected_calls: set[str] | None = None,
+    **kwargs: Any,
+):
+    """Run one attempt of an agent whose model asks for several tools at once."""
+    function_tools = tools.tools()
+    if guardrail_delays is not None or rejected_calls is not None:
+
+        @tool_input_guardrail
+        async def wait(data):
+            await asyncio.sleep((guardrail_delays or {}).get(data.context.tool_call_id, 0))
+            if rejected_calls and data.context.tool_call_id in rejected_calls:
+                return ToolGuardrailFunctionOutput.reject_content("stopped by a guardrail")
+            return ToolGuardrailFunctionOutput.allow()
+
+        for function_tool_ in function_tools:
+            function_tool_.tool_input_guardrails = [wait]
+    agent = Agent(name="analyst", model=model, tools=function_tools, hooks=agent_hooks)
+    journal = DurableJournal(storage, clean_up_after_run=True)
+    with journal_scope(journal):
+        return run_durably_sync(agent, "go", run_config=NO_TRACING, **kwargs), journal
+
+
+class TestParallelToolCalls:
+    def test_parallel_tool_calls_replay_when_their_bodies_finish_in_a_different_order(self):
+        """
+        Characterizes the documented claim that parallel calls keep the order they started in.
+
+        The model's response reserves a position for each tool call, so how long a tool body takes does not matter.
+        """
+        storage = MemoryStorage()
+        tools = _SleepingTools({"a": 0.05, "b": 0.01})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt_parallel(storage, _ParallelModel(fail_on_answer=True), tools)
+        assert tools.calls == {"a": 1, "b": 1}
+
+        tools.body_delays = {"a": 0.01, "b": 0.05}
+        retry_model = _ParallelModel()
+        _, journal = _attempt_parallel(storage, retry_model, tools)
+
+        assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert tools.calls == {"a": 1, "b": 1}
+        assert retry_model.calls == 1
+
+    def test_only_the_parallel_tool_call_that_failed_runs_again_on_retry(self):
+        storage = MemoryStorage()
+        tools = _SleepingTools(failing={"b"})
+        with pytest.raises(Exception, match="lookup b failed"):
+            _attempt_parallel(storage, _ParallelModel(("a", "b", "c")), tools)
+        assert tools.calls == {"a": 1, "b": 1, "c": 1}
+
+        tools.failing = set()
+        retry_model = _ParallelModel(("a", "b", "c"))
+        _, journal = _attempt_parallel(storage, retry_model, tools)
+
+        assert tools.calls == {"a": 1, "b": 2, "c": 1}
+        assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert retry_model.calls == 1
+
+    def test_a_replayed_tool_call_a_guardrail_stops_is_not_counted_as_replayed(self):
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+        rejected: set[str] = set()
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt_parallel(storage, _ParallelModel(fail_on_answer=True), tools, rejected_calls=rejected)
+        assert tools.calls == {"a": 1, "b": 1}
+
+        rejected.add("call-b")
+        retry_model = _ParallelModel()
+        _, journal = _attempt_parallel(storage, retry_model, tools, rejected_calls=rejected)
+
+        assert journal.stats.replayed == {"model": 1, "tool": 1}
+        assert tools.calls == {"a": 1, "b": 1}
+        assert retry_model.calls == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("call_id", ["call-shared", ""], ids=["duplicate-id", "empty-id"])
+    async def test_tool_calls_sharing_a_call_id_each_replay_their_own_result(self, call_id):
+        """The SDK rejects a repeated id itself, but a model that emitted one must not make the calls trade steps."""
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+        response = ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id=f"fc-{key}",
+                    call_id=call_id,
+                    name="lookup",
+                    arguments=json.dumps({"key": key}),
+                    type="function_call",
+                )
+                for key in ("a", "b")
+            ],
+            usage=Usage(),
+            response_id="resp",
+        )
+
+        async def attempt(order: tuple[str, ...]) -> tuple[dict[str, Any], DurableJournal]:
+            journal = DurableJournal(storage)
+            durable_run = journal.start_run()
+            durable_tools = [_get_durable_tool(tool, durable_run) for tool in tools.tools()]
+            _DurableModel(mock.create_autospec(Model, instance=True), durable_run)._reserve_tool_steps(
+                response, durable_tools
+            )
+            outputs = {}
+            for key in order:
+                context = ToolContext(
+                    context=None,
+                    usage=Usage(),
+                    tool_name="lookup",
+                    tool_call_id=call_id,
+                    tool_arguments=json.dumps({"key": key}),
+                )
+                outputs[key] = await durable_tools[0].on_invoke_tool(context, json.dumps({"key": key}))
+            return outputs, journal
+
+        await attempt(("a", "b"))
+        assert tools.calls == {"a": 1, "b": 1}
+
+        outputs, journal = await attempt(("b", "a"))
+
+        assert tools.calls == {"a": 1, "b": 1}
+        assert outputs == {"a": "a=42", "b": "b=42"}
+        assert journal.stats.replayed["tool"] == 2
+
+    def test_only_wrapped_tools_get_a_reserved_step(self):
+        """
+        A tool the model is handed but the durable run does not wrap never takes a reserved step.
+
+        MCP tools and a handoff agent's tools reach the model this way, so reserving for them would leave
+        positions nobody takes.
+        """
+
+        @function_tool
+        def plain_lookup(key: str) -> str:
+            """Look a key up."""
+            return key
+
+        journal = DurableJournal(MemoryStorage())
+        durable_run = journal.start_run()
+        durable_tool = _get_durable_tool(_SleepingTools().tools()[0], durable_run)
+        fingerprint = _build_tool_fingerprint("lookup", json.dumps({"key": "a"}), "call-durable")
+        response = ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id=f"fc-{call_id}",
+                    call_id=call_id,
+                    name=name,
+                    arguments=json.dumps({"key": "a"}),
+                    type="function_call",
+                )
+                for call_id, name in (("call-durable", "lookup"), ("call-plain", "plain_lookup"))
+            ],
+            usage=Usage(),
+            response_id="resp",
+        )
+
+        _DurableModel(mock.create_autospec(Model, instance=True), durable_run)._reserve_tool_steps(
+            response, [durable_tool, plain_lookup]
+        )
+
+        assert durable_run.position == 1
+        durable = durable_run.claim_reserved(
+            "call-durable", "tool:lookup", kind="tool", fingerprint=fingerprint
+        )
+        plain = durable_run.claim_reserved("call-plain", "tool:plain_lookup", kind="tool", fingerprint=None)
+        assert (durable.position, plain.position) == (0, 1)
+
+    @pytest.mark.asyncio
+    async def test_a_later_response_reserves_a_new_step_for_a_call_with_the_same_id_and_arguments(self):
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+        response = ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id="fc-x",
+                    call_id="call-x",
+                    name="lookup",
+                    arguments=json.dumps({"key": "a"}),
+                    type="function_call",
+                )
+            ],
+            usage=Usage(),
+            response_id="resp",
+        )
+        durable_run = DurableJournal(storage).start_run()
+        durable_tools = [_get_durable_tool(tool, durable_run) for tool in tools.tools()]
+        model = _DurableModel(mock.create_autospec(Model, instance=True), durable_run)
+        # No tool takes the first response's call; only the second response's is invoked.
+        model._reserve_tool_steps(response, durable_tools)
+        model._reserve_tool_steps(response, durable_tools)
+        context = ToolContext(
+            context=None,
+            usage=Usage(),
+            tool_name="lookup",
+            tool_call_id="call-x",
+            tool_arguments=json.dumps({"key": "a"}),
+        )
+
+        await durable_tools[0].on_invoke_tool(context, json.dumps({"key": "a"}))
+
+        assert build_step_key(durable_run.key, 1) in storage.entries
+        assert build_step_key(durable_run.key, 0) not in storage.entries
+
+    @pytest.mark.parametrize("source", ["run-hook", "agent-hook", "tool-input-guardrail"])
+    @pytest.mark.parametrize(
+        "first_attempt_delays",
+        [{"call-a": 0.01, "call-b": 0.1}, {"call-a": 0.1, "call-b": 0.01}],
+        ids=["a-first", "b-first"],
+    )
+    def test_parallel_tool_calls_replay_when_what_runs_before_them_takes_a_different_time(
+        self, source, first_attempt_delays
+    ):
+        """A hook or guardrail the SDK awaits before invoking a tool can let a later call claim first."""
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+
+        def attempt(model: Model, delays: dict[str, float]):
+            kwargs: dict[str, Any] = {}
+            if source == "run-hook":
+                kwargs["hooks"] = _SlowRunHooks(delays)
+            elif source == "agent-hook":
+                kwargs["agent_hooks"] = _SlowAgentHooks(delays)
+            else:
+                kwargs["guardrail_delays"] = delays
+            return _attempt_parallel(storage, model, tools, **kwargs)
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ParallelModel(fail_on_answer=True), first_attempt_delays)
+        assert tools.calls == {"a": 1, "b": 1}
+
+        _, journal = attempt(_ParallelModel(), {"call-a": 0.1, "call-b": 0.01})
+
+        assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert tools.calls == {"a": 1, "b": 1}
+
+
+class TestDurableExceptions:
+    def test_a_static_handoff_agent_replays_its_calls(self):
+        storage, tool = MemoryStorage(), _CountingTool()
+
+        def attempt(specialist_model: _ScriptedModel) -> DurableJournal:
+            specialist = Agent(name="specialist", model=specialist_model, tools=AirflowTools(tool.tool()))
+            lead = Agent(name="lead", model=_TransferModel(), handoffs=[specialist])
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(lead, "go", run_config=NO_TRACING)
+            return journal
+
+        # The transfer's own result is the first function output the specialist sees.
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(lookups=2, fail_on_answer=True))
+        assert tool.calls == 1
+
+        specialist_model = _ScriptedModel(lookups=2)
+        journal = attempt(specialist_model)
+
+        assert journal.stats.replayed == {"model": 2, "tool": 1}
+        assert specialist_model.calls == 1
+        assert tool.calls == 1
+
+    @pytest.mark.parametrize(
+        ("by_name", "replayed_models"),
+        [
+            pytest.param(False, 1, id="model-instance"),
+            pytest.param(True, 2, id="model-name"),
+        ],
+    )
+    def test_a_handoff_object_agent_runs_its_own_tools_live(self, by_name, replayed_models):
+        storage, tool = MemoryStorage(), _CountingTool()
+
+        def attempt(specialist_model: _ScriptedModel) -> DurableJournal:
+            specialist = Agent(
+                name="specialist",
+                model="specialist-model" if by_name else specialist_model,
+                tools=AirflowTools(tool.tool()),
+            )
+            lead = Agent(name="lead", model=_TransferModel(), handoffs=[handoff(specialist)])
+            config = RunConfig(tracing_disabled=True, model_provider=_Provider(specialist_model))
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(lead, "go", run_config=config)
+            return journal
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(lookups=2, fail_on_answer=True))
+        assert tool.calls == 1
+
+        journal = attempt(_ScriptedModel(lookups=2))
+
+        assert journal.stats.replayed == {"model": replayed_models}
+        assert tool.calls == 2
+
+    @pytest.mark.asyncio
+    async def test_a_streamed_model_call_is_not_recorded(self):
+        events = [object(), object()]
+
+        async def stream(*args: Any, **kwargs: Any):
+            for event in events:
+                yield event
+
+        wrapped = mock.create_autospec(Model, instance=True)
+        wrapped.stream_response.side_effect = stream
+        storage = MemoryStorage()
+        durable_run = DurableJournal(storage).start_run()
+        model = _DurableModel(wrapped, durable_run)
+
+        streamed = [
+            event
+            async for event in model.stream_response(
+                None,
+                "go",
+                ModelSettings(),
+                [],
+                None,
+                [],
+                ModelTracing.DISABLED,
+                previous_response_id=None,
+                conversation_id=None,
+                prompt=None,
+            )
+        ]
+
+        assert streamed == events
+        wrapped.get_response.assert_not_called()
+        assert durable_run.position == 0
+        assert storage.steps() == []
+
+    def test_a_tool_that_needs_approval_is_not_invoked_or_recorded(self):
+        calls = []
+
+        @function_tool(needs_approval=True)
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            calls.append(key)
+            return f"{key}=42"
+
+        journal = DurableJournal(MemoryStorage(), clean_up_after_run=True)
+        with journal_scope(journal):
+            result = run_durably_sync(
+                Agent(name="analyst", model=_ScriptedModel(), tools=[lookup]), "go", run_config=NO_TRACING
+            )
+
+        assert len(result.interruptions) == 1
+        assert calls == []
+        assert journal.stats.recorded == {"model": 1}
+        assert _get_durable_tool(lookup, journal.start_run()) is not lookup

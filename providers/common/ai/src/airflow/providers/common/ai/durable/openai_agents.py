@@ -58,11 +58,13 @@ try:
         resolve_function_tool_failure_error_function,
         set_function_tool_failure_error_function,
     )
+    from openai.types.responses import ResponseFunctionToolCall
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.durable.fingerprint import _digest, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import _EXECUTING_STEP, current_journal
+from airflow.providers.common.ai.tools.openai_agents import _REPLAY_RETRY, _RETRY_COUNT, _RetryLimitReached
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
@@ -91,6 +93,7 @@ _MODEL_AT_FAULT = (
     MaxTurnsExceeded,
     OutputGuardrailTripwireTriggered,
     ToolInputGuardrailTripwireTriggered,
+    _RetryLimitReached,
 )
 
 # The tool results the SDK hands the model as structured content rather than as text.
@@ -102,6 +105,10 @@ _DEFAULT_FAILURE_HANDLED = "_function_tool_default_failure_handled"
 
 # Arguments that keep the conversation on OpenAI's servers, which a replayed model call never reaches.
 _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_response_id")
+
+# Set on the copy of a function tool that reports through the journal, so that reserving a position
+# skips tools nothing wraps, such as those of MCP servers or of a handoff agent with a named model.
+_DURABLE_MARKER = "_airflow_durable_tool"
 
 
 async def run_durably(
@@ -145,7 +152,10 @@ async def run_durably(
     function tools of an agent reached through ``handoff()``, and its model too unless the
     agent's ``model`` is a model name or not set, and streamed runs. A tool call that fails,
     including one whose exception ``failure_error_function`` turns into text for the model,
-    is not recorded either, so a retry runs it again. A replayed model call reports no
+    is not recorded either, so a retry runs it again. A failure the model could correct,
+    which an ``AirflowTools`` tool answers with ``{"error": ...}``, is recorded, and still
+    counts against the tool's retry limit when it replays; a run that used that limit up asks
+    the model again from its last request on a retry. A replayed model call reports no
     usage, since it costs nothing.
 
     A ``session`` makes every retry run live: the SDK adds the failed try's prompt to it
@@ -219,6 +229,7 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
+    setattr(durable_tool, _DURABLE_MARKER, True)
     invoke = tool.on_invoke_tool
     # Exceptions a custom failure_error_function turned into text, by tool call.
     handled: dict[str, Exception] = {}
@@ -233,27 +244,31 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         set_function_tool_failure_error_function(durable_tool, remember)
         invoke = bind(durable_tool)
 
+    # An AirflowTools tool, whose correctable failures count against its retry limit.
+    replay_retry = getattr(tool, _REPLAY_RETRY, None)
+
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
         if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
-        try:
-            parsed = json.loads(arguments) if arguments else {}
-        except json.JSONDecodeError:
-            parsed = arguments
-        fingerprint = fingerprint_tool_call(
-            tool.name,
-            # As recorded model answers are masked, so a replayed call's arguments can be too.
-            mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
-            ctx.tool_call_id,
-        )
-        step = durable_run.claim(f"tool:{tool.name}", kind="tool", fingerprint=fingerprint)
+        name = f"tool:{tool.name}"
+        fingerprint = _build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id)
+        step = durable_run.claim_reserved(ctx.tool_call_id, name, kind="tool", fingerprint=fingerprint)
         if step.replayed:
+            # Such a tool's result is text, so a dict is one recorded with the count it left in the
+            # tool's retry budget. Restored, so the retry limit spans attempts.
+            if replay_retry is not None and isinstance(step.payload, dict):
+                await replay_retry(ctx, step.payload["retry"])
+                return step.payload["output"]
             return step.payload
         try:
             with step.executing():
                 output = await invoke(ctx, arguments)
         except Exception as error:
-            step.fail(error)
+            # The model's answers used this tool's retry limit up, not this call, so the run fails
+            # on the model's account and a retry asks it again from its last request. The limit of
+            # a tool inside an agent this one calls through as_tool is that call's failure.
+            if not (replay_retry is not None and isinstance(error, _RetryLimitReached)):
+                step.fail(error)
             raise
         # A failure the SDK turned into text for the model is not recorded, so a retry runs the
         # call again, as it does a call that raised.
@@ -261,11 +276,27 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
             step.fail(handled_error)
         elif not getattr(ctx, _DEFAULT_FAILURE_HANDLED, False):
             # Secrets must not reach the journal any more than the model.
-            step.record(mask_secrets(_as_sent(output)))
+            payload = mask_secrets(_as_sent(output))
+            if replay_retry is not None and (retry := getattr(ctx, _RETRY_COUNT, None)) is not None:
+                payload = {"output": payload, "retry": retry}
+            step.record(payload)
         return output
 
     durable_tool.on_invoke_tool = on_invoke_tool
     return durable_tool
+
+
+def _build_tool_fingerprint(name: str, arguments: str, call_id: str) -> str | None:
+    try:
+        parsed = json.loads(arguments) if arguments else {}
+    except json.JSONDecodeError:
+        parsed = arguments
+    return fingerprint_tool_call(
+        name,
+        # As recorded model answers are masked, so a replayed call's arguments can be too.
+        mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
+        call_id,
+    )
 
 
 def _as_sent(output: Any) -> Any:
@@ -345,13 +376,16 @@ class _DurableModel(Model):
         )
         if step.replayed:
             try:
-                return ModelResponse(
+                replayed = ModelResponse(
                     output=_OUTPUT_ITEMS.validate_python(step.payload["output"]),
                     usage=Usage(),
                     response_id=step.payload.get("response_id"),
                 )
             except (ValidationError, KeyError, TypeError) as error:
                 self.durable_run.reject(step, reason=f"the recorded model response cannot be read: {error}")
+            else:
+                self._reserve_tool_steps(replayed, tools)
+                return replayed
 
         async def call() -> ModelResponse:
             return await self.wrapped.get_response(
@@ -359,10 +393,34 @@ class _DurableModel(Model):
             )
 
         try:
-            return await step.run(call, to_record=_record_response)
+            response = await step.run(call, to_record=_record_response)
         except Exception:
             self.failed_step = step
             raise
+        self._reserve_tool_steps(response, tools)
+        return response
+
+    def _reserve_tool_steps(self, response: ModelResponse, tools: list[Tool]) -> None:
+        """
+        Claim a position for each of the response's tool calls, in the order the model made them.
+
+        A call whose tool never runs (held for approval, stopped by a guardrail) leaves its position
+        empty, which a retry runs live without disturbing the positions after it. The steps the
+        previous response reserved and no tool took are dropped.
+        """
+        durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
+        self.durable_run.reserve(
+            [
+                (
+                    item.call_id,
+                    f"tool:{item.name}",
+                    _build_tool_fingerprint(item.name, item.arguments, item.call_id),
+                )
+                for item in response.output
+                if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names
+            ],
+            kind="tool",
+        )
 
     def _retried(self, fingerprint: str | None) -> JournalStep | None:
         """
