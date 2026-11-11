@@ -244,18 +244,28 @@ it:
 ``list_keys`` and ``read_key`` and the bucket pinned. The same toolset works in
 ``AirflowTools(...)``.
 
-``.filtered()`` and ``.approval_required()``, which pydantic-ai toolsets offer, do not
-reach the SDK through ``AirflowTools``. They return wrappers that ``AirflowTools`` cannot
-read, and building it fails:
+To offer the model only some of a toolset's tools, wrap the toolset with ``.filtered()``
+before you pass it in. These tools are every ``SQLToolset`` tool except ``query``:
+
+.. code-block:: python
+
+    tools = AirflowTools(SQLToolset(db_conn_id="warehouse").filtered(lambda ctx, tool: tool.name != "query"))
+
+``.prefixed()`` and ``.renamed()`` carry over the same way, nested in any order. The filter
+runs once, when ``AirflowTools`` is built, with a placeholder run context whose ``deps``
+is ``None``, so a filter that reads an attribute of ``ctx.deps`` fails there. Whatever the
+filter decides holds for every run of an agent given these tools, where a Pydantic AI agent
+asks it again before each model turn.
+
+Any other wrapper fails with a ``TypeError`` that names it, such as for
+``.approval_required()``:
 
 .. code-block:: text
 
-    AttributeError: 'FilteredToolset' object has no attribute 'airflow_tools'
+    TypeError: AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the toolset without it and use the framework's own tool approval, such as needs_approval in the OpenAI Agents SDK, whose guide says how it behaves in a task, or run the agent with AgentOperator.
 
-Choose the tools with ``allowed_tables``, ``allowed_methods`` and ``pinned_arguments``
-instead. There is no per-call approval on this path; see
-:ref:`howto/frameworks:openai-agents-limits`. Each toolset's page covers the rest of its
-options: :ref:`howto/toolsets`.
+:ref:`howto/frameworks:openai-agents-limits` says what ``needs_approval`` does in a task.
+Each toolset's page covers the rest of its options: :ref:`howto/toolsets`.
 
 Tools
 -----
@@ -335,7 +345,7 @@ The SDK routes a call by tool name, so two toolsets that define the same name ra
 
 .. code-block:: text
 
-    ValueError: More than one tool is named check_query, get_schema, list_tables, query. Give the toolsets different tool_prefix values, where they take one, so the model can call each of them.
+    ValueError: More than one tool is named check_query, get_schema, list_tables, query. Give the toolsets different tool_prefix values, where they take one, or wrap them with .prefixed(), so the model can call each of them.
 
 .. _howto/frameworks:openai-agents-failures:
 
