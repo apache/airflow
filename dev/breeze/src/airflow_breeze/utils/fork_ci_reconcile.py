@@ -401,13 +401,19 @@ def compute_projection(state: ForkState, *, author_draft: bool) -> Projection:
     raise ValueError(f"No projection for fork CI state {state.value!r}")
 
 
-def _is_author_draft(pr: PullRequestSnapshot) -> bool:
-    return pr.is_draft and not _is_bot(pr.last_draft_actor)
+def _is_author_draft(pr: PullRequestSnapshot, *, is_pilot: bool = False) -> bool:
+    if not pr.is_draft:
+        return False
+    if is_pilot:
+        return pr.last_draft_actor is not None and not _is_bot(pr.last_draft_actor)
+    return not _is_bot(pr.last_draft_actor)
 
 
-def _enter_state(plan: Plan, pr: PullRequestSnapshot, labels: set[str], state: ForkState) -> None:
+def _enter_state(
+    plan: Plan, pr: PullRequestSnapshot, labels: set[str], state: ForkState, *, is_pilot: bool = False
+) -> None:
     plan.state = state
-    projection = compute_projection(state, author_draft=_is_author_draft(pr))
+    projection = compute_projection(state, author_draft=_is_author_draft(pr, is_pilot=is_pilot))
     if projection.draft is not None and projection.draft != pr.is_draft:
         plan.draft = projection.draft
     if projection.ready_for_review is not None:
@@ -649,6 +655,9 @@ def classify(
     """
     plan = Plan()
     labels = set(pr.labels)
+    is_pilot = (
+        config is not None and config.pilot_joined_at(pr.author_login) is not None
+    ) or LABEL_USE_FORK_CI in labels
     marker = pr.marker
     if pr.marker_error:
         plan.unknown.append(pr.marker_error)
@@ -656,7 +665,7 @@ def classify(
 
     def release(state: ForkState, comment: Callable[[Marker], str]) -> Plan:
         plan.remove_labels.append(LABEL_FORK_CI_REQUIRED)
-        _enter_state(plan, pr, labels, state)
+        _enter_state(plan, pr, labels, state, is_pilot=is_pilot)
         since = marker.since if marker and marker.state == state.value else now
         _set_marker_comment(plan, pr, comment(Marker(state.value, pr.head_sha, since)))
         checks_url = f"https://github.com/{repo}/pull/{pr.number}/checks"
@@ -689,7 +698,7 @@ def classify(
     if reason in TAMPER_CHECKED_REASONS:
         bypass_run = find_bypass_run()
         if bypass_run is not None:
-            _enter_state(plan, pr, labels, ForkState.GATE_BYPASSED)
+            _enter_state(plan, pr, labels, ForkState.GATE_BYPASSED, is_pilot=is_pilot)
             _set_status(plan, pr, ForkState.GATE_BYPASSED.value, bypass_run)
             _set_marker_comment(
                 plan,
@@ -716,7 +725,7 @@ def classify(
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
         if reopened is None or reopened <= marker.since:
-            _enter_state(plan, pr, labels, ForkState(marker.state))
+            _enter_state(plan, pr, labels, ForkState(marker.state), is_pilot=is_pilot)
             if plan.state == ForkState.CLOSED:
                 comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo)
             elif plan.state == ForkState.GATE_MODIFIED:
@@ -749,7 +758,7 @@ def classify(
     if gate_checked and not already_checked:
         change = find_gate_change()
         if change is not None:
-            _enter_state(plan, pr, labels, ForkState.GATE_MODIFIED)
+            _enter_state(plan, pr, labels, ForkState.GATE_MODIFIED, is_pilot=is_pilot)
             _set_status(
                 plan, pr, ForkState.GATE_MODIFIED.value, f"https://github.com/{repo}/pull/{pr.number}/files"
             )
@@ -822,7 +831,7 @@ def classify(
         )
 
     if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
-        _enter_state(plan, pr, labels, ForkState.CLOSED)
+        _enter_state(plan, pr, labels, ForkState.CLOSED, is_pilot=is_pilot)
         _set_marker_comment(
             plan,
             pr,
@@ -836,7 +845,7 @@ def classify(
         plan.close = True
         return plan
 
-    _enter_state(plan, pr, labels, state)
+    _enter_state(plan, pr, labels, state, is_pilot=is_pilot)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
     _set_status(plan, pr, state.value, target_url, force=refresh_status)
@@ -858,7 +867,7 @@ def classify(
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
-            author_draft=_is_author_draft(pr),
+            author_draft=_is_author_draft(pr, is_pilot=is_pilot),
         ),
     )
     return plan

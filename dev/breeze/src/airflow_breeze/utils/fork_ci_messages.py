@@ -141,6 +141,7 @@ def _setup_instructions(fork: str) -> str:
         f"   ```bash\n   gh repo sync {fork} --branch main\n   ```\n\n"
         "2. Enable the workflow in your fork:\n\n"
         f"   ```bash\n   gh workflow enable ci-amd.yml -R {fork}\n   ```\n\n"
+        f"   *(Or in your browser: open `https://github.com/{fork}/actions` and click 'Enable workflows')*\n\n"
         "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
         f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
@@ -155,8 +156,12 @@ _CHANGES_CI_FILES = (
 _STATE_TEXTS = {
     "setup_required": "**Fork CI: setup required.** CI for this pull request has not run in your fork yet, "
     "because the `Tests (AMD)` workflow is not enabled there.",
-    "awaiting_push": "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
-    "run for the latest commit of this pull request. Push the branch again to start it.",
+    "awaiting_push": (
+        "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
+        "run for the latest commit of this pull request. Push the branch again to start it. "
+        "If you already pushed, verify in your fork's Actions tab that workflows are not disabled "
+        "by GitHub's fork banner."
+    ),
     "running": "**Fork CI: running.** CI for the latest commit is running in your fork.",
     "failed": "**Fork CI: failed.** CI for the latest commit failed in your fork. Fix the failures and "
     "push again.",
