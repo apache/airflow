@@ -40,6 +40,7 @@ from airflow.sdk.coordinators.java._jar_manifest import (
     SUPERVISOR_SCHEMA_VERSION,
     read_main_attributes,
 )
+from airflow.sdk.execution_time.coordinator import TaskLaunchError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -100,24 +101,25 @@ def _get_classpath_link_dir() -> pathlib.Path:
     """
     Return this user's directory of classpath links, creating it if needed.
 
-    :raises ValueError: when the directory's path holds ``os.pathsep``.
-    :raises PermissionError: when the directory is not a real directory owned by this user, or
-        others can write to it. Anyone who can write there could point a link at their own JARs.
+    :raises TaskLaunchError: when the directory's path holds ``os.pathsep``, or
+        it is not a real directory owned by this user, or writable by others.
     """
     uid = os.getuid()
     path = pathlib.Path(tempfile.gettempdir(), f"airflow-java-classpath-{uid}")
     if os.pathsep in os.fspath(path):
-        raise ValueError(
+        raise TaskLaunchError(
             f"Cannot keep Java classpath links in {path}, because its path holds {os.pathsep!r}. "
-            "Point TMPDIR to a directory whose path does not."
+            "Point TMPDIR to a directory whose path does not.",
+            retryable=False,
         )
     with contextlib.suppress(FileExistsError):
         path.mkdir(mode=0o700)
     st = path.lstat()
     if not stat.S_ISDIR(st.st_mode) or st.st_uid != uid or st.st_mode & 0o022:
-        raise PermissionError(
+        raise TaskLaunchError(
             f"Cannot keep Java classpath links in {path}: it must be a directory owned by "
-            "the current user that no other user can write to."
+            "the current user that no other user can write to.",
+            retryable=False,
         )
     return path
 
@@ -167,8 +169,8 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
     timestamp, is reached through a symlink from :func:`_get_classpath_link`, which this creates
     if needed.
 
-    :raises ValueError: when a JAR's path below its root still holds ``os.pathsep``, or when the
-        temporary directory's path holds it.
+    :raises TaskLaunchError: when a JAR's path below its root still holds ``os.pathsep``, or the
+        directory of links cannot be used. Retrying cannot fix either.
     """
     jars = sorted(_find_jars(roots), key=lambda p: p.as_posix())
     if primary is not None:
@@ -176,9 +178,10 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
         jars = [primary, *(p for p in jars if p.resolve() != target)]
     placed = [(p, _find_root(p, roots)) for p in jars]
     if bad := [p for p, r in placed if os.pathsep in os.fspath(p if r is None else p.relative_to(r))]:
-        raise ValueError(
+        raise TaskLaunchError(
             f"Cannot put these JARs on a Java classpath, because {os.pathsep!r} separates its "
-            f"entries: {', '.join(map(os.fspath, bad))}. Rename or move them."
+            f"entries: {', '.join(map(os.fspath, bad))}. Rename or move them.",
+            retryable=False,
         )
     linked_roots = {r for _, r in placed if r is not None and os.pathsep in os.fspath(r)}
     links = {r: _get_classpath_link(r) for r in linked_roots}
@@ -391,6 +394,7 @@ class JavaCoordinator(SubprocessCoordinator):
         JARs go on the classpath, so another JAR that sets the same ``Main-Class`` is rejected.
 
         :raises ValueError: when the JAR cannot run.
+        :raises TaskLaunchError: when the bundle's JARs cannot be put on a classpath.
         """
         main_class, schema_version = _read_executable_jar(path)
         if self.main_class and main_class != self.main_class:
