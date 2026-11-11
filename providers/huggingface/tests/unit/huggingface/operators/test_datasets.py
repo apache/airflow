@@ -149,9 +149,13 @@ def test_stream_operator_lazily_transforms_filters_and_publishes_with_asset_even
             huggingface_conn_id=None,
         )
         event = SimpleNamespace(extra=None)
-        result = operator.execute(
-            {"run_id": "scheduled__2026-10-31", "outlet_events": {operator.published_asset: event}}
-        )
+
+        class Events:
+            def __getitem__(self, asset):
+                assert asset.uri == "hf://datasets/org/streamed"
+                return event
+
+        result = operator.execute({"run_id": "scheduled__2026-10-31", "outlet_events": Events()})
 
     hook.get_dataset_info.assert_called_once_with("org/source", "main")
     hook.load_dataset.assert_called_once_with(
