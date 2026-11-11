@@ -163,6 +163,7 @@ def _handle_databricks_operator_execution(
                         repair_json["job_parameters"] = operator._merged_json["job_parameters"]
                     hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
+                    return
                 raise AirflowException(error_message)
 
             log.info("%s in run state: %s", operator.task_id, run_state)
