@@ -23,6 +23,7 @@ import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
+import type { GetXComOpts } from "../../src/sdk/client-types.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
@@ -50,8 +51,23 @@ function client(frames: { body: unknown; error?: unknown }[]) {
   return createCoordinatorClient(fakeComm(frames), FAKE_CTX, FAKE_TI_ID);
 }
 
+const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+
+type XComOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+/** Each XCom call that takes a target, with the reply the supervisor gives it. */
+const XCOM_CALLS = [
+  [
+    "getXCom",
+    { type: "XComResult", key: "k", value: null },
+    (c: TaskClient, o: XComOpts) => c.getXCom(o),
+  ],
+  ["setXCom", null, (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
+  ["deleteXCom", null, (c: TaskClient, o: XComOpts) => c.deleteXCom(o)],
+] as const;
+
 /** Captures the request bodies sent, answering each one with `reply`. */
-function recordingClient(reply: unknown = null) {
+function recordingClient(reply: unknown = null, ctx: TaskContext = FAKE_CTX) {
   const sent: Record<string, unknown>[] = [];
   const comm = {
     request: async (body: Record<string, unknown>) => {
@@ -59,7 +75,7 @@ function recordingClient(reply: unknown = null) {
       return { body: reply };
     },
   } as unknown as CommChannel;
-  return { client: createCoordinatorClient(comm, FAKE_CTX, FAKE_TI_ID), sent };
+  return { client: createCoordinatorClient(comm, ctx, FAKE_TI_ID), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -169,6 +185,7 @@ describe("writes do not read a supervisor 404 as absence", () => {
     ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
     ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
     ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+    ["deleteXCom", "DeleteXCom", (c: TaskClient) => c.deleteXCom({ key: "k" })],
     [
       "taskStateStore.set",
       "SetTaskStateStore",
@@ -320,6 +337,79 @@ describe("client is bound to TaskContext", () => {
       include_prior_dates: true,
     });
     expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });
+  });
+});
+
+describe("XCom map index default", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["the running task", {}, 3],
+      ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
+      ["another task", { taskId: "extract" }, null],
+      ["another Dag", { dagId: "other_dag" }, null],
+      ["another run", { runId: "manual__1" }, null],
+      ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
+      ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
+      ["the running task with mapIndex null", { mapIndex: null }, null],
+    ] as [string, Omit<XComOpts, "key">, number | null][])(
+      "from a mapped task targeting %s sends map_index %s",
+      async (_label, target, expected) => {
+        const { client: c, sent } = recordingClient(reply, MAPPED_CTX);
+
+        await call(c, { key: "k", ...target });
+
+        expect(sent[0]).toMatchObject({ map_index: expected });
+      },
+    );
+  });
+});
+
+describe("XCom key and map index guards", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["an empty key", { key: "" }, RangeError],
+      ["an undefined key", { key: undefined }, TypeError],
+      ["a numeric key", { key: 1 }, TypeError],
+      ["a fractional mapIndex", { key: "k", mapIndex: 1.5 }, RangeError],
+      ["a NaN mapIndex", { key: "k", mapIndex: Number.NaN }, RangeError],
+      ["an Infinity mapIndex", { key: "k", mapIndex: Number.POSITIVE_INFINITY }, RangeError],
+      ["a string mapIndex", { key: "k", mapIndex: "1" }, TypeError],
+      ["a numeric dagId", { key: "k", dagId: 1 }, TypeError],
+      ["a numeric taskId", { key: "k", taskId: 1 }, TypeError],
+      ["an empty runId", { key: "k", runId: "" }, RangeError],
+    ] as [string, unknown, ErrorConstructor][])(
+      "rejects %s without sending a request",
+      async (_label, opts, errorType) => {
+        const { client: c, sent } = recordingClient(reply);
+
+        await expect(call(c, opts as XComOpts)).rejects.toThrow(errorType);
+
+        expect(sent).toHaveLength(0);
+      },
+    );
+  });
+});
+
+describe("deleteXCom", () => {
+  it("sends explicit dagId/taskId/runId/mapIndex overrides", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.deleteXCom({
+      key: "k",
+      dagId: "other_dag",
+      taskId: "upstream",
+      runId: "manual__1",
+      mapIndex: 2,
+    });
+
+    expect(sent[0]).toEqual({
+      type: "DeleteXCom",
+      key: "k",
+      dag_id: "other_dag",
+      task_id: "upstream",
+      run_id: "manual__1",
+      map_index: 2,
+    });
   });
 });
 

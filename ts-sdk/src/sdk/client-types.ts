@@ -26,6 +26,10 @@ export type JsonValue =
  *
  * `dagId`, `taskId`, and `runId` default to the running task's context.
  * Pass them only when pulling an XCom value from another task or run.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface GetXComOpts {
   key: string;
@@ -40,10 +44,31 @@ export interface GetXComOpts {
  * Options for pushing an XCom value.
  *
  * `dagId`, `taskId`, and `runId` default to the running task's context.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface SetXComOpts {
   key: string;
   value: JsonValue;
+  dagId?: string;
+  runId?: string;
+  taskId?: string;
+  mapIndex?: number | null;
+}
+
+/**
+ * Options for deleting an XCom value.
+ *
+ * `dagId`, `taskId`, and `runId` default to the running task's context.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
+ */
+export interface DeleteXComOpts {
+  key: string;
   dagId?: string;
   runId?: string;
   taskId?: string;
