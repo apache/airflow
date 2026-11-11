@@ -2328,7 +2328,11 @@ def test_task_run_with_user_impersonation(
         assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "airflowuser"]
         assert "python" in actual_cmd[5]
         assert actual_cmd[6] == "-c"
-        assert actual_cmd[7] == "from airflow.sdk.execution_time.task_runner import main; main()"
+        assert actual_cmd[7] == (
+            "from airflow.sdk.execution_time.supervisor import _initialize_core_settings; "
+            "_initialize_core_settings(); "
+            "from airflow.sdk.execution_time.task_runner import main; main()"
+        )
 
 
 @patch("airflow.sdk.execution_time.task_runner.getuser")

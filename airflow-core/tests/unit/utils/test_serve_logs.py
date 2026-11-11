@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
+from unittest import mock
 
 import jwt
 import pytest
@@ -28,6 +29,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.utils.serve_logs import create_app
+from airflow.utils.serve_logs.core import serve_logs
 
 from tests_common.test_utils.config import conf_vars
 
@@ -252,3 +254,28 @@ class TestServeLogs:
             ).status_code
             == 403
         )
+
+
+@mock.patch("setproctitle.setproctitle", autospec=True)
+@mock.patch("airflow.utils.serve_logs.core.uvicorn.run", autospec=True)
+@mock.patch("airflow.utils.serve_logs.core.settings.ensure_initialized", autospec=True)
+def test_serve_logs_initializes_without_orm_before_serving(
+    mock_ensure_initialized, mock_uvicorn_run, mock_setproctitle
+):
+    calls = mock.Mock()
+    calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
+    calls.attach_mock(mock_uvicorn_run, "uvicorn_run")
+
+    serve_logs(port=8793)
+
+    assert calls.mock_calls == [
+        mock.call.ensure_initialized(orm=False),
+        mock.call.uvicorn_run(
+            "airflow.utils.serve_logs.log_server:get_app",
+            host="",
+            port=8793,
+            log_level=mock.ANY,
+            log_config=None,
+            access_log=False,
+        ),
+    ]

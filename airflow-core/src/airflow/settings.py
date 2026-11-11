@@ -909,8 +909,9 @@ def initialize(*, orm: bool = True):
     _configure_secrets_masker()
 
     is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
-    if orm and not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
-        configure_orm()
+    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
+        if orm:
+            configure_orm()
 
         # mask the sensitive_config_values
         conf.mask_secrets()

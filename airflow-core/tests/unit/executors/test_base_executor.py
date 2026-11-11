@@ -941,6 +941,25 @@ def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_superv
     )
 
 
+@mock.patch(
+    "airflow.sdk.execution_time.connection_test_supervisor.supervise_connection_test",
+    autospec=True,
+)
+@mock.patch("airflow.executors.base_executor.settings.ensure_initialized", autospec=True)
+def test_run_workload_initializes_without_orm_before_supervising(mock_ensure_initialized, mock_supervise):
+    calls = mock.Mock()
+    calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
+    calls.attach_mock(mock_supervise, "supervise")
+    mock_supervise.return_value = 0
+    wl = workloads.TestConnection.make(connection_test_id=uuid4(), connection_id="test_conn", timeout=60)
+    wl.token = "test-token"
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    assert [name for name, _, _ in calls.mock_calls] == ["ensure_initialized", "supervise"]
+    mock_ensure_initialized.assert_called_once_with(orm=False)
+
+
 @mock.patch("airflow.sdk.execution_time.supervisor.supervise_task")
 @pytest.mark.parametrize(
     ("config_overrides", "explicit_arg", "expected"),

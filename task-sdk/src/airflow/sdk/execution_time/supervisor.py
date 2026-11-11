@@ -724,9 +724,9 @@ def _child_exec_main():
     child_stdout = socket(fileno=1)
     child_stderr = socket(fileno=2)
 
-    target = _resolve_child_target(os.environ.pop("_AIRFLOW_CHILD_TARGET", ""))
-
     _initialize_core_settings()
+
+    target = _resolve_child_target(os.environ.pop("_AIRFLOW_CHILD_TARGET", ""))
 
     # _fork_main always exits via os._exit(), so the socket objects above are
     # never GC'd (which would close their underlying FDs). This is safe but

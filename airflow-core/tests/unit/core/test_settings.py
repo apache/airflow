@@ -609,9 +609,10 @@ class TestEnsureInitialized:
         assert mock_initialize.mock_calls == expected_calls
 
     @mock.patch("airflow.settings.atexit.register", autospec=True)
+    @mock.patch("airflow.settings.conf.mask_secrets", autospec=True)
     @mock.patch("airflow.settings.configure_orm", autospec=True)
-    def test_initialize_without_orm_is_not_repeated(
-        self, mock_configure_orm, mock_atexit_register, monkeypatch
+    def test_initialize_without_orm_skips_only_the_engine_and_runs_once(
+        self, mock_configure_orm, mock_mask_secrets, mock_atexit_register, monkeypatch
     ):
         monkeypatch.setattr(settings, "_initialized", False)
 
@@ -619,6 +620,7 @@ class TestEnsureInitialized:
         settings.ensure_initialized()
 
         mock_configure_orm.assert_not_called()
+        mock_mask_secrets.assert_called_once_with()
 
 
 class TestDisposeOrm:

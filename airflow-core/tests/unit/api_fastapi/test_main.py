@@ -25,11 +25,12 @@ from unittest import mock
 @mock.patch.dict(os.environ, {"AIRFLOW_API_APPS": "core"})
 @mock.patch("airflow.api_fastapi.app.cached_app", autospec=True)
 @mock.patch("airflow.settings.ensure_initialized", autospec=True)
-def test_initializes_before_creating_the_app(mock_ensure_initialized, mock_cached_app, monkeypatch):
+@mock.patch.dict(sys.modules)
+def test_initializes_before_creating_the_app(mock_ensure_initialized, mock_cached_app):
     calls = mock.Mock()
     calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
     calls.attach_mock(mock_cached_app, "cached_app")
-    monkeypatch.delitem(sys.modules, "airflow.api_fastapi.main", raising=False)
+    sys.modules.pop("airflow.api_fastapi.main", None)
 
     importlib.import_module("airflow.api_fastapi.main")
 

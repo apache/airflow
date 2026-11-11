@@ -221,8 +221,9 @@ class TestDag:
         clear_db_dags()
         clear_db_assets()
 
+    @mock.patch("airflow.settings.Session", None)
     @mock.patch("airflow.settings.ensure_initialized", autospec=True, side_effect=RuntimeError("initialized"))
-    def test_dag_test_initializes_settings(self, mock_ensure_initialized):
+    def test_dag_test_initializes_settings_before_using_the_session(self, mock_ensure_initialized):
         dag = DAG(dag_id="test_dag_test_initializes", schedule=None, start_date=DEFAULT_DATE)
 
         with pytest.raises(RuntimeError, match="initialized"):

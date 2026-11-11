@@ -23,7 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.utils.scheduler_health import HealthServer
+from airflow.utils.scheduler_health import HealthServer, serve_health_check
 
 pytestmark = pytest.mark.db_test
 
@@ -77,3 +77,19 @@ class TestSchedulerHealthServer:
         mock_session.return_value.__enter__.return_value.query.return_value = None
         self.mock_server.do_GET("/health")
         mock_send_error.assert_called_with(503)
+
+
+@mock.patch("airflow.utils.scheduler_health.HTTPServer", autospec=True)
+@mock.patch("airflow.utils.scheduler_health.settings.ensure_initialized", autospec=True)
+def test_serve_health_check_initializes_before_serving(mock_ensure_initialized, mock_http_server):
+    calls = mock.Mock()
+    calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
+    calls.attach_mock(mock_http_server, "http_server")
+
+    serve_health_check()
+
+    assert calls.mock_calls == [
+        mock.call.ensure_initialized(),
+        mock.call.http_server(mock.ANY, HealthServer),
+        mock.call.http_server().serve_forever(),
+    ]

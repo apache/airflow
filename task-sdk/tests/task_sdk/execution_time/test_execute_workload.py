@@ -31,6 +31,7 @@ def test_initializes_without_orm_before_running_the_workload(
 ):
     calls = mock.Mock()
     calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
+    calls.attach_mock(mock_configure_logging, "configure_logging")
     calls.attach_mock(mock_run_workload, "run_workload")
     workload = mock.Mock(spec=ExecuteTask)
 
@@ -38,5 +39,6 @@ def test_initializes_without_orm_before_running_the_workload(
 
     assert calls.mock_calls == [
         mock.call.ensure_initialized(orm=False),
+        mock.call.configure_logging(output=mock.ANY, json_output=True),
         mock.call.run_workload(workload, subprocess_logs_to_stdout=True),
     ]

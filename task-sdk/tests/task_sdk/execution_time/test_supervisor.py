@@ -6464,18 +6464,23 @@ class TestChildExecMain:
 
         assert calls == ["nondumpable", "fork_main"]
 
-    def test_initializes_core_settings_before_running_the_target(self, monkeypatch):
+    def test_initializes_core_settings_before_importing_the_target(self, monkeypatch):
         calls: list[str] = []
+
+        def resolve_target(dotted):
+            calls.append("resolve_target")
+            return supervisor._subprocess_main
+
         monkeypatch.setattr(supervisor, "_make_process_nondumpable", lambda: None)
         monkeypatch.setattr(supervisor, "_initialize_core_settings", lambda: calls.append("initialize"))
         monkeypatch.setattr(supervisor, "_fork_main", lambda *a: calls.append("fork_main"))
-        monkeypatch.setattr(supervisor, "_resolve_child_target", lambda dotted: supervisor._subprocess_main)
+        monkeypatch.setattr(supervisor, "_resolve_child_target", resolve_target)
         monkeypatch.setattr(supervisor, "socket", lambda fileno: MagicMock())
         monkeypatch.setenv("_AIRFLOW_CHILD_TARGET", "airflow.sdk.execution_time.supervisor:_subprocess_main")
 
         supervisor._child_exec_main()
 
-        assert calls == ["initialize", "fork_main"]
+        assert calls == ["initialize", "resolve_target", "fork_main"]
 
     @pytest.mark.parametrize(
         ("core_spec", "expected_calls"),
@@ -6494,6 +6499,7 @@ class TestChildExecMain:
 
         supervisor._initialize_core_settings()
 
+        mock_find_spec.assert_called_once_with("airflow.settings")
         assert mock_ensure_initialized.mock_calls == expected_calls
 
     def test_uses_fds_0123_and_inherits_log_channel(self, monkeypatch):
