@@ -66,6 +66,7 @@ from airflow.providers.common.ai.durable.fingerprint import _digest, fingerprint
 from airflow.providers.common.ai.durable.journal import _EXECUTING_STEP, current_journal
 from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.tools.openai_agents import _REPLAY_RETRY, _RETRY_COUNT, _RetryLimitReached
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
@@ -107,6 +108,7 @@ _MODEL_AT_FAULT = (
     MaxTurnsExceeded,
     OutputGuardrailTripwireTriggered,
     ToolInputGuardrailTripwireTriggered,
+    _RetryLimitReached,
 )
 
 # The tool results the SDK hands the model as structured content rather than as text.
@@ -166,7 +168,10 @@ async def run_durably(
     function tools of an agent reached through ``handoff()``, and its model too unless the
     agent's ``model`` is a model name or not set, and streamed runs. A tool call that fails,
     including one whose exception ``failure_error_function`` turns into text for the model,
-    is not recorded either, so a retry runs it again. A replayed model call reports no
+    is not recorded either, so a retry runs it again. A failure the model could correct,
+    which an ``AirflowTools`` tool answers with ``{"error": ...}``, is recorded, and still
+    counts against the tool's retry limit when it replays; a run that used that limit up asks
+    the model again from its last request on a retry. A replayed model call reports no
     usage, since it costs nothing.
 
     A ``session`` makes every retry run live: the SDK adds the failed try's prompt to it
@@ -450,6 +455,9 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         set_function_tool_failure_error_function(durable_tool, remember)
         invoke = bind(durable_tool)
 
+    # An AirflowTools tool, whose correctable failures count against its retry limit.
+    replay_retry = getattr(tool, _REPLAY_RETRY, None)
+
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
         if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
@@ -457,12 +465,21 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         fingerprint = _build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id)
         step = durable_run.claim_reserved(ctx.tool_call_id, name, kind="tool", fingerprint=fingerprint)
         if step.replayed:
+            # Such a tool's result is text, so a dict is one recorded with the count it left in the
+            # tool's retry budget. Restored, so the retry limit spans attempts.
+            if replay_retry is not None and isinstance(step.payload, dict):
+                await replay_retry(ctx, step.payload["retry"])
+                return step.payload["output"]
             return step.payload
         try:
             with step.executing():
                 output = await invoke(ctx, arguments)
         except Exception as error:
-            step.fail(error)
+            # The model's answers used this tool's retry limit up, not this call, so the run fails
+            # on the model's account and a retry asks it again from its last request. The limit of
+            # a tool inside an agent this one calls through as_tool is that call's failure.
+            if not (replay_retry is not None and isinstance(error, _RetryLimitReached)):
+                step.fail(error)
             raise
         # A failure the SDK turned into text for the model is not recorded, so a retry runs the
         # call again, as it does a call that raised.
@@ -470,7 +487,10 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
             step.fail(handled_error)
         elif not getattr(ctx, _DEFAULT_FAILURE_HANDLED, False):
             # Secrets must not reach the journal any more than the model.
-            step.record(mask_secrets(_as_sent(output)))
+            payload = mask_secrets(_as_sent(output))
+            if replay_retry is not None and (retry := getattr(ctx, _RETRY_COUNT, None)) is not None:
+                payload = {"output": payload, "retry": retry}
+            step.record(payload)
         return output
 
     durable_tool.on_invoke_tool = on_invoke_tool

@@ -35,8 +35,8 @@
 Changelog
 ---------
 
-2.0.0
-.....
+1.22.0
+......
 
 .. note::
   ``@task.bash`` now renders only the command returned by the decorated function inside
