@@ -4097,7 +4097,7 @@ class TestKubernetesPodOperatorAsync:
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
         k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=False)
         context = create_context(k)
-        context["ti"] = MagicMock()
+        context["ti"] = MagicMock(spec=TaskInstance)
 
         # Should return cleanly without raising
         result = k.trigger_reentry(
@@ -4128,7 +4128,7 @@ class TestKubernetesPodOperatorAsync:
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
         k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=True)
         context = create_context(k)
-        context["ti"] = MagicMock()
+        context["ti"] = MagicMock(spec=TaskInstance)
 
         with pytest.raises(PodNotFoundException, match="not found after resuming from deferral"):
             k.trigger_reentry(
