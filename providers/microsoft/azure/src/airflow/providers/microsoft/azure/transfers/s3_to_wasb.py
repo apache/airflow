@@ -257,16 +257,18 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
                     azure_blob_files.append(self.blob_name.split("/")[-1])
 
             elif self.blob_prefix:
-                clean_prefix = self.blob_prefix.rstrip("/")
-                prefix_to_strip = f"{clean_prefix}/" if clean_prefix else ""
-                azure_blob_files += [
-                    blob.replace(prefix_to_strip, "", 1)
-                    if prefix_to_strip and blob.startswith(prefix_to_strip)
-                    else blob
-                    for blob in self.wasb_hook.get_blobs_list_recursive(
-                        container_name=self.container_name, prefix=self.blob_prefix
-                    )
-                ]
+                # move_file writes f"{blob_prefix}/{file}", so a prefix ending in "/" gives "prefix//file"
+                written_prefix = f"{self.blob_prefix}/"
+                clean_prefix = f"{self.blob_prefix.rstrip('/')}/"
+                for blob in self.wasb_hook.get_blobs_list_recursive(
+                    container_name=self.container_name, prefix=self.blob_prefix
+                ):
+                    name = blob
+                    for prefix in (written_prefix, clean_prefix):
+                        if prefix != "/" and blob.startswith(prefix):
+                            name = blob[len(prefix) :]
+                            break
+                    azure_blob_files.append(name)
             else:
                 raise InvalidAzureBlobParameters
 
