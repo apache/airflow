@@ -22,8 +22,9 @@ Token types (``TokenType``):
 
 ``"execution"``
     Default scope, accepted by all endpoints. Short-lived, automatically
-    refreshed by ``JWTReissueMiddleware`` while the task attempt or callback
-    it was issued for is unfinished (``is_execution_token_renewable``).
+    refreshed by ``JWTReissueMiddleware`` while the task attempt it was issued
+    for is running, or the callback it was issued for is unfinished
+    (``is_execution_token_renewable``).
 
 ``"workload"``
     Restricted scope, only accepted on routes that opt in via
@@ -129,7 +130,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.utils.session import create_session_async
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -376,12 +377,14 @@ async def _require_live_attempt(token: ExecutionToken, *, allow_callback: bool) 
 
 async def is_execution_token_renewable(token: ExecutionToken) -> bool:
     """
-    Tell whether the work an ``execution`` token was issued for is still unfinished.
+    Tell whether the work an ``execution`` token was issued for is still in progress.
 
     The subject is a task attempt, a callback, or ``ASSET_WATCHER_ID``, which has no row and no
-    lifecycle. Any other subject is not renewable, including an attempt that is finished, archived
-    or deleted, so its token expires on its own. This is not an admission check: a finished attempt
-    still runs its success callbacks with the token it holds.
+    lifecycle. A task attempt is renewable only while it is running: one that is deferred, waiting
+    to be rescheduled or queued has no worker, and the worker that resumes it gets a token of its
+    own from the run endpoint. Any other subject is not renewable, including an attempt that is
+    finished, archived or deleted, so its token expires on its own. This is not an admission check:
+    an attempt that has reported its state still runs its callbacks with the token it holds.
     """
     if token.id == ASSET_WATCHER_ID:
         return True
@@ -394,7 +397,7 @@ async def is_execution_token_renewable(token: ExecutionToken) -> bool:
             )
         ).one_or_none()
         if attempt is not None:
-            return attempt.working_set is True and attempt.state not in State.finished
+            return attempt.working_set is True and attempt.state == TaskInstanceState.RUNNING
         callback_state = await session.scalar(select(Callback.state).where(Callback.id == token.id))
     return callback_state is not None and callback_state not in TERMINAL_STATES
 
