@@ -192,6 +192,27 @@ class TestSparkResources:
         assert spark_resources.driver["gpu"]["quantity"] == 1
         assert spark_resources.executor["gpu"]["quantity"] == 2
 
+    @pytest.mark.parametrize(
+        ("limit", "expected"),
+        [
+            pytest.param("512Mi", "365m", id="mebibytes"),
+            pytest.param("512M", "365m", id="megabytes"),
+            pytest.param("2g", "1462m", id="lowercase-gigabytes"),
+        ],
+    )
+    def test_spark_resources_memory_limit_units(self, limit, expected):
+        spark_resources = SparkResources(
+            driver={"memory": {"limit": limit}}, executor={"memory": {"limit": limit}}
+        )
+
+        assert spark_resources.driver["memory"]["limit"] == expected
+        assert spark_resources.executor["memory"]["limit"] == expected
+
+    @pytest.mark.parametrize("limit", ["1Ti", "1024"])
+    def test_spark_resources_unsupported_memory_limit(self, limit):
+        with pytest.raises(ValueError, match=f"Unsupported memory limit '{limit}'"):
+            SparkResources(driver={"memory": {"limit": limit}})
+
 
 class TestCustomObjectLauncher:
     def get_pod_status(self, reason: str, message: str | None = None):

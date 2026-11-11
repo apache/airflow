@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 import time
 from copy import deepcopy
 from datetime import datetime as dt
@@ -47,6 +48,24 @@ def should_retry_start_spark_job(exception: BaseException) -> bool:
     if isinstance(exception, ApiException):
         return str(exception.status) == "409"
     return False
+
+
+_MEMORY_LIMIT_PATTERN = re.compile(r"(?P<value>\d+\.?\d*|\.\d+)\s*(?P<unit>gi?|mi?)", re.IGNORECASE)
+
+
+def _convert_memory_limit(limit: str) -> str:
+    """Convert a memory limit such as ``2Gi`` or ``512Mi`` to the megabyte value passed to Spark."""
+    match = _MEMORY_LIMIT_PATTERN.fullmatch(limit.strip())
+    if not match:
+        raise ValueError(
+            f"Unsupported memory limit {limit!r}. Use a number followed by m, Mi, g or Gi, "
+            "for example '512m' or '2Gi'."
+        )
+    megabytes = float(match["value"])
+    if match["unit"].lower().startswith("g"):
+        megabytes *= 1024
+    # Adjusting the memory value as operator adds 40% to the given value
+    return f"{int(megabytes / 1.4)}m"
 
 
 class SparkJobSpec:
@@ -158,22 +177,10 @@ class SparkResources:
 
     def convert_resources(self):
         if isinstance(self.driver["memory"].get("limit"), str):
-            if "G" in self.driver["memory"]["limit"] or "Gi" in self.driver["memory"]["limit"]:
-                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("Gi G")) * 1024
-            elif "m" in self.driver["memory"]["limit"]:
-                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("m"))
-            # Adjusting the memory value as operator adds 40% to the given value
-            self.driver["memory"]["limit"] = str(int(self.driver["memory"]["limit"] / 1.4)) + "m"
+            self.driver["memory"]["limit"] = _convert_memory_limit(self.driver["memory"]["limit"])
 
         if isinstance(self.executor["memory"].get("limit"), str):
-            if "G" in self.executor["memory"]["limit"] or "Gi" in self.executor["memory"]["limit"]:
-                self.executor["memory"]["limit"] = (
-                    float(self.executor["memory"]["limit"].rstrip("Gi G")) * 1024
-                )
-            elif "m" in self.executor["memory"]["limit"]:
-                self.executor["memory"]["limit"] = float(self.executor["memory"]["limit"].rstrip("m"))
-            # Adjusting the memory value as operator adds 40% to the given value
-            self.executor["memory"]["limit"] = str(int(self.executor["memory"]["limit"] / 1.4)) + "m"
+            self.executor["memory"]["limit"] = _convert_memory_limit(self.executor["memory"]["limit"])
 
         if self.driver["cpu"].get("request"):
             self.driver["cpu"]["request"] = int(float(self.driver["cpu"]["request"]))
