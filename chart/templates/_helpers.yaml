@@ -793,7 +793,7 @@ Accepts the values Airflow reads as true, so a string "False" keeps database mod
 */}}
 {{- define "dagProcessor.useExecutionApi" -}}
   {{- $value := get (.Values.config.dag_processor | default dict) "use_execution_api" | toString -}}
-  {{- if has (tpl $value . | trim | lower) (list "t" "true" "1") }}true{{ end -}}
+  {{- if has (tpl $value . | splitList "#" | first | trim | lower) (list "t" "true" "1") }}true{{ end -}}
 {{- end }}
 
 {{/* Create the name of the pgbouncer service account to use */}}

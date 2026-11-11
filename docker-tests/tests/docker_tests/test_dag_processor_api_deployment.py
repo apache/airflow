@@ -36,6 +36,11 @@ API_PROBE = ["dag-processor", "--check-health"]
         ("True", API_PROBE),
         ("t", API_PROBE),
         ("1", API_PROBE),
+        (" True ", API_PROBE),
+        ("\tTrUe\r\n", API_PROBE),
+        ("True # enabled", API_PROBE),
+        (" \tTrUe \t# enabled", API_PROBE),
+        ("1# enabled", API_PROBE),
     ],
 )
 def test_quick_start_processor_healthcheck_mode(tmp_path, use_execution_api, expected_args):
