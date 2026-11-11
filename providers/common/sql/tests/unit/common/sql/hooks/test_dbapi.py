@@ -193,6 +193,17 @@ class TestDbApiHook:
         sql = f"INSERT INTO {table}  VALUES (%s)"
         self.cur.executemany.assert_any_call(sql, rows)
 
+    def test_insert_rows_executemany_commit_every_zero(self):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, commit_every=0, executemany=True)
+
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+        self.cur.executemany.assert_called_once_with(sql, rows)
+
     def test_insert_rows_fast_executemany(self):
         table = "table"
         rows = [("hello",), ("world",)]
