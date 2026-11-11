@@ -17,11 +17,12 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { TaskInstanceService, TaskStateStoreService } from "openapi/requests";
+import type { TaskInstanceResponse } from "openapi/requests";
 
 import { TimezoneProvider } from "src/context/timezone";
 import type * as Utils from "src/utils";
@@ -111,4 +112,35 @@ it("lists state for the exact loop coordinate, retaining the public unmapped ind
 
   await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.objectContaining(coordinates)));
   expect(task).toHaveBeenCalledWith(coordinates);
+});
+
+it("hides keys reserved for Airflow", async () => {
+  vi.spyOn(TaskStateStoreService, "listTaskStateStore").mockResolvedValue({
+    task_state_store: [
+      { expires_at: null, key: "__airflow_durable__", updated_at: "2026-01-01T00:00:00Z", value: {} },
+      { expires_at: null, key: "job_id", updated_at: "2026-01-01T00:00:00Z", value: "run_1" },
+    ],
+    total_entries: 2,
+  });
+  vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+    state: "success",
+  } as TaskInstanceResponse);
+
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/dags/dag/runs/run/tasks/member/task-state-store"]}>
+        <TimezoneProvider>
+          <Routes>
+            <Route
+              element={<TaskStateStore />}
+              path="/dags/:dagId/runs/:runId/tasks/:taskId/task-state-store"
+            />
+          </Routes>
+        </TimezoneProvider>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+  expect(await screen.findByText("job_id")).toBeInTheDocument();
+  expect(screen.queryByText("__airflow_durable__")).not.toBeInTheDocument();
 });

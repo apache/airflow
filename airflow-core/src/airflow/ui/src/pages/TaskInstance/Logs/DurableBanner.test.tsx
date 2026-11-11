@@ -36,6 +36,7 @@ const TRIES = [
   { decision: "submitted", external_id: "run_1", saved_seconds: null, try_number: 1 },
   { decision: "reconnected", external_id: "run_1", saved_seconds: 90, try_number: 2 },
   { decision: "already_succeeded", external_id: "run_1", saved_seconds: null, try_number: 3 },
+  { decision: "reconnected", external_id: "run_1", saved_seconds: null, try_number: 4 },
 ];
 
 const renderFor = (tryNumber: number) => {
@@ -55,18 +56,19 @@ const renderFor = (tryNumber: number) => {
 
 describe("DurableBanner", () => {
   it.each([
-    [2, "logs.durable.title", "logs.durable.detail.reconnected"],
-    [3, "logs.durable.titleNoTiming", "logs.durable.detail.already_succeeded"],
-  ])("shows what durable execution saved on try %i", (tryNumber, title, detail) => {
+    [2, "logs.durable.title.reconnected", "logs.durable.detail.reconnected"],
+    [3, "logs.durable.title.already_succeeded", "logs.durable.detail.already_succeeded"],
+    [4, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedRunning"],
+  ])("shows what durable execution did on try %i", (tryNumber, title, detail) => {
     renderFor(tryNumber);
 
     expect(screen.getByText(title)).toBeInTheDocument();
-    expect(screen.getByText(detail, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(detail)).toBeInTheDocument();
   });
 
   it("shows nothing for a try that submitted a new job", () => {
     renderFor(1);
 
-    expect(screen.queryByText("logs.durable.title", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText("logs.durable", { exact: false })).not.toBeInTheDocument();
   });
 });

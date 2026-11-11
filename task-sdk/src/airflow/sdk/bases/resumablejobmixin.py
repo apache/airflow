@@ -131,6 +131,7 @@ class ResumableJobMixin(ABC):
 
         reconnect_to: Any = None
         already_succeeded_id: Any = None
+        failed_id: Any = None
 
         with tracer.start_as_current_span("resumable_job.resume_decision") as span:
             span.set_attribute("operator", type(self).__name__)
@@ -184,6 +185,7 @@ class ResumableJobMixin(ABC):
                             external_id=external_id,
                             status=status,
                         )
+                        failed_id = external_id
                 else:
                     span.set_attribute("resumable.decision", "fresh_submit")
                     stats.incr("resumable_job.fresh_submit", tags=stats_tags)
@@ -209,20 +211,24 @@ class ResumableJobMixin(ABC):
                 external_id_key=self.external_id_key,
                 external_id=external_id,
             )
-            self._record_try(context, "submitted", external_id)
+            if failed_id is None:
+                self._record_try(context, "submitted", external_id)
+            else:
+                self._record_try(context, "resubmitted", external_id, previous_external_id=failed_id)
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
 
     def _record_try(
-        self, context: Context, decision: str, external_id: JsonValue, *, job_finished: bool = False
+        self,
+        context: Context,
+        decision: str,
+        external_id: JsonValue,
+        *,
+        job_finished: bool = False,
+        previous_external_id: JsonValue = None,
     ) -> None:
-        """
-        Record what this try did with the external job, for the banner on the task logs page.
-
-        A reconnect avoided a full second run of the job, so once the job finishes the try is
-        recorded again with the job's run time from submission as the time saved.
-        """
+        """Record this try for the logs banner; a finished reconnect stores the job's run time as saved."""
         task_state_store = context.get("task_state_store")
         if task_state_store is None:
             return
@@ -230,7 +236,7 @@ class ResumableJobMixin(ABC):
             now = datetime.now(tz=UTC)
             stored = task_state_store.get(DURABLE_RECORD_KEY)
             record: dict[str, Any] = stored if isinstance(stored, dict) else {}
-            if decision == "submitted":
+            if decision in ("submitted", "resubmitted"):
                 record["submitted_at"] = now.isoformat()
             saved_seconds = None
             if job_finished and record.get("submitted_at"):
@@ -243,6 +249,7 @@ class ResumableJobMixin(ABC):
                     "decision": decision,
                     "external_id": external_id,
                     "saved_seconds": saved_seconds,
+                    **({"previous_external_id": previous_external_id} if previous_external_id else {}),
                 }
             )
             task_state_store.set(DURABLE_RECORD_KEY, record)

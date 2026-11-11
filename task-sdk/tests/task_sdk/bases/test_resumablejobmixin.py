@@ -169,6 +169,21 @@ class TestDurableRecord:
             {"try_number": 2, "decision": "reconnected", "external_id": "job-001", "saved_seconds": 1200.0},
         ]
 
+    def test_resubmit_after_failed_job_records_the_failed_job(self):
+        op = ConcreteResumableOperator(task_id="t")
+        op._status_map = {"job-000": "FAILED"}
+        task_state = FakeTaskState({"test_job_id": "job-000"})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert task_state.get(DURABLE_RECORD_KEY)["tries"][-1] == {
+            "try_number": None,
+            "decision": "resubmitted",
+            "external_id": "job-001",
+            "saved_seconds": None,
+            "previous_external_id": "job-000",
+        }
+
     def test_record_failure_does_not_fail_the_task(self):
         task_state = FakeTaskState()
         original_set = task_state.set

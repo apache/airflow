@@ -73,32 +73,33 @@ export const DurableBanner = ({
   );
 
   const tries = (data?.value as { tries?: Array<DurableTry> } | undefined)?.tries ?? [];
-  const savingTries = tries.filter((saving) => DECISIONS_THAT_SAVE.has(saving.decision));
-  const entry = savingTries.find((saving) => saving.try_number === tryNumber);
+  const entry = tries.find(
+    (attempt) => attempt.try_number === tryNumber && DECISIONS_THAT_SAVE.has(attempt.decision),
+  );
 
   if (entry === undefined) {
     return undefined;
   }
 
   const seconds = entry.saved_seconds;
-  const totalSeconds = savingTries.reduce((sum, saving) => sum + (saving.saved_seconds ?? 0), 0);
   const externalId =
     typeof entry.external_id === "string" ? entry.external_id : JSON.stringify(entry.external_id);
+  let detail = translate(`logs.durable.detail.${entry.decision}`, { id: externalId });
+
+  if (entry.decision === "reconnected") {
+    detail =
+      seconds === null
+        ? translate("logs.durable.detail.reconnectedRunning", { id: externalId })
+        : translate("logs.durable.detail.reconnected", {
+            duration: renderDuration(Math.round(seconds)),
+            id: externalId,
+          });
+  }
 
   return (
     <Box mb={2}>
-      <Alert
-        status="success"
-        title={
-          seconds === null
-            ? translate("logs.durable.titleNoTiming")
-            : translate("logs.durable.title", { duration: renderDuration(Math.round(seconds)) })
-        }
-      >
-        {translate(`logs.durable.detail.${entry.decision}`, { id: externalId })}
-        {savingTries.length > 1 && totalSeconds > 0
-          ? ` ${translate("logs.durable.total", { duration: renderDuration(Math.round(totalSeconds)) })}`
-          : undefined}
+      <Alert status="info" title={translate(`logs.durable.title.${entry.decision}`)}>
+        {detail}
       </Alert>
     </Box>
   );

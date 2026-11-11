@@ -110,12 +110,14 @@
     "debug": "DEBUG",
     "durable": {
       "detail": {
-        "already_succeeded": "Job {{id}} had already finished, so Airflow used its result.",
-        "reconnected": "Reconnected to job {{id}} instead of running it again."
+        "already_succeeded": "Job {{id}} had already finished, so no new run was needed.",
+        "reconnected": "Avoided running a second copy of a ~{{duration}} job ({{id}}).",
+        "reconnectedRunning": "Waiting on job {{id}} instead of starting it again."
       },
-      "title": "Durable execution saved ~{{duration}} of job time",
-      "titleNoTiming": "Durable execution avoided a rerun",
-      "total": "~{{duration}} across all tries."
+      "title": {
+        "already_succeeded": "Used result of already finished job",
+        "reconnected": "Reconnected to existing job"
+      }
     },
     "error": "ERROR",
     "info": "INFO",
