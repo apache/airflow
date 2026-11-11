@@ -632,6 +632,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     recovered_triggers: set[int] = attrs.field(factory=set, init=False)
     # TriggerKind value of each trigger assigned here, for the trigger_kind metric tag
     trigger_kinds: dict[int, str] = attrs.field(factory=dict, init=False)
+    # An output socket handler error caught while a response was being sent, kept so the response
+    # could be completed first. ``_service_subprocess`` raises it.
+    _output_handler_error: Exception | None = attrs.field(init=False, default=None)
 
     def is_alive(self) -> bool:
         # Set by `_service_subprocess` in the loop
@@ -864,10 +867,32 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                             need_more = True
                         except (BrokenPipeError, ConnectionResetError):
                             need_more = False
+                        except Exception as e:
+                            # Raising here would leave a partial frame, and the runner would wait
+                            # for the rest of it forever. Finish the frame first, and discard what
+                            # this socket still receives: a runner blocked writing to it does not
+                            # read the response.
+                            if self._output_handler_error is None:
+                                self._output_handler_error = e
+                            sel.modify(
+                                key.fileobj, selectors.EVENT_READ, (lambda sock: bool(sock.recv(65536)), None)
+                            )
+                            need_more = True
                         if not need_more:
                             sel.unregister(key.fileobj)
         finally:
             self.stdin.settimeout(timeout)
+
+    def _service_subprocess(
+        self, max_wait_time: float, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ):
+        exit_code = super()._service_subprocess(max_wait_time, raise_on_timeout, expect_signal)
+        if (error := self._output_handler_error) is not None:
+            # Raised outside the request handler, which would turn it into an error response. Here it
+            # stops the triggerer, like the same error does when no response is being sent.
+            self._output_handler_error = None
+            raise error
+        return exit_code
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""

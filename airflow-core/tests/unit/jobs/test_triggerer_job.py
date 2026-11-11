@@ -40,6 +40,7 @@ import msgspec
 import pendulum
 import pytest
 import pytest_asyncio
+import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -712,28 +713,32 @@ def test_run_once_drains_all_waiting_runner_logs(jobless_supervisor, mocker):
         log_child.close()
 
 
-def test_send_msg_drains_logs_while_runner_is_blocked_on_log_write(jobless_supervisor, mocker):
+@pytest.mark.parametrize("channel", ["logs", "stdout", "stderr"])
+def test_send_msg_drains_output_while_runner_is_blocked_writing_it(jobless_supervisor, mocker, channel):
     mocker.patch.object(TriggerRunnerSupervisor, "_check_subprocess_exit", autospec=True, return_value=None)
-    request_parent, request_child = socketpair()
-    log_parent, log_child = socketpair()
-    jobless_supervisor.stdin = request_parent
+    mocker.patch("airflow.sdk.log.configure_logging", autospec=True)
+    jobless_supervisor.process_log = structlog.get_logger(logger_name="test")
+    parents, children = {}, {}
+    for name in ("stdout", "stderr", "requests", "logs"):
+        parents[name], children[name] = socketpair()
+    jobless_supervisor.stdin = parents["requests"]
     selector = selectors.DefaultSelector()
     jobless_supervisor.selector = selector
-    selector.register(request_parent, selectors.EVENT_READ, (lambda sock: True, selector.unregister))
-    selector.register(
-        log_parent, selectors.EVENT_READ, (lambda sock: bool(sock.recv(65536)), selector.unregister)
+    jobless_supervisor._register_pipe_readers(
+        parents["stdout"], parents["stderr"], parents["requests"], parents["logs"], data={}
     )
     # Both payloads are far larger than any socket buffer, so each side blocks until the other reads.
+    output = b'{"level": "debug", "event": "' + b"x" * 1000 + b'"}\n'
     value = "v" * (4 * 1024 * 1024)
     received = bytearray()
 
     def runner():
-        # Like a runner whose event loop is stuck in a log write: it reads the response only after
-        # its logs have been drained.
-        log_child.sendall(b"x" * (4 * 1024 * 1024))
-        length = int.from_bytes(request_child.recv(4, MSG_WAITALL), byteorder="big")
+        # Like a runner whose event loop is stuck writing output: it reads the response only after
+        # that output has been drained.
+        children[channel].sendall(output * 4096)
+        length = int.from_bytes(children["requests"].recv(4, MSG_WAITALL), byteorder="big")
         while len(received) < length:
-            received.extend(request_child.recv(65536))
+            received.extend(children["requests"].recv(65536))
 
     runner_thread = threading.Thread(target=runner, daemon=True)
     sender_thread = threading.Thread(
@@ -752,16 +757,99 @@ def test_send_msg_drains_logs_while_runner_is_blocked_on_log_write(jobless_super
         assert not runner_thread.is_alive()
         frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(received)
         assert frame.body["value"] == value
-        assert request_parent.gettimeout() is None
+        assert parents["requests"].gettimeout() is None
 
-        # A select taken before the send can still list the drained log socket as readable.
-        assert not log_parent.getblocking()
+        # A select taken before the send can still list the drained socket as readable.
+        drained = parents[channel]
+        assert not drained.getblocking()
         with contextlib.suppress(BlockingIOError):
-            while log_parent.recv(65536):
+            while drained.recv(65536):
                 pass
-        stale_events = [(selector.get_key(log_parent), selectors.EVENT_READ)]
+        stale_events = [(selector.get_key(drained), selectors.EVENT_READ)]
         with mock.patch.object(selector, "select", autospec=True, return_value=stale_events):
             jobless_supervisor._service_subprocess(0)
+    finally:
+        selector.close()
+        for sock in (*parents.values(), *children.values()):
+            sock.close()
+
+
+def test_send_msg_completes_response_when_output_handler_fails(jobless_supervisor, mocker):
+    mocker.patch.object(TriggerRunnerSupervisor, "_check_subprocess_exit", autospec=True, return_value=None)
+    value = "v" * (4 * 1024 * 1024)
+    mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "_handle_request",
+        autospec=True,
+        side_effect=lambda self, msg, log, req_id: self.send_msg(
+            VariableResult(key="k", value=value), request_id=req_id
+        ),
+    )
+    request_parent, request_child = socketpair()
+    log_parent, log_child = socketpair()
+    jobless_supervisor.stdin = request_parent
+    selector = selectors.DefaultSelector()
+    jobless_supervisor.selector = selector
+    selector.register(
+        request_parent,
+        selectors.EVENT_READ,
+        supervisor.length_prefixed_frame_reader(
+            jobless_supervisor.handle_requests(mocker.Mock(spec=FilteringBoundLogger)),
+            on_close=selector.unregister,
+        ),
+    )
+    handler_error = OSError("No space left on device")
+
+    def read_log_lines():
+        # Like the real log readers: the error leaves the generator, which cannot read again after it.
+        for _ in range(3):
+            yield
+        raise handler_error
+
+    selector.register(
+        log_parent,
+        selectors.EVENT_READ,
+        supervisor.make_buffered_socket_reader(read_log_lines(), on_close=selector.unregister),
+    )
+    received = bytearray()
+    raised: list[Exception] = []
+
+    def runner():
+        request = _RequestFrame(id=1, body=MaskSecret(value="secret").model_dump())
+        request_child.sendall(request.as_bytes())
+        # Blocks until the supervisor drains it, so the log reader fails while the response is sent.
+        # One 4 KiB read holds at most two lines, so the third line is always read during the send.
+        log_child.sendall((b"x" * 2047 + b"\n") * 2048)
+        length = int.from_bytes(request_child.recv(4, MSG_WAITALL), byteorder="big")
+        while len(received) < length:
+            received.extend(request_child.recv(65536))
+
+    def service():
+        try:
+            jobless_supervisor._service_subprocess(5)
+        except OSError as e:
+            raised.append(e)
+
+    runner_thread = threading.Thread(target=runner, daemon=True)
+    service_thread = threading.Thread(target=service, daemon=True)
+    try:
+        runner_thread.start()
+        service_thread.start()
+        service_thread.join(timeout=10)
+        runner_thread.join(timeout=10)
+
+        assert not service_thread.is_alive()
+        assert not runner_thread.is_alive()
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(received)
+        assert frame.id == 1
+        assert frame.body["value"] == value
+        # No error frame follows the response; the error stops the supervisor loop instead.
+        request_child.setblocking(False)
+        with pytest.raises(BlockingIOError):
+            request_child.recv(1)
+        assert raised == [handler_error]
+        # The error is raised once: kill() services the subprocess again while the triggerer stops.
+        jobless_supervisor._service_subprocess(0)
     finally:
         selector.close()
         for sock in (request_parent, request_child, log_parent, log_child):
