@@ -90,7 +90,6 @@ export const AssetEvent = ({
               dag_id: event.source_dag_id ?? "",
               dag_run_id: event.source_run_id ?? "",
               map_index: event.source_map_index,
-              // A task instance inside a task loop can only be addressed with its region.
               region_id: event.source_region_id ?? undefined,
               region_index: event.source_region_index ?? undefined,
               task_id: event.source_task_id ?? "",
