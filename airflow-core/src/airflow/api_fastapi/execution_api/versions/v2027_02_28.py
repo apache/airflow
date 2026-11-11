@@ -27,7 +27,7 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 
 
@@ -61,6 +61,16 @@ class AddExecutionTimeoutToTIRunContext(VersionChange):
     def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``execution_timeout`` from the run context for older clients."""
         response.body.pop("execution_timeout", None)
+
+
+class AddExternalClearTargetField(VersionChange):
+    """Add the ``external_clear_target`` field a task reports with its success, for cross-Dag clears."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("external_clear_target").didnt_exist,
+    )
 
 
 class MakeVariableValueNonNullable(VersionChange):
