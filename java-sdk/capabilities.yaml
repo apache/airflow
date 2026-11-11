@@ -71,6 +71,7 @@ capabilities:
     supported: true
     since: "3.4.0"
     sdk_version: "1.0.0"
+    note: "getXCom / setXCom / deleteXCom (SDK 1.1.0+)"
   connection-read:
     supported: true
     since: "3.4.0"

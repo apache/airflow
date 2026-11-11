@@ -123,7 +123,7 @@ meaning of each dimension is defined in the
 | state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | SLF4J + JPL bridged to the task log |
-| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getXCom / setXCom / deleteXCom (SDK 1.1.0+) |
 | capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | Airflow metadata embedded in the jar artifact |
