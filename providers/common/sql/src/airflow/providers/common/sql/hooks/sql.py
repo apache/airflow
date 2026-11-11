@@ -983,7 +983,7 @@ class DbApiHook(BaseHook):
                                 self.get_conn_id(),
                             )
 
-                    for chunked_rows in chunked(rows, commit_every):
+                    for chunked_rows in chunked(rows, commit_every or None):
                         values = list(
                             map(
                                 lambda row: self._serialize_cells(row, conn),
