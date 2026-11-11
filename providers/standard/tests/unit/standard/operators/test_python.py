@@ -1588,6 +1588,7 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
             op_args=[4],
         )
 
+    @pytest.mark.filterwarnings("error:Using Variable.get from:DeprecationWarning")
     def test_caching(self):
         def f(a):
             import sys
@@ -1597,19 +1598,6 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
 
         with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
             self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 reads Variables from the core model")
-    @mock.patch("airflow.sdk.Variable.get", autospec=True, return_value="my_cache_key")
-    def test_cache_key_is_read_through_task_sdk_variable(self, mock_variable_get):
-        def f():
-            pass
-
-        op = PythonVirtualenvOperator(task_id="task", python_callable=f, venv_cache_path="/tmp")
-
-        _, hash_text = op._calculate_cache_hash()
-
-        assert '"cache_key": "my_cache_key"' in hash_text
-        mock_variable_get.assert_called_once_with("python_virtualenv_operator_cache_key", "")
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill/cloudpickle (which is slow apparently).
