@@ -97,9 +97,11 @@ request, such as a second reviewer who never reloaded the page, is not applied t
 calls waiting now: the task asks about them again under a new number. An answer sent
 through the REST API without that field is applied to the waiting request.
 
-A retry or a clear asks again for the calls the new attempt makes, including ones a
-reviewer approved in an earlier attempt that then failed. The approved call already
-ran once, so keep gated tools idempotent.
+Without ``durable=True``, a retry or a clear asks again for the calls the new attempt
+makes, including ones a reviewer approved in an earlier attempt that then failed. The
+approved call already ran once, so keep gated tools idempotent. With ``durable=True`` a
+retry replays an approved call that returned instead of asking again
+(:ref:`next section <tool-approval-durable>`); a call that failed partway still runs again.
 
 On Airflow 3.3 a task instance can ask only once per Dag run, retries and clears
 included. Airflow 3.3 keeps the first request's subject and body when the same task
@@ -108,6 +110,42 @@ while asking about the new one. The task fails with
 ``ToolApprovalAlreadyRequestedError`` instead, and does not retry. On 3.3, have the
 agent request the gated calls in one step, or give each irreversible action its own
 task.
+
+.. _tool-approval-durable:
+
+With durable execution
+----------------------
+
+With ``durable=True`` (see :doc:`durable_execution`), the reviewer's answer is a step in
+the task's journal. When the reviewer answers, the task runs the agent again from the
+prompt: the model requests and tool calls before the pause replay from the journal
+instead of running again, and the approval step gets the answer. The resumed run's
+``Durable:`` line in the task log counts what replayed. With ``@task.agent``, the function
+that returns the prompt runs again on each resume, as it does on a retry.
+
+Every answer is kept in the task state store beside the journal, and deleted with it when
+the task succeeds, so a retry uses them too. An answer belongs to the approval request it was
+given for: the run's first, second or later approval step, counting steps that replay, and
+the calls the reviewer saw there, matched by tool and arguments. When a retry reaches that
+step with those calls, the reviewer is not asked again, an approved call that already ran
+replays instead of running again, a rejected call stays rejected, and on Airflow 3.3 the retry
+does not fail with ``ToolApprovalAlreadyRequestedError``. A later step that asks for the same
+tool and arguments is asked about again. A clear that deletes the task's state
+(:ref:`durable-clear`) starts the agent over, and it asks again.
+
+The run can reach a step with other calls, or a different number of approval steps before
+it: after the Dag file changed during the pause, or when a tool that
+:ref:`runs on every attempt <durable-tool-opt-out>` returned something new, so the model
+requests after it ran again and the calls they chose run again, approved ones included. The
+run then asks about the calls no answer covers (on Airflow 3.3 the task fails instead, as for
+any second request). Answered calls the run never reaches do not run; when a resumed run
+finishes without them, the task log names their tools.
+
+The approval step also runs the other capabilities' ``handle_deferred_tool_calls``
+handlers, such as the decision model below, on the calls no answer covers, so a handler
+cannot overrule a reviewer. A handler runs again, model call included, whenever the step
+runs live with calls no answer covers, such as on a resume after a pause that left some calls
+to it. A retry after the step was recorded replays its decisions.
 
 Timeouts and who decides
 ------------------------
@@ -205,7 +243,7 @@ Requirements and limits
 
 - Airflow 3.3 or later. On older versions a tool marked for approval fails the
   task, as it did before.
-- Not together with ``durable=True``, ``enable_hitl_review=True``, a ``CodeMode``
+- Not together with ``enable_hitl_review=True``, a ``CodeMode``
   capability, or a ``SandboxToolset`` that
   provisions its own sandbox. Each
   assumes the run finishes in one go; that sandbox, for one, is destroyed when the
@@ -217,17 +255,24 @@ Requirements and limits
   (:ref:`sandbox-attach`).
 - Tools that hand work to an external system (pydantic-ai's ``CallDeferred``) are
   not supported; the task fails without retrying.
-- The conversation so far, including tool results, is kept in the task's
-  :doc:`task state store <apache-airflow:core-concepts/task-state-store>` while
-  the task waits. It is deleted when the resumed run succeeds or fails, and replaced
+- With ``durable=True``, a tool that needs approval has to be called by the task's agent
+  itself. One reached from inside another tool, such as the task's agent run again by a tool
+  (``ctx.agent.run``), fails the task with ``UnsupportedToolDeferralError`` unless the tool
+  catches it: once that tool is recorded, a retry replays it without reaching the approval
+  again.
+- Without ``durable=True``, the conversation so far, including tool results, is kept
+  in the task's :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+  while the task waits. It is deleted when the resumed run succeeds or fails, and replaced
   when it pauses again; a later try deletes one left behind by a try that ended
   while waiting. With a ``tool_approval_timeout``, it also expires a day after the
   timeout.
 - If a templated connection id (see :ref:`sql-toolset-templated-connection`) renders
   differently when the task resumes, the task fails rather than run an approved
-  call against a connection the reviewer did not see. The check compares toolset
+  call against a connection the reviewer did not see. With ``durable=True``, a retry
+  that renders it differently does not apply the earlier answers and asks again. The check compares toolset
   ids, which name the connection for ``SQLToolset``, ``MCPToolset`` and
   ``HookToolset``; it does not notice an edit to the connection itself.
-- Each resumed run gets its own pydantic-ai ``run_id``,
-  ``<task-instance id>-resumed-<n>`` when it resumes from pause ``n``. The ``run_id`` XCom
-  holds the last one, and the ``usage`` XCom covers every part of the run.
+- Without ``durable=True``, each resumed run gets its own pydantic-ai ``run_id``,
+  ``<task-instance id>-resumed-<n>`` when it resumes from pause ``n``; with it, the resumed
+  run keeps the durable run's id. The ``run_id`` XCom holds the last one, and the ``usage``
+  XCom covers every part of the run.

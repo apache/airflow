@@ -666,6 +666,82 @@ async def _failed_attempt_then_retry_that_diverges_at_once(memory_storage):
 
 
 class TestPause:
+    """A run that waits for input resumes by replaying what the attempt that paused recorded."""
+
+    @pytest.mark.asyncio
+    async def test_the_resume_replays_what_the_paused_attempt_recorded_after_an_earlier_failure(
+        self, memory_storage
+    ):
+        """The earlier failure was at a step the paused attempt ran live and so did not record."""
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("look the order up"))
+        with pytest.raises(RuntimeError):
+            await first.run("lookup", kind="tool", fingerprint="l", body=boom)
+        first.fail(RuntimeError("tool failed"))
+
+        retry = DurableJournal(memory_storage).start_run()
+        await retry.run("model", kind="model", fingerprint="m1", body=lambda: ok("live"))
+        await retry.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("$10"), replayable=False)
+        await retry.run("model", kind="model", fingerprint="m2", body=lambda: ok("refund it"))
+        retry.claim("approve", kind="other", fingerprint="calls")
+        retry.pause()
+
+        resume = DurableJournal(memory_storage).start_run()
+        await resume.run("model", kind="model", fingerprint="m1", body=lambda: ok("live"))
+        await resume.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("$10"), replayable=False)
+        chosen = await resume.run("model", kind="model", fingerprint="m2", body=lambda: ok("asked again"))
+        answer = await resume.run("approve", kind="other", fingerprint="calls", body=lambda: ok("approved"))
+
+        assert (chosen, answer) == ("refund it", "approved")
+        assert dict(resume.journal.stats.replayed) == {"model": 2}
+
+    @pytest.mark.asyncio
+    async def test_an_entry_an_earlier_attempt_left_where_the_paused_one_recorded_nothing_runs_live(
+        self, memory_storage
+    ):
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("a", kind="model", fingerprint="a", body=lambda: ok("old a"))
+        await first.run("b", kind="tool", fingerprint="b", body=lambda: ok("old b"))
+        first.fail(RuntimeError("usage limit"))
+
+        retry = DurableJournal(memory_storage).start_run()
+        await retry.run("a", kind="model", fingerprint="a2", body=lambda: ok("new a"))
+        memory_storage.refuse.add(build_step_key(0, 1))
+        await retry.run("b", kind="tool", fingerprint="b", body=lambda: ok("new b"))
+        retry.claim("approve", kind="other", fingerprint="calls")
+        retry.pause()
+        memory_storage.refuse.clear()
+
+        resume = DurableJournal(memory_storage).start_run()
+        a = await resume.run("a", kind="model", fingerprint="a2", body=lambda: ok("live a"))
+        b = await resume.run("b", kind="tool", fingerprint="b", body=lambda: ok("live b"))
+
+        assert (a, b) == ("new a", "live b")
+
+    @pytest.mark.asyncio
+    async def test_a_pause_short_of_an_earlier_one_leaves_none_of_its_later_steps_to_replay(
+        self, memory_storage
+    ):
+        first = DurableJournal(memory_storage).start_run()
+        for name in "abcd":
+            await first.run(name, kind="tool", fingerprint=name, body=lambda name=name: ok(f"old {name}"))
+        first.claim("approve", kind="other", fingerprint="calls")
+        first.pause()
+
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("a", kind="tool", fingerprint="a", body=lambda: ok("live a"))
+        await resumed.run("b", kind="tool", fingerprint="b2", body=lambda: ok("new b"))
+        resumed.claim("approve", kind="other", fingerprint="other calls")
+        resumed.pause()
+
+        again = DurableJournal(memory_storage).start_run()
+        for name, fingerprint in (("a", "a"), ("b", "b2")):
+            await again.run(name, kind="tool", fingerprint=fingerprint, body=lambda: ok("live"))
+        await again.run("approve", kind="other", fingerprint="other calls", body=lambda: ok("approved"))
+        d = await again.run("d", kind="tool", fingerprint="d", body=lambda: ok("live d"))
+
+        assert d == "live d"
+
     @pytest.mark.asyncio
     async def test_entries_the_attempt_left_unrecorded_below_the_stored_boundary_do_not_replay(
         self, memory_storage

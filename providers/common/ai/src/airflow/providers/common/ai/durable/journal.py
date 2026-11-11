@@ -928,6 +928,13 @@ def build_task_storage(context: Context) -> DurableStorageProtocol:
 
 _ACTIVE_JOURNAL: ContextVar[DurableJournal | None] = ContextVar("commonai_durable_journal", default=None)
 _EXECUTING_STEP: ContextVar[JournalStep | None] = ContextVar("commonai_durable_step", default=None)
+
+
+def executing_step() -> JournalStep | None:
+    """Return the journal step whose work is running now, such as a tool call, or ``None`` outside one."""
+    return _EXECUTING_STEP.get()
+
+
 # The journal for the task attempt this process is running, when no caller set one
 # explicitly. Keyed by the attempt, so a second attempt in the same process (a test,
 # a long-lived worker) never reuses the first attempt's runs.

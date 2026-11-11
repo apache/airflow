@@ -18,24 +18,37 @@
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic_ai import Agent, CallDeferred, DeferredToolRequests, Tool
+from pydantic_ai import (
+    Agent,
+    ApprovalRequired,
+    CallDeferred,
+    DeferredToolRequests,
+    DeferredToolResults,
+    RunContext,
+    Tool,
+)
+from pydantic_ai.capabilities import CapabilityOrdering, HandleDeferredToolCalls
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
+from airflow.providers.common.ai.durable.journal import DurableRun
 from airflow.providers.common.ai.exceptions import (
     ToolApprovalAlreadyRequestedError,
     ToolApprovalError,
     UnsupportedToolDeferralError,
 )
 from airflow.providers.common.ai.operators.agent import (
+    _TOOL_APPROVAL_ANSWERS_KEY,
     _TOOL_APPROVAL_REQUESTED_KEY,
     _TOOL_APPROVAL_TRANSCRIPT_KEY,
     AgentOperator,
@@ -68,7 +81,8 @@ class _FakeTaskStateStore:
         return self.data.get(key, default)
 
     def set(self, key, value, *, retention=None):
-        self.data[key] = value
+        # Stored as JSON, as the real store does, so a test sees what a resume would read back.
+        self.data[key] = json.loads(json.dumps(value))
 
     def delete(self, key):
         self.data.pop(key, None)
@@ -80,7 +94,9 @@ class _Shop:
     def __init__(self):
         self.calls: list[tuple[str, int]] = []
 
-    def toolset(self):
+    def toolset(self, *, live_lookup: bool = False):
+        """``live_lookup`` opts ``lookup`` out of the durable journal, so it runs on every attempt."""
+
         def lookup(order_id: int) -> str:
             self.calls.append(("lookup", order_id))
             return f"order {order_id} costs $10"
@@ -89,7 +105,8 @@ class _Shop:
             self.calls.append(("refund", order_id))
             return f"refunded order {order_id}"
 
-        return FunctionToolset(tools=[lookup, refund]).approval_required(
+        tools = [Tool(lookup, metadata={"airflow": False}) if live_lookup else lookup, refund]
+        return FunctionToolset(tools=tools).approval_required(
             lambda ctx, tool_def, args: tool_def.name == "refund"
         )
 
@@ -310,8 +327,8 @@ class TestPause:
         assert upsert.call_args.kwargs["defaults"] == ["Reject"]
 
     def test_a_user_set_deferred_output_type_fails_where_approval_is_unsupported(self):
-        """Adding DeferredToolRequests by hand must not open a pause that durable, HITL review,
-        code mode or a sandbox cannot survive."""
+        """Adding DeferredToolRequests by hand must not open a pause that HITL review, code mode
+        or a sandbox cannot survive."""
         op = _operator(
             _lookup_and_refund,
             [_Shop().toolset()],
@@ -320,7 +337,7 @@ class TestPause:
         )
 
         with patch(UPSERT, autospec=True) as upsert:
-            with pytest.raises(UnsupportedToolDeferralError, match="not available with durable"):
+            with pytest.raises(UnsupportedToolDeferralError, match="not available with enable_hitl_review"):
                 op.execute(_context(_FakeTaskStateStore()))
 
         upsert.assert_not_called()
@@ -785,3 +802,801 @@ class TestWhenApprovalApplies:
                 durable=True,
                 agent_params={"toolsets": [SandboxToolset(_NoopBackend())]},
             )
+
+
+class _Counted:
+    """A FunctionModel function that counts the requests reaching the model, which replays skip."""
+
+    def __init__(self, model_fn):
+        self.model_fn = model_fn
+        self.calls = 0
+
+    def __call__(self, messages, info: AgentInfo) -> ModelResponse:
+        self.calls += 1
+        return self.model_fn(messages, info)
+
+
+def _fails_once_after_refund(model_fn):
+    """``model_fn``, except that the request after the refund ran fails the first time."""
+    failed = []
+
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        if not failed and any("refunded" in result for result in _returns(messages)):
+            failed.append(True)
+            raise RuntimeError("model unavailable")
+        return model_fn(messages, info)
+
+    return model
+
+
+def _durable(model_fn, toolsets, **kwargs) -> AgentOperator:
+    return _operator(model_fn, toolsets, durable=True, **kwargs)
+
+
+def _durable_pause(op: AgentOperator, ctx: Any) -> TaskAwaitingInput:
+    paused = _pause(op, ctx)
+    assert paused.method_name == "resume_after_durable_tool_approval"
+    return paused
+
+
+class TestDurable:
+    """With ``durable=True`` the approval is a step of the journal, and the resume replays up to it."""
+
+    def test_pauses_without_saving_a_transcript_or_reporting_a_failed_run(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        ctx = _context(store)
+
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput) as exc:
+                _durable(_lookup_and_refund, [shop.toolset()]).execute(ctx)
+
+        ctx["task_instance"].xcom_push.assert_not_called()
+
+        assert exc.value.method_name == "resume_after_durable_tool_approval"
+        assert [name for name, _ in exc.value.kwargs["calls"]] == ["refund"]
+        assert exc.value.kwargs["pause_number"] == 1
+        assert RunUsage(**exc.value.kwargs["usage"]).requests == 1
+        assert shop.calls == [("lookup", 1)]
+        assert '"order_id": 1' in upsert.call_args.kwargs["body"]
+        assert _TOOL_APPROVAL_TRANSCRIPT_KEY not in store.data
+
+    def test_approve_replays_the_steps_before_the_pause_and_runs_the_call_once(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        model = _Counted(_lookup_and_refund)
+        paused = _durable_pause(_durable(model, [shop.toolset()]), _context(store))
+
+        output = _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+            _context(store), **paused.kwargs, event=APPROVE
+        )
+
+        assert output == "order 1 costs $10 | refunded order 1"
+        assert shop.calls == [("lookup", 1), ("refund", 1)]
+        # One request before the pause, and one after it: the first is replayed on resume.
+        assert model.calls == 2
+
+    def test_reject_tells_the_agent_why_and_skips_the_call(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        paused = _durable_pause(_durable(_lookup_and_refund, [shop.toolset()]), _context(store))
+
+        output = _durable(_lookup_and_refund, [shop.toolset()]).resume_after_durable_tool_approval(
+            _context(store), **paused.kwargs, event=_reject("over the refund limit")
+        )
+
+        assert shop.calls == [("lookup", 1)]
+        assert "over the refund limit" in output
+
+    @pytest.mark.parametrize("repeat_supported", [False, True], ids=["airflow-3.3", "airflow-3.4"])
+    def test_a_retry_after_a_failed_resume_neither_asks_again_nor_runs_the_call_twice(self, repeat_supported):
+        """On Airflow 3.3 asking again would also fail the task, as it asks once per task instance."""
+        shop, store = _Shop(), _FakeTaskStateStore()
+        model = _fails_once_after_refund(_lookup_and_refund)
+        with patch(REPEAT_SUPPORTED, repeat_supported):
+            paused = _durable_pause(_durable(model, [shop.toolset()]), _context(store))
+            with pytest.raises(RuntimeError, match="model unavailable"):
+                _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+                    _context(store), **paused.kwargs, event=APPROVE
+                )
+
+            with patch(UPSERT, autospec=True) as upsert:
+                output = _durable(model, [shop.toolset()]).execute(_context(store, try_number=2))
+
+        upsert.assert_not_called()
+        assert shop.calls == [("lookup", 1), ("refund", 1)]
+        assert output == "order 1 costs $10 | refunded order 1"
+
+    def test_a_tool_that_raises_approval_required_itself_is_not_asked_about_again_on_retry(self):
+        refunds = []
+
+        def refund(ctx: RunContext[None], order_id: int) -> str:
+            if not ctx.tool_call_approved:
+                raise ApprovalRequired
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            if _returns(messages):
+                return ModelResponse(parts=[TextPart(" | ".join(_returns(messages)))])
+            return ModelResponse(parts=[ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-refund")])
+
+        flaky = _fails_once_after_refund(model)
+        store = _FakeTaskStateStore()
+        paused = _durable_pause(_durable(flaky, [FunctionToolset(tools=[refund])]), _context(store))
+        with pytest.raises(RuntimeError, match="model unavailable"):
+            _durable(flaky, [FunctionToolset(tools=[refund])]).resume_after_durable_tool_approval(
+                _context(store), **paused.kwargs, event=APPROVE
+            )
+
+        with patch(UPSERT, autospec=True) as upsert:
+            output = _durable(flaky, [FunctionToolset(tools=[refund])]).execute(_context(store, try_number=2))
+
+        upsert.assert_not_called()
+        assert refunds == [1]
+        assert output == "refunded order 1"
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_a_later_step_pauses_again_and_the_last_resume_replays_both_approvals(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        model = _Counted(_two_refunds)
+        first = _durable_pause(_durable(model, [shop.toolset()]), _context(store))
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput) as second:
+                _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+                    _context(store), **first.kwargs, event=APPROVE
+                )
+
+        output = _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+            _context(store), **second.value.kwargs, event=APPROVE
+        )
+
+        assert second.value.kwargs["pause_number"] == 2
+        assert [name for name, _ in second.value.kwargs["calls"]] == ["refund"]
+        assert upsert.call_args.kwargs["subject"] == "Approve refund for task `t` (request 2)"
+        assert shop.calls == [("refund", 1), ("refund", 2)]
+        assert output == "refunded order 1 | refunded order 2"
+        assert model.calls == 3
+
+    @patch(REPEAT_SUPPORTED, False)
+    def test_before_airflow_3_4_a_second_approval_in_the_same_try_fails_closed(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        first = _durable_pause(_durable(_two_refunds, [shop.toolset()]), _context(store))
+
+        with pytest.raises(ToolApprovalAlreadyRequestedError, match="already asked once"):
+            _durable(_two_refunds, [shop.toolset()]).resume_after_durable_tool_approval(
+                _context(store), **first.kwargs, event=APPROVE
+            )
+        assert shop.calls == [("refund", 1)]
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_an_answer_from_a_form_left_open_on_an_earlier_pause_asks_again(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        first = _durable_pause(_durable(_two_refunds, [shop.toolset()]), _context(store))
+        with patch(UPSERT, autospec=True):
+            with pytest.raises(TaskAwaitingInput) as second:
+                _durable(_two_refunds, [shop.toolset()]).resume_after_durable_tool_approval(
+                    _context(store), **first.kwargs, event=APPROVE
+                )
+
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput) as asked_again:
+                _durable(_two_refunds, [shop.toolset()]).resume_after_durable_tool_approval(
+                    _context(store), **second.value.kwargs, event={**APPROVE, "params_input": {"request": 1}}
+                )
+
+        assert shop.calls == [("refund", 1)]
+        assert asked_again.value.kwargs["pause_number"] == 3
+        assert [name for name, _ in asked_again.value.kwargs["calls"]] == ["refund"]
+        assert '"order_id": 2' in upsert.call_args.kwargs["body"]
+
+    def test_changed_toolsets_refuse_to_run_the_approved_call(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        paused = _durable_pause(_durable(_lookup_and_refund, [shop.toolset()]), _context(store))
+
+        with pytest.raises(ToolApprovalError, match="toolsets changed"):
+            _durable(_lookup_and_refund, [shop.toolset()]).resume_after_durable_tool_approval(
+                _context(store), **{**paused.kwargs, "toolset_ids": ["sql-tenant_acme"]}, event=APPROVE
+            )
+        assert shop.calls == [("lookup", 1)]
+
+    def test_usage_output_covers_both_sides_of_the_pause(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        paused = _durable_pause(_durable(_lookup_and_refund, [shop.toolset()]), _context(store))
+        ctx = _context(store)
+
+        _durable(_lookup_and_refund, [shop.toolset()]).resume_after_durable_tool_approval(
+            ctx, **paused.kwargs, event=APPROVE
+        )
+
+        pushed = {c.kwargs["key"]: c.kwargs["value"] for c in ctx["task_instance"].xcom_push.call_args_list}
+        assert pushed["usage"]["requests"] == 2
+
+    def test_usage_limits_span_the_pause(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        limits = {"request_limit": 1}
+        paused = _durable_pause(
+            _durable(_lookup_and_refund, [shop.toolset()], usage_limits=limits), _context(store)
+        )
+
+        with pytest.raises(UsageLimitExceeded):
+            _durable(
+                _lookup_and_refund, [shop.toolset()], usage_limits=limits
+            ).resume_after_durable_tool_approval(_context(store), **paused.kwargs, event=APPROVE)
+
+    def test_the_journal_run_is_paused_not_failed(self):
+        """A failure can hand the next try back to an earlier try's boundary; a pause must not."""
+        with (
+            patch.object(DurableRun, "pause", autospec=True, side_effect=DurableRun.pause) as pause,
+            patch.object(DurableRun, "fail", autospec=True, side_effect=DurableRun.fail) as fail,
+        ):
+            _durable_pause(_durable(_lookup_and_refund, [_Shop().toolset()]), _context(_FakeTaskStateStore()))
+
+        pause.assert_called_once()
+        fail.assert_not_called()
+
+    def test_external_execution_calls_are_refused(self):
+        def slow_job() -> str:
+            raise CallDeferred
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("slow_job", {})])
+
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(UnsupportedToolDeferralError, match="need external execution"):
+                _durable(model, [FunctionToolset(tools=[slow_job])]).execute(_context(_FakeTaskStateStore()))
+        upsert.assert_not_called()
+
+    def test_a_retry_replays_the_answer_after_a_tool_opted_out_of_the_journal(self):
+        """The live call is claimed just before the answer, so the answer replays by its calls alone."""
+        shop, store = _Shop(), _FakeTaskStateStore()
+
+        model = _fails_once_after_refund(_lookup_and_refund)
+        paused = _durable_pause(_durable(model, [shop.toolset(live_lookup=True)]), _context(store))
+        with pytest.raises(RuntimeError, match="model unavailable"):
+            _durable(model, [shop.toolset(live_lookup=True)]).resume_after_durable_tool_approval(
+                _context(store), **paused.kwargs, event=APPROVE
+            )
+
+        with patch(UPSERT, autospec=True) as upsert:
+            retry = _durable(model, [shop.toolset(live_lookup=True)])
+            output = retry.execute(_context(store, try_number=2))
+
+        upsert.assert_not_called()
+        # The recorded decision replays rather than being made again from the stored answer.
+        assert retry._durable_journal is not None
+        assert retry._durable_journal.stats.replayed["other"] == 1
+        assert shop.calls.count(("refund", 1)) == 1
+        assert output == "order 1 costs $10 | refunded order 1"
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_an_answer_is_not_applied_to_another_call_with_the_same_id(self):
+        """The Dag changed during the pause, so the resumed run asks the model again and gets another call."""
+        shop, store = _Shop(), _FakeTaskStateStore()
+        paused = _durable_pause(_durable(_lookup_and_refund, [shop.toolset()]), _context(store))
+
+        def refunds_order_2(messages, info: AgentInfo) -> ModelResponse:
+            # Some providers number calls per response, so the id can repeat for another call.
+            return ModelResponse(parts=[ToolCallPart("refund", {"order_id": 2}, tool_call_id="c-refund")])
+
+        changed = _durable(refunds_order_2, [shop.toolset()])
+        changed.prompt = "Refund order 2"
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput) as asked:
+                changed.resume_after_durable_tool_approval(_context(store), **paused.kwargs, event=APPROVE)
+
+        assert ("refund", 2) not in shop.calls
+        assert asked.value.method_name == "resume_after_durable_tool_approval"
+        assert [name for name, _ in asked.value.kwargs["calls"]] == ["refund"]
+        assert '"order_id": 2' in upsert.call_args.kwargs["body"]
+
+    def test_an_answer_applies_to_the_same_call_under_a_new_id(self):
+        """
+        A tool opted out of the journal returns something new on resume, so the model is asked again.
+
+        It asks for the same refund under a new call id, as a real model does, and the answer still applies.
+        """
+        refunds, store = [], _FakeTaskStateStore()
+        asked = []
+
+        def stock_level() -> int:
+            return len(asked)
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            done = _returns(messages)
+            asked.append(True)
+            if not done:
+                return ModelResponse(
+                    parts=[ToolCallPart("stock_level", {}, tool_call_id=f"c-stock-{len(asked)}")]
+                )
+            if len(done) == 1:
+                return ModelResponse(
+                    parts=[ToolCallPart("refund", {"order_id": 1}, tool_call_id=f"c-refund-{len(asked)}")]
+                )
+            return ModelResponse(parts=[TextPart(" | ".join(done))])
+
+        def toolsets():
+            return [
+                FunctionToolset(
+                    tools=[
+                        Tool(stock_level, metadata={"airflow": False}),
+                        Tool(refund, requires_approval=True),
+                    ]
+                )
+            ]
+
+        paused = _durable_pause(_durable(model, toolsets()), _context(store))
+        with patch(UPSERT, autospec=True) as upsert:
+            output = _durable(model, toolsets()).resume_after_durable_tool_approval(
+                _context(store), **paused.kwargs, event=APPROVE
+            )
+
+        upsert.assert_not_called()
+        assert refunds == [1]
+        assert output.endswith("refunded order 1")
+
+    def test_a_handler_of_the_dag_authors_settles_only_the_calls_the_reviewer_did_not(self):
+        """The handler approves order 2 and leaves order 1 to a person, who rejects it."""
+        refunds, store = [], _FakeTaskStateStore()
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            if done := _returns(messages):
+                return ModelResponse(parts=[TextPart(" | ".join(done))])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-1"),
+                    ToolCallPart("refund", {"order_id": 2}, tool_call_id="c-2"),
+                ]
+            )
+
+        verdicts = []
+
+        seen: list[str] = []
+
+        def judge(ctx, requests: DeferredToolRequests):
+            # Approves order 2 the first time, then every call it saw then, given to it or not.
+            verdicts.append(True)
+            if len(verdicts) > 1:
+                return DeferredToolResults(approvals=dict.fromkeys(seen, True))
+            seen.extend(c.tool_call_id for c in requests.approvals)
+            return requests.build_results(
+                approvals={
+                    c.tool_call_id: True for c in requests.approvals if c.args_as_dict()["order_id"] == 2
+                }
+            )
+
+        def operator():
+            return _durable(
+                model,
+                [FunctionToolset(tools=[Tool(refund, requires_approval=True)])],
+                capabilities=[HandleDeferredToolCalls(handler=judge)],
+            )
+
+        paused = _durable_pause(operator(), _context(store))
+        assert [name for name, _ in paused.kwargs["calls"]] == ["refund"]
+        operator().resume_after_durable_tool_approval(
+            _context(store), **paused.kwargs, event=_reject("order 1 needs a ticket")
+        )
+
+        assert refunds == [2]
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_a_judge_that_changes_its_mind_on_resume_still_lets_the_run_finish(self):
+        """At each ask the judge settles one of two calls, a different one each time it is asked."""
+        refunds, store = [], _FakeTaskStateStore()
+        asked = []
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            if done := _returns(messages):
+                return ModelResponse(parts=[TextPart(" | ".join(sorted(done)))])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-1"),
+                    ToolCallPart("refund", {"order_id": 2}, tool_call_id="c-2"),
+                ]
+            )
+
+        def judge(ctx, requests: DeferredToolRequests):
+            asked.append(True)
+            chosen = 1 + len(asked) % 2
+            return requests.build_results(
+                approvals={
+                    c.tool_call_id: True for c in requests.approvals if c.args_as_dict()["order_id"] == chosen
+                }
+            )
+
+        def operator():
+            return _durable(
+                model,
+                [FunctionToolset(tools=[Tool(refund, requires_approval=True)])],
+                capabilities=[HandleDeferredToolCalls(handler=judge)],
+            )
+
+        paused, output, pauses = _durable_pause(operator(), _context(store)), None, 1
+        while output is None and pauses < 5:
+            with patch(UPSERT, autospec=True):
+                try:
+                    output = operator().resume_after_durable_tool_approval(
+                        _context(store), **paused.kwargs, event=APPROVE
+                    )
+                except TaskAwaitingInput as again:
+                    paused, pauses = again, pauses + 1
+
+        assert output == "refunded order 1 | refunded order 2"
+        assert sorted(refunds) == [1, 2]
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_the_same_call_asked_for_again_later_is_asked_about_again(self):
+        """An answer covers the call the reviewer saw once, not every later call with the same arguments."""
+        refunds, store = [], _FakeTaskStateStore()
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            done = _returns(messages)
+            if len(done) < 2:
+                return ModelResponse(
+                    parts=[ToolCallPart("refund", {"order_id": 1}, tool_call_id=f"c-{len(done)}")]
+                )
+            return ModelResponse(parts=[TextPart("done")])
+
+        def operator():
+            return _durable(model, [FunctionToolset(tools=[Tool(refund, requires_approval=True)])])
+
+        first = _durable_pause(operator(), _context(store))
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput):
+                operator().resume_after_durable_tool_approval(_context(store), **first.kwargs, event=APPROVE)
+
+        upsert.assert_called_once()
+        assert refunds == [1]
+
+    def test_an_answer_survives_a_handler_that_fails_after_it_was_applied(self):
+        """The handler leaves order 1 to a person, then fails once on resume deciding order 2."""
+        refunds, store = [], _FakeTaskStateStore()
+        verdicts = []
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            if done := _returns(messages):
+                return ModelResponse(parts=[TextPart(" | ".join(sorted(done)))])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-1"),
+                    ToolCallPart("refund", {"order_id": 2}, tool_call_id="c-2"),
+                ]
+            )
+
+        def flaky(ctx, requests: DeferredToolRequests):
+            verdicts.append(True)
+            if len(verdicts) == 2:
+                raise RuntimeError("judge unavailable")
+            return requests.build_results(
+                approvals={
+                    c.tool_call_id: True for c in requests.approvals if c.args_as_dict()["order_id"] == 2
+                }
+            )
+
+        def operator():
+            return _durable(
+                model,
+                [FunctionToolset(tools=[Tool(refund, requires_approval=True)])],
+                capabilities=[HandleDeferredToolCalls(handler=flaky)],
+            )
+
+        paused = _durable_pause(operator(), _context(store))
+        with pytest.raises(RuntimeError, match="judge unavailable"):
+            operator().resume_after_durable_tool_approval(_context(store), **paused.kwargs, event=APPROVE)
+        with patch(UPSERT, autospec=True) as upsert:
+            output = operator().execute(_context(store, try_number=2))
+
+        upsert.assert_not_called()
+        assert output == "refunded order 1 | refunded order 2"
+        assert sorted(refunds) == [1, 2]
+        assert _TOOL_APPROVAL_ANSWERS_KEY not in store.data
+
+    def test_a_handler_ordered_outermost_cannot_overrule_the_reviewer(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        asked = []
+
+        class _OutermostJudge(HandleDeferredToolCalls):
+            def get_ordering(self):
+                return CapabilityOrdering(position="outermost")
+
+        def judge(ctx, requests: DeferredToolRequests):
+            # Leaves the call to a person, and approves it whenever asked again.
+            asked.append(True)
+            return requests.build_results(approve_all=True) if len(asked) > 1 else None
+
+        def operator():
+            return _durable(
+                _lookup_and_refund, [shop.toolset()], capabilities=[_OutermostJudge(handler=judge)]
+            )
+
+        paused = _durable_pause(operator(), _context(store))
+        operator().resume_after_durable_tool_approval(_context(store), **paused.kwargs, event=_reject())
+
+        assert ("refund", 1) not in shop.calls
+
+    def test_a_task_agent_resumes_with_the_prompt_its_function_returns(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+
+        def operator():
+            op = _AgentDecoratedOperator(
+                task_id="t",
+                python_callable=lambda: "Refund order 1",
+                llm_conn_id="llm",
+                toolsets=[shop.toolset()],
+                durable=True,
+            )
+            op.llm_hook = MagicMock(spec=["create_agent"])
+            op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(_lookup_and_refund), **kw)
+            return op
+
+        paused = _durable_pause(operator(), _context(store))
+        output = operator().resume_after_durable_tool_approval(
+            _context(store), **paused.kwargs, event=APPROVE
+        )
+
+        assert output == "order 1 costs $10 | refunded order 1"
+        assert shop.calls == [("lookup", 1), ("refund", 1)]
+
+    def test_a_handler_built_per_run_is_asked_as_built(self):
+        """The capability the Dag declares leaves the call to a person; the one it builds per run approves it."""
+        shop = _Shop()
+
+        class _PerRunJudge(HandleDeferredToolCalls):
+            async def for_run(self, ctx):
+                return _PerRunJudge(handler=lambda ctx, requests: requests.build_results(approve_all=True))
+
+        with patch(UPSERT, autospec=True) as upsert:
+            output = _durable(
+                _lookup_and_refund,
+                [shop.toolset()],
+                capabilities=[_PerRunJudge(handler=lambda ctx, requests: None)],
+            ).execute(_context(_FakeTaskStateStore()))
+
+        upsert.assert_not_called()
+        assert output == "order 1 costs $10 | refunded order 1"
+
+
+def _refunds_order_1_twice(fail_once_after_first: bool = False):
+    """Refund order 1, then refund order 1 again in a later step; optionally fail once between them."""
+    failed: list[bool] = []
+
+    def model(messages, info: AgentInfo) -> ModelResponse:
+        done = _returns(messages)
+        if len(done) == 1 and fail_once_after_first and not failed:
+            failed.append(True)
+            raise RuntimeError("model unavailable")
+        if len(done) < 2:
+            return ModelResponse(
+                parts=[ToolCallPart("refund", {"order_id": 1}, tool_call_id=f"c-{len(done)}")]
+            )
+        return ModelResponse(parts=[TextPart(" | ".join(done))])
+
+    return model
+
+
+class TestDurableAnswersStayWithTheirRequest:
+    """An answer settles the approval step that asked for it, and no later step with the same call."""
+
+    @pytest.mark.parametrize(
+        ("answers", "refunds"),
+        [
+            pytest.param([APPROVE, _reject()], [1], id="approve-then-reject"),
+            pytest.param([_reject(), APPROVE], [1], id="reject-then-approve"),
+        ],
+    )
+    @patch(REPEAT_SUPPORTED, True)
+    def test_two_requests_for_the_same_call_each_get_their_own_answer(self, answers, refunds):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        model = _refunds_order_1_twice()
+        paused = _durable_pause(_durable(model, [shop.toolset()]), _context(store))
+        with patch(UPSERT, autospec=True):
+            with pytest.raises(TaskAwaitingInput) as second:
+                _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+                    _context(store), **paused.kwargs, event=answers[0]
+                )
+            _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+                _context(store), **second.value.kwargs, event=answers[1]
+            )
+
+        assert [order for name, order in shop.calls if name == "refund"] == refunds
+
+    @pytest.mark.parametrize("repeat_supported", [False, True], ids=["airflow-3.3", "airflow-3.4"])
+    def test_a_retry_asks_about_a_later_call_like_one_already_approved(self, repeat_supported):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        model = _refunds_order_1_twice(fail_once_after_first=True)
+        with patch(REPEAT_SUPPORTED, repeat_supported):
+            paused = _durable_pause(_durable(model, [shop.toolset()]), _context(store))
+            with pytest.raises(RuntimeError, match="model unavailable"):
+                _durable(model, [shop.toolset()]).resume_after_durable_tool_approval(
+                    _context(store), **paused.kwargs, event=APPROVE
+                )
+            with patch(UPSERT, autospec=True):
+                with pytest.raises((TaskAwaitingInput, ToolApprovalAlreadyRequestedError)):
+                    _durable(model, [shop.toolset()]).execute(_context(store, try_number=2))
+
+        assert [order for name, order in shop.calls if name == "refund"] == [1]
+
+    def test_a_retry_does_not_apply_an_answer_given_for_another_connection(self):
+        shop, store = _Shop(), _FakeTaskStateStore()
+        model = _fails_once_after_refund(_lookup_and_refund)
+
+        def operator(customer: str) -> AgentOperator:
+            op = _durable(model, [shop.toolset(), SQLToolset(db_conn_id="tenant_{{ params.customer }}")])
+            op.render_template_fields({"params": {"customer": customer}})
+            return op
+
+        paused = _durable_pause(operator("acme"), _context(store))
+        with pytest.raises(RuntimeError, match="model unavailable"):
+            operator("acme").resume_after_durable_tool_approval(
+                _context(store), **paused.kwargs, event=APPROVE
+            )
+        with patch(REPEAT_SUPPORTED, True), patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput):
+                operator("globex").execute(_context(store, try_number=2))
+
+        upsert.assert_called_once()
+        assert shop.calls.count(("refund", 1)) == 1
+
+    def test_a_handler_the_model_has_not_loaded_is_not_asked(self):
+        shop = _Shop()
+        judge = HandleDeferredToolCalls(
+            handler=lambda ctx, requests: requests.build_results(approve_all=True),
+            id="judge",
+            defer_loading=True,
+        )
+
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput):
+                _durable(_lookup_and_refund, [shop.toolset()], capabilities=[judge]).execute(
+                    _context(_FakeTaskStateStore())
+                )
+
+        upsert.assert_called_once()
+        assert ("refund", 1) not in shop.calls
+
+    def test_a_tool_that_needs_approval_called_from_inside_another_tool_fails_the_task(self):
+        """A tool runs the agent again, and that run asks for approval: a replay of the tool would skip it."""
+        refunds, store = [], _FakeTaskStateStore()
+
+        async def delegate(ctx: RunContext[None]) -> str:
+            assert ctx.agent is not None
+            result = await ctx.agent.run("CHILD")
+            return f"delegate got {result.output!r}"
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            done = _returns(messages)
+            if "CHILD" in str(messages[0].parts[-1].content) and not done:
+                return ModelResponse(parts=[ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-child")])
+            if not done:
+                return ModelResponse(parts=[ToolCallPart("delegate", {}, tool_call_id="c-delegate")])
+            return ModelResponse(parts=[TextPart(" | ".join(done))])
+
+        toolsets = [
+            FunctionToolset(tools=[Tool(delegate, takes_ctx=True), Tool(refund, requires_approval=True)])
+        ]
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(UnsupportedToolDeferralError, match="from inside the"):
+                _durable(model, toolsets).execute(_context(store))
+
+        upsert.assert_not_called()
+        assert refunds == []
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_one_answer_covers_one_call_when_the_resumed_step_has_it_twice(self):
+        """A live tool changes on resume, and the model asked again wants refund(1) twice in that step."""
+        refunds, store, asked, refund_asks = [], _FakeTaskStateStore(), [], []
+
+        def stock_level() -> int:
+            return len(asked)
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            done = _returns(messages)
+            asked.append(True)
+            if not done:
+                return ModelResponse(parts=[ToolCallPart("stock_level", {}, tool_call_id=f"s-{len(asked)}")])
+            if len(done) == 1:
+                refund_asks.append(True)
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart("refund", {"order_id": 1}, tool_call_id=f"r-{len(asked)}-{i}")
+                        for i in range(len(refund_asks))
+                    ]
+                )
+            return ModelResponse(parts=[TextPart(" | ".join(done))])
+
+        def toolsets():
+            return [
+                FunctionToolset(
+                    tools=[
+                        Tool(stock_level, metadata={"airflow": False}),
+                        Tool(refund, requires_approval=True),
+                    ]
+                )
+            ]
+
+        paused = _durable_pause(_durable(model, toolsets()), _context(store))
+        with patch(UPSERT, autospec=True) as upsert:
+            with pytest.raises(TaskAwaitingInput) as again:
+                _durable(model, toolsets()).resume_after_durable_tool_approval(
+                    _context(store), **paused.kwargs, event=APPROVE
+                )
+
+        assert len(refund_asks) == 2
+        assert refunds == []
+        upsert.assert_called_once()
+        assert len(again.value.kwargs["calls"]) == 1
+
+    @patch(REPEAT_SUPPORTED, True)
+    def test_a_step_a_handler_helped_settle_keeps_its_number_for_the_next_one(self):
+        """Step 1: a judge approves order 2 and the reviewer order 1. Step 2: the reviewer approves order 3."""
+        refunds, store = [], _FakeTaskStateStore()
+
+        def refund(order_id: int) -> str:
+            refunds.append(order_id)
+            return f"refunded order {order_id}"
+
+        def model(messages, info: AgentInfo) -> ModelResponse:
+            done = _returns(messages)
+            if not done:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-1"),
+                        ToolCallPart("refund", {"order_id": 2}, tool_call_id="c-2"),
+                    ]
+                )
+            if len(done) == 2:
+                return ModelResponse(parts=[ToolCallPart("refund", {"order_id": 3}, tool_call_id="c-3")])
+            return ModelResponse(parts=[TextPart(" | ".join(sorted(done)))])
+
+        def judge(ctx, requests: DeferredToolRequests):
+            return requests.build_results(
+                approvals={
+                    c.tool_call_id: True for c in requests.approvals if c.args_as_dict()["order_id"] == 2
+                }
+            )
+
+        def operator():
+            return _durable(
+                model,
+                [FunctionToolset(tools=[Tool(refund, requires_approval=True)])],
+                capabilities=[HandleDeferredToolCalls(handler=judge)],
+            )
+
+        first = _durable_pause(operator(), _context(store))
+        with patch(UPSERT, autospec=True):
+            with pytest.raises(TaskAwaitingInput) as second:
+                operator().resume_after_durable_tool_approval(_context(store), **first.kwargs, event=APPROVE)
+            output = operator().resume_after_durable_tool_approval(
+                _context(store), **second.value.kwargs, event=APPROVE
+            )
+
+        assert second.value.method_name == "resume_after_durable_tool_approval"
+        assert (first.kwargs["step"], second.value.kwargs["step"]) == (1, 2)
+        assert sorted(refunds) == [1, 2, 3]
+        assert output == "refunded order 1 | refunded order 2 | refunded order 3"
