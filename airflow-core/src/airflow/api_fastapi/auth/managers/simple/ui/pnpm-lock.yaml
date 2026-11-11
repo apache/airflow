@@ -45,8 +45,8 @@ importers:
         specifier: ^0.99.0
         version: 0.99.0(magicast@0.5.4)(typescript@6.0.3)
       '@tanstack/react-query':
-        specifier: ^5.106.1
-        version: 5.106.1(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^5.107.1
+        version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       axios:
         specifier: ^1.21.0
         version: 1.21.0
@@ -71,7 +71,7 @@ importers:
     devDependencies:
       '@7nohe/openapi-react-query-codegen':
         specifier: ^3.0.2
-        version: 3.0.2(@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1))(commander@15.0.0)(magicast@0.5.4)(ts-morph@28.0.0)(typescript@6.0.3)
+        version: 3.0.2(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(commander@15.0.0)(magicast@0.5.4)(ts-morph@28.0.0)(typescript@6.0.3)
       '@eslint/compat':
         specifier: ^2.1.1
         version: 2.1.1(eslint@10.14.0(jiti@2.7.0))
@@ -749,11 +749,11 @@ packages:
   '@swc/types@0.1.28':
     resolution: {integrity: sha512-V6Mnml8v09QALx6K0elJ7o9K/MkVDtW3t6L+7Ou/JcWtb3xwId2AH4FeOceySd2JaO87IMw4+6vSZxLm34LPbw==}
 
-  '@tanstack/query-core@5.106.1':
-    resolution: {integrity: sha512-erYv/UACddcdgjOL2ixmFdK6tO/AVBeUcTCOtX2N51yZpDQ2U7KJ+xgB/bCNfsF3uoCDTqGHEEbDiFsIO9YUmQ==}
+  '@tanstack/query-core@5.107.1':
+    resolution: {integrity: sha512-PSyAik11oQBEVOiVy5hjZWHmoUqOXqK1WYy4v55mcxozEfKaQgpUMsgnXhWjuESzSht8JfzqMS1m6M/9CpNgvg==}
 
-  '@tanstack/react-query@5.106.1':
-    resolution: {integrity: sha512-ORDvJG/DSfmlFL9lQ8GDkE0VjtQbLeRDY7BL8xjKkQFGLfjFGfNWNuteWgPqA2gPJgLLuWfQ7IX0FlsHCJriyg==}
+  '@tanstack/react-query@5.107.1':
+    resolution: {integrity: sha512-udCOOLp3ZAheUrIHLCe+ZZge6nr2ZUrGMSWcCuXsjY1Bf2JeeE09oxst97PILiCY6N8xo/7bIo3Hvz13zh06FA==}
     peerDependencies:
       '@types/react': ^18 || ^19
       react: ^18 || ^19
@@ -3020,10 +3020,10 @@ packages:
 
 snapshots:
 
-  '@7nohe/openapi-react-query-codegen@3.0.2(@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1))(commander@15.0.0)(magicast@0.5.4)(ts-morph@28.0.0)(typescript@6.0.3)':
+  '@7nohe/openapi-react-query-codegen@3.0.2(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(commander@15.0.0)(magicast@0.5.4)(ts-morph@28.0.0)(typescript@6.0.3)':
     dependencies:
       '@hey-api/openapi-ts': 0.99.0(magicast@0.5.4)(typescript@6.0.3)
-      '@tanstack/react-query': 5.106.1(@types/react@19.3.0)(react@19.3.1)
+      '@tanstack/react-query': 5.107.1(@types/react@19.3.0)(react@19.3.1)
       commander: 15.0.0
       cross-spawn: 7.0.6
       ts-morph: 28.0.0
@@ -3672,11 +3672,11 @@ snapshots:
     dependencies:
       '@swc/counter': 0.1.3
 
-  '@tanstack/query-core@5.106.1': {}
+  '@tanstack/query-core@5.107.1': {}
 
-  '@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1)':
+  '@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1)':
     dependencies:
-      '@tanstack/query-core': 5.106.1
+      '@tanstack/query-core': 5.107.1
       react: 19.3.1
     optionalDependencies:
       '@types/react': 19.3.0
