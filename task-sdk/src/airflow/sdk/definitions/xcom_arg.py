@@ -465,6 +465,9 @@ class _ZipResult(Sequence):
 
     @staticmethod
     def _get_or_fill(container: Sequence | dict, index: Any, fillvalue: Any) -> Any:
+        if isinstance(container, dict):
+            # dict upstreams follow the same (key, value) convention as map()
+            container = list(container.items())
         try:
             return container[index]
         except (IndexError, KeyError):
@@ -535,6 +538,9 @@ class _ConcatResult(Sequence):
                 break
             if i >= (curlen := len(value)):
                 i -= curlen
+            elif isinstance(value, dict):
+                # dict upstreams follow the same (key, value) convention as map()
+                return next(itertools.islice(value.items(), i, None))
             elif isinstance(value, Sequence):
                 return value[i]
             else:
