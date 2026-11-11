@@ -516,12 +516,15 @@ guidance, and the planned strategic and tactical improvements.
 Dag processor HTTP client credentials
 -------------------------------------
 
-Set ``[dag_processor] execution_api_token_file`` to run ``airflow dag-processor`` with
+Set ``[dag_processor] use_execution_api = True`` to run ``airflow dag-processor`` with
 authenticated HTTP requests. Job registration, heartbeats, completion, bundle secret
 lookups, bundle metadata, result publication, and callback and priority delivery then use
 the Execution API. The API client is created
-in the processor process, after any daemon or hot-reload fork. Leaving the setting
-unset preserves the in-process API and database-backed Job lifecycle.
+in the processor process, after any daemon or hot-reload fork. The setting defaults to
+``False``, preserving the in-process API and database-backed Job lifecycle.
+Configure credentials separately with ``[dag_processor] execution_api_token_file``;
+the token file is currently the supported credential source. Setting a token file alone
+does not enable API mode.
 
 Run catalog synchronization and token provisioning on a trusted host. Catalog synchronization
 requires database access and the deployment's Fernet key when it signs bundle URLs. Token
@@ -533,11 +536,10 @@ separate token file for each processor::
     airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
 
 ``dag-processor-sync-bundles`` synchronizes every configured bundle and deactivates catalog
-entries for bundles that are no longer configured. ``--bundle-name`` does not narrow the
-synchronization: the command checks that the named bundles are configured, still synchronizes
-every configured bundle, and deactivates no catalog entries. It always uses the metadata
-database, even when ``execution_api_token_file`` is configured, and exits without starting a
-processor.
+entries for bundles that are no longer configured. On a host that configures only some of the
+deployment's bundles, pass ``--keep-unconfigured-bundles`` so the other bundles' entries stay
+active. It always uses the metadata database, even when ``use_execution_api`` is enabled, and
+exits without starting a processor.
 
 The token command writes the token atomically. A new file is readable only by its owner, and replacing
 an existing file keeps its mode and group, so grant the processor read access once. ACLs are not
@@ -549,6 +551,7 @@ their Jobs.
 Configure ``[core] execution_api_server_url`` to reach the API server, and start the
 processor::
 
+    AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API=True \
     AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE=/run/airflow/processor.jwt \
         airflow dag-processor --bundle-name dags-folder
 
@@ -612,9 +615,14 @@ larger body before reading the rest of it. A rejected publication does not fall 
 to direct database writes, and does not prevent other files from being processed. Transport
 failures and server errors are retried; exhausting those retries preserves the last accepted
 result. When the API refuses a result for its content, or the result is over the limit, the
-processor publishes an import error for the file instead, so the problem is visible.
-Dags whose definition path matches an import error are marked stale until a later parse
-publishes them again. Dags missing from an accepted parse are marked stale at once: the
+processor publishes an import error for the file instead, so the problem is visible. It does the
+same when a parse leaves no result to publish: the parsing process exits without one, exceeds
+``[dag_processor] dag_file_processor_timeout``, or has an Execution API request fail while parsing.
+Dags whose definition path matches an import error from a completed parse are marked stale until
+a later parse publishes them again. The import errors the processor publishes in place of a result
+instead carry ``result_unavailable=True``: their Dags keep scheduling until their last successful
+parse is older than ``[dag_processor] stale_dag_threshold``, configured on the API server.
+Dags missing from an accepted parse are marked stale at once: the
 publication is atomic, so there is no gap between file and Dag parse times to wait out. For a
 container-level error, missing member Dags are marked stale only when their last successful
 parse is older than ``[dag_processor] stale_dag_threshold``, using the server's clock. Invalid ``access_control`` produces an import error with both
@@ -649,9 +657,22 @@ When a callback's bundle
 version cannot be prepared, the processor retries with backoff for up to
 ``[dag_processor] job_heartbeat_timeout``
 and then acknowledges the request without running the callback. The same retry applies after an
-Execution API request fails, but only when none of the callbacks processed together for a file
+Execution API request fails, or is still waiting for its response when ``[core] dagbag_import_timeout``
+interrupts the import, but only when none of the callbacks processed together for a file
 found its Dag or task, so none of them ran. When one of them did, a callback whose Dag or task did
-not load is acknowledged without running. Priority requests are assigned
+not load is acknowledged without running. Callbacks for the same bundle version and version
+metadata share one preparation attempt per manager loop, including a failed attempt.
+
+After importing the file, an API-mode callback process waits for the manager's permission before
+starting its callback batch. If ``[dag_processor] dag_file_processor_timeout`` kills the process
+before that permission was granted, its callbacks are retried with the same bounded backoff.
+Repeated timeouts retain the original ``job_heartbeat_timeout`` retry deadline; after it expires,
+the callbacks are acknowledged without running. Once permission has been granted, a processor
+timeout is terminal and acknowledges the batch because some callbacks may already have produced
+side effects. This is deliberately more conservative than graceful shutdown, which redelivers
+unfinished batches and can repeat their side effects.
+
+Priority requests are assigned
 to an import started after their requested refresh. Only that import's publication or terminal
 failure acknowledges the request; an older in-flight import cannot consume it. Discovery after
 the requested refresh can also acknowledge a request if it confirms the definition is absent.
@@ -708,8 +729,10 @@ readiness without immediately failing liveness. While the API is slow, each requ
 to ``[workers] execution_api_timeout``. While the manager answers its parsing processes' requests,
 it refreshes the health file once a second has passed, so a slow request is always followed by a
 refresh. One loop also makes up to five requests of its own (a heartbeat, two work claims, a
-publication and an acknowledgment), so keep
-``health_check_threshold`` above five times that timeout.
+publication and an acknowledgment). Publication and acknowledgment each keep sending for up to
+one second, and waiting for parsing processes can take another second without a refresh, so keep
+``health_check_threshold`` above five times that timeout plus three seconds, with additional
+scheduling margin.
 
 Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
 entrypoint otherwise checks the database before starting the command. Do not set

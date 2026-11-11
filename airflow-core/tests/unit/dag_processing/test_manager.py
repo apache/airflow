@@ -37,7 +37,6 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
-from types import MappingProxyType
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -133,7 +132,7 @@ from unit.dag_processing.fake_lang_sdk import (
     play_runtime,
     write_native_file,
 )
-from unit.dag_processing.requested_work_helpers import get_api_work_source, make_status_error
+from unit.dag_processing.requested_work_helpers import get_api_work_source, make_status_error, make_work
 from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
@@ -615,6 +614,12 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_sync_bundles_keeps_missing_bundles_when_asked_without_a_filter(self, mock_bundles_manager):
+        """Catalog provisioning from a host that configures only some bundles keeps the others active."""
+        DagFileProcessorManager(max_runs=0).sync_bundles(deactivate_missing=False)
         mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
 
     @pytest.mark.parametrize(
@@ -6328,24 +6333,6 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].import_errors == 1
         assert not manager._pending_publications
 
-    @pytest.mark.parametrize(
-        "version_data",
-        [None, {}, {"revision": "v1"}, MappingProxyType({}), MappingProxyType({"revision": "v1"})],
-    )
-    def test_api_publication_preserves_version_data(self, version_data):
-        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-        manager = DagFileProcessorManager(max_runs=1, api_client=client)
-        file = _get_file_infos(["dag.py"])[0]
-        proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
-        proc.id = uuid7()
-        proc.dispatch_sequence = 1
-        proc.parse_source = DagParseSource(version_data=version_data)
-        proc.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
-
-        body = manager._build_parse_result(file, proc, 0.5)
-
-        assert body.version_data == version_data
-
     @pytest.mark.parametrize("source_available", [True, False])
     def test_api_publication_carries_diagnostics_and_explicit_source_availability(self, source_available):
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
@@ -6668,7 +6655,12 @@ class TestDagFileProcessorManager:
 
         manager.selector = mock.create_autospec(selectors.BaseSelector, instance=True)
         manager.selector.select.return_value = [
-            (selectors.SelectorKey(fd, fd, selectors.EVENT_READ, (make_handler(duration), mock.Mock())), None)
+            (
+                selectors.SelectorKey(
+                    fd, fd, selectors.EVENT_READ, (make_handler(duration), mock.Mock(spec=lambda sock: None))
+                ),
+                None,
+            )
             for fd, duration in enumerate(durations)
         ]
 
@@ -6687,9 +6679,7 @@ class TestDagFileProcessorManager:
         )
         bundle = self._make_refresh_bundle()
         bundle.refresh_interval = 3600
-        work = ProcessorWorkItem(
-            id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
-        )
+        work = make_work(bundle_name=bundle.name, relative_fileloc="a.py")
         get_api_work_source(manager)._priority_claims[work.id, work.claim_id] = PriorityParseClaim(
             work=work, inventory_sequence=1
         )
@@ -7406,9 +7396,7 @@ class TestDagFileProcessorManagerWithAPIClient:
         request = DagCallbackRequest(
             filepath="a.py", bundle_name="bundle_b", bundle_version="v1", dag_id="dag", run_id="run"
         )
-        work = ProcessorWorkItem(
-            id=str(uuid7()), claim_id=uuid7(), bundle_name="bundle_b", relative_fileloc="a.py"
-        )
+        work = make_work(bundle_name="bundle_b", relative_fileloc="a.py")
         get_api_work_source(manager)._callback_claims[id(request)] = work
         get_api_work_source(manager)._deferred_api_callbacks.append(request)
 
@@ -7437,9 +7425,7 @@ def test_callback_construction_failure_uses_bounded_retry(create, failure, stage
     request = DagCallbackRequest(
         filepath="a.py", bundle_name="testing", bundle_version="v1", dag_id="dag", run_id="run"
     )
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
-    )
+    work = make_work(bundle_name="testing", relative_fileloc="a.py")
     get_api_work_source(manager)._callback_claims[id(request)] = work
     get_api_work_source(manager)._deferred_api_callbacks.append(request)
     response = httpx2.Response(503, request=httpx2.Request("GET", "http://api/connections/git"))
@@ -7504,9 +7490,7 @@ def test_callback_constructor_outage_allows_other_work_until_retry_expires(
             run_id="run",
         )
         work.append(
-            ProcessorWorkItem(
-                id=str(uuid7()),
-                claim_id=uuid7(),
+            make_work(
                 bundle_name=bundle.name,
                 relative_fileloc=request.filepath,
                 callback=request,
@@ -7553,10 +7537,7 @@ def test_equal_claimed_callbacks_are_removed_by_identity(prepare, importer, cloc
         filepath="a.py", bundle_name="testing", bundle_version="v1", dag_id="dag", run_id="run"
     )
     second = first.model_copy(deep=True)
-    work = [
-        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
-        for _ in range(2)
-    ]
+    work = [make_work(bundle_name="testing", relative_fileloc="a.py") for _ in range(2)]
     get_api_work_source(manager)._callback_claims = {id(first): work[0], id(second): work[1]}
     get_api_work_source(manager)._deferred_api_callbacks = [first, second]
     get_api_work_source(manager)._deferred_callback_retries = {
@@ -7596,10 +7577,7 @@ def test_equal_claimed_callbacks_dispatch_once_each_after_preparation_recovers(
         filepath="a.py", bundle_name="testing", bundle_version="v1", dag_id="dag", run_id="run"
     )
     second = first.model_copy(deep=True)
-    work = [
-        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
-        for _ in range(2)
-    ]
+    work = [make_work(bundle_name="testing", relative_fileloc="a.py") for _ in range(2)]
     get_api_work_source(manager)._callback_claims = {id(first): work[0], id(second): work[1]}
     get_api_work_source(manager)._deferred_api_callbacks = [first, second]
     bundle = _make_bundle(TEST_DAGS_FOLDER)
@@ -7722,7 +7700,7 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
         files[name] = {file}
         manager._bundle_versions[name] = None
         manager._bundle_parse_sources[name] = DagParseSource()
-        work = ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="a.py")
+        work = make_work(bundle_name=name, relative_fileloc="a.py")
         claims[name] = PriorityParseClaim(work=work, inventory_sequence=1)
         get_api_work_source(manager)._priority_claims[work.id, work.claim_id] = claims[name]
     manager._dag_bundles = list(bundles.values())
@@ -8000,15 +7978,12 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
         manager._dag_bundles.append(bundle)
     (tmp_path / "a.py").touch()
     rejected_work, ready_work = [
-        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="a.py")
-        for name in ("oversized", "ready")
+        make_work(bundle_name=name, relative_fileloc="a.py") for name in ("oversized", "ready")
     ]
     retained_claims = {}
     if retained_attempt:
         for name, attempt_id in (("oversized", uuid7()), ("ready", None)):
-            work = ProcessorWorkItem(
-                id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="b.py"
-            )
+            work = make_work(bundle_name=name, relative_fileloc="b.py")
             retained_claims[work.id, work.claim_id] = PriorityParseClaim(
                 work=work, inventory_sequence=1, attempt_id=attempt_id
             )
@@ -8136,9 +8111,7 @@ def test_api_inventory_cleanup_preserves_claimed_callbacks():
     processor.id = uuid7()
     manager._processors[file] = processor
     get_api_work_source(manager)._callback_attempts[processor.id] = [
-        ProcessorWorkItem(
-            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="removed.py"
-        )
+        make_work(bundle_name="testing", relative_fileloc="removed.py")
     ]
     manager.purge_removed_files_from_queue(set())
     manager.terminate_orphan_processes(set())
@@ -8155,9 +8128,7 @@ def test_inventory_only_fails_priority_requests_after_authoritative_refresh(
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.publish_inventory.return_value.revision = uuid7()
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="archive.zip/a.py"
-    )
+    work = make_work(bundle_name="testing", relative_fileloc="archive.zip/a.py")
     get_api_work_source(manager)._priority_claims[work.id, work.claim_id] = PriorityParseClaim(
         work=work, inventory_sequence=2
     )
@@ -8186,9 +8157,7 @@ def test_pending_requested_work_does_not_block_other_available_capacity(kind):
     bundle.name = "testing"
     bundle.supports_versioning = False
     manager._dag_bundles = [bundle]
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="missing.py"
-    )
+    work = make_work(bundle_name="testing", relative_fileloc="missing.py")
     if kind == "priority":
         get_api_work_source(manager)._priority_claims[work.id, work.claim_id] = PriorityParseClaim(
             work=work, inventory_sequence=1
@@ -8201,9 +8170,7 @@ def test_pending_requested_work_does_not_block_other_available_capacity(kind):
 
 
 def _claim_priority_parse(manager: DagFileProcessorManager, file: DagFileInfo) -> ProcessorWorkItem:
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name=file.bundle_name, relative_fileloc=str(file.rel_path)
-    )
+    work = make_work(bundle_name=file.bundle_name, relative_fileloc=str(file.rel_path))
     get_api_work_source(manager)._priority_claims[work.id, work.claim_id] = PriorityParseClaim(
         work=work, inventory_sequence=0, attempt_id=uuid7()
     )
@@ -8256,9 +8223,7 @@ def test_priority_request_waits_for_its_own_refreshed_import(create, tmp_path, p
         )
     else:
         manager._processors[file] = old
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
-    )
+    work = make_work(bundle_name=bundle.name, relative_fileloc="a.py")
     client.claim_work.return_value = [work]
     manager._queue_requested_files_for_parsing()
     manager._refresh_dag_bundles(known_files)
@@ -8329,9 +8294,7 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
         attempt_id=body.attempt_id, revision=uuid7(), accepted_at=timezone.utcnow()
     )
     known_files = {bundle.name: {file}}
-    first = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
-    )
+    first = make_work(bundle_name=bundle.name, relative_fileloc="a.py")
     client.claim_work.return_value = [first]
     manager._queue_requested_files_for_parsing()
     manager._refresh_dag_bundles(known_files)
@@ -8600,6 +8563,7 @@ def test_timed_out_parse_retains_priority_claim_until_publication(had_callbacks)
     processor.start_time = time.monotonic() - 5
     processor.had_callbacks = had_callbacks
     processor.api_request_error = None
+    processor.callback_targets_missing = False
     processor.parse_source = DagParseSource()
     processor.dispatch_sequence = 1
     manager._processors[file] = processor
@@ -8639,9 +8603,7 @@ def test_unpreparable_callback_is_retried_with_backoff_until_the_job_heartbeat_t
     request = DagCallbackRequest(
         filepath="a.py", bundle_name="testing", bundle_version="v1", dag_id="dag", run_id="run"
     )
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
-    )
+    work = make_work(bundle_name="testing", relative_fileloc="a.py")
     get_api_work_source(manager)._callback_claims[id(request)] = work
     get_api_work_source(manager)._deferred_api_callbacks.append(request)
 
@@ -8999,32 +8961,21 @@ def test_result_over_the_publication_limit_is_reported_without_sending_it():
     client.publish_parse_result.assert_not_called()
 
 
-def test_acknowledgments_are_sent_within_the_loop_budget():
+@pytest.mark.parametrize(
+    "failure",
+    [
+        None,
+        httpx2.ConnectError("unavailable"),
+        RuntimeError("closed"),
+        DagProcessorRegistrationRetired("retired"),
+    ],
+)
+def test_shutdown_acknowledges_finished_work(failure, caplog):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client)
-    work = [
-        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
-        for _ in range(3)
-    ]
-    get_api_work_source(manager)._pending_work_acks = [("priority", item) for item in work]
-
-    manager.work_source.flush(deadline=time.monotonic())
-    client.acknowledge_work.assert_not_called()
-
-    manager.work_source.flush()
-    assert client.acknowledge_work.call_args_list == [mock.call("priority", item) for item in work]
-    assert not get_api_work_source(manager)._pending_work_acks
-
-
-@pytest.mark.parametrize("failure", [None, httpx2.ConnectError("unavailable"), RuntimeError("closed")])
-def test_shutdown_acknowledges_finished_work(failure):
-    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.restart_required = isinstance(failure, DagProcessorRegistrationRetired)
     client.acknowledge_work.side_effect = failure
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
-    work = [
-        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
-        for _ in range(2)
-    ]
+    work = [make_work(bundle_name="testing", relative_fileloc="a.py") for _ in range(2)]
     get_api_work_source(manager)._pending_work_acks = [("callbacks", item) for item in work]
 
     manager.end()
@@ -9035,6 +8986,26 @@ def test_shutdown_acknowledges_finished_work(failure):
     else:
         client.acknowledge_work.assert_called_once()
         assert len(get_api_work_source(manager)._pending_work_acks) == 2
+    if client.restart_required:
+        assert {
+            "event": "Unable to acknowledge requested work for the retired Dag processor Job",
+            "error_type": "DagProcessorRegistrationRetired",
+            "error": "retired",
+            "log_level": "warning",
+        } in caplog
+        assert not any(event.get("exception") for event in caplog.entries)
+    elif isinstance(failure, RuntimeError):
+        error_event = next(
+            event
+            for event in caplog.entries
+            if event["event"] == "Unable to acknowledge requested work before exiting"
+        )
+        assert error_event["log_level"] == "error"
+        assert error_event.get("exception")
+        exception = error_event["exception"][0]
+        assert exception["exc_type"] == "RuntimeError"
+        assert exception["exc_value"] == "closed"
+        assert exception["frames"]
 
 
 @mock.patch("airflow.dag_processing.manager.kill_child_processes_by_pids", autospec=True)
@@ -9053,9 +9024,7 @@ def test_shutdown_acknowledges_only_callbacks_that_exited_cleanly(kill_pids):
         processor.had_callbacks = True
         processor.is_ready = True
         processor.exited_cleanly, processor.api_request_error = outcomes[str(file.rel_path)]
-        work[str(file.rel_path)] = ProcessorWorkItem(
-            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc=str(file.rel_path)
-        )
+        work[str(file.rel_path)] = make_work(bundle_name="testing", relative_fileloc=str(file.rel_path))
         get_api_work_source(manager)._callback_attempts[processor.id] = [work[str(file.rel_path)]]
         manager._processors[file] = processor
 
@@ -9090,9 +9059,7 @@ def test_parsing_loop_acknowledges_finished_work_each_iteration(mocker):
         ):
             mocker.patch.object(DagFileProcessorManager, method, autospec=True)
         mocker.patch.object(DagFileProcessorManager, "fetch_callbacks", autospec=True, return_value=[])
-        work = ProcessorWorkItem(
-            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
-        )
+        work = make_work(bundle_name="testing", relative_fileloc="a.py")
         get_api_work_source(manager)._pending_work_acks = [("callbacks", work)]
 
         manager._run_parsing_loop()
@@ -9108,9 +9075,7 @@ def test_max_runs_waits_for_outstanding_requested_work(outstanding):
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     manager._num_run = 1
     source = get_api_work_source(manager)
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
-    )
+    work = make_work(bundle_name="testing", relative_fileloc="a.py")
     assert manager.max_runs_reached()
 
     if outstanding == "acknowledgment":

@@ -22,6 +22,7 @@ from unittest import mock
 
 import httpx2
 import pytest
+from pydantic import ValidationError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -40,6 +41,7 @@ from airflow.dag_processing.manager import (
     DagBundleDiscoveryResult,
     DagFileInfo,
     DagFileProcessorManager,
+    DagFileStat,
     PendingDagPublication,
 )
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
@@ -97,6 +99,8 @@ def test_callback_queued_behind_running_callback_dispatches_and_acknowledges(
         process.id = kwargs["id"]
         process.had_callbacks = True
         process.api_request_error = None
+        process.callback_targets_missing = False
+        process.callbacks_started = True
         process.parse_source = kwargs["parse_source"]
         process.start_time = 0
         process.is_ready = completion == "exit"
@@ -154,17 +158,28 @@ def test_callback_queued_behind_running_callback_dispatches_and_acknowledges(
 
 
 @pytest.mark.parametrize(
-    ("api_request_error", "callback_targets_missing", "callback_count", "completion", "retried"),
+    (
+        "api_request_error",
+        "callback_targets_missing",
+        "callbacks_started",
+        "callback_count",
+        "completion",
+        "retried",
+    ),
     [
         pytest.param(
-            "GetVariable (HTTP 503)", True, 1, "exit", True, id="no-target-loaded-after-api-failure"
+            "GetVariable (HTTP 503)", True, False, 1, "exit", True, id="no-target-loaded-after-api-failure"
         ),
-        pytest.param(None, True, 1, "exit", False, id="no-target-loaded-without-api-failure"),
-        pytest.param("GetVariable (HTTP 503)", False, 1, "exit", False, id="dag-loaded-with-a-fallback"),
-        pytest.param("GetVariable (HTTP 503)", False, 2, "exit", False, id="batched"),
-        pytest.param("GetXCom (HTTP 403)", False, 1, "exit", False, id="persistent-error-in-callback"),
-        pytest.param("GetVariable (HTTP 503)", False, 1, "timeout", False, id="timed-out"),
-        pytest.param(None, False, 1, "exit", False, id="callbacks-ran"),
+        pytest.param(None, True, False, 1, "exit", True, id="no-target-loaded-after-interrupted-request"),
+        pytest.param(
+            "GetVariable (HTTP 503)", False, True, 1, "exit", False, id="dag-loaded-with-a-fallback"
+        ),
+        pytest.param("GetVariable (HTTP 503)", False, True, 2, "exit", False, id="batched"),
+        pytest.param("GetXCom (HTTP 403)", False, True, 1, "exit", False, id="persistent-error-in-callback"),
+        pytest.param(None, False, True, 1, "timeout", False, id="timed-out-after-start"),
+        pytest.param(None, False, False, 1, "timeout", True, id="timed-out-before-start"),
+        pytest.param(None, False, False, 2, "timeout-drain", True, id="start-message-drained-after-kill"),
+        pytest.param(None, False, True, 1, "exit", False, id="callbacks-ran"),
     ],
 )
 @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True, return_value=10)
@@ -180,6 +195,7 @@ def test_callbacks_run_again_after_api_failure_only_when_none_ran(
     caplog,
     api_request_error,
     callback_targets_missing,
+    callbacks_started,
     callback_count,
     completion,
     retried,
@@ -188,13 +204,17 @@ def test_callbacks_run_again_after_api_failure_only_when_none_ran(
     manager.processor_timeout = 1
     prepare.return_value = bundle
     get_logger.return_value = (mock.Mock(spec=[]), mock.Mock(spec=[]))
-    outcomes = iter([(api_request_error, callback_targets_missing), (None, False)])
+    outcomes = iter([(api_request_error, callback_targets_missing, callbacks_started), (None, False, True)])
 
     def start_process(**kwargs):
         process = mock.create_autospec(DagFileProcessorProcess, instance=True)
         process.id = kwargs["id"]
         process.had_callbacks = True
-        process.api_request_error, process.callback_targets_missing = next(outcomes)
+        process.api_request_error, process.callback_targets_missing, process.callbacks_started = next(
+            outcomes
+        )
+        if completion == "timeout-drain":
+            process.kill.side_effect = lambda sig: setattr(process, "callbacks_started", True)
         process.dag_file_rel_path = "a.py"
         process.bundle_name = bundle.name
         process.parse_source = kwargs["parse_source"]
@@ -227,14 +247,152 @@ def test_callbacks_run_again_after_api_failure_only_when_none_ran(
 
     assert [call.kwargs["callbacks"] for call in start.call_args_list] == [requests] * (2 if retried else 1)
     assert client.acknowledge_work.call_args_list == [mock.call("callbacks", item) for item in work]
-    retry_log = {
-        "event": "Retrying callbacks after an Execution API request failed",
-        "file": "a.py",
-        "bundle_name": bundle.name,
-        "error": api_request_error,
-    }
+    if completion != "exit" and not callbacks_started:
+        retry_log = {
+            "event": "Retrying callbacks killed before execution",
+            "file": "a.py",
+            "bundle_name": bundle.name,
+            "timeout": 1,
+        }
+    else:
+        retry_log = {
+            "event": "Retrying callbacks after an Execution API request failed",
+            "file": "a.py",
+            "bundle_name": bundle.name,
+            "error": api_request_error or "Request interrupted before its response was received",
+        }
     assert (retry_log in caplog) is retried
     assert not get_api_work_source(manager).has_outstanding_work()
+
+
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
+@mock.patch("airflow.dag_processing.api_requested_work.time", autospec=True)
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+def test_repeated_pre_start_timeouts_keep_the_original_retry_deadline(manager_clock, clock, api_manager):
+    manager, client, bundle = api_manager
+    manager_clock.monotonic.return_value = 100
+    manager.processor_timeout = 1
+    source = get_api_work_source(manager)
+    request = DagCallbackRequest(
+        filepath="a.py", bundle_name=bundle.name, bundle_version=None, dag_id="dag", run_id="run"
+    )
+    work = make_work(bundle.name, callback=request)
+    client.claim_work.return_value = [work]
+    [request] = manager.fetch_callbacks()
+    client.claim_work.return_value = []
+    file = DagFileInfo(bundle_name=bundle.name, bundle_path=bundle.path, rel_path=Path("a.py"))
+
+    for now in (0, 1, 3, 7, 10):
+        clock.monotonic.return_value = now
+        process = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        process.id = uuid7()
+        process.start_time = 0
+        process.had_callbacks = True
+        process.callbacks_started = False
+        process.callback_targets_missing = False
+        process.dag_file_rel_path = "a.py"
+        process.bundle_name = bundle.name
+        source.callback_queued(request)
+        source.callbacks_started(process.id, [request])
+        manager._processors[file] = process
+
+        manager._kill_timed_out_processors()
+        source.flush()
+
+        process.kill.assert_called_once_with(signal.SIGKILL)
+        if now < 10:
+            client.acknowledge_work.assert_not_called()
+            [request] = manager.fetch_callbacks()
+            assert source._deferred_callback_retries[id(request)].expires_at == 10
+        else:
+            client.acknowledge_work.assert_called_once_with("callbacks", work)
+            assert not source.has_outstanding_work()
+
+
+@mock.patch("airflow.dag_processing.api_requested_work.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_create_bundle_manager", autospec=True)
+def test_callback_sweep_prepares_one_failed_version_once_and_recovers(
+    create_bundle_manager, clock, api_manager
+):
+    manager, client, bundle = api_manager
+    clock.monotonic.return_value = 0
+    prepared = mock.create_autospec(BaseDagBundle, instance=True)
+    prepared.path = bundle.path
+    prepared.supports_versioning = True
+    requests = [
+        DagCallbackRequest(
+            filepath="a.py", bundle_name=bundle.name, bundle_version="v1", dag_id="dag", run_id=str(i)
+        )
+        for i in range(20)
+    ]
+    requests.append(requests[0].model_copy(update={"bundle_version": "v2", "run_id": "healthy"}))
+    manager.max_callbacks_per_loop = len(requests)
+    work = [make_work(bundle.name, callback=request) for request in requests]
+    client.claim_work.return_value = work
+    get_bundle = create_bundle_manager.return_value.get_bundle
+    recovered = False
+
+    def prepare(**kwargs):
+        if kwargs["version"] == "v1" and not recovered:
+            clock.monotonic.return_value += 5
+            raise httpx2.ReadTimeout("Connection lookup timed out")
+        return prepared
+
+    get_bundle.side_effect = prepare
+    manager._add_callbacks_to_queue(manager.fetch_callbacks())
+    client.claim_work.return_value = []
+
+    assert clock.monotonic.return_value == 5
+    assert [call.kwargs["version"] for call in get_bundle.call_args_list] == ["v1", "v2"]
+    assert [r.run_id for batch in manager._callback_to_execute.values() for r in batch] == ["healthy"]
+    source = get_api_work_source(manager)
+    assert len(source._deferred_callback_retries) == 20
+    assert len(source._callback_claims) == 21
+    client.acknowledge_work.assert_not_called()
+
+    manager._add_callbacks_to_queue(manager.fetch_callbacks())
+    assert get_bundle.call_count == 2
+    recovered = True
+    clock.monotonic.return_value = 6
+    manager._add_callbacks_to_queue(manager.fetch_callbacks())
+
+    assert [call.kwargs["version"] for call in get_bundle.call_args_list] == ["v1", "v2", "v1"]
+    assert prepared.initialize.call_count == 2
+    queued = [r for batch in manager._callback_to_execute.values() for r in batch]
+    assert len(queued) == len({id(request) for request in queued}) == 21
+    assert not source._deferred_callback_retries
+    assert not source._deferred_api_callbacks
+    client.acknowledge_work.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("other", "preparations"),
+    [
+        ({"version_data": {"manifest": {"b": 2, "a": 1}}}, 1),
+        ({"version_data": {"manifest": {"a": 1, "b": 3}}}, 2),
+        ({"version_data": None}, 2),
+        ({"version_data": {}}, 2),
+        ({"bundle_version": "v2"}, 2),
+        ({"bundle_name": "other"}, 2),
+    ],
+)
+@mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
+def test_callback_sweep_shares_only_the_same_bundle_version_metadata(
+    prepare, api_manager, other, preparations
+):
+    manager, _, bundle = api_manager
+    prepare.return_value = bundle
+    request = DagCallbackRequest(
+        filepath="a.py",
+        bundle_name=bundle.name,
+        bundle_version="v1",
+        dag_id="dag",
+        run_id="first",
+        version_data={"manifest": {"a": 1, "b": 2}},
+    )
+    manager._add_callbacks_to_queue([request, request.model_copy(update={**other, "run_id": "second"})])
+    assert prepare.call_count == preparations
+    assert sum(len(batch) for batch in manager._callback_to_execute.values()) == 2
 
 
 @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
@@ -648,3 +806,29 @@ def test_callback_preparation_logs_retry_and_identifies_expired_work(
     assert get_api_work_source(manager)._pending_work_acks == [("callbacks", work)]
     assert not get_api_work_source(manager)._callback_claims
     assert not get_api_work_source(manager)._deferred_api_callbacks
+
+
+@mock.patch.object(
+    DagFileProcessorManager,
+    "_build_rejection_report",
+    autospec=True,
+    side_effect=ValidationError.from_exception_data("DagParseResultBody", []),
+)
+def test_unreportable_failed_parse_releases_its_priority_claim(build_report, api_manager):
+    manager, client, bundle = api_manager
+    work = make_work(bundle.name)
+    client.claim_work.return_value = [work]
+    [file] = manager.claim_priority_files()
+    process = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    process.id = uuid7()
+    process.parse_source = DagParseSource()
+    process.api_request_error = None
+    process.dispatch_sequence = 1
+    manager.work_source.parse_started(file, process.id)
+
+    manager._queue_failed_parse_result(file, process, 1.0, DagFileStat(), reason="no result")
+
+    build_report.assert_called_once()
+    assert file not in manager._pending_publications
+    assert get_api_work_source(manager)._pending_work_acks == [("priority", work)]
+    assert not get_api_work_source(manager)._priority_claims

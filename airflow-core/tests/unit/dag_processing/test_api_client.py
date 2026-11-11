@@ -30,7 +30,6 @@ from uuid6 import uuid7
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagBundleInventoryBody,
     DagParseResultBody,
-    ProcessorWorkItem,
 )
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.dag_processing import api_client
@@ -46,6 +45,8 @@ from airflow.sdk.api.datamodels import _generated
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import GetVariable, GetXCom, MaskSecret, VariableResult
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
+
+from unit.dag_processing.requested_work_helpers import make_work
 
 
 @pytest.fixture
@@ -1237,9 +1238,7 @@ def test_work_claims_and_acknowledgments_wait_for_a_slow_response(make_client, m
         make_registration_response(), httpx2.Response(200, json=[]), httpx2.Response(204)
     )
     client.register_job()
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py"
-    )
+    work = make_work(bundle_name="bundle-a", relative_fileloc="dag.py")
 
     client.claim_work("callbacks", ["bundle-a"], 1)
     client.acknowledge_work("callbacks", work)
@@ -1317,9 +1316,7 @@ def test_claim_work_stays_within_the_claim_body_bounds(
 def test_work_acknowledgment_sends_only_the_claim_identity(make_client, make_registration_response, kind):
     client, requests = make_client(make_registration_response(), httpx2.Response(204))
     client.register_job()
-    work = ProcessorWorkItem(
-        id=str(uuid7()), claim_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py"
-    )
+    work = make_work(bundle_name="bundle-a", relative_fileloc="dag.py")
 
     client.acknowledge_work(kind, work)
 

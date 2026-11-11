@@ -22,6 +22,7 @@ from __future__ import annotations
 import functools
 import gc
 import inspect
+import json
 import logging
 import math
 import os
@@ -456,8 +457,13 @@ class DagFileProcessorManager(LoggingMixin):
             return ExecutionAPIWorkSource(self.api_client)
         return DatabaseRequestedWorkSource(self._claim_priority_files, self._fetch_callbacks_from_db)
 
-    def sync_bundles(self) -> None:
-        """Sync configured DAG bundles to the metadata database."""
+    def sync_bundles(self, *, deactivate_missing: bool | None = None) -> None:
+        """
+        Sync configured DAG bundles to the metadata database.
+
+        :param deactivate_missing: Whether to deactivate catalog entries for bundles missing from this
+            configuration. By default, only a processor that parses every configured bundle deactivates them.
+        """
         if self.api_client is not None:
             provisioned = {bundle.name for bundle in self.api_client.get_bundles(retry=True)}
             configured = set(
@@ -470,8 +476,10 @@ class DagFileProcessorManager(LoggingMixin):
             return
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
+        if deactivate_missing is None:
+            deactivate_missing = not self.bundle_names_to_parse
         dag_bundle_manager = self._create_bundle_manager()
-        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=deactivate_missing)
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
         try:
@@ -766,8 +774,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._publish_pending_results()
             self.work_source.flush()
-            for callback in self.fetch_callbacks():
-                self._add_callback_to_queue(callback)
+            self._add_callbacks_to_queue(self.fetch_callbacks())
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
 
@@ -999,7 +1006,17 @@ class DagFileProcessorManager(LoggingMixin):
                 return None
         return bundle
 
-    def _add_callback_to_queue(self, request: CallbackRequest) -> None:
+    def _add_callbacks_to_queue(self, callbacks: Iterable[CallbackRequest]) -> None:
+        prepared_bundles: dict[str, BaseDagBundle | None] = {}
+        for request in callbacks:
+            self._add_callback_to_queue(request, prepared_bundles=prepared_bundles)
+
+    def _add_callback_to_queue(
+        self,
+        request: CallbackRequest,
+        *,
+        prepared_bundles: dict[str, BaseDagBundle | None] | None = None,
+    ) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
         if get_claiming_importer(request.filepath, request.bundle_name) is not None:
             self._log_dropped_lang_sdk_callback(request)
@@ -1008,7 +1025,16 @@ class DagFileProcessorManager(LoggingMixin):
         if not self.work_source.is_callback_preparation_ready(request):
             return
         self.heartbeat()
-        bundle = self.prepare_callback_bundle(request)
+        if prepared_bundles is None:
+            bundle = self.prepare_callback_bundle(request)
+        else:
+            key = json.dumps(
+                request.model_dump(mode="json", include={"bundle_name", "bundle_version", "version_data"}),
+                sort_keys=True,
+            )
+            if key not in prepared_bundles:
+                prepared_bundles[key] = self.prepare_callback_bundle(request)
+            bundle = prepared_bundles[key]
         if bundle is None:
             self.work_source.callback_deferred(request)
             return
@@ -1118,11 +1144,20 @@ class DagFileProcessorManager(LoggingMixin):
         self._bundle_versions[bundle_name] = pending.source.bundle_version
         known_files[bundle_name] = pending.found_files
         self._bundle_failed_sources[bundle_name] = frozenset(pending.body.failed_sources)
-        self.work_source.inventory_published(
+        priority_files = self.work_source.inventory_published(
             bundle_name,
             sequence=pending.body.dispatch_sequence,
             files=pending.body.files,
             failed_sources=pending.body.failed_sources,
+            parse_files=pending.found_files,
+        )
+        self._add_files_to_queue(
+            [
+                file
+                for file in priority_files
+                if file not in self._file_queue and file not in self._files_awaiting_source
+            ],
+            mode="frontprio",
         )
 
     def _discard_unusable_bundle_source(self, bundle_name: str) -> None:
@@ -1967,6 +2002,7 @@ class DagFileProcessorManager(LoggingMixin):
         except ValidationError:
             self.log.exception("Unable to report failed parse for %s; preserving previous result", file)
             self._record_failed_publication(file, stat)
+            self.work_source.attempt_finished(proc.id, had_callbacks=False)
 
     def _record_failed_publication(self, file: DagFileInfo, stat: DagFileStat) -> None:
         self._file_stats[file] = attrs.evolve(
@@ -2275,17 +2311,29 @@ class DagFileProcessorManager(LoggingMixin):
                 self._finish_callback_attempt(processor)
             processor.close()
 
-    def _finish_callback_attempt(self, processor: BaseDagFileProcessorProcess) -> None:
+    def _finish_callback_attempt(
+        self, processor: BaseDagFileProcessorProcess, *, timed_out_before_callbacks: bool = False
+    ) -> None:
         # Running a callback again repeats its side effects, so retry only a process that ran none of them.
-        if processor.api_request_error is None or not processor.callback_targets_missing:
+        if not self.work_source.requires_acknowledgment or not (
+            processor.callback_targets_missing or timed_out_before_callbacks
+        ):
             self.work_source.attempt_finished(processor.id, had_callbacks=True)
             return
-        self.log.warning(
-            "Retrying callbacks after an Execution API request failed",
-            file=processor.dag_file_rel_path,
-            bundle_name=processor.bundle_name,
-            error=processor.api_request_error,
-        )
+        if timed_out_before_callbacks:
+            self.log.warning(
+                "Retrying callbacks killed before execution",
+                file=processor.dag_file_rel_path,
+                bundle_name=processor.bundle_name,
+                timeout=self.processor_timeout,
+            )
+        else:
+            self.log.warning(
+                "Retrying callbacks after an Execution API request failed",
+                file=processor.dag_file_rel_path,
+                bundle_name=processor.bundle_name,
+                error=processor.api_request_error or "Request interrupted before its response was received",
+            )
         self.work_source.callbacks_interrupted(processor.id)
 
     def _get_log_dir(self) -> str:
@@ -2735,9 +2783,11 @@ class DagFileProcessorManager(LoggingMixin):
                         }
                     ),
                 )
+                # kill() can drain a queued start request; snapshot permission before stopping the child.
+                timed_out_before_callbacks = not processor.callbacks_started
                 processor.kill(signal.SIGKILL)
 
-                processors_to_remove.append(file)
+                processors_to_remove.append((file, timed_out_before_callbacks))
 
                 stat = DagFileStat(
                     num_dags=0,
@@ -2761,10 +2811,12 @@ class DagFileProcessorManager(LoggingMixin):
                         self.work_source.attempt_finished(processor.id, had_callbacks=False)
 
         # Clean up `self._processors` after iterating over it
-        for proc in processors_to_remove:
+        for proc, timed_out_before_callbacks in processors_to_remove:
             processor = self._processors.pop(proc)
             if processor.had_callbacks:
-                self._finish_callback_attempt(processor)
+                self._finish_callback_attempt(
+                    processor, timed_out_before_callbacks=timed_out_before_callbacks
+                )
             processor.close()
 
     def _add_files_to_queue(
@@ -2860,8 +2912,15 @@ class DagFileProcessorManager(LoggingMixin):
         # Claims the server releases after this Job ends are delivered again, repeating their callbacks.
         try:
             self.work_source.flush(deadline=math.inf)
-        except Exception:
-            self.log.exception("Unable to acknowledge requested work before exiting")
+        except Exception as error:
+            if self.api_client is not None and self.api_client.restart_required:
+                self.log.warning(
+                    "Unable to acknowledge requested work for the retired Dag processor Job",
+                    error_type=type(error).__name__,
+                    error=str(error),
+                )
+            else:
+                self.log.exception("Unable to acknowledge requested work before exiting")
 
 
 def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):

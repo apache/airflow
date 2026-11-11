@@ -176,6 +176,7 @@ def test_processor_without_database_network_or_server_credentials(
             "AIRFLOW__API_AUTH__JWT_PRIVATE_KEY_PATH": "",
             "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
             "AIRFLOW__CORE__EXECUTION_API_SERVER_URL": worker_api_url,
+            "AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API": "True",
             "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE": "/tmp/processor.jwt",
             "AIRFLOW__DAG_PROCESSOR__HEALTH_CHECK_THRESHOLD": "5",
             "AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC": "1",

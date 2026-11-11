@@ -500,7 +500,7 @@ potentially still executes with direct database access in the Dag File Processor
    process environment. If a Dag author obtains the JWT signing key, they could forge arbitrary tokens.
 
    Since Airflow 3.5 the Dag File Processor can instead run without metadata database access, by
-   setting ``[dag_processor] execution_api_token_file``. It then uses short-lived Execution API
+   enabling ``[dag_processor] use_execution_api``. It then uses short-lived Execution API
    credentials limited to its granted bundles, and each parsing attempt gets a bundle-scoped token
    carrying its file and attempt identity. The API does not currently use those identities for
    access checks. This does not provide per-file isolation: Dag code runs as the processor's Unix
@@ -786,7 +786,7 @@ model — Airflow does not enforce these natively.
    value itself. However, access to the file it points to should be restricted to the Scheduler
    (which generates tokens) and the API Server (which validates them).
 
-   A Dag File Processor running with ``[dag_processor] execution_api_token_file`` needs none of the
+   A Dag File Processor running with ``[dag_processor] use_execution_api = True`` needs none of the
    metadata database variables, the Fernet key or JWT signing keys; it authenticates with the token
    file instead. It also no longer needs asset manager credentials for publishing parsing results.
    In this mode, configure ``[core] asset_manager_class`` and ``[core] asset_manager_kwargs`` on the
@@ -869,7 +869,7 @@ model — Airflow does not enforce these natively.
      Execution API today). This would eliminate the need for these components to have database
      credentials at all, providing security by design rather than relying on deployment-level
      measures. Airflow 3.5 offers this for the Dag File Processor as an opt-in mode
-     (``[dag_processor] execution_api_token_file``); the Triggerer still uses the database.
+     (``[dag_processor] use_execution_api``); the Triggerer still uses the database.
    * **Tactical (shorter-term)**: Native support for Unix user impersonation in the Dag File
      Processor and Triggerer child processes, so that Dag author code runs as a different, low-
      privilege user that cannot access the parent's credentials or the database.
