@@ -30,6 +30,7 @@ class DocBuildParams:
     include_commits: bool = False
     fail_on_missing_third_party_inventories: bool = False
     clean_inventory_cache: bool = False
+    jobs: int | None = None
     github_actions = os.environ.get("GITHUB_ACTIONS", "false")
 
     @property
@@ -37,6 +38,8 @@ class DocBuildParams:
         doc_args = []
         if self.one_pass_only:
             doc_args.append("--one-pass-only")
+        if self.jobs is not None:
+            doc_args.extend(["--jobs", str(self.jobs)])
         if self.include_commits:
             doc_args.append("--include-commits")
         if self.fail_on_missing_third_party_inventories:
