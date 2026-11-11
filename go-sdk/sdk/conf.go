@@ -65,11 +65,12 @@ import (
 // that no field name can match, such as target-table, from [DagRun.Conf], or
 // name it in a `json:` tag.
 //
-// A field of type any, and the values of a map[string]any or []any field, take
-// the types encoding/json decodes to rather than the ones [DagRun.Conf]
-// carries, so a number reaches such a field as a float64, and an integer whose
-// magnitude is above 2^53 can lose digits. Give a field that takes an integer
-// a Go integer type, or read the key from [DagRun.Conf].
+// A number decoded into an any, such as a field of type any or a value of a
+// map[string]any or []any field, arrives as a [json.Number] rather than as the
+// number type [DagRun.Conf] carries, because a float64 cannot hold every
+// integer a conf can. Read it with its Int64 or Float64 method, or give the
+// field a Go integer or float type to have the decoder convert it. Of those,
+// only an integer type keeps every digit of a large integer.
 //
 // It returns an error when a value does not fit the type of its field, when
 // two keys match one field only once case and underscores are ignored, or when
@@ -90,7 +91,12 @@ func (d DagRun) UnmarshalConf(target any) error {
 	if err != nil {
 		return fmt.Errorf("sdk.DagRun.UnmarshalConf: cannot encode the Dag run conf: %w", err)
 	}
-	if err := json.NewDecoder(bytes.NewReader(blob)).Decode(target); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(blob))
+	// A number that reaches an any-typed destination keeps its literal, so the
+	// task reads an exact integer instead of the float64 encoding/json would
+	// otherwise decode it into.
+	dec.UseNumber()
+	if err := dec.Decode(target); err != nil {
 		return fmt.Errorf(
 			"sdk.DagRun.UnmarshalConf: cannot read the Dag run conf into %s: %w",
 			rv.Type().Elem(),

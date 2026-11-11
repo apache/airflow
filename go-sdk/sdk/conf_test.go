@@ -18,6 +18,7 @@
 package sdk
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -154,11 +155,9 @@ func TestUnmarshalConfKeepsTheKeysOfAMapWithUntypedValues(t *testing.T) {
 	assert.Equal(t, options, conf.Options)
 }
 
-// A conf integer reaches the task as an int64, but a slot the decoder fills as
-// an any takes encoding/json's float64, which cannot hold every int64. The SDK
-// documents that rather than reproducing the Conf types, so this pins the loss
-// to the untyped slots: a field with a Go integer type stays exact.
-func TestUnmarshalConfReadsANumberIntoAnUntypedFieldAsAFloat(t *testing.T) {
+// The value is the first integer a float64 rounds, so the test also fails if
+// the number passes through a float64 before it becomes a json.Number.
+func TestUnmarshalConfReadsANumberIntoAnUntypedFieldAsAJSONNumber(t *testing.T) {
 	var conf untypedConf
 
 	require.NoError(t, dagRunWithConf(map[string]any{
@@ -169,9 +168,9 @@ func TestUnmarshalConfReadsANumberIntoAnUntypedFieldAsAFloat(t *testing.T) {
 	}).UnmarshalConf(&conf))
 
 	assert.Equal(t, int64(9007199254740993), conf.RowCount)
-	assert.Equal(t, float64(9007199254740992), conf.Options["rows"])
-	assert.Equal(t, float64(9007199254740992), conf.Items[0])
-	assert.Equal(t, float64(9007199254740992), conf.Anything)
+	assert.Equal(t, json.Number("9007199254740993"), conf.Options["rows"])
+	assert.Equal(t, json.Number("9007199254740993"), conf.Items[0])
+	assert.Equal(t, json.Number("9007199254740993"), conf.Anything)
 }
 
 func TestUnmarshalConfReadsATimestampIntoATimeField(t *testing.T) {
