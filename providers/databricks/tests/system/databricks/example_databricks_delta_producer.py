@@ -30,10 +30,10 @@ from datetime import datetime
 
 from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.databricks.assets.databricks import UnityTableIdentity
-from airflow.providers.databricks.operators.databricks_delta_table import (
+from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
+from airflow.providers.databricks.operators.delta_table import (
     DatabricksDeltaTableVersionProducerOperator,
 )
-from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_delta_producer"

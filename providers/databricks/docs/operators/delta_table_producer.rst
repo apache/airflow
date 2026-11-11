@@ -21,7 +21,7 @@
 DatabricksDeltaTableVersionProducerOperator
 ===========================================
 
-Use :class:`~airflow.providers.databricks.operators.databricks_delta_table.DatabricksDeltaTableVersionProducerOperator`
+Use :class:`~airflow.providers.databricks.operators.delta_table.DatabricksDeltaTableVersionProducerOperator`
 when a Unity Catalog Delta table is written by jobs or systems outside Airflow, and Dags should run
 when it changes. Put the operator in a Dag that runs on a schedule. Each run reads the newest
 Delta version and publishes an asset event for ``unity_table.to_asset()`` when that version is newer

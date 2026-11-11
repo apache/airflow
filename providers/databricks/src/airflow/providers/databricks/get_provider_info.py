@@ -87,7 +87,7 @@ def get_provider_info():
                 "integration-name": "Databricks SQL",
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks_sql",
-                    "airflow.providers.databricks.operators.databricks_delta_table",
+                    "airflow.providers.databricks.operators.delta_table",
                     "airflow.providers.databricks.operators.warehouse",
                 ],
             },

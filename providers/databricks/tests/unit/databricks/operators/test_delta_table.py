@@ -30,7 +30,7 @@ from airflow.providers.common.compat.sdk import DAG, AirflowSkipException
 from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 from airflow.providers.databricks.exceptions import DatabricksDeltaTableError
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlExecutionError
-from airflow.providers.databricks.operators.databricks_delta_table import (
+from airflow.providers.databricks.operators.delta_table import (
     CHECKPOINT_KEY_EXTRA,
     DatabricksDeltaTableVersionProducerOperator,
     DeltaCheckpoint,
@@ -45,7 +45,7 @@ QUOTED = "`main`.`sales`.`orders`"
 TABLE_ID = "11111111-1111-1111-1111-111111111111"
 OTHER_TABLE_ID = "22222222-2222-2222-2222-222222222222"
 KEY = "producer.watch_orders"
-HOOK_PATH = "airflow.providers.databricks.operators.databricks_delta_table.DatabricksSqlHook"
+HOOK_PATH = "airflow.providers.databricks.operators.delta_table.DatabricksSqlHook"
 
 
 class FakeDeltaTable:
