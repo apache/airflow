@@ -1977,15 +1977,7 @@ class DagSerialization(BaseSerialization):
 
     @classmethod
     def _serialize_user_defined_macros(cls, dag_id: str, macros: dict) -> dict:
-        """
-        Return the JSON-safe entries from *macros*, dropping callables with a warning.
-
-        Only ``str``, ``int``, ``float``, ``bool``, ``None``, ``list``, and ``dict``
-        values (recursively composed of the same types) survive serialization.
-        Any callable is skipped — the triggerer cannot reconstruct it from stored
-        JSON, so DAG authors who need callable macros in a trigger context must load
-        the bundle and re-import the DAG file instead.
-        """
+        """Filter *macros* down to JSON-safe primitives; drop callables at DEBUG level."""
         import json as _json
 
         safe: dict = {}
@@ -2000,9 +1992,8 @@ class DagSerialization(BaseSerialization):
             except (TypeError, ValueError):
                 dropped.append(key)
         if dropped:
-            log.warning(
-                "DAG %r: the following user_defined_macros are not JSON-serializable and will be "
-                "unavailable in the triggerer: %s",
+            log.debug(
+                "DAG %r: skipping non-serializable user_defined_macros (unavailable in triggerer): %s",
                 dag_id,
                 ", ".join(dropped),
             )

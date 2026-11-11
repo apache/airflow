@@ -191,13 +191,7 @@ class SerializedDAG:
         self._encoded_timetable = None
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
-        """
-        Build a Jinja2 environment using the primitives stored at serialization time.
-
-        Callables from ``user_defined_macros`` and all ``user_defined_filters`` cannot
-        survive JSON serialization, so they are absent here.  DAGs that need callable
-        macros in a trigger context must load the bundle and re-import the DAG file.
-        """
+        """Build a Jinja2 environment from the JSON-safe primitives stored at serialization time."""
         from airflow.sdk.definitions._internal.templater import create_template_env
 
         return create_template_env(

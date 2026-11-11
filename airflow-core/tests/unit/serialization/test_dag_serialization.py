@@ -663,7 +663,9 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     def test_user_defined_macros_primitives_are_serialized(self):
-        """JSON-safe macro values survive a round-trip through DagSerialization."""
+        """JSON-safe macro values survive a full round-trip through DagSerialization."""
+        import json
+
         dag = DAG(
             "macro_roundtrip_dag",
             schedule=None,
@@ -688,18 +690,22 @@ class TestStringifiedDAGs:
         assert raw_macros["nested"] == {"key": "val"}
         assert raw_macros["items"] == [1, 2, 3]
 
-        # Round-trip: the deserialized SerializedDAG should expose them
-        # through get_template_env() so templates render correctly.
-        ser_dag = DagSerialization.from_dict(serialized)
+        # Pass through JSON encode/decode as the scheduler does before writing to DB.
+        roundtripped = json.loads(json.dumps(serialized))
+        ser_dag = DagSerialization.from_dict(roundtripped)
         assert ser_dag.user_defined_macros == raw_macros
 
+        # Verify the restored macros are injected into the Jinja environment.
         env = ser_dag.get_template_env()
         assert env.globals["env"] == "production"
         assert env.globals["max_retries"] == 3
+        # Spot-check that a simple template renders correctly with the macro.
+        rendered = env.from_string("{{ env }}-{{ max_retries }}").render()
+        assert rendered == "production-3"
 
     @pytest.mark.db_test
     def test_user_defined_macros_callables_are_dropped_with_warning(self, caplog):
-        """Callable macros must not raise — they are dropped and logged at WARNING."""
+        """Callable macros must not raise — they are silently dropped at DEBUG level."""
         dag = DAG(
             "callable_macro_dag",
             schedule=None,
@@ -709,7 +715,7 @@ class TestStringifiedDAGs:
                 "site": "airflow.apache.org",
             },
         )
-        with caplog.at_level("WARNING", logger="airflow.serialization.serialized_objects"):
+        with caplog.at_level("DEBUG", logger="airflow.serialization.serialized_objects"):
             serialized = DagSerialization.to_dict(dag)
         DagSerialization.validate_schema(serialized)
 
@@ -718,7 +724,7 @@ class TestStringifiedDAGs:
         assert "greet" not in raw_macros
         assert raw_macros["site"] == "airflow.apache.org"
 
-        # At least one warning must mention the dropped key.
+        # At least one debug record must mention the dropped key.
         assert any("greet" in record.message for record in caplog.records)
 
     @pytest.mark.db_test
