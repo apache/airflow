@@ -105,7 +105,7 @@
     "placeholderArray": "הכנס כל מחרוזת בשורה חדשה",
     "placeholderExamples": "התחל להקליד כדי לראות אפשרויות",
     "placeholderMulti": "בחר ערך אחד או יותר",
-    "validationErrorArrayElement": "ערכי {{type}} לא תקינים: {{values}}",
+    "validationErrorArrayElement": "ערכי {{type}} שאינם תקינים: {{values}}",
     "validationErrorArrayNotArray": "הערך חייב להיות מערך.",
     "validationErrorArrayNotNumbers": "כל האיברים במערך חייבים להיות מספרים.",
     "validationErrorArrayNotObject": "כל האיברים במערך חייבים להיות אובייקטים.",
@@ -187,10 +187,10 @@
   "triggerDag": {
     "button": "הפעל",
     "dagStartEndDate": {
-      "both": "תאריך התחלה של ה-Dag: {{startDate}}, תאריך סיום של ה-Dag: {{endDate}}",
-      "end": "תאריך סיום של ה-Dag: {{endDate}}",
+      "both": "תאריך ההתחלה של ה-Dag: {{startDate}}, תאריך הסיום של ה-Dag: {{endDate}}",
+      "end": "תאריך הסיום של ה-Dag: {{endDate}}",
       "noTaskWillRun": "אף משימה לא תרוץ.",
-      "start": "תאריך התחלה של ה-Dag: {{startDate}}"
+      "start": "תאריך ההתחלה של ה-Dag: {{startDate}}"
     },
     "dataInterval": "מרווח נתונים",
     "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
