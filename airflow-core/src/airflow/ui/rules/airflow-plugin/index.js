@@ -16,30 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import jsonc from "eslint-plugin-jsonc";
 
-import { ERROR } from "./levels.js";
+/**
+ * Airflow UI lint rules, in the plugin shape both ESLint and oxlint (`jsPlugins`) load.
+ */
+import { noReactNamespaceTypes } from "./no-react-namespace-types.js";
 
-export const jsoncNamespace = "jsonc";
+export const airflowNamespace = "airflow";
 
-/** @type {import("@typescript-eslint/utils/ts-eslint").FlatConfig.Config} */
-export const jsoncRules = {
-  files: ["public/i18n/locales/**/*.json"],
-  plugins: {
-    [jsoncNamespace]: jsonc,
-  },
+export default {
+  meta: { name: airflowNamespace },
   rules: {
-    /**
-     * Enforce sorted keys.
-     *
-     * @see [jsonc/sort-keys](https://ota-meshi.github.io/eslint-plugin-jsonc/rules/sort-keys.html)
-     */
-    [`${jsoncNamespace}/sort-keys`]: [
-      ERROR,
-      "asc",
-      {
-        natural: true,
-      },
-    ],
+    "no-react-namespace-types": noReactNamespaceTypes,
   },
 };

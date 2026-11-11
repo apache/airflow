@@ -192,7 +192,7 @@ any other exception runs again on retry.
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool
 call. The journal is deleted when the task succeeds, including any steps an earlier
-attempt recorded beyond where the last one went, so a task cleared later starts fresh.
+attempt recorded beyond where the last one went.
 In a plain ``@task``, which has no such moment, the capability deletes a run's journal
 as soon as that run succeeds: after a failure, only the run that failed replays, and
 the agents that ran before it run again.
@@ -312,7 +312,8 @@ accounting for a ``run`` window fails with a ``KeyError``. The ``run_id`` XCom, 
 failed attempt or a successful one, and the ``gen_ai.agent.call.id`` span attribute carry
 the same id; the spans of each attempt still carry that attempt's own
 ``airflow.task_instance.id`` and ``try_number``. The id is stored with the journal and
-deleted with it, so a task cleared after it succeeded starts a new one.
+deleted with it, so a rerun after a clear that deleted the journal (see
+:ref:`durable-clear`) gets a new one.
 
 Usage and limits
 ----------------
@@ -320,8 +321,31 @@ Usage and limits
 A replayed step adds nothing to the usage the run counts against ``usage_limits`` or
 reports in the ``usage`` XCom: not its request, tokens, cost or tool calls, nor the
 usage a replayed ``@durable_operation`` brings back. Each attempt counts only the calls
-it actually makes. This holds after clearing a failed task instance too: the clear
-starts a fresh budget but keeps the journal, and what the rerun replays from it is free.
+it actually makes. Clearing a finished task instance starts a fresh budget; if the
+rerun replays from the journal (see :ref:`durable-clear`), the replayed steps cost nothing.
+
+.. _durable-clear:
+
+Clearing a task
+---------------
+
+On Airflow 3.4 and later, clearing a task instance (its Clear dialog in the UI, or
+``POST /api/v2/dags/{dag_id}/clearTaskInstances``) deletes its task state, the journal
+included, so the rerun starts the agent over. This holds for the default task state store
+backend; a custom ``[state_store] backend`` keeps its entries. To resume from the journal
+instead, tick **Keep task state and resume** in the dialog, or send
+``"keep_task_state": true`` in the request. The **Keep task state on clear** UI setting
+ticks that box by default. Clearing the whole Dag run from the Clear Run dialog keeps task
+state; "Retries resume, clearing starts over" in
+:ref:`apache-airflow:concepts-resumable-tasks` lists the other ways of clearing and which
+of them keep it.
+
+Before Airflow 3.4 no clear deletes the journal (the task state store on 3.3, the file
+under ``durable_cache_path`` earlier), so a cleared task replays.
+
+A task that ran to success has no journal left, so clearing it starts over either way. For
+``AgentOperator`` and ``@task.agent``, the rerun's ``Durable:`` line in the task log
+counts the steps it replayed; a count above zero means it resumed from the journal.
 
 Side effects and idempotency
 ----------------------------
