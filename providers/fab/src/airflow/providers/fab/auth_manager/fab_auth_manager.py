@@ -100,10 +100,12 @@ from airflow.providers.fab.www.security.permissions import (
 )
 from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.sql import Select
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -633,6 +635,32 @@ class FabAuthManager(BaseAuthManager[User]):
         rows = session.execute(select(Connection.conn_id)).scalars().all()
         return set(rows)
 
+    @staticmethod
+    def _build_user_with_roles_stmt(user_id: int) -> Select[tuple[User]]:
+        return (
+            select(User)
+            .options(
+                joinedload(User.roles)
+                .subqueryload(Role.permissions)
+                .options(joinedload(Permission.action), joinedload(Permission.resource))
+            )
+            .where(User.id == user_id)
+        )
+
+    @staticmethod
+    def _extract_authorized_dag_resources(roles: Any, method: ResourceMethod) -> tuple[bool, set[str]]:
+        fab_action = get_fab_action_from_method_map().get(method)
+        resources: set[str] = set()
+        for role in roles:
+            for permission in role.permissions:
+                if permission.action.name == fab_action:
+                    resource = permission.resource.name
+                    if resource == permissions.RESOURCE_DAG:
+                        return True, set()
+                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
+                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+        return False, resources
+
     @provide_session
     def get_authorized_dag_ids(
         self,
@@ -646,32 +674,44 @@ class FabAuthManager(BaseAuthManager[User]):
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
         if isinstance(user, AnonymousUser):
             return set()
-        user_query = (
-            session.scalars(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
-                )
-                .where(User.id == user.id)
-            )
-            .unique()
-            .one()
-        )
-        roles = user_query.roles
-
-        fab_action = get_fab_action_from_method_map().get(method)
-        resources = set()
-        for role in roles:
-            for permission in role.permissions:
-                if permission.action.name == fab_action:
-                    resource = permission.resource.name
-                    if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+        user_query = session.scalars(self._build_user_with_roles_stmt(user.id)).unique().one()
+        has_all_dags_access, resources = self._extract_authorized_dag_resources(user_query.roles, method)
+        if has_all_dags_access:
+            return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
+
+    async def _get_authorized_dag_ids_with_session(
+        self,
+        *,
+        user: User,
+        method: ResourceMethod,
+        session: AsyncSession,
+    ) -> set[str]:
+        if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
+            return {dag.dag_id for dag in await session.execute(select(DagModel.dag_id))}
+        if isinstance(user, AnonymousUser):
+            return set()
+        user_query = (await session.scalars(self._build_user_with_roles_stmt(user.id))).unique().one()
+        has_all_dags_access, resources = self._extract_authorized_dag_resources(user_query.roles, method)
+        if has_all_dags_access:
+            return {dag.dag_id for dag in await session.execute(select(DagModel.dag_id))}
+        return set(
+            (await session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))).all()
+        )
+
+    async def get_authorized_dag_ids_async(
+        self,
+        *,
+        user: User,
+        method: ResourceMethod = "GET",
+        session: AsyncSession | None = None,
+    ) -> set[str]:
+        if session is not None:
+            return await self._get_authorized_dag_ids_with_session(user=user, method=method, session=session)
+        async with create_session_async() as async_session:
+            return await self._get_authorized_dag_ids_with_session(
+                user=user, method=method, session=async_session
+            )
 
     @provide_session
     def get_authorized_pools(

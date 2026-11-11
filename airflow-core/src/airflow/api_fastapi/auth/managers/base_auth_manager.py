@@ -55,14 +55,16 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from fastapi import FastAPI
     from sqlalchemy import Row
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
@@ -717,6 +719,37 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         return {conn_id for conn_id in conn_ids if _is_authorized_connection(conn_id)}
 
+    @staticmethod
+    def _build_dag_and_team_name_stmt() -> Select[tuple[str, str | None]]:
+        return (
+            select(DagModel.dag_id, dag_bundle_team_association_table.c.team_name)
+            .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
+            .join(
+                dag_bundle_team_association_table,
+                DagBundleModel.name == dag_bundle_team_association_table.c.dag_bundle_name,
+                isouter=True,
+            )
+        )
+
+    def _filter_authorized_dags_by_team(
+        self,
+        *,
+        rows: Sequence[Row[*tuple[str, str]]],  # type: ignore[type-arg]
+        user: T,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        dags_by_team: dict[str, set[str]] = defaultdict(set)
+        for dag_id, team_name in rows:
+            dags_by_team[team_name].add(dag_id)
+        dag_ids: set[str] = set()
+        for team_name, team_dag_ids in dags_by_team.items():
+            dag_ids.update(
+                self.filter_authorized_dag_ids(
+                    dag_ids=team_dag_ids, user=user, method=method, team_name=team_name
+                )
+            )
+        return dag_ids
+
     @provide_session
     def get_authorized_dag_ids(
         self,
@@ -732,30 +765,31 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = (
-            select(DagModel.dag_id, dag_bundle_team_association_table.c.team_name)
-            .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
-            .join(
-                dag_bundle_team_association_table,
-                DagBundleModel.name == dag_bundle_team_association_table.c.dag_bundle_name,
-                isouter=True,
-            )
-        )
-        # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+        stmt = self._build_dag_and_team_name_stmt()
         rows: Sequence[Row[*tuple[str, str]]] = session.execute(stmt).all()  # type: ignore[type-arg]
-        dags_by_team: dict[str, set[str]] = defaultdict(set)
-        for dag_id, team_name in rows:
-            dags_by_team[team_name].add(dag_id)
+        return self._filter_authorized_dags_by_team(rows=rows, user=user, method=method)
 
-        dag_ids: set[str] = set()
-        for team_name, team_dag_ids in dags_by_team.items():
-            dag_ids.update(
-                self.filter_authorized_dag_ids(
-                    dag_ids=team_dag_ids, user=user, method=method, team_name=team_name
-                )
-            )
+    async def get_authorized_dag_ids_async(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: AsyncSession | None = None,
+    ) -> set[str]:
+        """
+        Get Dags the user has access to asynchronously.
 
-        return dag_ids
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the async session
+        """
+        stmt = self._build_dag_and_team_name_stmt()
+        if session is not None:
+            rows: Sequence[Row[*tuple[str, str]]] = (await session.execute(stmt)).all()  # type: ignore[type-arg]
+        else:
+            async with create_session_async() as async_session:
+                rows = (await async_session.execute(stmt)).all()
+        return self._filter_authorized_dags_by_team(rows=rows, user=user, method=method)
 
     def filter_authorized_dag_ids(
         self,

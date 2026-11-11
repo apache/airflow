@@ -439,6 +439,26 @@ def permitted_dag_filter_factory(
     return depends_permitted_dags_filter
 
 
+def permitted_dag_filter_async_factory(
+    method: ResourceMethod, filter_class=PermittedDagFilter
+) -> Callable[[BaseUser, BaseAuthManager], Coroutine[Any, Any, PermittedDagFilter]]:
+    """
+    Create an async callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
+
+    :param method: whether filter readable or writable.
+    :return: The async callable that can be used as Depends in FastAPI.
+    """
+
+    async def depends_permitted_dags_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedDagFilter:
+        authorized_dags: set[str] = await auth_manager.get_authorized_dag_ids_async(user=user, method=method)
+        return filter_class(authorized_dags)
+
+    return depends_permitted_dags_filter
+
+
 EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
 ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
 ReadableDagRunsFilterDep = Annotated[
@@ -529,7 +549,7 @@ ReadableXComFilterDep = Annotated[
 ]
 
 ReadableTagsFilterDep = Annotated[
-    PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedTagFilter))
+    PermittedTagFilter, Depends(permitted_dag_filter_async_factory("GET", PermittedTagFilter))
 ]
 ReadableDagVersionsFilterDep = Annotated[
     PermittedDagVersionFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagVersionFilter))
