@@ -281,6 +281,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| huggingface         | ``pip install 'apache-airflow[huggingface]'``       | Hugging Face                                        |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | openai              | ``pip install 'apache-airflow[openai]'``            | Open AI hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | opsgenie            | ``pip install 'apache-airflow[opsgenie]'``          | OpsGenie hooks and operators                        |
