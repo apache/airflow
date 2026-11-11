@@ -343,7 +343,7 @@ of them keep it.
 Before Airflow 3.4 no clear deletes the journal (the task state store on 3.3, the file
 under ``durable_cache_path`` earlier), so a cleared task replays.
 
-A task that succeeded has no journal left, so clearing it starts over either way. For
+A task that ran to success has no journal left, so clearing it starts over either way. For
 ``AgentOperator`` and ``@task.agent``, the rerun's ``Durable:`` line in the task log
 counts the steps it replayed; a count above zero means it resumed from the journal.
 
