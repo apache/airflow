@@ -1017,17 +1017,19 @@ automatic refresh, and are intentionally not subject to revocation. This is a de
 in :doc:`/security/jwt_token_authentication`, not a missing security control.
 
 Deployment Managers should read the two properties together rather than separately. Refresh re-issues
-a token from its own claims, so a holder who keeps presenting a token keeps extending it: the nominal
-lifetime bounds only a holder who *stops* using it. Combined with the absence of revocation, this means a token
-that leaks — through a log, a process listing, or a compromised worker — remains usable for as long as
-its holder continues to present it, and cannot be withdrawn. The ten-minute figure is not a bound on
-exposure after a leak.
+a token from its own claims, so a holder who keeps presenting a token keeps extending it while the work
+it names is unfinished: until then the nominal lifetime bounds only a holder who *stops* using it.
+Combined with the absence of revocation, this means a token that leaks — through a log, a process
+listing, or a compromised worker — remains usable for as long as its task or callback is still running
+and its holder continues to present it, and cannot be withdrawn. The ten-minute figure is not a bound on
+exposure after a leak from a long-running task.
 
-Refresh is also not tied to the task's lifecycle: the reissue path validates the token's signature and
-expiry but does not consult the database, so a token naming a task instance that has finished, or whose
-row has been archived, still refreshes. Reports of this specific behaviour are treated as hardening
-opportunities rather than vulnerabilities, and contributions binding reissue to task state are welcome
-through the normal process. Deployments requiring a hard bound on credential lifetime should rely on
+Refresh is tied to the lifecycle of the work the token names. Before reissuing, the server checks that
+the task attempt is still the latest try of its task instance and has not reached a terminal state, or
+that the callback has not reached a terminal state. A token naming a task instance that has finished,
+or whose row has been archived or deleted, is no longer refreshed and stops working when it expires, at
+most one validity period later. This limits reissue only and is not revocation: such a token is still
+accepted until it expires. Deployments requiring a hard bound on credential lifetime should rely on
 network isolation of workers rather than on token expiry.
 
 Core API session authorization is resolved at token issue

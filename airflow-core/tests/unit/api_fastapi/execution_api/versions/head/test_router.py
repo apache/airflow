@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 import svcs
@@ -27,7 +29,13 @@ from jwt import ExpiredSignatureError
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import JWTReissueMiddleware, lifespan
-from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
+from airflow.api_fastapi.execution_api.security import ASSET_WATCHER_ID, _jwt_bearer, require_auth
+from airflow.executors.workloads.callback import CallbackFetchMethod
+from airflow.models.callback import ExecutorCallback
+from airflow.sdk.definitions.callback import SyncCallback
+from airflow.utils.state import CallbackState, State, TaskInstanceState
+
+from tests_common.test_utils.db import clear_db_callbacks
 
 
 @pytest.fixture
@@ -35,6 +43,38 @@ def jwt_bearer_client(client, exec_app, monkeypatch):
     """Test client that exercises JWTBearer so request.scope is populated for the middleware."""
     monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
     return client
+
+
+def sync_callback():
+    """Empty (sync) callable used for unit tests"""
+    pass
+
+
+@pytest.fixture
+def clean_callbacks():
+    clear_db_callbacks()
+    yield
+    clear_db_callbacks()
+
+
+@pytest.fixture
+def request_with_expiring_execution_token(jwt_bearer_client, time_machine):
+    """Send a request whose ``execution`` token for ``sub`` is inside its refresh window."""
+
+    def send(sub):
+        moment = 1743451846
+        auth = AsyncMock(spec=JWTValidator)
+        auth.avalidated_claims.return_value = {
+            "sub": str(sub),
+            "scope": "execution",
+            "iat": moment,
+            "exp": moment + 60,
+        }
+        time_machine.move_to(moment + 31, tick=False)
+        lifespan.registry.register_value(JWTValidator, auth)
+        return jwt_bearer_client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+
+    return send
 
 
 @pytest.mark.parametrize(
@@ -48,7 +88,12 @@ def jwt_bearer_client(client, exec_app, monkeypatch):
     ),
 )
 @pytest.mark.db_test
-def test_expiring_token_is_reissued(jwt_bearer_client, time_machine, age, validity, expect_refreshed_token):
+@mock.patch(
+    "airflow.api_fastapi.execution_api.app.is_execution_token_renewable", autospec=True, return_value=True
+)
+def test_expiring_token_is_reissued(
+    mock_is_renewable, jwt_bearer_client, time_machine, age, validity, expect_refreshed_token
+):
     moment = 1743451846  # A "random" unix epoch timestamp.
     auth = AsyncMock(spec=JWTValidator)
     auth.avalidated_claims.return_value = {
@@ -71,6 +116,8 @@ def test_expiring_token_is_reissued(jwt_bearer_client, time_machine, age, validi
         assert "Refreshed-API-Token" not in response.headers
     # avalidated_claims must be called exactly once — by JWTBearer only, not by the middleware.
     auth.avalidated_claims.assert_awaited_once_with("dummy", {})
+    # The lifecycle lookup is only paid for a token that is due for a refresh.
+    assert mock_is_renewable.await_count == int(expect_refreshed_token)
 
 
 @pytest.mark.parametrize(
@@ -80,8 +127,11 @@ def test_expiring_token_is_reissued(jwt_bearer_client, time_machine, age, validi
         pytest.param(601, 403, id="expired-before-request"),
     ],
 )
+@mock.patch(
+    "airflow.api_fastapi.execution_api.app.is_execution_token_renewable", autospec=True, return_value=True
+)
 def test_token_expiring_mid_request_is_reissued_without_revalidation(
-    time_machine, request_age, expected_status
+    mock_is_renewable, time_machine, request_age, expected_status
 ):
     """Middleware reissues from cached JWTBearer claims without re-validating the token.
 
@@ -156,3 +206,75 @@ def test_expiring_dag_processor_token_is_not_reissued(client, time_machine):
     response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
 
     assert "Refreshed-API-Token" not in response.headers
+
+
+@pytest.mark.parametrize(
+    ("state", "expect_refreshed_token"),
+    [
+        pytest.param(TaskInstanceState.RUNNING, True, id="running"),
+        *(pytest.param(state, False, id=state.value) for state in sorted(State.finished)),
+    ],
+)
+@pytest.mark.db_test
+def test_token_reissue_stops_when_task_attempt_finishes(
+    request_with_expiring_execution_token, create_task_instance, session, state, expect_refreshed_token
+):
+    ti = create_task_instance(state=state)
+    session.commit()
+
+    response = request_with_expiring_execution_token(ti.id)
+
+    assert ("Refreshed-API-Token" in response.headers) is expect_refreshed_token
+
+
+@pytest.mark.parametrize("identity", ["archived", "unknown"])
+@pytest.mark.db_test
+def test_token_is_not_reissued_without_a_live_attempt(
+    request_with_expiring_execution_token, create_task_instance, session, identity
+):
+    if identity == "archived":
+        # Archiving marks an unfinished attempt failed, except a superseded one that awaits its retry.
+        # That attempt keeps a non-terminal state, so only the working-set check stops its token.
+        ti = create_task_instance(state=TaskInstanceState.UP_FOR_RETRY)
+        ti.archive(reason="superseded", session=session)
+        session.commit()
+        sub = ti.id
+    else:
+        sub = uuid4()
+
+    response = request_with_expiring_execution_token(sub)
+
+    assert "Refreshed-API-Token" not in response.headers
+
+
+@pytest.mark.parametrize(
+    ("state", "expect_refreshed_token"),
+    [
+        pytest.param(CallbackState.RUNNING, True, id="running"),
+        pytest.param(CallbackState.SUCCESS, False, id="success"),
+        pytest.param(CallbackState.FAILED, False, id="failed"),
+    ],
+)
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clean_callbacks")
+def test_token_reissue_stops_when_callback_finishes(
+    request_with_expiring_execution_token, session, state, expect_refreshed_token
+):
+    callback = ExecutorCallback(
+        callback_def=SyncCallback(sync_callback, kwargs={}),
+        fetch_method=CallbackFetchMethod.IMPORT_PATH,
+    )
+    callback.state = state
+    session.add(callback)
+    session.commit()
+
+    response = request_with_expiring_execution_token(callback.id)
+
+    assert ("Refreshed-API-Token" in response.headers) is expect_refreshed_token
+
+
+@pytest.mark.db_test
+def test_expiring_asset_watcher_token_is_reissued(request_with_expiring_execution_token):
+    response = request_with_expiring_execution_token(ASSET_WATCHER_ID)
+
+    assert "Refreshed-API-Token" in response.headers
