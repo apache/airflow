@@ -4,12 +4,28 @@
     "typeAware": true
   },
   "plugins": ["jsx-a11y", "react", "unicorn", "typescript"],
-  "jsPlugins": ["eslint-plugin-perfectionist", "@stylistic/eslint-plugin"],
+  "jsPlugins": [
+    "eslint-plugin-perfectionist",
+    "@stylistic/eslint-plugin",
+    {
+      "name": "react-js",
+      "specifier": "eslint-plugin-react"
+    },
+    {
+      "name": "typescript-js",
+      "specifier": "@typescript-eslint/eslint-plugin"
+    },
+    {
+      "name": "unicorn-js",
+      "specifier": "eslint-plugin-unicorn"
+    }
+  ],
   "categories": {
     "correctness": "off"
   },
   "env": {
-    "builtin": true
+    "builtin": true,
+    "browser": true
   },
   "settings": {
     "react": {
@@ -312,14 +328,38 @@
       {
         "allowConstantExport": true
       }
-    ]
+    ],
+    "react-js/destructuring-assignment": ["error", "always"],
+    "react-js/jsx-max-depth": [
+      "error",
+      {
+        "max": 7
+      }
+    ],
+    "react-js/jsx-no-leaked-render": "error",
+    "react-js/no-deprecated": "error",
+    "typescript-js/no-invalid-this": [
+      "error",
+      {
+        "capIsConstructor": true
+      }
+    ],
+    "unicorn-js/consistent-destructuring": "error",
+    "unicorn-js/consistent-function-scoping": [
+      "error",
+      {
+        "checkArrowFunctions": true
+      }
+    ],
+    "unicorn-js/no-unnecessary-polyfills": "error",
+    "unicorn-js/no-useless-switch-case": "error"
   },
   "overrides": [
     {
       "files": ["rules/**/*.{js,jsx,ts,tsx}", "src/**/*.{js,jsx,ts,tsx}", "./*.{js,jsx,ts,tsx}"],
       "rules": {
-        "airflow/no-react-namespace-types": "error",
         "accessor-pairs": "error",
+        "airflow/no-react-namespace-types": "error",
         "array-callback-return": "error",
         "arrow-body-style": "error",
         "curly": "error",
@@ -418,7 +458,9 @@
         "no-template-curly-in-string": "error",
         "no-unmodified-loop-condition": "error",
         "no-unneeded-ternary": "error",
+        "no-unreachable-loop": "error",
         "no-unsafe-finally": "error",
+        "no-useless-assignment": "error",
         "no-useless-call": "error",
         "no-useless-catch": "error",
         "no-useless-computed-key": "error",
