@@ -298,6 +298,20 @@ class AirflowClient:
             params["task_id"] = task_id
         return self._make_request(method="GET", endpoint="eventLogs", params=params)["event_logs"]
 
+    def clear_task_instances(self, dag_id: str, run_id: str, **options):
+        """
+        Clear task instances of a Dag run and queue the Dag run again.
+
+        By default the endpoint turns on ``dry_run`` and ``only_failed``. With these defaults it only lists
+        the failed task instances that a clear would select. This method turns both options off and clears
+        the selected task instances in any state.
+        """
+        return self._make_request(
+            method="POST",
+            endpoint=f"dags/{dag_id}/clearTaskInstances",
+            json={"dag_run_id": run_id, "dry_run": False, "only_failed": False, **options},
+        )
+
 
 class TaskSDKClient:
     """Client for interacting with the Task SDK API."""
