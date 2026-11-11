@@ -135,6 +135,16 @@ class TestDataFusionToolsetToolPrefix:
 
         assert json.loads(result) == ["sales"]
 
+    def test_unprefixed_name_is_unknown_when_a_prefix_is_set(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake")
+
+        with pytest.raises(ValueError, match="Unknown tool: 'list_tables'"):
+            asyncio.run(
+                ts.call_tool(
+                    "list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool)
+                )
+            )
+
 
 class TestDataFusionToolsetNameConflictHint:
     def test_hint_points_to_tool_prefix(self):

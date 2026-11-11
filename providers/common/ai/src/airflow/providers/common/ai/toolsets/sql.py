@@ -280,12 +280,6 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     # Airflow's templater would render in place wherever the toolset is nested.
     agent_template_fields: Sequence[str] = ("_db_conn_id",)
 
-    tool_name_conflict_hint: str = (
-        "Pass a distinct `tool_prefix=...` to this toolset so its tool names and "
-        "model-facing hints are renamed together; wrapping it in `PrefixedToolset` "
-        "renames only the tools."
-    )
-
     def __init__(
         self,
         db_conn_id: str,
@@ -447,7 +441,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        base = self._strip_tool_prefix(name)
+        base = self._find_base_tool_name(name)
         if base not in ("list_tables", "get_schema", "query", "check_query"):
             raise ValueError(f"Unknown tool: {name!r}")
         try:

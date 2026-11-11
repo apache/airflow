@@ -175,6 +175,16 @@ class TestSQLToolsetToolPrefix:
 
         assert json.loads(result) == ["users"]
 
+    def test_unprefixed_name_is_unknown_when_a_prefix_is_set(self):
+        ts = SQLToolset("pg_default", tool_prefix="pg")
+
+        with pytest.raises(ValueError, match="Unknown tool: 'list_tables'"):
+            asyncio.run(
+                ts.call_tool(
+                    "list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool)
+                )
+            )
+
 
 def _call_prefixed(ts: SQLToolset, name: str, args: dict):
     return asyncio.run(

@@ -59,18 +59,6 @@ class TestToolPrefixMixin:
         ("tool_prefix", "name", "expected"),
         [
             ("pg", "pg_query", "query"),
-            ("pg", "query", "query"),
-            ("pg", "pg_pg_query", "pg_query"),
-            ("", "query", "query"),
-        ],
-    )
-    def test_strip_tool_prefix_is_lenient_about_a_name_without_the_prefix(self, tool_prefix, name, expected):
-        assert _Prefixed(tool_prefix)._strip_tool_prefix(name) == expected
-
-    @pytest.mark.parametrize(
-        ("tool_prefix", "name", "expected"),
-        [
-            ("pg", "pg_query", "query"),
             ("pg", "query", None),
             ("pg", "pgquery", None),
             ("", "query", "query"),

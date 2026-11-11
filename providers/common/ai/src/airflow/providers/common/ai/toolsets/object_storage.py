@@ -209,7 +209,7 @@ class ObjectStorageToolset(ToolPrefixMixin, AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> str:
-        base = self._strip_tool_prefix(name)
+        base = self._find_base_tool_name(name)
         relative = tool_args.get("path") or ""
         try:
             if base == LIST_FILES:

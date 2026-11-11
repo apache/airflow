@@ -32,16 +32,18 @@ class ToolPrefixMixin:
 
     _tool_prefix: str = ""
 
+    tool_name_conflict_hint: str = (
+        "Pass a distinct `tool_prefix=...` to this toolset so its tool names and "
+        "model-facing hints are renamed together; wrapping it in `PrefixedToolset` "
+        "renames only the tools."
+    )
+
     def _set_tool_prefix(self, tool_prefix: str) -> None:
         validate_tool_prefix(tool_prefix)
         self._tool_prefix = tool_prefix
 
     def _build_tool_name(self, base: str) -> str:
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
-
-    def _strip_tool_prefix(self, name: str) -> str:
-        """Return ``name`` without the prefix; a name that does not carry it is returned unchanged."""
-        return name.removeprefix(f"{self._tool_prefix}_") if self._tool_prefix else name
 
     def _find_base_tool_name(self, name: str) -> str | None:
         """Return ``name`` without the prefix, or ``None`` when a prefix is set and ``name`` does not carry it."""
