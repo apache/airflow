@@ -91,6 +91,26 @@ class TestSaveLoad:
         assert storage.load_step("good") == ENTRY
         assert storage.load_step("bad") is None
 
+    @pytest.mark.parametrize("error", [OSError("connection reset"), PermissionError("403 Forbidden")])
+    def test_a_failed_write_is_skipped_without_raising(self, storage, error):
+        storage.save_step("kept", ENTRY)
+
+        with patch.object(DurableStorage, "_write", autospec=True, side_effect=error):
+            assert not storage.save_step("lost", ENTRY)
+
+        storage.save_step("next", ENTRY)
+        retry = DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
+        assert retry.load_step("lost") is None
+        assert retry.load_step("kept") == ENTRY
+
+    def test_a_failed_overwrite_keeps_the_stored_entry(self, storage):
+        storage.save_step("k", ENTRY)
+
+        with patch.object(DurableStorage, "_write", autospec=True, side_effect=OSError("connection reset")):
+            assert not storage.save_step("k", {**ENTRY, "payload": "new"})
+
+        assert storage.load_step("k") == ENTRY
+
     def test_a_non_dict_value_is_a_miss(self, storage):
         storage._load_cache()["k"] = "legacy string entry"
 
