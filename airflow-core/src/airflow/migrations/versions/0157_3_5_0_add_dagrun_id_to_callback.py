@@ -19,8 +19,8 @@
 Add dagrun_id foreign key to callback.
 
 Revision ID: 0f4c9a2b8e1d
-Revises: 38c8df3fcb9c
-Create Date: 2026-08-06 00:00:00.000000
+Revises: d8c6f3a129b0
+Create Date: 2026-11-11 00:00:00.000000
 
 """
 
@@ -36,7 +36,7 @@ from airflow.migrations.utils import disable_sqlite_fkeys
 
 # revision identifiers, used by Alembic.
 revision = "0f4c9a2b8e1d"
-down_revision = "38c8df3fcb9c"
+down_revision = "d8c6f3a129b0"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"

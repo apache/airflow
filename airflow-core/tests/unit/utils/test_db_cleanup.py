@@ -118,7 +118,6 @@ from tests_common.test_utils.taskinstance import create_task_instance
 pytestmark = pytest.mark.db_test
 
 
-<<<<<<< HEAD
 @contextmanager
 def capture_sql_statements(session):
     statements = []
