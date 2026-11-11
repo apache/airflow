@@ -65,6 +65,7 @@ from airflow.providers.common.ai.durable.openai_agents import (
     _get_durable_tool,
     run_durably_sync,
 )
+from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
@@ -91,8 +92,10 @@ class _ScriptedModel(Model):
         usage: int = 7,
         argument: str = "key",
         fail_first_request: bool = False,
+        call_id_prefix: str = "call",
     ) -> None:
         self.lookups = lookups
+        self.call_id_prefix = call_id_prefix
         self.argument = argument
         self.fail_first_request = fail_first_request
         self.fail_on_answer = fail_on_answer
@@ -116,7 +119,7 @@ class _ScriptedModel(Model):
             output = [
                 ResponseFunctionToolCall(
                     id=f"fc-{len(outputs)}",
-                    call_id=f"call-{len(outputs)}",
+                    call_id=f"{self.call_id_prefix}-{len(outputs)}",
                     name="lookup",
                     arguments=json.dumps({self.argument: f"k{len(outputs)}"}),
                     type="function_call",
@@ -621,6 +624,14 @@ class TestRunDurably:
             return "paid"
 
         assert _get_durable_tool(pay, DurableJournal(MemoryStorage()).start_run()) is pay
+
+    def test_a_tool_that_always_needs_approval_is_recorded(self):
+        @function_tool(needs_approval=True)
+        def pay(amount: int = 1000) -> str:
+            """Pay an amount."""
+            return "paid"
+
+        assert _get_durable_tool(pay, DurableJournal(MemoryStorage()).start_run()) is not pay
 
     @pytest.mark.parametrize(
         ("option", "value"),
@@ -1306,22 +1317,60 @@ class TestDurableExceptions:
         assert durable_run.position == 0
         assert storage.steps() == []
 
-    def test_a_tool_that_needs_approval_is_not_invoked_or_recorded(self):
+    @pytest.mark.parametrize(
+        "needs_approval",
+        [True, lambda context, arguments, call_id: True],
+        ids=["always", "by-rule"],
+    )
+    def test_a_run_that_stops_for_approval_fails_naming_the_tool(self, needs_approval):
         calls = []
 
-        @function_tool(needs_approval=True)
+        @function_tool(needs_approval=needs_approval)
         def lookup(key: str) -> str:
             """Look a key up."""
             calls.append(key)
             return f"{key}=42"
 
-        journal = DurableJournal(MemoryStorage(), clean_up_after_run=True)
-        with journal_scope(journal):
-            result = run_durably_sync(
+        with (
+            journal_scope(DurableJournal(MemoryStorage(), clean_up_after_run=True)),
+            pytest.raises(UnsupportedToolDeferralError, match=r"approval to call lookup \(analyst\)"),
+        ):
+            run_durably_sync(
                 Agent(name="analyst", model=_ScriptedModel(), tools=[lookup]), "go", run_config=NO_TRACING
             )
 
-        assert len(result.interruptions) == 1
         assert calls == []
-        assert journal.stats.recorded == {"model": 1}
-        assert _get_durable_tool(lookup, journal.start_run()) is not lookup
+
+    def test_a_clear_after_an_agent_tool_stopped_for_approval_asks_again_from_that_turn(self):
+        """Earlier turns replay; the agent tool's answer, given while its own run waited, does not."""
+        storage, calls = MemoryStorage(), []
+
+        def attempt(needs_approval: Any, call_id_prefix: str) -> DurableJournal:
+            @function_tool(needs_approval=needs_approval)
+            def lookup(key: str) -> str:
+                """Look a key up."""
+                calls.append(key)
+                return f"{key}=42"
+
+            specialist = Agent(name="specialist", model="inner", tools=[lookup])
+            # The model asked again answers with new call ids, as a real one does. Reusing them
+            # would resume the SDK's in-process record of the first try's nested run instead.
+            lead = Agent(
+                name="lead",
+                model=_ScriptedModel(lookups=2, argument="input", call_id_prefix=call_id_prefix),
+                tools=[specialist.as_tool("lookup", "Ask the specialist.")],
+            )
+            config = RunConfig(tracing_disabled=True, model_provider=_Provider(_ScriptedModel()))
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(lead, "go", run_config=config)
+            return journal
+
+        # The specialist answers the first time it is asked, and waits for approval the second time.
+        with pytest.raises(UnsupportedToolDeferralError, match=r"approval to call lookup \(specialist\)"):
+            attempt(lambda context, arguments, call_id: bool(calls), call_id_prefix="first")
+        journal = attempt(False, call_id_prefix="second")
+
+        # The first turn and the specialist's first answer replay; the second turn runs again.
+        assert journal.stats.replayed == {"model": 1, "tool": 1}
+        assert calls == ["k0", "k0"]
