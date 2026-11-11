@@ -130,6 +130,30 @@ class TestS3ToAzureBlobStorageOperator:
             (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from above
             (MOCK_FILES, MOCK_FILES[1:], [MOCK_FILES[0]], PREFIX, PREFIX, False),  # Task 2 from above
             (MOCK_FILES, MOCK_FILES[1:], MOCK_FILES, PREFIX, PREFIX, True),  # Task 3 from above
+            (
+                MOCK_FILES,
+                [f"{PREFIX}/{f}" for f in MOCK_FILES[1:]],
+                [MOCK_FILES[0]],
+                PREFIX,
+                PREFIX,
+                False,
+            ),
+            (
+                MOCK_FILES,
+                [f"{PREFIX}/{f}" for f in MOCK_FILES[1:]],
+                [MOCK_FILES[0]],
+                PREFIX,
+                f"{PREFIX}/",
+                False,
+            ),
+            (
+                MOCK_FILES,
+                [f"{PREFIX}/{f}" for f in MOCK_FILES[1:]],
+                MOCK_FILES,
+                PREFIX,
+                PREFIX,
+                True,
+            ),
         ],
     )
     def test_get_files_to_move__both_prefix(
@@ -194,6 +218,7 @@ class TestS3ToAzureBlobStorageOperator:
             # wasb_existing_files, returned_files
             ([], ["TEST1.csv"]),  # Task 8 from above
             (["TEST1.csv"], []),  # Task 9 from above
+            ([f"{PREFIX}/TEST1.csv"], []),
         ],
     )
     def test_get_files_to_move__s3_key_wasb_prefix(self, wasb_mock_hook, wasb_existing_files, returned_files):
