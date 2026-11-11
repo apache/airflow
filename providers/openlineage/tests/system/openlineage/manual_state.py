@@ -253,6 +253,16 @@ def mark_task_instance(
         body.update(region_id=task_instance["region_id"], region_index=task_instance["region_index"])
     elif task_instance["map_index"] != -1:
         path += f"/{task_instance['map_index']}"
+    if (AIRFLOW_VERSION.major, AIRFLOW_VERSION.minor) == (3, 0) and (include_upstream or include_downstream):
+        # Airflow 3.0 notifies listeners for only one changed TI; non running first so none starts meanwhile
+        affected = _request("PATCH", f"{path}/dry_run", json=body)["task_instances"]
+        current = get_task_instances(dag_id, run_id)
+        for ti in sorted(
+            (_find_task_instance(current, ti["task_id"], ti["map_index"]) or ti for ti in affected),
+            key=lambda ti: ti["state"] == "running",
+        ):
+            mark_task_instance(ti, state)
+        return
     _request("PATCH", path, json=body)
 
 

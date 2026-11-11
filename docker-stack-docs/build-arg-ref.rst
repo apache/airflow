@@ -116,9 +116,12 @@ Those are the most common arguments that you use when you want to build a custom
     functionality - only added confusion - so it has been removed.
 
 The default ``BASE_IMAGE`` is Airflow's public mirror of the `Docker Hardened Image <https://dhi.io>`_ for
-Python - for Airflow |airflow-version| that is ``ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev``,
+Python - for Airflow |airflow-version| that is ``ghcr.io/apache/airflow/base/python:3.14.10-debian13-dev``,
 pinned to the digest the Airflow CI last passed on (see :ref:`the hardened base images <image-hardened-base>`). Pulling the mirror needs no
 credentials; pulling ``dhi.io`` directly requires a ``docker login dhi.io``.
+
+In the default ``hardened`` flavor ``BASE_IMAGE`` has to provide Python, so the build fails on a plain Debian
+image such as ``debian:trixie-slim``. Use the ``legacy`` flavor below to build on one.
 
 For the 3.4.x line Airflow also publishes ``legacy`` images, built the way all images were built before
 3.4.0: Python is downloaded from python.org, its signature verified and compiled on a ``debian:bookworm-slim``

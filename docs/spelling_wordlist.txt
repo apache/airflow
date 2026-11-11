@@ -853,6 +853,7 @@ httplib
 HttpRequest
 https
 httpx
+huggingface
 hvac
 hyperparameter
 hyperparameters
@@ -1111,6 +1112,7 @@ Maxime
 MaxRuntimeInSeconds
 mb
 MCP
+mcp
 md
 mem
 memcached

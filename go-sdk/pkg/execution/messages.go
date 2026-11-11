@@ -19,7 +19,6 @@ package execution
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -175,17 +174,6 @@ func ifaceStringPtr(v any) *string {
 		return nil
 	}
 	return &s
-}
-
-// ifaceTimePtr returns a pointer to the time carried by a nullable date-time
-// field decoded as any, or nil when missing/null. msgpack decodes the
-// supervisor's timestamp extension straight into time.Time.
-func ifaceTimePtr(v any) *time.Time {
-	t, ok := v.(time.Time)
-	if !ok {
-		return nil
-	}
-	return &t
 }
 
 // ifaceInt converts a numeric value decoded as any (msgpack yields various
