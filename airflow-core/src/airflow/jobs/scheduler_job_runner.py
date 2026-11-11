@@ -3554,6 +3554,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
+                    # The scan takes no lock; skip TIs a worker started since, and hold the row lock
+                    # through the commit below.
+                    still_queued = session.scalar(
+                        with_row_locks(
+                            select(TI.id).where(TI.id == ti.id, TI.state == TaskInstanceState.QUEUED),
+                            of=TI,
+                            session=session,
+                            skip_locked=True,
+                        )
+                    )
+                    if still_queued is None:
+                        self.log.info(
+                            "Task instance %s is no longer queued or is locked; skipping stuck-in-queued check",
+                            ti,
+                        )
+                        continue
                     executor.revoke_task(ti=ti)
                     self._maybe_requeue_stuck_ti(
                         ti=ti,

@@ -11933,6 +11933,44 @@ class TestSchedulerJob:
         mock_executors[0].send_callback.assert_not_called()
         mock_executors[0].fail.assert_called_once()
 
+    @pytest.mark.parametrize("num_stuck_queued_retries", [0, 2], ids=["would_fail", "would_requeue"])
+    def test_stuck_in_queued_skips_task_started_after_scan(
+        self, dag_maker, session, mock_executors, num_stuck_queued_retries
+    ):
+        """A worker can start the attempt between the scan and handling it; leave that attempt alone."""
+        with dag_maker(dag_id="stuck_started_after_scan", serialized=True):
+            EmptyOperator(task_id="op", retries=1)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("op", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = num_stuck_queued_retries
+        stale_tis = list(scheduler._get_tis_stuck_in_queued(session))
+        assert [t.id for t in stale_tis] == [ti.id]
+        # The worker starts the attempt after the scan; the scheduler still holds the queued copy.
+        session.execute(
+            update(TaskInstance).where(TaskInstance.id == ti.id).values(state=TaskInstanceState.RUNNING)
+        )
+        session.commit()
+
+        with (
+            _loader_mock(mock_executors),
+            mock.patch.object(scheduler, "_get_tis_stuck_in_queued", return_value=stale_tis),
+        ):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        current = dr.get_task_instance("op", session=session)
+        assert current.id == ti.id
+        assert current.state == TaskInstanceState.RUNNING
+        mock_executors[0].revoke_task.assert_not_called()
+        mock_executors[0].fail.assert_not_called()
+        assert not session.scalars(select(Log).where(Log.dag_id == dr.dag_id, Log.event.like("stuck%"))).all()
+
     def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling task failures."""
         with dag_maker(dag_id="test_dag", session=session):
