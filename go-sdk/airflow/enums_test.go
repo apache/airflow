@@ -34,6 +34,10 @@ import (
 // enumsPath is the path, relative to this package, of the file that declares each enum.
 const enumsPath = "enums.go"
 
+// airflowCorePath is the path, relative to this package, of the airflow-core directory of the
+// Airflow repository.
+const airflowCorePath = "../../airflow-core"
+
 func readMatches(t *testing.T, path, pattern string) [][]string {
 	t.Helper()
 
@@ -100,7 +104,13 @@ func toStrings[T ~string](values []T) []string {
 // checks. The test also compares triggerRules and weightRules with the Python enums.
 // checkTaskSpec accepts only the values in those lists, so an author cannot set a rule that the
 // lists leave out.
+//
+// The test skips outside the Airflow repository, such as in the SDK's source package, which has
+// no airflow-core directory.
 func TestRuleConstantsMatchPython(t *testing.T) {
+	if _, err := os.Stat(filepath.FromSlash(airflowCorePath)); os.IsNotExist(err) {
+		t.Skipf("%s not found: this test needs the Airflow repository", airflowCorePath)
+	}
 	for _, tt := range []struct {
 		goType     string
 		pythonPath string
@@ -108,12 +118,12 @@ func TestRuleConstantsMatchPython(t *testing.T) {
 	}{
 		{
 			goType:     "TriggerRule",
-			pythonPath: "../../airflow-core/src/airflow/task/trigger_rule.py",
+			pythonPath: airflowCorePath + "/src/airflow/task/trigger_rule.py",
 			valid:      toStrings(triggerRules),
 		},
 		{
 			goType:     "WeightRule",
-			pythonPath: "../../airflow-core/src/airflow/task/weight_rule.py",
+			pythonPath: airflowCorePath + "/src/airflow/task/weight_rule.py",
 			valid:      toStrings(weightRules),
 		},
 	} {
