@@ -211,12 +211,12 @@ def test_expiring_dag_processor_token_is_not_reissued(client, time_machine):
 @pytest.mark.parametrize(
     ("state", "expect_refreshed_token"),
     [
-        pytest.param(TaskInstanceState.RUNNING, True, id="running"),
-        *(pytest.param(state, False, id=state.value) for state in sorted(State.finished)),
+        pytest.param(state, state == TaskInstanceState.RUNNING, id=state.value if state else "no_state")
+        for state in State.task_states
     ],
 )
 @pytest.mark.db_test
-def test_token_reissue_stops_when_task_attempt_finishes(
+def test_token_is_reissued_only_while_task_attempt_is_running(
     request_with_expiring_execution_token, create_task_instance, session, state, expect_refreshed_token
 ):
     ti = create_task_instance(state=state)
@@ -233,10 +233,11 @@ def test_token_is_not_reissued_without_a_live_attempt(
     request_with_expiring_execution_token, create_task_instance, session, identity
 ):
     if identity == "archived":
-        # Archiving marks an unfinished attempt failed, except a superseded one that awaits its retry.
-        # That attempt keeps a non-terminal state, so only the working-set check stops its token.
-        ti = create_task_instance(state=TaskInstanceState.UP_FOR_RETRY)
-        ti.archive(reason="superseded", session=session)
+        # ``TaskInstance.archive`` never leaves an attempt running, so the state check alone would
+        # stop its token. Archive a running attempt by hand to show the working-set check also does.
+        ti = create_task_instance(state=TaskInstanceState.RUNNING)
+        ti.working_set = None
+        ti.archived_reason = "superseded"
         session.commit()
         sub = ti.id
     else:
