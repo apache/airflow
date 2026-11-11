@@ -39,16 +39,19 @@ Sandbox backends
 What differs between the backends
 ---------------------------------
 
-Swapping the backend is one constructor argument, and tool names, spec and prompt
-do not change. Four behaviours do, so read them before assuming the same Dag
-behaves identically everywhere:
+Swapping the backend means swapping the backend's constructor, whose arguments differ
+per backend; tool names and prompt do not change. The same spec can be refused by a
+backend that cannot enforce it, and five behaviours differ, so read them before
+assuming the same Dag behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
   0.125 of one, so set ``cpu``; OpenSandbox and OpenShell take ``cpu`` as a limit the
   server enforces; Boat sizes by ``machine_type``; Islo uses the server default unless
   you set ``vcpus``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
-  layer; Modal matches TLS handshake names, which is weaker and has to be opted
+  layer, and unless constructed with ``host_network_policy="deny-all"`` it refuses
+  both an allowlist and ``block_network``, so it refuses a bare ``SandboxSpec()``
+  too; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
   enforced policy and the sidecar's mode back rather than trusting the create
   request, refusing a sidecar that filters only name resolution (``dns``) rather

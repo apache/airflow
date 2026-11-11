@@ -69,6 +69,7 @@ class SerializedBaseOperator(DAGNode):
     _can_skip_downstream: bool
     _is_empty: bool
     _arg_bindings: list[dict[str, Any]] | None = None
+    _external_clear_target: dict[str, Any] | None = None
     _needs_expansion: bool
     _task_display_name: str | None = None
     _weight_rule: str | PriorityWeightStrategy = "downstream"
@@ -305,6 +306,11 @@ class SerializedBaseOperator(DAGNode):
     def arg_bindings(self) -> list[dict[str, Any]] | None:
         """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
         return self._arg_bindings
+
+    @property
+    def external_clear_target(self) -> dict[str, Any] | None:
+        """The cross-Dag clear target the operator declared at parse time, as written by the Dag processor."""
+        return self._external_clear_target
 
     @property
     def operator_name(self) -> str:

@@ -101,7 +101,6 @@ def provide_bucket_name(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             bound_args = await maybe_add_bucket_name(*args, **kwargs)
-            print(f"invoking async function {func=}")
             return await func(*bound_args.args, **bound_args.kwargs)
 
     elif inspect.isasyncgenfunction(func):

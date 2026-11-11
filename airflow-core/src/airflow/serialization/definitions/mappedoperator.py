@@ -108,6 +108,9 @@ class SerializedMappedOperator(DAGNode):
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     is_stub: bool = attrs.field(init=False, default=False)
     _arg_bindings: list[dict[str, Any]] | None = attrs.field(alias="arg_bindings", init=False, default=None)
+    _external_clear_target: dict[str, Any] | None = attrs.field(
+        alias="external_clear_target", init=False, default=None
+    )
     _task_module: str
     task_type: str
     _operator_name: str
@@ -194,6 +197,11 @@ class SerializedMappedOperator(DAGNode):
     def arg_bindings(self) -> list[dict[str, Any]] | None:
         """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
         return self._arg_bindings
+
+    @property
+    def external_clear_target(self) -> dict[str, Any] | None:
+        """Always ``None``: a mapped operator's clear target is resolved per run, on a worker."""
+        return self._external_clear_target
 
     @property
     def owner(self) -> str:
