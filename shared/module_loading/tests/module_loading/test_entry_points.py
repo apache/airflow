@@ -33,6 +33,10 @@ class MockDistribution:
         self.entry_points = entry_points
         self.version = version
 
+    @property
+    def _normalized_name(self) -> str:
+        return self.metadata["Name"]  # type: ignore[index]
+
 
 class MockMetadata:
     def __init__(self, distributions: list[MockDistribution]) -> None:
@@ -95,6 +99,29 @@ def test_entry_points_with_dist_same_dist_in_two_versions_returns_first_only():
     assert [(ep.value, dist.version) for ep, dist in entries] == [
         ("airflow.providers.foo.plugins:FooPlugin", "2.0.0")
     ]
+
+
+class MockPathDistribution:
+    def __init__(self, normalized_name: str, entry_points: Iterable[metadata.EntryPoint]) -> None:
+        self._normalized_name = normalized_name
+        self.entry_points = entry_points
+
+    @property
+    def metadata(self):
+        raise AssertionError("dist.metadata must not be read")
+
+
+def test_entry_points_with_dist_deduplicates_without_reading_metadata():
+    distributions = [
+        MockPathDistribution("apache_airflow_providers_foo", [metadata.EntryPoint("a", "b", "group_x")]),
+        MockPathDistribution("apache_airflow_providers_foo", [metadata.EntryPoint("c", "d", "group_x")]),
+        MockPathDistribution("apache_airflow_providers_bar", [metadata.EntryPoint("e", "f", "group_x")]),
+    ]
+
+    with mock.patch("airflow_shared.module_loading.metadata", MockMetadata(distributions)):
+        entries = list(entry_points_with_dist("group_x"))
+
+    assert [ep.name for ep, _ in entries] == ["a", "e"]
 
 
 # No metadata file at all, or metadata without a Name field (the key is absent, not None).
