@@ -23,6 +23,7 @@ import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
+import type { GetXComOpts } from "../../src/sdk/client-types.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
@@ -50,8 +51,12 @@ function client(frames: { body: unknown; error?: unknown }[]) {
   return createCoordinatorClient(fakeComm(frames), FAKE_CTX, FAKE_TI_ID);
 }
 
+const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+
+type XComTarget = Pick<GetXComOpts, "dagId" | "runId" | "taskId" | "mapIndex">;
+
 /** Captures the request bodies sent, answering each one with `reply`. */
-function recordingClient(reply: unknown = null) {
+function recordingClient(reply: unknown = null, ctx: TaskContext = FAKE_CTX) {
   const sent: Record<string, unknown>[] = [];
   const comm = {
     request: async (body: Record<string, unknown>) => {
@@ -59,7 +64,7 @@ function recordingClient(reply: unknown = null) {
       return { body: reply };
     },
   } as unknown as CommChannel;
-  return { client: createCoordinatorClient(comm, FAKE_CTX, FAKE_TI_ID), sent };
+  return { client: createCoordinatorClient(comm, ctx, FAKE_TI_ID), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -320,6 +325,36 @@ describe("client is bound to TaskContext", () => {
       include_prior_dates: true,
     });
     expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });
+  });
+});
+
+describe("XCom map index default", () => {
+  const XCOM_RESULT = { type: "XComResult", key: "k", value: null };
+  const calls = [
+    ["getXCom", XCOM_RESULT, (c: TaskClient, o: XComTarget) => c.getXCom({ key: "k", ...o })],
+    ["setXCom", null, (c: TaskClient, o: XComTarget) => c.setXCom({ key: "k", value: 1, ...o })],
+  ] as const;
+
+  describe.each(calls)("%s", (_name, reply, call) => {
+    it.each([
+      ["the running task", {}, 3],
+      ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
+      ["another task", { taskId: "extract" }, null],
+      ["another Dag", { dagId: "other_dag" }, null],
+      ["another run", { runId: "manual__1" }, null],
+      ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
+      ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
+      ["the running task with mapIndex null", { mapIndex: null }, null],
+    ] as [string, XComTarget, number | null][])(
+      "from a mapped task targeting %s sends map_index %s",
+      async (_label, target, expected) => {
+        const { client: c, sent } = recordingClient(reply, MAPPED_CTX);
+
+        await call(c, target);
+
+        expect(sent[0]).toMatchObject({ map_index: expected });
+      },
+    );
   });
 });
 

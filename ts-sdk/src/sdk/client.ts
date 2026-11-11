@@ -75,7 +75,7 @@ export interface TaskClient {
    * Pull an XCom value.
    *
    * Returns `null` when the row is missing. Locator fields default to the
-   * current task's context.
+   * current task's context; see {@link GetXComOpts} for how `mapIndex` defaults.
    *
    * The generic `T` lets callers narrow the return type when the shape is
    * known:
@@ -90,7 +90,8 @@ export interface TaskClient {
   /**
    * Push an XCom value.
    *
-   * Target fields default to the current task's context.
+   * Target fields default to the current task's context; see
+   * {@link SetXComOpts} for how `mapIndex` defaults.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
 
