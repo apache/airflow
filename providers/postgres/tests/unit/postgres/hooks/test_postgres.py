@@ -1188,6 +1188,21 @@ class TestPostgresHookPPG2(_BasePostgresHookRuntimeTests):
         # executemany should NOT be called in this mode
         self.cur.executemany.assert_not_called()
 
+    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_values")
+    def test_insert_rows_fast_executemany_commit_every_zero(self, mock_execute_values):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, commit_every=0, fast_executemany=True)
+
+        assert self.conn.commit.call_count == 2
+        mock_execute_values.assert_called_once_with(
+            self.cur,
+            f"INSERT INTO {table}  VALUES %s",
+            [("hello",), ("world",)],
+            page_size=2,
+        )
+
     @mock.patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
     @mock.patch("airflow.providers.postgres.hooks.postgres.execute_values")
     def test_insert_rows_fast_executemany_hook_lineage(self, mock_execute_values, mock_send_lineage):
