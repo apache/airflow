@@ -55,13 +55,11 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
       ecmaVersion: "latest",
 
       /**
-       * Get `tsconfig.json` from the root directory.
+       * oxlint runs the type-aware rules, so ESLint no longer loads a tsconfig. Without one, scope
+       * analysis needs the app's `lib` to know globals such as `globalThis`; otherwise
+       * `unicorn/consistent-function-scoping` flags functions that only use them.
        */
-      project: [
-        `${import.meta.dirname}/../tsconfig.app.json`,
-        `${import.meta.dirname}/../tsconfig.dev.json`,
-        `${import.meta.dirname}/../tsconfig.node.json`,
-      ],
+      lib: ["es2022", "dom", "dom.iterable"],
 
       /**
        * Default to ESM.
@@ -1379,22 +1377,6 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
      * @see [@typescript-eslint/prefer-as-const](https://typescript-eslint.io/rules/prefer-as-const/)
      */
     [`${typescriptNamespace}/prefer-as-const`]: ERROR,
-
-    /**
-     * Require destructuring from arrays and/or objects.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const foo = array[0];
-     * const bar = array[5];
-     *
-     * // ✅ Correct
-     * const { [0]: foo, [5]: bar } = array;
-     * ```
-     * @see [@typescript-eslint/prefer-destructuring](https://typescript-eslint.io/rules/prefer-destructuring/)
-     */
-    [`${typescriptNamespace}/prefer-destructuring`]: ERROR,
 
     /**
      * Require each enum member value to be explicitly initialized.
