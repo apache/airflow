@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-11T01:04:11.253369
+# This constraints file was automatically generated on 2026-11-11T03:10:58.989377
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.4.3
 Markdown==3.11.3
 MarkupSafe==3.0.4
-PyAthena==4.2.1
+PyAthena==3.40.0
 PyGithub==2.10.0
 PyHive==0.7.0
 PyJWT==2.15.1
@@ -287,6 +287,7 @@ curlify==3.0.0
 darabonba-core==1.0.10
 databricks-sql-connector==4.9.0
 datadog==0.56.0
+datasets==5.1.0
 db-dtypes==1.9.0
 debugpy==1.8.22
 decorator==5.3.1
@@ -322,12 +323,12 @@ flask-appbuilder==5.2.2
 flask-babel==4.0.0
 flower==2.2.0
 frozenlist==1.8.0
-fsspec==2026.9.0
+fsspec==2026.7.0
 future==1.0.0
 gcloud-aio-auth==5.6.1
 gcloud-aio-bigquery==7.3.1
 gcloud-aio-storage==9.6.5
-gcsfs==2026.10.1
+gcsfs==2026.8.2
 genai-prices==0.2.1
 geomet==1.1.0
 gevent==26.9.0
@@ -501,6 +502,7 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.4
 multidict==7.2.1
+multiprocess==0.70.19
 mypy_extensions==1.2.0
 mysql-connector-python==26.10.0
 mysqlclient==2.3.0
@@ -643,7 +645,7 @@ rich-toolkit==0.20.6
 rich==15.0.0
 rpds-py==2026.9.1
 ruamel.yaml==0.19.1
-s3fs==2026.9.0
+s3fs==2026.7.0
 s3transfer==0.19.3
 sagemaker_studio==1.0.28
 scikit-learn==1.9.1
@@ -733,6 +735,7 @@ wheel==0.48.0
 wirerope==1.0.0
 wrapt==2.5.2
 xmltodict==1.0.4
+xxhash==4.0.2
 yandex-query-client==0.1.4
 yandexcloud==0.414.0
 yarl==1.25.1
