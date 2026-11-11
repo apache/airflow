@@ -160,9 +160,11 @@ Run-time errors
     connection as described above.
 
 ``DurableJournalError: durable execution could not record a step's result, because it is not JSON-serializable``
-    A tool returned a value that cannot be encoded as JSON. The model could not have read
-    it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
-    Pydantic model. See :doc:`durable_execution`.
+    A tool returned a value that cannot be encoded as JSON, such as an object with no JSON
+    form or a dataclass holding bytes that are not UTF-8 text. It would fail the same way
+    on every attempt, so the task fails without retrying. Return text, numbers, bytes,
+    lists, dicts or a Pydantic model without bytes fields; put bytes in a dict rather than
+    a field of your own class. See :doc:`durable_execution`.
 
 Durable execution on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and
