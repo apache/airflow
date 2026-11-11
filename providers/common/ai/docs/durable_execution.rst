@@ -107,7 +107,7 @@ So does a callable that has no ``__qualname__`` to name it by, such as a
 
 .. code-block:: text
 
-    ValueError: durable=True names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0xffff89c904a0>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...).
+    ValueError: durable=True names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0x...>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...).
 
 Two different toolsets with the same id are refused, since their calls would be filed
 under one name, and so are two functions with the same qualified name, such as two

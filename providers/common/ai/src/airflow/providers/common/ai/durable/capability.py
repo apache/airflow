@@ -105,7 +105,7 @@ else:
 _DAG_MODULE_PREFIX = re.compile(r"^unusual_prefix_[0-9a-f]{40}_")
 
 
-def callable_toolset_id(function: object) -> str | None:
+def get_callable_toolset_id(function: object) -> str | None:
     """
     Return the id of a toolset that ``function`` builds per run: its module and qualified name.
 
@@ -157,12 +157,12 @@ def give_durable_ids(
     it has an id. An id-less ``FunctionToolset`` gets one numbered in the order the toolsets
     are given, which its step names leave out (a function tool's step is named after the
     tool); a function that builds a toolset per run, or an id-less ``DynamicToolset``, gets
-    :func:`callable_toolset_id`. A leaf that already has an id, and an ``MCPToolset``, are
+    :func:`get_callable_toolset_id`. A leaf that already has an id, and an ``MCPToolset``, are
     left as they are. Leaves are copied, not changed, and ``given`` maps each leaf to its
     copy so a toolset listed twice stays one toolset to pydantic-ai.
     """
     if not isinstance(toolset, AbstractToolset):
-        return DynamicToolset(toolset, id=callable_toolset_id(toolset))
+        return DynamicToolset(toolset, id=get_callable_toolset_id(toolset))
     if not any(_lacks_id(leaf) for leaf in iter_toolsets(toolset)):
         # Rebuilding wrappers via visit_and_replace breaks wrapper subclasses with their own __init__.
         return toolset
@@ -176,7 +176,7 @@ def give_durable_ids(
                 copied = DynamicToolset(
                     leaf.toolset_func,
                     per_run_step=leaf.per_run_step,
-                    id=callable_toolset_id(leaf.toolset_func),
+                    id=get_callable_toolset_id(leaf.toolset_func),
                 )
             else:
                 numbered = sum(isinstance(other, FunctionToolset) for _, other in given.values())
@@ -508,13 +508,14 @@ class _AirflowOperationNamer(JournalOperationNamer):
     A function tool's step name ends in the tool's name, so the id Airflow numbered the
     toolset by adds nothing to it and would only make the name harder to read in the task
     log. An id the Dag author chose stays in the name, so steps recorded under it before
-    this naming existed replay as they did.
+    this naming existed replay as they did. Only a tool call is journaled under its name:
+    ``execute`` runs argument validation live.
     """
 
     def operation_name(self, operation_id: DurableOperationId) -> str:
         name = super().operation_name(operation_id)
         if (
-            isinstance(operation_id, ToolsetCallToolId | ToolsetValidateToolArgumentsId)
+            isinstance(operation_id, ToolsetCallToolId)
             and operation_id.toolset_kind == "function"
             and operation_id.toolset_id.startswith(_ASSIGNED_ID_PREFIX)
         ):

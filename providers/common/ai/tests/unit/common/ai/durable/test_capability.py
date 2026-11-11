@@ -55,7 +55,7 @@ from airflow.providers.common.ai.durable.base import RUNS_KEY
 from airflow.providers.common.ai.durable.capability import (
     GivenIds,
     _JournalCodec,
-    callable_toolset_id,
+    get_callable_toolset_id,
     give_durable_ids,
 )
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
@@ -1205,6 +1205,11 @@ class TestToolsetIds:
         assert self.tool_step_names(memory_storage) == ["analyst__function_toolset__db.call_tool:query"]
 
     def test_gives_ids_to_copies_and_one_copy_to_a_toolset_listed_twice(self):
+        """
+        ``give_durable_ids`` writes ``FunctionToolset``'s private ``_id``, which only its constructor sets.
+
+        This test and the replay tests above fail if pydantic-ai stops reading the id from there.
+        """
         shared = FunctionToolset()
         given: GivenIds = {}
 
@@ -1241,14 +1246,14 @@ class TestToolsetIds:
         assert (given.id, given.per_run_step) == (f"{__name__}._build_tools", False)
 
 
-class TestCallableToolsetId:
+class TestGetCallableToolsetId:
     def test_leaves_out_the_path_hash_airflow_puts_in_a_dag_files_module(self):
         def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
             return FunctionToolset()
 
         build_tools.__module__ = f"unusual_prefix_{'0123456789abcdef' * 2}01234567_orders_dag"
 
-        assert callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
+        assert get_callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
 
     @pytest.mark.parametrize(
         "function",
@@ -1258,7 +1263,7 @@ class TestCallableToolsetId:
         ],
     )
     def test_none_for_a_callable_without_a_qualified_name(self, function):
-        assert callable_toolset_id(function) is None
+        assert get_callable_toolset_id(function) is None
 
 
 class Answer(BaseModel):
