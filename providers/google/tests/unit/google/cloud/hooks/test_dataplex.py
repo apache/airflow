@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -95,15 +96,16 @@ class TestDataplexHook:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
+    @pytest.mark.parametrize("validate_only", [None, False, True])
     @mock.patch(DATAPLEX_HOOK_CLIENT)
-    def test_create_task(self, mock_client):
+    def test_create_task(self, mock_client, validate_only):
         self.hook.create_task(
             project_id=PROJECT_ID,
             region=REGION,
             lake_id=LAKE_ID,
             body=BODY,
             dataplex_task_id=DATAPLEX_TASK_ID,
-            validate_only=None,
+            validate_only=validate_only,
         )
 
         parent = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
@@ -112,6 +114,7 @@ class TestDataplexHook:
                 parent=parent,
                 task_id=DATAPLEX_TASK_ID,
                 task=BODY,
+                validate_only=validate_only,
             ),
             retry=DEFAULT,
             timeout=None,
@@ -168,14 +171,15 @@ class TestDataplexHook:
             metadata=(),
         )
 
+    @pytest.mark.parametrize("validate_only", [None, False, True])
     @mock.patch(DATAPLEX_HOOK_CLIENT)
-    def test_create_lake(self, mock_client):
+    def test_create_lake(self, mock_client, validate_only):
         self.hook.create_lake(
             project_id=PROJECT_ID,
             region=REGION,
             lake_id=LAKE_ID,
             body=BODY,
-            validate_only=None,
+            validate_only=validate_only,
         )
 
         parent = f"projects/{PROJECT_ID}/locations/{REGION}"
@@ -184,6 +188,7 @@ class TestDataplexHook:
                 parent=parent,
                 lake_id=LAKE_ID,
                 lake=BODY,
+                validate_only=validate_only,
             ),
             retry=DEFAULT,
             timeout=None,
