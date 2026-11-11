@@ -175,6 +175,7 @@ class FileGroupForCi(Enum):
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
     TS_SDK_E2E_FILES = auto()
     YAML_DAG_E2E_FILES = auto()
+    LANG_SDK_XCOM_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -370,6 +371,16 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+        ],
+        FileGroupForCi.LANG_SDK_XCOM_E2E_FILES: [
+            # The coordinator-side backend, the base XCom class it calls, the object storage backend,
+            # and the mode's own compose override and tests. The language SDKs themselves are the
+            # business of their own e2e modes.
+            r"^task-sdk/src/airflow/sdk/coordinators/_xcom_backend\.py$",
+            r"^task-sdk/src/airflow/sdk/bases/xcom\.py$",
+            r"^providers/common/io/src/airflow/providers/common/io/xcom/.*",
+            r"^airflow-e2e-tests/docker/lang-sdk-xcom-object-storage\.yml$",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -1563,6 +1574,11 @@ class SelectiveChecks:
 
     @cached_property
     @_scoped_to_component_branch
+    def run_lang_sdk_xcom_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.LANG_SDK_XCOM_E2E_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
@@ -1811,6 +1827,7 @@ class SelectiveChecks:
             or self.run_openlineage_e2e_compat_tests
             or self.run_ts_sdk_e2e_tests
             or self.run_yaml_dag_e2e_tests
+            or self.run_lang_sdk_xcom_e2e_tests
             or self.run_ui_e2e_tests
         )
 
