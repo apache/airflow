@@ -601,7 +601,8 @@ The ``TaskClient``
        to the current task's. ``mapIndex`` defaults to the current task's own map index when the target is the
        current task, and to the unmapped value otherwise.
    * - ``deleteXCom({ ... })``
-     - Removes an XCom value. The target and ``mapIndex`` default the same way as for ``setXCom``.
+     - Removes an XCom value. The target and ``mapIndex`` default the same way as for ``setXCom``. Deleting
+       another task's ``return_value`` removes the value that downstream tasks read as that task's output.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
