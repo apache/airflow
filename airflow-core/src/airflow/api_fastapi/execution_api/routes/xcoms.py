@@ -67,7 +67,7 @@ from airflow.models.task_coordinates import (
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
 from airflow.utils.state import TaskInstanceState
 
@@ -714,6 +714,8 @@ def set_xcom(
 
     if key.startswith(LOOP_XCOM_PREFIX):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
+    if key == EXTERNAL_CLEAR_TARGET_XCOM_KEY:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved XCom key")
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
