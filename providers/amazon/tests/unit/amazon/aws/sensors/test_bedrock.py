@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import botocore.session
 import pytest
 
 from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
@@ -415,3 +416,40 @@ class TestBedrockSensorDeferral:
 
         with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
             sensor.execute_complete({}, event=event)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "success_state",
+        [
+            BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
+            BedrockBatchInferenceSensor.SuccessState.COMPLETED,
+        ],
+    )
+    @mock.patch.object(BedrockHook, "get_async_conn")
+    @mock.patch.object(BedrockHook, "conn")
+    async def test_resume_fails_when_trigger_exhausts_attempts(
+        self, mock_conn, mock_get_async_conn, success_state
+    ):
+        job = {"status": "Submitted"}
+        mock_conn.get_model_invocation_job.return_value = job
+        client = mock.MagicMock()
+        # aiobotocore derives the waiter class name from the service model, so it cannot be a mock.
+        client.meta.service_model = botocore.session.get_session().get_service_model("bedrock")
+        client.get_model_invocation_job = mock.AsyncMock(return_value=job)
+        mock_get_async_conn.return_value.__aenter__.return_value = client
+        sensor = BedrockBatchInferenceSensor(
+            task_id="test_bedrock_sensor",
+            job_arn="job_arn",
+            success_state=success_state,
+            deferrable=True,
+            poke_interval=0,
+            max_retries=2,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+        event = await deferred.value.trigger.run().asend(None)
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            getattr(sensor, deferred.value.method_name)({}, event=event.payload)
+        assert client.get_model_invocation_job.await_count == 2
