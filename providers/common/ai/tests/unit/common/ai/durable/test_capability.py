@@ -337,15 +337,11 @@ class TestResultsThatCannotBeRecorded:
         with pytest.raises(DurableJournalError, match="not JSON-serializable"):
             await attempt(memory_storage, agent)
 
-    @pytest.mark.parametrize(
-        "toolset",
-        [
-            pytest.param(lambda calls: _function_toolset(calls, _Image(PNG)), id="function-toolset"),
-            pytest.param(lambda calls: _WarehouseToolset(calls, _Image(PNG)), id="airflow-toolset"),
-        ],
-    )
     @pytest.mark.asyncio
-    async def test_a_journal_that_does_not_fail_leaves_the_result_unrecorded(self, memory_storage, toolset):
+    async def test_a_journal_that_does_not_fail_leaves_the_result_unrecorded(self, memory_storage):
+        # An Airflow toolset, because its results go through this journal's codec on every
+        # pydantic-ai version. From pydantic-ai 2.66 on, pydantic-ai records a function
+        # toolset's bytes in a dataclass itself, as base64.
         calls = Calls()
         fail_final = [True]
 
@@ -353,7 +349,7 @@ class TestResultsThatCannotBeRecorded:
             return Agent(
                 FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
                 name="analyst",
-                toolsets=[toolset(calls)],
+                toolsets=[_WarehouseToolset(calls, _Image(PNG))],
                 capabilities=[AirflowDurability()],
             )
 

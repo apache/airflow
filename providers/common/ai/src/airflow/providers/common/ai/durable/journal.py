@@ -177,7 +177,7 @@ class JournalStep:
             self.durable_run.journal.stats.recorded[self.kind] += 1
             log.debug("Durable: recorded step", position=self.position, step=self.name)
             return True
-        self._not_recorded()
+        self._mark_not_recorded()
         return False
 
     def cannot_record(self, error: Exception) -> None:
@@ -196,9 +196,9 @@ class JournalStep:
                 f"durable execution could not record a step's result, because it is not JSON-serializable: {error}"
             ) from error
         log.warning("Durable: step result is not JSON-serializable", step=self.name, error=str(error))
-        self._not_recorded()
+        self._mark_not_recorded()
 
-    def _not_recorded(self) -> None:
+    def _mark_not_recorded(self) -> None:
         self.durable_run.journal.stats.not_recorded.append((self.kind, self.name))
         # Named here, not only in the summary: this line is logged on every path,
         # including the failed attempt that Airflow retries.
