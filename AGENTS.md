@@ -215,8 +215,8 @@ own agent harness. In Claude Code:
 its `verify-rc` skill verifies a release candidate and, per
 [`.apache-magpie-overrides/release-verify-rc.md`](.apache-magpie-overrides/release-verify-rc.md),
 can test your own changes against a providers wave.
-The contributor-facing summary lives in the [Agent-assisted contribution
-section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+The contributor-facing summary lives in
+[`contributing-docs/33_agent_assisted_contribution.md`](contributing-docs/33_agent_assisted_contribution.md).
 
 Airflow-specific modifications to framework-skill workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) — the installed
