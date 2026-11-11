@@ -883,8 +883,16 @@ def import_local_settings():
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
 
 
-def initialize():
-    """Initialize Airflow with all the settings from this file."""
+_initialized = False
+
+
+def initialize(*, orm: bool = True):
+    """
+    Initialize Airflow with all the settings from this file.
+
+    :param orm: Whether to configure the metadata database engine.
+    """
+    global _initialized
     configure_vars()
     prepare_syspath_for_config_and_plugins()
     policy_mgr = get_policy_plugin_manager()
@@ -901,7 +909,7 @@ def initialize():
     _configure_secrets_masker()
 
     is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
-    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
+    if orm and not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
         configure_orm()
 
         # mask the sensitive_config_values
@@ -913,6 +921,20 @@ def initialize():
 
     # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
+    _initialized = True
+
+
+def ensure_initialized(*, orm: bool = True) -> None:
+    """
+    Initialize Airflow unless this process already did.
+
+    Entry points call this before they use settings, logging or the metadata database, so they
+    do not depend on ``import airflow`` having initialized them.
+
+    :param orm: Whether to configure the metadata database engine.
+    """
+    if not _initialized:
+        initialize(orm=orm)
 
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,

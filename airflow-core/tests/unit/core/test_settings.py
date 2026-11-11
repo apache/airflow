@@ -591,6 +591,36 @@ def test_explicit_sql_alchemy_conn_async_is_not_rewritten(explicit_async_uri):
         settings.configure_vars()
 
 
+class TestEnsureInitialized:
+    @pytest.mark.parametrize(
+        ("initialized", "orm", "expected_calls"),
+        [
+            (False, True, [call(orm=True)]),
+            (False, False, [call(orm=False)]),
+            (True, True, []),
+        ],
+    )
+    @mock.patch("airflow.settings.initialize", autospec=True)
+    def test_initializes_once(self, mock_initialize, monkeypatch, initialized, orm, expected_calls):
+        monkeypatch.setattr(settings, "_initialized", initialized)
+
+        settings.ensure_initialized(orm=orm)
+
+        assert mock_initialize.mock_calls == expected_calls
+
+    @mock.patch("airflow.settings.atexit.register", autospec=True)
+    @mock.patch("airflow.settings.configure_orm", autospec=True)
+    def test_initialize_without_orm_is_not_repeated(
+        self, mock_configure_orm, mock_atexit_register, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "_initialized", False)
+
+        settings.initialize(orm=False)
+        settings.ensure_initialized()
+
+        mock_configure_orm.assert_not_called()
+
+
 class TestDisposeOrm:
     """Tests for dispose_orm() async engine disposal."""
 

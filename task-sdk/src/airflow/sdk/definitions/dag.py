@@ -1288,6 +1288,8 @@ class DAG:
         from airflow.serialization.serialized_objects import DagSerialization
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+        settings.ensure_initialized()
+
         exit_stack = ExitStack()
 
         if conn_file_path or variable_file_path:

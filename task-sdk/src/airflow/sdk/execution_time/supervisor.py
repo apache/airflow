@@ -40,6 +40,7 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
+from importlib.util import find_spec
 from socket import socket, socketpair
 from typing import (
     TYPE_CHECKING,
@@ -697,6 +698,14 @@ _CHILD_EXEC_BOOTSTRAP = _CHILD_EXEC_PRELUDE + (
 )
 
 
+def _initialize_core_settings() -> None:
+    if find_spec("airflow.settings") is None:
+        return
+    from airflow import settings
+
+    settings.ensure_initialized(orm=False)
+
+
 def _child_exec_main():
     """
     Entry point for the child process when using ``os.posix_spawn``.
@@ -716,6 +725,8 @@ def _child_exec_main():
     child_stderr = socket(fileno=2)
 
     target = _resolve_child_target(os.environ.pop("_AIRFLOW_CHILD_TARGET", ""))
+
+    _initialize_core_settings()
 
     # _fork_main always exits via os._exit(), so the socket objects above are
     # never GC'd (which would close their underlying FDs). This is safe but

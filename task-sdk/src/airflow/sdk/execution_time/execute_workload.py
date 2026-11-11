@@ -42,8 +42,9 @@ log = structlog.get_logger(logger_name=__name__)
 def execute_workload(workload: ExecuteTask) -> None:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.sdk.log import configure_logging
-    from airflow.settings import dispose_orm
+    from airflow.settings import dispose_orm, ensure_initialized
 
+    ensure_initialized(orm=False)
     dispose_orm(do_log=False)
 
     configure_logging(output=sys.stdout.buffer, json_output=True)

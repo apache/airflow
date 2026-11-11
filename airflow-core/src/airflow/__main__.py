@@ -33,7 +33,7 @@ import argcomplete
 # those functions likely import settings).
 # Therefore importing configuration early (as the first airflow import) avoids
 # any possible import cycles with settings downstream.
-from airflow import configuration
+from airflow import configuration, settings
 from airflow.cli import cli_parser
 from airflow.cli.utils import redirect_stdout_log_handlers_to_stderr
 
@@ -46,6 +46,7 @@ def main():
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
+    settings.ensure_initialized()
     # Commands that accept ``-o`` produce structured output on stdout; route any
     # console log handler currently writing to stdout to stderr so log lines do
     # not corrupt that output (e.g. ``airflow ... -o json | jq``).
