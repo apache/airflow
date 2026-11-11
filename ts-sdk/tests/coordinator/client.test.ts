@@ -53,7 +53,17 @@ function client(frames: { body: unknown; error?: unknown }[]) {
 
 const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
 
-type XComTarget = Pick<GetXComOpts, "dagId" | "runId" | "taskId" | "mapIndex">;
+type XComOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+/** Each XCom call that takes a target, with the reply the supervisor gives it. */
+const XCOM_CALLS = [
+  [
+    "getXCom",
+    { type: "XComResult", key: "k", value: null },
+    (c: TaskClient, o: XComOpts) => c.getXCom(o),
+  ],
+  ["setXCom", null, (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
+] as const;
 
 /** Captures the request bodies sent, answering each one with `reply`. */
 function recordingClient(reply: unknown = null, ctx: TaskContext = FAKE_CTX) {
@@ -329,13 +339,7 @@ describe("client is bound to TaskContext", () => {
 });
 
 describe("XCom map index default", () => {
-  const XCOM_RESULT = { type: "XComResult", key: "k", value: null };
-  const calls = [
-    ["getXCom", XCOM_RESULT, (c: TaskClient, o: XComTarget) => c.getXCom({ key: "k", ...o })],
-    ["setXCom", null, (c: TaskClient, o: XComTarget) => c.setXCom({ key: "k", value: 1, ...o })],
-  ] as const;
-
-  describe.each(calls)("%s", (_name, reply, call) => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
     it.each([
       ["the running task", {}, 3],
       ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
@@ -345,14 +349,40 @@ describe("XCom map index default", () => {
       ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
       ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
       ["the running task with mapIndex null", { mapIndex: null }, null],
-    ] as [string, XComTarget, number | null][])(
+    ] as [string, Omit<XComOpts, "key">, number | null][])(
       "from a mapped task targeting %s sends map_index %s",
       async (_label, target, expected) => {
         const { client: c, sent } = recordingClient(reply, MAPPED_CTX);
 
-        await call(c, target);
+        await call(c, { key: "k", ...target });
 
         expect(sent[0]).toMatchObject({ map_index: expected });
+      },
+    );
+  });
+});
+
+describe("XCom key and map index guards", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["an empty key", { key: "" }, RangeError],
+      ["an undefined key", { key: undefined }, TypeError],
+      ["a numeric key", { key: 1 }, TypeError],
+      ["a fractional mapIndex", { key: "k", mapIndex: 1.5 }, RangeError],
+      ["a NaN mapIndex", { key: "k", mapIndex: Number.NaN }, RangeError],
+      ["an Infinity mapIndex", { key: "k", mapIndex: Number.POSITIVE_INFINITY }, RangeError],
+      ["a string mapIndex", { key: "k", mapIndex: "1" }, TypeError],
+      ["a numeric dagId", { key: "k", dagId: 1 }, TypeError],
+      ["a numeric taskId", { key: "k", taskId: 1 }, TypeError],
+      ["an empty runId", { key: "k", runId: "" }, RangeError],
+    ] as [string, unknown, ErrorConstructor][])(
+      "rejects %s without sending a request",
+      async (_label, opts, errorType) => {
+        const { client: c, sent } = recordingClient(reply);
+
+        await expect(call(c, opts as XComOpts)).rejects.toThrow(errorType);
+
+        expect(sent).toHaveLength(0);
       },
     );
   });

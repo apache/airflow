@@ -84,6 +84,9 @@ export interface TaskClient {
    * const data = await client.getXCom<{ count: number }>({ key: "result" });
    * // data is { count: number } | null
    * ```
+   *
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is not a string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
    */
   getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null>;
 
@@ -92,6 +95,9 @@ export interface TaskClient {
    *
    * Target fields default to the current task's context; see
    * {@link SetXComOpts} for how `mapIndex` defaults.
+   *
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is not a string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
 

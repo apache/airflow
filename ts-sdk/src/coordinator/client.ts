@@ -61,6 +61,17 @@ type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boole
 type XComTargetOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
 
 function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
+  // The supervisor never replies to a frame with a wrongly typed field, so the
+  // task would hang instead of failing fast.
+  assertKey(opts.key, "XCom key");
+  for (const [label, id] of [
+    ["dagId", opts.dagId],
+    ["taskId", opts.taskId],
+    ["runId", opts.runId],
+  ] as const) {
+    if (id != null) assertKey(id, `XCom ${label}`);
+  }
+  assertMapIndex(opts.mapIndex);
   const dag_id = opts.dagId ?? ctx.dagId;
   const task_id = opts.taskId ?? ctx.taskId;
   const run_id = opts.runId ?? ctx.runId;
@@ -155,12 +166,22 @@ const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_DAY = 24 * 60 * 60;
 
-function assertKey(key: string): void {
+function assertKey(key: string, label = "task state store key"): void {
   if (typeof key !== "string") {
-    throw new TypeError(`task state store key must be a string, got ${typeof key}`);
+    throw new TypeError(`${label} must be a string, got ${typeof key}`);
   }
   if (key === "") {
-    throw new RangeError("task state store key must not be empty");
+    throw new RangeError(`${label} must not be empty`);
+  }
+}
+
+function assertMapIndex(mapIndex: number | null | undefined): void {
+  if (mapIndex === undefined || mapIndex === null) return;
+  if (typeof mapIndex !== "number") {
+    throw new TypeError(`XCom mapIndex must be an integer or null, got ${typeof mapIndex}`);
+  }
+  if (!Number.isInteger(mapIndex)) {
+    throw new RangeError(`XCom mapIndex must be an integer, got ${mapIndex}`);
   }
 }
 
