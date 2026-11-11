@@ -55,10 +55,11 @@ Using the Operator
 
 Pass the target ``collection_name`` and a ``query`` (typically a dense embedding
 vector, but any query form accepted by
-:meth:`~qdrant_client.QdrantClient.query_points` also works). The operator pushes
-the results to XCom as a list of dictionaries -- one per matched point, with
-``id``, ``score``, ``payload`` and (optionally) ``vector`` keys -- so downstream
-tasks can consume them without any custom serialization. Other ``query_points``
+``qdrant_client.QdrantClient.query_points`` also works). The operator pushes
+the results to XCom as a list of dictionaries -- one per matched point, in the
+order Qdrant returns them, with keys such as ``id``, ``score``, ``payload`` and
+``vector`` (``None`` unless ``with_vectors`` is set) -- so downstream tasks can
+consume them without any custom serialization. Other ``query_points``
 arguments go in ``query_points_kwargs``, for example ``{"using": "text"}`` to search
 a collection with named vectors.
 

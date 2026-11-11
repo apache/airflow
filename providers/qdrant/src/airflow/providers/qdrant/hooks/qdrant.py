@@ -156,17 +156,24 @@ class QdrantHook(BaseHook):
 
         :param collection_name: Name of the collection to search.
         :param query: The query. Commonly a dense vector (``list[float]``); it may
-            also be a point id, a named/sparse vector, or a ``qdrant_client.models``
-            query object. See the Qdrant ``query_points`` docs for all supported forms.
+            also be a point id, a sparse vector, or a ``qdrant_client.models`` query
+            object. To search a named vector, pass ``using`` in ``kwargs``. See the
+            Qdrant ``query_points`` docs for all supported forms.
         :param query_filter: Optional filter to restrict which points are considered.
         :param search_params: Optional search-tuning parameters (e.g. ``hnsw_ef``).
         :param limit: Maximum number of results to return (top-k). Defaults to 10.
         :param offset: Number of results to skip, for pagination. Optional.
         :param with_payload: Whether (or which payload fields) to include. Defaults to True.
         :param with_vectors: Whether (or which vectors) to include. Defaults to False.
-        :param score_threshold: Minimal similarity score for a result to be returned.
+        :param score_threshold: Cut-off for returned results, applied to the vector
+            being searched: a minimum score for ``Distance.COSINE``, ``Distance.DOT``
+            and sparse vectors, and a maximum for ``Distance.EUCLID`` and
+            ``Distance.MANHATTAN``.
         :param kwargs: Additional keyword arguments forwarded to ``query_points``.
-        :return: A list of scored points as dictionaries, ordered by descending score.
+        :return: The matched points in the order ``query_points`` returns them (best
+            match first for a similarity search), each as
+            ``ScoredPoint.model_dump(mode="json")``. ``vector`` is ``None`` unless
+            ``with_vectors`` asks for it.
         """
         response = self.conn.query_points(
             collection_name=collection_name,

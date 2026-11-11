@@ -117,7 +117,8 @@ class QdrantSearchOperator(BaseOperator):
 
     The operator wraps :meth:`~airflow.providers.qdrant.hooks.qdrant.QdrantHook.search`,
     which calls Qdrant's ``query_points`` API and converts each returned point to a
-    plain, XCom-serializable ``dict`` (id, score, payload, vector). Results land in
+    plain, XCom-serializable ``dict`` of its ``ScoredPoint`` fields (``id``, ``score``,
+    ``payload``, ``vector`` and the rest). Results land in
     XCom as a ``list[dict]`` ready to be consumed by downstream tasks (e.g. an LLM
     task that builds a prompt from the retrieved payloads in a RAG pipeline).
 
@@ -128,15 +129,18 @@ class QdrantSearchOperator(BaseOperator):
     :param conn_id: The connection id to connect to a Qdrant instance.
     :param collection_name: The name of the collection to search.
     :param query: The query. Commonly a dense vector (``list[float]``); it may also
-        be a point id, a named/sparse vector, or any query form supported by
-        ``qdrant_client.QdrantClient.query_points``.
+        be a point id, a sparse vector, or any query form supported by
+        ``qdrant_client.QdrantClient.query_points``. To search a named vector, set
+        ``using`` in ``query_points_kwargs``.
     :param query_filter: Optional filter to restrict which points are considered.
     :param search_params: Optional Qdrant ``SearchParams`` (e.g. ``hnsw_ef``).
     :param limit: Maximum number of results to return (top-k). Defaults to 10.
     :param offset: Number of results to skip, for pagination. Optional.
     :param with_payload: Whether (or which payload fields) to include. Defaults to True.
     :param with_vectors: Whether (or which vectors) to include. Defaults to False.
-    :param score_threshold: Minimum similarity score for a result to be returned.
+    :param score_threshold: Cut-off for returned results, applied to the vector being
+        searched: a minimum score for ``Distance.COSINE``, ``Distance.DOT`` and sparse
+        vectors, and a maximum for ``Distance.EUCLID`` and ``Distance.MANHATTAN``.
     :param query_points_kwargs: Other arguments for ``query_points``, such as ``using``
         to search a collection with named vectors, or ``prefetch`` for hybrid search.
     :param kwargs: Additional keyword arguments passed to the ``BaseOperator``
