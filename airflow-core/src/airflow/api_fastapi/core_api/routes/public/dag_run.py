@@ -469,6 +469,7 @@ def clear_dag_runs(
                 user=user,
             )
         )
+    attach_dag_versions_to_runs(cleared_runs, session=session)
     return DAGRunCollectionResponse(
         dag_runs=[DAGRunResponse.model_validate(cleared_run) for cleared_run in cleared_runs],
         total_entries=len(cleared_runs),

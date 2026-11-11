@@ -35,14 +35,23 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
+    BulkDAGRunClearBody,
+)
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.routes.public.dag_run import clear_dag_runs
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dynamic_region import DynamicRegion
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -72,7 +81,6 @@ from tests_common.test_utils.team import attach_dag_to_team
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
-    from airflow.models.dag_version import DagVersion
     from airflow.timetables.base import DataInterval
 
 pytestmark = pytest.mark.db_test
@@ -142,6 +150,65 @@ DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
+
+
+def _create_bundled_run_with_history(dag_id, dag_maker, session):
+    with dag_maker(
+        dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v1", serialized=True
+    ):
+        EmptyOperator(task_id="0")
+        EmptyOperator(task_id="1")
+    dag_run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+    old_dag_version = DagVersion.get_latest_version(dag_id)
+    for ti in dag_run.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        session.merge(ti)
+    session.flush()
+
+    with dag_maker(
+        dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v2", serialized=True
+    ):
+        EmptyOperator(task_id="0")
+        EmptyOperator(task_id="1")
+    new_dag_version = DagVersion.get_latest_version(dag_id)
+    assert old_dag_version.id != new_dag_version.id
+
+    clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+    session.commit()
+
+    archived_version_ids = set(
+        session.scalars(
+            select(TaskInstance.dag_version_id)
+            .where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.dag_version_id.is_not(None),
+            )
+            .execution_options(include_all_attempts=True)
+        )
+    )
+    assert old_dag_version.id in archived_version_ids
+    return dag_run.run_id, old_dag_version, new_dag_version
+
+
+def _dag_bag_from_serialized(session):
+    """DagBag that resolves DAGs from SerializedDagModel in the current session."""
+    dag_bag = mock.Mock(spec=DBDagBag)
+
+    def get_dag_for_run(dag_run, session=session):
+        sdm = None
+        if dag_run.created_dag_version_id is not None:
+            sdm = session.scalar(
+                select(SerializedDagModel).where(
+                    SerializedDagModel.dag_version_id == dag_run.created_dag_version_id
+                )
+            )
+        if sdm is None:
+            sdm = SerializedDagModel.get(dag_run.dag_id, session=session)
+        return None if sdm is None else sdm.dag
+
+    dag_bag.get_dag_for_run.side_effect = get_dag_for_run
+    return dag_bag
 
 
 @pytest.fixture(autouse=True)
@@ -415,6 +482,20 @@ class TestGetDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_includes_archived_attempt_versions(self, test_client, dag_maker, session):
+        dag_id = "test_get_dag_run_prefetch_history"
+        run_id, old_dag_version, new_dag_version = _create_bundled_run_with_history(
+            dag_id, dag_maker, session
+        )
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert response.status_code == 200
+        assert {dv["id"] for dv in response.json()["dag_versions"]} == {
+            str(old_dag_version.id),
+            str(new_dag_version.id),
+        }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -2575,6 +2656,45 @@ class TestClearDagRun:
 
 
 class TestBulkClearDagRuns:
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dag_run.attach_dag_versions_to_runs",
+        autospec=True,
+        wraps=attach_dag_versions_to_runs,
+    )
+    def test_clear_dag_runs_includes_archived_attempt_versions(self, mock_attach, dag_maker, session):
+        run_id_a, old_a, new_a = _create_bundled_run_with_history(
+            "test_bulk_clear_prefetch_history_a", dag_maker, session
+        )
+        run_id_b, old_b, new_b = _create_bundled_run_with_history(
+            "test_bulk_clear_prefetch_history_b", dag_maker, session
+        )
+
+        session.expire_all()
+        result = clear_dag_runs(
+            dag_id="~",
+            body=BulkDAGRunClearBody(
+                dry_run=False,
+                dag_runs=[
+                    BulkDAGRunBody(dag_id="test_bulk_clear_prefetch_history_a", dag_run_id=run_id_a),
+                    BulkDAGRunBody(dag_id="test_bulk_clear_prefetch_history_b", dag_run_id=run_id_b),
+                ],
+            ),
+            dag_bag=_dag_bag_from_serialized(session),
+            session=session,
+            user=SimpleAuthManagerUser(username="test", role="admin"),
+        )
+        assert result.total_entries == 2
+        versions_by_key = {
+            ("test_bulk_clear_prefetch_history_a", run_id_a): (old_a, new_a),
+            ("test_bulk_clear_prefetch_history_b", run_id_b): (old_b, new_b),
+        }
+        for resp in result.dag_runs:
+            old_dag_version, new_dag_version = versions_by_key[(resp.dag_id, resp.dag_run_id)]
+            assert {dv.id for dv in resp.dag_versions} == {old_dag_version.id, new_dag_version.id}
+        mock_attach.assert_called_once()
+        assert len(mock_attach.call_args.args[0]) == 2
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_bulk_clear_specific_dag(self, test_client, session):
         """Specific dag_id in URL, dag_run_id in body — clears both runs and queues them."""
