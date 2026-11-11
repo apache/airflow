@@ -35,11 +35,13 @@ Changelog
   see the ``@task.llm`` documentation for how to include text from function arguments in it.
 
 .. note::
-  ``run_durably()`` and ``run_durably_sync()`` for the OpenAI Agents SDK now fail the task with
-  ``UnsupportedToolDeferralError`` when the run stops for a tool call that needs approval
-  (``needs_approval``, or ``require_approval`` on an MCP server). Earlier versions returned the
-  stopped run with its ``result.interruptions``. Code that approved them with
-  ``result.to_state()`` and ``state.approve()`` after ``run_durably_sync()`` should call
+  ``run_durably()`` and ``run_durably_sync()`` for the OpenAI Agents SDK no longer return a run
+  that stopped for a tool call that needs approval (``needs_approval``, or ``require_approval`` on
+  an MCP server). On Airflow 3.4+ with a standard provider that has ``request_input()``, a
+  ``@task`` or ``PythonOperator`` pauses in Required Actions and the run resumes with the
+  reviewer's answer; otherwise the task fails with ``UnsupportedToolDeferralError``. Earlier
+  versions returned the stopped run with its ``result.interruptions``. Code that approved them
+  with ``result.to_state()`` and ``state.approve()`` after ``run_durably_sync()`` should call
   ``Runner.run`` and handle ``result.interruptions`` itself.
 
 1.1.0
