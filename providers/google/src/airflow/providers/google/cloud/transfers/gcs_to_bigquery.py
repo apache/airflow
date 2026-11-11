@@ -874,9 +874,9 @@ class GCSToBigQueryOperator(BaseOperator):
         return time_partitioning_out
 
     def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
+        if self.hook and self.job_id and self.cancel_on_kill:
             location = (self._job.location if self._job else None) or self.location
-            self.hook.cancel_job(job_id=self.job_id, location=location)  # type: ignore[union-attr]
+            self.hook.cancel_job(job_id=self.job_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s.%s", self.location, self.job_id)
 

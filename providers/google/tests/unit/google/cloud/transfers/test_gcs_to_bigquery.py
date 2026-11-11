@@ -211,6 +211,17 @@ class TestGCSToBigQueryOperator:
 
         hook.return_value.cancel_job.assert_called_once_with(job_id=REAL_JOB_ID, location="asia-northeast3")
 
+    def test_on_kill_before_execute(self):
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            job_id="given_job_id",
+        )
+
+        operator.on_kill()
+
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_max_value_without_external_table_should_execute_successfully(self, hook):
         hook.return_value.insert_job.side_effect = [
