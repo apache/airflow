@@ -727,6 +727,76 @@ def test_heartbeat_watchdog_disabled_when_threshold_is_zero(supervisor_builder, 
     perform_heartbeat_mock.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("unread_socket", "heartbeat_expected"),
+    [
+        pytest.param("requests", True, id="unread-request"),
+        pytest.param("logs", False, id="unread-logs-only"),
+    ],
+)
+def test_heartbeat_watchdog_counts_unread_runner_request(
+    supervisor_builder, mocker, unread_socket, heartbeat_expected
+):
+    """A request the runner sent while the loop was busy with other work shows that the runner is alive."""
+    supervisor = supervisor_builder()
+    perform_heartbeat_mock = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.perform_heartbeat", autospec=True
+    )
+    runner_requests, requests = socketpair()
+    runner_logs, logs = socketpair()
+
+    with runner_requests, requests, runner_logs, logs, selectors.DefaultSelector() as selector:
+        selector.register(requests, selectors.EVENT_READ)
+        selector.register(logs, selectors.EVENT_READ)
+        supervisor.selector = selector
+        supervisor.stdin = requests
+        # The work after the last read of the sockets took longer than the threshold.
+        supervisor._last_runner_comms = time.monotonic() - 31.0
+        {"requests": runner_requests, "logs": runner_logs}[unread_socket].sendall(b"sent in that time")
+
+        supervisor.heartbeat()
+
+    assert perform_heartbeat_mock.called is heartbeat_expected
+
+
+@pytest.mark.parametrize("request_fails", [False, True], ids=["answered", "failed"])
+def test_heartbeat_watchdog_does_not_count_time_spent_on_runner_request(
+    supervisor_builder, mocker, request_fails
+):
+    """The runner waits for the reply to its request, so that time says nothing about its event loop."""
+    supervisor = supervisor_builder()
+    perform_heartbeat_mock = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.perform_heartbeat", autospec=True
+    )
+    monotonic = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.time.monotonic", autospec=True, return_value=0.0
+    )
+    mocker.patch.object(TriggerRunnerSupervisor, "make_client", autospec=True)
+
+    def get_xcom_for_longer_than_threshold(client, msg):
+        monotonic.return_value += 31.0
+        if request_fails:
+            raise RuntimeError("API server did not answer")
+        return OKResponse(ok=True), {}
+
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.handle_get_xcom",
+        autospec=True,
+        side_effect=get_xcom_for_longer_than_threshold,
+    )
+    requests = supervisor.handle_requests(log=mocker.Mock(spec=FilteringBoundLogger))
+    next(requests)
+    # The runner's previous request was handled just before this one arrived.
+    supervisor._last_runner_comms = monotonic.return_value
+
+    requests.send(
+        _RequestFrame(id=1, body=GetXCom(key="k", dag_id="d", run_id="r", task_id="t").model_dump())
+    )
+    supervisor.heartbeat()
+
+    perform_heartbeat_mock.assert_called_once()
+
+
 def _is_trigger_delete(statement: str) -> bool:
     return "delete from trigger" in " ".join(statement.lower().replace('"', "").replace("`", "").split())
 

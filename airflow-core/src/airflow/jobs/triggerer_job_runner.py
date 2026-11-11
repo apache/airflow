@@ -589,11 +589,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     runner: TriggerRunner | None = None
     stop: bool = False
 
-    # Timestamp of the last message received from the TriggerRunner subprocess.  Updated on
-    # every message; if it goes silent for longer than runner_health_check_threshold the
-    # subprocess's async event loop has likely deadlocked.  Initialised to +inf so the watchdog
-    # stays silent until the first message arrives — avoids false positives on slow/cold-start
-    # hosts where startup can exceed the threshold.
+    # Timestamp of the last handled message from the TriggerRunner subprocess.  Updated when
+    # the handling of a message ends; if the subprocess goes silent for longer than
+    # runner_health_check_threshold its async event loop has likely deadlocked.  Initialised to
+    # +inf so the watchdog stays silent until the first message is handled — avoids false
+    # positives on slow/cold-start hosts where startup can exceed the threshold.
     _last_runner_comms: float = attrs.field(init=False, default=math.inf)
     _runner_comms_silence_logged: bool = attrs.field(init=False, default=False)
 
@@ -699,12 +699,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             yield
         finally:
             _handling_trigger_ti_id.reset(token)
+            # Set when the request is done, not when it arrives: the runner waits for the reply, so
+            # the time spent on the request is not its silence.
+            self._last_runner_comms = time.monotonic()
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
 
         resp: BaseModel | None = None
         dump_opts: dict[str, bool] = {}
-        self._last_runner_comms = time.monotonic()
 
         if isinstance(msg, messages.TriggerStateChanges):
             # Events before failures: a trigger that fired and then failed starts a new count.
@@ -858,7 +860,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 "subclasses without a metadata-DB Job must override this method."
             )
         elapsed = time.monotonic() - self._last_runner_comms
-        if self.runner_health_check_threshold > 0 and elapsed > self.runner_health_check_threshold:
+        if (
+            self.runner_health_check_threshold > 0
+            and elapsed > self.runner_health_check_threshold
+            # The work of this loop since the sockets were last read can outlast the threshold on its
+            # own. The runner is not silent while a request from it is still waiting to be read.
+            and not self._has_unread_runner_request()
+        ):
             if not self._runner_comms_silence_logged:
                 log.error(
                     "TriggerRunner subprocess event loop appears deadlocked: no communication received "
@@ -871,6 +879,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             return
         self._runner_comms_silence_logged = False
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
+
+    def _has_unread_runner_request(self) -> bool:
+        """Return whether data from the runner is waiting unread on the request socket."""
+        return any(key.fileobj is self.stdin for key, _ in self.selector.select(timeout=0))
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
         stats.incr("triggerer_heartbeat", 1, 1, tags=prune_dict({"team_name": self.team_name}))
