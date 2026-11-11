@@ -740,10 +740,10 @@ class CommsTest {
     }
 
   @Test
-  @DisplayName("deleteXCom sends the default key and the current task instance")
+  @DisplayName("deleteXCom sends the key and the current task instance")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
-  fun deleteXComSendsDefaultKeyAndCurrentTaskInstance() {
-    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = 2)) { it.deleteXCom() }
+  fun deleteXComSendsKeyAndCurrentTaskInstance() {
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = 2)) { it.deleteXCom("return_value") }
 
     Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
     Assertions.assertEquals("DeleteXCom", body["type"])
@@ -769,7 +769,7 @@ class CommsTest {
   @DisplayName("deleteXCom resolves an unmapped task instance's map index to -1")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun deleteXComResolvesUnmappedMapIndexToNegativeOne() {
-    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom() }
+    val (body, failure) = roundTrip(::emptyResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom("return_value") }
 
     Assertions.assertNull(failure, "deleteXCom should return normally on an empty response, got $failure")
     Assertions.assertEquals(-1L, body["map_index"])
@@ -779,7 +779,7 @@ class CommsTest {
   @DisplayName("deleteXCom raises ApiError when the supervisor reports an error")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun deleteXComRaisesApiErrorOnErrorResponse() {
-    val (_, failure) = roundTrip(::errorResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom() }
+    val (_, failure) = roundTrip(::errorResponseFrame, xComTaskInstance(mapIndex = null)) { it.deleteXCom("return_value") }
 
     Assertions.assertInstanceOf(ApiError::class.java, failure)
   }

@@ -198,14 +198,16 @@ class Client internal constructor(
   )
 
   /**
-   * Deletes an XCom this task pushed.
+   * Deletes an XCom this task pushed under [key].
    *
-   * Returns normally when no XCom is stored under [key].
+   * Returns normally when no XCom is stored under [key]. A task that returns a
+   * value has it pushed as [XCOM_RETURN_KEY] after the task code finishes, so
+   * deleting that key from inside the task has no lasting effect.
    *
-   * @param key XCom key; defaults to [XCOM_RETURN_KEY].
+   * @param key XCom key to delete.
    * @throws ApiError if the API call fails.
    */
-  @JvmOverloads fun deleteXCom(key: String = XCOM_RETURN_KEY) =
+  fun deleteXCom(key: String) =
     impl.deleteXCom(
       key = key,
       dagId = details.ti.dagId,
