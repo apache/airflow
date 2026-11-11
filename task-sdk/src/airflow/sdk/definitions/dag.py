@@ -39,9 +39,9 @@ import attrs
 import jinja2
 from dateutil.relativedelta import relativedelta
 
-from airflow import settings
 from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
 from airflow.sdk._shared.dagnode.cycle import detect_cycle
+from airflow.sdk._shared.timezones.timezone import _Timezone
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
@@ -131,11 +131,8 @@ _DAG_HASH_ATTRS = frozenset(
 
 
 def _is_core_timetable(schedule: ScheduleArg) -> TypeIs[CoreTimetable]:
-    try:
-        from airflow.timetables.base import Timetable
-    except ImportError:
-        return False
-    return isinstance(schedule, Timetable)
+    core_timetables = sys.modules.get("airflow.timetables.base")
+    return core_timetables is not None and isinstance(schedule, core_timetables.Timetable)
 
 
 def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> BaseTimetable:
@@ -710,10 +707,10 @@ class DAG:
         if start_date:
             if not isinstance(start_date, datetime):
                 start_date = timezone.parse(start_date)
-            tzinfo = start_date.tzinfo or settings.TIMEZONE
+            tzinfo = start_date.tzinfo or _Timezone.initialized_timezone
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
         else:
-            tz = settings.TIMEZONE
+            tz = _Timezone.initialized_timezone
 
         return tz
 

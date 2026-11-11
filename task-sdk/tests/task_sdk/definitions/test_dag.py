@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import re
+import sys
 import warnings
 import weakref
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow.sdk import (
@@ -38,6 +40,7 @@ from airflow.sdk import (
     task,
     task_group,
 )
+from airflow.sdk._shared.timezones.timezone import _Timezone
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.loop import create_loop
@@ -130,6 +133,24 @@ class TestDag:
         )
         assert dag.default_args["start_date"] == dag.default_args["end_date"]
         assert dag.default_args["start_date"].tzinfo == dag.default_args["end_date"].tzinfo
+
+    @pytest.mark.parametrize("start_date", [None, datetime(2024, 1, 1)], ids=["no-start-date", "naive"])
+    def test_default_timezone_without_core_settings(self, monkeypatch, start_date):
+        sdk_default = pendulum.timezone("Europe/Amsterdam")
+        monkeypatch.setattr(_Timezone, "initialized_timezone", sdk_default)
+        monkeypatch.delitem(sys.modules, "airflow.settings", raising=False)
+
+        dag = DAG("dag", schedule=None, start_date=start_date)
+
+        assert dag.timezone == sdk_default
+        assert "airflow.settings" not in sys.modules
+
+    def test_schedule_check_does_not_import_core_timetables(self, monkeypatch):
+        monkeypatch.delitem(sys.modules, "airflow.timetables.base", raising=False)
+
+        DAG("dag", schedule="@daily")
+
+        assert "airflow.timetables.base" not in sys.modules
 
     def test_dag_as_context_manager(self):
         """
