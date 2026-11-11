@@ -1279,6 +1279,15 @@ class TestEdgeCases:
         single_line_masker.add_mask("  error  ")
         assert single_line_masker.patterns == {r"\ \ error\ \ "}
 
+    @pytest.mark.parametrize(("newline", "escaped"), [("\n", r"\n"), ("\r\n", r"\r\n")])
+    def test_secret_with_trailing_newline_registers_stripped_value(self, newline, escaped):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(f"token-value{newline}")
+
+        assert r"token\-value" in secrets_masker.patterns
+        assert secrets_masker.redact(f"{{'v': 'token-value{escaped}'}}") == f"{{'v': '***{escaped}'}}"
+
 
 class TestDirectMethodCalls:
     def test_redact_all_directly(self):
