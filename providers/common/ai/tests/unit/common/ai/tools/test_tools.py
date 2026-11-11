@@ -346,9 +346,9 @@ class TestCollectToolsThroughWrappers:
         assert str(exc_info.value) == (
             "AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another "
             "framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the "
-            "toolset without it. To have a person approve tool calls, run the agent with "
-            "AgentOperator; a framework's own tool approval, such as needs_approval in the OpenAI "
-            "Agents SDK, stops the run and nothing in Airflow resumes it."
+            "toolset without it and use the framework's own tool approval, such as needs_approval "
+            "in the OpenAI Agents SDK, whose guide says how it behaves in a task, or run the agent "
+            "with AgentOperator."
         )
 
     def test_another_wrapper_is_refused_by_name(self):

@@ -56,7 +56,8 @@ class AirflowTools(BaseToolset):
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
     and ``HookToolset``, optionally wrapped with ``.filtered()``,
-    ``.prefixed()`` or ``.renamed()``, or individual
+    ``.prefixed()`` or ``.renamed()`` (a ``.filtered()`` function runs once, when this
+    is built, with ``ctx.deps`` set to ``None``), or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. The agent, its
     model and its runner stay plain ADK.
 

@@ -262,7 +262,7 @@ Any other wrapper fails with a ``TypeError`` that names it, such as for
 
 .. code-block:: text
 
-    TypeError: AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the toolset without it. To have a person approve tool calls, run the agent with AgentOperator; a framework's own tool approval, such as needs_approval in the OpenAI Agents SDK, stops the run and nothing in Airflow resumes it.
+    TypeError: AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the toolset without it and use the framework's own tool approval, such as needs_approval in the OpenAI Agents SDK, whose guide says how it behaves in a task, or run the agent with AgentOperator.
 
 :ref:`howto/frameworks:openai-agents-limits` says what ``needs_approval`` does in a task.
 Each toolset's page covers the rest of its options: :ref:`howto/toolsets`.

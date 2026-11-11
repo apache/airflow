@@ -153,7 +153,8 @@ class AirflowTools:
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
     and ``HookToolset``, optionally wrapped with ``.filtered()``,
-    ``.prefixed()`` or ``.renamed()``, or individual
+    ``.prefixed()`` or ``.renamed()`` (a ``.filtered()`` function runs once, when this
+    is built, with ``ctx.deps`` set to ``None``), or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. They are served
     through an in-process MCP server; add it and :attr:`allowed_tools` to
     ``ClaudeAgentOptions``, or build them with :meth:`build_options`, and drive the SDK's

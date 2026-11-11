@@ -151,7 +151,7 @@ def resolve_airflow_tools(source: object) -> list[AirflowTool]:
     offered = run_coroutine_sync(source.get_tools(_build_inert_context()))
     tools = []
     for name in offered:
-        # Map the offered name back through each wrapper, as its ``call_tool`` does.
+        # Outermost wrapper first, the order their ``call_tool`` methods undo it in.
         original = name
         for wrapper in renames:
             if isinstance(wrapper, PrefixedToolset):
@@ -173,9 +173,9 @@ def _describe_unsupported_toolset(toolset: object) -> str:
         return (
             "AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another "
             "framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the "
-            "toolset without it. To have a person approve tool calls, run the agent with "
-            "AgentOperator; a framework's own tool approval, such as needs_approval in the OpenAI "
-            "Agents SDK, stops the run and nothing in Airflow resumes it."
+            "toolset without it and use the framework's own tool approval, such as needs_approval "
+            "in the OpenAI Agents SDK, whose guide says how it behaves in a task, or run the agent "
+            "with AgentOperator."
         )
 
     kind = type(toolset).__name__
