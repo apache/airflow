@@ -1733,6 +1733,8 @@ class AssetEventResponse(BaseModel):
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int, Field(title="Source Map Index")]
     source_task_instance_id: Annotated[UUID | None, Field(title="Source Task Instance Id")] = None
+    source_region_id: Annotated[UUID | None, Field(title="Source Region Id")] = None
+    source_region_index: Annotated[int | None, Field(title="Source Region Index")] = None
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
