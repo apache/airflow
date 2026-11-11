@@ -95,8 +95,22 @@ class TestSagemakerTrigger:
         mock_hook.stop_training_job.assert_not_called()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("job_type", ["Transform", "Processing", "Tuning", "Endpoint"])
-    async def test_on_kill_only_stops_training_jobs(self, job_type):
+    @pytest.mark.parametrize(
+        ("job_type", "stop_method"),
+        [("Training", "stop_training_job"), ("Processing", "stop_processing_job")],
+    )
+    async def test_on_kill_stops_the_job_for_its_type(self, job_type, stop_method):
+        trigger = SageMakerTrigger(job_name=JOB_NAME, job_type=job_type, cancel_on_kill=True)
+        mock_hook = mock.MagicMock(spec=SageMakerHook)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        getattr(mock_hook, stop_method).assert_called_once_with(JOB_NAME)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("job_type", ["Transform", "Tuning", "Endpoint"])
+    async def test_on_kill_skips_job_types_without_stop_support(self, job_type):
         trigger = SageMakerTrigger(job_name=JOB_NAME, job_type=job_type, cancel_on_kill=True)
         mock_hook = mock.MagicMock(spec=SageMakerHook)
 
@@ -104,6 +118,7 @@ class TestSagemakerTrigger:
             await trigger.on_kill()
 
         mock_hook.stop_training_job.assert_not_called()
+        mock_hook.stop_processing_job.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_on_kill_swallows_stop_training_job_error(self):

@@ -294,13 +294,15 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         size = conn.size(path)
-        return int(size) if size else None
+        return int(size) if size is not None else None
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the FTP connection by calling path with directory."""
+        """Test the FTP connection by asking the server for the current directory."""
         try:
-            conn = self.get_conn()
-            conn.pwd
+            if not self.get_connection(self.ftp_conn_id).host:
+                return False, "Connection has no host to connect to"
+            # PWD needs a logged-in session on most servers; NOOP would not catch a missing login.
+            self.get_conn().pwd()
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

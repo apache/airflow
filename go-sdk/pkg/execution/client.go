@@ -88,7 +88,7 @@ func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient
 // supervisor always passes the setting, so an absent or malformed value is a
 // misconfiguration and fails the write rather than silently retaining the key
 // for a period nobody configured.
-func resolveDefaultExpiry(now time.Time) (any, error) {
+func resolveDefaultExpiry(now time.Time) (*genmodels.Time, error) {
 	raw, ok := os.LookupEnv(defaultRetentionDaysEnv)
 	if !ok {
 		return nil, fmt.Errorf(
@@ -117,7 +117,7 @@ func resolveDefaultExpiry(now time.Time) (any, error) {
 			"state_store",
 		)
 	}
-	return expiry, nil
+	return genmodels.TimePtr(expiry), nil
 }
 
 // parseRetentionDays accepts "7.0" because Python's getint does.
@@ -502,7 +502,7 @@ func (s taskStateStore) Clear(ctx context.Context) error {
 
 // resolveExpiry turns a retention into the wire expires_at. A nil retention -
 // no sdk.WithRetention - follows the deployment default.
-func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
+func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, error) {
 	if retention == nil {
 		return resolveDefaultExpiry(now)
 	}
@@ -517,7 +517,7 @@ func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
 			r,
 		)
 	default:
-		return now.UTC().Add(r), nil
+		return genmodels.TimePtr(now.UTC().Add(r)), nil
 	}
 }
 

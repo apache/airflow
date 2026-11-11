@@ -89,7 +89,7 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
     Files with DataFusion <datafusion>
     MCP servers <mcp>
     Agent Skills <skills>
-    Sandboxed execution <../sandbox/index>
+    Sandboxes <../sandbox/index>
     Vendor-managed agents <managed_agent>
     LangChain tools <langchain>
     Tool call logging <logging>
