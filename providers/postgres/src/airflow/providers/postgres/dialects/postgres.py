@@ -36,7 +36,7 @@ class PostgresDialect(Dialect):
         Get the table's primary key.
 
         :param table: Name of the target table
-        :param schema: Name of the target schema, public by default
+        :param schema: Name of the target schema, the current schema by default
         :return: Primary key columns list
         """
         if schema is None:
@@ -51,7 +51,7 @@ class PostgresDialect(Dialect):
                             and kcu.constraint_schema = tco.constraint_schema
                             and kcu.constraint_name = tco.constraint_name
             where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = %s
+            and kcu.table_schema = coalesce(%s, current_schema())
             and kcu.table_name = %s
             order by kcu.ordinal_position
         """
@@ -85,7 +85,7 @@ class PostgresDialect(Dialect):
                     is_generated,
                     is_identity
             from information_schema.columns
-            where table_schema = %s
+            where table_schema = coalesce(%s, current_schema())
                 and table_name = %s
             order by ordinal_position
         """

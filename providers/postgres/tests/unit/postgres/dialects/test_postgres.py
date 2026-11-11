@@ -67,6 +67,18 @@ class TestPostgresDialect:
     def test_get_primary_keys(self):
         assert PostgresDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
+    @pytest.mark.parametrize("method", ["get_column_names", "get_primary_keys"])
+    def test_unqualified_table_resolves_current_schema(self, method):
+        hook = MagicMock(placeholder="?", spec=DbApiHook)
+        hook.get_records.return_value = []
+        hook.escape_word_format = '"{}"'
+
+        getattr(PostgresDialect(hook), method)("actors")
+
+        kwargs = hook.get_records.call_args.kwargs
+        assert "coalesce(%s, current_schema())" in kwargs["sql"]
+        assert kwargs["parameters"] == (None, "actors")
+
     def test_generate_replace_sql(self):
         values = [
             {"id": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},

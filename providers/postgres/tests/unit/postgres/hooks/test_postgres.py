@@ -793,6 +793,18 @@ class TestPostgresHook:
 
         assert sorted(input_data) == sorted(results)
 
+    def test_insert_rows_replace_unqualified_table(self):
+        hook = PostgresHook()
+
+        with hook.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(f"CREATE TABLE {self.table} (id INT PRIMARY KEY, c VARCHAR)")
+            conn.commit()
+
+        hook.insert_rows(self.table, [(1, "first")], target_fields=["id", "c"], replace=True)
+        hook.insert_rows(self.table, [(1, "second")], target_fields=["id", "c"], replace=True)
+
+        assert hook.get_records(f"SELECT id, c FROM {self.table}") == [(1, "second")]
+
     @pytest.mark.parametrize(
         ("df_type", "expected_type"),
         [
