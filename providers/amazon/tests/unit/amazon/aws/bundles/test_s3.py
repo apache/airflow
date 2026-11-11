@@ -567,7 +567,8 @@ class TestS3ArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
-        assert not (bundle.base_dir / "escape.py").exists()
+        assert not list(bundle.base_dir.rglob("escape.py"))
+        assert not list(bundle.base_dir.glob("archive-staging-*"))
 
     def test_archive_key_requires_tar_data_filter(self, monkeypatch):
         monkeypatch.delattr(tarfile, "data_filter", raising=False)
