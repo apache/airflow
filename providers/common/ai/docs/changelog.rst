@@ -25,6 +25,44 @@
 Changelog
 ---------
 
+.. warning::
+  **Durable execution is on by default for** ``AgentOperator`` **and** ``@task.agent``
+
+  On Airflow 3.3 and later, an agent task that can retry (``retries`` above 0, or from
+  Airflow 3.4 a ``retry_policy``) now records each model response and tool call it completes, and a retry
+  replays them instead of running them again. ``durable`` defaults to ``None`` instead of
+  ``False``. What changes on a retry:
+
+  * A tool call the failed attempt completed is not run again; its recorded result is
+    returned to the model. A tool whose effect does not outlive the attempt, such as a file in
+    a temporary directory, or whose answer has to be current, needs the metadata
+    ``{"airflow": False}`` to run on every attempt (:ref:`durable-tool-opt-out`).
+  * The agent's ``run_id``, and its ``conversation_id`` when there is no message history,
+    stay those of the first attempt on every retry, in the ``run_id`` XCom and the
+    ``gen_ai.agent.call.id`` span attribute too.
+  * Each step is one write to the task state store, which keeps model responses and masked
+    tool results in the metadata database until the agent run succeeds. A task that fails its
+    last retry keeps them, with no expiry, until its Dag run is purged or the entries are
+    deleted (:ref:`durable-journal-storage`).
+
+  On Airflow 3.3, a clear does not delete the journal, so a cleared task that failed now
+  replays what its failed attempts recorded instead of starting over; from Airflow 3.4 a
+  clear starts over unless it keeps the task state (:ref:`durable-clear`).
+
+  Where durable execution cannot apply (a ``SandboxToolset``, an ``MCPToolset`` without an
+  ``id``, a toolset in a capability the operator cannot give an id to), it stays off and the
+  task log says why. A sandbox a function or ``DynamicToolset`` builds per run cannot be seen
+  before the run, so pass ``durable=False`` to that task. On by default, a step result the journal cannot hold is logged and runs
+  again on retry; ``durable=True`` still fails the task on it.
+
+  To keep the previous behaviour, pass ``durable=False`` to the task.
+  ``default_args={"durable": False}`` works too, but also turns off ``durable`` on every
+  resumable operator in the Dag, such as ``KubernetesPodOperator`` (:ref:`durable-opt-out`).
+
+  A task that used ``durable=True`` on 1.0.0 or 1.1.0 and failed is retried after the upgrade
+  with its recorded steps replayed, except when that attempt's write of the list of its agent
+  runs failed: then the retry runs those steps live once.
+
 .. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned

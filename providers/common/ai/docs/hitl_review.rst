@@ -176,10 +176,11 @@ navigate to
 With durable execution
 ----------------------
 
-With ``durable=True`` (see :doc:`durable_execution`), the first output and every
+With durable execution (on by default for a task that can retry on Airflow 3.3 and later; see
+:doc:`durable_execution`), the first output and every
 regeneration are agent runs in the task's journal, so a retry replays them instead of
 calling the model and the tools again (on Airflow 3.1 and 3.2, only the first output; see the
-end of this section). Each regeneration logs its own ``Durable:`` line in the task log, after
+end of this section). Each regeneration logs its own ``Durable (...)`` summary line in the task log, after
 the first run's.
 
 On Airflow 3.3 and later, each request for changes is also kept in the task state store
@@ -220,8 +221,8 @@ The attempt that ended logs:
 When the reviewer approves, the task deletes the journal and the recorded feedback. A clear
 that deletes the task's state (:ref:`durable-clear`) starts the agent and the review over.
 
-On Airflow 3.1 and 3.2, where the review polls instead of parking, feedback is not recorded:
-a retry replays the first output and asks the reviewer about every round again, and each
+On Airflow 3.1 and 3.2, where the review polls instead of parking and durable execution
+needs ``durable=True``, feedback is not recorded: a retry replays the first output and asks the reviewer about every round again, and each
 regeneration after an answer runs again, its model requests and tool calls included.
 
 REST API

@@ -446,7 +446,8 @@ attached sandbox still has the earlier attempt's files. ``AgentOperator`` refuse
 two features
 that would assume otherwise, when the Dag is parsed. It cannot see a toolset built per
 run from a callable, so check that case yourself. ``durable=True`` is refused with any
-``SandboxToolset``:
+``SandboxToolset`` (under the default, the operator turns durable execution off for that
+task and logs why instead):
 
 .. code-block:: text
 

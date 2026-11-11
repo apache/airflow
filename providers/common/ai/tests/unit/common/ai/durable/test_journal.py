@@ -1098,6 +1098,12 @@ class TestCompletedRuns:
 
         assert (sent, final) == (["sent"], "a new answer")
 
+    def test_ask_model_again_leaves_a_run_that_recorded_nothing_alone(self, memory_storage):
+        """Its note would be on no run list, so nothing would delete it."""
+        DurableJournal(memory_storage).ask_model_again(0)
+
+        assert memory_storage.entries == {}
+
     @pytest.mark.asyncio
     async def test_ask_model_again_asks_for_a_final_answer_the_storage_did_not_keep(self, memory_storage):
         sent = []
@@ -1599,8 +1605,9 @@ class TestSummary:
         logger = logging.getLogger("test_summary")
 
         with caplog.at_level(logging.INFO, logger="test_summary"):
-            journal.log_summary(logger)
+            journal.log_summary(logger, mode="on by default")
 
+        assert "Durable (on by default): replayed 0 steps" in caplog.text
         assert "recorded 1 new steps (1 model, 0 tool, 0 other)" in caplog.text
         assert "2 tool results were not recorded, and a retry runs them again: send_email (x2)" in caplog.text
 

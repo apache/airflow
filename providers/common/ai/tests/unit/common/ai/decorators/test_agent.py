@@ -252,11 +252,10 @@ class TestAgentDecoratedOperator:
         )
         assert op.durable is True
 
-    def test_durable_default_false_through_decorator(self):
-        """durable defaults to False when not specified."""
+    def test_durable_default_is_decided_when_the_task_runs_through_decorator(self):
         op = _AgentDecoratedOperator(
             task_id="test",
             python_callable=lambda: "prompt",
             llm_conn_id="my_llm",
         )
-        assert op.durable is False
+        assert op.durable is None

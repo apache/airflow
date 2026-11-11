@@ -55,7 +55,9 @@ How it works
   task-instance identity on every GenAI span they emit: the five keys core
   tracing already puts on the task span (``airflow.dag_id``, ``airflow.task_id``, ``airflow.dag_run.run_id``,
   ``airflow.task_instance.try_number``, ``airflow.task_instance.map_index``) plus
-  ``airflow.task_instance.id`` as the per-attempt run join key. So a span is
+  ``airflow.task_instance.id`` as the per-attempt run join key. ``AgentOperator`` also
+  stamps ``airflow.common_ai.durable``, whether the operator made the run durable
+  (``False`` when an ``AirflowDurability`` capability you passed journals it). So a span is
   filterable by dag, task, run, attempt, or map index directly, without walking
   up to the parent span (OpenTelemetry children inherit trace context, not
   attributes).
@@ -77,11 +79,12 @@ How it works
   historical attempt's. A downstream task can then reference the
   run (``ti.xcom_pull(task_ids="my_task", key="run_id")``) and a trace
   backend can join a task's output to its agent trace without parsing logs.
-  ``AgentOperator`` additionally: with ``durable=True``, steps an attempt replays
+  ``AgentOperator`` additionally: under durable execution (on by default for a task
+  that can retry on Airflow 3.3 and later; see :doc:`durable_execution`), steps an attempt replays
   from the cache are not part of ``usage``; with ``enable_hitl_review`` the
   ``run_id`` and ``usage`` reflect the initial model run, not the human-feedback
   regenerations; and a run that resumes after a tool approval (see
-  :doc:`tool_approval`) without ``durable`` continues as ``<task-instance id>-resumed-<n>``
+  :doc:`tool_approval`) without durable execution continues as ``<task-instance id>-resumed-<n>``
   after pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
   covering every part.
   Airflow 2 has no task-instance id, so there the key is
@@ -283,9 +286,9 @@ carries three tags:
    * - ``outcome``
      - ``executed`` when the call returned, ``failed`` when it raised (including a
        failure the model is asked to correct), and ``replayed`` when
-       ``AgentOperator(durable=True)`` served the result from its cache on a retry. A call
-       whose arguments fail validation never reaches the toolset and is not counted, and
-       neither is a call that pauses the run until a person approves it.
+       ``AgentOperator`` under durable execution served the result from its cache on a
+       retry. A call whose arguments fail validation never reaches the toolset and is not
+       counted, and neither is a call that pauses the run until a person approves it.
 
 Tags never include arguments, connection IDs, table names or paths. They reach backends
 that support them: OpenTelemetry metrics (``[metrics] otel_on``), or StatsD with
