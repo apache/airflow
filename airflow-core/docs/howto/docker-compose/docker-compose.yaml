@@ -155,7 +155,18 @@ services:
     <<: *airflow-common
     command: dag-processor
     healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      # Airflow accepts inline # comments and whitespace in boolean config values.
+      test:
+        - CMD-SHELL
+        - >-
+          use_execution_api="$${AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API:-}";
+          use_execution_api="$${use_execution_api%%#*}";
+          use_execution_api="$${use_execution_api#"$${use_execution_api%%[![:space:]]*}"}";
+          use_execution_api="$${use_execution_api%"$${use_execution_api##*[![:space:]]}"}";
+          case "$${use_execution_api}" in
+            [Tt] | [Tt][Rr][Uu][Ee] | 1) airflow dag-processor --check-health;;
+            *) airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}";;
+          esac
       interval: 30s
       timeout: 10s
       retries: 5

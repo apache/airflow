@@ -64,6 +64,13 @@ You can also add ``-s`` option to the command pass it to underlying pytest comma
 to see the output of the test as it happens (it can be also set via
 ``WAIT_FOR_CONTAINERS_TIMEOUT`` environment variable)
 
+The same CI job also checks the Dag processor API deployment examples. That test needs only
+``docker compose config``, not a running deployment or the PROD image:
+
+.. code-block:: bash
+
+    cd docker-tests && uv run pytest tests/docker_tests/test_dag_processor_api_deployment.py
+
 The test can be also run manually with ``pytest docker_tests/test_docker_compose_quick_start.py``
 command, provided that you have a local Airflow venv with ``dev`` extra set and the
 ``DOCKER_IMAGE`` environment variable is set to the image you want to test. The variable defaults

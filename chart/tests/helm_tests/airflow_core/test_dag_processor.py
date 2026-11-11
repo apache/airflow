@@ -16,10 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from configparser import ConfigParser
+from pathlib import Path
+from subprocess import CalledProcessError
+
 import jmespath
 import pytest
+import yaml
 from chart_utils.helm_template_generator import render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
+
+API_MODE_CONFIG = {"use_execution_api": "True", "execution_api_token_file": "/run/processor.jwt"}
+API_MODE_COMMENT_VALUES = [
+    "True # enabled",
+    " \tTrUe \t# enabled",
+    "1# enabled",
+    '{{ "TrUe # enabled" }}',
+]
 
 
 class TestDagProcessor:
@@ -433,6 +447,294 @@ class TestDagProcessor:
             "airflow jobs check --local --job-type DagProcessorJob"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
+
+    @pytest.mark.parametrize("use_execution_api", [True, "True", "true", "t", "1", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_uses_local_liveness_probe(self, use_execution_api):
+        docs = render_chart(
+            values={
+                "config": {
+                    "dag_processor": {
+                        "use_execution_api": use_execution_api,
+                        "execution_api_token_file": "/run/processor.jwt",
+                    }
+                }
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        command = jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        assert "airflow dag-processor --check-health" in command
+        readiness = docs[0]["spec"]["template"]["spec"]["containers"][0]["readinessProbe"]["exec"]["command"]
+        assert "airflow dag-processor --check-ready" in readiness[-1]
+        assert "airflow jobs check" not in command
+
+    @pytest.mark.parametrize("use_execution_api", ["True", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_replaces_pods_with_recreate(self, use_execution_api):
+        docs = render_chart(
+            values={
+                "config": {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": use_execution_api}},
+                "dagProcessor": {
+                    "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.strategy", docs[0]) == {"type": "Recreate"}
+
+    @pytest.mark.parametrize(("replicas", "rejected"), [(0, False), (1, False), (2, True)])
+    @pytest.mark.parametrize("use_execution_api", ["True", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_rejects_replicas_sharing_a_session_token(self, replicas, rejected, use_execution_api):
+        values = {
+            "config": {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": use_execution_api}},
+            "dagProcessor": {"replicas": replicas},
+        }
+        show_only = ["templates/dag-processor/dag-processor-deployment.yaml"]
+        if rejected:
+            with pytest.raises(CalledProcessError, match="must not exceed 1"):
+                render_chart(values=values, show_only=show_only)
+        else:
+            docs = render_chart(values=values, show_only=show_only)
+            assert jmespath.search("spec.replicas", docs[0]) == replicas
+            assert jmespath.search("spec.strategy", docs[0]) == {"type": "Recreate"}
+
+    @pytest.mark.parametrize("token_file", [None, ""], ids=["unset", "empty"])
+    @pytest.mark.parametrize("use_execution_api", ["True", *API_MODE_COMMENT_VALUES])
+    def test_api_mode_requires_a_token_file(self, token_file, use_execution_api):
+        dag_processor = {"use_execution_api": use_execution_api}
+        if token_file is not None:
+            dag_processor["execution_api_token_file"] = token_file
+        with pytest.raises(
+            CalledProcessError,
+            match="use_execution_api` requires `config.dag_processor.execution_api_token_file",
+        ):
+            render_chart(
+                values={"config": {"dag_processor": dag_processor}},
+                show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+            )
+
+    @pytest.mark.parametrize(
+        "name",
+        ["AIRFLOW__DAG_PROCESSOR__USE_EXECUTION_API", "AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE"],
+    )
+    @pytest.mark.parametrize("location", ["env", "dagProcessor.env"])
+    def test_rejects_api_mode_environment_variables(self, name, location):
+        env = [{"name": name, "value": "True"}]
+        values = {"env": env} if location == "env" else {"dagProcessor": {"env": env}}
+        with pytest.raises(CalledProcessError, match=f"not the `{name}` environment variable"):
+            render_chart(values=values, show_only=["templates/dag-processor/dag-processor-deployment.yaml"])
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            {},
+            {"dag_processor": None},
+            {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+            {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": "False"}},
+            {"dag_processor": {**API_MODE_CONFIG, "use_execution_api": False}},
+        ],
+        ids=["default", "no-section", "token-file-only", "disabled-string", "disabled-bool"],
+    )
+    def test_database_mode_keeps_database_probe_strategy_and_replicas(self, config):
+        docs = render_chart(
+            values={"config": config, "dagProcessor": {"replicas": 2}},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.replicas", docs[0]) == 2
+        assert jmespath.search("spec.strategy", docs[0]) == {
+            "rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}
+        }
+        container = jmespath.search("spec.template.spec.containers[0]", docs[0])
+        assert "readinessProbe" not in container
+        assert (
+            "airflow jobs check --local --job-type DagProcessorJob"
+            in container["livenessProbe"]["exec"]["command"][-1]
+        )
+
+    def test_isolated_api_deployment_example(self):
+        examples = Path(__file__).resolve().parents[4] / "airflow-core/docs/security/dag-processor-api"
+        values = yaml.safe_load((examples / "helm-values.yaml").read_text())
+        docs = render_chart(values=values, namespace="dag-processors")
+        workloads = [doc for doc in docs if doc["kind"] in {"Deployment", "StatefulSet", "Job", "CronJob"}]
+        assert len(workloads) == 1
+        deployment = workloads[0]
+        assert deployment["metadata"]["labels"]["component"] == "dag-processor"
+        assert deployment["spec"]["strategy"] == {"type": "Recreate"}
+        pod = deployment["spec"]["template"]["spec"]
+        assert not pod.get("initContainers")
+        for container in pod["containers"]:
+            assert not container.get("envFrom")
+            assert all("valueFrom" not in env for env in container.get("env", []))
+        processor = next(container for container in pod["containers"] if container["name"] == "dag-processor")
+        trusted_executor = yaml.safe_load((Path(__file__).resolve().parents[3] / "values.yaml").read_text())[
+            "executor"
+        ]
+        assert {env["name"]: env["value"] for env in processor["env"]} == {
+            "AIRFLOW_HOME": "/opt/airflow",
+            "CONNECTION_CHECK_MAX_COUNT": "0",
+            "AIRFLOW__CORE__EXECUTOR": trusted_executor,
+        }
+        assert "--check-health" in processor["livenessProbe"]["exec"]["command"][-1]
+        assert "--check-ready" in processor["readinessProbe"]["exec"]["command"][-1]
+        assert {v["secret"]["secretName"] for v in pod["volumes"] if "secret" in v} == {
+            "dag-processor-session"
+        }
+        token_mount = next(m for m in processor["volumeMounts"] if m["name"] == "processor-token")
+        assert token_mount["readOnly"]
+        assert "subPath" not in token_mount
+        account = next(
+            doc
+            for doc in docs
+            if doc["kind"] == "ServiceAccount" and doc["metadata"]["name"] == pod["serviceAccountName"]
+        )
+        assert account["automountServiceAccountToken"] is False
+        configmap = next(
+            doc for doc in docs if doc["kind"] == "ConfigMap" and "airflow.cfg" in doc.get("data", {})
+        )
+        config = ConfigParser(interpolation=None)
+        config.read_string(configmap["data"]["airflow.cfg"])
+        for section, key in (
+            ("database", "sql_alchemy_conn"),
+            ("core", "fernet_key"),
+            ("api_auth", "jwt_secret"),
+            ("api_auth", "jwt_private_key_path"),
+        ):
+            assert not config.has_option(section, key)
+        assert config["dag_processor"]["use_execution_api"] == "True"
+        assert config["dag_processor"]["execution_api_token_file"] == "/run/dag-processor/processor.jwt"
+        policy = yaml.safe_load((examples / "network-policy.yaml").read_text())["spec"]
+        labels = deployment["spec"]["template"]["metadata"]["labels"]
+        assert policy["podSelector"]["matchLabels"].items() <= labels.items()
+        assert set(policy["policyTypes"]) == {"Ingress", "Egress"}
+        assert not policy["ingress"]
+        assert len(policy["egress"]) == 2
+        assert policy["egress"][0] == {
+            "to": [
+                {
+                    "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "airflow"}},
+                    "podSelector": {"matchLabels": {"component": "api-server", "release": "airflow"}},
+                }
+            ],
+            "ports": [{"protocol": "TCP", "port": 8080}],
+        }
+        assert policy["egress"][1]["to"][0]["podSelector"]["matchLabels"] == {"k8s-app": "kube-dns"}
+        assert {port["port"] for port in policy["egress"][1]["ports"]} == {53}
+
+    def test_kubernetes_token_provisioner_example(self):
+        examples = Path(__file__).resolve().parents[4] / "airflow-core/docs/security/dag-processor-api"
+        docs = list(yaml.safe_load_all((examples / "kubernetes-token-provisioner.yaml").read_text()))
+        resources = {doc["kind"]: doc for doc in docs}
+        assert len(resources) == len(docs) == 6
+        secret = resources["Secret"]
+        target_namespace = secret["metadata"]["namespace"]
+        secret_name = secret["metadata"]["name"]
+        assert resources["Namespace"]["metadata"]["name"] == target_namespace
+        assert "data" not in secret
+        assert "stringData" not in secret
+        assert not secret.get("immutable")
+
+        role = resources["Role"]
+        assert role["metadata"]["namespace"] == target_namespace
+        assert role["rules"] == [
+            {
+                "apiGroups": [""],
+                "resources": ["secrets"],
+                "resourceNames": [secret_name],
+                "verbs": ["get", "patch"],
+            }
+        ]
+        account = resources["ServiceAccount"]
+        trusted_namespace = account["metadata"]["namespace"]
+        assert trusted_namespace != target_namespace
+        assert account["automountServiceAccountToken"] is True
+        binding = resources["RoleBinding"]
+        assert binding["metadata"]["namespace"] == target_namespace
+        assert binding["roleRef"] == {
+            "apiGroup": "rbac.authorization.k8s.io",
+            "kind": "Role",
+            "name": role["metadata"]["name"],
+        }
+        assert binding["subjects"] == [
+            {
+                "kind": "ServiceAccount",
+                "name": account["metadata"]["name"],
+                "namespace": trusted_namespace,
+            }
+        ]
+
+        deployment = resources["Deployment"]
+        assert deployment["metadata"]["namespace"] == trusted_namespace
+        assert deployment["spec"]["replicas"] == 1
+        assert deployment["spec"]["strategy"] == {"type": "Recreate"}
+        pod = deployment["spec"]["template"]["spec"]
+        assert pod["serviceAccountName"] == account["metadata"]["name"]
+        assert pod["automountServiceAccountToken"] is True
+        assert pod["securityContext"]["runAsNonRoot"] is True
+        assert pod["securityContext"]["runAsUser"] != 0
+        assert pod["volumes"] == [{"name": "tmp", "emptyDir": {}}]
+        assert not pod.get("initContainers")
+        assert len(pod["containers"]) == 1
+        provisioner = pod["containers"][0]
+        assert provisioner["args"] == [
+            "airflow",
+            "dag-processor-token",
+            "--kubernetes-secret",
+            secret_name,
+            "--kubernetes-namespace",
+            target_namespace,
+            "--bundle-name",
+            "dags-folder",
+            "--valid-for",
+            "600",
+            "--rotate",
+        ]
+        assert provisioner["securityContext"] == {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+            "capabilities": {"drop": ["ALL"]},
+        }
+        assert provisioner["resources"]["requests"]
+        assert provisioner["resources"]["limits"]
+        assert provisioner["volumeMounts"] == [{"name": "tmp", "mountPath": "/tmp"}]
+        assert not provisioner.get("envFrom")
+        env = {entry["name"]: entry for entry in provisioner["env"]}
+        signing_secret = env.pop("AIRFLOW__API_AUTH__JWT_SECRET")["valueFrom"]["secretKeyRef"]
+        assert signing_secret == {"name": "airflow-jwt-signing-key", "key": "jwt-secret"}
+        bundles = json.loads(env.pop("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST")["value"])
+        assert {bundle["name"] for bundle in bundles} == {"dags-folder"}
+        assert {name: entry["value"] for name, entry in env.items()} == {
+            "AIRFLOW_HOME": "/tmp/airflow",
+            "AIRFLOW_CONFIG": "/dev/null",
+            "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
+        }
+
+        values = yaml.safe_load((examples / "helm-values.yaml").read_text())
+        token_volume = next(
+            volume for volume in values["dagProcessor"]["extraVolumes"] if volume["name"] == "processor-token"
+        )
+        assert token_volume["secret"]["secretName"] == secret_name
+        assert token_volume["secret"]["secretName"] != signing_secret["name"]
+        assert provisioner["image"] == f"apache/airflow:{values['defaultAirflowTag']}"
+
+    def test_kubernetes_token_provisioner_example_uses_a_pinned_signing_key(self):
+        examples = Path(__file__).resolve().parents[4] / "airflow-core/docs/security/dag-processor-api"
+        docs = yaml.safe_load_all((examples / "kubernetes-token-provisioner.yaml").read_text())
+        deployment = next(doc for doc in docs if doc["kind"] == "Deployment")
+        env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+        signing_secret = next(entry for entry in env if entry["name"] == "AIRFLOW__API_AUTH__JWT_SECRET")
+        policy = yaml.safe_load((examples / "network-policy.yaml").read_text())["spec"]
+        trusted_release = policy["egress"][0]["to"][0]["podSelector"]["matchLabels"]["release"]
+
+        generated = render_chart(name=trusted_release, show_only=["templates/secrets/jwt-secret.yaml"])
+        generated_names = {doc["metadata"]["name"] for doc in generated}
+        assert generated_names == {f"{trusted_release}-jwt-secret"}
+        assert signing_secret["valueFrom"]["secretKeyRef"]["name"] not in generated_names
+        pinned = render_chart(
+            name=trusted_release,
+            values={"jwtSecretName": signing_secret["valueFrom"]["secretKeyRef"]["name"]},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert signing_secret in jmespath.search("spec.template.spec.containers[0].env", pinned[0])
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
