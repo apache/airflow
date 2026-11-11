@@ -47,7 +47,8 @@ from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.durable import AirflowDurability
-from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
+from airflow.providers.common.ai.durable.capability import _JournalCodec
+from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
 from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
 
@@ -337,11 +338,29 @@ class TestResultsThatCannotBeRecorded:
         with pytest.raises(DurableJournalError, match="not JSON-serializable"):
             await attempt(memory_storage, agent)
 
+    @pytest.mark.parametrize(
+        ("toolset", "codec_refuses"),
+        [
+            # From pydantic-ai 2.66 on, pydantic-ai records a function toolset's bytes in a
+            # dataclass itself, as base64, so the codec refuses them to take the same path on
+            # every version. An Airflow toolset's result goes through this codec as it is.
+            pytest.param(lambda calls: _function_toolset(calls, _Image(PNG)), True, id="function-toolset"),
+            pytest.param(lambda calls: _WarehouseToolset(calls, _Image(PNG)), False, id="airflow-toolset"),
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_a_journal_that_does_not_fail_leaves_the_result_unrecorded(self, memory_storage):
-        # An Airflow toolset, because its results go through this journal's codec on every
-        # pydantic-ai version. From pydantic-ai 2.66 on, pydantic-ai records a function
-        # toolset's bytes in a dataclass itself, as base64.
+    async def test_a_journal_that_does_not_fail_leaves_the_result_unrecorded(
+        self, memory_storage, monkeypatch, toolset, codec_refuses
+    ):
+        if codec_refuses:
+            dump = _JournalCodec.dump
+
+            def refusing_dump(codec: _JournalCodec, tp: Any, value: Any) -> Any:
+                if isinstance(getattr(value, "result", None), _Image):
+                    return Unrecordable(value, TypeError("no JSON form"))
+                return dump(codec, tp, value)
+
+            monkeypatch.setattr(_JournalCodec, "dump", refusing_dump)
         calls = Calls()
         fail_final = [True]
 
@@ -349,7 +368,7 @@ class TestResultsThatCannotBeRecorded:
             return Agent(
                 FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
                 name="analyst",
-                toolsets=[_WarehouseToolset(calls, _Image(PNG))],
+                toolsets=[toolset(calls)],
                 capabilities=[AirflowDurability()],
             )
 
