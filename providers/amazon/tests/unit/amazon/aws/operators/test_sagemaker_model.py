@@ -100,13 +100,35 @@ class TestSageMakerRegisterModelVersionOperator:
 
         op.execute(None)
 
-        create_group_mock.assert_called_once_with("group-name", "")
+        create_group_mock.assert_called_once_with(package_group_name="group-name", package_group_desc="")
         conn_mock().create_model_package.assert_called_once()
         args_dict = conn_mock().create_model_package.call_args.kwargs
         assert args_dict["InferenceSpecification"]["Containers"][0]["Image"] == image
         assert args_dict["InferenceSpecification"]["Containers"][0]["ModelDataUrl"] == model
         assert args_dict["ModelPackageGroupName"] == group
         assert args_dict["ModelApprovalStatus"] == "Approved"
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_group_and_package_keep_their_own_description(self, conn_mock):
+        op = SageMakerRegisterModelVersionOperator(
+            task_id="test",
+            image_uri="257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1",
+            model_url="s3://your-bucket-name/model.tar.gz",
+            package_group_name="group-name",
+            package_group_desc="every fraud detection model",
+            package_desc="trained on the October data",
+        )
+
+        op.execute(None)
+
+        conn_mock().create_model_package_group.assert_called_once_with(
+            ModelPackageGroupName="group-name",
+            ModelPackageGroupDescription="every fraud detection model",
+        )
+        assert (
+            conn_mock().create_model_package.call_args.kwargs["ModelPackageDescription"]
+            == "trained on the October data"
+        )
 
     @pytest.mark.parametrize("group_created", [True, False])
     @patch.object(SageMakerHook, "create_model_package_group")

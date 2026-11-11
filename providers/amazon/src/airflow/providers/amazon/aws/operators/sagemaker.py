@@ -1740,7 +1740,9 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
 
     def execute(self, context: Context):
         # create a model package group if it does not exist
-        group_created = self.hook.create_model_package_group(self.package_group_name, self.package_desc)
+        group_created = self.hook.create_model_package_group(
+            package_group_name=self.package_group_name, package_group_desc=self.package_group_desc
+        )
 
         # then create a model package in that group
         input_dict = {
