@@ -178,6 +178,35 @@ class TestTelegramOperator:
 
 
 class TestTelegramFileOperator:
+    @pytest.mark.parametrize(
+        ("telegram_kwargs", "expected_api_params"),
+        [
+            pytest.param(None, {"file": "/tmp/file.txt"}, id="file-only"),
+            pytest.param(
+                {"caption": "some caption"},
+                {"caption": "some caption", "file": "/tmp/file.txt"},
+                id="with-telegram-kwargs",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook", autospec=True)
+    def test_should_send_file(self, mock_telegram_hook, telegram_kwargs, expected_api_params):
+        operator = TelegramFileOperator(
+            telegram_conn_id="telegram_default",
+            chat_id="-420913222",
+            task_id="telegram",
+            file="/tmp/file.txt",
+            telegram_kwargs=telegram_kwargs,
+        )
+        operator.execute(None)
+
+        mock_telegram_hook.assert_called_once_with(
+            telegram_conn_id="telegram_default",
+            chat_id="-420913222",
+            token=None,
+        )
+        mock_telegram_hook.return_value.send_file.assert_called_once_with(expected_api_params)
+
     def test_should_return_templatized_chat_id_field(self):
         operator = TelegramFileOperator(
             telegram_conn_id="telegram_default",
