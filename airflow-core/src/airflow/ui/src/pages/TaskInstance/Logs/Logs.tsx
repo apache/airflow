@@ -118,7 +118,9 @@ export const Logs = () => {
 
   const getLogString = () => downloadTextLines.filter((line) => line !== "").join("\n");
 
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get(SearchParamsKeys.LOG_SEARCH) ?? "");
+  const urlSearchQuery = searchParams.get(SearchParamsKeys.LOG_SEARCH) ?? "";
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
+  const [lastUrlSearchQuery, setLastUrlSearchQuery] = useState(urlSearchQuery);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
 
   const searchMatchIndices = (() => {
@@ -153,6 +155,15 @@ export const Logs = () => {
       { replace: true },
     );
   }, debounceDelay);
+
+  // Back/Forward can change the url without remounting; adopt it unless a typed edit is still pending.
+  if (urlSearchQuery !== lastUrlSearchQuery) {
+    setLastUrlSearchQuery(urlSearchQuery);
+    if (!syncSearchParam.isPending()) {
+      setSearchQuery(urlSearchQuery);
+      setActiveSearchIndex(0);
+    }
+  }
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
