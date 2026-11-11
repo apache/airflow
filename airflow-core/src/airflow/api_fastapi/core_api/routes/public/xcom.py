@@ -23,7 +23,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import defer, joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
@@ -267,6 +267,7 @@ def get_xcom_entries(
         query.join(DR, and_(entity.dag_id == DR.dag_id, entity.run_id == DR.run_id))
         .join(DagModel, DR.dag_id == DagModel.dag_id)
         .options(
+            defer(entity.value),
             joinedload(entity.task),
             joinedload(entity.dag_run).joinedload(DR.dag_model),
             *eager_load_teams(entity.dag_run, DR.dag_model),
