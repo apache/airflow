@@ -65,8 +65,14 @@ class TestChainMapper:
     def test_to_partition_date_uses_effective_mapper(self, chain, downstream_key, expected):
         assert chain.to_partition_date(downstream_key) == expected
 
-    def test_to_partition_date_preserves_invalid_key_error_through_trailing_identity(self):
-        chain = ChainMapper(StartOfDayMapper(), IdentityMapper())
+    @pytest.mark.parametrize(
+        "chain",
+        [
+            ChainMapper(StartOfDayMapper(), IdentityMapper()),
+            ChainMapper(StartOfHourMapper(), StartOfDayMapper()),
+        ],
+    )
+    def test_to_partition_date_preserves_invalid_key_error(self, chain):
         with pytest.raises(ValueError, match="does not match format"):
             chain.to_partition_date("anything")
 
