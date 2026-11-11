@@ -477,7 +477,7 @@ def _function_toolset(calls: Calls, result: Any) -> FunctionToolset[None]:
     return toolset
 
 
-def _dynamic_toolset(calls: Calls, result: Any) -> DynamicToolset[None]:
+def _build_dynamic_toolset(calls: Calls, result: Any) -> DynamicToolset[None]:
     """A dynamic toolset that builds :func:`_function_toolset` per run step."""
 
     async def build(ctx: RunContext[None]) -> FunctionToolset[None]:
@@ -896,7 +896,9 @@ class TestAirflowToolsets:
         assert calls["model"] == 3
 
 
-def _ops_toolset(calls: Calls, *, clock_metadata: dict[str, Any] | None = None, clock_changes: bool = False):
+def _build_ops_toolset(
+    calls: Calls, *, clock_metadata: dict[str, Any] | None = None, clock_changes: bool = False
+) -> FunctionToolset[None]:
     toolset = FunctionToolset(id="ops")
 
     @toolset.tool_plain(metadata=clock_metadata)
@@ -966,7 +968,9 @@ class TestToolOptOut:
             return Agent(
                 FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
                 name="ops",
-                toolsets=[_ops_toolset(calls, clock_metadata=clock_metadata, clock_changes=clock_changes)],
+                toolsets=[
+                    _build_ops_toolset(calls, clock_metadata=clock_metadata, clock_changes=clock_changes)
+                ],
                 capabilities=[AirflowDurability(), *extra_capabilities],
             )
 
@@ -992,12 +996,12 @@ class TestToolOptOut:
             opt_out = [SetToolMetadata(tools=["clock"], airflow=False)]
 
             async def ops(ctx: RunContext[None]) -> FunctionToolset[None]:
-                return _ops_toolset(calls)
+                return _build_ops_toolset(calls)
 
             return Agent(
                 FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
                 name="ops",
-                toolsets=[DynamicToolset(ops, id="dynamic_ops") if dynamic else _ops_toolset(calls)],
+                toolsets=[DynamicToolset(ops, id="dynamic_ops") if dynamic else _build_ops_toolset(calls)],
                 capabilities=[
                     AirflowDurability(),
                     *(opt_out if attempt_number == opt_out_on_attempt else []),
@@ -1019,7 +1023,7 @@ class TestToolOptOut:
     )
     @pytest.mark.parametrize(
         "build_toolset",
-        [_function_toolset, _WarehouseToolset, _dynamic_toolset],
+        [_function_toolset, _WarehouseToolset, _build_dynamic_toolset],
         ids=["function", "airflow", "dynamic"],
     )
     async def test_set_tool_metadata_decides_whether_a_tool_replays(

@@ -54,8 +54,8 @@ model, so a model id is the whole integration.
        it. `pydantic-ai's System One page <https://pydantic.dev/docs/ai/models/system-one/>`__
        lists more.
 
-``system-one:`` needs a newer ``pydantic-ai-slim`` than the provider's minimum, so check the
-release you have installed.
+``system-one:`` needs ``pydantic-ai-slim`` 2.53.0 or later, newer than the provider's minimum,
+so check the release you have installed.
 
 Setup
 -----

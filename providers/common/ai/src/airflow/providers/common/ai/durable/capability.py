@@ -105,7 +105,7 @@ _UNLOADABLE = "the recorded result no longer loads, so it was written by another
 _StepMode: TypeAlias = Literal["journal", "live"]
 
 
-def _journals_tool(tool_def: ToolDefinition) -> bool:
+def _is_tool_journaled(tool_def: ToolDefinition) -> bool:
     """Whether calls of a tool are journaled; ``metadata={"airflow": False}`` runs them live on every attempt."""
     setting = (tool_def.metadata or {}).get(TOOL_CONFIG_KEY)
     if setting is None:
@@ -118,16 +118,22 @@ def _journals_tool(tool_def: ToolDefinition) -> bool:
     )
 
 
-def _tool_step_mode(operation_id: DurableOperationId, tool: object | None, tool_name: str) -> _StepMode:
+def _resolve_tool_step_mode(
+    operation_id: DurableOperationId, tool: object | None, tool_name: str
+) -> _StepMode:
     # Never pydantic-ai's ``False``, which would take the call out of the backend: a live call still
     # takes its position, so the steps after it keep theirs, and a failure is still the step's own.
-    if isinstance(tool, ToolsetTool) and not _journals_tool(tool.tool_def):
+    if isinstance(tool, ToolsetTool) and not _is_tool_journaled(tool.tool_def):
         return "live"
     return "journal"
 
 
 _STEP_MODES: RoleBasedOperationConfig[_StepMode] = RoleBasedOperationConfig(
-    model="journal", event="journal", capability="journal", tool="journal", resolve_tool=_tool_step_mode
+    model="journal",
+    event="journal",
+    capability="journal",
+    tool="journal",
+    resolve_tool=_resolve_tool_step_mode,
 )
 
 
@@ -564,7 +570,7 @@ class _JournaledToolset(WrapperToolset[Any]):
             # A toolset whose calls act on a system Airflow cannot observe, such as a managed
             # agent, runs them again on every attempt, and so does a tool opted out by its metadata.
             replayable=(not isinstance(leaf, AirflowToolset) or leaf.replayable)
-            and _journals_tool(tool.tool_def),
+            and _is_tool_journaled(tool.tool_def),
         )
         if step.replayed:
             if isinstance(leaf, AirflowToolset):
