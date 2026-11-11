@@ -117,6 +117,12 @@ Extra (optional)
       the psycopg (v3) SQLAlchemy dialect renders typed casts, so inserting string values into
       e.g. ``uuid`` columns (as ``pandas.DataFrame.to_sql`` does) fails with
       *"column is of type uuid but expression is of type character varying"*.
+    * ``client_side_binding`` - If ``true``, connections made with psycopg (v3) use
+      ``psycopg.ClientCursor``, so query parameters are bound on the client as with psycopg2.
+      psycopg (v3) binds parameters on the server by default, which doesn't work for statements
+      such as ``CREATE VIEW``, ``SET`` or several statements in one query and fails with
+      *"there is no parameter $1"*. Can also be passed to the hook, e.g. via
+      ``hook_params={"client_side_binding": True}`` on ``SQLExecuteQueryOperator``.
 
     Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
 

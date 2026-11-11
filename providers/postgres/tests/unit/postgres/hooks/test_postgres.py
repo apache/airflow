@@ -648,6 +648,30 @@ class TestPostgresHookConnPPG3:
             port=None,
         )
 
+    @pytest.mark.parametrize(
+        ("extra", "hook_kwargs"),
+        [
+            pytest.param({"client_side_binding": True}, {}, id="extra"),
+            pytest.param({}, {"client_side_binding": True}, id="param"),
+            pytest.param({"client_side_binding": False}, {"client_side_binding": True}, id="param-wins"),
+        ],
+    )
+    def test_get_conn_client_side_binding(self, mocker, extra, hook_kwargs):
+        mock_connect = mocker.patch("psycopg.connection.Connection.connect")
+        self.connection.extra = json.dumps(extra)
+        hook = PostgresHook(**hook_kwargs)
+        hook.get_connection = mock.Mock(return_value=self.connection)
+        hook.get_conn()
+        assert mock_connect.call_args.kwargs["cursor_factory"] is psycopg.ClientCursor
+
+    def test_get_conn_client_side_binding_off(self, mocker):
+        mock_connect = mocker.patch("psycopg.connection.Connection.connect")
+        self.connection.extra = json.dumps({"client_side_binding": True})
+        hook = PostgresHook(client_side_binding=False)
+        hook.get_connection = mock.Mock(return_value=self.connection)
+        hook.get_conn()
+        assert "cursor_factory" not in mock_connect.call_args.kwargs
+
 
 class TestPostgresHookSqlalchemyScheme:
     """Tests for overriding the SQLAlchemy ``drivername`` via the sqlalchemy_scheme extra/parameter."""
@@ -734,6 +758,28 @@ class TestPostgresHookPandasToSqlUuid:
         self.insert_string_uuid_df(hook)
         with hook.get_sqlalchemy_engine().connect() as conn:
             assert conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {self.table}")).scalar() == 1
+
+
+@pytest.mark.backend("postgres")
+@pytest.mark.skipif(not USE_PSYCOPG3, reason="psycopg v3 or sqlalchemy v2 not available")
+class TestPostgresHookClientSideBinding:
+    """Statements the server can't parameterize fail with server-side binding."""
+
+    view = "test_client_side_binding_view"
+    sql = f"CREATE OR REPLACE VIEW {view} AS SELECT %(n)s::int AS n"
+
+    def teardown_method(self):
+        PostgresHook().run(f"DROP VIEW IF EXISTS {self.view}")
+
+    def test_server_side_binding_fails(self):
+        with pytest.raises(psycopg.errors.UndefinedParameter):
+            PostgresHook().run(self.sql, parameters={"n": 1})
+
+    def test_client_side_binding(self):
+        hook = PostgresHook(client_side_binding=True)
+        hook.run(self.sql, parameters={"n": 1})
+        hook.run("SET application_name = %(name)s; SELECT %(n)s", parameters={"name": "x", "n": 1})
+        assert hook.get_first(f"SELECT n FROM {self.view}") == (1,)
 
 
 @pytest.mark.backend("postgres")
