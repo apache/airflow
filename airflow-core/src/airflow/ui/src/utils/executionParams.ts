@@ -22,10 +22,12 @@ const EXECUTION_PARAMS = [
   SearchParamsKeys.TRY_NUMBER,
   SearchParamsKeys.REGION_ID,
   SearchParamsKeys.REGION_INDEX,
+  SearchParamsKeys.CURSOR,
 ];
 
 /**
- * A copy of `searchParams` without the params that pin one execution or try.
+ * A copy of `searchParams` without the params that pin one execution or try, or a position in a
+ * table, since a page cursor only means something in the list it came from.
  *
  * The loop filter is deliberately not among them: a pass is where you are in a loop, not a row,
  * so it survives moving between the loop's tasks. Pages drop a loop that is out of their scope.
