@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from datetime import timedelta
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 
@@ -38,7 +38,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -156,7 +156,7 @@ class TestDbtCloudRunJobOperator:
             dag=self.dag,
             deferrable=True,
         )
-        dbt_op.execute(MagicMock())
+        dbt_op.execute({"ti": MagicMock()})
         assert not mock_defer.called
 
     @patch(
@@ -183,7 +183,7 @@ class TestDbtCloudRunJobOperator:
             deferrable=True,
         )
         with pytest.raises(DbtCloudJobRunException):
-            dbt_op.execute(MagicMock())
+            dbt_op.execute({"ti": MagicMock()})
         assert not mock_defer.called
 
     @patch(
@@ -216,7 +216,7 @@ class TestDbtCloudRunJobOperator:
             execution_timeout=timedelta(seconds=3),
         )
 
-        dbt_op.execute(MagicMock())
+        dbt_op.execute({"ti": MagicMock()})
 
         # Explicitly pass timeout=None to defer() so Airflow's framework-level
         # deferred timeout handling does not raise TaskDeferredTimeout before
@@ -270,7 +270,7 @@ class TestDbtCloudRunJobOperator:
             hook_params=hook_params,
         )
 
-        dbt_op.execute(MagicMock())
+        dbt_op.execute({"ti": MagicMock()})
 
         assert mock_dbt_trigger.call_args.kwargs["hook_params"] == hook_params
 
@@ -306,7 +306,7 @@ class TestDbtCloudRunJobOperator:
             deferrable=True,
         )
         with pytest.raises(TaskDeferred) as exc:
-            dbt_op.execute(MagicMock())
+            dbt_op.execute({"ti": MagicMock()})
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
     def test_execute_complete_timeout_without_run_id(self):
@@ -467,7 +467,7 @@ class TestDbtCloudRunJobOperator:
             timeout=3,
             dag=self.dag,
         )
-        dbt_op.execute(MagicMock())
+        dbt_op.execute({"ti": MagicMock()})
         mock_trigger_job_run.assert_called_once()
 
     @pytest.mark.parametrize(
@@ -814,13 +814,14 @@ class TestDbtCloudRunJobOperator:
             },
         )
 
+    @patch.object(DbtCloudHook, "wait_for_job_run_status", autospec=True, return_value=True)
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
         ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_execute_retry_from_failure(self, mock_run_job, conn_id, account_id):
+    def test_execute_retry_from_failure(self, mock_run_job, mock_wait, conn_id, account_id):
         operator = DbtCloudRunJobOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -853,13 +854,14 @@ class TestDbtCloudRunJobOperator:
             additional_run_config=self.config["additional_run_config"],
         )
 
+    @patch.object(DbtCloudHook, "wait_for_job_run_status", autospec=True, return_value=True)
     @patch.object(DbtCloudHook, "_run_and_get_response")
     @pytest.mark.parametrize(
         ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_execute_retry_from_failure_run(self, mock_run_req, conn_id, account_id):
+    def test_execute_retry_from_failure_run(self, mock_run_req, mock_wait, conn_id, account_id):
         operator = DbtCloudRunJobOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -885,6 +887,7 @@ class TestDbtCloudRunJobOperator:
 
         mock_run_req.assert_called()
 
+    @patch.object(DbtCloudHook, "wait_for_job_run_status", autospec=True, return_value=True)
     @patch.object(
         DbtCloudHook, "_run_and_get_response", return_value=mock_response_json(JOB_RUN_ERROR_RESPONSE)
     )
@@ -894,7 +897,9 @@ class TestDbtCloudRunJobOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_execute_retry_from_failure_rerun(self, mock_run_req, mock_rerun_req, conn_id, account_id):
+    def test_execute_retry_from_failure_rerun(
+        self, mock_run_req, mock_rerun_req, mock_wait, conn_id, account_id
+    ):
         operator = DbtCloudRunJobOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -1056,6 +1061,150 @@ class TestDbtCloudRunJobOperator:
                 run_id=_run_response["data"]["id"],
             )
         )
+
+
+STORED_RUN_ID = 9999
+STORED_RUN_URL = EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+    account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=STORED_RUN_ID
+)
+STORED_RUN_API_URL = f"https://cloud.getdbt.com/api/v2/accounts/{DEFAULT_ACCOUNT_ID}/runs/{STORED_RUN_ID}/"
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+@patch.object(DbtCloudHook, "wait_for_job_run_status", autospec=True, return_value=True)
+@patch.object(
+    DbtCloudHook,
+    "trigger_job_run",
+    autospec=True,
+    return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+)
+class TestDbtCloudRunJobOperatorDurable:
+    def setup_method(self):
+        self.dag = DAG("test_dbt_cloud_job_run_op_durable", schedule=None, start_date=DEFAULT_DATE)
+        self.ti = MagicMock(stats_tags={}, try_number=1)
+        self.task_store = MagicMock(spec_set=["get", "set"])
+        self.task_store.get.return_value = None
+        self.context = {"ti": self.ti, "task_state_store": self.task_store}
+
+    def _operator(self, **kwargs):
+        return DbtCloudRunJobOperator(
+            task_id=TASK_ID, dbt_cloud_conn_id=ACCOUNT_ID_CONN, job_id=JOB_ID, dag=self.dag, **kwargs
+        )
+
+    def _assert_run_xcoms(self, run_id, run_url):
+        assert self.ti.xcom_push.call_args_list == [
+            call(key="job_run_url", value=run_url),
+            call(key="job_run_id", value=run_id),
+        ]
+
+    def test_fresh_submit_persists_run_id(self, mock_trigger, mock_wait):
+        assert self._operator().execute(self.context) == RUN_ID
+
+        mock_trigger.assert_called_once()
+        mock_wait.assert_called_once()
+        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        self._assert_run_xcoms(RUN_ID, DEFAULT_ACCOUNT_JOB_RUN_RESPONSE["data"]["href"])
+
+    @pytest.mark.parametrize(
+        ("status", "waits"),
+        [
+            (DbtCloudJobRunStatus.QUEUED, True),
+            (DbtCloudJobRunStatus.STARTING, True),
+            (DbtCloudJobRunStatus.RUNNING, True),
+            (DbtCloudJobRunStatus.SUCCESS, False),
+        ],
+    )
+    def test_stored_run_is_reused(self, mock_trigger, mock_wait, requests_mock, status, waits):
+        self.task_store.get.return_value = STORED_RUN_ID
+        requests_mock.get(
+            STORED_RUN_API_URL,
+            json={"data": {"id": STORED_RUN_ID, "status": status.value, "href": STORED_RUN_URL}},
+        )
+        operator = self._operator()
+
+        assert operator.execute(self.context) == STORED_RUN_ID
+
+        mock_trigger.assert_not_called()
+        assert mock_wait.called is waits
+        self.task_store.set.assert_not_called()
+        assert operator.run_id == STORED_RUN_ID
+        self._assert_run_xcoms(STORED_RUN_ID, STORED_RUN_URL)
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            {
+                "json": {
+                    "data": {
+                        "id": STORED_RUN_ID,
+                        "status": DbtCloudJobRunStatus.ERROR.value,
+                        "href": STORED_RUN_URL,
+                    }
+                }
+            },
+            {
+                "json": {
+                    "data": {
+                        "id": STORED_RUN_ID,
+                        "status": DbtCloudJobRunStatus.CANCELLED.value,
+                        "href": STORED_RUN_URL,
+                    }
+                }
+            },
+            {"status_code": 404, "reason": "Not Found"},
+        ],
+        ids=["error", "cancelled", "not_found"],
+    )
+    def test_stored_run_not_reusable_submits_fresh(self, mock_trigger, mock_wait, requests_mock, response):
+        self.task_store.get.return_value = STORED_RUN_ID
+        requests_mock.get(STORED_RUN_API_URL, **response)
+
+        assert self._operator().execute(self.context) == RUN_ID
+
+        mock_trigger.assert_called_once()
+        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        self._assert_run_xcoms(RUN_ID, DEFAULT_ACCOUNT_JOB_RUN_RESPONSE["data"]["href"])
+
+    @pytest.mark.parametrize(
+        ("stored_run_id", "expected_run_id"),
+        [(None, RUN_ID), (STORED_RUN_ID, STORED_RUN_ID)],
+        ids=["fresh", "reconnect"],
+    )
+    @patch.object(DbtCloudRunJobOperator, "defer", autospec=True)
+    @patch.object(
+        DbtCloudHook, "get_job_run_status", autospec=True, return_value=DbtCloudJobRunStatus.RUNNING.value
+    )
+    def test_deferrable_defers_on_the_durable_run(
+        self, mock_status, mock_defer, mock_trigger, mock_wait, requests_mock, stored_run_id, expected_run_id
+    ):
+        self.task_store.get.return_value = stored_run_id
+        requests_mock.get(
+            STORED_RUN_API_URL,
+            json={
+                "data": {
+                    "id": STORED_RUN_ID,
+                    "status": DbtCloudJobRunStatus.RUNNING.value,
+                    "href": STORED_RUN_URL,
+                }
+            },
+        )
+
+        self._operator(deferrable=True).execute(self.context)
+
+        assert mock_trigger.called is (stored_run_id is None)
+        mock_wait.assert_not_called()
+        assert mock_defer.call_args.kwargs["trigger"].run_id == expected_run_id
+        if stored_run_id is None:
+            self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+
+    def test_durable_false_never_touches_task_state_store(self, mock_trigger, mock_wait):
+        assert self._operator(durable=False).execute(self.context) == RUN_ID
+
+        mock_trigger.assert_called_once()
+        self.task_store.get.assert_not_called()
+        self.task_store.set.assert_not_called()
 
 
 class TestDbtCloudGetJobRunArtifactOperator:
