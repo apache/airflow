@@ -21,7 +21,7 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import task, task_group
 from airflow.utils.state import State
 
 from tests_common.test_utils.db import clear_db_runs
@@ -88,9 +88,14 @@ class TestExecutionTimeoutBackwardCompat:
 def test_xcom_arg_binding_schema_by_version(client, version):
     response = client.get(f"/execution/openapi.json?version={version}")
     assert response.status_code == 200
-    binding = response.json()["components"]["schemas"]["XComArgBinding"]["properties"]
+    schemas = response.json()["components"]["schemas"]
+    binding = schemas["XComArgBinding"]["properties"]
     for field in ("map_index", "element_index", "apply_map", "kwarg", "fallback"):
         assert (field in binding) == (version == "2027-02-28")
+    kinds = set(schemas["TaskArgBinding"]["discriminator"]["mapping"])
+    assert kinds == (
+        {"xcom", "literal", "sequence", "tuple"} if version == "2027-02-28" else {"xcom", "literal"}
+    )
 
 
 class TestMappedStubArgBindingsBackwardCompat:
@@ -137,10 +142,31 @@ class TestMappedStubArgBindingsBackwardCompat:
         dag_maker.session.flush()
         return ti
 
-    def test_old_version_strips_arg_bindings_with_new_kinds(self, old_ver_client, reduce_ti):
+    def test_old_version_rejects_arg_bindings_with_new_kinds(self, old_ver_client, reduce_ti):
         response = old_ver_client.patch(f"/execution/task-instances/{reduce_ti.id}/run", json=RUN_PATCH_BODY)
-        assert response.status_code == 200
-        assert "arg_bindings" not in response.json()
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "2027-02-28 or later" in response.json()["detail"]["message"]
+
+    def test_old_version_rejects_mapped_task_group_member_with_args(self, old_ver_client, dag_maker):
+        with dag_maker("test_group_member_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=["uk", "fr"])
+
+        ti = dag_maker.create_dagrun().get_task_instance("group.transform", map_index=0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 422
+        assert "2027-02-28 or later" in response.json()["detail"]["message"]
 
     def test_head_version_includes_arg_bindings_with_new_kinds(self, client, reduce_ti):
         response = client.patch(f"/execution/task-instances/{reduce_ti.id}/run", json=RUN_PATCH_BODY)
