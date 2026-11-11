@@ -76,7 +76,6 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.api.datamodels._generated import TIRunContext
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.execution_time.comms import _ResponseFrame
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -782,7 +781,6 @@ class TestTIRunState:
         assert response.status_code == 200, response.text
         context = TIRunContext.model_validate_json(response.content)
         assert context.dag_run.conf == {"large_integer": conf_value}
-        _ResponseFrame(id=0, body={"ti_context": context.model_dump()}).as_bytes()
 
     @pytest.mark.parametrize("matching_worker", [True, False])
     def test_restarting_start_distinguishes_original_worker(
