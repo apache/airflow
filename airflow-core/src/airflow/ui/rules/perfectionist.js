@@ -22,7 +22,6 @@
 import perfectionist from "eslint-plugin-perfectionist";
 
 import { ERROR } from "./levels.js";
-import { off } from "./off.js";
 
 /**
  * ESLint `perfectionist` namespace.
@@ -140,7 +139,5 @@ export const perfectionistRules = /** @type {const} @satisfies {FlatConfig.Confi
         ],
       },
     ],
-
-    ...off("sort-keys"),
   },
 });
