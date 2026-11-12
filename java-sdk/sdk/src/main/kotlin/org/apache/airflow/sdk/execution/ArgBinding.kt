@@ -59,8 +59,8 @@ internal sealed class ArgBinding {
  * bind by that position, input-bundle fields by [ArgBinding.name].
  *
  * @throws IllegalStateException on a malformed payload, an unsupported
- *    binding kind, or a duplicate argument name; the task cannot bind its
- *    arguments correctly, so it must fail rather than run with wrong inputs.
+ *    binding kind or field, or a duplicate argument name; the task cannot bind
+ *    its arguments correctly, so it must fail rather than run with wrong inputs.
  */
 internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
   if (raw == null) return emptyList()
@@ -70,7 +70,13 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
     check(entry is Map<*, *>) { "arg_bindings entry is not a map: $entry" }
     val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
     check(seen.add(name)) { "arg_bindings entries have duplicate name: '$name'" }
-    when (val kind = entry["kind"]) {
+    val kind = entry["kind"]
+    if (kind == "literal" || kind == "xcom") {
+      UNSUPPORTED_FIELDS.firstOrNull { entry[it] != null && entry[it] != false }?.let {
+        error("Argument '$name' has $it set, which this version of the Java SDK cannot bind yet")
+      }
+    }
+    when (kind) {
       "literal" ->
         ArgBinding.Literal(
           name = name,
@@ -88,3 +94,9 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
     }
   }
 }
+
+/**
+ * Fields that resolve an argument per map index in a way this SDK does not
+ * support yet; ignoring one would bind the argument to the wrong value.
+ */
+private val UNSUPPORTED_FIELDS = listOf("apply_map", "kwarg", "fallback")
