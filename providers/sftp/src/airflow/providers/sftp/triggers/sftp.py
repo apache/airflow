@@ -33,13 +33,23 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 class BaseSFTPTrigger(BaseTrigger):
     """Base class for SFTP triggers, providing shared async hook construction."""
 
-    def __init__(self, sftp_conn_id: str = "sftp_default", remote_host: str | None = None) -> None:
+    def __init__(
+        self,
+        sftp_conn_id: str = "sftp_default",
+        remote_host: str | None = None,
+        no_host_key_check: bool | None = None,
+    ) -> None:
         super().__init__()
         self.sftp_conn_id = sftp_conn_id
         self.remote_host = remote_host
+        self.no_host_key_check = no_host_key_check
 
     def _get_async_hook(self) -> SFTPHookAsync:
-        return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id, host=self.remote_host)
+        return SFTPHookAsync(
+            sftp_conn_id=self.sftp_conn_id,
+            host=self.remote_host,
+            no_host_key_check=self.no_host_key_check,
+        )
 
 
 class SFTPTrigger(BaseSFTPTrigger):
@@ -150,6 +160,8 @@ class SFTPTransferTrigger(BaseSFTPTrigger):
     :param remote_host: Remote host to connect to (overrides connection).
     :param concurrency: Number of threads for directory transfers.
     :param prefetch: Whether to prefetch during file retrieval.
+    :param no_host_key_check: Host key verification setting of the operator's hook, so that a
+        constructor override on that hook survives deferral. ``None`` defers to the connection.
     """
 
     def __init__(
@@ -163,8 +175,11 @@ class SFTPTransferTrigger(BaseSFTPTrigger):
         remote_host: str | None = None,
         concurrency: int = 1,
         prefetch: bool = True,
+        no_host_key_check: bool | None = None,
     ) -> None:
-        super().__init__(sftp_conn_id=sftp_conn_id, remote_host=remote_host)
+        super().__init__(
+            sftp_conn_id=sftp_conn_id, remote_host=remote_host, no_host_key_check=no_host_key_check
+        )
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.operation = operation
@@ -187,6 +202,7 @@ class SFTPTransferTrigger(BaseSFTPTrigger):
                 "remote_host": self.remote_host,
                 "concurrency": self.concurrency,
                 "prefetch": self.prefetch,
+                "no_host_key_check": self.no_host_key_check,
             },
         )
 

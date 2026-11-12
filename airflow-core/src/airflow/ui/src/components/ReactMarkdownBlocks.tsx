@@ -159,7 +159,7 @@ const MarkdownMathBlock = ({ style, value }: { readonly style: SyntaxTheme; read
       >
         <Box data-testid="markdown-math-content" maxWidth="100%" minWidth={0} overflowX="auto" p={3}>
           <Box
-            /* Trusting KaTeX to escape user content in the generated HTML */
+            /* oxlint-disable-next-line react/no-danger -- Trusting KaTeX to escape user content in the generated HTML */
             dangerouslySetInnerHTML={{ __html: markup }}
           />
         </Box>
@@ -252,7 +252,7 @@ export const MarkdownMermaid = ({
                 width: "100%",
               },
             }}
-            /* Trusting mermaid's strict-mode sanitizer */
+            /* oxlint-disable-next-line react/no-danger -- Trusting mermaid's strict-mode sanitizer */
             dangerouslySetInnerHTML={{ __html: svg }}
             data-testid="markdown-mermaid-diagram"
           />
@@ -275,9 +275,9 @@ export const MarkdownCodeBlock = ({
     return <MarkdownMathBlock style={style} value={value} />;
   }
 
-  if (language === "mermaid") {
-    return <MarkdownMermaid chart={value} fallbackStyle={style} />;
-  }
-
-  return <MarkdownPlainCodeBlock language={language} style={style} value={value} />;
+  return language === "mermaid" ? (
+    <MarkdownMermaid chart={value} fallbackStyle={style} />
+  ) : (
+    <MarkdownPlainCodeBlock language={language} style={style} value={value} />
+  );
 };

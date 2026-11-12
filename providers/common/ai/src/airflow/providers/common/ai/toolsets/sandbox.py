@@ -27,13 +27,12 @@ import sys
 import threading
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, Self
 
 from fsspec.implementations.local import LocalFileSystem
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from typing_extensions import Self
 
 from airflow.providers.common.ai.sandbox.base import (
     AttachableSandboxBackend,
@@ -56,6 +55,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     code_arg_kwargs,
     return_schema_kwargs,
 )
+from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.compat.sdk import ObjectStoragePath, get_current_context
 
@@ -75,6 +75,13 @@ _RELEASE_RETRY_DELAY = 1.0
 
 # Runs backend.create off the event loop. Its threads start on first use, not at import.
 _provisioning = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="sandbox-create")
+# One process-wide lock for every SandboxToolset. It guards each toolset's pending creation,
+# the ``_open`` flag that ``_close`` clears, and the ``_open`` re-check before a newly created
+# sandbox is published. Airflow deep-copies tasks and default_args together with the toolsets
+# they hold, and a lock cannot be deep-copied, so toolsets share this lock instead of holding
+# their own. It is never held during a backend call, so one toolset never waits for another
+# toolset's sandbox.
+_create_lock = threading.Lock()
 
 RUN_COMMAND = "run_command"
 
@@ -161,7 +168,7 @@ _DESCRIPTIONS = {
 }
 
 
-class SandboxToolset(AirflowToolset):
+class SandboxToolset(ToolPrefixMixin, AirflowToolset):
     """
     Give an agent shell and file access inside a disposable sandbox, off the Airflow worker.
 
@@ -285,10 +292,7 @@ class SandboxToolset(AirflowToolset):
                 f"default_command_timeout ({default_command_timeout}) must not exceed "
                 f"max_command_timeout ({max_command_timeout})."
             )
-        if tool_prefix and not tool_prefix.isidentifier():
-            # The prefixed names are rendered as Python function signatures under
-            # code mode, so a name that is not an identifier breaks there.
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        self._set_tool_prefix(tool_prefix)
         if attach_to is not None:
             if not isinstance(backend, AttachableSandboxBackend):
                 raise ValueError(
@@ -349,9 +353,7 @@ class SandboxToolset(AirflowToolset):
         self._exports = dict(exports or {})
         self._export_conn_id = export_conn_id
         self._max_export_bytes = int(max_export_bytes)
-        self._tool_prefix = tool_prefix
         self._sandbox: str | None = None
-        self._create_lock = threading.Lock()
         self._create_future: concurrent.futures.Future[str] | None = None
         # Set while attached: who this run claimed the sandbox as, when the sandbox ends
         # on this process's clock (None when the creator recorded no lifetime), and what
@@ -373,19 +375,10 @@ class SandboxToolset(AirflowToolset):
 
     @property
     def id(self) -> str:
-        suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
-        return f"sandbox-{self._backend.name}{suffix}"
-
-    def _tool_name(self, base: str) -> str:
-        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
+        return f"sandbox-{self._backend.name}{self._get_tool_prefix_id_suffix()}"
 
     def _base_name(self, tool_name: str) -> str | None:
-        if not self._tool_prefix:
-            return tool_name if tool_name in _SCHEMAS else None
-        prefix = f"{self._tool_prefix}_"
-        if not tool_name.startswith(prefix):
-            return None
-        base = tool_name[len(prefix) :]
+        base = self._find_base_tool_name(tool_name)
         return base if base in _SCHEMAS else None
 
     async def for_run(self, ctx: RunContext[Any]) -> AbstractToolset[Any]:
@@ -582,7 +575,7 @@ class SandboxToolset(AirflowToolset):
         return None
 
     def _close(self, *, run_failed: bool) -> None:
-        with self._create_lock:
+        with _create_lock:
             self._open = False
             pending = self._create_future
         sandbox = self._sandbox
@@ -748,7 +741,7 @@ class SandboxToolset(AirflowToolset):
         # A native framework can make the first calls from several threads, each with an
         # event loop of its own, so the one creation they share is a thread-safe future
         # that any loop can await, not a task bound to the loop that started it.
-        with self._create_lock:
+        with _create_lock:
             # Checked again under the lock: another thread may have finished creating it.
             if self._sandbox is not None:
                 return self._sandbox
@@ -776,14 +769,14 @@ class SandboxToolset(AirflowToolset):
                 f"Could not provision a sandbox on backend {self._backend.name!r}: {e}"
             ) from e
         else:
-            with self._create_lock:
+            with _create_lock:
                 if not self._open:
                     # The block ended while this call waited; closing destroys the sandbox.
                     raise SandboxTerminalError("The sandbox was closed while it was being provisioned.")
                 self._sandbox = sandbox
             return sandbox
         finally:
-            with self._create_lock:
+            with _create_lock:
                 if self._create_future is create_future:
                     self._create_future = None
 
@@ -855,7 +848,7 @@ class SandboxToolset(AirflowToolset):
             # run_command additionally carries code_arg metadata so code mode
             # leaves it native instead of folding a shell surface into run_code.
             extra = code_arg_kwargs("command", "shell") if base == RUN_COMMAND else {}
-            name = self._tool_name(base)
+            name = self._build_tool_name(base)
             description = _DESCRIPTIONS[base]
             if base == RUN_COMMAND:
                 description = f"{description} {self._network_note}{self._export_note}"

@@ -34,7 +34,6 @@ from typing import NamedTuple
 from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALL_PYPROJECT_TOML_FILES,
-    PYTHON_TO_MIN_AIRFLOW_MAPPING,
     UPDATE_PROVIDER_DEPENDENCIES_SCRIPT,
 )
 from airflow_breeze.utils.ci_group import ci_group
@@ -90,8 +89,12 @@ def regenerate_provider_dependencies_once() -> None:
     with _regenerate_provider_deps_lock:
         # Run the regeneration command from the repository root to ensure correct
         # relative paths if the script expects to be run from AIRFLOW_ROOT_PATH.
+        # CI runs this while deciding which jobs run, from the pull request's checkout: --no-config
+        # keeps a `[tool.uv]` index the pull request adds to pyproject.toml or uv.toml from choosing
+        # where the script's dependencies come from.
         subprocess.check_call(
-            ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
+            ["uv", "run", "--no-config", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()],
+            cwd=AIRFLOW_ROOT_PATH,
         )
 
 
@@ -231,15 +234,6 @@ def get_related_providers(
         for dep_name in get_provider_dependencies()[provider_to_check]["cross-providers-deps"]:
             related_providers.add(dep_name)
     return related_providers
-
-
-def is_airflow_version_supported_for_python(airflow_version: str, python_version: str) -> bool:
-    from packaging.version import Version
-
-    min_airflow_version = PYTHON_TO_MIN_AIRFLOW_MAPPING.get(python_version)
-    if not min_airflow_version:
-        return False
-    return Version(airflow_version) >= Version(min_airflow_version)
 
 
 def get_all_constraint_files_and_airflow_releases(

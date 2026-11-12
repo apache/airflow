@@ -88,6 +88,10 @@ func (m *mockXComClient) GetConnection(ctx context.Context, connID string) (sdk.
 	panic("unimplemented")
 }
 
+func (m *mockXComClient) TaskStateStore() sdk.TaskStateStore {
+	panic("unimplemented")
+}
+
 var _ sdk.Client = (*mockXComClient)(nil)
 
 func Test_PullXComsConcurrently(t *testing.T) {

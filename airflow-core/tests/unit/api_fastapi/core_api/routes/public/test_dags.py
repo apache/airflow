@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pendulum
@@ -58,8 +58,8 @@ pytestmark = pytest.mark.db_test
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG1_START_DATE = datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc)
-DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
+DAG1_START_DATE = datetime(2018, 6, 15, 0, 0, tzinfo=UTC)
+DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=UTC)
 DAG3_ID = "test_dag3"
 DAG4_ID = "test_dag4"
 DAG4_DISPLAY_NAME = "display4"
@@ -71,8 +71,8 @@ ASSET_DEP_DAG2_ID = "test_asset_dep_dag2"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 API_PREFIX = "/dags"
-DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=UTC)
+DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 _DEADLINE_CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.public.test_dags._noop_deadline_callback"
 
@@ -129,13 +129,13 @@ class TestDagEndpoint:
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
-            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         dagrun_failed = DagRun(
             dag_id=DAG3_ID,
             run_id="run1",
-            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=UTC),
             start_date=DAG3_START_DATE_1,
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
@@ -145,7 +145,7 @@ class TestDagEndpoint:
         dagrun_success = DagRun(
             dag_id=DAG3_ID,
             run_id="run2",
-            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=UTC),
             start_date=DAG3_START_DATE_2,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
@@ -607,7 +607,7 @@ class TestGetDags(TestDagEndpoint):
             ),
             (
                 {
-                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=UTC) + timedelta(days=1)).isoformat(),
                     "exclude_stale": False,
                 },
                 2,
@@ -616,7 +616,7 @@ class TestGetDags(TestDagEndpoint):
             (
                 {
                     "dag_run_end_date_gte": DAG3_START_DATE_2.isoformat(),
-                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=UTC) + timedelta(days=1)).isoformat(),
                     "exclude_stale": False,
                     "last_dag_run_state": "success",
                 },
@@ -626,7 +626,7 @@ class TestGetDags(TestDagEndpoint):
             (
                 {
                     "dag_run_start_date_gte": DAG2_START_DATE.isoformat(),
-                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=UTC) + timedelta(days=1)).isoformat(),
                 },
                 0,
                 [],
@@ -775,6 +775,18 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == 2
         assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
 
+    @pytest.mark.parametrize("order_by", ["state", "start_date", "-state"])
+    def test_rejects_sort_by_dag_run_column_names(self, test_client, order_by):
+        # #44345 moved these two behind `last_run_state` and `last_run_start_date` in `to_replace`
+        # but left the DagRun column names in the allowed list, so the spec advertised them and
+        # sorting by either raised AttributeError on DagModel.
+        response = test_client.get("/dags", params={"order_by": order_by})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            f"Ordering with '{order_by.lstrip('-')}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
     @pytest.mark.parametrize(
         ("setup_favorites", "expected_total_entries", "expected_ids"),
         [
@@ -903,6 +915,14 @@ class TestGetDags(TestDagEndpoint):
             f"Added 3 DAGs but query count increased by {second_query_count - first_query_count} "
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
+
+    def test_get_dags_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Nothing is queried while the response is serialized on the event loop."""
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
+        assert "tag_2" in tags[DAG1_ID]
+        assert event_loop_queries == []
 
     @pytest.mark.parametrize(
         ("deadline", "expected_alert_count"),
@@ -1168,6 +1188,16 @@ class TestPatchDags(TestDagEndpoint):
             paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
             assert paused_dag_ids == set(expected_paused_ids)
             check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
+
+    def test_patch_dags_should_not_query_tags_on_event_loop(self, test_client, event_loop_queries):
+        """Nothing is queried while the response is serialized on the event loop."""
+        response = test_client.patch("/dags", json={"is_paused": True}, params={"dag_id_pattern": "~"})
+        assert response.status_code == 200
+        tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
+        assert "tag_2" in tags[DAG1_ID]
+        # Only the audit log is written on the event loop, through the async engine, which doesn't block it.
+        assert len(event_loop_queries) == 1
+        assert event_loop_queries[0].startswith("INSERT INTO log ")
 
     @pytest.mark.parametrize(
         ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),
@@ -1764,6 +1794,47 @@ class TestDagDetails(TestDagEndpoint):
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_dag_details_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, session, test_client
+    ):
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.asset_expression = {
+            "all": [
+                {"asset": {"uri": "s3://bucket/visible", "name": "visible", "group": "asset", "id": 1}},
+                {"asset": {"uri": "s3://bucket/secret", "name": "secret", "group": "asset", "id": 2}},
+            ]
+        }
+        session.commit()
+        mock_get_authorized_assets.return_value = {1}
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": 1,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+        assert "s3://bucket/secret" not in response.text
+
+        # Only the response is redacted: writing the blanked leaves back through the request
+        # session would overwrite the stored expression when that session commits.
+        session.expire_all()
+        assert session.get(DagModel, DAG2_ID).asset_expression["all"][1]["asset"]["name"] == "secret"
+
     def test_dag_details_serves_legacy_asset_expression_as_null(self, session, test_client):
         """A pre-3.0 dataset-format ``asset_expression`` that the typed model cannot describe is
         served as ``null`` instead of 500ing the endpoint (handled by ``MaybeAssetExpression``)."""
@@ -1784,8 +1855,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="running_run_1",
-                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1795,8 +1866,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="queued_run_1",
-                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.QUEUED,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1807,8 +1878,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="success_run_1",
-                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.SUCCESS,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1839,6 +1910,13 @@ class TestDagDetails(TestDagEndpoint):
         response = test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 200
         assert response.json()["team_name"] is None
+
+    def test_dag_details_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74239: the latest Dag version must not be queried during serialization."""
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        assert response.json()["latest_dag_version"]["version_number"] == 1
+        assert event_loop_queries == []
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_dag_details_includes_team_name(self, session, test_client):
@@ -2037,7 +2115,7 @@ class TestDeleteDAG(TestDagEndpoint):
         with dag_maker(
             dag_id,
             dag_display_name=dag_display_name,
-            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+            start_date=datetime(2024, 10, 10, tzinfo=UTC),
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2100,7 +2178,7 @@ class TestDeleteDAG(TestDagEndpoint):
         with dag_maker(
             deadline_dag_id,
             schedule=None,
-            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+            start_date=datetime(2024, 10, 10, tzinfo=UTC),
             deadline=_deadline_alert(),
         ):
             EmptyOperator(task_id="task1")

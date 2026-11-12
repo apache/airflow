@@ -526,17 +526,15 @@ Both commands should produce reproducible `.whl`, `.tar.gz` packages in dist fol
 file containing airflow sources in dist folder.
 
 > [!IMPORTANT]
-> Run the build with Python 3.10 — the project's `DEFAULT_PYTHON_MAJOR_MINOR_VERSION`. The
+> Run the build with Python 3.11 — the project's `DEFAULT_PYTHON_MAJOR_MINOR_VERSION`. The
 > client generator applies the `trigger_dag_run_post_body.py` AST patch with `ast.unparse`, which
 > re-emits that file using the running interpreter's grammar, so building under a different Python
-> (e.g. the host's 3.11+/3.13) produces a non-reproducible client and the `prepare-python-client`
+> (e.g. the host's 3.13) produces a non-reproducible client and the `prepare-python-client`
 > step may not even emit the wheel/sdist. `prepare-python-client` refuses to run under any other
 > Python and exits early with this guidance, so pin the interpreter explicitly:
 >
 > ```shell
-> UV_PYTHON=3.10 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
-> # or equivalently
-> breeze --python 3.10 release-management prepare-python-client --distribution-format both --version-suffix ""
+> UV_PYTHON=3.11 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
 > ```
 
 4) Change to the directory where you have the packages from svn and check if they are identical to the ones
@@ -783,13 +781,17 @@ server and the test share the same credentials.
 
 ```shell script
 # install the RC from PyPI (published with the rcN suffix)
-CLIENT_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
-    "bash dev/verify_python_client_rc.sh"
+breeze shell --load-example-dags --backend sqlite \
+    "CLIENT_VERSION=${VERSION_RC} bash dev/verify_python_client_rc.sh"
 
-# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
-CLIENT_WHEEL=/opt/airflow/dist/apache_airflow_client-${VERSION}-py3-none-any.whl \
-    breeze shell --load-example-dags --backend sqlite "bash dev/verify_python_client_rc.sh"
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /dist)
+breeze shell --load-example-dags --backend sqlite \
+    "CLIENT_WHEEL=/dist/apache_airflow_client-${VERSION}-py3-none-any.whl bash dev/verify_python_client_rc.sh"
 ```
+
+Set `CLIENT_VERSION` or `CLIENT_WHEEL` inside the quoted command: `breeze shell` forwards only a
+fixed list of environment variables into the container, so a `CLIENT_VERSION=...` prefix on the
+host never reaches the script.
 
 The script prints `PYTHON_CLIENT_RC_VERIFY: OK` on success.
 

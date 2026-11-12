@@ -29,7 +29,7 @@ from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
-from flask_appbuilder.const import AUTH_LDAP
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -76,6 +76,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
+    RESOURCE_DAG_BUNDLE,
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_PREFIX,
@@ -97,6 +98,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
@@ -117,6 +119,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -190,12 +193,14 @@ if AIRFLOW_V_3_1_PLUS:
 if hasattr(MenuItem, "DEADLINES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
-# Dag bundle visibility rides on Dag access -- a bundle is shown to a user who can read a Dag that
-# came from it -- so the menu entry is gated the same way the Dags entry is. Without a mapping the
-# lookup below falls back to the raw enum value as a resource name, and unlike "Jobs" or "Providers"
-# (whose enum values happen to equal an existing FAB resource) no "Dag Bundles" resource exists, so
-# the entry would silently vanish for every FAB deployment.
-if hasattr(MenuItem, "DAG_BUNDLES"):
+# The Dag bundles menu item first ships in Airflow 3.4.0 and its view in 3.4.1, newer than this
+# provider's minimum Airflow. Unmapped, the view is denied to every role. Airflow 3.4.0 shows the
+# bundles to anyone who can read a Dag in them, so there the menu entry stays on Dag access.
+DAG_BUNDLES_ACCESS_VIEW: AccessView | None = getattr(AccessView, "DAG_BUNDLES", None)
+if DAG_BUNDLES_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[DAG_BUNDLES_ACCESS_VIEW] = RESOURCE_DAG_BUNDLE
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG_BUNDLE
+elif hasattr(MenuItem, "DAG_BUNDLES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG
 
 
@@ -213,6 +218,13 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
+
+    @staticmethod
+    def sync_dag_perms(dag: LazyDeserializedDAG, *, session: Session) -> None:
+        """Sync Dag-specific permissions without initializing the auth manager."""
+        log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+        security_manager = ApplessAirflowSecurityManager(session=session)
+        security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
 
     @cached_property
     def apiserver_endpoint(self) -> str:
@@ -404,27 +416,32 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Create a new token from a payload.
 
-        By default, it uses basic authentication (username and password).
+        By default, it uses basic authentication (username and password), checked against the
+        configured ``AUTH_TYPE``. Tokens are only issued for ``AUTH_DB`` and ``AUTH_LDAP``.
         Override this method to use a different authentication method (e.g. oauth).
 
         :param headers: request headers
         :param body: request body
         """
-        if not body.get("username") or not body.get("password"):
+        username = body.get("username")
+        password = body.get("password")
+        # Treat a password made only of NUL bytes as empty, as Flask-AppBuilder's login API does.
+        if (
+            not isinstance(username, str)
+            or not isinstance(password, str)
+            or not username
+            or not password.strip("\x00")
+        ):
             raise ValueError("Username and password must be provided")
 
-        user: User | None = None
-
-        if self.security_manager.auth_type == AUTH_LDAP:
-            user = self.security_manager.auth_user_ldap(
-                body["username"], body["password"], rotate_session_id=False
-            )
-        if user is None:
-            user = self.security_manager.auth_user_db(
-                body["username"], body["password"], rotate_session_id=False
-            )
-
-        return user
+        # Only check the password against the configured authentication type. Other types (OAuth,
+        # remote user, ...) do not authenticate with a username and password, so no token is issued.
+        auth_type = self.security_manager.auth_type
+        if auth_type == AUTH_LDAP:
+            return self.security_manager.auth_user_ldap(username, password, rotate_session_id=False)
+        if auth_type == AUTH_DB:
+            return self.security_manager.auth_user_db(username, password, rotate_session_id=False)
+        return None
 
     def is_authorized_configuration(
         self,

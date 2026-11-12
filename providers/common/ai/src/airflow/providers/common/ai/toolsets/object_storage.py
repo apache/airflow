@@ -21,7 +21,7 @@ from __future__ import annotations
 import lzma
 import os
 import zlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -44,6 +44,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
@@ -109,14 +110,9 @@ _COLUMNAR_FORMATS: tuple[Literal["parquet", "avro"], ...] = ("parquet", "avro")
 _MEDIA_FORMATS = frozenset({"jpeg", "jpg", "pdf", "png"})
 
 
-class ObjectStorageToolset(AirflowToolset):
+class ObjectStorageToolset(ToolPrefixMixin, AirflowToolset):
     """
     Give an agent read-only access to the files under one object-storage path.
-
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
 
     Exposes three tools, ``list_files``, ``get_file_info`` and ``read_file``, rooted at
     ``path``, which is any location Airflow's
@@ -176,28 +172,22 @@ class ObjectStorageToolset(AirflowToolset):
         ):
             if value < 1:
                 raise ValueError(f"{name} must be at least 1, got {value}.")
-        if tool_prefix and not tool_prefix.isidentifier():
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        self._set_tool_prefix(tool_prefix)
         self._path = path
         self._conn_id = conn_id
         self._max_files = max_files
         self._max_read_bytes = max_read_bytes
         self._max_output_bytes = max_output_bytes
-        self._tool_prefix = tool_prefix
 
     @property
     def id(self) -> str:
-        suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
-        return f"object-storage-{self._conn_id or 'default'}{suffix}"
-
-    def _tool_name(self, base: str) -> str:
-        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
+        return f"object-storage-{self._conn_id or 'default'}{self._get_tool_prefix_id_suffix()}"
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for base, schema in _SCHEMAS.items():
-            name = self._tool_name(base)
+            name = self._build_tool_name(base)
             tools[name] = ToolsetTool(
                 toolset=self,
                 tool_def=ToolDefinition(
@@ -219,7 +209,7 @@ class ObjectStorageToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> str:
-        base = name.removeprefix(f"{self._tool_prefix}_") if self._tool_prefix else name
+        base = self._find_base_tool_name(name)
         relative = tool_args.get("path") or ""
         try:
             if base == LIST_FILES:
@@ -379,7 +369,7 @@ def _as_iso(modified: Any) -> str | None:
     if isinstance(modified, datetime):
         return modified.isoformat()
     if isinstance(modified, (int, float)) and modified > 0:
-        return datetime.fromtimestamp(modified, tz=timezone.utc).isoformat()
+        return datetime.fromtimestamp(modified, tz=UTC).isoformat()
     return None
 
 

@@ -23,9 +23,19 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from ci.lang_sdk_serialization.compare import TEST_DAGS, compare, get_task_defaults, main
+import yaml
+from ci.lang_sdk_serialization.compare import (
+    FEATURES,
+    TEST_DAGS,
+    compare,
+    filter_cases,
+    get_task_defaults,
+    main,
+    parse_features,
+)
 
 DEFAULTS = {"retry_delay": 300.0}
+REAL_TEST_DAGS = TEST_DAGS
 
 
 def build_serialized(fileloc: str, tasks: list[dict]) -> dict:
@@ -38,6 +48,7 @@ def build_serialized(fileloc: str, tasks: list[dict]) -> dict:
                 "timezone": "UTC",
                 "catchup": False,
                 "tags": ["a"],
+                "params": [],
                 "task_group": {"prefix_group_id": True, "children": {"extract": ["operator", "extract"]}},
                 "tasks": [{"__type": "operator", "__var": task} for task in tasks],
             },
@@ -112,6 +123,16 @@ def test_accepts_the_differences_an_sdk_is_allowed():
             id="nested-list",
         ),
         pytest.param(
+            lambda sdk: sdk["d"]["dag"].update(
+                params=[["limit", {"__class": "airflow.sdk.definitions.param.Param", "default": 5}]]
+            ),
+            [
+                "d: params is [['limit', {'__class': 'airflow.sdk.definitions.param.Param', 'default': 5}]], "
+                "Python writes []"
+            ],
+            id="dag-params",
+        ),
+        pytest.param(
             lambda sdk: sdk["d"]["dag"]["task_group"].update(prefix_group_id=False),
             ["d: task_group.prefix_group_id is False, Python writes True"],
             id="nested-dict",
@@ -183,20 +204,54 @@ def write_outputs(received: dict):
     return run
 
 
+CASES = """\
+# The header.
+dags:
+  # A Dag with nothing special.
+  - dag_id: d
+    tasks:
+      - task_id: extract
+
+  # A Dag that needs a feature.
+  - dag_id: branchy
+    requires: [branch]
+    tasks:
+      - task_id: gate
+
+  # A Dag that needs two features.
+  - dag_id: labelled_switch
+    requires: [switch, edge_labels]
+    tasks:
+      - task_id: pick
+"""
+
+
+@pytest.fixture
+def cases(tmp_path):
+    path = tmp_path / "cases" / "test_dags.yaml"
+    path.parent.mkdir()
+    path.write_text(CASES)
+    with mock.patch("ci.lang_sdk_serialization.compare.TEST_DAGS", path):
+        yield path
+
+
 @mock.patch("ci.lang_sdk_serialization.compare.get_task_defaults", autospec=True, return_value=DEFAULTS)
 @mock.patch("ci.lang_sdk_serialization.compare.tempfile.mkdtemp", autospec=True)
 @mock.patch("ci.lang_sdk_serialization.compare.subprocess.run", autospec=True)
 def test_main_runs_both_serializers_and_removes_their_output_when_they_agree(
-    mock_run, mock_mkdtemp, mock_get_task_defaults, tmp_path, capsys
+    mock_run, mock_mkdtemp, mock_get_task_defaults, cases, tmp_path, capsys
 ):
-    mock_mkdtemp.return_value = str(tmp_path)
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    mock_mkdtemp.return_value = str(work_dir)
     mock_run.side_effect = write_outputs(SDK)
 
     assert main(["--sdk", "typescript", "--", "pnpm", "exec", "tsx", "serialize.ts"]) == 0
 
-    sdk_output = str(tmp_path / "serialized_typescript.json")
+    sdk_output = str(work_dir / "serialized_typescript.json")
+    filtered = str(work_dir / "test_dags.yaml")
     assert [call.args[0] for call in mock_run.call_args_list] == [
-        ["pnpm", "exec", "tsx", "serialize.ts", str(TEST_DAGS), sdk_output],
+        ["pnpm", "exec", "tsx", "serialize.ts", filtered, sdk_output],
         [
             "uv",
             "run",
@@ -204,23 +259,23 @@ def test_main_runs_both_serializers_and_removes_their_output_when_they_agree(
             "airflow-core",
             "--no-dev",
             "python",
-            str(TEST_DAGS.parent / "serialize_python.py"),
-            str(TEST_DAGS),
-            str(tmp_path / "serialized_python.json"),
+            str(REAL_TEST_DAGS.parent / "serialize_python.py"),
+            filtered,
+            str(work_dir / "serialized_python.json"),
             "--receive",
             sdk_output,
-            str(tmp_path / "received_typescript.json"),
+            str(work_dir / "received_typescript.json"),
         ],
     ]
-    assert not tmp_path.exists()
-    assert "serializes all 1 Dags" in capsys.readouterr().out
+    assert not work_dir.exists()
+    assert "serializes the 1 Dags of test_dags.yaml it supports" in capsys.readouterr().out
 
 
 @mock.patch("ci.lang_sdk_serialization.compare.get_task_defaults", autospec=True, return_value=DEFAULTS)
 @mock.patch("ci.lang_sdk_serialization.compare.tempfile.mkdtemp", autospec=True)
 @mock.patch("ci.lang_sdk_serialization.compare.subprocess.run", autospec=True)
 def test_main_reports_the_differences_and_keeps_the_output(
-    mock_run, mock_mkdtemp, mock_get_task_defaults, tmp_path, capsys
+    mock_run, mock_mkdtemp, mock_get_task_defaults, cases, tmp_path, capsys
 ):
     mock_mkdtemp.return_value = str(tmp_path)
     sdk = copy.deepcopy(SDK)
@@ -235,7 +290,7 @@ def test_main_reports_the_differences_and_keeps_the_output(
 
 @mock.patch("ci.lang_sdk_serialization.compare.tempfile.mkdtemp", autospec=True)
 @mock.patch("ci.lang_sdk_serialization.compare.subprocess.run", autospec=True)
-def test_main_stops_when_a_serializer_fails(mock_run, mock_mkdtemp, tmp_path):
+def test_main_stops_when_a_serializer_fails(mock_run, mock_mkdtemp, cases, tmp_path):
     mock_mkdtemp.return_value = str(tmp_path)
     mock_run.return_value = subprocess.CompletedProcess([], 1)
 
@@ -243,3 +298,122 @@ def test_main_stops_when_a_serializer_fails(mock_run, mock_mkdtemp, tmp_path):
         main(["--sdk", "typescript", "--", "serialize"])
 
     assert mock_run.call_count == 1
+
+
+@mock.patch("ci.lang_sdk_serialization.compare.tempfile.mkdtemp", autospec=True)
+@mock.patch("ci.lang_sdk_serialization.compare.subprocess.run", autospec=True)
+def test_main_hands_the_sdk_only_the_dags_it_supports(mock_run, mock_mkdtemp, cases, tmp_path):
+    mock_mkdtemp.return_value = str(tmp_path)
+    mock_run.side_effect = write_outputs(SDK)
+
+    main(["--sdk", "go", "--supports", "branch", "--", "serialize"])
+
+    filtered = yaml.safe_load((tmp_path / "test_dags.yaml").read_text())
+    assert [case["dag_id"] for case in filtered["dags"]] == ["d", "branchy"]
+
+
+@mock.patch("ci.lang_sdk_serialization.compare.tempfile.mkdtemp", autospec=True)
+@mock.patch("ci.lang_sdk_serialization.compare.subprocess.run", autospec=True)
+def test_main_fails_when_the_sdk_writes_other_dags_than_it_supports(
+    mock_run, mock_mkdtemp, cases, tmp_path, capsys
+):
+    mock_mkdtemp.return_value = str(tmp_path)
+    mock_run.side_effect = write_outputs(SDK)
+
+    assert main(["--sdk", "go", "--supports", "all", "--", "serialize"]) == 1
+
+    assert mock_run.call_count == 1
+    assert (
+        "The go SDK wrote the Dags ['d'], but it supports "
+        "['branch', 'edge_labels', 'group_options', 'literal_inputs', 'switch', 'trigger_dag_run'] "
+        "and so should write ['branchy', 'd', 'labelled_switch']"
+    ) in capsys.readouterr().err
+
+
+def test_parse_features():
+    assert parse_features("all") == FEATURES
+    assert parse_features("") == frozenset()
+    assert parse_features("branch,switch") == {"branch", "switch"}
+    with pytest.raises(SystemExit, match=r"--supports names \['nope'\]"):
+        parse_features("branch,nope")
+
+
+@pytest.mark.parametrize(
+    ("supported", "expected"),
+    [
+        pytest.param(frozenset(), ["d"], id="nothing"),
+        pytest.param(frozenset({"branch"}), ["d", "branchy"], id="one-feature"),
+        pytest.param(frozenset({"switch"}), ["d"], id="all-of-the-features"),
+        pytest.param(frozenset({"switch", "edge_labels"}), ["d", "labelled_switch"], id="both-features"),
+        pytest.param(FEATURES, ["d", "branchy", "labelled_switch"], id="all"),
+    ],
+)
+def test_filter_cases_keeps_the_dags_whose_features_are_all_supported(supported, expected):
+    filtered, dag_ids = filter_cases(CASES, supported)
+
+    assert dag_ids == expected
+    assert [case["dag_id"] for case in yaml.safe_load(filtered)["dags"]] == expected
+
+
+def test_filter_cases_keeps_the_header_and_the_comment_of_each_dag():
+    filtered, _ = filter_cases(CASES, frozenset({"branch"}))
+
+    assert filtered.startswith("# The header.\ndags:\n  # A Dag with nothing special.\n  - dag_id: d\n")
+    assert "  # A Dag that needs a feature.\n  - dag_id: branchy\n" in filtered
+    assert "A Dag that needs two features" not in filtered
+
+
+def test_filter_cases_rejects_a_feature_it_does_not_know():
+    with pytest.raises(SystemExit, match=r"Dag d requires \['nope'\]"):
+        filter_cases("dags:\n  - dag_id: d\n    requires: [nope]\n", FEATURES)
+
+
+class DagsLoader(yaml.SafeLoader):
+    """Reads test_dags.yaml, with the values of its tags as they are written."""
+
+
+def read_tagged_scalar(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> str:
+    return loader.construct_scalar(node)
+
+
+DagsLoader.add_constructor("!datetime", read_tagged_scalar)
+DagsLoader.add_constructor("!timedelta", read_tagged_scalar)
+
+
+def load_dag_ids(text: str) -> list[str]:
+    return [case["dag_id"] for case in yaml.load(text, Loader=DagsLoader)["dags"]]
+
+
+def load_test_dags() -> list[dict]:
+    return yaml.load(TEST_DAGS.read_text(), Loader=DagsLoader)["dags"]
+
+
+def test_test_dags_filters_to_the_dags_that_need_no_feature():
+    cases = load_test_dags()
+    filtered, dag_ids = filter_cases(TEST_DAGS.read_text(), frozenset())
+
+    assert dag_ids == [case["dag_id"] for case in cases if "requires" not in case]
+    assert load_dag_ids(filtered) == dag_ids
+    assert filter_cases(TEST_DAGS.read_text(), FEATURES)[1] == [case["dag_id"] for case in cases]
+
+
+# The keys that a language SDK's builder has to understand, with the features that allow them.
+KEY_FEATURES = {
+    "branch": {"branch", "switch"},
+    "trigger_dag_run": {"trigger_dag_run"},
+    "literals": {"literal_inputs"},
+}
+
+
+def test_test_dags_require_the_feature_of_each_key_they_use():
+    for case in load_test_dags():
+        required = set(case.get("requires", []))
+        assert required <= FEATURES, case["dag_id"]
+        for task in case["tasks"]:
+            for key, allowed in KEY_FEATURES.items():
+                if key in task:
+                    assert required & allowed, f"{case['dag_id']}.{task['task_id']} uses {key}"
+        if any(not isinstance(group, str) for group in case.get("groups", [])):
+            assert "group_options" in required, case["dag_id"]
+        if any(len(edge) == 3 for edge in case.get("order_edges", [])):
+            assert "edge_labels" in required, case["dag_id"]

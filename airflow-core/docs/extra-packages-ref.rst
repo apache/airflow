@@ -170,7 +170,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache-spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.11.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
@@ -280,6 +280,8 @@ These are extras that add dependencies needed for integration with external serv
 | google              | ``pip install 'apache-airflow[google]'``            | Google Cloud                                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                          |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| huggingface         | ``pip install 'apache-airflow[huggingface]'``       | Hugging Face                                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | openai              | ``pip install 'apache-airflow[openai]'``            | Open AI hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+

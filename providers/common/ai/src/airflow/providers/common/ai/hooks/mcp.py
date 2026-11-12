@@ -16,22 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+    mask_secret,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    from airflow.sdk.execution_time.secrets_masker import mask_secret
-else:
-    try:
-        from airflow.sdk.log import mask_secret
-    except ImportError:
-        try:
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
-        except ImportError:
-            from airflow.utils.log.secrets_masker import mask_secret
 
 
 class MCPHook(BaseHook):
@@ -71,7 +66,7 @@ class MCPHook(BaseHook):
 
     :param mcp_conn_id: Airflow connection ID for the MCP server.
     :param tool_prefix: Optional prefix prepended to tool names
-        (e.g. ``"weather"`` → ``"weather_get_forecast"``).
+        (e.g. ``"weather"`` → ``"weather_get_forecast"``). Defaults to ``""`` (no prefix).
     :param token_provider: Optional zero-argument callable returning a bearer
         token string. When set, it overrides the connection ``password`` for the
         ``Authorization`` header on HTTP/SSE transports. Called once, the first
@@ -93,7 +88,7 @@ class MCPHook(BaseHook):
     def __init__(
         self,
         mcp_conn_id: str = default_conn_name,
-        tool_prefix: str | None = None,
+        tool_prefix: str = "",
         *,
         token_provider: Callable[[], str] | None = None,
         env_provider: Callable[[], dict[str, str]] | None = None,
@@ -213,10 +208,10 @@ class MCPHook(BaseHook):
         try:
             from fastmcp.client.transports import SSETransport, StdioTransport, StreamableHttpTransport
             from pydantic_ai.mcp import MCPToolset
-        except ImportError:
-            raise ImportError(
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
                 'MCP support requires the `mcp` package. Install it with: pip install "pydantic-ai-slim[mcp]"'
-            )
+            ) from e
 
         conn = self.get_connection(self.mcp_conn_id)
         extra = conn.extra_dejson
@@ -236,13 +231,47 @@ class MCPHook(BaseHook):
                 raise ValueError(
                     f"Connection {self.mcp_conn_id!r} requires 'command' in extra for stdio transport."
                 )
-            args = extra.get("args", [])
-            if isinstance(args, str):
-                args = [args]
+            args = extra.get("args")
+            if args is None:
+                args = []
+            elif isinstance(args, str):
+                if args.strip().startswith("["):
+                    try:
+                        args = json.loads(args)
+                    except ValueError as e:
+                        raise ValueError(
+                            f"'args' in extra for connection {self.mcp_conn_id!r} looks like a JSON array "
+                            "but is not valid JSON."
+                        ) from e
+                else:
+                    args = [args]
+            if not isinstance(args, list):
+                raise ValueError(
+                    f"'args' in extra for connection {self.mcp_conn_id!r} must be a string, a JSON "
+                    f"array of strings or a list of strings, got {type(args).__name__}."
+                )
+            for index, arg in enumerate(args):
+                if not isinstance(arg, str):
+                    raise ValueError(
+                        f"'args' in extra for connection {self.mcp_conn_id!r} must contain only strings, "
+                        f"got {type(arg).__name__} at index {index}."
+                    )
             timeout = extra.get("timeout", 10)
+            # ``None`` and ``0`` are both valid "no timeout" values, but fastmcp replaces
+            # ``init_timeout=None`` with its global ``client_init_timeout`` setting, so ``None``
+            # is mapped to ``0`` to keep ``FASTMCP_CLIENT_INIT_TIMEOUT`` from re-enabling a timeout.
+            if timeout is not None and (
+                isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))
+                or not 0 <= timeout < float("inf")
+            ):
+                raise ValueError(
+                    f"'timeout' in extra for connection {self.mcp_conn_id!r} must be a non-negative "
+                    f"finite number of seconds, got {timeout!r}."
+                )
             toolset = MCPToolset(
                 StdioTransport(command=command, args=args, env=self._stdio_env(extra)),
-                init_timeout=timeout,
+                init_timeout=0 if timeout is None else timeout,
             )
         else:
             raise ValueError(

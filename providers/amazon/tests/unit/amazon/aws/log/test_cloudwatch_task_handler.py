@@ -22,7 +22,7 @@ import logging
 import os
 import textwrap
 import time
-from datetime import datetime as dt, timedelta, timezone as std_timezone
+from datetime import UTC, datetime as dt, timedelta
 from pathlib import Path
 from unittest import mock
 from unittest.mock import ANY, call
@@ -55,7 +55,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 
 def get_time_str(time_in_milliseconds):
-    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=std_timezone.utc)
+    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=UTC)
     return dt_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -315,6 +315,21 @@ class TestCloudRemoteLogIO:
                 self.subject.upload(outside_path, self.ti)
         dag_dir = self.local_log_location / "dag_id=a"
         assert dag_dir.exists()
+
+    @mock.patch("airflow.sdk.log.relative_path_from_logger")
+    @mock.patch.object(CloudWatchRemoteLogIO, "handler", new_callable=mock.PropertyMock)
+    def test_processors_skip_log_file_outside_base_log_folder(self, mock_handler, mock_relative_path):
+        mock_relative_path.side_effect = ValueError("'/elsewhere/x.log' is not in the subpath of '/logs'")
+        subject = CloudWatchRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            log_group_arn=f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+        )
+        event = {"event": "Hi"}
+
+        result = subject.processors[0](mock.MagicMock(), "info", event)
+
+        assert result is event
+        mock_handler.return_value.handle.assert_not_called()
 
     @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message(self):

@@ -29,7 +29,7 @@ import tempfile
 import warnings
 from collections import namedtuple
 from collections.abc import Generator
-from datetime import date, datetime, timezone as _timezone
+from datetime import UTC, date, datetime
 from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
@@ -2023,7 +2023,7 @@ class _SubprocessBehaviourTests:
         def f(_):
             return None
 
-        self.run_as_task(f, op_args=[datetime.now(tz=_timezone.utc)])
+        self.run_as_task(f, op_args=[datetime.now(tz=UTC)])
 
     def test_context(self):
         def f(templates_dict):

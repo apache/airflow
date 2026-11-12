@@ -24,10 +24,22 @@ hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_new_dag_import_error(filename, stacktrace):
-    """Execute when new dag import error appears."""
+def on_new_dag_import_error(filename, stacktrace, bundle_name, relative_fileloc):
+    """
+    Execute when new dag import error appears.
+
+    ``bundle_name`` and ``relative_fileloc``, added in Airflow 3.5.0, identify the source in either
+    publication mode. ``filename`` retains its historical absolute path for direct publication, and is
+    bundle-relative through the Execution API. Implementations may omit arguments they do not need.
+    """
 
 
 @hookspec
-def on_existing_dag_import_error(filename, stacktrace):
-    """Execute when existing dag import error appears."""
+def on_existing_dag_import_error(filename, stacktrace, bundle_name, relative_fileloc):
+    """
+    Execute when existing dag import error appears.
+
+    ``bundle_name`` and ``relative_fileloc``, added in Airflow 3.5.0, identify the source in either
+    publication mode. ``filename`` retains its historical absolute path for direct publication, and is
+    bundle-relative through the Execution API. Implementations may omit arguments they do not need.
+    """

@@ -107,7 +107,7 @@ alongside `pr-management-triage` is out of scope here.
 ## Stage 1: invoking the `pr-management-triage` skill
 
 The skill is provided by the [`apache/magpie`](https://github.com/apache/magpie) framework,
-installed from its plugin marketplace (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-magpie) for the install commands). Nothing is
+installed from its plugin marketplace (see [Agent-assisted contribution](33_agent_assisted_contribution.md) for the install commands). Nothing is
 committed to this repo, so the install is per-developer and one-off; afterwards Claude Code
 exposes the skill as `magpie-pr-management:pr-management-triage`. Its entry point is
 [`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md); the rest of the directory breaks
@@ -238,10 +238,55 @@ The triage workflow uses the following labels and states:
 | Label / State | Meaning |
 |---|---|
 | `ready for maintainer review` | PR has passed Stage 1 and is queued for human review. Applied only after the skill has verified that no workflow runs are awaiting approval. |
+| `need workflow approval` | The PR's CI workflow runs wait for a maintainer, because the `Auto approve workflow runs` workflow did not approve them: a PR to a branch other than `main`, a change to CI definition files, a full-tests or dependency change, a change whose CI jobs are estimated at more than 310 job-minutes, or a change of more than 100 lines of source code (see [Pull Requests](05_pull_requests.rst)). The workflow also tries to add the label when processing the PR failed; its run then fails too. The PR's head commit gets a pending `Workflow approval` commit status giving the reason, which the author sees in the checks without a notification. Approve the runs after looking at the diff. When the runs start, the `Mark workflow runs approved` workflow removes the label and turns the status green, whether a maintainer or the workflow approved them. |
 | `closed because of multiple quality violations` | PR was closed because the author has multiple open PRs with quality issues. |
 | `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
 | `closed because of open PR limit` | PR was closed in the one-time closure that introduced the [open PR limit](32_open_pull_request_limit.rst). Applied by `dev/close_prs_over_open_pr_limit.py`, never by the triage skill. If the author reopens the PR, triage it like any other. |
 | **Draft status** | PR was converted to draft because it does not meet quality criteria. The contributor is asked to fix the listed issues and mark the PR as "Ready for review" once done. |
+| `fork ci required` | PR runs its CI in the contributor's fork (AIP-120). Applied and managed by the fork CI reconciler, never by the triage skill. |
+| `needs project ci` | Fork CI is green, but the PR changes CI-defining files, so a maintainer must review them and add `use project ci`. Applied and removed by the fork CI reconciler. Filter on it to find PRs waiting only on a maintainer. |
+| `use project ci` / `use fork ci` | Set by a maintainer to override the fork CI decision for one PR: run project CI, or use fork CI for a PR that would otherwise run project CI. |
+
+## Pull requests gated to fork CI
+
+Pull requests labelled `fork ci required` run their CI in the contributor's fork. The scheduled
+fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns five things
+for them, and the triage skill must treat those pull requests as out of scope for each:
+
+- **Draft state.** The reconciler keeps the pull request in draft until the fork CI runs for its
+  latest commit, undrafts it only when that run is green, and undrafts only what it drafted. A
+  failed run does not draft it.
+- **`ready for maintainer review`.** The reconciler adds it when the fork run is green and the
+  pull request is not a draft the author made (it adds it once the author marks it ready), and
+  removes it when a new push starts a new run or the author converts the pull request to draft.
+- **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
+  changes CI-defining files, and removes it once the state is anything else. These pull requests
+  are not drafted and get no `ready for maintainer review` label. Their `Fork CI / Tests (AMD)`
+  status stays pending without `CI passed`, and they keep `needs project ci` until a maintainer
+  reviews the CI change and adds `use project ci`. A draft the author made gets neither label
+  until the author marks it ready for review.
+- **Closing for changing the gate.** The reconciler closes a pull request that changes the fork
+  CI gate (its code, configuration other than the author's own `[pilot]` entry, the `gate` job
+  of `ci-amd.yml` or the monitor), and reports it on Slack. Add `use project ci` to accept such
+  a change.
+- **Closing after inactivity.** The reconciler closes a pull request whose fork CI has not run for
+  `close_after_days`.
+
+Everything else the skill does (quality criteria, pings, suspicious-change flags) applies as
+usual. The `Fork CI / Tests (AMD)` commit status shows the fork CI state and links to the run in
+the fork. To move a single pull request back to project CI, add `use project ci`; the reconciler
+releases it on its next run; removing `fork ci required` by hand is not enough, the next run
+labels a gated pull request again. Adding the label does not start project CI by itself, and the
+reconciler deletes the gated `Tests (AMD)` runs, so there is usually nothing to re-run: close and
+reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`),
+or ask the author to push. Pull requests that change CI-defining files are not drafted
+and get no `ready for maintainer review` label even when the fork run is green. Their
+`Fork CI / Tests (AMD)` status stays pending without `CI passed`, and they are labelled
+`needs project ci` until a maintainer reviews the CI change and adds `use project ci`, unless
+the author keeps the pull request a draft. For every other pull request, when the fork run is green and trusted, the reconciler also posts the
+`CI passed` status the merge ruleset requires, so it can be merged or auto-merged without project
+CI. See
+[Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
 
 ## For contributors
 

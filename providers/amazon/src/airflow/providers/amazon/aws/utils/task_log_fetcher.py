@@ -22,7 +22,7 @@ import logging
 import re
 import time
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from threading import Event, Thread
 from typing import TYPE_CHECKING
 
@@ -109,7 +109,7 @@ class AwsTaskLogFetcher(Thread):
     def _forward_log_events(self, continuation_token: AwsLogsHook.ContinuationToken) -> None:
         prev_timestamp_event = None
         for log_event in self._get_log_events(continuation_token):
-            current_timestamp_event = datetime.fromtimestamp(log_event["timestamp"] / 1000.0, tz=timezone.utc)
+            current_timestamp_event = datetime.fromtimestamp(log_event["timestamp"] / 1000.0, tz=UTC)
             if current_timestamp_event == prev_timestamp_event:
                 # When multiple events have the same timestamp, somehow, only one event is logged
                 # As a consequence, some logs are missed in the log group (in case they have the same
@@ -146,7 +146,7 @@ class AwsTaskLogFetcher(Thread):
 
     @staticmethod
     def event_to_str(event: dict) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"
@@ -158,13 +158,25 @@ class AwsTaskLogFetcher(Thread):
          NOTE: some restrictions apply:
          - if logs are too old, the response will be empty
          - the max number of messages we can retrieve is constrained by cloudwatch limits (10,000).
+         - if the log stream does not exist, an empty list is returned.
         """
-        response = self.hook.conn.get_log_events(
-            logGroupName=self.log_group,
-            logStreamName=self.log_stream_name,
-            startFromHead=False,
-            limit=number_messages,
-        )
+        try:
+            response = self.hook.conn.get_log_events(
+                logGroupName=self.log_group,
+                logStreamName=self.log_stream_name,
+                startFromHead=False,
+                limit=number_messages,
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] != "ResourceNotFoundException":
+                raise
+            self.logger.warning(
+                "Cannot find log stream, check that the log group and stream are correct: "
+                "group: %s\tstream: %s",
+                self.log_group,
+                self.log_stream_name,
+            )
+            return []
         return [log["message"] for log in response["events"]]
 
     def get_last_log_message(self) -> str | None:

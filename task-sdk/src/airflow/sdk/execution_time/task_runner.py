@@ -28,11 +28,12 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
+from uuid import UUID
 
 import attrs
 import lazy_object_proxy
@@ -51,6 +52,8 @@ from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    ExternalClearTargetPayload,
+    LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -58,10 +61,11 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, _is_legacy_xcom_backend
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup, is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -70,8 +74,12 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetUriRef,
 )
+from airflow.sdk.definitions.context import render_template_to_string
+from airflow.sdk.definitions.external_clear import SupportsExternalClearTarget
+from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -84,6 +92,7 @@ from airflow.sdk.exceptions import (
     ErrorType,
     TaskAwaitingInput,
     TaskDeferred,
+    TaskNotFound,
 )
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
@@ -112,6 +121,7 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
@@ -148,6 +158,8 @@ from airflow.sdk.execution_time.email_backend import (
     _ErrorEmailNotifier,
     _LegacyEmailBackendNotifier,
 )
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.loop import LoopContextAccessor
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.tracing import detail_span
 from airflow.sdk.execution_time.xcom import XCom
@@ -226,11 +238,20 @@ class RuntimeTaskInstance(TaskInstance):
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
+    _state_store_clear_owed: bool = False
+    """True once a successful task has been reported to the supervisor and ``clear_on_success`` still owes the custom backend a delete; finalize() does it last, after every callback and listener, so a slow remote delete cannot eat the task_success_overtime budget ahead of them. finalize() is the seam both the subprocess and the in-process (dag.test()) paths cross."""
+
     _failure_metrics_emitted: bool = False
     """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
+
+    _loop_decision: LoopDecisionPayload | None = None
+    """A loop gate's evaluation of ``until``, reported with its terminal state."""
+
+    _external_clear_target: ExternalClearTargetPayload | None = None
+    """The cross-Dag clear target resolved after a successful run, reported with its success."""
 
     max_tries: int = 0
     """The maximum number of retries for the task."""
@@ -248,6 +269,33 @@ class RuntimeTaskInstance(TaskInstance):
     rendered_map_index: str | None = None
 
     sentry_integration: str = ""
+
+    def model_post_init(self, context: Any) -> None:
+        if self.region_id is None:
+            self.region_id = UUID(int=0)
+        if self.region_index is None:
+            self.region_index = self.map_index
+
+    @property
+    def loop(self) -> LoopContextAccessor | None:
+        """The iteration of the innermost loop this task instance runs in, ``None`` outside a loop."""
+        if self._ti_context_from_server is None or self._ti_context_from_server.loop is None:
+            return None
+        return LoopContextAccessor(self._ti_context_from_server.loop, self)
+
+    @property
+    def loop_decision(self) -> LoopDecision | None:
+        """A loop gate's decision, set once the gate has evaluated whether the loop stops."""
+        if self._loop_decision is None:
+            return None
+        return LoopDecision(stop=self._loop_decision.stop, reason=self._loop_decision.reason)
+
+    @property
+    def expanded_ti_count(self) -> int | None:
+        """Number of instances in this mapped task's expansion in its loop iteration, None if not mapped."""
+        if self._ti_context_from_server is None:
+            return None
+        return self._ti_context_from_server.expanded_ti_count
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -299,6 +347,7 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
+            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
@@ -322,18 +371,20 @@ class RuntimeTaskInstance(TaskInstance):
                 "conn": ConnectionAccessor(),
                 "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
+                    stats_tags=state_store_stats_tags,
                     scope=TaskScope(
                         dag_id=self.dag_id,
                         run_id=self.run_id,
                         task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
+                        map_index=self.region_index if self.region_index is not None else -1,
+                        region_id=self.region_id or UUID(int=0),
                     ),
                 ),
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
                 self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets
+                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
                 )
                 # AssetAlias inlets are resolved to their concrete assets at context build time via
                 # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
@@ -341,6 +392,8 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
+            if (loop := self.loop) is not None:
+                self._cached_template_context["loop"] = loop
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
@@ -484,6 +537,20 @@ class RuntimeTaskInstance(TaskInstance):
             map_indexes_iterable,
         )
 
+    def _get_loop_task_sequence(
+        self, task_id: str, *, key: str, dag_id: str, run_id: str, include_prior_dates: bool
+    ) -> LazyXComSequence | None:
+        """Return every iteration of a loop task as a sequence when this task instance is outside that loop."""
+        if include_prior_dates or (dag_id, run_id) != (self.dag_id, self.run_id):
+            return None
+        try:
+            producer = self.task.dag.get_task(task_id)
+        except TaskNotFound:
+            return None
+        if not is_loop_task_read_from_outside(producer, self.task):
+            return None
+        return LazyXComSequence(xcom_arg=PlainXComArg(producer, key), ti=self)
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -542,6 +609,16 @@ class RuntimeTaskInstance(TaskInstance):
         xcoms: list[Any] = []
 
         if not is_arg_set(map_indexes_iterable):
+            if single_task_requested:
+                sequence = self._get_loop_task_sequence(
+                    task_ids[0],
+                    key=key,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                if sequence is not None:
+                    return sequence
             # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = XCom.get_all(
@@ -551,7 +628,10 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-                xcoms.append(None) if values is None else xcoms.extend(values)
+                if values is None:
+                    xcoms.append(default)
+                else:
+                    xcoms.extend(values)
             # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -591,6 +671,17 @@ class RuntimeTaskInstance(TaskInstance):
         xcoms: list[Any] = []
 
         if not is_arg_set(map_indexes_iterable):
+            if single_task_requested and (
+                self._get_loop_task_sequence(
+                    task_ids[0],
+                    key=key,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                is not None
+            ):
+                return await XCom.aget_all(run_id=run_id, key=key, task_id=task_ids[0], dag_id=dag_id) or []
             # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = await XCom.aget_all(
@@ -600,7 +691,10 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-                xcoms.append(None) if values is None else xcoms.extend(values)
+                if values is None:
+                    xcoms.append(default)
+                else:
+                    xcoms.extend(values)
             # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -679,6 +773,11 @@ class RuntimeTaskInstance(TaskInstance):
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
 
+        if from_server := self._ti_context_from_server:
+            # Older servers don't send this field, so fall through to asking the supervisor below.
+            if (first_reschedule_date := from_server.first_task_reschedule_start_date) is not None:
+                return first_reschedule_date
+
         max_tries: int = self.max_tries
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
@@ -735,6 +834,9 @@ class RuntimeTaskInstance(TaskInstance):
     ) -> PreviousTIResponse | None:
         """
         Return the previous task instance matching the given criteria.
+
+        Inside a loop, this is the task instance at the same iteration in the closest earlier Dag run
+        that reached that iteration, not that run's last iteration.
 
         :param state: Filter by TaskInstance state
         :param logical_date: Filter by logical date (returns TI before this date)
@@ -878,12 +980,14 @@ class RuntimeTaskInstance(TaskInstance):
         map_index = (
             f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
         )
-        try_number_value = self.try_number
-        try_number = (
-            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-        )
-        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
-        return _log_uri
+        query: dict[str, Any] = {}
+        # The UI selects a task instance in a region by its region, which tells loop iterations apart
+        if self.region_id is not None and self.region_id.int != 0:
+            query.update(region_id=self.region_id, region_index=self.region_index)
+        if self.try_number is not None and self.try_number > 0:
+            query["try_number"] = self.try_number
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}"
+        return f"{_log_uri}?{urlencode(query)}" if query else _log_uri
 
     @property
     def mark_success_url(self) -> str:
@@ -898,7 +1002,7 @@ def _xcom_push(
     *,
     mapped_length: int | None = None,
 ) -> None:
-    """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
+    """Push a XCom for ``ti`` through the configured XCom backend."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
@@ -910,16 +1014,7 @@ def _xcom_push(
         _xcom_push_to_db(ti, key, value)
         return
 
-    XCom.set(
-        key=key,
-        value=value,
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        dag_result=ti.task.returns_dag_result,
-        _mapped_length=mapped_length,
-    )
+    XCom._push(ti, key, value, dag_result=ti.task.returns_dag_result, mapped_length=mapped_length)
 
 
 async def _axcom_push(
@@ -929,20 +1024,11 @@ async def _axcom_push(
     *,
     mapped_length: int | None = None,
 ) -> None:
-    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    """Push a XCom for ``ti`` through the configured XCom backend."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
-    await XCom.aset(
-        key=key,
-        value=value,
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        dag_result=ti.task.returns_dag_result,
-        _mapped_length=mapped_length,
-    )
+    await XCom._apush(ti, key, value, dag_result=ti.task.returns_dag_result, mapped_length=mapped_length)
 
 
 def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
@@ -974,7 +1060,7 @@ def _maybe_reschedule_startup_failure(
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
     if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
         raise AirflowRescheduleException(
-            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
+            reschedule_date=datetime.now(tz=UTC) + timedelta(seconds=missing_dag_retry_delay)
         )
 
     log.error(
@@ -1041,14 +1127,25 @@ def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: L
         path=what.dag_rel_path,
     )
     try:
-        SUPERVISOR_COMMS.send(
-            TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=timezone.utc))
-        )
+        SUPERVISOR_COMMS.send(TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=UTC)))
     except Exception:
         log.exception("Failed to report terminal task state to supervisor", state=TaskInstanceState.FAILED)
         sys.exit(1)
     # The supervisor keeps the reported state only when the process exits with 0.
     sys.exit(0)
+
+
+def check_xcom_backend_supports_loops(dag) -> None:
+    if not _is_legacy_xcom_backend(XCom):
+        return
+    if not any(isinstance(group, LoopTaskGroup) for group in dag.task_group.get_task_group_dict().values()):
+        return
+    raise TypeError(
+        f"Dag {dag.dag_id!r} uses a loop, but XCom backend {XCom.__module__}.{XCom.__qualname__} stores "
+        "values through serialize_value rather than store_value, so every iteration of a task could store "
+        "its XCom in the same place. Implement store_value and include ti.id in the storage location; for "
+        "XComObjectStorageBackend, upgrade apache-airflow-providers-common-io."
+    )
 
 
 @detail_span("parse")
@@ -1106,6 +1203,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
+
+    check_xcom_backend_supports_loops(dag)
 
     # Register operator-declared XCom model classes (e.g. ``output_type``) for
     # the whole DAG so this task can deserialize structured output produced by
@@ -1585,7 +1684,7 @@ def _run_task_and_map_outcome(
                 return state, msg, error
 
             try:
-                result = _execute_task(context=context, ti=ti, log=log)
+                result = _TaskRunner.run(ti, context, log)
                 log.info("::group::Post Execute")
             except Exception:
                 import jinja2
@@ -1608,6 +1707,7 @@ def _run_task_and_map_outcome(
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
+        _resolve_external_clear_target(context, ti, log)
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
@@ -1629,29 +1729,29 @@ def _run_task_and_map_outcome(
         log.info("::group::Post Execute")
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.SKIPPED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
     except AirflowRescheduleException as reschedule:
         log.info("::group::Post Execute")
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
-        msg = RescheduleTask(
-            reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
-        )
+        msg = RescheduleTask(reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=UTC))
         state = TaskInstanceState.UP_FOR_RESCHEDULE
     except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
+            loop_decision=ti._loop_decision,
         )
         state = TaskInstanceState.FAILED
         error = e
@@ -1667,7 +1767,7 @@ def _run_task_and_map_outcome(
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
@@ -1747,20 +1847,64 @@ def run(
                 # not fail-closed: supervisor's final_state would misclassify
                 # them too, but exiting non-zero would map them to FAILED,
                 # which is strictly worse than the default. Those need a
-                # separate fix in supervisor's final_state.
-                if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+                # separate fix in supervisor's final_state. Whenever the task
+                # raised, though, FAILED beats a silent SUCCESS, including when
+                # a retry policy turned the exception into a reschedule.
+                if error is not None or state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
                     ti._terminal_state_send_failed = True
+            else:
+                if state == TaskInstanceState.SUCCESS:
+                    ti._state_store_clear_owed = True
 
     # Return the message to make unit tests easier too
     ti.state = state
     return state, msg, error
 
 
+def _clear_task_state_store_on_success(context: Context, log: Logger) -> None:
+    """
+    Clear the custom state store backend once the task is recorded as successful.
+
+    Called at the end of finalize(), never before the terminal state is reported: the
+    backend is remote storage, so a failure deleting from it must not turn a task that
+    succeeded into a failed one, and a slow delete must not spend the task_success_overtime
+    budget that the success callbacks and listeners need.
+    """
+    if not conf.getboolean("state_store", "clear_on_success"):
+        return
+    try:
+        # Inside the try: the backend is built on first use, so a bad [workers]
+        # state_store_backend class path raises here for a task that never touched
+        # task_state_store, and @cache does not cache the raise.
+        if _get_worker_state_store_backend() is None:
+            return
+        scope = context["task_state_store"]._scope
+        # Logged before the delete: if it hangs past task_success_overtime, the supervisor
+        # kills the task and this line is the only record of which entries were left.
+        log.info(
+            "Clearing task state as clear_on_success is enabled.",
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            region_id=str(scope.region_id),
+            region_index=scope.region_index,
+        )
+        # clear() rather than a backend-only delete: success callbacks and listeners run
+        # before this and can set() new keys, whose DB refs must go before the objects do.
+        context["task_state_store"].clear()
+    except Exception:
+        log.exception(
+            "Failed to clear task state from custom backend; the task stays successful. Nothing in Airflow "
+            "reclaims these entries -- the database references are already gone and the next run uses a "
+            "different run_id -- so only the storage's own lifecycle or TTL policy will remove them."
+        )
+
+
 def _handle_current_task_success(
     context: Context,
     ti: RuntimeTaskInstance,
 ) -> tuple[SucceedTask, TaskInstanceState]:
-    end_date = datetime.now(tz=timezone.utc)
+    end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
 
     # Record operator and task instance success metrics
@@ -1773,17 +1917,13 @@ def _handle_current_task_success(
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
-    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
-        log.info(
-            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
-        )
-        context["task_state_store"]._clear_backend_only()
-
     msg = SucceedTask(
         end_date=end_date,
         task_outlets=task_outlets,
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
+        loop_decision=ti._loop_decision,
+        external_clear_target=ti._external_clear_target,
     )
     return msg, TaskInstanceState.SUCCESS
 
@@ -1828,7 +1968,7 @@ def _evaluate_retry_policy(
 
 def _handle_handler_failure(
     ti: RuntimeTaskInstance, exception: Exception, log: Logger, context: Context
-) -> tuple[RetryTask | TaskState, TaskInstanceState, Exception]:
+) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState, Exception]:
     """
     Decide the outcome for an exception raised by one of the outcome handlers themselves.
 
@@ -1858,7 +1998,7 @@ def _handle_handler_failure(
 
 def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
     """Build a plain FAILED terminal message, bypassing any retry decision."""
-    ti.end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = datetime.now(tz=UTC)
     return TaskState(
         state=TaskInstanceState.FAILED,
         end_date=ti.end_date,
@@ -1870,22 +2010,24 @@ def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
     log: Logger,
-    context: Context | None = None,
-) -> tuple[RetryTask | TaskState, TaskInstanceState]:
+    context: Context,
+) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState]:
     """
     Handle a failed task: evaluate the retry policy (if any) and decide the next state.
 
     This is the entry point every failure path routes through. When the policy
     returns FAIL the task is marked as failed immediately, bypassing the normal
     retry-count check.  When it returns RETRY with a custom delay, that delay is
-    forwarded in the ``RetryTask`` message.  For DEFAULT (or when no policy is
-    configured), the standard ``_finalize_task_failure`` logic runs.
+    forwarded in the ``RetryTask`` message.  When it returns RESCHEDULE within its
+    bounds, the task goes to ``up_for_reschedule`` without using a retry; past its
+    bounds, the standard logic runs with the reason saying why.  For DEFAULT (or when
+    no policy is configured), the standard ``_finalize_task_failure`` logic runs.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
     decision = _evaluate_retry_policy(ti, exception, log, context)
     if decision is not None and decision.action == RetryAction.FAIL:
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         return (
             TaskState(
                 state=TaskInstanceState.FAILED,
@@ -1899,7 +2041,52 @@ def _handle_current_task_failed(
         return _finalize_task_failure(
             ti, log, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
+    if decision is not None and decision.action == RetryAction.RESCHEDULE:
+        if (limit := _reschedule_limit_reached(ti, decision, context)) is None:
+            ti.end_date = datetime.now(tz=UTC)
+            delay = decision.retry_delay if decision.retry_delay is not None else ti.task.retry_delay
+            reschedule_date = ti.end_date + delay
+            log.info(
+                "Retry policy rescheduled the task, marking task as UP_FOR_RESCHEDULE",
+                reschedule_date=reschedule_date,
+                reschedule_count=_reschedule_count(ti),
+                max_reschedules=decision.max_reschedules,
+                reschedule_timeout=decision.reschedule_timeout,
+            )
+            return (
+                RescheduleTask(reschedule_date=reschedule_date, end_date=ti.end_date),
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+            )
+        log.info("Reschedule limit reached, applying the standard retry logic", limit=limit)
+        reason = f"Reschedule limit reached ({limit})"
+        if decision.reason:
+            reason = f"{reason}: {decision.reason}"
+        return _finalize_task_failure(ti, log, retry_reason=reason)
     return _finalize_task_failure(ti, log)
+
+
+def _reschedule_count(ti: RuntimeTaskInstance) -> int:
+    """Return how many times this try has been rescheduled so far."""
+    from_server = ti._ti_context_from_server
+    return (from_server.task_reschedule_count or 0) if from_server else 0
+
+
+def _reschedule_limit_reached(
+    ti: RuntimeTaskInstance, decision: RetryDecision, context: Context
+) -> str | None:
+    """
+    Say which bound stops a RESCHEDULE decision, or return None when the task may reschedule.
+
+    Both bounds count every reschedule of this try, whatever caused it (a sensor's pokes and a
+    startup reschedule included), so a retry starts them afresh.
+    """
+    if decision.max_reschedules is not None and _reschedule_count(ti) >= decision.max_reschedules:
+        return f"max_reschedules={decision.max_reschedules}"
+    if decision.reschedule_timeout is not None:
+        first = ti.get_first_reschedule_date(context)
+        if first is not None and datetime.now(tz=UTC) - first >= decision.reschedule_timeout:
+            return f"reschedule_timeout={decision.reschedule_timeout}"
+    return None
 
 
 def _finalize_task_failure(
@@ -1916,7 +2103,7 @@ def _finalize_task_failure(
     ``FAILED`` ``TaskState``. This is the default path; retry-policy overrides
     are decided in :func:`_handle_current_task_failed` before this is called.
     """
-    end_date = datetime.now(tz=timezone.utc)
+    end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
 
     # Record operator and task instance failed metrics. One failure is one increment even
@@ -1976,6 +2163,7 @@ def _handle_trigger_dag_run(
     )
 
     if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+        ti.end_date = datetime.now(tz=UTC)
         if drte.skip_when_already_exists:
             log.info(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
@@ -1983,7 +2171,7 @@ def _handle_trigger_dag_run(
             )
             msg = TaskState(
                 state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=timezone.utc),
+                end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.SKIPPED
@@ -1991,7 +2179,7 @@ def _handle_trigger_dag_run(
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
+                end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.FAILED
@@ -2086,6 +2274,9 @@ def _run_task_state_change_callbacks(
     context: Context,
     log: Logger,
 ) -> None:
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
+
+    context["callback"] = CallbackMeta(source=CallbackSource.TASK)
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
@@ -2213,6 +2404,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
+            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
@@ -2224,52 +2416,108 @@ def _run_execute_callable(
     return result
 
 
-@detail_span("_execute_task")
-def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
-    """Execute Task (optionally with a Timeout) and push Xcom results."""
-    task = ti.task
-    execute = task.execute
+class _TaskRunner:
+    """
+    Run a task instance and return its result.
 
-    if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
-        from airflow.sdk.serde import deserialize
+    Only :meth:`run` is meant to be called from outside. It selects how the task
+    runs and delegates. A stub task goes to its registered handler; a concrete
+    operator to its ``execute`` lifecycle (:meth:`_run_operator`).
 
-        next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
-        try:
+    .. note::
+
+        Ideally, the stub-or-not dispatching should live with the coordinator
+        dispatch. A coordinator is picked by queue, then either runs the handler
+        (if stub) or the (non-stub) task. This requires a larger refactor and is
+        deferred to a future PR.
+
+    .. seealso:: Language SDK ADR-0002.
+    """
+
+    @classmethod
+    @detail_span("_execute_task")
+    def run(cls, ti: RuntimeTaskInstance, context: Context, log: Logger):
+        """Run the task specified by *ti* with *context*."""
+        if ti.task.is_stub:
+            return cls._run_handler(ti, context, log)
+        return cls._run_operator(ti, context, log)
+
+    @classmethod
+    def _run_operator(cls, ti: RuntimeTaskInstance, context: Context, log: Logger):
+        """Execute a concrete operator."""
+        task = ti.task
+        execute = task.execute
+
+        if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
+            from airflow.sdk.serde import deserialize
+
+            next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
+            try:
+                if TYPE_CHECKING:
+                    assert isinstance(next_kwargs_data, dict)
+                kwargs = deserialize(next_kwargs_data)
+            except (ImportError, KeyError, AttributeError, TypeError):
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                kwargs = BaseSerialization.deserialize(next_kwargs_data)
+
             if TYPE_CHECKING:
-                assert isinstance(next_kwargs_data, dict)
-            kwargs = deserialize(next_kwargs_data)
-        except (ImportError, KeyError, AttributeError, TypeError):
-            from airflow.serialization.serialized_objects import BaseSerialization
+                assert isinstance(kwargs, dict)
+            execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-            kwargs = BaseSerialization.deserialize(next_kwargs_data)
+        # Export context in os.environ to make it available for operators to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        os.environ.update(airflow_context_vars)
 
-        if TYPE_CHECKING:
-            assert isinstance(kwargs, dict)
-        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
+        outlet_events = context_get_outlet_events(context)
 
-    # Export context in os.environ to make it available for operators to use.
-    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    os.environ.update(airflow_context_vars)
+        if (pre_execute_hook := task._pre_execute_hook) is not None:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    outlet_events = context_get_outlet_events(context)
+        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        log.info("::endgroup::")
 
-    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+        result = _run_execute_callable(context, execute, task)
 
-    log.info("::endgroup::")
+        if (post_execute_hook := task._post_execute_hook) is not None:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
-    result = _run_execute_callable(context, execute, task)
+        return result
 
-    if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+    @classmethod
+    def _run_handler(cls, ti: RuntimeTaskInstance, context: Context, log: Logger):
+        """Run a stub task's registered Python task handler."""
+        from airflow.sdk.coordinators.python import PythonCoordinator
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
+        from airflow.sdk.definitions.task_handlers import call_handler
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
-    return result
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
+        if not isinstance(coordinator, PythonCoordinator):
+            raise RuntimeError(
+                f"No task handler for ({ti.dag_id!r}, {ti.task_id!r}); "
+                f"{type(coordinator).__name__} does not run Python task handlers."
+            )
+        if (handler := coordinator.resolve_handler(ti.dag_id, ti.task_id, bundle=ti.bundle_instance)) is None:
+            raise RuntimeError(
+                f"No task handler for ({ti.dag_id!r}, {ti.task_id!r}); check the "
+                "coordinator's task_handler_bundle_name bundle."
+            )
+
+        def _invoke(context: Context) -> Any:
+            return call_handler(
+                handler,
+                ctx.arg_bindings if (ctx := ti._ti_context_from_server) else None,
+                lambda task_id, key: ti.xcom_pull(task_ids=task_id, key=key),
+            )
+
+        log.info("Running Python task handler", dag_id=ti.dag_id, task_id=ti.task_id)
+        return _run_execute_callable(context, _invoke, ti.task)
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
@@ -2277,10 +2525,27 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     if (template := context.get("map_index_template")) is None:
         return None
     log.debug("Rendering map_index_template", template_length=len(template))
-    jinja_env = ti.task.dag.get_template_env()
-    rendered_map_index = jinja_env.from_string(template).render(context)
+    jinja_env = ti.task.dag.get_template_env(force_sandboxed=True)
+    rendered_map_index = render_template_to_string(jinja_env.from_string(template), context)
     log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
+
+
+def _resolve_external_clear_target(context: Context, ti: RuntimeTaskInstance, log: Logger) -> None:
+    """Resolve the task's cross-Dag clear target for this run, to report with its success."""
+    if not isinstance(ti.task, SupportsExternalClearTarget):
+        return
+    if (target := ti.task.get_external_clear_target(context)) is None:
+        return
+    if (logical_date := target.logical_date or context.get("logical_date")) is None:
+        log.debug("Not recording an external clear target in a run without a logical date")
+        return
+    ti._external_clear_target = ExternalClearTargetPayload(
+        dag_id=target.dag_id,
+        task_id=target.task_id,
+        logical_date=logical_date,
+        recursion_depth=target.recursion_depth,
+    )
 
 
 def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
@@ -2407,6 +2672,9 @@ def finalize(
     except Exception:
         log.exception("error calling listener")
 
+    if ti._state_store_clear_owed:
+        _clear_task_state_store_on_success(context, log)
+
     log.info("::endgroup::")
 
 
@@ -2451,7 +2719,7 @@ def main():
                 SUPERVISOR_COMMS.send(
                     msg=RescheduleTask(
                         reschedule_date=reschedule.reschedule_date,
-                        end_date=datetime.now(tz=timezone.utc),
+                        end_date=datetime.now(tz=UTC),
                     )
                 )
                 span.record_exception(reschedule)

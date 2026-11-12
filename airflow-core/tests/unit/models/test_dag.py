@@ -63,10 +63,10 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -79,9 +79,11 @@ from airflow.sdk import (
     TaskGroup,
     setup,
     task as task_decorator,
+    task_group,
     teardown,
 )
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -397,20 +399,6 @@ class TestDag:
         clear_db_runs()
         clear_db_dags()
         clear_db_assets()
-
-    @staticmethod
-    def _occur_before(a, b, list_):
-        """
-        Assert that a occurs before b in the list.
-        """
-        a_index = -1
-        b_index = -1
-        for i, e in enumerate(list_):
-            if e.task_id == a:
-                a_index = i
-            if e.task_id == b:
-                b_index = i
-        return 0 <= a_index < b_index
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG("DAG", schedule=None, default_args={"start_date": datetime.datetime(2018, 1, 1)})
@@ -1722,6 +1710,64 @@ class TestDag:
         assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
         assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
 
+    @pytest.mark.parametrize(
+        ("excluded", "remaining"),
+        [
+            (None, {"outside", "body.work", "body.__loop_gate", "mapped"}),
+            (set(), {"outside", "body.work", "body.__loop_gate", "mapped"}),
+            ({("outside", -1)}, {"body.work", "body.__loop_gate", "mapped"}),
+            ({"body.work"}, {"outside", "body.__loop_gate", "mapped"}),
+            ({("body.work", -1)}, {"outside", "body.__loop_gate", "mapped"}),
+            ({("mapped", 0)}, {"outside", "body.work", "body.__loop_gate", "mapped"}),
+        ],
+    )
+    @pytest.mark.need_serialized_dag
+    def test_clear_selection_excludes_public_map_indexes(self, dag_maker, session, excluded, remaining):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker(serialized=True) as dag:
+            create_loop(body, max_iterations=3)
+            EmptyOperator(task_id="outside")
+            PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+        dr = dag_maker.create_dagrun(session=session)
+        root = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
+        session.add(root)
+        session.flush()
+        first_pass = next(ti for ti in dr.task_instances if ti.task_id == "body.work")
+        first_pass.region_id, first_pass.region_index = root.id, 0
+        for index in (1, 2):
+            session.add(
+                TI(
+                    task=dag.get_task("body.work"),
+                    run_id=dr.run_id,
+                    dag_version_id=dr.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=index,
+                )
+            )
+        session.flush()
+        selected = list(
+            dag._get_task_instances(
+                task_ids=None,
+                start_date=None,
+                end_date=None,
+                run_id=dr.run_id,
+                state=None,
+                exclude_task_ids=excluded,
+                exclude_run_ids=None,
+                session=session,
+            )
+        )
+        assert {ti.task_id for ti in selected} == remaining
+        if excluded == {("mapped", 0)}:
+            assert [ti.region_index for ti in selected if ti.task_id == "mapped"] == [1]
+        if "body.work" in remaining:
+            assert {ti.region_index for ti in selected if ti.task_id == "body.work"} == {0, 1, 2}
+
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     @pytest.mark.need_serialized_dag
     def test_clear_set_dagrun_state(self, dag_run_state, dag_maker, session):
@@ -1798,11 +1844,9 @@ class TestDag:
             dag_run_state=dag_run_state,
             session=session,
         )
-        session.refresh(upstream_ti)
-        session.refresh(ti)
         session.refresh(ti2)
-        assert upstream_ti.state is None  # cleared
-        assert ti.state is None  # cleared
+        assert dagrun_1.get_task_instance("make_arg_lists", session=session).state is None  # cleared
+        assert dagrun_1.get_task_instance(task_id, map_index=0, session=session).state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared
         dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
 
@@ -1853,6 +1897,33 @@ class TestDag:
         assert ti.max_tries == 2
         assert ti.state == (TaskInstanceState.SUCCESS if succeed_on_last_try else TaskInstanceState.FAILED)
         assert dr.state == (DagRunState.SUCCESS if succeed_on_last_try else DagRunState.FAILED)
+
+    def test_dag_test_without_logical_date_keeps_other_runs_task_instances(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="test_dateless_dag_test", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            pass
+
+        with dag:
+            check_task()
+
+        _create_dagrun(
+            dag,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.SUCCESS,
+        )
+        run_id = session.scalar(select(DagRun.run_id).where(DagRun.dag_id == dag.dag_id))
+        session.execute(update(TI).where(TI.run_id == run_id).values(state=TaskInstanceState.SUCCESS))
+        session.commit()
+
+        dag.test(logical_date=None)
+
+        session.expire_all()
+        states = session.scalars(select(TI.state).where(TI.run_id == run_id)).all()
+        assert states == [TaskInstanceState.SUCCESS]
 
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
@@ -1907,10 +1978,9 @@ class TestDag:
         assert state_during_callback == TaskInstanceState.RUNNING
         assert value == "written"
         with create_session() as session:
-            history = session.scalar(
-                select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
-            )
+            history = session.get(TI, old_id)
             assert history is not None
+            assert history.working_set is None
             assert history.end_date == end_date
             ti = dr.get_task_instance("fail_once", session=session)
             assert ti.id != old_id
@@ -2722,6 +2792,51 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
+
+    def test_dags_needing_dagruns_ignores_consumed_adrq(self, dag_maker, session):
+        asset_a = Asset(uri="test://asset-a", group="test-group")
+        asset_b = Asset(uri="test://asset-b", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            schedule=[asset_a, asset_b],
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+        dag_model = dag_maker.dag_model
+        a_id, b_id = (
+            session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+            for asset in (asset_a, asset_b)
+        )
+
+        def _queue_event(asset_id):
+            event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+            )
+            session.flush()
+            return event
+
+        # A stale row for A (event already consumed) and a fresh event for B
+        # do not satisfy the condition.
+        prior_run = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.SUCCESS,
+            logical_date=pendulum.now("UTC"),
+        )
+        prior_run.consumed_asset_events.append(_queue_event(a_id))
+        _queue_event(b_id)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+        assert triggered_date_by_dag == {}
+
+        # A fresh event for A does.
+        _queue_event(a_id)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+        assert set(triggered_date_by_dag) == {dag_model.dag_id}
 
     def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
         self, session, caplog, testing_dag_bundle
@@ -3572,7 +3687,7 @@ class TestQueries:
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
         scheduler_dag = sync_dag_to_db(dag)
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             scheduler_dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 run_type=DagRunType.MANUAL,
@@ -3908,12 +4023,10 @@ def test_iter_dagrun_infos_between_error(caplog):
             "airflow.serialization.encoders.find_registered_custom_timetable",
             _get_registered_timetable,
         ),
+        caplog.at_level(logging.ERROR),
     ):
         scheduler_dag = create_scheduler_dag(dag)
-
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
-    with caplog.at_level(logging.ERROR):
-        infos = list(iterator)
+        infos = list(scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end))
 
     # The second timetable.next_dagrun_info() call raises an exception, so only the first result is returned.
     assert infos == [DagRunInfo.interval(start, end)]

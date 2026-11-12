@@ -142,9 +142,9 @@ which is running the Airflow scheduler process (and thus, the |executorName|
 executor.) Apache Airflow images with specific python versions can be
 downloaded from the Dockerhub registry, and filtering tags by the
 `python
-version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.10>`__.
-For example, the tag ``latest-python3.10`` specifies that the image will
-have python 3.10 installed.
+version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.11>`__.
+For example, the tag ``latest-python3.11`` specifies that the image will
+have python 3.11 installed.
 
 .. END BASE_IMAGE
 
@@ -244,11 +244,11 @@ Configuring Remote Logging
 
 There are many ways to configure remote logging and several supported
 destinations. A general overview of Airflow Task logging can be found
-`here <https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html>`__.
+:doc:`here <apache-airflow:administration-and-deployment/logging-monitoring/logging-tasks>`.
 Instructions for configuring S3 remote logging can be found
-`here <https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/logging/s3-task-handler.html>`__
+:doc:`here </logging/s3-task-handler>`
 and Cloudwatch remote logging
-`here <https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/logging/cloud-watch-task-handlers.html>`__.
+:doc:`here </logging/cloud-watch-task-handlers>`.
 Some important things to point out for remote logging in the context of
 the |executorName| executor:
 .. END LOGGING

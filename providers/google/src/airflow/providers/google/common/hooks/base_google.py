@@ -360,7 +360,11 @@ class GoogleBaseHook(BaseHook):
         idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
         client_id: str | None = self._get_field("client_id", None)
         client_secret: str | None = self._get_field("client_secret", None)
-        idp_extra_params: str | None = self._get_field("idp_extra_params", None)
+        # ``idp_extra_params`` is the key this hook read before it matched the connection form
+        # field; keep it for connections whose extras were written by hand.
+        idp_extra_params: str | None = self._get_field("idp_extra_parameters", None) or self._get_field(
+            "idp_extra_params", None
+        )
 
         idp_extra_params_dict: dict[str, str] | None = None
         if idp_extra_params:
@@ -436,7 +440,8 @@ class GoogleBaseHook(BaseHook):
 
     @staticmethod
     def get_high_value_cookie_domain() -> str:
-        return os.getenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN", "google.com")
+        domain = os.getenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN")
+        return "google.com" if domain in (None, "") else domain
 
     def get_client_options(
         self,
@@ -884,7 +889,7 @@ class _CredentialsToken(Token):
         # On subsequent calls of `get` it will be used with `datetime.datetime.utcnow()`.
         # Therefore we have to use an offset-naive datetime.
         # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
-        return datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
+        return datetime.datetime.now(tz=datetime.UTC).replace(tzinfo=None)
 
 
 class GoogleBaseAsyncHook(BaseHook):

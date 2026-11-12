@@ -81,11 +81,7 @@ export class EventsPage extends BasePage {
   public async getEventLogRows(): Promise<Array<Locator>> {
     const count = await this.tableRows.count();
 
-    if (count === 0) {
-      return [];
-    }
-
-    return this.tableRows.all();
+    return count === 0 ? [] : this.tableRows.all();
   }
 
   public async getEventTypes(): Promise<Array<string>> {

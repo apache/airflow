@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pendulum
 import pytest
@@ -41,7 +41,7 @@ pytestmark = pytest.mark.db_test
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
+DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=UTC)
 DAG3_ID = "test_dag3"
 DAG4_ID = "test_dag4"
 DAG4_DISPLAY_NAME = "display4"
@@ -71,14 +71,14 @@ class TestDagEndpoint:
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
-            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         dagrun_failed = DagRun(
             dag_id=DAG3_ID,
             run_id="run1",
-            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=UTC),
+            start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=UTC),
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
             triggered_by=DagRunTriggeredByType.TEST,
@@ -87,8 +87,8 @@ class TestDagEndpoint:
         dagrun_success = DagRun(
             dag_id=DAG3_ID,
             run_id="run2",
-            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=UTC),
+            start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=UTC),
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             triggered_by=DagRunTriggeredByType.TEST,
@@ -110,7 +110,7 @@ class TestDagEndpoint:
             DAG1_ID,
             dag_display_name=DAG1_DISPLAY_NAME,
             schedule=None,
-            start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
+            start_date=datetime(2018, 6, 15, 0, 0, tzinfo=UTC),
             doc_md="details",
             params={"foo": 1},
             tags=["example"],

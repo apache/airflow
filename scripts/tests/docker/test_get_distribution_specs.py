@@ -64,7 +64,7 @@ class TestRequiresPythonFiltering:
         assert f"some-package @ file://{whl}" in result.stdout
 
     def test_wheel_matching_current_python_is_included(self, tmp_path):
-        whl = _make_wheel(tmp_path, "some-package", "1.0.0", requires_python=">=3.10")
+        whl = _make_wheel(tmp_path, "some-package", "1.0.0", requires_python=">=3.11")
         result = _run_script(whl)
         assert result.returncode == 0
         assert f"some-package @ file://{whl}" in result.stdout
@@ -74,7 +74,7 @@ class TestRequiresPythonFiltering:
             tmp_path,
             "excluded-package",
             "2.0.0",
-            requires_python=f">=3.10,!={CURRENT_PYTHON_MAJOR_MINOR}.*",
+            requires_python=f">=3.11,!={CURRENT_PYTHON_MAJOR_MINOR}.*",
         )
         result = _run_script(whl)
         assert result.returncode == 0
@@ -94,13 +94,13 @@ class TestRequiresPythonFiltering:
 class TestMixedInputs:
     def test_compatible_and_incompatible_together(self, tmp_path):
         good_whl = _make_wheel(
-            tmp_path, "apache-airflow-providers-standard", "1.0.0", requires_python=">=3.10"
+            tmp_path, "apache-airflow-providers-standard", "1.0.0", requires_python=">=3.11"
         )
         bad_whl = _make_wheel(
             tmp_path,
             "apache-airflow-providers-google",
             "21.0.0",
-            requires_python=f">=3.10,!={CURRENT_PYTHON_MAJOR_MINOR}.*",
+            requires_python=f">=3.11,!={CURRENT_PYTHON_MAJOR_MINOR}.*",
         )
         result = _run_script(good_whl, bad_whl)
         assert result.returncode == 0
@@ -124,7 +124,7 @@ class TestExtrasEnvVar:
     def test_extras_appended_to_spec(self, tmp_path):
         import os
 
-        whl = _make_wheel(tmp_path, "apache-airflow", "3.0.0", requires_python=">=3.10")
+        whl = _make_wheel(tmp_path, "apache-airflow", "3.0.0", requires_python=">=3.11")
         env = {**os.environ, "EXTRAS": "[celery,google]"}
         result = _run_script(whl, env=env)
         assert result.returncode == 0
@@ -134,10 +134,10 @@ class TestExtrasEnvVar:
 @pytest.mark.parametrize(
     ("requires_python", "should_include"),
     [
-        pytest.param(">=3.10", True, id="lower-bound-satisfied"),
+        pytest.param(">=3.11", True, id="lower-bound-satisfied"),
         pytest.param(f"!={CURRENT_PYTHON_MAJOR_MINOR}.*", False, id="wildcard-minor-excluded"),
-        pytest.param(f">=3.10,!={CURRENT_PYTHON_MAJOR_MINOR}.*", False, id="range-with-exclusion"),
-        pytest.param("<3.10", False, id="upper-bound-below-current"),
+        pytest.param(f">=3.11,!={CURRENT_PYTHON_MAJOR_MINOR}.*", False, id="range-with-exclusion"),
+        pytest.param("<3.11", False, id="upper-bound-below-current"),
         pytest.param(None, True, id="no-requires-python"),
     ],
 )

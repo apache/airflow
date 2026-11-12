@@ -38,9 +38,12 @@ from typing import TYPE_CHECKING, Any
 
 from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
+from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.signals import import_modules as celery_import_modules, worker_ready
 from sqlalchemy import select
+from sqlalchemy.exc import DatabaseError, InterfaceError, InvalidRequestError
+from sqlalchemy.orm.exc import StaleDataError
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import (
@@ -96,6 +99,20 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
+
+
+def _celery_task_logs_to_stdout_override() -> bool | None:
+    """
+    Resolve the ``[celery] task_logs_to_stdout`` worker-level override.
+
+    Returns ``None`` when unset so callers can fall back to the core
+    ``[logging] task_logs_to_stdout`` default, mirroring the ``[celery] json_logs`` /
+    ``[logging] json_logs`` two-level lookup.
+    """
+    value = conf.get("celery", "task_logs_to_stdout", fallback="")
+    if value and value.lower() != "none":
+        return conf.getboolean("celery", "task_logs_to_stdout")
+    return None
 
 
 @cache
@@ -240,7 +257,13 @@ def execute_workload(input: str) -> None:
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     try:
-        BaseExecutor.run_workload(workload)
+        subprocess_logs_to_stdout = _celery_task_logs_to_stdout_override()
+        if subprocess_logs_to_stdout is None:
+            subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
+        BaseExecutor.run_workload(
+            workload,
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+        )
     except Exception as e:
         from airflow.sdk.exceptions import TaskAlreadyRunningError
 
@@ -277,6 +300,10 @@ def _execute_workload_pre_3_3(input: str) -> None:
 
     try:
         if isinstance(workload, workloads.ExecuteTask):
+            subprocess_logs_to_stdout = _celery_task_logs_to_stdout_override()
+            if subprocess_logs_to_stdout is None:
+                # No run_workload() to apply the core default on this pre-3.3 path, so resolve it here.
+                subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 ti=workload.ti,  # type: ignore[arg-type]
@@ -285,7 +312,18 @@ def _execute_workload_pre_3_3(input: str) -> None:
                 token=workload.token,
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             )
+        elif AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+            # Airflow 3.3 runs callbacks in BaseExecutor.run_workload(). Airflow 3.2 still
+            # queues deadline alerts as ExecuteCallback and provides execute_callback_workload.
+            execute_callback_workload = getattr(
+                import_module("airflow.executors.workloads.callback"),
+                "execute_callback_workload",
+            )
+            success, error_msg = execute_callback_workload(workload.callback, log)
+            if not success:
+                raise RuntimeError(error_msg or "Callback execution failed")
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
     except Exception as e:
@@ -526,7 +564,12 @@ class BulkStateFetcher(LoggingMixin):
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
-    @retry
+    @retry(
+        retry=retry_if_exception_type((DatabaseError, InterfaceError, InvalidRequestError, StaleDataError)),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(log, logging.WARNING),
+        reraise=True,
+    )
     def _query_task_cls_from_db_backend(self, task_ids: set[str], **kwargs):
         session = self.celery_app.backend.ResultSession()
         task_cls = getattr(self.celery_app.backend, "task_cls", TaskDb)

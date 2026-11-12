@@ -43,15 +43,6 @@ class TestAzureVirtualMachineStartOperator:
         assert op.wait_for_completion is True
         assert op.azure_conn_id == CONN_ID
 
-    def test_template_fields(self):
-        op = AzureVirtualMachineStartOperator(
-            task_id="start_vm",
-            resource_group_name=RESOURCE_GROUP,
-            vm_name=VM_NAME,
-        )
-        assert "resource_group_name" in op.template_fields
-        assert "vm_name" in op.template_fields
-
     @patch("airflow.providers.microsoft.azure.operators.compute.AzureComputeHook")
     def test_execute_start_instance(self, mock_hook_cls):
         op = AzureVirtualMachineStartOperator(

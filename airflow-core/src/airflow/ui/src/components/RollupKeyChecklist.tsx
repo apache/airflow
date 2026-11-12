@@ -17,9 +17,12 @@
  * under the License.
  */
 import { Button, HStack, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiCheck, FiMinus } from "react-icons/fi";
 
 import { Popover } from "src/system-components";
+
+import { formatNumber } from "src/utils";
 
 type ChecklistProps = {
   readonly receivedKeys: ReadonlyArray<string>;
@@ -72,25 +75,29 @@ export const RollupKeyChecklistPopover = ({
   receivedKeys,
   requiredCount,
   requiredKeys,
-}: PopoverProps) => (
-  // eslint-disable-next-line jsx-a11y/no-autofocus
-  <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
-    <Popover.Trigger asChild>
-      <Button
-        color={receivedCount < requiredCount ? "warning.fg" : "fg.muted"}
-        loading={isLoading}
-        paddingInline={0}
-        size="sm"
-        variant="ghost"
-      >
-        {receivedCount} / {requiredCount}
-      </Button>
-    </Popover.Trigger>
-    <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
-      <Popover.Arrow />
-      <Popover.Body>
-        <RollupKeyChecklist receivedKeys={receivedKeys} requiredKeys={requiredKeys} />
-      </Popover.Body>
-    </Popover.Content>
-  </Popover.Root>
-);
+}: PopoverProps) => {
+  const { i18n } = useTranslation();
+
+  return (
+    // eslint-disable-next-line jsx-a11y/no-autofocus
+    <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
+      <Popover.Trigger asChild>
+        <Button
+          color={receivedCount < requiredCount ? "warning.fg" : "fg.muted"}
+          loading={isLoading}
+          paddingInline={0}
+          size="sm"
+          variant="ghost"
+        >
+          {formatNumber(receivedCount, i18n.language)} / {formatNumber(requiredCount, i18n.language)}
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
+        <Popover.Arrow />
+        <Popover.Body>
+          <RollupKeyChecklist receivedKeys={receivedKeys} requiredKeys={requiredKeys} />
+        </Popover.Body>
+      </Popover.Content>
+    </Popover.Root>
+  );
+};

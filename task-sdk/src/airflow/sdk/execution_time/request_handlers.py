@@ -57,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetTaskStates,
@@ -67,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailResponseResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -168,6 +170,14 @@ def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseMode
     return task_states_map, {}
 
 
+def handle_get_hitl_detail_response(
+    client: Client, msg: GetHITLDetailResponse
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch the response to a task instance's Human-in-the-loop request."""
+    resp = client.hitl.get_detail_response(ti_id=msg.ti_id)
+    return HITLDetailResponseResult.from_api_response(resp), {}
+
+
 def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch the previous task instance."""
     resp = client.task_instances.get_previous(
@@ -197,7 +207,13 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
 
 def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete an XCom value."""
-    client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+    client.xcoms.delete(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.map_index,
+    )
     return None, {}
 
 
@@ -251,7 +267,13 @@ def handle_get_prev_successful_dag_run(
 
 def handle_get_xcom_count(client: Client, msg: GetXComCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch XCom count metadata."""
-    resp = client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+    resp = client.xcoms.head(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        previous_iteration=msg.previous_iteration,
+    )
     return resp, {}
 
 
@@ -259,7 +281,14 @@ def handle_get_xcom_sequence_item(
     client: Client, msg: GetXComSequenceItem
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch an XCom sequence item and normalize it for supervisor response handling."""
-    xcom = client.xcoms.get_sequence_item(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset)
+    xcom = client.xcoms.get_sequence_item(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.offset,
+        previous_iteration=msg.previous_iteration,
+    )
     if isinstance(xcom, XComSequenceIndexResponse):
         return XComSequenceIndexResult.from_response(xcom), {}
     return xcom, {}
@@ -278,6 +307,7 @@ def handle_get_xcom_sequence_slice(
         msg.stop,
         msg.step,
         msg.include_prior_dates,
+        previous_iteration=msg.previous_iteration,
     )
     if isinstance(xcoms, XComSequenceSliceResponse):
         return XComSequenceSliceResult.from_response(xcoms), {}
@@ -287,7 +317,13 @@ def handle_get_xcom_sequence_slice(
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch an XCom and normalize it for supervisor response handling."""
     xcom = client.xcoms.get(
-        msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.map_index,
+        msg.include_prior_dates,
+        previous_iteration=msg.previous_iteration,
     )
     if isinstance(xcom, XComResponse):
         xcom_result = XComResult.from_xcom_response(xcom)

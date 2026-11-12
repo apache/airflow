@@ -25,8 +25,10 @@
 // something go-jsonschema can read. Each change is documented on the function that
 // makes it.
 //
-// With -license it inserts the Apache header into an already generated file
-// instead, which is what go-jsonschema leaves out.
+// With -fields it reads the schema that was rewritten that way, and writes the tables of
+// schema keys and defaults that the serializer needs to -out as Go source. With -license it
+// inserts the Apache header into an already generated file instead, which is what
+// go-jsonschema leaves out.
 package main
 
 import (
@@ -46,7 +48,16 @@ func main() {
 		"",
 		"path to the vendored copy of airflow-core's Dag serialization schema",
 	)
-	outPath := flag.String("out", "", "path to write the rewritten schema to")
+	outPath := flag.String(
+		"out",
+		"",
+		"path to write the rewritten schema, or with -fields the Go tables, to",
+	)
+	fieldsPath := flag.String(
+		"fields",
+		"",
+		"path to the rewritten schema to write the Go tables of schema keys and defaults from, instead of rewriting a schema",
+	)
 	licensePath := flag.String(
 		"license",
 		"",
@@ -54,6 +65,18 @@ func main() {
 	)
 	flag.Parse()
 
+	if *fieldsPath != "" {
+		if *schemaPath != "" || *licensePath != "" {
+			log.Fatal("genspec: -fields takes neither -schema nor -license")
+		}
+		if *outPath == "" {
+			log.Fatal("genspec: -out is required")
+		}
+		if err := writeFields(*fieldsPath, *outPath); err != nil {
+			log.Fatalf("genspec: writing the tables of %s: %v", *fieldsPath, err)
+		}
+		return
+	}
 	if *licensePath != "" {
 		if *schemaPath != "" || *outPath != "" {
 			log.Fatal("genspec: -license rewrites no schema, so it takes neither -schema nor -out")
@@ -106,4 +129,19 @@ func readSchema(path string) (map[string]any, error) {
 		return nil, err
 	}
 	return doc, nil
+}
+
+func writeFields(schemaPath, outPath string) error {
+	doc, err := readSchema(schemaPath)
+	if err != nil {
+		return err
+	}
+	source, err := emitFields(doc)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(outPath, source, 0o644); err != nil {
+		return err
+	}
+	return genlicense.EnsureHeader(outPath)
 }

@@ -32,6 +32,8 @@ export type UseHITLReviewTabsOptions = {
   enabled?: boolean;
   mapIndex?: number;
   refetchInterval?: number | false;
+  regionId?: string;
+  regionIndex?: number;
 };
 
 const filterHITLReviewTabs = (tabs: Array<TabItem>, hasHitlData: boolean): Array<TabItem> =>
@@ -50,7 +52,7 @@ export const useHITLReviewTabs = (
   tabs: Array<TabItem>,
   options: UseHITLReviewTabsOptions = {},
 ) => {
-  const { enabled = true, mapIndex = -1, refetchInterval } = options;
+  const { enabled = true, mapIndex = -1, refetchInterval, regionId, regionIndex } = options;
   const hasHitlTab = tabs.some((tab) => tab.value === HITL_REVIEW_PLUGIN_TAB);
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,6 +69,8 @@ export const useHITLReviewTabs = (
           params: {
             dag_id: dagId,
             map_index: mapIndex,
+            region_id: regionId,
+            region_index: regionIndex,
             run_id: dagRunId,
             task_id: taskId,
           },
@@ -90,7 +94,7 @@ export const useHITLReviewTabs = (
 
           return Promise.reject(error);
         }),
-    queryKey: ["hitl-review-session", dagId, dagRunId, taskId, mapIndex],
+    queryKey: ["hitl-review-session", dagId, dagRunId, taskId, mapIndex, regionId, regionIndex],
     refetchInterval,
   });
 
@@ -100,9 +104,23 @@ export const useHITLReviewTabs = (
       !isLoadingHITLReviewSession &&
       location.pathname.includes("plugin/hitl-review")
     ) {
-      void Promise.resolve(navigate(redirectPath));
+      void Promise.resolve(
+        navigate(
+          regionId === undefined
+            ? redirectPath
+            : { pathname: location.pathname.replace("/plugin/hitl-review", ""), search: location.search },
+        ),
+      );
     }
-  }, [hasHITLReviewSession, isLoadingHITLReviewSession, location.pathname, navigate, redirectPath]);
+  }, [
+    hasHITLReviewSession,
+    isLoadingHITLReviewSession,
+    location.pathname,
+    location.search,
+    navigate,
+    redirectPath,
+    regionId,
+  ]);
 
   return {
     hasHITLReviewSession,

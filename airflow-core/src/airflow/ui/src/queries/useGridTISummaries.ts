@@ -48,11 +48,19 @@ const GRID_MUTATION_WATCHED_KEYS = new Set([
  */
 export const useGridTiSummariesStream = ({
   dagId,
+  endDateGte,
+  endDateLte,
   runIds,
+  startDateGte,
+  startDateLte,
   states,
 }: {
   dagId: string;
+  endDateGte?: string | undefined;
+  endDateLte?: string | undefined;
   runIds: Array<string>;
+  startDateGte?: string | undefined;
+  startDateLte?: string | undefined;
   states?: Array<TaskInstanceState | null | undefined>;
 }) => {
   const queryClient = useQueryClient();
@@ -64,6 +72,19 @@ export const useGridTiSummariesStream = ({
 
   // Stable key so the effect only re-fires when the run list actually changes.
   const runIdsKey = runIds.join(",");
+  const dateFilters = new URLSearchParams();
+
+  Object.entries({
+    end_date_gte: endDateGte,
+    end_date_lte: endDateLte,
+    start_date_gte: startDateGte,
+    start_date_lte: startDateLte,
+  }).forEach(([key, value]) => {
+    if (value !== undefined) {
+      dateFilters.set(key, value);
+    }
+  });
+  const dateFiltersKey = dateFilters.toString();
 
   // Stream (or re-stream) whenever the run list or refresh tick changes.
   useEffect(() => {
@@ -79,6 +100,8 @@ export const useGridTiSummariesStream = ({
       // place as fresh lines arrive rather than flashing blank.
       try {
         const params = new URLSearchParams(runIds.map((id) => ["run_ids", id]));
+
+        new URLSearchParams(dateFiltersKey).forEach((value, key) => params.set(key, value));
         const response = await fetch(`${OpenAPI.BASE}/ui/grid/ti_summaries/${dagId}?${params}`, {
           signal: abortController.signal,
         });
@@ -138,7 +161,7 @@ export const useGridTiSummariesStream = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runIdsKey (stable join) intentionally replaces runIds array to avoid spurious re-streams
-  }, [dagId, runIdsKey, refreshTick]);
+  }, [dagId, dateFiltersKey, runIdsKey, refreshTick]);
 
   // Trigger a re-stream periodically while active runs are in flight.
   useEffect(() => {

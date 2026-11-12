@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag Bündel",
   "dagDetails": {
     "activeRuns": "Aktive Läufe",
+    "bundleVersion": "Bündel-Version",
     "catchup": "Nachgeholt",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
@@ -92,7 +93,6 @@
   "dagRun_other": "Dag Läufe",
   "dagRunId": "Dag Lauf ID",
   "dagRunState": "Status des Dag Laufs",
-  "dagWarnings": "Dag Warnungen und Fehler",
   "delete": "Löschen",
   "diff": "Differenzansicht",
   "diffCompareWith": "Vergleichen mit",
@@ -118,6 +118,7 @@
     "home": "Start",
     "invalidUrl": "Seite nicht gefunden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
     "notFound": "Seite nicht gefunden",
+    "reload": "Seite neu laden",
     "title": "Fehler"
   },
   "errors": {
@@ -139,18 +140,25 @@
     "all": "Alle",
     "and": "UND",
     "any": "Jeder",
+    "hiddenAsset": "Ausgeblendetes Datenset (Asset)",
     "or": "ODER"
   },
   "filter": "Filter",
   "filters": {
     "addFilter": "Filter hinzufügen",
+    "allIterations": "Alle",
     "completedAt": "Fertiggestellt um",
     "date": "Datum",
     "durationFrom": "Laufzeit Von",
     "durationTo": "Laufzeit Bis",
     "endTime": "Endzeitpunkt",
+    "iteration": "Iteration",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
+    "loop": "Schleife",
+    "loopAllIterations": "{{loop}} alle",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Durchlauf auswählen",
     "maxActiveRunsFrom": "Maximale aktive Läufe von",
     "maxActiveRunsTo": "Maximale aktive Läufe bis",
     "removeFilter": "Filter entfernen",
@@ -160,6 +168,7 @@
     "selectDateRange": "Zeitraum auswählen",
     "selectDateTime": "Datum und Uhrzeit auswählen",
     "startTime": "Startzeitpunkt",
+    "switchIteration": "Iteration wechseln",
     "time": "Uhrzeit"
   },
   "fullscreen": {
@@ -168,6 +177,7 @@
   "generateToken": "Zugriffstoken erzeugen",
   "includedIn": "Enthalten in",
   "key": "Schlüssel",
+  "loading": "Lade…",
   "logLevel": {
     "hide": "Log Stufe ausblenden",
     "hotkey": "l",
@@ -187,6 +197,7 @@
     },
     "save": "Speichern"
   },
+  "moreTabs": "Weiter",
   "nav": {
     "admin": "Verwaltung",
     "assets": "Datensets",
@@ -212,6 +223,10 @@
     "write": "Schreiben"
   },
   "overallStatus": "Gesamtstatus",
+  "pagination": {
+    "nextPage": "Nächse Seite",
+    "previousPage": "Vorige Seite"
+  },
   "partition_one": "Partition",
   "partition_other": "Partitionen",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
@@ -220,8 +235,8 @@
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
   "pause": "Pausieren",
-  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
-  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
+  "pendingDagRun_one": "{{count, number}} ausstehender Dag Lauf",
+  "pendingDagRun_other": "{{count, number}} ausstehende Dag Läufe",
   "presetFilters": {
     "deleteTitle": "Gespeicherten Filter löschen",
     "deleteWarning": "Gespeicherte Filter werden nur in diesem Browser gespeichert.",
@@ -258,7 +273,8 @@
   "search": {
     "advanced": {
       "description": "Übereinstimmung an beliebiger Stelle im Wert (Teilstring-Suche). Bei großen Installationen langsamer, da der standardmäßige Datenbank-Index nicht genutzt werden kann. Details hierzu finden Sie im Dokumentationsabschnitt zu benutzerdefinierten Metadaten-Indizes (Performance tuning (API and UI)).",
-      "title": "Übereinstimmung an beliebiger Stelle"
+      "title": "Übereinstimmung an beliebiger Stelle",
+      "toggleLabel": "Umschalten beliebige Suche"
     }
   },
   "security": {
@@ -290,6 +306,13 @@
       },
       "title": "Löschen"
     },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Zeigt den letzten Aufgabenstatus von den Dags der Dag Liste. Abschalten um das Laden zu überspringen, was bei Umgebungen mit sehr vielen Dags helfen kann.",
+        "label": "Letzte Aufgaben zeigen"
+      },
+      "title": "Dags Liste"
+    },
     "description": "Diese Einstellungen werden nur in diesem Browser gespeichert und gelten für die gesamte Anwendung.",
     "general": {
       "landingPage": {
@@ -319,6 +342,13 @@
         "label": "Standardauswahl zum Markieren"
       },
       "title": "Markieren"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Suchleisten-Auswahl und geteilte Links haben Priorität.",
+        "label": "Überall treffen (Standard)"
+      },
+      "title": "Suchen"
     },
     "taskInstance": {
       "defaultTab": {
@@ -358,10 +388,12 @@
       "scrollBottom": "Nach unten scrollen",
       "scrollTop": "Nach oben scrollen",
       "searchDags": "$t(dag_other) suchen",
+      "selectGridCellRange": "Bereich von $t(taskInstance_other) bis $t(taskGroup_other) wählen (ohne Schleifen-Tasks)",
       "showHelp": "$t(shortcuts.title) anzeigen",
       "toggleExpand": "Alle Gruppen ein- oder ausklappen",
       "toggleFullscreen": "Vollbild umschalten",
       "toggleGraphGrid": "Zwischen Graph- und Gitteransicht wechseln",
+      "toggleGridCellSelection": "$t(taskInstance_one) oder $t(taskGroup_one) Hinzufügen oder Löschen von der Auswahl (ohne Schleifen-Tasks)",
       "toggleLogLevel": "Loglevel umschalten",
       "toggleSource": "Quelle umschalten",
       "toggleTaskGroup": "$t(taskGroup_one) ein- oder ausklappen",
@@ -392,6 +424,7 @@
     "no_status": "Kein Status",
     "none": "Kein Status",
     "open": "Frei",
+    "pending": "Ausstehend",
     "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
@@ -405,6 +438,8 @@
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
   "switchDag": "Wechsel zu $t(dag_one)",
+  "switchDagRun": "Wechsel zu $t(dagRun_one)",
+  "switchMapIndex": "Zu $t(mapIndex) wechseln",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -450,6 +485,9 @@
     "executorConfig": "Konfiguration der Ausführungsumgebung",
     "hostname": "Hostname",
     "id": "ID",
+    "iteration": "Iteration",
+    "loopDecision": "Schleifenentscheidung",
+    "loopIterations": "Iterationsläufe",
     "maxTries": "Maximale Versuche",
     "pid": "PID",
     "pool": "Pool",
@@ -458,6 +496,7 @@
     "queue": "Warteschlange",
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
+    "retryAt": "Nochmals versuchen um",
     "scheduledWhen": "Geplant ab",
     "stateReason": "Grund für den Status",
     "stateReasonSummary": {
@@ -479,8 +518,8 @@
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "teams": {
-    "more_one": "und {{count}} weitere",
-    "more_other": "und {{count}} weitere",
+    "more_one": "und {{count, number}} weitere",
+    "more_other": "und {{count, number}} weitere",
     "none": "Kein Team",
     "title": "Teams"
   },
@@ -511,21 +550,21 @@
     "bulkClear": {
       "error": "Fehler beim Zurücksetzen von {{resourceName}}",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
         "title": "Zurücksetzen von {{resourceName}} gestartet"
       }
     },
     "bulkDelete": {
       "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
         "title": "Massenlöschung von {{resourceName}} gestartet"
       }
     },
     "bulkUpdate": {
       "error": "Fehler beim Aktualisieren von {{resourceName}}",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
         "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     },
@@ -546,7 +585,7 @@
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
       "success": {
-        "description": "{{count}} {{resourceName}} wurden erfolgreich importiert.",
+        "description": "{{count, number}} {{resourceName}} wurden erfolgreich importiert.",
         "title": "Import von {{resourceName}} gestartet"
       }
     },

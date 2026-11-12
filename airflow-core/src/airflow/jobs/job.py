@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
+from uuid import UUID
 
-from sqlalchemy import Index, Integer, String, case, select
+from sqlalchemy import Index, Integer, String, Uuid, and_, case, or_, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
@@ -58,6 +59,7 @@ class JobState(str, Enum):
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql.elements import ColumnElement
 
 
 def _resolve_dagrun_model():
@@ -103,6 +105,10 @@ class Job(Base, LoggingMixin):
     hostname: Mapped[str | None] = mapped_column(String(500))
     unixname: Mapped[str | None] = mapped_column(String(1000))
     bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
+    session_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
+    """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly or replaced by a newer registration."""
+    registration_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
+    """Process registration that created this Job; it creates no other Job, even after this one ends."""
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -328,6 +334,27 @@ class Job(Base, LoggingMixin):
             state == JobState.RUNNING
             and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold_value
         )
+
+    @staticmethod
+    def is_alive_clause(job_types: Iterable[str]) -> ColumnElement[bool]:
+        """
+        Return the SQL form of :meth:`_is_alive` for the given job types.
+
+        Only the core job types are supported: their thresholds come from config rather than the per-row
+        heartrate, so the cutoff is a bound timestamp and the predicate stays portable. Keep in sync
+        with :meth:`_is_alive`.
+        """
+        now = timezone.utcnow()
+        fresh_per_type = or_(
+            *(
+                and_(
+                    Job.job_type == job_type,
+                    Job.latest_heartbeat > now - timedelta(seconds=health_check_threshold(job_type, 0)),
+                )
+                for job_type in job_types
+            )
+        )
+        return and_(Job.state == JobState.RUNNING, Job.latest_heartbeat.is_not(None), fresh_per_type)
 
 
 @provide_session

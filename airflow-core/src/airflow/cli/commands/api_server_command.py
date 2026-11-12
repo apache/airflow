@@ -152,11 +152,13 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
     if server_type == "gunicorn":
         try:
             import gunicorn  # noqa: F401
+            import uvicorn_worker  # noqa: F401
 
             run = _run_api_server_with_gunicorn
         except ImportError:
             raise AirflowConfigException(
-                "Gunicorn is not installed. Install it with: pip install 'apache-airflow-core[gunicorn]'"
+                "The gunicorn server type needs the 'gunicorn' extra. "
+                "Install it with: pip install 'apache-airflow-core[gunicorn]'"
             )
 
     log_file = args.log_file or None

@@ -118,11 +118,10 @@ export const DateTimeInput = forwardRef<HTMLDivElement, Props>(
       if (fieldName === "start" && inputs.date !== "" && !validateDateInput(inputs.date)) {
         return { field: "start", message: translate("dateRangeFilter.validation.invalidDateFormat") };
       }
-      if (fieldName === "startTime" && inputs.time !== "" && !validateTimeInput(inputs.time)) {
-        return { field: "startTime", message: translate("dateRangeFilter.validation.invalidTimeFormat") };
-      }
 
-      return undefined;
+      return fieldName === "startTime" && inputs.time !== "" && !validateTimeInput(inputs.time)
+        ? { field: "startTime", message: translate("dateRangeFilter.validation.invalidTimeFormat") }
+        : undefined;
     };
 
     const getBorderColor = (fieldName: ValidationError["field"]) =>

@@ -36,7 +36,8 @@ import (
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
 // calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, executes
 // the task, and returns the terminal body to ship as the final response frame:
-// one of genmodels.SucceedTask, TaskState, or RetryTask. When RunTask cannot
+// one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from airflow.TriggerDagRun
+// is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
 // delete an XCom, or arg_bindings is invalid, the task fails without running.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
@@ -59,11 +60,11 @@ func RunTask(
 		)
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateRemoved,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, details.TI.ID)
 
 	// runtimeContext carries the task instance and Dag run that binding puts
 	// on the task's airflow.Context. The scheduling timestamps live on the
@@ -71,23 +72,24 @@ func RunTask(
 	// context is a placeholder, because binding reads only the task instance
 	// and Dag run from this value and builds the airflow.Context around the
 	// live task context.
-	ti := sdk.TaskInstance{
-		DagID:     details.TI.DagID,
-		RunID:     details.TI.RunID,
-		TaskID:    details.TI.TaskID,
-		MapIndex:  mapIndexPtr(details.TI.MapIndex),
-		TryNumber: details.TI.TryNumber,
-	}
+	ti := taskInstanceOf(details)
 	dagRun := details.TIContext.DagRun
+	var conf map[string]any
+	if dagRun.Conf != nil {
+		conf = *dagRun.Conf
+	}
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
 		ti,
 		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
-			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
-			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
-			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			LogicalDate:       (*time.Time)(dagRun.LogicalDate),
+			DataIntervalStart: (*time.Time)(dagRun.DataIntervalStart),
+			DataIntervalEnd:   (*time.Time)(dagRun.DataIntervalEnd),
+			RunAfter:          time.Time(dagRun.RunAfter),
+			RunType:           dagRun.RunType,
+			Conf:              conf,
 		},
 	)
 
@@ -112,6 +114,11 @@ func RunTask(
 		}
 	}
 
+	// The runtime runs a TriggerDagRun task itself. It has no Go function to bind arguments to.
+	if trigger, ok := task.(*bundle.TriggerTask); ok {
+		return runTriggerDagRun(ctx, details, trigger.Spec, client, logger, defaultTriggerEnv)
+	}
+
 	args, err := convertArgBindings(details.TIContext.ArgBindings)
 	if err != nil {
 		logger.Error("Invalid arg_bindings spec from supervisor",
@@ -125,18 +132,28 @@ func RunTask(
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
 }
 
+func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
+	return sdk.TaskInstance{
+		DagID:     details.TI.DagID,
+		RunID:     details.TI.RunID,
+		TaskID:    details.TI.TaskID,
+		MapIndex:  mapIndexPtr(details.TI.MapIndex),
+		TryNumber: details.TI.TryNumber,
+	}
+}
+
 // failTask returns the terminal body for a task that fails before it runs: RetryTask when
 // ti_context.should_retry is set, otherwise a FAILED TaskState.
 func failTask(shouldRetry bool, err error) any {
 	if shouldRetry {
 		return genmodels.RetryTask{
-			EndDate:     time.Now().UTC(),
+			EndDate:     genmodels.Time(time.Now().UTC()),
 			RetryReason: err.Error(),
 		}
 	}
 	return genmodels.TaskState{
 		State:   genmodels.TaskStateStateFailed,
-		EndDate: time.Now().UTC(),
+		EndDate: genmodels.TimePtr(time.Now().UTC()),
 	}
 }
 
@@ -253,13 +270,13 @@ func executeTask(
 			)
 			if shouldRetry {
 				result = genmodels.RetryTask{
-					EndDate:     time.Now().UTC(),
+					EndDate:     genmodels.Time(time.Now().UTC()),
 					RetryReason: fmt.Sprintf("panic: %v", r),
 				}
 			} else {
 				result = genmodels.TaskState{
 					State:   genmodels.TaskStateStateFailed,
-					EndDate: time.Now().UTC(),
+					EndDate: genmodels.TimePtr(time.Now().UTC()),
 				}
 			}
 		}
@@ -272,22 +289,26 @@ func executeTask(
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
 		if shouldRetry {
 			return genmodels.RetryTask{
-				EndDate:     time.Now().UTC(),
+				EndDate:     genmodels.Time(time.Now().UTC()),
 				RetryReason: err.Error(),
 			}
 		}
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateFailed,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
-	// task_outlets / outlet_events must be sent as empty lists, not omitted:
-	// the supervisor's SucceedTask validation rejects a null/absent value
-	// ("Input should be a valid list"). A task that emits no asset events
-	// reports empty collections rather than None.
+	return succeedTask()
+}
+
+// succeedTask returns the terminal body of a task that succeeded. task_outlets / outlet_events must
+// be sent as empty lists, not omitted: the supervisor's SucceedTask validation rejects a
+// null/absent value ("Input should be a valid list"). A task that emits no asset events reports
+// empty collections rather than None.
+func succeedTask() genmodels.SucceedTask {
 	return genmodels.SucceedTask{
-		EndDate:      time.Now().UTC(),
+		EndDate:      genmodels.Time(time.Now().UTC()),
 		TaskOutlets:  &genmodels.TaskOutlets{},
 		OutletEvents: &genmodels.OutletEvents{},
 	}

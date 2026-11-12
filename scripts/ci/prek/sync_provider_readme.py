@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "packaging>=25",
 #   "tabulate>=0.9.0",
-#   "tomli>=2.0.1; python_version < '3.11'",
 # ]
 # ///
 """
@@ -48,12 +47,8 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # py < 3.11 fallback (CI runs ≥3.10)
-    import tomli as tomllib  # type: ignore[no-redef]
 
 from packaging.requirements import Requirement
 from tabulate import tabulate
