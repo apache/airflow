@@ -499,6 +499,7 @@ def _configure_async_session() -> None:
         engine_args["pool_recycle"] = conf.getint("database", "SQL_ALCHEMY_POOL_RECYCLE", fallback=1800)
         engine_args["pool_pre_ping"] = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
         engine_args["max_overflow"] = conf.getint("database", "SQL_ALCHEMY_MAX_OVERFLOW", fallback=10)
+    engine_args.update(_get_isolation_level_args(SQL_ALCHEMY_CONN_ASYNC))
 
     async_engine = create_async_metadata_engine(
         SQL_ALCHEMY_CONN_ASYNC,
@@ -673,15 +674,24 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         engine_args["pool_pre_ping"] = pool_pre_ping
         engine_args["max_overflow"] = max_overflow
 
-    # The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
-    # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
-    # 'READ COMMITTED' is the default value for PostgreSQL.
-    # More information here:
-    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
-    if SQL_ALCHEMY_CONN.startswith("mysql"):
-        engine_args["isolation_level"] = "READ COMMITTED"
+    engine_args.update(_get_isolation_level_args(SQL_ALCHEMY_CONN))
 
     return engine_args
+
+
+def _get_isolation_level_args(sql_alchemy_conn: str) -> dict[str, str]:
+    """
+    Return the isolation level engine argument for the metadata database connection.
+
+    The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
+    running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
+    'READ COMMITTED' is the default value for PostgreSQL.
+    More information here:
+    https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
+    """
+    if sql_alchemy_conn.startswith("mysql"):
+        return {"isolation_level": "READ COMMITTED"}
+    return {}
 
 
 def dispose_orm(do_log: bool = True):
