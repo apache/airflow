@@ -1452,6 +1452,9 @@ class AssetModelOperation(NamedTuple):
         refs_to_add: dict[tuple[str, str], set[int]] = {}
         refs_to_remove: dict[tuple[str, str], set[int]] = {}
         triggers: dict[int, dict] = {}
+        # An identical trigger on several assets shares one entry in ``triggers``, so watcher names
+        # must be tracked per asset.
+        watcher_names: dict[tuple[str, str], dict[int, str]] = {}
 
         # Optimization: if no asset collected, skip fetching active assets
         active_assets = _find_active_assets(self.assets, session=session) if self.assets else {}
@@ -1471,6 +1474,10 @@ class AssetModelOperation(NamedTuple):
                 for trigger in asset_watcher_triggers
             }
             triggers.update(trigger_hash_to_trigger_dict)
+            watcher_names[name_uri] = {
+                trigger_hash: trigger["watcher_name"]
+                for trigger_hash, trigger in trigger_hash_to_trigger_dict.items()
+            }
             trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())
 
             asset_model = assets[name_uri]
@@ -1537,10 +1544,10 @@ class AssetModelOperation(NamedTuple):
                 asset_model = assets[name_uri]
 
                 for trigger_hash in trigger_hashes:
-                    trigger = triggers.get(trigger_hash)
+                    watcher_name = watcher_names[name_uri].get(trigger_hash)
                     orm_trigger = orm_triggers.get(trigger_hash)
-                    if orm_trigger and trigger:
-                        asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
+                    if orm_trigger and watcher_name is not None:
+                        asset_model.add_trigger(orm_trigger, watcher_name)
 
         if refs_to_remove:
             # Remove old references

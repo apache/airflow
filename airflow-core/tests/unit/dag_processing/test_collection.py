@@ -55,6 +55,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
 )
@@ -494,6 +495,44 @@ class TestAssetModelOperation:
         db_hash = BaseEventTrigger.hash(reloaded.classpath, reloaded.kwargs)
 
         assert dag_hash == db_hash
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references_shared_trigger_keeps_watcher_names(self, dag_maker, session):
+        """Assets whose watchers use an identical trigger share one Trigger row but keep their own watcher names."""
+        asset_a = Asset(
+            "shared_trigger_asset_a",
+            watchers=[AssetWatcher(name="a_watcher", trigger=FileDeleteTrigger(filepath="/tmp/x"))],
+        )
+        asset_b = Asset(
+            "shared_trigger_asset_b",
+            watchers=[AssetWatcher(name="b_watcher", trigger=FileDeleteTrigger(filepath="/tmp/x"))],
+        )
+        with dag_maker(dag_id="test_shared_trigger_dag", schedule=[asset_a, asset_b]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_paused = False
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        trigger = session.scalars(select(Trigger)).one()
+        watchers = session.execute(
+            select(AssetModel.name, AssetWatcherModel.name, AssetWatcherModel.trigger_id)
+            .join(AssetWatcherModel, AssetWatcherModel.asset_id == AssetModel.id)
+            .order_by(AssetModel.name)
+        ).all()
+        assert [tuple(row) for row in watchers] == [
+            ("shared_trigger_asset_a", "a_watcher", trigger.id),
+            ("shared_trigger_asset_b", "b_watcher", trigger.id),
+        ]
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_idempotent(self, dag_maker, session):
