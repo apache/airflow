@@ -37,7 +37,6 @@ def get_bundle() -> VersionBundle:
     """
     from cadwyn import HeadVersion, Version, VersionBundle
 
-    from airflow.sdk.execution_time.schema.versions.v2026_09_30 import AddLogIdTemplateField
     from airflow.sdk.execution_time.schema.versions.v2026_10_30 import (
         AddArgBindingsToSupervisorTIRunContext,
         AddDagDefinitionsToDagFileParsingResult,
@@ -50,6 +49,7 @@ def get_bundle() -> VersionBundle:
     from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
         AddExecutionTimeoutToSupervisorTIRunContext,
         AddExternalClearTargetToSucceedTask,
+        AddLogIdTemplateToSupervisorTIRunContext,
         MakeSupervisorVariableValueNonNullable,
     )
 
@@ -60,6 +60,7 @@ def get_bundle() -> VersionBundle:
             AddExecutionTimeoutToSupervisorTIRunContext,
             AddExternalClearTargetToSucceedTask,
             MakeSupervisorVariableValueNonNullable,
+            AddLogIdTemplateToSupervisorTIRunContext,
         ),
         Version(
             "2026-10-30",
@@ -71,7 +72,6 @@ def get_bundle() -> VersionBundle:
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
             AddExpandedTICountToSupervisorTIRunContext,
         ),
-        Version("2026-09-30", AddLogIdTemplateField),
         Version("2026-06-16"),
     )
 

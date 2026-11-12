@@ -84,3 +84,15 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
         """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
         if "value" in request.body and request.body["value"] is None:
             request.body["value"] = "None"
+
+
+class AddLogIdTemplateToSupervisorTIRunContext(VersionChange):
+    """
+    Add the Dag-run-pinned ``log_id_template`` field to TIRunContext (nested in StartupDetails).
+
+    The supervisor-schema mirror of the execution API's ``AddLogIdTemplateField``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("log_id_template").didnt_exist,)
