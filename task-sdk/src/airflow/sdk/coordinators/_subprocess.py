@@ -67,7 +67,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     runs_in_helper,
     send_unless_exited,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowConfigException, ErrorType
 from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
@@ -495,6 +495,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
     _comm_server: socket.socket
     _logs_server: socket.socket
+    _default_execution_timeout: float | None = None
 
     @classmethod
     def start(  # type: ignore[override]
@@ -509,6 +510,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         subprocess_schema_version: str | None = None,
         subprocess_logs_to_stdout: bool = False,
         startup_timeout: float = 10.0,
+        default_execution_timeout: float | None = None,
         **kwargs,
     ) -> Self:
         process_log = logger or structlog.get_logger(logger_name="task").bind()
@@ -559,6 +561,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     stdin=socks[comm_server],
                     subprocess_schema_version=subprocess_schema_version,
                     subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                    default_execution_timeout=default_execution_timeout,
                     # The supervisor signals the group; must agree with process_group=0 above.
                     new_process_group=True,
                     comm_server=comm_server,
@@ -619,14 +622,12 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         Also fills in the worker's default ``execution_timeout`` when the task sets none.
         """
-        # A task that sets no execution_timeout gets the worker's default, as a Python task does when the
-        # worker parses its Dag. A zero means no timeout, so it does not fall back.
+        # ti_context.execution_timeout is what the API server read from the serialized Dag. A task that
+        # sets none gets the worker's default, as a Python task does when the worker parses its Dag.
+        # A zero means no timeout, so it does not fall back.
         execution_timeout = ti_context.execution_timeout
-        if (
-            execution_timeout is None
-            and (default := conf.gettimedelta("core", "default_task_execution_timeout")) is not None
-        ):
-            execution_timeout = default.total_seconds()
+        if execution_timeout is None:
+            execution_timeout = self._default_execution_timeout
         self._execution_timeout_seconds = execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
@@ -965,6 +966,23 @@ def _is_file_in_bundle(bundle: BaseDagBundle, rel_path: str) -> bool:
         return False
 
 
+def _get_default_execution_timeout() -> float | None:
+    """
+    Return the worker's ``[core] default_task_execution_timeout`` in seconds, or None when it is unset.
+
+    Read before the task instance is started, so a value that is not a number fails the task with
+    the reason in its task log.
+
+    :raises TaskLaunchError: when the value is not a number. Retrying on the same worker reads the
+        same value, so this does not retry.
+    """
+    try:
+        default = conf.gettimedelta("core", "default_task_execution_timeout")
+    except AirflowConfigException as e:
+        raise TaskLaunchError(str(e), retryable=False) from e
+    return None if default is None else default.total_seconds()
+
+
 def _require_supported_schema_version(version: str) -> None:
     """
     Check that the supervisor of this worker's Task SDK knows *version*.
@@ -1218,6 +1236,7 @@ class SubprocessCoordinator(BaseCoordinator):
             with _raise_as_launch_error(
                 f"Cannot prepare the runtime of task {what.task_id!r} in Dag {what.dag_id!r}"
             ):
+                default_execution_timeout = _get_default_execution_timeout()
                 is_native = self._is_native_dag_file(rel_path, bundle_info.name)
                 if is_native:
                     bundle = _resolve_bundle(bundle_info, task_logger)
@@ -1247,6 +1266,7 @@ class SubprocessCoordinator(BaseCoordinator):
                 command=command,
                 subprocess_schema_version=subprocess_schema_version,
                 startup_timeout=self.task_startup_timeout,
+                default_execution_timeout=default_execution_timeout,
             )
             exit_code = process.wait()
             return self.ExecutionResult(exit_code, process.final_state)
