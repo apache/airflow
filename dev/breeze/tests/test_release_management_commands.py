@@ -511,3 +511,49 @@ def test_publish_docs_to_s3_rejects_invalid_options(
     mock_generate_packages_metadata.assert_not_called()
     mock_publish_all.assert_not_called()
     mock_publish_stable.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("slim_flag", "expected_constraints_mode"),
+    [
+        pytest.param([], None, id="regular-uses-dockerfile-default"),
+        pytest.param(["--slim-images"], "constraints-no-providers", id="slim-without-providers"),
+    ],
+)
+@mock.patch.object(release_management_commands, "check_docker_buildx_plugin", autospec=True)
+@mock.patch.object(release_management_commands, "perform_environment_checks", autospec=True)
+@mock.patch.object(release_management_commands, "check_remote_ghcr_io_commands", autospec=True)
+@mock.patch.object(release_management_commands, "check_airflow_cache_builder_configured", autospec=True)
+@mock.patch.object(release_management_commands, "run_command", autospec=True)
+def test_release_prod_images_constraints_mode(
+    mock_run_command,
+    mock_builder,
+    mock_ghcr,
+    mock_environment,
+    mock_buildx,
+    slim_flag,
+    expected_constraints_mode,
+    tmp_path,
+):
+    result = CliRunner().invoke(
+        release_management_commands.release_prod_images,
+        [
+            "--airflow-version",
+            "3.2.0",
+            "--python",
+            "3.12",
+            "--platform",
+            "linux/amd64",
+            "--metadata-folder",
+            str(tmp_path),
+            "--skip-latest",
+            *slim_flag,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    command = mock_run_command.call_args.args[0]
+    build_args = dict(command[i + 1].split("=", 1) for i, arg in enumerate(command) if arg == "--build-arg")
+    assert build_args.get("AIRFLOW_CONSTRAINTS_MODE") == expected_constraints_mode
+    assert "AIRFLOW_CONSTRAINTS" not in build_args

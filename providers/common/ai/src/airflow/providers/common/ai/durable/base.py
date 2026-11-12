@@ -67,5 +67,10 @@ class DurableStorageProtocol(Protocol):
     def load_step(self, key: str) -> dict[str, Any] | None: ...
 
     def delete_steps(self, keys: Iterable[str]) -> None:
-        """Delete these entries. Best-effort: runs after the work succeeded, so it must not raise."""
+        """
+        Delete these entries. Best-effort, so it must not raise.
+
+        It runs after the work succeeded, and before a task pauses for input to drop entries
+        the attempt replaced; there the caller reads the keys back to find any that survived.
+        """
         ...
