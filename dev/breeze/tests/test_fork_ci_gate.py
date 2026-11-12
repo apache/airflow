@@ -341,7 +341,7 @@ def test_parse_config_defaults():
     config = parse_config("")
 
     assert config.enabled is False
-    assert config.close_after_days == 7
+    assert config.close_after_days == 30
     assert config.allowlist == {}
     assert config.pilot == {}
     assert config.job_statuses is True

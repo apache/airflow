@@ -1299,8 +1299,8 @@ class TestCliDags:
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
-    @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
-    def test_dag_test_with_mark_success(self, mock__execute_task):
+    @mock.patch("airflow.sdk.execution_time.task_runner._TaskRunner.run")
+    def test_dag_test_with_mark_success(self, mock_run):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
         """
@@ -1317,8 +1317,8 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
 
         # only second operator was actually executed, first one was marked as success
-        assert len(mock__execute_task.call_args_list) == 1
-        assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
+        assert len(mock_run.call_args_list) == 1
+        assert mock_run.call_args_list[0].args[0].task_id == "dummy_operator"
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):

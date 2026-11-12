@@ -32,11 +32,17 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.tools import ToolCallError, ToolResult
-from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset, tool_call_scope
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
+from airflow.providers.common.ai.tools._from_toolset import (
+    RetryCount,
+    airflow_tools_from_toolset,
+    retry_count_restorer,
+    tool_call_scope,
+)
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
+from unit.common.ai.sqlite_connection import sqlite_connection
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 
@@ -56,6 +62,13 @@ def _scripted(*outcomes, max_retries: int | None = 1):
         return outcome
 
     return _by_name(airflow_tools_from_toolset(FunctionToolset([step], max_retries=max_retries)))["step"]
+
+
+async def _restore(tool: AirflowTool, count: RetryCount) -> None:
+    """Restore a count an earlier attempt recorded, in the run the tests' calls belong to."""
+    restore = retry_count_restorer(tool)
+    assert restore is not None
+    await restore("run", count)
 
 
 class TestSQLToolsetAirflowTools:
@@ -102,11 +115,20 @@ class TestSQLToolsetAirflowTools:
         assert "sql" in result.content
         ts._hook.run.assert_not_called()
 
-    def test_a_database_that_keeps_failing_fails_the_call(self):
-        """Bad credentials are not the model's to fix; the tool's retry budget ends the loop."""
+    def test_a_database_that_cannot_be_reached_fails_the_first_call(self, tmp_path):
+        ts = SQLToolset("warehouse")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "missing" / "warehouse.db"),
+            pytest.raises(ToolCallError, match="Could not reach the database of connection 'warehouse'"),
+        ):
+            asyncio.run(_by_name(ts.airflow_tools())["query"].call({"sql": "SELECT status FROM orders"}))
+
+    def test_a_statement_that_keeps_failing_fails_the_call(self):
+        """The tool's retry budget ends a loop the model cannot correct its way out of."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.run.side_effect = ConnectionError("authentication failed")
+        ts._hook.run.side_effect = RuntimeError("canceling statement due to statement timeout")
         query = _by_name(ts.airflow_tools())["query"]
 
         first = asyncio.run(query.call({"sql": "SELECT 1"}))
@@ -120,7 +142,7 @@ class TestSQLToolsetAirflowTools:
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
         ts._hook.run.side_effect = RuntimeError(
-            f"could not connect to postgresql://svc:{registered_secret}@db"
+            f'invalid input syntax for type uuid: "postgresql://svc:{registered_secret}@db"'
         )
 
         result = asyncio.run(_by_name(ts.airflow_tools())["query"].call({"sql": "SELECT 1"}))
@@ -274,6 +296,44 @@ class TestRetryBudget:
         assert not asyncio.run(call_in("turn-1")).is_error
         with pytest.raises(ToolCallError, match="kept failing"):
             asyncio.run(call_in("turn-2"))
+
+    def test_a_count_an_earlier_attempt_recorded_does_not_replace_a_live_one(self):
+        """The earlier attempt's worker had a clock an hour ahead; the live failure still counts."""
+        step = _scripted(ModelRetry("bad"), ModelRetry("bad"), max_retries=1)
+        recorded: RetryCount = {"failures": 0, "finished": time.time() + 3600}
+
+        async def call_in(turn: str) -> ToolResult:
+            with tool_call_scope(run="run", turn=turn, function=step.function):
+                return await step.function({})
+
+        assert asyncio.run(call_in("turn-1")).is_error
+        asyncio.run(_restore(step, recorded))
+        with pytest.raises(ToolCallError, match="kept failing"):
+            asyncio.run(call_in("turn-3"))
+
+    def test_a_later_attempts_count_outranks_an_earlier_one_from_a_clock_ahead(self):
+        """
+        The first attempt's worker had a clock an hour ahead and recorded one correction used.
+
+        The second replayed it and then succeeded live; the third must restore that success.
+        """
+        first: RetryCount = {"failures": 1, "finished": time.time() + 3600}
+
+        async def call_in(step: AirflowTool, turn: str):
+            with tool_call_scope(run="run", turn=turn, function=step.function) as scope:
+                result = await step.function({})
+            return result, scope.counted
+
+        second_attempt = _scripted("ok", max_retries=1)
+        asyncio.run(_restore(second_attempt, first))
+        _, second = asyncio.run(call_in(second_attempt, "turn-2"))
+        third_attempt = _scripted(ModelRetry("bad"), max_retries=1)
+        asyncio.run(_restore(third_attempt, first))
+        asyncio.run(_restore(third_attempt, second))
+
+        result, _ = asyncio.run(call_in(third_attempt, "turn-3"))
+
+        assert result.is_error
 
     def test_each_tool_list_starts_with_a_fresh_budget(self):
         toolset = FunctionToolset([_failing_step], max_retries=0)

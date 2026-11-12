@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -107,23 +108,21 @@ def _ensure_executor_is_configured(executor: str | None) -> None:
 _MASKED_CREDENTIAL_SENTINEL = "***"
 
 
-def _same_endpoint(requested: str | int | None, stored: str | int | None) -> bool:
+def _get_connection_target(conn: ConnectionBody | ConnectionResponse, fields: set[str]) -> dict[str, Any]:
     """
-    Return True when request and stored host/port refer to the same destination.
+    Return the fields that decide where and how a hook connects, with blank values as None.
 
-    The UI sends empty string for hidden unused host/port fields; the ORM stores
-    those as NULL. Treat blank as unset so connection types that do not use
-    host/port still reuse stored credentials.
+    The UI sends empty string for hidden unused fields; the ORM stores those as NULL. Treat
+    blank as unset so connection types that do not use host/port still reuse stored credentials.
 
     Port arrives as ``0`` rather than blank, because the UI builds its body with
     ``Number(connection.port)`` and ``Number(null)`` is ``0``. No connection addresses
     port 0, so it means the same thing as blank here and is normalised with it.
     """
-
-    def _norm(value: str | int | None) -> str | int | None:
-        return None if value in (None, "", 0) else value
-
-    return _norm(requested) == _norm(stored)
+    target = {name: None if (value := getattr(conn, name)) in (None, "", 0) else value for name in fields}
+    if "extra" in target:
+        target["extra"] = json.loads(conn.extra or "{}")
+    return target
 
 
 def _supplies_own_credentials(test_body: ConnectionBody) -> bool:
@@ -389,16 +388,24 @@ def test_connection(
                 existing_conn = None
 
         if existing_conn is not None:
-            # Stored credentials are only reused to test the connection's own
-            # host/port; testing a different destination must supply its own.
-            fields_set = test_body.model_fields_set
-            host_changed = "host" in fields_set and not _same_endpoint(test_body.host, existing_conn.host)
-            port_changed = "port" in fields_set and not _same_endpoint(test_body.port, existing_conn.port)
-            if host_changed or port_changed:
+            # Stored credentials are only reused to test the stored connection itself;
+            # testing a different one must supply its own. Besides host and port, the
+            # connection type, schema, login and extra also decide where and how a hook
+            # connects (e.g. a URL in schema, or proxies and endpoints in extra).
+            compared = {"host", "port", "schema_", "login", "extra"} & test_body.model_fields_set
+            # conn_type goes first: a stored connection without one cannot be read as a
+            # ConnectionResponse, and it differs from the request anyway.
+            if test_body.conn_type != existing_conn.conn_type or _get_connection_target(
+                test_body, compared
+            ) != _get_connection_target(
+                # Compare with the stored connection as the API shows it, with its secrets masked.
+                ConnectionResponse.model_validate(existing_conn),
+                compared,
+            ):
                 if not _supplies_own_credentials(test_body):
                     raise HTTPException(
                         status.HTTP_400_BAD_REQUEST,
-                        "The host or port to test differs from the stored connection. "
+                        "The connection to test differs from the stored connection. "
                         "Include the credentials to test in the request body.",
                     )
                 existing_conn = None

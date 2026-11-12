@@ -45,6 +45,9 @@ JOB_NAME_MAX_LENGTH = 100
 CI_PASSED_CONTEXT = "CI passed"
 CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# Replaces a fork `success` on a pull request carrying `use project ci` until project CI has passed.
+CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION = "Waiting for project CI (use project ci)"
+CI_PASSED_PROJECT_DESCRIPTION = "Project CI passed for this commit"
 # Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
 # request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
 # request once the fork has a run for the head commit, for any other once project CI has one.
@@ -144,6 +147,11 @@ def _setup_instructions(fork: str) -> str:
     )
 
 
+_CHANGES_CI_FILES = (
+    "this pull request changes files that decide which CI jobs run and where (`.github/`, the breeze "
+    "sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those changed files."
+)
+
 _STATE_TEXTS = {
     "setup_required": "**Fork CI: setup required.** CI for this pull request has not run in your fork yet, "
     "because the `Tests (AMD)` workflow is not enabled there.",
@@ -151,18 +159,25 @@ _STATE_TEXTS = {
     "run for the latest commit of this pull request. Push the branch again to start it.",
     "running": "**Fork CI: running.** CI for the latest commit is running in your fork.",
     "failed": "**Fork CI: failed.** CI for the latest commit failed in your fork. Fix the failures and "
-    "push again; this pull request stays a draft until the run is green.",
+    "push again.",
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is "
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
-    "fork, but this pull request changes files that define what CI runs (such as `.github/`, "
-    "`dev/breeze/` or `scripts/ci/`), and the fork run used those changed files. A maintainer will "
-    "review the change and run project CI for it; the pull request stays a draft until then.",
+    f"fork, but {_CHANGES_CI_FILES} A maintainer will review the change and run project CI for it before "
+    "it can be merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
     "the contributor's fork; see the comment below.",
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
+}
+
+_AUTHOR_DRAFT_TEXTS = {
+    "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
+    "draft, so maintainers do not review it yet. Mark it ready for review when it is.",
+    "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
+    f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
+    "will review the change and run project CI for it.",
 }
 
 
@@ -174,8 +189,11 @@ def behind_warning(behind: int, *, base_ref: str) -> str:
     )
 
 
-def state_comment(marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main") -> str:
-    parts = [render_marker(marker), _STATE_TEXTS[marker.state], WHY_FORK_CI]
+def state_comment(
+    marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main", author_draft: bool = False
+) -> str:
+    text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
+    parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
     if (
         marker.state in ("green", "green_unverified")
         and marker.behind is not None
@@ -275,19 +293,43 @@ def _sanitize_path(path: str) -> str:
     return "".join(char if char.isprintable() and char != "`" else "?" for char in path)
 
 
-def ci_change_approval_comment(*, ci_files: list[str]) -> str:
+def build_ci_file_list(ci_files: list[str]) -> str:
     listed = [f"- `{_sanitize_path(path)}`" for path in ci_files[:MAX_LISTED_CI_FILES]]
     if len(ci_files) > MAX_LISTED_CI_FILES:
         listed.append(f"- and {len(ci_files) - MAX_LISTED_CI_FILES} more")
+    return "\n".join(listed)
+
+
+def ci_change_approval_comment(*, ci_files: list[str]) -> str:
     return (
         f"{CI_CHANGE_MARKER}\n\n"
         "**Your CI change needs a maintainer.** CI for this pull request runs in your fork, and the "
         "workflow runs it starts in apache/airflow are approved automatically while they only run the "
         "fork CI gate. This pull request changes files that define what CI runs:\n\n"
-        + "\n".join(listed)
+        + build_ci_file_list(ci_files)
         + "\n\nSuch a change can make project CI run on the project's runners, so its workflow runs in "
         "apache/airflow wait for a maintainer to review the change and approve them. CI in your fork "
         "is not affected, and its result stays visible on this pull request. " + WHY_FORK_CI + FOOTER
+    )
+
+
+CI_MODIFICATION_MARKER = "<!-- workflow-approval: ci-modification -->"
+
+
+GATED_NOTE_SENTENCE = (
+    " CI for this pull request runs in the author's fork, so any green result and `CI passed` status will "
+    "come from a run that executed these changed files."
+)
+
+
+def ci_modification_note_comment(*, ci_files: list[str], gated: bool) -> str:
+    return (
+        f"{CI_MODIFICATION_MARKER}\n\n"
+        "**This pull request changes CI files.** It changes files that CI uses:\n\n"
+        + build_ci_file_list(ci_files)
+        + "\n\nThey do not decide which CI jobs run or on which runners, so its workflow runs are not "
+        "held for this. A maintainer reviewing the pull request will check the CI change together with "
+        "the rest of it." + (GATED_NOTE_SENTENCE if gated else "") + FOOTER
     )
 
 

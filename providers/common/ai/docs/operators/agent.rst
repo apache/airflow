@@ -103,11 +103,8 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     def analyze_review(image_url: str):
         return ["Describe what you see:", ImageUrl(url=image_url)]
 
-.. note::
-
-    Combining a non-string prompt with ``enable_hitl_review=True`` is not
-    currently supported -- the HITL session model stores the prompt as a
-    string, so a ``Sequence`` prompt will raise at the review boundary.
+With ``enable_hitl_review=True``, the review session stores the prompt's text
+and a placeholder such as ``[image/png, 2048 bytes]`` for each non-text part.
 
 Structured output
 -----------------
@@ -115,7 +112,8 @@ Structured output
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass to get structured data
 back. The model instance is pushed to XCom unchanged so downstream tasks can
 type-hint the class directly (``def downstream(result: MyModel)``) and use
-attribute access (``result.field``).
+attribute access (``result.field``). Inside a list of types (``[MyModel, int]``) the
+model is pushed as a ``dict`` instead.
 
 :doc:`../structured_output` explains the XCom deserialization rules, the cross-Dag gap and
 ``serialize_output``.
@@ -433,9 +431,12 @@ Parameters
 - ``durable``: When ``True``, records each step the agent completes (model
   requests, tool calls, other capabilities' ``@durable_operation`` methods) in a
   journal kept for the task instance, and replays the recorded steps on retry
-  instead of running them again. Every ``FunctionToolset``, ``MCPToolset`` and
-  ``DynamicToolset`` needs an ``id``. On Airflow >= 3.3 the journal uses the task
-  state store (no configuration needed); on older Airflow versions it requires the
+  instead of running them again. A pydantic-ai ``MCPToolset`` needs an ``id``. A
+  ``FunctionToolset`` or a function that builds a toolset, passed in ``toolsets`` or
+  ``agent_params["toolsets"]``, needs none, and neither does a ``FunctionToolset`` held
+  directly by a ``Toolset`` capability (:ref:`durable-toolset-ids`). On Airflow >= 3.3
+  the journal uses the task state store (no configuration needed); on older Airflow
+  versions it requires the
   ``[common.ai] durable_cache_path`` config option to be set. Default ``False``. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
@@ -443,9 +444,9 @@ Parameters
   every Airflow version. A step that re-runs live because the conversation
   changed since the previous attempt is counted like any other live call, and
   a retry whose cross-attempt total already sits at a limit can still start
-  when the steps it needs are recorded. Clearing a failed task instance starts
-  a fresh budget but keeps the journal its attempts left behind, so what the
-  rerun replays from it is free there too. See :doc:`../durable_execution`.
+  when the steps it needs are recorded. Clearing a finished task instance
+  starts a fresh budget; whether its rerun replays from the journal depends on
+  the Airflow version and how the task was cleared (:ref:`durable-clear`).
 - ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
   conversation so later requests read them back at a discount. Default ``True``; a no-op for
   providers that cache on their own. See :ref:`agent-prompt-caching`.
@@ -457,11 +458,11 @@ Parameters
 - ``emit_message_history``: Push the post-run transcript to XCom under the key
   ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
   otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
-- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
-  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
-  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
-  downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+  ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their types.
+  Default ``False``: a model whose class the worker registers from ``output_type`` flows through XCom
+  unchanged. Some outputs are pushed as dicts either way; see
+  :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review

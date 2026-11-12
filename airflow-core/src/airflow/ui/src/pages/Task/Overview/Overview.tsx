@@ -137,7 +137,11 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="310px" w="full" />
           ) : (
-            <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
+            <DurationChart
+              // oxlint-disable-next-line unicorn/prefer-spread -- a spread would drop the optional chain
+              entries={tiData?.task_instances.slice().reverse()}
+              kind="Task Instance"
+            />
           )}
         </Box>
       </HStack>

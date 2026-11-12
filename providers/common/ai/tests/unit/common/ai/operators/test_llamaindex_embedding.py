@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Installed only in the agent framework CI job (scripts/in_container/run_agent_framework_tests.sh).
 pytest.importorskip("llama_index.core")
 
 from llama_index.core import MockEmbedding
@@ -30,12 +31,7 @@ from airflow.providers.common.ai.operators.llamaindex_embedding import LlamaInde
 
 @pytest.fixture
 def _li(monkeypatch):
-    """Patch the two LlamaIndex constructors the operator uses inside execute().
-
-    ``llama_index`` (core + openai embeddings) is a real test dependency
-    declared in ``providers/common/ai/pyproject.toml``'s dev group, so
-    ``@patch("llama_index.core.X")`` resolves against the real module.
-    """
+    """Patch the two LlamaIndex constructors the operator uses inside execute()."""
     VectorStoreIndex = MagicMock(name="VectorStoreIndex")
     SentenceSplitter = MagicMock(name="SentenceSplitter")
     monkeypatch.setattr("llama_index.core.VectorStoreIndex", VectorStoreIndex)
