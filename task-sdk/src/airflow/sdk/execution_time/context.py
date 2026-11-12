@@ -167,8 +167,23 @@ def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
     return {_EXTERNAL_STATE_REF_KEY: ref}
 
 
-def _unwrap_external_ref(stored: dict) -> str | None:
-    return stored.get(_EXTERNAL_STATE_REF_KEY)
+def _unwrap_external_ref(stored: JsonValue) -> str | None:
+    """Return the reference inside a ``{marker: ref}`` wrapper, or ``None`` for any other value."""
+    if isinstance(stored, dict) and stored.keys() == {_EXTERNAL_STATE_REF_KEY}:
+        ref = stored[_EXTERNAL_STATE_REF_KEY]
+        if isinstance(ref, str):
+            return ref
+    return None
+
+
+def _validate_state_store_value(value: JsonValue) -> None:
+    if value is None:
+        raise ValueError("Cannot set value as None")
+    # get() would read such a value back as a backend reference
+    if isinstance(value, dict) and _EXTERNAL_STATE_REF_KEY in value:
+        raise ValueError(
+            f"{_EXTERNAL_STATE_REF_KEY!r} is reserved and cannot be a top-level key of the value"
+        )
 
 
 def _json_size_exceeds(value: JsonValue, limit: int) -> bool:
@@ -778,32 +793,26 @@ class TaskStateStoreAccessor:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = SUPERVISOR_COMMS.send(GetTaskStateStore(ti_id=self._ti_id, key=key))
-        return self._extract_get_response(resp, key, default)
+        return self._extract_get_response(resp, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
         """Async version of :meth:`get` that awaits instead of blocking the event loop."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = await SUPERVISOR_COMMS.asend(GetTaskStateStore(ti_id=self._ti_id, key=key))
-        return self._extract_get_response(resp, key, default)
+        return self._extract_get_response(resp, default)
 
-    def _extract_get_response(self, resp: Any, key: str, default: JsonValue) -> JsonValue:
+    def _extract_get_response(self, resp: Any, default: JsonValue) -> JsonValue:
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.TASK_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         self._incr("read_found" if isinstance(resp, TaskStateStoreResult) else "read_absent")
         if isinstance(resp, TaskStateStoreResult):
             stored = resp.value
             backend = _get_worker_state_store_backend()
-            if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
+            if backend is not None and (ref := _unwrap_external_ref(stored)) is not None:
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
                 return backend.deserialize_task_state_store_from_ref(ref)
-            if backend is not None:
-                log.warning(
-                    "Task store key %r was not written through the configured state backend — returning raw "
-                    "stored value. To use the backend, ensure the task that wrote this key had the same "
-                    "backend configured.",
-                    key,
-                )
+            # no marker: the value was kept inline in the DB (or written through the REST API)
             return stored
         return default
 
@@ -834,8 +843,7 @@ class TaskStateStoreAccessor:
     def _build_set_message(
         self, key: str, value: JsonValue, retention: timedelta | None
     ) -> SetTaskStateStore:
-        if value is None:
-            raise ValueError("Cannot set value as None")
+        _validate_state_store_value(value)
 
         # expires_at is always resolved on the worker in UTC before being sent.
         now = datetime.now(tz=UTC)
@@ -852,14 +860,15 @@ class TaskStateStoreAccessor:
                 )
             expires_at = None if days == 0 else now + timedelta(days=days)
 
-        # if custom backend is configured, store the value on the custom backend, and return the reference
-        # to the stored value to store in the DB
+        # if a custom backend is configured, it may store the value externally and return a reference to keep
+        # in the DB, or return None to keep the value inline
         backend = _get_worker_state_store_backend()
         stored: JsonValue = value
         if backend is not None:
-            ref: str = backend.serialize_task_state_store_to_ref(value=value, key=key, scope=self._scope)
-            # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
-            stored = _wrap_external_ref(ref)
+            ref = backend.serialize_task_state_store_to_ref(value=value, key=key, scope=self._scope)
+            if ref is not None:
+                # wrap the ref with a marker so get() knows to resolve it through the backend
+                stored = _wrap_external_ref(ref)
 
         msg = SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
 
@@ -950,14 +959,14 @@ class AssetStateStoreAccessor:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = SUPERVISOR_COMMS.send(self._build_get_message(key))
-        return self._extract_get_response(resp, key, default)
+        return self._extract_get_response(resp, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
         """Async version of `get` that awaits instead of blocking the event loop."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = await SUPERVISOR_COMMS.asend(self._build_get_message(key))
-        return self._extract_get_response(resp, key, default)
+        return self._extract_get_response(resp, default)
 
     def _build_get_message(self, key: str) -> ToSupervisor:
         msg: ToSupervisor
@@ -967,24 +976,17 @@ class AssetStateStoreAccessor:
             msg = GetAssetStateStoreByUri(uri=self._uri, key=key)
         return msg
 
-    def _extract_get_response(self, resp: Any, key: str, default: JsonValue) -> JsonValue:
+    def _extract_get_response(self, resp: Any, default: JsonValue) -> JsonValue:
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         self._incr("read_found" if isinstance(resp, AssetStateStoreResult) else "read_absent")
         if isinstance(resp, AssetStateStoreResult):
             stored = resp.value
             backend = _get_worker_state_store_backend()
-            if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
+            if backend is not None and (ref := _unwrap_external_ref(stored)) is not None:
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
                 return backend.deserialize_asset_state_store_from_ref(ref)
-            if backend is not None:
-                log.warning(
-                    "Asset store key %r for asset %r was not written through the configured state backend — "
-                    "returning raw stored value. To use the backend, ensure the task that wrote this key had "
-                    "the same backend configured.",
-                    key,
-                    self._name or self._uri,
-                )
+            # no marker: the value was kept inline in the DB (or written through the REST API)
             return stored
         return default
 
@@ -1003,17 +1005,18 @@ class AssetStateStoreAccessor:
         self._incr("write")
 
     def _build_set_message(self, key: str, value: JsonValue) -> ToSupervisor:
-        if value is None:
-            raise ValueError("Cannot set value as None")
+        _validate_state_store_value(value)
 
-        # if custom backend is configured, store the value on the custom backend, and return the reference
-        # to the stored value to store in the DB
+        # if a custom backend is configured, it may store the value externally and return a reference to keep
+        # in the DB, or return None to keep the value inline
         backend = _get_worker_state_store_backend()
         stored: JsonValue = value
         if backend is not None:
             scope = AssetScope(name=self._name, uri=self._uri)
             ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
-            stored = _wrap_external_ref(ref)
+            if ref is not None:
+                # wrap the ref with a marker so get() knows to resolve it through the backend
+                stored = _wrap_external_ref(ref)
 
         _warn_if_oversized("Asset", key, stored)
 
