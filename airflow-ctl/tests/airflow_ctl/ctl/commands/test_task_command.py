@@ -23,6 +23,7 @@ from unittest import mock
 import httpx
 import pytest
 
+from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
     StructuredLogMessage,
     TaskDependencyCollectionResponse,
@@ -504,6 +505,20 @@ class TestStatesForDagRun:
             ],
             output="json",
         )
+
+    def test_states_for_dag_run_not_found_prints_ids_containing_markup(self, capsys):
+        api_client = mock.MagicMock(spec=Client)
+        api_client.task_instances.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.states_for_dag_run(
+                self.parser.parse_args(["tasks", "states-for-dag-run", "my_dag[/y]", "run_[/x]"]),
+                api_client=api_client,
+            )
+
+        output = capsys.readouterr().out
+        assert "run_[/x]" in output
+        assert "my_dag[/y]" in output
 
     @mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole")
     def test_states_for_dag_run_by_logical_date(self, mock_console_cls):
@@ -1030,3 +1045,36 @@ class TestLogs:
                 ),
                 api_client=api_client,
             )
+
+
+@pytest.mark.parametrize(
+    ("command", "argv", "api_method"),
+    [
+        pytest.param(
+            task_command.failed_deps,
+            ["tasks", "failed-deps", "my_dag", "my_task[/x]", "my_run"],
+            "get_dependencies",
+            id="failed-deps",
+        ),
+        pytest.param(
+            task_command.state,
+            ["tasks", "state", "my_dag", "my_task[/x]", "my_run"],
+            "get",
+            id="state",
+        ),
+        pytest.param(
+            task_command.logs,
+            ["tasks", "logs", "my_dag", "my_run", "my_task[/x]", "--try-number", "1"],
+            "logs",
+            id="logs",
+        ),
+    ],
+)
+def test_task_instance_not_found_prints_task_id_containing_markup(command, argv, api_method, capsys):
+    api_client = mock.MagicMock(spec=Client)
+    getattr(api_client.task_instances, api_method).side_effect = _make_server_error(404)
+
+    with pytest.raises(SystemExit, match="1"):
+        command(cli_parser.get_parser().parse_args(argv), api_client=api_client)
+
+    assert "'my_task[/x]'" in _normalize_rich_output(capsys.readouterr().out)

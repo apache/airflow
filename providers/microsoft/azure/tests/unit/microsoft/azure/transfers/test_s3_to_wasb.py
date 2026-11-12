@@ -232,6 +232,65 @@ class TestS3ToAzureBlobStorageOperator:
         with pytest.raises(TooManyFilesToMoveException):
             operator.get_files_to_move()
 
+    @pytest.mark.parametrize(
+        ("keys", "expected_kept", "expected_dropped"),
+        [
+            ([], [], []),
+            (["a"], ["a"], []),
+            (["a", "b"], ["a", "b"], []),
+            (["a", "ax"], ["a", "ax"], []),
+            (["abc", "abcdef"], ["abc", "abcdef"], []),
+            (["foo/", "foo/bar.txt"], ["foo/bar.txt"], ["foo/"]),
+            (
+                ["data/", "data/sub/", "data/sub/file.txt"],
+                ["data/sub/file.txt"],
+                ["data/", "data/sub/"],
+            ),
+            (["lonely/"], ["lonely/"], []),
+            (["lonely/", "report.csv"], ["lonely/", "report.csv"], []),
+        ],
+    )
+    def test_strip_overlapping_folder_markers(self, keys, expected_kept, expected_dropped):
+        kept, dropped = S3ToAzureBlobStorageOperator._strip_overlapping_folder_markers(keys)
+        assert kept == expected_kept
+        assert dropped == expected_dropped
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    @pytest.mark.parametrize(
+        ("s3_keys", "blob_name", "returned_files"),
+        [
+            pytest.param(
+                [f"{PREFIX}/", f"{PREFIX}/src/", f"{PREFIX}/src/file.txt", f"{PREFIX}/lonely/"],
+                None,
+                ["lonely/", "src/file.txt"],
+                id="overlapping_markers",
+            ),
+            pytest.param([f"{PREFIX}/"], None, [], id="empty_prefix_marker"),
+            pytest.param(
+                [f"{PREFIX}/", f"{PREFIX}/TEST1.csv"],
+                "TEST/TEST1.csv",
+                ["TEST1.csv"],
+                id="marker_not_counted_for_blob_name",
+            ),
+        ],
+    )
+    def test_get_files_to_move__skips_folder_markers(
+        self, wasb_mock_hook, s3_mock_hook, s3_keys, blob_name, returned_files
+    ):
+        s3_mock_hook.return_value.list_keys.return_value = s3_keys
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix=PREFIX,
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+            blob_name=blob_name,
+            replace=True,
+        )
+        assert operator.get_files_to_move() == returned_files
+
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     def test__move_file(self, wasb_mock_hook, s3_mock_hook):

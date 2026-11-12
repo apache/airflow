@@ -299,19 +299,43 @@ class TestPublishDocsToS3:
 
         assert mock_generate_packages_metadata.call_count == expected_calls
 
+    @patch.dict(
+        "airflow_breeze.utils.publish_docs_to_s3.PACKAGES_METADATA_EXCLUDE_VERSIONS",
+        {"java-sdk": ["1.0.0-SNAPSHOT"], "snapshot-only-sdk": ["1.0.0-SNAPSHOT"]},
+        clear=True,
+    )
+    @patch.object(VersionError, "version_error", False)
+    def test_dump_docs_package_metadata_skips_excluded_versions(self):
+        metadata = self.publish_docs_to_s3.dump_docs_package_metadata(
+            {
+                "java-sdk": ["1.0.0-SNAPSHOT", "1.0.0-beta1"],
+                "snapshot-only-sdk": ["1.0.0-SNAPSHOT"],
+            }
+        )
 
-@pytest.mark.parametrize(
-    ("versions", "expected"),
-    [
-        pytest.param(["1.0.0-SNAPSHOT", "1.0.0-beta1"], ["1.0.0b1"], id="maven-snapshot-skipped"),
-        pytest.param(["2.1.0-snapshot", "2.0.0"], ["2.0.0"], id="lowercase-snapshot-skipped"),
-    ],
-)
-def test_get_latest_minor_versions_skips_development_builds(versions, expected):
-    VersionError.set_version_error(False)
+        assert metadata == [
+            {"package-name": "java-sdk", "all-versions": ["1.0.0b1"], "stable-version": "1.0.0b1"},
+        ]
+        assert not VersionError.has_any_error()
 
-    assert S3DocsPublish.get_latest_minor_versions("java-sdk", versions) == expected
-    assert VersionError.has_any_error() is False
+    @patch.dict(
+        "airflow_breeze.utils.publish_docs_to_s3.PACKAGES_METADATA_EXCLUDE_VERSIONS",
+        {"java-sdk": ["1.0.0-SNAPSHOT"]},
+        clear=True,
+    )
+    @pytest.mark.parametrize(
+        ("package_name", "invalid_version"),
+        [
+            pytest.param("java-sdk", "1.1.0-SNAPSHOT", id="version_not_excluded"),
+            pytest.param("ts-sdk", "1.0.0-SNAPSHOT", id="version_excluded_for_another_package"),
+        ],
+    )
+    @patch.object(VersionError, "version_error", False)
+    def test_get_latest_minor_versions_flags_versions_not_excluded(self, package_name, invalid_version):
+        versions = S3DocsPublish.get_latest_minor_versions(package_name, [invalid_version, "1.0.0-beta1"])
+
+        assert versions == ["1.0.0b1"]
+        assert VersionError.has_any_error()
 
 
 def test_get_latest_minor_versions_still_fails_on_other_invalid_versions():

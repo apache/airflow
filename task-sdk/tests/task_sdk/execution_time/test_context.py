@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -109,7 +110,10 @@ from airflow.sdk.execution_time.context import (
     _async_get_variable_keys,
     _async_set_variable,
     _get_connection,
+    _get_variable,
+    _json_size_exceeds,
     _process_connection_result_conn,
+    _set_variable,
     _wrap_external_ref,
     context_to_airflow_vars,
     set_current_context,
@@ -1779,6 +1783,94 @@ class TestSecretsBackend:
                 _get_connection("nonexistent_conn")
 
 
+# ``json.dumps`` of each value is 100 characters; JSON escapes each non-ASCII character to six.
+SIZE_LIMIT_CASES = [
+    pytest.param("x" * 98, 100, False, id="ascii-at-limit"),
+    pytest.param("x" * 98, 99, True, id="ascii-over-limit"),
+    pytest.param("é" * 16 + "xx", 100, False, id="non-ascii-at-limit"),
+    pytest.param("é" * 16 + "xx", 99, True, id="non-ascii-over-limit"),
+]
+
+
+class TestJsonSizeExceeds:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"a": [1, 2.5, None, True], "b": {"c": "d"}}, id="nested"),
+            pytest.param([0.1, 1e300, -0.0, float("nan"), float("inf")], id="floats"),
+            pytest.param({"ключ": "значение ✓"}, id="non-ascii"),
+            pytest.param("", id="empty-string"),
+        ],
+    )
+    def test_matches_json_dumps_length(self, value):
+        size = len(json.dumps(value))
+
+        assert _json_size_exceeds(value, size) is False
+        assert _json_size_exceeds(value, size - 1) is True
+
+    def test_stops_encoding_once_limit_is_exceeded(self):
+        # The second item cannot be JSON-encoded, so reaching it would raise TypeError.
+        value = ["x" * 20, object()]
+
+        assert _json_size_exceeds(value, 10) is True
+
+
+class TestTeamSecretLookups:
+    """Lookups pass the current team, so a team's env var wins over a global one of the same name."""
+
+    @pytest.fixture(autouse=True)
+    def _team_a_and_global_env_vars(self, monkeypatch):
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setenv("AIRFLOW_VAR_MY_VAR", "global_value")
+        monkeypatch.setenv("AIRFLOW_VAR__TEAM_A___MY_VAR", "team_a_value")
+        monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", "http://global.example.com")
+        monkeypatch.setenv("AIRFLOW_CONN__TEAM_A___MY_CONN", "http://team-a.example.com")
+        monkeypatch.setattr("airflow.sdk.execution_time.context._current_team_name", "team_a")
+
+        backend = EnvironmentVariablesBackend()
+        backend._set_connection_class(Connection)
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", lambda: [backend]
+        )
+
+    def test_sync_lookups(self):
+        assert _get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert _get_connection("my_conn").host == "team-a.example.com"
+
+    @pytest.mark.asyncio
+    async def test_async_lookups(self):
+        assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert (await _async_get_connection("my_conn")).host == "team-a.example.com"
+
+    @pytest.mark.asyncio
+    async def test_async_backend_methods(self, monkeypatch):
+        class AsyncBackend:
+            async def aget_variable(self, key, team_name=None):
+                return f"{team_name}_value"
+
+            async def aget_connection(self, conn_id, team_name=None):
+                return Connection(conn_id=conn_id, conn_type="http", host=f"{team_name}.example.com")
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", lambda: [AsyncBackend()]
+        )
+
+        assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert (await _async_get_connection("my_conn")).host == "team_a.example.com"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.log")
+    async def test_set_variable_warns_about_team_env_var(self, mock_log, monkeypatch, mock_supervisor_comms):
+        monkeypatch.delenv("AIRFLOW_VAR_MY_VAR")
+        mock_supervisor_comms.asend.return_value = None
+
+        _set_variable("my_var", "new_value")
+        await _async_set_variable("my_var", "new_value")
+
+        assert mock_log.warning.call_count == 2
+
+
 class TestTaskStateStoreAccessor:
     TI_ID = UUID("01900000-0000-0000-0000-000000000001")
     SCOPE = TaskScope(dag_id="dag", run_id="run", task_id="task")
@@ -1900,15 +1992,16 @@ class TestTaskStateStoreAccessor:
             with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
                 TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
-    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
-        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+    @pytest.mark.parametrize(("value", "limit", "warns"), SIZE_LIMIT_CASES)
+    def test_set_warns_only_when_serialized_value_exceeds_limit(
+        self, mock_supervisor_comms, cap_structlog, value, limit, warns
+    ):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        big = "x" * 110
-        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
-            with patch("airflow.sdk.execution_time.context.log") as mock_log:
-                TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", big)
-                mock_log.warning.assert_called_once()
-                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        with conf_vars({("state_store", "max_value_storage_bytes"): str(limit)}):
+            TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", value)
+
+        warning = {"log_level": "warning", "event": re.compile(".*max_value_storage_bytes")}
+        assert (warning in cap_structlog) is warns
         mock_supervisor_comms.send.assert_called_once()
 
     def test_delete_operation(self, mock_supervisor_comms):
@@ -2286,15 +2379,16 @@ class TestAssetStateStoreAccessor:
             "s3://bucket/assets/orders/watermark"
         )
 
-    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
-        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+    @pytest.mark.parametrize(("value", "limit", "warns"), SIZE_LIMIT_CASES)
+    def test_set_warns_only_when_serialized_value_exceeds_limit(
+        self, mock_supervisor_comms, cap_structlog, value, limit, warns
+    ):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        big = "x" * 110
-        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
-            with patch("airflow.sdk.execution_time.context.log") as mock_log:
-                AssetStateStoreAccessor(name=self.ASSET_NAME).set("watermark", big)
-                mock_log.warning.assert_called_once()
-                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        with conf_vars({("state_store", "max_value_storage_bytes"): str(limit)}):
+            AssetStateStoreAccessor(name=self.ASSET_NAME).set("watermark", value)
+
+        warning = {"log_level": "warning", "event": re.compile(".*max_value_storage_bytes")}
+        assert (warning in cap_structlog) is warns
         mock_supervisor_comms.send.assert_called_once()
 
     @pytest.mark.parametrize("lookup_by", ["name", "uri"])

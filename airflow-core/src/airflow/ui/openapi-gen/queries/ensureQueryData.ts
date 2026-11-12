@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { DagRunState, DagSchedulingState, ReprocessBehavior, TriggerKind, TriggerStatus } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -630,11 +630,8 @@ export const ensureUseDagSourceServiceGetDagSourceData = (queryClient: QueryClie
 * Reports the version of each bundle Airflow currently holds and when a Dag processor last
 * refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
 *
-* A bundle is visible to a user who can read at least one Dag recorded against it. A bundle
-* holding no registered Dag at all has nothing to authorize against, so it is listed only for a
-* user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that bundle's team --
-* the same view, scoped the same way, that governs import errors for a file that never
-* registered a Dag.
+* Needs ``AccessView.DAG_BUNDLES``. In a multi-team deployment it is checked against each
+* bundle's team, and bundles of a team the caller cannot see are left out.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -662,10 +659,12 @@ export const ensureUseDagBundleServiceGetDagBundleData = (queryClient: QueryClie
 * Get Dag Bundle Files
 * List the files in a Dag bundle, ordered by path.
 *
-* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
-* import error without registering any Dag is listed too, on the same admin-by-default terms as
-* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
-* and it is the case this page most needs to show.
+* Every file the bundle holds is listed, with counts covering the whole file: the bundle is
+* authorized as a unit, so its contents are not narrowed to the Dags the caller may read. What a
+* file's Dags contain, and the text of its import error, stay behind their own permissions.
+*
+* ``can_read_import_error`` is per caller, unlike the counts: it says whether ``GET /importErrors``
+* would return the file's error to them.
 *
 * ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
 * has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
@@ -687,6 +686,19 @@ export const ensureUseDagBundleServiceGetDagBundleFilesData = (queryClient: Quer
   limit?: number;
   offset?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) });
+/**
+* Get Dag Bundle Count
+* Count the Dag bundles holding a Dag or an import error the caller may read.
+*
+* Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI can tell whether a
+* bundle name is worth showing next to an import error. Stale Dags count, and so do import errors
+* in files that never registered a Dag, which ``GET /importErrors`` shows to holders of
+* ``AccessView.IMPORT_ERRORS_ALL``: a bundle whose files all fail to import is where the name
+* matters most.
+* @returns DagBundleCountResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundleCountData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleCountKeyFn(), queryFn: () => DagBundleService.getDagBundleCount() });
 /**
 * Get Dag Stats
 * Get Dag statistics.
@@ -1963,7 +1975,7 @@ export const ensureUseXcomServiceGetXcomEntryData = (queryClient: QueryClient, {
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
-* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -2051,6 +2063,47 @@ export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagI
   taskId: unknown;
   versionNumber?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId, versionNumber }), queryFn: () => TaskService.getTask({ dagId, taskId, versionNumber }) });
+/**
+* Get Triggers
+* Get the triggers the caller can see, of every kind, and how each is doing.
+*
+* A trigger is visible to whoever can see its owner: the task instance or Dag run of its Dag, or an asset
+* one of its watchers watches.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
+* @param data.kind Return only triggers of these kinds.
+* @param data.status Return only triggers with one of these statuses.
+* @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
+* @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
+* @param data.assetId Return only the triggers of this asset's watchers.
+* @param data.teams Return only the triggers of these teams.
+* @returns TriggerCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseTriggerServiceGetTriggersData = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+  assetId?: number;
+  dagId?: string;
+  kind?: TriggerKind[];
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  status?: TriggerStatus[];
+  teams?: string[];
+  triggererHostname?: string;
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }) });
+/**
+* Get Trigger
+* Get a trigger, who it runs for, and how it is doing.
+* @param data The data for the request.
+* @param data.triggerId
+* @returns TriggerDetailResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseTriggerServiceGetTriggerData = (queryClient: QueryClient, { triggerId }: {
+  triggerId: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTriggerServiceGetTriggerKeyFn({ triggerId }), queryFn: () => TriggerService.getTrigger({ triggerId }) });
 /**
 * Get Variable
 * Get a variable entry.
@@ -2451,13 +2504,29 @@ export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { 
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
 * @throws ApiError
 */
-export const ensureUseGridServiceGetGridTiSummariesStreamData = (queryClient: QueryClient, { dagId, runIds }: {
+export const ensureUseGridServiceGetGridTiSummariesStreamData = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Loop Summary
 * Summarize one loop invocation from the run's live task instances.

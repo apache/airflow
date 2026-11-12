@@ -34,7 +34,6 @@ from airflow_shared.secrets_masker.secrets_masker import (
     RedactedIO,
     SecretsMasker,
     mask_secret,
-    merge,
     redact,
     reset_secrets_masker,
 )
@@ -906,6 +905,35 @@ class TestShouldHideValueForKey:
         assert expected_result == masker.should_hide_value_for_key(key)
 
     @pytest.mark.parametrize(
+        ("key", "expected_result"),
+        [
+            ("app_key", True),
+            ("certificate", True),
+            ("credential", True),
+            ("keytab", True),
+            ("kube_config", True),
+            ("KUBE_CONFIG", True),
+            ("oauth", True),
+            ("routing_key", True),
+            ("thumbprint", True),
+            ("write_key", True),
+            ("extra__kubernetes__kube_config", True),
+            ("kubeConfig", True),
+            ("routingKey", True),
+            ("kube_config_path", False),
+            ("kubeConfigPath", False),
+            ("extra__kubernetes__kube_config_path", False),
+            ("credential_config_file", False),
+            ("certificate_path", False),
+            ("service_principal_oauth", False),
+        ],
+    )
+    def test_hiding_whole_field_names(self, key, expected_result):
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+        assert expected_result == masker.should_hide_value_for_key(key)
+
+    @pytest.mark.parametrize(
         ("sensitive_variable_fields", "key", "expected_result"),
         [
             ("key", "TRELLO_KEY", True),
@@ -1616,15 +1644,28 @@ class TestSecretsMaskerMerge:
         result = self.masker.merge(new_data, old_data)
         assert result == expected
 
-    def test_merge_max_depth(self):
+    def test_merge_ignores_max_depth_when_walking(self):
+        """redact() finds sensitive keys at any depth, so merge() has to restore them at any depth."""
         old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
         new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
 
-        result = merge(new_data, old_data, max_depth=1)
-        assert result == new_data
+        assert self.masker.merge(new_data, old_data, max_depth=1) == old_data
+        assert self.masker.merge(new_data, old_data, max_depth=10) == old_data
 
-        result = self.masker.merge(new_data, old_data, max_depth=10)
-        assert result["level1"]["level2"]["level3"]["password"] == "original_password"
+    @pytest.mark.parametrize(
+        "original",
+        [
+            {"clusters": [{"nodes": [{"conn": {"auth": {"password": "s"}}}]}]},
+            {"a": {"b": {"c": {"d": {"e": {"f": {"token": "s"}}}}}}},
+            {"a": {"b": {"c": {"d": {"password": {"e": {"f": {"g": "s", "h": ["t"]}}}}}}}},
+        ],
+        ids=["lists-of-dicts", "deeper-than-max-depth", "sensitive-subtree-cut-off-by-redact-all"],
+    )
+    def test_merge_round_trip_deeply_nested(self, original):
+        redacted = self.masker.redact(original)
+        assert redacted != original
+
+        assert self.masker.merge(redacted, original) == original
 
     def test_merge_enum_values(self):
         old_enum = MyEnum.testname

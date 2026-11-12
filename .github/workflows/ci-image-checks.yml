@@ -85,6 +85,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to build docs (true/false)"
         required: true
         type: string
+      run-docs-publish:
+        description: "Whether to publish the built docs locally and validate their versions (true/false)"
+        required: true
+        type: string
       run-api-codegen:
         description: "Whether to run API codegen (true/false)"
         required: true
@@ -351,6 +355,7 @@ jobs:
       id-token: write
       contents: read
     needs: build-docs
+    if: inputs.run-docs-publish == 'true'
     runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}

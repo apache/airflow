@@ -28,11 +28,13 @@
         "lastParsed": "Dernière analyse",
         "parseDuration": "Durée d'analyse"
       },
-      "file_many": "Fichiers",
-      "file_one": "Fichier",
-      "file_other": "Fichiers",
+      "importErrorForbidden": "Vous n'avez pas l'autorisation de lire cette erreur d'import.",
       "importErrorGone": "Cette erreur d'import n'est plus enregistrée. Elle a probablement été corrigée par une nouvelle analyse.",
       "neverParsed": "Jamais",
+      "parsedFile_many": "Fichiers analysés",
+      "parsedFile_one": "Fichier analysé",
+      "parsedFile_other": "Fichiers analysés",
+      "parsedFilesNote": "Seuls les fichiers qui définissent un Dag ou dont l'import a échoué sont listés.",
       "showImportError_many": "Voir {{count, number}} erreurs",
       "showImportError_one": "Voir {{count, number}} erreur",
       "showImportError_other": "Voir {{count, number}} erreurs"
@@ -72,6 +74,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Clé",
+      "timestamp": "Horodatage",
       "value": "Valeur"
     },
     "delete": {

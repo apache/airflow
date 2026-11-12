@@ -133,18 +133,3 @@ class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("expanded_ti_count").didnt_exist,
     )
-
-
-class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
-    """
-    Add the ``execution_timeout`` field carrying the task's timeout, which the supervisor enforces.
-
-    The supervisor-schema mirror of the execution API's ``AddExecutionTimeoutToTIRunContext``,
-    named apart so the two migrations are not confused.
-    """
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("execution_timeout").didnt_exist,
-    )

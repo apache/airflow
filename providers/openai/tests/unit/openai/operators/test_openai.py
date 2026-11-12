@@ -157,17 +157,12 @@ def test_openai_response_operator_execute_xcom_push(do_xcom_push, expected_push_
     # slipping through assert_any_call, which only checks presence, not exhaustiveness.
     assert context["ti"].xcom_push.call_count == expected_push_count
     if do_xcom_push:
+        # Expected value is derived from the SDK model so the test does not pin optional fields that
+        # newer openai releases add to the usage details (e.g. ``cache_write_tokens_details``).
         context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
         context["ti"].xcom_push.assert_any_call(
             key="usage",
-            value={
-                "input_tokens": 5,
-                "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
-                "output_tokens": 7,
-                "output_tokens_details": {"reasoning_tokens": 2},
-                "total_tokens": 12,
-                "try_number": 1,
-            },
+            value={**usage.model_dump(mode="json"), "try_number": 1},
         )
 
 
@@ -200,14 +195,7 @@ def test_openai_response_operator_execute_records_try_number():
 
     context["ti"].xcom_push.assert_any_call(
         key="usage",
-        value={
-            "input_tokens": 5,
-            "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
-            "output_tokens": 7,
-            "output_tokens_details": {"reasoning_tokens": 2},
-            "total_tokens": 12,
-            "try_number": 3,
-        },
+        value={**usage.model_dump(mode="json"), "try_number": 3},
     )
 
 
@@ -918,20 +906,39 @@ class TestOpenAIResponseOperatorStructuredOutput:
                 key="usage", value={**usage.model_dump(mode="json"), "try_number": 2}
             )
 
-    def test_rejected_response_still_records_id_and_usage(self):
+    @pytest.mark.parametrize(
+        ("response_fields", "expected_error"),
+        [
+            pytest.param(
+                {"refusal": "I cannot help with that request."},
+                "did not return a structured output",
+                id="refusal",
+            ),
+            pytest.param(
+                {
+                    "output_parsed": _StructuredPerson(name="Alice"),
+                    "status": "incomplete",
+                    "incomplete_details": IncompleteDetails(reason="max_output_tokens"),
+                },
+                "did not complete",
+                id="incomplete",
+            ),
+        ],
+    )
+    def test_rejected_response_still_records_id_and_usage(self, response_fields, expected_error):
         # The API call behind a rejected response was still billed, so its id and token usage
-        # are pushed before the structured output is checked.
+        # are pushed before the status and the structured output are checked.
         operator, hook = self._operator()
         usage = _build_usage()
         hook.parse_response.return_value = _build_parsed_response(
-            response_id="resp_refused", refusal="I cannot help with that request.", usage=usage
+            response_id="resp_rejected", usage=usage, **response_fields
         )
         context = _build_execute_context()
 
-        with pytest.raises(ValueError, match="did not return a structured output"):
+        with pytest.raises(ValueError, match=expected_error):
             operator.execute(context)
 
-        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_refused")
+        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_rejected")
         context["ti"].xcom_push.assert_any_call(
             key="usage", value={**usage.model_dump(mode="json"), "try_number": 1}
         )

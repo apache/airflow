@@ -157,12 +157,11 @@ where they were, and the Pull Request keeps its whole review history.
 Exceptions
 ----------
 
-GitHub supports a bypass list of users who are exempt from the limit. Support for configuring it
-through ``.asf.yaml`` is being added in
-`apache/infrastructure-asfyaml#135 <https://github.com/apache/infrastructure-asfyaml/pull/135>`__.
-Until it is available, there are no exceptions. Once it is, maintainers may add contributors to the
-list where it makes sense - for example to let someone open an urgent fix while they are at the
-limit. If you think you need an exception, ask on the ``dev@airflow.apache.org`` mailing list.
+Users listed under ``bypass_users`` in ``.asf.yaml`` are exempt from the limit. The list currently
+holds the participants of the fork CI pilot (the ``[pilot]`` section of ``.github/fork-ci-gate.toml``),
+because the CI of their Pull Requests runs in their own forks. Maintainers may add other contributors
+where it makes sense - for example to let someone open an urgent fix while they are at the limit. If
+you think you need an exception, ask on the ``dev@airflow.apache.org`` mailing list.
 
 If you believe the limit was applied to you in error - for example your Pull Requests were closed by
 mistake - the appeal channel is the PMC private list; see the

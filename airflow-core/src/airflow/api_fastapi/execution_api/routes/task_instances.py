@@ -98,7 +98,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
-from airflow.models.asset import AssetActive
+from airflow.models.asset import AssetActive, AssetEvent
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
@@ -116,7 +116,7 @@ from airflow.models.task_coordinates import (
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
-from airflow.models.xcom import build_xcom_read_query, xcom_entity
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
@@ -324,7 +324,8 @@ def ti_run(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
                 .options(
-                    joinedload(DR.consumed_asset_events),
+                    joinedload(DR.consumed_asset_events).selectinload(AssetEvent.asset),
+                    joinedload(DR.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     *eager_load_teams(DR.dag_model),
                     *dag_tag_options,
                 )
@@ -344,11 +345,9 @@ def ti_run(
             )
 
         # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
-        # because for a Python task the task runner also purges them from a custom XCom backend, and only
-        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
-        # deletes these XComs before the runtime starts the task and does not purge them, because those
-        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
-        # backend.
+        # because the worker also purges them from a custom XCom backend, and only workers can reach that
+        # backend. For a language SDK task (Java, Go, TypeScript), the supervisor deletes and purges them
+        # before the runtime starts the task.
 
         # However, do not clear it for deferral
         xcom_keys: list[str] = []
@@ -384,36 +383,38 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        # Avoid loading the serialized Dag on the normal Python task path: only a lang-SDK
-        # (foreign-runtime) task needs its definition here, and ti.is_stub carries the row's own copy
-        # of the serialized flag.
-        serialized_task = get_task(dag_bag, ti, session=session) if ti.is_stub else None
+        # Only a lang-SDK (foreign-runtime) task needs its definition here: a Python task parses its
+        # Dag file itself. ti.is_stub carries the row's own copy of the serialized flag, so a Python
+        # task never loads the serialized Dag. The arg_bindings version check also covers
+        # execution_timeout, which only exists in a later API version.
+        if (
+            client_supports_arg_bindings()
+            and ti.is_stub
+            and (serialized_task := get_task(dag_bag, ti, session=session)) is not None
+        ):
+            # The route excludes unset fields, keeping responses without a captured TaskFlow arg spec lean.
+            if arg_bindings := get_arg_bindings(serialized_task):
+                try:
+                    context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+                except ValidationError:
+                    log.exception(
+                        "Serialized arg_bindings spec failed validation",
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        dag_version_id=ti.dag_version_id,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail={
+                            "reason": "invalid_arg_bindings",
+                            "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                        },
+                    )
 
-        # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
-        # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
-            try:
-                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
-            except ValidationError:
-                log.exception(
-                    "Serialized arg_bindings spec failed validation",
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    dag_version_id=ti.dag_version_id,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail={
-                        "reason": "invalid_arg_bindings",
-                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
-                    },
-                )
-
-        # Resolved here for a lang-SDK task only, since a regular task no longer loads its
-        # definition. #75387 has a Python task send its own execution_timeout to the supervisor,
-        # which is where the value for that kind of task belongs.
-        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
-            context.execution_timeout = execution_timeout
+            # The runtime cannot read the execution_timeout set on a Python stub, so it gets it here.
+            # A Python task enforces its own and sends that to the supervisor.
+            if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
+                context.execution_timeout = execution_timeout
 
         # Only set if they are non-null
         if ti.next_method:
@@ -681,7 +682,14 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
-        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason", "loop_decision"},
+        exclude={
+            "task_outlets",
+            "outlet_events",
+            "retry_delay_seconds",
+            "retry_reason",
+            "loop_decision",
+            "external_clear_target",
+        },
         exclude_unset=True,
     )
     if "rendered_map_index" in data:
@@ -769,6 +777,17 @@ def ti_update_state(
         )
 
     if updated_state == TaskInstanceState.SUCCESS:
+        if (
+            isinstance(ti_patch_payload, TISuccessStatePayload)
+            and (target := ti_patch_payload.external_clear_target) is not None
+        ):
+            # Written here, from the validated payload, because tasks cannot write this key themselves.
+            XComModel.set_for_attempt(
+                task_instance_id=task_instance_id,
+                key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+                value=target.model_dump(mode="json"),
+                session=session,
+            )
         if conf.getboolean("state_store", "clear_on_success"):
             scope = TaskScope(
                 dag_id=dag_id,

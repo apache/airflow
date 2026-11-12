@@ -21,6 +21,7 @@ import dataclasses
 import json
 from datetime import UTC, datetime, timedelta, timezone
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
 from click.testing import CliRunner
@@ -30,6 +31,9 @@ from airflow_breeze.utils.fork_ci_gate import GateConfig
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
+    CI_PASSED_DESCRIPTION,
+    CI_PASSED_PROJECT_DESCRIPTION,
+    CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
     CI_RUN_STARTED_CONTEXT,
     CI_RUN_STARTED_DESCRIPTION,
     CI_RUN_STARTED_PROJECT_DESCRIPTION,
@@ -42,6 +46,7 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
     JOB_STATUSES_DEFERRED_NOTE,
+    JOB_STATUSES_FAILED_REASON,
     RATE_LIMITED_NOTE,
     BaseGateConfigs,
     BypassFinder,
@@ -51,6 +56,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     GateChangeFinder,
     JobStatusReporter,
     Plan,
+    Projection,
     PullRequestChangedError,
     PullRequestSnapshot,
     apply_plan,
@@ -58,13 +64,17 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     build_slack_payload,
     changes_ci_definition,
     classify,
+    compute_projection,
     count_commits_behind,
     discover,
     drop_reported,
     fetch_fork_observations,
+    fetch_open_pull_requests,
     fetch_workflow_state,
     find_ci_run_since,
     find_heads_shared_across_bases,
+    find_project_ci_label_heads,
+    find_project_ci_passed_url,
     find_project_ci_run_url,
     find_state_comment,
     is_cancelled_gate_run,
@@ -78,7 +88,10 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     pull_request_changes_ci_files,
     read_ci_run_at,
     read_head_status,
+    read_job_status_failure_runs,
+    read_project_ci_passed_url,
     read_project_ci_run_url,
+    report_project_ci_passed,
     report_project_ci_runs_started,
     run_reconcile,
 )
@@ -91,6 +104,7 @@ JOINED = CREATED + timedelta(days=2)
 CONFIG = GateConfig(enabled=True, enabled_since=datetime(2026, 10, 1, tzinfo=UTC), close_after_days=7)
 RUN_URL = "https://github.com/someone/airflow/actions/runs/1"
 PROJECT_RUN_URL = "https://github.com/apache/airflow/actions/runs/2"
+PROJECT_PASSED_URL = "https://github.com/apache/airflow/actions/runs/5"
 GREEN = ForkObservation(suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url=RUN_URL)
 
 
@@ -233,19 +247,118 @@ def test_setup_required_comment_gives_the_command():
         pytest.param(ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL), None, id="running"),
         pytest.param(
             ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
-            True,
+            None,
             id="failed",
         ),
         pytest.param(ForkObservation(workflow_state="disabled_fork"), True, id="setup-required"),
     ],
 )
-def test_non_green_removes_review_label_and_drafts_only_when_the_author_must_act(fork, draft):
+def test_non_green_removes_review_label_and_drafts_only_without_a_fork_run(fork, draft):
     pr = _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"))
 
     plan, _, _ = _classify(pr, fork)
 
     assert plan.draft is draft
     assert plan.remove_labels == ["ready for maintainer review"]
+
+
+@pytest.mark.parametrize(
+    ("state", "author_draft", "expected"),
+    [
+        pytest.param(
+            ForkState.SETUP_REQUIRED,
+            False,
+            Projection(draft=True, ready_for_review=False, needs_project_ci=False),
+            id="setup-required",
+        ),
+        pytest.param(
+            ForkState.AWAITING_PUSH,
+            False,
+            Projection(draft=True, ready_for_review=False, needs_project_ci=False),
+            id="awaiting-push",
+        ),
+        pytest.param(
+            ForkState.FAILED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="failed",
+        ),
+        pytest.param(
+            ForkState.FAILED,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="failed-author-draft",
+        ),
+        pytest.param(
+            ForkState.RUNNING,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="running",
+        ),
+        pytest.param(
+            ForkState.GREEN,
+            False,
+            Projection(draft=False, ready_for_review=True, needs_project_ci=False),
+            id="green",
+        ),
+        pytest.param(
+            ForkState.GREEN,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="green-author-draft",
+        ),
+        pytest.param(
+            ForkState.GREEN_UNVERIFIED,
+            False,
+            Projection(draft=False, ready_for_review=False, needs_project_ci=True),
+            id="unverified",
+        ),
+        pytest.param(
+            ForkState.GREEN_UNVERIFIED,
+            True,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="unverified-author-draft",
+        ),
+        pytest.param(
+            ForkState.RELEASED,
+            False,
+            Projection(draft=False, ready_for_review=None, needs_project_ci=False),
+            id="released",
+        ),
+        pytest.param(
+            ForkState.RELEASED,
+            True,
+            Projection(draft=None, ready_for_review=None, needs_project_ci=False),
+            id="released-author-draft",
+        ),
+        pytest.param(
+            ForkState.UNGATED,
+            False,
+            Projection(draft=False, ready_for_review=None, needs_project_ci=False),
+            id="ungated",
+        ),
+        pytest.param(
+            ForkState.CLOSED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="closed",
+        ),
+        pytest.param(
+            ForkState.GATE_BYPASSED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="gate-bypassed",
+        ),
+        pytest.param(
+            ForkState.GATE_MODIFIED,
+            False,
+            Projection(draft=None, ready_for_review=False, needs_project_ci=False),
+            id="gate-modified",
+        ),
+    ],
+)
+def test_projection_table(state, author_draft, expected):
+    assert compute_projection(state, author_draft=author_draft) == expected
 
 
 def test_green_undrafts_what_the_bot_drafted():
@@ -255,11 +368,22 @@ def test_green_undrafts_what_the_bot_drafted():
     assert plan.add_labels == ["ready for maintainer review"]
 
 
-def test_green_keeps_an_author_draft():
-    plan, _, _ = _classify(_pr(last_draft_actor="someone"), GREEN)
+@pytest.mark.parametrize(
+    "last_draft_actor",
+    [
+        pytest.param("someone", id="drafted-by-author"),
+        pytest.param(None, id="opened-as-draft"),
+    ],
+)
+def test_green_keeps_an_author_draft_out_of_the_review_queue(last_draft_actor):
+    pr = _pr(last_draft_actor=last_draft_actor, labels=("fork ci required", "ready for maintainer review"))
+
+    plan, _, _ = _classify(pr, GREEN)
 
     assert plan.draft is None
     assert plan.add_labels == []
+    assert plan.remove_labels == ["ready for maintainer review"]
+    assert "Mark it ready for review when it is." in plan.marker_comment
 
 
 def test_green_labels_a_ready_pull_request():
@@ -275,7 +399,7 @@ def test_green_is_not_trusted_when_ci_files_change():
     plan, _, changes = _classify(pr, GREEN, changes_ci_files=True)
 
     assert plan.state == ForkState.GREEN_UNVERIFIED
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.add_labels == ["needs project ci"]
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
@@ -286,6 +410,30 @@ def test_green_is_not_trusted_when_ci_files_change():
     assert plan.attention == []
     assert plan.ci_passed is None
     changes.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("last_draft_actor", "expected_draft", "expected_labels", "expected_text"),
+    [
+        pytest.param(
+            "github-actions[bot]",
+            False,
+            ["needs project ci"],
+            "run project CI for it before it can be merged",
+            id="bot-draft-undrafted",
+        ),
+        pytest.param("someone", None, [], "Once you mark it ready for review", id="author-draft-kept"),
+    ],
+)
+def test_green_unverified_does_not_keep_a_bot_draft(
+    last_draft_actor, expected_draft, expected_labels, expected_text
+):
+    plan, _, _ = _classify(_pr(last_draft_actor=last_draft_actor), GREEN, changes_ci_files=True)
+
+    assert plan.state == ForkState.GREEN_UNVERIFIED
+    assert plan.draft is expected_draft
+    assert plan.add_labels == expected_labels
+    assert expected_text in plan.marker_comment
 
 
 LABELLED = ("fork ci required", "needs project ci")
@@ -472,11 +620,18 @@ def test_find_heads_shared_across_bases():
         pytest.param([".github/workflows/ci-amd.yml"], True, id="workflow"),
         pytest.param([".github/actions/breeze/action.yml"], True, id="action"),
         pytest.param(["dev/breeze/src/airflow_breeze/utils/selective_checks.py"], True, id="breeze"),
-        pytest.param(["scripts/ci/prek/check_x.py"], True, id="ci-scripts"),
-        pytest.param(["Dockerfile.ci"], True, id="dockerfile"),
-        pytest.param(["scripts/in_container/run_ci_tests.sh"], True, id="in-container-scripts"),
-        pytest.param([".pre-commit-config.yaml"], True, id="root-prek-config"),
-        pytest.param(["dev/.pre-commit-config.yaml"], True, id="nested-prek-config"),
+        pytest.param(["dev/breeze/pyproject.toml"], True, id="breeze-project"),
+        pytest.param(["dev/breeze/uv.lock"], True, id="breeze-lock"),
+        pytest.param(["scripts/ci/install_breeze.sh"], True, id="breeze-install"),
+        pytest.param(["scripts/ci/prek/update_providers_dependencies.py"], True, id="provider-deps-script"),
+        pytest.param(["scripts/ci/prek/yaml.py"], True, id="module-next-to-provider-deps-script"),
+        pytest.param(["dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md"], False, id="breeze-doc"),
+        pytest.param(["dev/breeze/tests/test_selective_checks.py"], False, id="breeze-tests"),
+        pytest.param(["scripts/ci/testing/run_unit_tests.sh"], False, id="ci-scripts"),
+        pytest.param(["Dockerfile.ci"], False, id="dockerfile"),
+        pytest.param(["scripts/docker/entrypoint_ci.sh"], False, id="docker-scripts"),
+        pytest.param(["scripts/in_container/run_ci_tests.sh"], False, id="in-container-scripts"),
+        pytest.param([".pre-commit-config.yaml"], False, id="prek-config"),
         pytest.param([f"airflow-core/f{i}.py" for i in range(3000)], True, id="too-many-files-to-list"),
     ],
 )
@@ -657,6 +812,39 @@ def test_release_with_use_project_ci():
     find_bypass.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("ci_passed_state", "ci_passed_description", "revoked"),
+    [
+        pytest.param("success", CI_PASSED_DESCRIPTION, True, id="fork-success-is-revoked"),
+        pytest.param("success", None, True, id="success-without-description-is-revoked"),
+        pytest.param("success", CI_PASSED_PROJECT_DESCRIPTION, False, id="project-success-is-kept"),
+        pytest.param("pending", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, False, id="pending-is-kept"),
+        pytest.param(None, None, False, id="no-status-is-not-created"),
+    ],
+)
+def test_release_with_use_project_ci_revokes_a_fork_success(ci_passed_state, ci_passed_description, revoked):
+    pr = _pr(
+        labels=("fork ci required", "use project ci"),
+        ci_passed_state=ci_passed_state,
+        ci_passed_description=ci_passed_description,
+    )
+
+    plan, _, _ = _classify(pr, GREEN)
+
+    expected = (
+        "pending",
+        "https://github.com/apache/airflow/pull/42/checks",
+        CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+    )
+    assert plan.ci_passed == (expected if revoked else None)
+
+
+def test_base_branch_without_gate_keeps_the_ci_passed_status():
+    plan, _, _ = _classify(_pr(base_ref="v2-10-test", ci_passed_state="success"), GREEN, config=None)
+
+    assert plan.ci_passed is None
+
+
 def test_base_branch_without_gate_releases():
     plan, find_bypass, _ = _classify(_pr(base_ref="v2-10-test"), GREEN, config=None)
 
@@ -735,7 +923,7 @@ def test_gate_tampering_closes(pr_overrides, checked):
     assert plan.close is checked
     if checked:
         assert plan.state == ForkState.GATE_BYPASSED
-        assert plan.draft is True
+        assert plan.draft is None
         assert plan.status == (
             "error",
             PROJECT_RUN_URL,
@@ -933,8 +1121,6 @@ def _finder(
         return [{"total_count": count, "workflow_runs": event_runs}]
 
     def rest_get(path, paginate=False, items_key=None):
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return list(jobs)
         if "/compare/" in path:
             assert not paginate, "the compare API returns files only on its first page"
             return {"files": [{"filename": name} for name in compare_files]}
@@ -944,7 +1130,26 @@ def _finder(
 
     client.rest_get_pages.side_effect = rest_get_pages
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = list(jobs)
     return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS, is_gated_base=is_gated_base)
+
+
+@pytest.fixture(autouse=True)
+def mock_project_ci_heads():
+    with mock.patch(
+        "airflow_breeze.utils.fork_ci_reconcile.find_project_ci_label_heads", autospec=True
+    ) as mock_heads:
+        mock_heads.return_value = set()
+        yield mock_heads
+
+
+@pytest.fixture(autouse=True)
+def mock_report_project_ci_passed():
+    with mock.patch(
+        "airflow_breeze.utils.fork_ci_reconcile.report_project_ci_passed", autospec=True
+    ) as mock_report:
+        mock_report.return_value = []
+        yield mock_report
 
 
 @pytest.fixture
@@ -1130,9 +1335,7 @@ def test_finder_reports_a_run_another_pull_request_may_own(client, other_pulls):
 def test_finder_catches_a_workflow_moved_away(client):
     finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS)
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
-        TAMPERED_JOBS
-        if path.endswith("jobs?filter=latest&per_page=100")
-        else [{"number": 42, "closed_at": None}]
+        [{"number": 42, "closed_at": None}]
         if "/pulls?head=" in path
         else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
@@ -1480,6 +1683,36 @@ def test_read_head_status_reads_ci_run_started(client):
     assert read_head_status(client, REPO, pr).ci_run_started_state == "success"
 
 
+def test_parse_pull_request_reads_the_ci_passed_description():
+    node = _pr_node(
+        1,
+        commits={
+            "nodes": [
+                {
+                    "commit": {
+                        "oid": "sha1",
+                        "status": {
+                            "context": None,
+                            "ciPassed": {"state": "SUCCESS", "description": CI_PASSED_PROJECT_DESCRIPTION},
+                        },
+                    }
+                }
+            ]
+        },
+    )
+
+    assert parse_pull_request(node).ci_passed_description == CI_PASSED_PROJECT_DESCRIPTION
+
+
+def test_read_head_status_reads_the_ci_passed_description(client):
+    client.rest_get.return_value = [
+        {"context": CI_PASSED_CONTEXT, "state": "success", "description": CI_PASSED_PROJECT_DESCRIPTION}
+    ]
+    pr = dataclasses.replace(parse_pull_request(_pr_node(1)), head_status_unread=True)
+
+    assert read_head_status(client, REPO, pr).ci_passed_description == CI_PASSED_PROJECT_DESCRIPTION
+
+
 def _branch_run(created_at: str, head_repo: str = "someone/airflow") -> dict:
     return {"created_at": created_at, "head_repository": {"full_name": head_repo}}
 
@@ -1587,6 +1820,7 @@ def _run_json(run_id, workflow_file="ci-amd.yml", *, path=None, conclusion=None)
     return {
         "html_url": f"https://github.com/apache/airflow/actions/runs/{run_id}",
         "path": path or f".github/workflows/{workflow_file}",
+        "status": "completed" if conclusion else "in_progress",
         "conclusion": conclusion,
     }
 
@@ -1779,6 +2013,135 @@ def test_discover_labels_an_older_pilot_pull_request_after_a_run_since_joining(c
 
     assert labelled == [2]
     client.add_labels.assert_called_once_with(2, ["fork ci required"])
+
+
+def _ci_passed_commit(state, description, oid="sha1"):
+    return {
+        "nodes": [
+            {"commit": {"oid": oid, "status": {"context": {"state": state, "description": description}}}}
+        ]
+    }
+
+
+@pytest.mark.parametrize(
+    ("enabled", "state", "description", "passed_url", "expected_written"),
+    [
+        pytest.param(
+            False,
+            "PENDING",
+            CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+            PROJECT_PASSED_URL,
+            [1],
+            id="ungated-waiting-project-ci-passed",
+        ),
+        pytest.param(
+            False, "PENDING", CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [1], id="ungated-fork-status"
+        ),
+        pytest.param(
+            False, "PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, None, [], id="ungated-not-passed"
+        ),
+        pytest.param(False, "SUCCESS", CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [], id="already-success"),
+        pytest.param(False, "PENDING", "someone else", PROJECT_PASSED_URL, [], id="foreign-status"),
+        pytest.param(
+            True,
+            "PENDING",
+            CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+            PROJECT_PASSED_URL,
+            [],
+            id="gated-is-left-to-the-fork-flow",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_discover_posts_project_ci_success_for_an_ungated_pull_request_with_a_stale_status(
+    mock_read, client, enabled, state, description, passed_url, expected_written
+):
+    config = GateConfig(enabled=enabled, enabled_since=datetime(2026, 10, 1, tzinfo=UTC))
+    node = {**_pr_node(1), "labels": {"nodes": []}, "commits": _ci_passed_commit(state, description)}
+    node["headRefOid"] = "sha1"
+    mock_read.return_value = passed_url
+    client.graphql.side_effect = [_search_result(node), _search_result()]
+    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=config)
+    written: list[int] = []
+
+    discover(client, configs, repo=REPO, now=NOW, ci_passed_written=written)
+
+    assert written == expected_written
+    if expected_written:
+        client.set_status.assert_called_once_with(
+            1, "sha1", "success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION, context=CI_PASSED_CONTEXT
+        )
+    else:
+        client.set_status.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_discover_recovers_a_status_on_a_base_branch_without_the_gate(mock_read, client):
+    configs = mock.create_autospec(BaseGateConfigs, instance=True)
+    configs.get.return_value = None
+    node = {
+        **_pr_node(1),
+        "headRefOid": "sha1",
+        "labels": {"nodes": []},
+        "commits": _ci_passed_commit("PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION),
+    }
+    mock_read.return_value = PROJECT_PASSED_URL
+    client.graphql.side_effect = [_search_result(node), _search_result()]
+    written: list[int] = []
+
+    discover(client, configs, repo=REPO, now=NOW, ci_passed_written=written)
+
+    assert written == [1]
+    client.add_labels.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_discover_reads_the_status_of_a_head_commit_the_search_did_not_list(mock_read, client):
+    config = GateConfig(enabled=False)
+    node = {
+        **_pr_node(1),
+        "headRefOid": "sha1",
+        "labels": {"nodes": []},
+        "commits": _ci_passed_commit("SUCCESS", CI_PASSED_DESCRIPTION, oid="older"),
+    }
+    mock_read.return_value = PROJECT_PASSED_URL
+    client.graphql.side_effect = [_search_result(node), _search_result()]
+    client.rest_get.return_value = [
+        {
+            "context": CI_PASSED_CONTEXT,
+            "state": "pending",
+            "description": CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+        }
+    ]
+    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=config)
+    written: list[int] = []
+
+    discover(client, configs, repo=REPO, now=NOW, ci_passed_written=written)
+
+    assert written == [1]
+    mock_read.assert_called_once_with(client, REPO, "sha1")
+
+
+def test_discover_keeps_going_when_the_project_ci_lookup_of_one_pull_request_fails(client):
+    config = GateConfig(enabled=False)
+    nodes = [
+        {
+            **_pr_node(n),
+            "headRefOid": f"sha{n}",
+            "labels": {"nodes": []},
+            "commits": _ci_passed_commit("PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, f"sha{n}"),
+        }
+        for n in (1, 2)
+    ]
+    client.graphql.side_effect = [_search_result(*nodes), _search_result()]
+    client.rest_get.side_effect = [GitHubError("HTTP 502"), {"workflow_runs": []}]
+    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=config)
+    unknown: list[tuple[int, str]] = []
+
+    discover(client, configs, repo=REPO, now=NOW, unknown=unknown, ci_passed_written=[])
+
+    assert unknown == [(1, "`CI passed` not updated: GitHubError")]
+    assert client.rest_get.call_count == 2
 
 
 def _contents(files: dict[tuple[str, str], str]):
@@ -2087,13 +2450,12 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
     def rest_get(path, paginate=False, items_key=None):
         if path.endswith("/actions/workflows/ci-amd.yml"):
             return {"state": "active"}
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return GATED_JOBS
         if "/compare/" in path:
             return {"files": [{"filename": "README.md"}]}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = GATED_JOBS
     (tmp_path / "ci-amd.yml").write_text("on: [pull_request]\n")
 
     run_reconcile(
@@ -2234,6 +2596,7 @@ def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_pa
         "notes": [],
         "deferred_runs": 0,
         "rate_limited_runs": 0,
+        "job_status_failure_runs": {},
     }
 
 
@@ -2413,13 +2776,14 @@ COMPLETED_RUN = ForkObservation(
 
 def _reporter_client(client, jobs, current=()):
     def rest_get(path, paginate=False, items_key=None):
-        if path.startswith("repos/someone/airflow/actions/runs/1/jobs"):
-            return jobs
         if path.startswith(f"repos/{REPO}/commits/abc123/status"):
             return list(current)
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.side_effect = lambda repo, run_id: (
+        jobs if (repo, run_id) == ("someone/airflow", 1) else pytest.fail(f"{repo} run {run_id}")
+    )
     return client
 
 
@@ -2627,10 +2991,63 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
     mock_reporter.return_value.deferred = []
     mock_reporter.return_value.delayed = []
 
-    assert _reconcile_with_reporter(client, tmp_path) is True
+    _reconcile_with_reporter(client, tmp_path)
 
     assert mock_classify.call_args.kwargs["jobs_reported"] is None
-    assert "reporting job statuses failed" in (tmp_path / "s.json").read_text()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_failing_job_statuses_once_when_failing_persists(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
+    client.dry_run = False
+    reported_file = tmp_path / "reported.json"
+    reported_file.write_text("{}")
+    alerts = []
+    errors = [
+        GitHubError("HTTP 502"),
+        GitHubError("HTTP 502"),
+        None,
+        GitHubError("HTTP 502"),
+        GitHubError("stream ID 1; CANCEL"),
+        GitHubError("HTTP 502"),
+        GitHubError("stream ID 1; CANCEL"),
+    ]
+    for error in errors:
+        mock_reporter.return_value.report.side_effect = error
+        mock_reporter.return_value.report.return_value = None
+        alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
+
+    assert alerts == [False, False, False, False, False, True, False]
+    assert JOB_STATUSES_FAILED_REASON in (tmp_path / "s.json").read_text()
+    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {"1": 4}
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param(None, {}, id="missing"),
+        pytest.param("not json", {}, id="not-json"),
+        pytest.param("[]", {}, id="not-a-dict"),
+        pytest.param('{"deferred_runs": 1}', {}, id="recorded-before-the-count"),
+        pytest.param('{"job_status_failure_runs": []}', {}, id="malformed-counts"),
+        pytest.param(
+            '{"job_status_failure_runs": {"1": 2, "x": 3, "4": true, "5": "6"}}',
+            {1: 2},
+            id="malformed-entries",
+        ),
+    ],
+)
+def test_read_job_status_failure_runs(tmp_path, content, expected):
+    reported_file = tmp_path / "reported.json"
+    if content is not None:
+        reported_file.write_text(content)
+
+    assert read_job_status_failure_runs(reported_file) == expected
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
@@ -2805,7 +3222,7 @@ def test_a_change_to_the_gate_closes():
 
     assert plan.state == ForkState.GATE_MODIFIED
     assert plan.close is True
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
         "error",
@@ -3165,6 +3582,109 @@ def test_gate_change_finder_aborts_when_the_pull_request_changed(client, head_sh
         finder.find(_pr())
 
 
+NEWLY_GATED = {**_pr_node(1), "labels": {"nodes": []}}
+
+
+def _graphql_after_gating_pull_request_1(*, listed: list[dict], by_number: dict | Exception | None):
+    def graphql(query, variables=None, *, allow_partial=False):
+        if "pullRequest(number:" in query:
+            if by_number is None:
+                raise AssertionError("read by number although the search listed it")
+            if isinstance(by_number, Exception):
+                raise by_number
+            return by_number
+        if "q" not in variables:
+            return {f"pr{key[1:]}": {"object": None} for key in variables if key.startswith("s")}
+        if "updated:>=" in variables["q"]:
+            return _search_result(NEWLY_GATED)
+        if variables["q"] == f'repo:{REPO} is:pr is:open label:"fork ci required"':
+            return _search_result(*listed)
+        return _search_result()
+
+    return graphql
+
+
+def _rest_get_for_pull_request_1(path, paginate=False, items_key=None):
+    if path.endswith("/actions/workflows/ci-amd.yml"):
+        return {"state": "active"}
+    if path == f"repos/{REPO}/pulls/1/files?per_page=100":
+        return []
+    if path == f"repos/{REPO}/pulls/1":
+        return {"head": {"sha": "sha1"}, "base": {"ref": "main"}}
+    raise AssertionError(path)
+
+
+@pytest.mark.parametrize(
+    ("listed", "by_number", "commented"),
+    [
+        pytest.param(
+            [], {"repository": {"pr0": {**_pr_node(1), "state": "OPEN"}}}, [1], id="not-yet-listed-by-search"
+        ),
+        pytest.param([_pr_node(1)], None, [1], id="listed-by-search"),
+        pytest.param(
+            [], {"repository": {"pr0": {**_pr_node(1), "state": "CLOSED"}}}, [], id="closed-since-labelled"
+        ),
+        pytest.param([], {"repository": {"pr0": None}}, [], id="deleted-since-labelled"),
+        pytest.param([], {"repository": None}, [], id="repository-not-resolved"),
+    ],
+)
+def test_run_reconcile_reconciles_pull_requests_labelled_in_the_same_run(
+    client, tmp_path, listed, by_number, commented
+):
+    client.graphql.side_effect = _graphql_after_gating_pull_request_1(listed=listed, by_number=by_number)
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = _rest_get_for_pull_request_1
+
+    has_alerts = run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert has_alerts is False
+    client.add_labels.assert_called_once_with(1, ["fork ci required"])
+    assert [call.args[0] for call in client.create_comment.call_args_list] == commented
+
+
+def test_run_reconcile_leaves_pull_requests_it_cannot_read_for_the_next_run(client, tmp_path):
+    client.graphql.side_effect = _graphql_after_gating_pull_request_1(
+        listed=[], by_number=GitHubError("gh api failed: HTTP 502")
+    )
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = _rest_get_for_pull_request_1
+
+    has_alerts = run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+
+    assert has_alerts is False
+    client.create_comment.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.PASS_TWO_PAGE_SIZE", 2)
+def test_fetch_open_pull_requests_reads_in_batches(client):
+    client.graphql.side_effect = [
+        {"repository": {"pr0": {"number": 1, "state": "OPEN"}, "pr1": {"number": 2, "state": "OPEN"}}},
+        {"repository": {"pr0": {"number": 3, "state": "OPEN"}}},
+    ]
+
+    nodes = fetch_open_pull_requests(client, [1, 2, 3], repo=REPO)
+
+    assert [node["number"] for node in nodes] == [1, 2, 3]
+    queries = [call.args[0] for call in client.graphql.call_args_list]
+    assert "pr1: pullRequest(number: 2)" in queries[0]
+    assert "pr0: pullRequest(number: 3)" in queries[1]
+    assert "number: 3" not in queries[0]
+
+
 def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path):
     output = tmp_path / "slack-message.json"
     client.graphql.side_effect = [
@@ -3372,3 +3892,546 @@ def test_run_reconcile_reports_delayed_job_statuses_as_attention_items(
     assert _reconcile_with_reporter(client, tmp_path) is True
 
     assert "job statuses of fork run R are still not all posted" in (tmp_path / "s.json").read_text()
+
+
+def _passed_node(number=1, *, state=None, description=None, suites=(), oid=None):
+    node = _project_node(number, status=state, suites=suites, oid=oid)
+    if state:
+        node["commits"]["nodes"][0]["commit"]["status"]["context"]["description"] = description
+    return node
+
+
+def _passed_suite(
+    run_id,
+    *,
+    conclusion="SUCCESS",
+    created="2026-11-10T10:00:00Z",
+    cancelled=0,
+    not_run=0,
+    running=False,
+    suite_cancelled=False,
+    **kwargs,
+):
+    suite = _suite(run_id, created=created, **kwargs)
+    suite["status"] = "IN_PROGRESS" if running else "COMPLETED"
+    suite["conclusion"] = "CANCELLED" if suite_cancelled else None
+    suite["checkRuns"] = {"nodes": [{"name": "CI passed", "conclusion": conclusion}] if conclusion else []}
+    suite["cancelled"] = {"totalCount": cancelled}
+    suite["notRun"] = {"totalCount": not_run}
+    return suite
+
+
+WAITING = (
+    "pending",
+    "https://github.com/apache/airflow/pull/1/checks",
+    CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+)
+PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
+
+
+@pytest.mark.parametrize(
+    ("node", "expected"),
+    [
+        pytest.param(
+            _passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION),
+            WAITING,
+            id="fork-success-revoked",
+        ),
+        pytest.param(_passed_node(), None, id="no-status-left-alone"),
+        pytest.param(
+            _passed_node(suites=[_passed_suite(5)]), None, id="no-status-is-not-created-after-project-ci"
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5, cancelled=1)]
+            ),
+            PASSED,
+            id="rerun-passed-next-to-the-marker-of-its-first-attempt",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[
+                    _passed_suite(4, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(6, conclusion=None, running=True),
+                ],
+            ),
+            WAITING,
+            id="newest-run-still-running-is-not-passed",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[
+                    _passed_suite(5, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(6, conclusion=None, suite_cancelled=True),
+                ],
+            ),
+            ("success", "https://github.com/apache/airflow/actions/runs/5", CI_PASSED_PROJECT_DESCRIPTION),
+            id="newer-empty-cancelled-run-does-not-hide-an-older-success",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[
+                    _passed_suite(5, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(6, cancelled=1, conclusion=None),
+                ],
+            ),
+            ("success", "https://github.com/apache/airflow/actions/runs/5", CI_PASSED_PROJECT_DESCRIPTION),
+            id="newer-cancelled-run-does-not-hide-an-older-success",
+        ),
+        pytest.param(_passed_node(state="PENDING", description="x"), None, id="pending-left-alone"),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5, conclusion=None)]
+            ),
+            WAITING,
+            id="project-ci-still-running",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[_passed_suite(5, cancelled=1, conclusion=None)],
+            ),
+            WAITING,
+            id="cancelled-run",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[_passed_suite(5, not_run=1, conclusion=None)],
+            ),
+            WAITING,
+            id="project-ci-not-run",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[_passed_suite(5, event="push"), _passed_suite(6, path=".github/workflows/other.yml")],
+            ),
+            WAITING,
+            id="not-a-ci-amd-pull-request-run",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_DESCRIPTION,
+                suites=[
+                    _passed_suite(4, created="2026-11-10T09:00:00Z"),
+                    _passed_suite(5, conclusion="FAILURE"),
+                ],
+            ),
+            WAITING,
+            id="latest-run-failed",
+        ),
+        pytest.param(
+            _passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5)]),
+            PASSED,
+            id="project-ci-passed",
+        ),
+        pytest.param(
+            _passed_node(state="PENDING", description="x", suites=[_passed_suite(5)]),
+            PASSED,
+            id="project-ci-passed-after-pending",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS", description=CI_PASSED_PROJECT_DESCRIPTION, suites=[_passed_suite(5)]
+            ),
+            None,
+            id="project-ci-success-already-posted",
+        ),
+        pytest.param(
+            _passed_node(
+                state="SUCCESS",
+                description=CI_PASSED_PROJECT_DESCRIPTION,
+                suites=[_passed_suite(5, conclusion="FAILURE")],
+            ),
+            WAITING,
+            id="project-ci-rerun-failed",
+        ),
+    ],
+)
+def test_report_project_ci_passed(client, node, expected):
+    client.graphql.return_value = _search_result(node)
+
+    assert report_project_ci_passed(client, repo=REPO, attention=[]) == ([1] if expected else [])
+
+    if expected is None:
+        client.set_status.assert_not_called()
+    else:
+        client.set_status.assert_called_once_with(1, "sha1", *expected, context=CI_PASSED_CONTEXT)
+
+
+def test_report_project_ci_passed_limits_successes_but_not_revocations(client):
+    client.graphql.return_value = _search_result(
+        *(_passed_node(n, state="PENDING", description="x", suites=[_passed_suite(5)]) for n in (1, 2, 3)),
+        _passed_node(4, state="SUCCESS", description=CI_PASSED_DESCRIPTION),
+    )
+
+    assert report_project_ci_passed(client, repo=REPO, attention=[], budget=2) == [1, 2, 4]
+    assert 'label:"use project ci"' in client.graphql.call_args.args[1]["q"]
+
+
+def test_report_project_ci_passed_keeps_going_after_an_error(client):
+    client.graphql.return_value = _search_result(
+        *(_passed_node(n, state="SUCCESS", description=CI_PASSED_DESCRIPTION) for n in (1, 2))
+    )
+    client.set_status.side_effect = [GitHubError("gh api failed: HTTP 502"), None]
+    attention: list[tuple[int, str]] = []
+
+    assert report_project_ci_passed(client, repo=REPO, attention=attention) == [2]
+    assert attention == [(1, "`CI passed` not updated: GitHubError")]
+
+
+def _rest_for_project_ci_passed(runs, checks):
+    """``rest_get`` of a commit with these workflow runs and (name, conclusion, check suite id) checks."""
+
+    def rest_get(path, **_):
+        if "/actions/runs" in path:
+            assert "per_page=100" in path
+            return {"workflow_runs": runs}
+        assert "per_page=100" in path
+        return {
+            "check_runs": [
+                {"name": name, "conclusion": conclusion, "check_suite": {"id": suite_id}}
+                for name, conclusion, suite_id in checks
+                if f"check_name={quote(name)}&" in path
+            ]
+        }
+
+    return rest_get
+
+
+@pytest.mark.parametrize(
+    ("checks", "expected"),
+    [
+        pytest.param(
+            [("CI passed", "success", 8)], "https://github.com/apache/airflow/actions/runs/6", id="passed"
+        ),
+        pytest.param([("CI passed", "failure", 8)], None, id="failed"),
+        pytest.param([("CI passed", "success", 9)], None, id="check-of-another-run"),
+        pytest.param(
+            [("CI passed", "success", 8), ("CI passed (run cancelled)", "success", 8)],
+            "https://github.com/apache/airflow/actions/runs/6",
+            id="rerun-passed-next-to-the-marker-of-its-first-attempt",
+        ),
+        pytest.param([("CI passed", "success", 7)], None, id="newest-run-still-running-is-not-passed"),
+        pytest.param(
+            [("CI passed", "success", 7), ("CI passed (run cancelled)", "success", 8)],
+            PROJECT_PASSED_URL,
+            id="newer-cancelled-run-does-not-hide-an-older-success",
+        ),
+        pytest.param(
+            [("CI passed", "success", 7), ("CI passed (project CI not run)", "success", 8)],
+            PROJECT_PASSED_URL,
+            id="newer-not-run-marker-does-not-hide-an-older-success",
+        ),
+    ],
+)
+def test_read_project_ci_passed_url(client, checks, expected):
+    older = {**_run_json(5), "check_suite_id": 7, "html_url": PROJECT_PASSED_URL}
+    newer = {**_run_json(6), "check_suite_id": 8}
+    client.rest_get.side_effect = _rest_for_project_ci_passed([newer, older], checks)
+
+    assert read_project_ci_passed_url(client, REPO, "sha1") == expected
+
+
+@pytest.mark.parametrize(
+    ("newer_status", "newer_conclusion", "expected"),
+    [
+        pytest.param("completed", "cancelled", PROJECT_PASSED_URL, id="newer-empty-cancelled-run"),
+        pytest.param("in_progress", None, None, id="newer-run-in-progress-without-checks"),
+    ],
+)
+def test_read_project_ci_passed_url_with_a_newer_run_without_checks(
+    client, newer_status, newer_conclusion, expected
+):
+    older = {**_run_json(5), "check_suite_id": 7, "html_url": PROJECT_PASSED_URL}
+    newer = {**_run_json(6), "check_suite_id": 8, "status": newer_status, "conclusion": newer_conclusion}
+    client.rest_get.side_effect = _rest_for_project_ci_passed([newer, older], [("CI passed", "success", 7)])
+
+    assert read_project_ci_passed_url(client, REPO, "sha1") == expected
+
+
+def test_read_project_ci_passed_url_ignores_other_workflows(client):
+    client.rest_get.return_value = {"workflow_runs": [_run_json(5, "other.yml")]}
+
+    assert read_project_ci_passed_url(client, REPO, "sha1") is None
+
+
+@pytest.mark.parametrize(
+    ("passed", "expected"),
+    [pytest.param(True, PASSED, id="found-success"), pytest.param(False, WAITING, id="none-found")],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.read_project_ci_passed_url", autospec=True)
+def test_report_project_ci_passed_reads_a_head_commit_the_search_did_not_list(
+    mock_read, client, passed, expected
+):
+    mock_read.return_value = PROJECT_PASSED_URL if passed else None
+    client.graphql.return_value = _search_result(
+        _passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION, oid="older")
+    )
+    client.rest_get.return_value = [
+        {"context": CI_PASSED_CONTEXT, "state": "success", "description": CI_PASSED_DESCRIPTION}
+    ]
+
+    report_project_ci_passed(client, repo=REPO, attention=[])
+
+    client.set_status.assert_called_once_with(1, "sha1", *expected, context=CI_PASSED_CONTEXT)
+
+
+def test_find_project_ci_label_heads(client):
+    client.graphql.return_value = _search_result({"headRefOid": "a"}, {"headRefOid": "b"})
+
+    assert find_project_ci_label_heads(client, REPO) == {"a", "b"}
+    assert 'label:"use project ci"' in client.graphql.call_args.args[1]["q"]
+
+
+LIVE_PULL_REQUEST = {"head": {"sha": "shared"}, "labels": []}
+
+
+def _run_reconcile_with_green_pull_requests(
+    client,
+    tmp_path,
+    *numbers,
+    live=LIVE_PULL_REQUEST,
+    same_branch=(),
+    ci_passed=("success", RUN_URL, CI_PASSED_DESCRIPTION),
+    state=ForkState.GREEN,
+):
+    """Reconcile gated, fork-green pull requests that all have head commit ``shared``."""
+    nodes = [_pr_node(n, headRefOid="shared") for n in numbers]
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(*nodes),
+        {f"pr{index}": {"object": None} for index in range(len(nodes))},
+    ]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    client.rest_get.side_effect = lambda path, **_: (
+        live
+        if "/pulls/" in path
+        else same_branch
+        if "/pulls?" in path
+        else []
+        if "/status" in path
+        else {"state": "active"}
+    )
+    plan = Plan(state=state, ci_passed=ci_passed)
+    with (
+        mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True, return_value=plan),
+        mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True) as reporter,
+        mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True),
+    ):
+        reporter.return_value.report.return_value = None
+        reporter.return_value.deferred = []
+        reporter.return_value.delayed = []
+        run_reconcile(
+            client,
+            CONFIG,
+            now=NOW,
+            run_url="https://run",
+            output_file=tmp_path / "s.json",
+            workflows_dir=tmp_path,
+        )
+
+
+@pytest.mark.parametrize(
+    ("heads", "posted"),
+    [
+        pytest.param({"shared"}, False, id="head-of-a-pull-request-with-the-label"),
+        pytest.param(set(), True, id="no-label"),
+        pytest.param(GitHubError("HTTP 502"), False, id="heads-unknown"),
+    ],
+)
+def test_run_reconcile_posts_no_fork_success_on_a_head_with_use_project_ci(
+    mock_project_ci_heads, client, tmp_path, heads, posted
+):
+    # Two pull requests on one head commit: statuses belong to the commit, so one with the label
+    # makes the fork success of the other one count for it.
+    if isinstance(heads, Exception):
+        mock_project_ci_heads.side_effect = heads
+    else:
+        mock_project_ci_heads.return_value = heads
+
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1, 2)
+
+    posted_calls = [
+        c for c in client.set_status.call_args_list if c.kwargs.get("context") == CI_PASSED_CONTEXT
+    ]
+    assert bool(posted_calls) is posted
+
+
+@pytest.mark.parametrize(
+    "heads",
+    [
+        pytest.param(set(), id="label-not-yet-in-the-search-index"),
+        pytest.param(GitHubError("HTTP 502"), id="heads-unknown"),
+        pytest.param({"shared"}, id="head-already-in-the-label-search"),
+    ],
+)
+def test_run_reconcile_revokes_a_fork_success_in_the_run_that_releases_to_project_ci(
+    mock_project_ci_heads, client, tmp_path, heads
+):
+    if isinstance(heads, Exception):
+        mock_project_ci_heads.side_effect = heads
+    else:
+        mock_project_ci_heads.return_value = heads
+    revoke = ("pending", f"https://github.com/{REPO}/pull/1/checks", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION)
+
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1, state=ForkState.RELEASED, ci_passed=revoke)
+
+    posted_calls = [
+        c for c in client.set_status.call_args_list if c.kwargs.get("context") == CI_PASSED_CONTEXT
+    ]
+    assert posted_calls == [mock.call(1, "shared", *revoke, context=CI_PASSED_CONTEXT)]
+
+
+@pytest.mark.parametrize(
+    "live",
+    [
+        pytest.param(
+            {"head": {"sha": "shared"}, "labels": [{"name": "use project ci"}]}, id="labelled-since"
+        ),
+        pytest.param({"head": {"sha": "newer"}, "labels": []}, id="head-changed"),
+    ],
+)
+def test_run_reconcile_reads_the_pull_request_live_before_posting_a_fork_success(client, tmp_path, live):
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1, live=live)
+
+    client.set_status.assert_not_called()
+    client.rest_get.assert_any_call(f"repos/{REPO}/pulls/1")
+
+
+def test_run_reconcile_reads_the_pull_requests_of_the_head_branch_before_posting_a_fork_success(
+    client, tmp_path
+):
+    other = {"head": {"sha": "shared"}, "labels": [{"name": "use project ci"}]}
+
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1, same_branch=[other])
+
+    client.set_status.assert_not_called()
+    assert any(
+        "/pulls?state=open" in c.args[0] and "head=" in c.args[0] for c in client.rest_get.call_args_list
+    )
+
+
+def test_run_reconcile_still_revokes_when_the_labelled_heads_are_unknown(
+    mock_project_ci_heads, client, tmp_path
+):
+    mock_project_ci_heads.side_effect = GitHubError("HTTP 502")
+    pending = ("pending", RUN_URL, "Fork CI result no longer trusted")
+
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1, ci_passed=pending)
+
+    client.set_status.assert_called_once_with(1, "shared", *pending, context=CI_PASSED_CONTEXT)
+
+
+def test_report_project_ci_passed_revokes_a_pull_request_the_heads_search_missed(
+    mock_project_ci_heads, mock_report_project_ci_passed, client, tmp_path
+):
+    # The heads list was empty at the start of the run, as when the search lags behind a new label.
+    mock_project_ci_heads.return_value = set()
+    mock_report_project_ci_passed.side_effect = report_project_ci_passed
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(),
+        _search_result(_passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION)),
+    ]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+
+    with mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True):
+        run_reconcile(
+            client,
+            CONFIG,
+            now=NOW,
+            run_url="https://run",
+            output_file=tmp_path / "s.json",
+            workflows_dir=tmp_path,
+        )
+
+    client.set_status.assert_called_once_with(1, "sha1", *WAITING, context=CI_PASSED_CONTEXT)
+
+
+def test_run_reconcile_still_revokes_a_fork_success_on_a_labelled_head(
+    mock_project_ci_heads, client, tmp_path
+):
+    mock_project_ci_heads.return_value = {"shared"}
+    revoke = ("pending", RUN_URL, "Fork CI result no longer trusted")
+
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1, ci_passed=revoke)
+
+    client.set_status.assert_called_once_with(1, "shared", *revoke, context=CI_PASSED_CONTEXT)
+
+
+@pytest.mark.parametrize("workflow_file", ["ci-amd.yml", "ci.yml", "ci-amd-arm.yml"])
+def test_find_project_ci_passed_url_accepts_the_workflow_files_of_release_branches(workflow_file):
+    node = _passed_node(
+        suites=[_passed_suite(5, path=f".github/workflows/{workflow_file}")], state="SUCCESS", description="x"
+    )
+
+    assert find_project_ci_passed_url(node) == PROJECT_PASSED_URL
+
+
+def test_read_project_ci_passed_url_accepts_the_workflow_files_of_release_branches(client):
+    run = {**_run_json(5, "ci.yml"), "check_suite_id": 7}
+    client.rest_get.side_effect = _rest_for_project_ci_passed([run], [("CI passed", "success", 7)])
+
+    assert read_project_ci_passed_url(client, REPO, "sha1") == PROJECT_PASSED_URL
+
+
+def test_run_reconcile_reports_project_ci_passed_after_the_loop(
+    mock_project_ci_heads, mock_report_project_ci_passed, client, tmp_path
+):
+    order = mock.Mock()
+    order.attach_mock(client.set_status, "set_status")
+    order.attach_mock(mock_report_project_ci_passed, "report")
+    mock_project_ci_heads.return_value = {"other"}
+
+    _run_reconcile_with_green_pull_requests(client, tmp_path, 1)
+
+    names = [c[0] for c in order.mock_calls]
+    assert names.index("report") > names.index("set_status")
+    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == 5
+
+
+def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_passed, client, tmp_path):
+    client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+    mock_report_project_ci_passed.side_effect = GitHubError("gh api failed: HTTP 502")
+
+    with mock.patch(
+        "airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True
+    ) as mock_started:
+        mock_started.return_value = []
+        has_alerts = run_reconcile(
+            client,
+            CONFIG,
+            now=NOW,
+            run_url="https://run",
+            output_file=tmp_path / "s.json",
+            workflows_dir=tmp_path,
+        )
+
+    assert has_alerts is True
+    assert (
+        "reporting `CI passed` for `use project ci` failed: GitHubError" in (tmp_path / "s.json").read_text()
+    )
+
+
+def test_report_project_ci_passed_counts_only_the_successes_that_were_written(client):
+    client.graphql.return_value = _search_result(
+        *(_passed_node(n, state="PENDING", description="x", suites=[_passed_suite(5)]) for n in (1, 2, 3))
+    )
+    client.set_status.side_effect = [GitHubError("HTTP 502"), None, None]
+
+    assert report_project_ci_passed(client, repo=REPO, attention=[], budget=1) == [2]
