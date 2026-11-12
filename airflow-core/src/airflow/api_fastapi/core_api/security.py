@@ -1209,13 +1209,13 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
 
 
 def _select_triggers_watching(asset_ids: set[int]) -> Select:
-    # Uncorrelated, as in Trigger.owner_still_refers_expression.
+    # Uncorrelated, as in Trigger.still_used_expression.
     return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(asset_ids))
 
 
 class PermittedTriggerFilter(OrmClause[None]):
     """
-    Keep the triggers whose owner the caller can see, each kind gated like the routes that show its owner.
+    Keep the triggers used by something the caller can see, each kind gated like the routes that show it.
 
     A task trigger needs Task Instance read on the Dag of its task instance, a callback trigger Dag Run read on
     the Dag of its callback (as the deadlines of a Dag run do), and an asset watcher's trigger read on an asset
@@ -1228,19 +1228,20 @@ class PermittedTriggerFilter(OrmClause[None]):
         task_dag_ids: set[str],
         callback_dag_ids: set[str],
         asset_ids: set[int],
-        can_read_an_owner: bool,
+        can_read_what_uses_triggers: bool,
     ) -> None:
         super().__init__()
         self.task_dag_ids = task_dag_ids
         self.callback_dag_ids = callback_dag_ids
         self.asset_ids = asset_ids
-        self.can_read_an_owner = can_read_an_owner
+        self.can_read_what_uses_triggers = can_read_what_uses_triggers
 
     def to_orm(self, select: Select) -> Select:
-        # The kind by the owner recorded on the row, as Trigger.kind_expression decides it, but without its CASE:
-        # compared in each branch, Postgres evaluates the CASE and its watcher subquery once per branch and row.
-        ti_id = Trigger.owner_ref["ti_id"].as_string()
-        callback_id = Trigger.owner_ref["callback_id"].as_string()
+        # The kind by what the row records it is used by, as Trigger.kind_expression decides it, but without
+        # its CASE: compared in each branch, Postgres evaluates the CASE and its watcher subquery once per
+        # branch and row.
+        ti_id = Trigger.used_by_ref["ti_id"].as_string()
+        callback_id = Trigger.used_by_ref["callback_id"].as_string()
         return select.where(
             or_(
                 and_(ti_id.is_not(None), Trigger.dag_id.in_(self.task_dag_ids)),
@@ -1272,7 +1273,7 @@ def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> 
         task_dag_ids=dag_ids if can_read_task_instances else set(),
         callback_dag_ids=dag_ids if can_read_runs else set(),
         asset_ids=auth_manager.get_authorized_assets(user=user, method="GET") if can_read_assets else set(),
-        can_read_an_owner=can_read_task_instances or can_read_runs or can_read_assets,
+        can_read_what_uses_triggers=can_read_task_instances or can_read_runs or can_read_assets,
     )
 
 
@@ -1281,13 +1282,13 @@ ReadableTriggersFilterDep = Annotated[PermittedTriggerFilter, Depends(readable_t
 
 def requires_access_trigger(method: Literal["GET"]) -> Callable[[PermittedTriggerFilter], None]:
     """
-    Let in a caller who can read the owners of at least one kind of trigger; triggers can only be read.
+    Let in a caller who can read what at least one kind of trigger is used by; triggers can only be read.
 
     It shares the request's :class:`PermittedTriggerFilter`, which keeps only the triggers they can see.
     """
 
     def inner(readable_triggers: ReadableTriggersFilterDep) -> None:
-        _requires_access(is_authorized_callback=lambda: readable_triggers.can_read_an_owner)
+        _requires_access(is_authorized_callback=lambda: readable_triggers.can_read_what_uses_triggers)
 
     return inner
 

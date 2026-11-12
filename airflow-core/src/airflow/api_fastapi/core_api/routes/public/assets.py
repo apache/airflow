@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import and_, delete, exists, func, select
+from sqlalchemy import and_, delete, exists, func, select, true
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -31,7 +31,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.assets import eager_load_asset_reference_teams
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
     FilterParam,
@@ -53,6 +53,10 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
     datetime_range_filter_factory,
     filter_param_factory,
+)
+from airflow.api_fastapi.common.parameters.asset import (
+    QueryAssetEventTriggerIdFilter,
+    QueryAssetTriggerIdFilter,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
@@ -98,7 +102,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.trigger import Trigger
-from airflow.utils.sqlalchemy import with_row_locks
+from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -106,6 +110,8 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Result
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement, Select
+
+    from airflow.api_fastapi.core_api.base import OrmClause
 
 assets_router = AirflowRouter(tags=["Asset"])
 
@@ -258,6 +264,7 @@ def get_assets(
     uri_pattern: QueryUriPatternSearch,
     uri_prefix_pattern: QueryUriPrefixPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
+    trigger_id: QueryAssetTriggerIdFilter,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
         SortParam,
@@ -310,6 +317,7 @@ def get_assets(
             uri_pattern,
             uri_prefix_pattern,
             dag_ids,
+            trigger_id,
             readable_assets_filter,
         ],
         order_by=order_by,
@@ -421,6 +429,7 @@ def get_asset_events(
     asset_id: Annotated[
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.asset_id, int | None))
     ],
+    trigger_id: QueryAssetEventTriggerIdFilter,
     source_dag_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_dag_id, str | None))
     ],
@@ -454,29 +463,54 @@ def get_asset_events(
     if name_pattern.value is not None or name_prefix_pattern.value is not None:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
+    filters: list[OrmClause] = [
+        asset_id,
+        source_dag_id,
+        source_task_id,
+        source_task_instance_id,
+        source_run_id,
+        source_map_index,
+        partition_key,
+        partition_key_regexp_pattern,
+        name_pattern,
+        name_prefix_pattern,
+        extra_filter,
+        timestamp_range,
+        readable_asset_events_filter,
+        readable_asset_events_by_asset_filter,
+    ]
     assets_event_select, total_entries = paginated_select(
         statement=base_statement,
-        filters=[
-            asset_id,
-            source_dag_id,
-            source_task_id,
-            source_task_instance_id,
-            source_run_id,
-            source_map_index,
-            partition_key,
-            partition_key_regexp_pattern,
-            name_pattern,
-            name_prefix_pattern,
-            extra_filter,
-            timestamp_range,
-            readable_asset_events_filter,
-            readable_asset_events_by_asset_filter,
-        ],
+        filters=[trigger_id, *filters],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
+    if trigger_id.value is not None and get_dialect_name(session) != "sqlite":
+        # The page is among each watched asset's own first offset + limit events, which
+        # idx_asset_id_timestamp reads without ordering every event of a busy asset. SQLite has no LATERAL.
+        watched = (
+            select(AssetWatcherModel.asset_id)
+            .where(AssetWatcherModel.trigger_id == trigger_id.value)
+            .distinct()
+            .subquery()
+        )
+        per_asset = (
+            order_by.to_orm(
+                apply_filters_to_select(
+                    statement=base_statement.with_only_columns(AssetEvent.id).where(
+                        AssetEvent.asset_id == watched.c.asset_id
+                    ),
+                    filters=filters,
+                )
+            )
+            .limit((offset.value or 0) + cast("int", limit.value))
+            .lateral()
+        )
+        assets_event_select = assets_event_select.where(
+            AssetEvent.id.in_(select(per_asset.c.id).select_from(watched).join(per_asset, true()))
+        )
 
     assets_event_select = assets_event_select.options(
         subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset), load_source_region()

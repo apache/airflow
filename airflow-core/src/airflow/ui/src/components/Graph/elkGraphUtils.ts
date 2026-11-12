@@ -51,6 +51,8 @@ export type FormattedNode = {
   loopMaxIterations?: number;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   team?: string | null;
+  triggerId?: number | null;
+  triggerStatus?: NodeResponse["trigger_status"];
   uiColor?: string | null;
   uiFgcolor?: string | null;
 } & ElkShape &
@@ -406,6 +408,8 @@ export const generateElkGraph = ({
       setupTeardownType: node.setup_teardown_type,
       team: node.team,
       tooltip: node.tooltip,
+      triggerId: node.trigger_id,
+      triggerStatus: node.trigger_status,
       type: node.type,
       uiColor: node.ui_color,
       uiFgcolor: node.ui_fgcolor,

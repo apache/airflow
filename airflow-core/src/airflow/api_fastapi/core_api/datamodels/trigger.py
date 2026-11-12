@@ -83,6 +83,10 @@ class TriggerAssetWatcherReferenceResponse(BaseModel):
     asset_name: str
     asset_uri: str
     watcher_name: str
+    scheduled_dag_ids: list[str] = Field(
+        description="The Dags scheduled on the asset (directly or by an asset name or URI reference), which the "
+        "watcher's events run; only those the caller can read."
+    )
 
 
 class TriggerDetailResponse(BaseModel):

@@ -46,6 +46,11 @@ class DeadlineResponse(BaseModel):
         validation_alias=AliasPath("callback", "state"), default=None
     )
     callback_path: str | None = Field(validation_alias=AliasPath("callback", "data", "path"), default=None)
+    callback_trigger_id: int | None = Field(
+        validation_alias=AliasPath("callback", "trigger_id"),
+        default=None,
+        description="The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.",
+    )
 
 
 class DeadlineCollectionResponse(BaseModel):

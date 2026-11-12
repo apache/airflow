@@ -16,18 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import timedelta
 from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import delete
+from sqlalchemy import delete, event
+from sqlalchemy.engine import Engine
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.core_api.routes.public.triggers import _get_public_map_indexes
 from airflow.jobs.job import Job
-from airflow.models.asset import AssetActive, AssetModel, AssetWatcherModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetModel,
+    AssetWatcherModel,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
+)
 from airflow.models.deadline import Deadline
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
@@ -116,11 +125,35 @@ def _watcher(session, name, trigger):
     return asset
 
 
+def _schedule(session, dag_id, asset, ref):
+    """Schedule a Dag on the asset itself, or on ``Asset.ref(name=...)`` / ``Asset.ref(uri=...)`` of it."""
+    if ref == "direct":
+        session.add(DagScheduleAssetReference(dag_id=dag_id, asset_id=asset.id))
+    else:
+        model = DagScheduleAssetNameReference if ref == "name" else DagScheduleAssetUriReference
+        session.add(model(dag_id=dag_id, **{ref: getattr(asset, ref)}))
+
+
+@contextmanager
+def _capture_statements():
+    """Record each statement sent to the database, with its parameters."""
+    executed = []
+
+    def capture(conn, cursor, statement, params, context, executemany):
+        executed.append((statement, params))
+
+    event.listen(Engine, "before_cursor_execute", capture)
+    try:
+        yield executed
+    finally:
+        event.remove(Engine, "before_cursor_execute", capture)
+
+
 def _deferred_task(session, create_task_instance, name, trigger, *, resumed=False):
     state = TaskInstanceState.SCHEDULED if resumed else TaskInstanceState.DEFERRED
     ti = create_task_instance(dag_id=f"dag_{name}", task_id=f"{name}_task", state=state, session=session)
     trigger.dag_id = ti.dag_id
-    trigger.owner_ref = {"ti_id": str(ti.id)}
+    trigger.used_by_ref = {"ti_id": str(ti.id)}
     if not resumed:
         ti.trigger_id = trigger.id
     session.flush()
@@ -133,7 +166,7 @@ def _name(trigger_json):
 
 @pytest.fixture
 def triggers(session, create_task_instance):
-    """Triggers of each kind and status, on a live and a dead triggerer, and two whose owner let go."""
+    """Triggers of each kind and status, on a live and a dead triggerer, and two no longer in use."""
     live = _job(session, hostname="trig-a", heartbeat_age=1)
     dead = _job(session, hostname="trig-b", heartbeat_age=600)
 
@@ -170,6 +203,7 @@ def triggers(session, create_task_instance):
         last_error="ConnectionError: token expired for user:***",
     )
     failing_asset = _watcher(session, "failing", failing)
+    session.add(DagScheduleAssetReference(dag_id="dag_sensor", asset_id=failing_asset.id))
     pending = _trigger(session, "pending")
     pending_asset = _watcher(session, "pending", pending)
     # Its watcher was removed: deleted on the next cleanup too.
@@ -223,7 +257,7 @@ def _mapped_task_triggers(session, dag_maker, job, mapped):
         ti.try_number, ti.state, ti.trigger_id = 1, TaskInstanceState.DEFERRED, trigger.id
         session.add(ti)
         session.flush()
-        trigger.dag_id, trigger.owner_ref = ti.dag_id, {"ti_id": str(ti.id)}
+        trigger.dag_id, trigger.used_by_ref = ti.dag_id, {"ti_id": str(ti.id)}
     session.commit()
 
 
@@ -248,7 +282,7 @@ class TestGetTriggers:
         ]
         assert response.json()["total_entries"] == 5
 
-    def test_names_the_owner_of_each_kind(self, test_client, triggers):
+    def test_names_what_each_kind_is_used_by(self, test_client, triggers):
         body = _by_id(test_client.get("/triggers").json())
         sensor_ti, callback = triggers["sensor_ti"], triggers["callback"]
 
@@ -272,6 +306,7 @@ class TestGetTriggers:
                 "asset_name": "to_failing_asset",
                 "asset_uri": "s3://bucket/failing",
                 "watcher_name": "failing_watcher",
+                "scheduled_dag_ids": ["dag_sensor"],
             }
         ]
 
@@ -413,7 +448,7 @@ class TestGetTriggers:
     )
     @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
     @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
-    def test_shows_a_trigger_to_whoever_can_see_its_owner(
+    def test_shows_a_trigger_to_whoever_can_see_what_it_is_used_by(
         self, mock_dag_ids, mock_assets, test_client, triggers, dag_ids, asset_ids, expected
     ):
         mock_dag_ids.return_value = dag_ids
@@ -441,7 +476,7 @@ class TestGetTriggers:
         ],
     )
     @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
-    def test_a_trigger_needs_read_on_its_owner_as_the_owner_routes_check_it(
+    def test_a_trigger_needs_read_on_what_it_is_used_by_as_those_routes_check_it(
         self, mock_is_authorized_dag, test_client, triggers, unreadable, expected
     ):
         mock_is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
@@ -509,6 +544,92 @@ class TestGetTriggers:
         assert [t["id"] for t in listed] == [failing_id]
         assert [w["watcher_name"] for w in listed[0]["asset_watchers"]] == expected
         assert [w["watcher_name"] for w in one["asset_watchers"]] == expected
+
+    @pytest.mark.parametrize(
+        ("readable", "expected"),
+        [
+            pytest.param({"dag_queued", "dag_sensor"}, ["dag_queued", "dag_sensor"], id="all"),
+            pytest.param({"dag_sensor"}, ["dag_sensor"], id="some"),
+        ],
+    )
+    @pytest.mark.parametrize("ref", ["direct", "name", "uri"])
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_a_watcher_is_named_and_found_by_only_the_scheduled_dags_the_caller_can_read(
+        self, mock_dag_ids, test_client, session, triggers, ref, readable, expected
+    ):
+        mock_dag_ids.return_value = readable
+        _schedule(session, "dag_queued", triggers["failing_asset"], ref)
+        session.commit()
+        failing_id = triggers["failing"].id
+
+        listed = _by_id(test_client.get("/triggers").json())[failing_id]
+        one = test_client.get(f"/triggers/{failing_id}").json()
+        # dag_queued also has a task trigger, which the filter leaves out: it is not a watcher's.
+        found = test_client.get("/triggers", params={"scheduled_dag_id": "dag_queued"}).json()
+
+        assert [w["scheduled_dag_ids"] for w in listed["asset_watchers"]] == [expected]
+        assert [w["scheduled_dag_ids"] for w in one["asset_watchers"]] == [expected]
+        # As scheduled_dag_ids names it: an unreadable Dag finds nothing, like a Dag that does not exist.
+        found_ids = [failing_id] if "dag_queued" in expected else []
+        assert ([t["id"] for t in found["triggers"]], found["total_entries"]) == (found_ids, len(found_ids))
+
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    def test_filter_by_a_scheduled_dag_counts_only_assets_the_caller_can_read(
+        self, mock_assets, test_client, session, triggers
+    ):
+        # The pending watcher's trigger also watches a second asset, the only one dag_queued is scheduled on.
+        second = _watcher(session, "second", triggers["pending"])
+        session.add(DagScheduleAssetReference(dag_id="dag_queued", asset_id=second.id))
+        session.commit()
+        mock_assets.return_value = {triggers["failing_asset"].id, triggers["pending_asset"].id}
+
+        body = test_client.get("/triggers", params={"scheduled_dag_id": "dag_queued"}).json()
+
+        assert body == {"triggers": [], "total_entries": 0}
+
+    def test_filter_by_a_scheduled_dag_pages_its_own_watchers(self, test_client, session, triggers):
+        # Other Dags' failing watchers come between dag_sensor's by id, so they fill its page if left in.
+        expected = [triggers["failing"].id]
+        for i, dag_id in enumerate(["dag_queued"] * 3 + ["dag_sensor"] * 2):
+            trigger = _trigger(session, f"more{i}", job=triggers["live"], consecutive_failures=1)
+            _schedule(session, dag_id, _watcher(session, f"more{i}", trigger), "direct")
+            if dag_id == "dag_sensor":
+                expected.append(trigger.id)
+        session.commit()
+        params = {"kind": "asset_watcher", "status": "failing", "scheduled_dag_id": "dag_sensor"}
+
+        body = test_client.get("/triggers", params={**params, "limit": len(expected)}).json()
+
+        assert [t["id"] for t in body["triggers"]] == expected
+        assert body["total_entries"] == len(expected)
+
+    @pytest.mark.parametrize(
+        ("readable", "expected", "never_sent"),
+        [
+            # A deployment can have thousands of readable Dags, and the UI asks again on every auto-refresh.
+            pytest.param({"dag_sensor", "dag_not_scheduled"}, ["dag_sensor"], "dag_not_scheduled", id="some"),
+            # Each watched asset can be scheduled on by thousands of Dags, none of which this caller may see.
+            pytest.param(set(), [], "dag_schedule_asset_reference", id="none"),
+        ],
+    )
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True, return_value=False)
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_a_caller_who_reads_only_assets_looks_up_their_dags_only_to_name_them(
+        self, mock_dag_ids, _, test_client, triggers, readable, expected, never_sent
+    ):
+        mock_dag_ids.return_value = readable
+        # With some auth managers the lookup checks every Dag: a page without watchers needs none.
+        assert test_client.get("/triggers", params={"kind": "task"}).json()["total_entries"] == 0
+        assert mock_dag_ids.call_count == 0
+
+        with _capture_statements() as executed:
+            listed = _by_id(test_client.get("/triggers").json())
+
+        assert mock_dag_ids.call_count == 1
+        assert [w["scheduled_dag_ids"] for w in listed[triggers["failing"].id]["asset_watchers"]] == [
+            expected
+        ]
+        assert never_sent not in repr(executed)
 
     @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
     @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
@@ -592,8 +713,8 @@ class TestGetTriggers:
         session.commit()
 
         # readable Dags and assets, the count, the page and its eager loads of watchers, assets, callbacks
-        # and task instances, and the callbacks' Dag runs
-        with assert_queries_count(9):
+        # and task instances, the callbacks' Dag runs and the Dags scheduled on the watched assets
+        with assert_queries_count(10):
             response = test_client.get("/triggers")
 
         assert response.json()["total_entries"] == 5 + extra
@@ -633,7 +754,9 @@ class TestGetTriggers:
     def test_should_respond_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get("/triggers").status_code == 401
 
-    def test_should_respond_403_to_a_user_who_can_read_no_owner(self, unauthorized_test_client, triggers):
+    def test_should_respond_403_to_a_user_who_can_read_nothing_a_trigger_is_used_by(
+        self, unauthorized_test_client, triggers
+    ):
         assert unauthorized_test_client.get("/triggers").status_code == 403
         assert unauthorized_test_client.get(f"/triggers/{triggers['sensor'].id}").status_code == 403
 
@@ -655,7 +778,7 @@ class TestGetTrigger:
         assert test_client.get(f"/triggers/{triggers['sensor'].id}").status_code == 200
 
     @pytest.mark.parametrize("name", ["fired", "removed"])
-    def test_a_trigger_its_owner_let_go_is_not_found(self, test_client, triggers, name):
+    def test_a_trigger_no_longer_in_use_is_not_found(self, test_client, triggers, name):
         response = test_client.get(f"/triggers/{triggers[name].id}")
 
         assert (response.status_code, response.json()["detail"]) == (

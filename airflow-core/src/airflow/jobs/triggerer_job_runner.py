@@ -327,8 +327,8 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name=__name__)
 
-# Stored on the trigger row and shown by the API to everyone who can see the trigger's owner; the traceback
-# stays in the logs.
+# Stored on the trigger row and shown by the API to everyone who can see what the trigger is used by; the
+# traceback stays in the logs.
 TRIGGER_ERROR_MAX_LENGTH = 1000
 
 # A trigger that stays up this long after it was last (re-)created has recovered, so one that crashes after
@@ -1010,22 +1010,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             stats.gauge("triggers.failing", failing[kind.value], tags={**tags, "trigger_kind": kind.value})
 
     @staticmethod
-    def _record_missing_owner(trigger: Trigger) -> None:
+    def _record_missing_used_by(trigger: Trigger) -> None:
         """
-        Record the owner of a deferred task's or callback's trigger whose row has none.
+        Record what a deferred task's or callback's trigger is used by when its row does not say.
 
         During a rolling upgrade, components still on the previous version keep creating these triggers after
-        ``db migrate`` filled in the owners of the rows that existed then. Written with the session that builds
+        ``db migrate`` filled it in for the rows that existed then. Written with the session that builds
         the workload.
         """
-        if getattr(trigger, "owner_ref", None) is not None:
+        if getattr(trigger, "used_by_ref", None) is not None:
             return
         if (ti := trigger.task_instance) is not None:
-            trigger.dag_id, trigger.owner_ref = ti.dag_id, {"ti_id": str(ti.id)}
+            trigger.dag_id, trigger.used_by_ref = ti.dag_id, {"ti_id": str(ti.id)}
         elif (callback := getattr(trigger, "callback", None)) is not None:
             dag_run = ((callback.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
             trigger.dag_id = callback.get_dag_id() or dag_run.get("dag_id")
-            trigger.owner_ref = {"callback_id": str(callback.id)}
+            trigger.used_by_ref = {"callback_id": str(callback.id)}
 
     def _create_workload(
         self,
@@ -1035,7 +1035,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         session: Session,
         log_context: TaskLogContext | None = None,
     ) -> workloads.RunTrigger | None:
-        self._record_missing_owner(trigger)
+        self._record_missing_used_by(trigger)
         self.trigger_kinds[trigger.id] = (
             TriggerKind.TASK
             if trigger.task_instance is not None

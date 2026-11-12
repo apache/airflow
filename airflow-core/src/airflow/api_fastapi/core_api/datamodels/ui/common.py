@@ -26,6 +26,7 @@ from pydantic import computed_field, field_validator
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.models.trigger import TriggerStatus
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -50,12 +51,15 @@ class BaseNodeResponse(BaseModel):
         "asset-alias",
         "asset-name-ref",
         "asset-uri-ref",
+        "asset-watcher",
         "dag",
         "sensor",
         "trigger",
     ]
     team: str | None = None
     asset_condition_type: Literal["or-gate", "and-gate"] | None = None
+    trigger_id: int | None = None
+    trigger_status: TriggerStatus | None = None
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)

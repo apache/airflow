@@ -31,6 +31,7 @@
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
+    "triggers": "Triggers",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Collapse all extra JSON",
@@ -611,6 +612,8 @@
     "tokenShownOnce": "This token will only be shown once. Copy it now."
   },
   "total": "Total {{state}}",
+  "trigger_one": "Trigger",
+  "trigger_other": "Triggers",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "unpause": "Unpause",

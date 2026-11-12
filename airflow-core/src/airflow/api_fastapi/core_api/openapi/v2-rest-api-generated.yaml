@@ -120,6 +120,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: trigger_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the assets this trigger's watchers watch.
+          title: Trigger Id
+        description: Return only the assets this trigger's watchers watch.
       - name: only_active
         in: query
         required: false
@@ -370,6 +380,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Asset Id
+      - name: trigger_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the events of the assets this trigger's watchers
+            watch.
+          title: Trigger Id
+        description: Return only the events of the assets this trigger's watchers
+          watch.
       - name: source_dag_id
         in: query
         required: false
@@ -10860,10 +10882,10 @@ paths:
         is doing.
 
 
-        A trigger is visible to whoever can see its owner: the task instance or Dag
-        run of its Dag, or an asset
+        A trigger is visible to whoever can see what it is used by: the task instance
+        or Dag run of its Dag, or
 
-        one of its watchers watches.'
+        an asset one of its watchers watches.'
       operationId: get_triggers
       security:
       - OAuth2PasswordBearer: []
@@ -10952,6 +10974,18 @@ paths:
           description: Return only the triggers of this asset's watchers.
           title: Asset Id
         description: Return only the triggers of this asset's watchers.
+      - name: scheduled_dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return only the triggers of watchers on assets this Dag is
+            scheduled on, directly or by an asset name or URI reference.
+          title: Scheduled Dag Id
+        description: Return only the triggers of watchers on assets this Dag is scheduled
+          on, directly or by an asset name or URI reference.
       - name: teams
         in: query
         required: false
@@ -19727,12 +19761,21 @@ components:
         watcher_name:
           type: string
           title: Watcher Name
+        scheduled_dag_ids:
+          items:
+            type: string
+          type: array
+          title: Scheduled Dag Ids
+          description: The Dags scheduled on the asset (directly or by an asset name
+            or URI reference), which the watcher's events run; only those the caller
+            can read.
       type: object
       required:
       - asset_id
       - asset_name
       - asset_uri
       - watcher_name
+      - scheduled_dag_ids
       title: TriggerAssetWatcherReferenceResponse
       description: An asset watcher a trigger serves.
     TriggerCallbackReferenceResponse:
@@ -19968,8 +20011,8 @@ components:
       - callback
       - asset_watcher
       title: TriggerKind
-      description: What a trigger runs for, worked out from its owner rather than
-        stored.
+      description: What a trigger runs for, worked out from what it is used by rather
+        than stored.
     TriggerResponse:
       properties:
         id:

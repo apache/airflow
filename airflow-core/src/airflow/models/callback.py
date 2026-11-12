@@ -292,7 +292,7 @@ class TriggererCallback(Callback):
             },
             queue=self.data.get("queue"),
             dag_id=self.get_dag_id() or dag_run.get("dag_id"),
-            owner_ref={"callback_id": str(self.id)},
+            used_by_ref={"callback_id": str(self.id)},
         )
         self.trigger.team_name = team_name
         super().queue(session=session)

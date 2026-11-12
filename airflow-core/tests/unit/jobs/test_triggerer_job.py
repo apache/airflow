@@ -4497,19 +4497,19 @@ class TestTriggerMetrics:
         assert 4 not in jobless_supervisor.trigger_kinds
 
 
-class TestOwnerOfTriggersCreatedWithoutOne:
-    """Rows created by components still on the previous version during a rolling upgrade have no owner."""
+class TestUsedByOfTriggersCreatedWithoutIt:
+    """During a rolling upgrade, components still on the previous version create rows without a used_by_ref."""
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_the_owner_of_a_deferred_tasks_trigger_is_recorded(self, session, jobless_supervisor):
+    def test_a_deferred_tasks_trigger_records_it_is_used_by_the_task(self, session, jobless_supervisor):
         trigger = Trigger.from_object(SuccessTrigger())
         session.add(trigger)
         session.flush()
-        with DAG(dag_id="owner_dag") as dag:
-            task = PythonOperator(task_id="owner_task", python_callable=print)
-        session.add(DagModel(dag_id="owner_dag", bundle_name="testing"))
+        with DAG(dag_id="used_by_dag") as dag:
+            task = PythonOperator(task_id="used_by_task", python_callable=print)
+        session.add(DagModel(dag_id="used_by_dag", bundle_name="testing"))
         SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
-        dag_run = DagRun(dag.dag_id, run_id="owner_run", run_type="manual", run_after=timezone.utcnow())
+        dag_run = DagRun(dag.dag_id, run_id="used_by_run", run_type="manual", run_after=timezone.utcnow())
         ti = create_task_instance(
             task,
             run_id=dag_run.run_id,
@@ -4524,7 +4524,7 @@ class TestOwnerOfTriggersCreatedWithoutOne:
 
         session.expire_all()
         row = session.get(Trigger, trigger.id)
-        assert (row.dag_id, row.owner_ref) == ("owner_dag", {"ti_id": str(ti.id)})
+        assert (row.dag_id, row.used_by_ref) == ("used_by_dag", {"ti_id": str(ti.id)})
 
     @pytest.mark.parametrize(
         ("data", "expected_dag_id"),
@@ -4537,20 +4537,22 @@ class TestOwnerOfTriggersCreatedWithoutOne:
             ),
         ],
     )
-    def test_the_owner_of_a_callbacks_trigger_is_recorded(self, mocker, data, expected_dag_id):
+    def test_a_callbacks_trigger_records_it_is_used_by_the_callback(self, mocker, data, expected_dag_id):
         callback = mocker.Mock(data=data, id=uuid.uuid4())
         callback.get_dag_id.return_value = data.get("dag_id")
         trigger = mocker.Mock(
-            spec=Trigger, owner_ref=None, dag_id=None, task_instance=None, callback=callback
+            spec=Trigger, used_by_ref=None, dag_id=None, task_instance=None, callback=callback
         )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
+        assert (trigger.dag_id, trigger.used_by_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
 
-    def test_a_recorded_owner_is_kept(self, mocker):
-        trigger = mocker.Mock(spec=Trigger, owner_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock())
+    def test_a_recorded_used_by_is_kept(self, mocker):
+        trigger = mocker.Mock(
+            spec=Trigger, used_by_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock()
+        )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == ("d", {"ti_id": "x"})
+        assert (trigger.dag_id, trigger.used_by_ref) == ("d", {"ti_id": "x"})

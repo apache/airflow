@@ -63,13 +63,17 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     mockConfig.multi_team = false;
   });
 
-  it("defaults to showing only active dags", async () => {
+  it("defaults to showing only active dags", async ({ task }) => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => {
-      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
-      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
-    });
+    // The file's first render of the whole app can take over waitFor's default second on CI.
+    await waitFor(
+      () => {
+        expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+        expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+      },
+      { timeout: task.timeout },
+    );
   });
 
   it("keeps draining dags under the default, since they are not paused yet", async () => {
