@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from pydantic_ai import Tool
+from pydantic_ai import RunContext, Tool
 from pydantic_ai.capabilities import SetToolMetadata
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -156,3 +156,40 @@ if SQLToolset is not None:
     # [END howto_agent_durable_tool_opt_out]
 
     example_agent_durable_tool_opt_out()
+
+
+# ---------------------------------------------------------------------------
+# 5. Toolsets without an id
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_durable_toolsets_without_id]
+def get_order(order_id: int) -> dict[str, str]:
+    """Look up an order's status and carrier."""
+    return {"status": "shipped", "carrier": "dhl"}
+
+
+def track_parcel(carrier: str, order_id: int) -> str:
+    """Return where a carrier's parcel for an order is."""
+    return f"{carrier} parcel for order {order_id}: out for delivery"
+
+
+def carrier_tools(ctx: RunContext) -> FunctionToolset:
+    """Build the carrier tools for each run."""
+    return FunctionToolset(tools=[track_parcel])
+
+
+@dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)}, tags=["example"])
+def example_agent_durable_toolsets_without_id():
+    AgentOperator(
+        task_id="durable_order_status",
+        prompt="Where is order 4411?",
+        llm_conn_id="pydanticai_default",
+        durable=True,
+        toolsets=[FunctionToolset(tools=[get_order]), carrier_tools],
+    )
+
+
+# [END howto_agent_durable_toolsets_without_id]
+
+example_agent_durable_toolsets_without_id()

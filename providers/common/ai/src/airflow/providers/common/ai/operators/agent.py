@@ -32,10 +32,16 @@ from pydantic import TypeAdapter
 from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import AbstractCapability, Toolset, WrapperCapability
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
+from pydantic_ai.toolsets import DynamicToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.durable.capability import DURABLE_UNIT_TOOLSETS, AirflowDurability
+from airflow.providers.common.ai.durable.capability import (
+    DURABLE_UNIT_TOOLSETS,
+    AirflowDurability,
+    _get_chosen_toolset_id,
+    _give_durable_ids,
+)
 from airflow.providers.common.ai.durable.journal import DurableJournal, build_task_storage, journal_scope
 from airflow.providers.common.ai.exceptions import (
     ToolApprovalAlreadyRequestedError,
@@ -106,9 +112,11 @@ if TYPE_CHECKING:
     from pydantic_ai.capabilities import AgentCapability
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.output import OutputSpec
+    from pydantic_ai.toolsets import ToolsetFunc
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
+    from airflow.providers.common.ai.durable.capability import _GivenIds
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -378,9 +386,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         On Airflow >= 3.3 the journal is kept in the AIP-103 task state store, so
         no extra configuration is needed. On older Airflow versions it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
-        Toolsets pydantic-ai runs as durable steps (``FunctionToolset``,
-        ``MCPToolset``, ``DynamicToolset``) need a unique ``id``, and so do
-        capabilities with ``@durable_operation`` methods. A tool with the metadata
+        A pydantic-ai ``MCPToolset`` needs a unique ``id``, and so do capabilities
+        with ``@durable_operation`` methods. A ``FunctionToolset`` or a function that
+        builds a toolset, passed in ``toolsets`` or ``agent_params["toolsets"]``, needs
+        none, and neither does a ``FunctionToolset`` held directly by a ``Toolset``
+        capability (:ref:`durable-toolset-ids`). A tool with the metadata
         ``{"airflow": False}`` runs again on every attempt instead of replaying
         (:ref:`durable-tool-opt-out`).
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
@@ -635,42 +645,42 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         """
         Refuse a toolset whose steps durable replay would have no name for.
 
-        pydantic-ai records each call of a ``FunctionToolset``, ``MCPToolset`` or
-        ``DynamicToolset`` under the toolset's ``id``, and refuses to run one without it.
-        The id is what a retry matches recorded calls by, so it has to come from the Dag
-        author: one derived from the toolset's position would point a retry at another
-        toolset's results as soon as the list is reordered. Checked here so the Dag fails
-        to load rather than at the first run.
+        pydantic-ai names the durable steps of a ``FunctionToolset``, ``MCPToolset`` or
+        ``DynamicToolset`` after the toolset's ``id``, and refuses to run one without it. The
+        toolsets ``_build_agent`` hands the agent are given ids here as it gives them
+        (``_give_durable_ids``), and a leaf still without one is refused: an ``MCPToolset``, whose
+        server URL or command can carry credentials, or a function without a qualified name.
+        Checked here so the Dag fails to load rather than at the first run.
         """
-        missing = {
-            type(leaf).__name__
-            for toolset in self._declared_toolsets()
-            for leaf in iter_toolsets(toolset)
-            if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is None
-        }
-        # A function that builds a toolset per run becomes a DynamicToolset with no id.
-        if any(
-            not isinstance(toolset, AbstractToolset)
-            for toolset in (*(self.toolsets or []), *(self.agent_params.get("toolsets") or []))
-        ):
-            missing.add("DynamicToolset")
-        if kinds := sorted(missing):
-            raise ValueError(
-                f"durable=True needs a unique id on every {' and '.join(kinds)}, such as "
-                f"{kinds[0]}(..., id='orders'): durable replay records each tool call under it. "
-                "Set it on the toolset itself, and pass a function that builds a toolset as "
-                "DynamicToolset(function, id=...); the id of a Toolset capability around a toolset "
-                "does not reach it."
-            )
+        given: _GivenIds = {}
+        leaves = [
+            leaf
+            for toolset in self._running_toolsets()
+            for leaf in iter_toolsets(_give_durable_ids(toolset, given))
+            if isinstance(leaf, DURABLE_UNIT_TOOLSETS)
+        ]
         # One instance listed twice is one toolset to pydantic-ai; two instances sharing an id
-        # would have their recorded calls filed under one name.
+        # would have their recorded calls filed under one name. Each listing of a function
+        # becomes a DynamicToolset of its own, so two lambdas in one module share an id.
         first_by_id: dict[str, AbstractToolset[Any]] = {}
         duplicates: list[str] = []
-        for toolset in self._running_toolsets():
-            for leaf in iter_toolsets(toolset):
-                if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is not None:
-                    if first_by_id.setdefault(leaf.id, leaf) is not leaf and leaf.id not in duplicates:
-                        duplicates.append(leaf.id)
+        for leaf in leaves:
+            if (toolset_id := _get_chosen_toolset_id(leaf)) is None and isinstance(leaf, DynamicToolset):
+                raise ValueError(
+                    "durable=True names the steps of a toolset built per run after the function that "
+                    f"builds it, but {leaf.toolset_func!r} has no __qualname__. Pass it as "
+                    "DynamicToolset(function, id=...)."
+                )
+            if toolset_id is None:
+                raise ValueError(
+                    "durable=True needs a unique id on every MCPToolset, such as "
+                    "MCPToolset(..., id='weather'): durable replay records each tool call under it, and "
+                    "none is derived from the server's URL or command, which can carry credentials. Set "
+                    "it on the toolset itself; the id of a Toolset capability around a toolset does not "
+                    "reach it."
+                )
+            if first_by_id.setdefault(toolset_id, leaf) is not leaf and toolset_id not in duplicates:
+                duplicates.append(toolset_id)
         if duplicates:
             raise ValueError(
                 f"durable=True needs a unique id on each toolset, but more than one toolset has the id "
@@ -826,13 +836,18 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # masked here as well because toolset wrappers a capability adds (get_wrapper_toolset,
         # as ToolLoggingCapability does) run below the capability hooks and would otherwise see
         # the unmasked result. The durable journal masks what it records on its own.
+        given_ids: _GivenIds = {}
+
+        def prepare(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:
+            return ensure_masked(_give_durable_ids(toolset, given_ids) if self.durable else toolset)
+
         if self.toolsets:
-            toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
+            toolsets: list[AbstractToolset] = [prepare(ts) for ts in self.toolsets]
             extra_kwargs["toolsets"] = toolsets
         elif extra_kwargs.get("toolsets"):
-            extra_kwargs["toolsets"] = [ensure_masked(ts) for ts in extra_kwargs["toolsets"]]
+            extra_kwargs["toolsets"] = [prepare(ts) for ts in extra_kwargs["toolsets"]]
         capabilities = [
-            _replace_capability_toolset(capability, ensure_masked)
+            _replace_capability_toolset(capability, prepare)
             for capability in self.capabilities or passed_through or []
         ]
         if self.durable:
@@ -898,15 +913,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 candidates.append(toolset)
         return candidates
 
-    def _running_toolsets(self) -> list[AbstractToolset[Any]]:
+    def _running_toolsets(self) -> list[AbstractToolset[Any] | ToolsetFunc[Any]]:
         """
-        Return the toolsets ``_build_agent`` hands the agent.
+        Return the toolsets ``_build_agent`` hands the agent, including functions that build one per run.
 
         Unlike ``_declared_toolsets``, ``agent_params["toolsets"]`` counts only when
         ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise.
         """
-        listed = self.toolsets or self.agent_params.get("toolsets") or []
-        candidates = [toolset for toolset in listed if isinstance(toolset, AbstractToolset)]
+        candidates = list(self.toolsets or self.agent_params.get("toolsets") or [])
         for capability in self._declared_capabilities:
             if (toolset := _resolve_capability_toolset(capability)) is not None:
                 candidates.append(toolset)

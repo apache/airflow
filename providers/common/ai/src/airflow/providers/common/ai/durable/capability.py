@@ -19,22 +19,25 @@
 from __future__ import annotations
 
 import base64
+import copy
 import dataclasses
+import re
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, TypeGuard, cast
 
 from pydantic_ai.durable_exec import (
     JSON_CODEC,
     BaseDurabilityCapability,
+    CallableOperationBackend,
     CapabilityOperationId,
     DurabilityCodec,
     DurabilityEngineSpec,
     DurableOperationId,
-    JournalCallableOperationBackend,
+    JournalOperationNamer,
     ModelRequestId,
     RoleBasedOperationConfig,
     ToolsetCallToolId,
@@ -49,7 +52,7 @@ from pydantic_ai.exceptions import (
 )
 from pydantic_ai.messages import ModelResponse, ToolReturn
 from pydantic_ai.tools import AgentDepsT
-from pydantic_ai.toolsets import DynamicToolset, FunctionToolset, ToolsetTool
+from pydantic_ai.toolsets import AbstractToolset, DynamicToolset, FunctionToolset, ToolsetTool
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_core import PydanticSerializationError
 
@@ -61,6 +64,7 @@ from airflow.providers.common.ai.exceptions import DurableJournalError, DurableT
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolsets import iter_toolsets
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import EventStreamHandler
@@ -74,7 +78,7 @@ if TYPE_CHECKING:
     from pydantic_ai.run import AgentRunResult
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import RunContext, ToolDefinition
-    from pydantic_ai.toolsets import AbstractToolset
+    from pydantic_ai.toolsets import ToolsetFunc
 
     from airflow.providers.common.ai.durable.journal import DurableRun, JournalStep, StepKind
 
@@ -95,6 +99,100 @@ except ImportError:  # the ``mcp`` extra is not installed
 else:
     DURABLE_UNIT_TOOLSETS = (FunctionToolset, DynamicToolset, MCPToolset)
 """Leaf toolsets pydantic-ai's durable backend runs as durable units; each needs a unique ``id``."""
+
+# Airflow imports a Dag file as a module named ``unusual_prefix_<sha1 of the file's path>_<file name>``
+# (``get_unique_dag_module_name`` in the shared ``module_loading`` library, which providers cannot import).
+_DAG_MODULE_PREFIX = re.compile(r"^unusual_prefix_[0-9a-f]{40}_")
+
+
+def _get_callable_toolset_id(function: object) -> str | None:
+    """
+    Return the id of a toolset that ``function`` builds per run: its module and qualified name.
+
+    The hash of the file's path that Airflow puts in a Dag file's module name is left out,
+    because the path can differ between workers and bundle versions. ``None`` for a callable
+    without a qualified name, such as a ``functools.partial``.
+    """
+    module = getattr(function, "__module__", None)
+    qualname = getattr(function, "__qualname__", None)
+    if not isinstance(module, str) or not isinstance(qualname, str):
+        return None
+    return f"{_DAG_MODULE_PREFIX.sub('', module)}.{qualname}"
+
+
+def _get_chosen_toolset_id(leaf: AbstractToolset[Any]) -> str | None:
+    """
+    Return the id pydantic-ai names a leaf toolset's durable steps after, or ``None`` when it has none.
+
+    An ``MCPToolset`` without an id derives one from its server's hostname, but durable steps
+    are only named after an id that was chosen for the toolset.
+    """
+    # Before ``_explicit_id`` (pydantic-ai 2.62) no toolset derived its id, so ``id`` is the chosen one.
+    return getattr(leaf, "_explicit_id", leaf.id)
+
+
+# The id ``_give_durable_ids`` gives the n-th ``FunctionToolset`` without one. The same agent gets the
+# same ids on every attempt, so its requests to the model match the recorded ones. The dunder prefix
+# keeps it apart from ids people choose. pydantic-ai keeps ids in angle brackets for roles it fills
+# itself (``<agent>``), and rejects a colon in a toolset id because it builds instruction ids from it.
+_ASSIGNED_ID_PREFIX = "__airflow_function_toolset_"
+
+
+def _assigned_toolset_id(number: int) -> str:
+    return f"{_ASSIGNED_ID_PREFIX}{number}"
+
+
+# Each leaf ``_give_durable_ids`` copied, keyed by ``id()``, with its copy. The leaf is kept so
+# that its ``id()`` cannot be reused by another object while the map is in use.
+_GivenIds: TypeAlias = "dict[int, tuple[AbstractToolset[Any], AbstractToolset[Any]]]"
+
+
+def _give_durable_ids(
+    toolset: AbstractToolset[Any] | ToolsetFunc[Any], given: _GivenIds
+) -> AbstractToolset[Any]:
+    """
+    Return ``toolset`` with an id on each leaf pydantic-ai runs as durable steps, where one can be given.
+
+    pydantic-ai runs a ``FunctionToolset`` or ``DynamicToolset`` as durable steps only when
+    it has an id. An id-less ``FunctionToolset`` gets one numbered in the order the toolsets
+    are given, which its step names leave out (a function tool's step is named after the
+    tool); a function that builds a toolset per run, or an id-less ``DynamicToolset``, gets
+    ``_get_callable_toolset_id``. A leaf that already has an id, and an ``MCPToolset``, are
+    left as they are. Leaves are copied, not changed, and ``given`` maps each leaf to its
+    copy so a toolset listed twice stays one toolset to pydantic-ai.
+    """
+    if not isinstance(toolset, AbstractToolset):
+        return DynamicToolset(toolset, id=_get_callable_toolset_id(toolset))
+    if not any(_lacks_id(leaf) for leaf in iter_toolsets(toolset)):
+        # Rebuilding wrappers via visit_and_replace breaks wrapper subclasses with their own __init__.
+        return toolset
+
+    def give(leaf: AbstractToolset[Any]) -> AbstractToolset[Any]:
+        if not _lacks_id(leaf):
+            return leaf
+        if (entry := given.get(id(leaf))) is None:
+            copied: AbstractToolset[Any]
+            if isinstance(leaf, DynamicToolset):
+                copied = DynamicToolset(
+                    leaf.toolset_func,
+                    per_run_step=leaf.per_run_step,
+                    id=_get_callable_toolset_id(leaf.toolset_func),
+                )
+            else:
+                numbered = sum(isinstance(other, FunctionToolset) for _, other in given.values())
+                function_toolset = copy.copy(leaf)
+                # FunctionToolset takes its id only in the constructor and keeps it here.
+                function_toolset._id = _assigned_toolset_id(numbered)
+                copied = function_toolset
+            entry = given[id(leaf)] = (leaf, copied)
+        return entry[1]
+
+    return toolset.visit_and_replace(give)
+
+
+def _lacks_id(leaf: AbstractToolset[Any]) -> TypeGuard[FunctionToolset[Any] | DynamicToolset[Any]]:
+    return isinstance(leaf, FunctionToolset | DynamicToolset) and leaf.id is None
+
 
 # Why a recorded step that matched is run live anyway: it was written by a version whose
 # types have changed since, so replaying it would fail on every retry.
@@ -294,6 +392,10 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
     Toolsets the agent calls through pydantic-ai's durable backend need a unique ``id``
     (``FunctionToolset(id=...)``, ``MCPToolset(..., id=...)``), as do capabilities that
     contribute ``@durable_operation`` methods; the ids name the steps in the journal.
+    ``AgentOperator`` and ``@task.agent`` fill in the ids of a ``FunctionToolset`` or a
+    function that builds a toolset passed in ``toolsets`` or ``agent_params["toolsets"]``,
+    and of a ``FunctionToolset`` held directly by a ``Toolset`` capability
+    (:ref:`durable-toolset-ids`); in a plain ``@task`` you set them.
 
     :param models: Extra models the run may switch to, keyed by id; see pydantic-ai's
         ``BaseDurabilityCapability``.
@@ -399,12 +501,37 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
         return model
 
 
-class _AirflowOperationBackend(JournalCallableOperationBackend[_StepMode]):
+class _AirflowOperationNamer(JournalOperationNamer):
+    """
+    pydantic-ai's journal step names, without an id Airflow gave a function toolset.
+
+    A function tool's step name ends in the tool's name, so the id Airflow numbered the
+    toolset by adds nothing to it and would only make the name harder to read in the task
+    log. An id the Dag author chose stays in the name, so steps recorded under it before
+    this naming existed replay as they did. Only a tool call is journaled under its name:
+    ``execute`` runs argument validation live.
+    """
+
+    def operation_name(self, operation_id: DurableOperationId) -> str:
+        name = super().operation_name(operation_id)
+        if (
+            isinstance(operation_id, ToolsetCallToolId)
+            and operation_id.toolset_kind == "function"
+            and operation_id.toolset_id.startswith(_ASSIGNED_ID_PREFIX)
+        ):
+            return name.replace(f"__{operation_id.toolset_id}", "", 1)
+        return name
+
+
+class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
     """Runs each durable operation through the task's durable journal."""
 
     def __init__(self, durability: AirflowDurability[Any]) -> None:
         super().__init__(
-            agent_name=durability.name, default_model_id=durability.default_model_id, config=_STEP_MODES
+            namer=_AirflowOperationNamer(
+                durability.name, default_model_id=durability.default_model_id or "default"
+            ),
+            config=_STEP_MODES,
         )
         self._durability = durability
         # How pydantic-ai decodes each operation's result, by operation.
