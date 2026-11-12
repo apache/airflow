@@ -298,8 +298,8 @@ When a task is dynamically mapped (``task.expand(...)``), each map index has its
 .. warning::
 
     The map index is positional, not an identity: index ``N`` names whatever item happens to sit at
-    position ``N`` in the expanded input, and :doc:`the order of expansion is not guaranteed
-    </authoring-and-scheduling/dynamic-task-mapping>`. If the upstream list changes between attempts
+    position ``N`` in the expanded input, and the upstream task may return its items in a different
+    order on a rerun. If the upstream list changes between attempts
     (an insertion, a deletion, a reordering), index ``N`` names a different item than it did before.
 
     Clearing a task instance discards its state by default, so the next attempt starts over and this
@@ -307,7 +307,7 @@ When a task is dynamically mapped (``task.expand(...)``), each map index has its
     ``keep_task_state``, or use one of the clear paths that still keep state unconditionally (see
     :doc:`resumable-tasks`), index ``N`` reads the state written by whatever item was at index ``N``
     on the previous attempt. Nothing detects the mismatch and the task still reports success. In the
-    external-job pattern this means reconnecting to a job submitted for a different item.
+    `External job resumption`_ pattern this means reconnecting to a job submitted for a different item.
 
     Only keep task state across a clear of a mapped task when the expanded input is unchanged.
 
