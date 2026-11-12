@@ -17,11 +17,14 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
+import threading
 from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 from unittest import mock
 
+import httpx2
 import pytest
 from pydantic import BaseModel, TypeAdapter
 from structlog.typing import FilteringBoundLogger
@@ -29,6 +32,9 @@ from structlog.typing import FilteringBoundLogger
 pytest.importorskip("anthropic")
 pytest.importorskip("google.genai")
 
+from anthropic._decoders.jsonl import AsyncJSONLDecoder
+from anthropic.resources.beta.messages.batches import AsyncBatches as AnthropicBatches
+from anthropic.types.beta.messages import BetaMessageBatchIndividualResponse
 from google.genai.batches import AsyncBatches
 from google.genai.types import BatchJob, JobState
 from pydantic_ai.exceptions import ModelHTTPError, UserError
@@ -53,6 +59,7 @@ from pydantic_ai.providers.google import GoogleProvider
 from airflow.providers.common.ai.batch import pydantic_ai_backend as backend_module
 from airflow.providers.common.ai.batch.output_schema import build_output_spec
 from airflow.providers.common.ai.batch.pydantic_ai_backend import (
+    _RESULT_BUFFER,
     AnthropicBatchAdapter,
     GoogleBatchAdapter,
     PydanticAIBatchAdapter,
@@ -239,7 +246,10 @@ class TestExistingBatchesUseTheModelTheyWereSubmittedWith:
             model_factory=factory,
         )
 
-        getattr(adapter, operation)(submitted.batch_id)
+        outcome = getattr(adapter, operation)(submitted.batch_id)
+        if operation == "iter_results":
+            # It reads lazily, so it does nothing until it is iterated.
+            list(outcome)
 
         assert asked == ["anthropic:claude-haiku-4-5"]
 
@@ -338,7 +348,7 @@ class TestInMemoryBatchRoundTrip:
         with mock.patch.object(type(recorder.model), "batch_status", autospec=True, return_value=in_progress):
             assert adapter.get_batch(submitted.batch_id).status == "in_progress"
             with pytest.raises(LLMBatchJobError, match="has not ended"):
-                adapter.iter_results(submitted.batch_id)
+                list(adapter.iter_results(submitted.batch_id))
 
     def test_the_system_prompt_and_settings_reach_the_model(self):
         recorder = _Recorder()
@@ -437,8 +447,9 @@ class TestInMemoryBatchRoundTrip:
         recorder = _Recorder()
         adapter = _adapter(recorder.model)
         bad = BatchResult(custom_id="nodash", status="succeeded", body="{}")
+        parameters = adapter._output_parameters(recorder.model, build_output_spec(str))
 
-        assert list(adapter._decode_all(recorder.model, [bad], "b")) == []
+        assert adapter._decode_or_skip(recorder.model, bad, parameters, "b") is None
 
     @pytest.mark.parametrize(
         ("status", "expected"), [("expired", "expired"), ("canceled", "cancelled"), ("errored", "errored")]
@@ -787,6 +798,136 @@ class TestAnthropicLegacyBatches:
             pytest.raises(LLMBatchStateReadError, match="msgbatch_old.*static credentials"),
         ):
             adapter.get_batch("msgbatch_old")
+
+
+def _anthropic_line(index: int, kind: str = "succeeded") -> bytes:
+    """One line of Anthropic's results file, as the API sends it."""
+    results = {
+        "succeeded": {
+            "type": "succeeded",
+            "message": {
+                "id": f"msg_{index}",
+                "type": "message",
+                "role": "assistant",
+                "model": "claude-sonnet-4-5",
+                "content": [{"type": "text", "text": f"answer {index}"}],
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 3, "output_tokens": 2},
+            },
+        },
+        "errored": {
+            "type": "errored",
+            "error": {
+                "type": "error",
+                "error": {"type": "rate_limit_error", "message": "slow down"},
+                "request_id": "req_1",
+            },
+        },
+        "canceled": {"type": "canceled"},
+        "expired": {"type": "expired"},
+    }
+    return (json.dumps({"custom_id": f"{KEY}-{index}", "result": results[kind]}) + "\n").encode()
+
+
+def _row_view(row):
+    """Everything a row carries except the response's own timestamp, which differs per decode."""
+    return (
+        row.custom_id,
+        row.index,
+        row.provider_status,
+        row.model,
+        row.usage,
+        row.finish_reason,
+        row.error,
+        None if row.raw is None else row.raw.parts,
+    )
+
+
+class TestAnthropicResultsStream:
+    """Anthropic's results file is read one line at a time instead of as one list per batch."""
+
+    @pytest.fixture
+    def adapter(self):
+        model = _claude()
+        handle = _submitted_on(
+            AnthropicBatchAdapter, model, model_name="claude-sonnet-4-5", provider_name="anthropic"
+        )
+        ended = dataclasses.replace(TypeAdapter(Batch).validate_json(handle), status="ended")
+        adapter = AnthropicBatchAdapter(model_id=CLAUDE, batch_handle=handle, model_factory=lambda _id: model)
+        with mock.patch.object(AnthropicModel, "batch_status", autospec=True, return_value=ended):
+            yield adapter, model, ended
+
+    @staticmethod
+    def _serve(chunks, response=None):
+        """Patch the SDK's results call to return a fresh decoder over ``chunks()`` each time."""
+        response = response or mock.create_autospec(httpx2.Response, instance=True)
+
+        def results(self, message_batch_id, **kwargs):
+            return AsyncJSONLDecoder(
+                raw_iterator=chunks(), line_type=BetaMessageBatchIndividualResponse, http_response=response
+            )
+
+        return mock.patch.object(AnthropicBatches, "results", autospec=True, side_effect=results)
+
+    def test_the_first_row_arrives_before_the_results_file_has_been_read_to_the_end(self, adapter):
+        adapter, _, _ = adapter
+
+        async def chunks():
+            yield _anthropic_line(0)
+            raise RuntimeError("the second line has not arrived")
+
+        with self._serve(chunks):
+            rows = adapter.iter_results("msgbatch_1")
+            first = next(rows)
+
+            assert (first.index, first.provider_status) == (0, "success")
+            with pytest.raises(RuntimeError, match="second line"):
+                next(rows)
+
+    def test_the_streamed_rows_match_pydantic_ais_own_collection(self, adapter):
+        kinds = ["succeeded", "errored", "canceled", "expired"]
+
+        async def chunks():
+            for index, kind in enumerate(kinds):
+                yield _anthropic_line(index, kind)
+
+        adapter, model, ended = adapter
+        with self._serve(chunks):
+            reference = asyncio.run(model.batch_results(ended))
+            parameters = adapter._output_parameters(model, build_output_spec(str))
+            expected = [adapter._decode_one(model, result, parameters) for result in reference]
+
+            with mock.patch.object(AnthropicModel, "batch_results", autospec=True) as collect_all:
+                rows = list(adapter.iter_results("msgbatch_1"))
+
+        collect_all.assert_not_called()
+        assert sorted(map(_row_view, rows)) == sorted(map(_row_view, expected))
+        assert [(row.index, row.provider_status) for row in sorted(rows, key=lambda r: r.index)] == [
+            (0, "success"),
+            (1, "errored"),
+            (2, "cancelled"),
+            (3, "expired"),
+        ]
+
+    def test_closing_early_stops_the_producer_and_the_download(self, adapter):
+        adapter, _, _ = adapter
+        pulled: list[int] = []
+        response = mock.create_autospec(httpx2.Response, instance=True)
+
+        async def chunks():
+            for index in range(_RESULT_BUFFER * 4):
+                pulled.append(index)
+                yield _anthropic_line(index)
+
+        with self._serve(chunks, response):
+            rows = adapter.iter_results("msgbatch_1")
+            next(rows)
+            rows.close()
+
+        response.aclose.assert_awaited_once()
+        assert len(pulled) <= _RESULT_BUFFER + 3
+        assert not [t for t in threading.enumerate() if t.name == "llm-batch-results"]
 
 
 def _ended(state: str | None, *, status: BatchStatus = "ended", count: int = 2) -> Batch:

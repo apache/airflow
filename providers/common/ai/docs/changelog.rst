@@ -101,9 +101,10 @@ Changelog
     version of this provider submitted and is still running is re-attached; its state file is left as it is. An
     outdated batch from an earlier version that was recorded under a different connection cannot be
     cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
-  - Results are read as one list per batch, so landing a batch holds all of its response bodies in
-    memory at once rather than streaming them. Rows are still written one at a time. Size workers for
-    your largest batch, or split large inputs across mapped task instances with ``.expand()``.
+  - Anthropic results are streamed, so landing a batch holds only a small buffer of responses in
+    memory. Gemini's SDK downloads a batch's results in one call, so a Gemini batch holds all of its
+    response bodies in memory at once. Rows are still written one at a time. For a large Gemini batch,
+    size workers for it or split the input across mapped task instances with ``.expand()``.
   - A task that was deferred by an earlier version of this provider and is still waiting when you
     upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
     re-attaches to the batch.

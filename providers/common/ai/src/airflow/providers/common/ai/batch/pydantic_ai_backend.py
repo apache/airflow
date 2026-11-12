@@ -36,8 +36,10 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import functools
-from collections.abc import AsyncIterator, Callable, Coroutine, Iterator, Mapping
-from contextlib import AsyncExitStack, asynccontextmanager
+import queue
+import threading
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine, Iterator, Mapping
+from contextlib import AsyncExitStack, aclosing, asynccontextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast
 
@@ -140,6 +142,9 @@ _UNRUN_STATUS: dict[str, Literal["cancelled", "expired"]] = {"canceled": "cancel
 #: Gemini documents no request limit, and the ABC wants an int.
 _NO_REQUEST_LIMIT = 2**63 - 1
 
+#: Decoded rows a batch's results may run ahead of the task that reads them.
+_RESULT_BUFFER = 64
+
 
 def _run(coro: Coroutine[Any, Any, T]) -> T:
     """
@@ -158,6 +163,58 @@ def _run(coro: Coroutine[Any, Any, T]) -> T:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             return executor.submit(asyncio.run, coro).result()
     return asyncio.run(coro)
+
+
+def _stream(source: AsyncGenerator[T, None]) -> Iterator[T]:
+    """
+    Read an async generator from synchronous code without collecting it first.
+
+    The generator runs on its own event loop in a helper thread and hands items over through a queue of
+    :data:`_RESULT_BUFFER` items, so a slow reader holds the download back instead of buffering it. An
+    error from the generator is raised at the reader. Closing the iterator early (or dropping it) stops the
+    helper thread, which closes the generator and so anything it holds open, and waits for it to finish.
+    """
+    items: queue.Queue[
+        tuple[Literal["item"], T] | tuple[Literal["error"], Exception] | tuple[Literal["end"], None]
+    ]
+    items = queue.Queue(maxsize=_RESULT_BUFFER)
+    closed = threading.Event()
+
+    def put(message: tuple[Any, Any]) -> bool:
+        # A bounded put that gives up once the reader is gone, so a full queue never strands the thread.
+        while not closed.is_set():
+            try:
+                items.put(message, timeout=0.1)
+                return True
+            except queue.Full:
+                continue
+        return False
+
+    async def produce() -> None:
+        try:
+            async for item in source:
+                if not put(("item", item)):
+                    return
+            put(("end", None))
+        except Exception as e:
+            put(("error", e))
+        finally:
+            await source.aclose()
+
+    thread = threading.Thread(target=asyncio.run, args=(produce(),), name="llm-batch-results", daemon=True)
+    thread.start()
+    try:
+        while True:
+            message = items.get()
+            if message[0] == "item":
+                yield message[1]
+            elif message[0] == "error":
+                raise message[1]
+            else:
+                return
+    finally:
+        closed.set()
+        thread.join()
 
 
 @functools.cache
@@ -605,33 +662,48 @@ class PydanticAIBatchAdapter(BatchAdapter):
         """Return the results of an ended batch; a provider that can end a job with no results file overrides it."""
         return await model.batch_results(batch)
 
-    def iter_results(self, batch_id: str) -> Iterator[RawResultItem]:
-        async def fetch() -> tuple[Model, list[BatchResult]]:
-            async with self._existing(batch_id) as (model, stored):
-                # ``batch_results`` refuses a handle that has not ended, and the stored one is from submit time.
-                batch = await model.batch_status(stored)
-                if batch.status != "ended":
-                    raise LLMBatchJobError(f"Batch {batch_id!r} has not ended (status {batch.status!r}).")
-                return model, await self._collect(model, batch)
+    async def _stream_results(self, model: Model, batch: Batch) -> AsyncGenerator[BatchResult, None]:
+        """
+        Yield the results of an ended batch one at a time.
 
-        model, results = _run(fetch())
-        return self._decode_all(model, results, batch_id)
-
-    def _decode_all(self, model: Model, results: list[BatchResult], batch_id: str) -> Iterator[RawResultItem]:
-        parameters = self._output_parameters(model, self._output_spec)
-        # Popping frees each result as it is decoded; the order does not matter, the merge is by index.
+        The default collects them as one list with ``batch_results``, which is all a provider whose SDK
+        downloads the results in one call can do (Gemini). A provider that can read its results file as a
+        stream overrides this.
+        """
+        results = await self._collect(model, batch)
+        # Popping frees each result once it is handed on; the order does not matter, the merge is by index.
         while results:
-            result = results.pop()
-            try:
-                yield self._decode_one(model, result, parameters)
-            except Exception as e:
-                # One malformed item must not abort the whole batch; the merge counts the index as missing.
-                log.warning(
-                    "Skipping unparsable result item for batch",
-                    batch_id=batch_id,
-                    custom_id=result.custom_id,
-                    error=str(e),
-                )
+            yield results.pop()
+
+    async def _read_results(self, batch_id: str) -> AsyncGenerator[RawResultItem, None]:
+        async with self._existing(batch_id) as (model, stored):
+            # ``batch_results`` refuses a handle that has not ended, and the stored one is from submit time.
+            batch = await model.batch_status(stored)
+            if batch.status != "ended":
+                raise LLMBatchJobError(f"Batch {batch_id!r} has not ended (status {batch.status!r}).")
+            parameters = self._output_parameters(model, self._output_spec)
+            async with aclosing(self._stream_results(model, batch)) as results:
+                async for result in results:
+                    if (row := self._decode_or_skip(model, result, parameters, batch_id)) is not None:
+                        yield row
+
+    def iter_results(self, batch_id: str) -> Iterator[RawResultItem]:
+        return _stream(self._read_results(batch_id))
+
+    def _decode_or_skip(
+        self, model: Model, result: BatchResult, parameters: ModelRequestParameters, batch_id: str
+    ) -> RawResultItem | None:
+        try:
+            return self._decode_one(model, result, parameters)
+        except Exception as e:
+            # One malformed item must not abort the whole batch; the merge counts the index as missing.
+            log.warning(
+                "Skipping unparsable result item for batch",
+                batch_id=batch_id,
+                custom_id=result.custom_id,
+                error=str(e),
+            )
+            return None
 
     @staticmethod
     def _decode_one(model: Model, result: BatchResult, parameters: ModelRequestParameters) -> RawResultItem:
@@ -702,6 +774,28 @@ class AnthropicBatchAdapter(PydanticAIBatchAdapter):
         from pydantic_ai.models.anthropic import AnthropicModelSettings
 
         return AnthropicModelSettings
+
+    async def _stream_results(self, model: Model, batch: Batch) -> AsyncGenerator[BatchResult, None]:
+        # Heavy third-party SDK: importing the Anthropic model module imports ``anthropic``.
+        from anthropic import AsyncAnthropic
+        from pydantic_ai.models.anthropic import AnthropicModel
+
+        client = model.client if isinstance(model, AnthropicModel) else None
+        if not isinstance(client, AsyncAnthropic):
+            # Not a client pydantic-ai batches through (Bedrock, Vertex): its collect raises the right error.
+            async for collected in super()._stream_results(model, batch):
+                yield collected
+            return
+        # ``batch_status`` has already checked the credentials and the group, as ``batch_results`` would.
+        stream = await client.beta.messages.batches.results(batch.id)
+        try:
+            async for item in stream:
+                result = item.result
+                # Mirrors the loop in pydantic-ai's Anthropic ``batch_results``, one result at a time.
+                body = result.model_dump_json() if result.type in ("succeeded", "errored") else None
+                yield BatchResult(custom_id=item.custom_id, status=result.type, body=body)
+        finally:
+            await stream.close()
 
     async def _unrecorded_batch(self, model: Model, batch_id: str) -> Batch:
         """
