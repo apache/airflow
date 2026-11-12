@@ -156,6 +156,12 @@ def get_task_defaults() -> dict[str, Any]:
     return {key: field["default"] for key, field in fields.items() if field.get("default") is not None}
 
 
+def get_dag_defaults() -> dict[str, Any]:
+    """Map each Dag field with a schema default to that default."""
+    fields = json.loads(SCHEMA.read_text())["definitions"]["dag"]["properties"]
+    return {key: field["default"] for key, field in fields.items() if field.get("default") is not None}
+
+
 def normalize_numbers(value: Any) -> Any:
     """
     Read a JSON value with one number type, and a bool that is not a number.
@@ -206,23 +212,24 @@ def compare_fields(
     """
     Compare two serialized objects key by key.
 
-    A key the SDK leaves out is fine when Python wrote its schema default. Python keeps such a value
-    when its ``client_defaults`` table disagrees with the schema, a table a language SDK is never sent,
-    and Airflow reads a missing field as its default anyway.
+    A key either side leaves out is fine when the value the other side writes equals the schema
+    default. Python may omit a value matching its ``client_defaults`` table, and native SDKs now preserve
+    explicitly set task values even when they equal the schema default.
     """
     problems = []
     for key in sorted((python.keys() | sdk.keys()) - not_compared):
         if key in python and key in sdk:
             problems.extend(find_differences(key, python[key], sdk[key]))
         elif key in sdk:
-            problems.append(f"{key} is {sdk[key]!r}, which Python does not write")
+            if key not in defaults or not is_same_json(sdk[key], defaults[key]):
+                problems.append(f"{key} is {sdk[key]!r}, which Python does not write")
         elif key not in defaults or not is_same_json(python[key], defaults[key]):
             problems.append(f"{key} is missing, Python writes {python[key]!r}")
     return problems
 
 
-def compare_dag(python: dict[str, Any], sdk: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
-    problems = compare_fields(python, sdk, DAG_KEYS_NOT_COMPARED | {"tasks"}, {})
+def compare_dag(python: dict[str, Any], sdk: dict[str, Any], task_defaults: dict[str, Any]) -> list[str]:
+    problems = compare_fields(python, sdk, DAG_KEYS_NOT_COMPARED | {"tasks"}, get_dag_defaults())
     python_ids = [task["__var"]["task_id"] for task in python["tasks"]]
     sdk_ids = [task["__var"]["task_id"] for task in sdk["tasks"]]
     if sdk_ids != python_ids:
@@ -234,7 +241,7 @@ def compare_dag(python: dict[str, Any], sdk: dict[str, Any], defaults: dict[str,
         problems.extend(
             f"task {task_id}: {problem}"
             for problem in compare_fields(
-                python_task["__var"], sdk_task["__var"], TASK_KEYS_NOT_COMPARED, defaults
+                python_task["__var"], sdk_task["__var"], TASK_KEYS_NOT_COMPARED, task_defaults
             )
         )
     return problems
