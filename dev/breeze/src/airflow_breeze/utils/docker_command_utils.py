@@ -1188,6 +1188,7 @@ def find_other_worktree_projects(current_worktree: str) -> dict[str, list[str]]:
             if (
                 labels.get("org.apache.airflow.breeze") != "true"
                 or worktree in ("", current_worktree)
+                or labels.get("com.docker.compose.volume") == BUILD_CACHE_VOLUME
                 or _belongs_to_deleted_worktree(worktree, labels.get("org.apache.airflow.breeze.host", ""))
             ):
                 continue

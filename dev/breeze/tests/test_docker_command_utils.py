@@ -635,6 +635,13 @@ def test_find_other_worktree_projects_lists_existing_worktrees_only(
         {"Name": "other-tests-db", "Labels": labels("breeze-other-2-tests", other)},
         {"Name": "remote-db", "Labels": labels("breeze-remote-4", remote, host="other-host")},
         {"Name": "not-owned", "Labels": labels("breeze-not-owned", other, owned="false")},
+        {
+            "Name": "cache-only",
+            "Labels": {
+                **labels("breeze-cache-only-5", make_worktree(tmp_path / "cache-only")),
+                "com.docker.compose.volume": BUILD_CACHE_VOLUME,
+            },
+        },
     ]
 
     assert docker_command_utils.find_other_worktree_projects(str(current)) == {
@@ -775,7 +782,7 @@ def test_down_keeps_build_cache_volume_until_asked(
     docker_resources, tmp_path, preserve_volumes, cleanup_build_cache, expected
 ):
     resources, run = docker_resources
-    cache = {"com.docker.compose.project": "breeze", "com.docker.compose.volume": "airflow-cache-volume"}
+    cache = {"com.docker.compose.project": "breeze", "com.docker.compose.volume": BUILD_CACHE_VOLUME}
     resources["volume"] = [
         {
             "Name": "database",
