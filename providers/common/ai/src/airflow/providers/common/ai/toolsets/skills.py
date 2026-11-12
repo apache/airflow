@@ -42,7 +42,7 @@ from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 
 from airflow.providers.common.ai.skills import SkillSource, _materialize_skills, _SkillsLocation
 from airflow.providers.common.ai.utils.logging import SKILLS_XCOM_KEY
-from airflow.providers.common.ai.utils.toolset_base import validate_max_retries
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import get_current_context
 
 # pydantic-ai-skills 2.0 removed SkillsToolset, leaving only SkillsCapability, so the
@@ -213,7 +213,9 @@ class AgentSkillsToolset(AbstractToolset):
     async def __aexit__(self, *args: Any) -> bool | None:
         try:
             if self._inner is not None:
-                self._push_skills_xcom()
+                # The XCom calls block on the supervisor, and an async task shares its event
+                # loop with this run.
+                await AirflowToolset.run_blocking(self._push_skills_xcom)
                 return await self._inner.__aexit__(*args)
             return None
         finally:
