@@ -175,11 +175,12 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
             # Only the first one is importable, so it is the only one whose entry points count.
             # No public API returns the name without parsing METADATA. _normalized_name is private,
             # but Python's own importlib.metadata.entry_points() deduplicates on it too, and it comes
-            # from the .dist-info directory name. AttributeError is not caught, so a Python without
-            # it fails loudly here.
+            # from the .dist-info directory name. When the name cannot be read, the error type
+            # depends on the Python and importlib-metadata version, so any error only skips
+            # deduplication.
             try:
                 name = dist._normalized_name  # type: ignore[attr-defined]
-            except (KeyError, TypeError):
+            except Exception:
                 name = None
             if name:
                 if name in seen_dist_names:

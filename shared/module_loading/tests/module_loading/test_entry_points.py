@@ -118,9 +118,11 @@ def test_entry_points_with_dist_deduplicates_without_reading_metadata():
     metadata_property.assert_not_called()
 
 
-# When the directory name gives no name, _normalized_name reads METADATA instead: a missing file
-# raises TypeError, a file without a Name field raises KeyError.
-@pytest.mark.parametrize("error", [TypeError, KeyError], ids=["no-metadata", "no-name"])
+@pytest.mark.parametrize(
+    "error",
+    [TypeError, KeyError, FileNotFoundError, AttributeError],
+    ids=["stdlib", "importlib-metadata-8", "importlib-metadata-10-no-file", "no-attribute"],
+)
 def test_entry_points_with_dist_without_name_are_not_deduplicated(error):
     distributions = [
         MockDistribution("unnamed", [metadata.EntryPoint("a", "b", "group_x")]),
