@@ -144,11 +144,11 @@ function literalValue(value: unknown): JsonValue {
 function checkBindable(binding: TaskArgBinding): void {
   const { name } = binding;
   if (binding.kind === "xcom") {
-    checkUnmapped(binding);
+    checkSupportedFields(binding);
     return;
   }
   if (binding.kind === "literal") {
-    checkUnmapped(binding);
+    checkSupportedFields(binding);
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
     return;
   }
@@ -174,7 +174,7 @@ const UNSUPPORTED_FIELDS = [
 ] as const;
 
 /** Refuse a binding carrying a field that ignoring would bind to the wrong value. */
-function checkUnmapped(binding: XComArgBinding | LiteralArgBinding): void {
+function checkSupportedFields(binding: XComArgBinding | LiteralArgBinding): void {
   const fields: Partial<Record<(typeof UNSUPPORTED_FIELDS)[number], unknown>> = binding;
   for (const field of UNSUPPORTED_FIELDS) {
     const value = fields[field];
