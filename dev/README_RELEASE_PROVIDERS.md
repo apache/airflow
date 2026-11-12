@@ -1132,8 +1132,9 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
-There is also a manual way of running the workflows (see at the end of the document, this should normally
-not be needed unless there is some problem with workflow automation above)
+You can also run each workflow by hand from the GitHub UI, as described in
+[Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
+This should normally not be needed unless there is some problem with the workflow automation above.
 
 ## Prepare issue in GitHub to keep status of testing
 
@@ -2176,7 +2177,7 @@ If the wave releases a provider for the first time, open the `apache/airflow-sit
 command fails otherwise, and lists the PR to merge when it completes - see
 [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers).
 
-If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
+If you need to exclude some providers from the documentation you need to add `--exclude-docs` flag
 with space separated list of excluded providers.
 
 ```shell script
@@ -2202,8 +2203,9 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
-There is also a manual way of running the workflows (see at the end of the document, this should normally
-not be needed unless there is some problem with workflow automation above)
+You can also run each workflow by hand from the GitHub UI, as described in
+[Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
+This should normally not be needed unless there is some problem with the workflow automation above.
 
 > [!NOTE]
 > The **Provider Registry** at `airflow.apache.org/registry/` is rebuilt automatically as part of the
