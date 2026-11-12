@@ -80,14 +80,17 @@ _PER_MAP_INDEX_FIELDS = ("map_index", "element_index", "apply_map", "kwarg", "fa
 def _check_bindable(binding: TaskArgBinding) -> None:
     root = binding.root
     if not isinstance(root, LiteralArgBinding | XComArgBinding):
-        raise ValueError(
-            f"Task argument {root.name!r} has binding kind {root.kind!r}, which this Task SDK cannot bind yet"
-        )
+        raise _mapped_task_not_implemented(root.name, f"binding kind {root.kind!r}")
     for field in _PER_MAP_INDEX_FIELDS:
         if (value := getattr(root, field, None)) is not None and value is not False:
-            raise ValueError(
-                f"Task argument {root.name!r} has {field} set, which this Task SDK cannot bind yet"
-            )
+            raise _mapped_task_not_implemented(root.name, field)
+
+
+def _mapped_task_not_implemented(name: str, what: str) -> NotImplementedError:
+    return NotImplementedError(
+        f"Task argument {name!r}: {what} needs mapped task support, which the stub TaskHandler "
+        "does not implement yet"
+    )
 
 
 def call_handler(
