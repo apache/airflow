@@ -57,8 +57,14 @@ def _bind_arguments(
     keyword consumer can leave them unclaimed. Set false to bind them explicitly.
 
     ``None`` (an argless call) yields nothing.
+
+    :raises ValueError: if a binding needs the per-map-index resolution this binder does not do yet,
+        checked for every binding before any XCom is pulled.
     """
-    for binding in arg_bindings or ():
+    bindings = arg_bindings or []
+    for binding in bindings:
+        _check_bindable(binding)
+    for binding in bindings:
         match binding.root:
             case LiteralArgBinding(from_default=True) if skip_defaults:
                 continue
@@ -66,6 +72,25 @@ def _bind_arguments(
                 yield name, value
             case XComArgBinding(name=name, task_id=task_id):
                 yield name, xcom_resolver(task_id, BaseXCom.XCOM_RETURN_KEY)
+
+
+_PER_MAP_INDEX_FIELDS = ("map_index", "element_index", "apply_map", "kwarg", "fallback")
+
+
+def _check_bindable(binding: TaskArgBinding) -> None:
+    root = binding.root
+    if not isinstance(root, LiteralArgBinding | XComArgBinding):
+        raise _mapped_task_not_implemented(root.name, f"binding kind {root.kind!r}")
+    for field in _PER_MAP_INDEX_FIELDS:
+        if (value := getattr(root, field, None)) is not None and value is not False:
+            raise _mapped_task_not_implemented(root.name, field)
+
+
+def _mapped_task_not_implemented(name: str, what: str) -> NotImplementedError:
+    return NotImplementedError(
+        f"Task argument {name!r}: {what} needs mapped task support, which the stub TaskHandler "
+        "does not implement yet"
+    )
 
 
 def call_handler(

@@ -1,0 +1,18 @@
+Mapped ``@task.stub`` tasks now pass their arguments to the Lang SDK runtime
+
+A mapped ``@task.stub`` task (``.expand()`` or ``.expand_kwargs()``) now gets its arguments for each map index,
+so its arguments are validated when the Dag is parsed, like those of an unmapped stub task. Before, a mapped stub
+task's arguments were ignored, so a Dag whose mapped stub task's arguments cannot be passed to the runtime now fails
+to import. For example, when the mapped stub task:
+
+* declares ``*args`` or ``**kwargs``, or a parameter named after an Airflow context key such as ``ti``;
+* is called with arguments that do not bind to its signature, such as a missing parameter or an unknown
+  ``expand_kwargs()`` key, or an ``expand_kwargs()`` key that ``partial()`` already sets while ``strict=True``;
+* expands over or passes a value that is not JSON-serializable, or a literal dict as an expand value;
+* expands over a ``map()`` inside a ``zip()`` or ``concat()``, or a ``zip()`` inside a ``zip()``, or passes a whole
+  ``map()``, ``zip()`` or ``concat()`` result through ``partial()``;
+* uses a mapped task's whole output as an ``expand_kwargs()`` item, or as a ``partial()`` value with
+  ``strict=False`` and mappings read from an upstream output.
+
+The import error names the task, the parameter and the fix. In most cases, declare only data parameters, pass JSON
+values, and expand over a list of ``[key, value]`` pairs instead of a dict.

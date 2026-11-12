@@ -25,7 +25,7 @@ from airflow.exceptions import SerializationError
 from airflow.providers.common.compat.sdk import DAG, task_group
 from airflow.providers.standard.decorators.stub import stub
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS, AIRFLOW_V_3_5_PLUS
 
 
 def _to_dict(dag):
@@ -276,26 +276,46 @@ class TestStubTaskflowArgs:
         with pytest.raises(SerializationError, match="nested inside"):
             _to_dict(dag)
 
-    def test_mapped_xcom_arg_rejected(self):
-        with DAG(dag_id="d") as dag:
-            extracted = stub(fn_extract)()
-            stub(fn_transform)("uk", extracted.map(lambda v: v))
-
-        with pytest.raises(SerializationError, match="only direct upstream task outputs"):
-            _to_dict(dag)
-
-    def test_mapped_upstream_aggregated_output_rejected(self):
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
+    def test_mapped_upstream_output_binds_as_sequence(self):
         def fn_produce(n: int): ...
 
         with DAG(dag_id="d") as dag:
             vals = stub(fn_produce).expand(n=[1, 2])
             stub(fn_transform)("uk", vals)
 
-        with pytest.raises(SerializationError, match="aggregated output of the mapped task"):
+        assert _round_trip(dag).task_dict["fn_transform"].arg_bindings[1] == {
+            "name": "extracted",
+            "value_schema": {"type": "object", "additionalProperties": True},
+            "kind": "sequence",
+            "task_id": "fn_produce",
+        }
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
+    @pytest.mark.parametrize(
+        "make_value",
+        [
+            pytest.param(lambda out: out.map(str), id="map"),
+            pytest.param(lambda out: out.zip(out), id="zip"),
+            pytest.param(lambda out: out.concat(out), id="concat"),
+        ],
+    )
+    def test_whole_map_zip_concat_result_rejected(self, make_value):
+        with DAG(dag_id="d") as dag:
+            stub(fn_transform)("uk", make_value(stub(fn_extract)()))
+
+        with pytest.raises(SerializationError, match="whole map"):
             _to_dict(dag)
 
-    def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
-        """Mapped stubs capture no spec: their call args keep the legacy ignored behavior for now."""
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
+    def test_expand_builds_mapped_stub_with_param_bindings(self):
+        """A mapped stub's bindings are all ``param`` entries: values resolve per map index."""
         with DAG(dag_id="d") as dag:
             result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
         # op_kwargs_expand_input/partial_kwargs (not is_mapped) so the assertions also
@@ -306,13 +326,18 @@ class TestStubTaskflowArgs:
         }
         assert "_arg_bindings" not in result.operator.partial_kwargs
 
-        # The wrapping MappedOperator carries the is_stub marker too, but has no op_args/op_kwargs
-        # to bind against, so it serializes cleanly with no materialized spec of its own.
         round_tripped = _round_trip(dag).task_dict["fn_transform"]
         assert round_tripped.is_stub is True
-        assert round_tripped.arg_bindings is None
+        assert [(binding["name"], binding["kind"]) for binding in round_tripped.arg_bindings] == [
+            ("country", "param"),
+            ("extracted", "param"),
+            ("retries_num", "param"),
+        ]
 
-    def test_stub_with_args_inside_mapped_task_group_rejected(self):
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_5_PLUS, reason="mapped stub-task arg bindings were added in Airflow 3.5"
+    )
+    def test_stub_with_args_inside_mapped_task_group_captures_bindings(self):
         @task_group
         def group(n):
             stub(fn_transform)("uk", {})
@@ -320,8 +345,12 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d") as dag:
             group.expand(n=[1, 2])
 
-        with pytest.raises(SerializationError, match="mapped task group"):
-            _to_dict(dag)
+        encoded = _to_dict(dag)["dag"]["tasks"][0]["__var"]
+        assert [(binding["name"], binding["kind"]) for binding in encoded["_arg_bindings"]] == [
+            ("country", "literal"),
+            ("extracted", "literal"),
+            ("retries_num", "literal"),
+        ]
 
     def test_argless_stub_inside_mapped_task_group_allowed(self):
         @task_group

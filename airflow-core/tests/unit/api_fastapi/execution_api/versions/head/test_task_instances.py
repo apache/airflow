@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import itertools
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
@@ -58,6 +59,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, T
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_mapped_arg_bindings
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -75,6 +77,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.serialization.definitions.xcom_arg import get_task_map_length
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -95,6 +98,15 @@ if TYPE_CHECKING:
     from airflow.sdk.api.client import Client
 
     from tests_common.pytest_plugin import DagMaker
+
+
+def _strip(value: str) -> str:
+    return value.strip()
+
+
+def _to_kwargs(pair: tuple) -> dict:
+    return {"country": pair[0], "region": pair[1]}
+
 
 pytestmark = pytest.mark.db_test
 
@@ -1223,9 +1235,472 @@ class TestTIRunState:
         assert response.status_code == 500
         assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
 
-    def test_ti_run_returns_no_arg_bindings_for_mapped_stub(self, client, dag_maker):
-        """Mapped stubs keep the legacy ignored-args behavior until per-map-index delivery lands."""
-        with dag_maker("test_mapped_stub_ignored_args", serialized=True):
+    def test_ti_run_resolves_mapped_stub_literal_expand(self, client, dag_maker):
+        """Expanding a stub over a literal list resolves each map index to its element server-side."""
+        with dag_maker("test_mapped_stub_literal", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform.expand(country=["uk", "fr", "de"])
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
+        assert set(tis) == {0, 1, 2}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        for map_index, country in enumerate(["uk", "fr", "de"]):
+            response = client.patch(
+                f"/execution/task-instances/{tis[map_index].id}/run", json=self.RUN_PAYLOAD
+            )
+            assert response.status_code == 200
+            assert response.json()["arg_bindings"] == [
+                {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": country}
+            ]
+
+    def test_ti_run_resolves_mapped_stub_over_unmapped_upstream(self, client, dag_maker):
+        """Expanding over an unmapped upstream's output binds the whole XCom plus an element index."""
+        with dag_maker("test_mapped_stub_unmapped_upstream", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(extracted: dict): ...
+
+            transform.expand(extracted=extract())
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("transform", session=dag_maker.session)
+        ti.map_index = 1
+        ti.set_state(State.QUEUED, session=dag_maker.session)
+        dag_maker.session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "extract",
+                "element_index": 1,
+            }
+        ]
+
+    def test_ti_run_resolves_mapped_stub_over_mapped_upstream(self, client, dag_maker):
+        """Expanding over a mapped upstream binds its row at this offset, skipping instances that pushed nothing."""
+        with dag_maker("test_mapped_stub_mapped_upstream", serialized=True):
+
+            @task.stub
+            def seed(n: int): ...
+
+            @task.stub
+            def transform(extracted: dict): ...
+
+            transform.expand(extracted=seed.expand(n=[1, 2, 3]))
+
+        dr = dag_maker.create_dagrun()
+        for seed_ti in dr.get_task_instances(session=dag_maker.session):
+            if seed_ti.task_id == "seed" and seed_ti.map_index != 1:
+                XComModel.set_for_attempt(
+                    task_instance_id=seed_ti.id, key="return_value", value={}, session=dag_maker.session
+                )
+        ti = dr.get_task_instance("transform", session=dag_maker.session)
+        ti.map_index = 1
+        ti.set_state(State.QUEUED, session=dag_maker.session)
+        dag_maker.session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "seed",
+                "map_index": 2,
+            }
+        ]
+
+    def test_ti_run_decomposes_multi_kwarg_mapped_stub(self, client, dag_maker):
+        """Cross-product expansion decomposes the map index per kwarg like the task-sdk does."""
+        with dag_maker("test_mapped_stub_multi_kwarg", serialized=True):
+
+            @task.stub
+            def combine(a: str, b: int): ...
+
+            combine.expand(a=["x", "y"], b=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
+        assert set(tis) == set(range(6))
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        for map_index, (a, b) in enumerate(itertools.product(["x", "y"], [1, 2, 3])):
+            response = client.patch(
+                f"/execution/task-instances/{tis[map_index].id}/run", json=self.RUN_PAYLOAD
+            )
+            assert response.status_code == 200
+            assert response.json()["arg_bindings"] == [
+                {"name": "a", "kind": "literal", "value_schema": {"type": "string"}, "value": a},
+                {
+                    "name": "b",
+                    "kind": "literal",
+                    "value_schema": {"type": "integer", "format": "int64"},
+                    "value": b,
+                },
+            ]
+
+    @mock.patch("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", True)
+    def test_ti_run_decomposes_multi_kwarg_mapped_stub_in_dag_file_order(self, client, dag_maker):
+        """Compressed serialized Dags sort object keys, so the stored expand order differs from the Dag file's."""
+        with dag_maker("test_mapped_stub_multi_kwarg_order", serialized=True):
+
+            @task.stub
+            def combine(b: str, a: int): ...
+
+            combine.expand(b=["x", "y"], a=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{tis[1].id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert [binding["value"] for binding in response.json()["arg_bindings"]] == ["x", 2]
+
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.services.stub_arg_bindings.get_task_map_length",
+        autospec=True,
+        side_effect=get_task_map_length,
+    )
+    def test_ti_run_loads_each_upstream_length_once(
+        self, mock_get_task_map_length, client, dag_maker, session
+    ):
+        with dag_maker("test_mapped_stub_length_loads", serialized=True, session=session):
+
+            @task.stub
+            def countries(): ...
+
+            @task.stub
+            def regions(): ...
+
+            @task.stub
+            def transform(pair: list, scale: int): ...
+
+            transform.expand(pair=countries().zip(regions()), scale=[1, 2])
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "countries", ["uk", "fr"], session=session)
+        self._push_return_value(dr, "regions", ["eu", "eu"], session=session)
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=1, session=session)
+        assert response.status_code == 200
+        assert sorted(call.args[0].operator.task_id for call in mock_get_task_map_length.call_args_list) == [
+            "countries",
+            "regions",
+        ]
+
+    @mock.patch("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", True)
+    def test_ti_run_decomposes_multi_kwarg_mapped_task_group_in_dag_file_order(
+        self, client, dag_maker, session
+    ):
+        with dag_maker("test_task_group_stub_multi_kwarg_order", serialized=True, session=session):
+
+            @task.stub
+            def combine(b: str, a: int): ...
+
+            @task_group
+            def group(b, a):
+                combine(b, a)
+
+            group.expand(b=["x", "y"], a=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun()
+
+        response = self._run_stub_ti(
+            client, dr.get_task_instance("group.combine", map_index=1), session=session
+        )
+        assert response.status_code == 200
+        assert [binding["value"] for binding in response.json()["arg_bindings"]] == ["x", 2]
+
+    def test_ti_run_binds_partial_kwargs_of_mapped_stub(self, client, dag_maker):
+        """partial() kwargs bind like an unmapped TaskFlow call alongside the expanded ones."""
+        with dag_maker("test_mapped_stub_partial", serialized=True):
+
+            @task.stub
+            def transform(country: str, extracted: dict): ...
+
+            transform.partial(country="uk").expand(extracted=[{"a": 1}, {"b": 2}])
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        for map_index, extracted in enumerate([{"a": 1}, {"b": 2}]):
+            response = client.patch(
+                f"/execution/task-instances/{tis[map_index].id}/run", json=self.RUN_PAYLOAD
+            )
+            assert response.status_code == 200
+            assert response.json()["arg_bindings"] == [
+                {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+                {
+                    "name": "extracted",
+                    "kind": "literal",
+                    "value_schema": {"type": "object", "additionalProperties": True},
+                    "value": extracted,
+                },
+            ]
+
+    def test_ti_run_binds_partial_xcom_kwarg_over_unmapped_upstream(self, client, dag_maker):
+        """A partial() kwarg carrying an unmapped upstream's output binds that XCom for every index."""
+        with dag_maker("test_mapped_stub_partial_xcom", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(extracted: dict, country: str): ...
+
+            transform.partial(extracted=extract()).expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(ti for ti in dr.get_task_instances() if ti.task_id == "transform" and ti.map_index == 1)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "extract",
+            },
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "fr"},
+        ]
+
+    def _run_stub_ti(self, client, ti, *, map_index=None, session):
+        # set_state() refreshes an instance outside the session, which would drop the new map index.
+        ti = session.merge(ti)
+        if map_index is not None:
+            ti.map_index = map_index
+        ti.set_state(State.QUEUED, session=session)
+        session.commit()
+        return client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+    @staticmethod
+    def _push_return_value(dr, task_id, value, *, session):
+        XComModel.set_for_attempt(
+            task_instance_id=dr.get_task_instance(task_id, session=session).id,
+            key="return_value",
+            value=value,
+            mapped_length=len(value),
+            session=session,
+        )
+
+    def test_ti_run_binds_partial_kwarg_over_mapped_upstream_as_sequence(self, client, dag_maker, session):
+        with dag_maker("test_mapped_stub_partial_mapped_upstream", serialized=True, session=session):
+
+            @task.stub
+            def seed(n: int): ...
+
+            @task.stub
+            def transform(country: str, extracted): ...
+
+            transform.partial(extracted=seed.expand(n=[1, 2])).expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(ti for ti in dr.get_task_instances() if ti.task_id == "transform" and ti.map_index == 0)
+
+        response = self._run_stub_ti(client, ti, session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {"name": "extracted", "kind": "sequence", "task_id": "seed"},
+        ]
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected"),
+        [
+            pytest.param(
+                1,
+                {
+                    "kind": "tuple",
+                    "parts": [
+                        {"kind": "xcom", "task_id": "extract", "element_index": 1},
+                        {"kind": "xcom", "task_id": "lookup", "element_index": 1},
+                    ],
+                },
+                id="both-present",
+            ),
+            pytest.param(
+                2,
+                {
+                    "kind": "tuple",
+                    "parts": [
+                        {"kind": "xcom", "task_id": "extract", "element_index": 2},
+                        {"kind": "literal", "value": ""},
+                    ],
+                },
+                id="fillvalue",
+            ),
+        ],
+    )
+    def test_ti_run_binds_zip_element_as_tuple(self, client, dag_maker, session, map_index, expected):
+        with dag_maker("test_mapped_stub_zip", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def lookup(): ...
+
+            @task.stub
+            def transform(row): ...
+
+            transform.expand(row=extract().zip(lookup(), fillvalue=""))
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "extract", ["uk ", " fr", "de "], session=session)
+        self._push_return_value(dr, "lookup", ["a", "b"], session=session)
+
+        response = self._run_stub_ti(
+            client, dr.get_task_instance("transform"), map_index=map_index, session=session
+        )
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [{"name": "row", **expected}]
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected"),
+        [
+            pytest.param(1, {"task_id": "extract", "element_index": 1}, id="first"),
+            pytest.param(3, {"task_id": "lookup", "element_index": 1}, id="second"),
+        ],
+    )
+    def test_ti_run_binds_concat_element_of_owning_upstream(
+        self, client, dag_maker, session, map_index, expected
+    ):
+        with dag_maker("test_mapped_stub_concat", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def lookup(): ...
+
+            @task.stub
+            def transform(row): ...
+
+            transform.expand(row=extract().concat(lookup()))
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "extract", ["uk", "fr"], session=session)
+        self._push_return_value(dr, "lookup", ["de", "it"], session=session)
+
+        response = self._run_stub_ti(
+            client, dr.get_task_instance("transform"), map_index=map_index, session=session
+        )
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [{"name": "row", "kind": "xcom", **expected}]
+
+    @pytest.mark.parametrize(
+        ("make_row", "expected"),
+        [
+            pytest.param(
+                lambda extract, lookup: extract.map(_strip),
+                {"kind": "xcom", "task_id": "extract", "element_index": 0},
+                id="map",
+            ),
+            pytest.param(
+                lambda extract, lookup: extract.zip(lookup).map(_strip),
+                {
+                    "kind": "tuple",
+                    "parts": [
+                        {"kind": "xcom", "task_id": "extract", "element_index": 0},
+                        {"kind": "xcom", "task_id": "lookup", "element_index": 0},
+                    ],
+                },
+                id="map-over-zip",
+            ),
+        ],
+    )
+    def test_ti_run_flags_map_callables_on_the_picked_element(
+        self, client, dag_maker, session, make_row, expected
+    ):
+        with dag_maker("test_mapped_stub_apply_map", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def lookup(): ...
+
+            @task.stub
+            def transform(row: str): ...
+
+            transform.expand(row=make_row(extract(), lookup()))
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "extract", ["uk ", " fr"], session=session)
+        self._push_return_value(dr, "lookup", ["a", "b"], session=session)
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=0, session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "row", "value_schema": {"type": "string"}, "apply_map": True, **expected}
+        ]
+
+    def test_ti_run_orders_mapped_stub_spec_by_declaration_with_defaults(self, client, dag_maker):
+        """The spec follows the signature, not the call sites, and ships defaulted params."""
+        with dag_maker("test_mapped_stub_declaration_order", serialized=True):
+
+            @task.stub
+            def transform(country: str, extracted: dict, retries_num: int = 3): ...
+
+            # The partial() kwarg is declared after the expanded one on purpose.
+            transform.partial(extracted={"a": 1}).expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(t for t in dr.get_task_instances() if t.map_index == 1)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "fr"},
+            {
+                "name": "extracted",
+                "kind": "literal",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "value": {"a": 1},
+            },
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 3,
+                "from_default": True,
+            },
+        ]
+
+    @mock.patch(
+        "airflow.serialization.stub_arg_bindings.build_mapped_arg_bindings", autospec=True, return_value=None
+    )
+    def test_ti_run_ignores_args_for_legacy_serialized_mapped_stub(self, _, client, dag_maker):
+        """A mapped stub serialized without bindings keeps the ignored-args behavior."""
+        with dag_maker("test_mapped_stub_legacy", serialized=True):
 
             @task.stub
             def transform(country: str): ...
@@ -1289,6 +1764,451 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
         assert response.json()["execution_timeout"] == 90.0
+
+    def test_ti_run_rejects_unexpanded_mapped_stub_ti(self, client, dag_maker, caplog):
+        """A mapped stub TI still at map_index=-1 cannot receive per-index bindings."""
+        with dag_maker("test_mapped_stub_unexpanded", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(extracted: dict): ...
+
+            transform.expand(extracted=extract())
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("transform")
+        assert ti.map_index == -1
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "not been expanded" in response.json()["detail"]["message"]
+        assert {
+            "event": "Stub task arg_bindings cannot be delivered",
+            "task_id": "transform",
+            "ti_id": str(ti.id),
+        } in caplog
+
+    def test_ti_run_rejects_zero_length_expansion_on_stub(self, client, dag_maker, session):
+        """An upstream re-run to an empty list after expansion fails structurally, not with a crash."""
+        with dag_maker("test_mapped_stub_zero_length", serialized=True, session=session):
+
+            @task
+            def seed():
+                return [0, 1]
+
+            @task.stub
+            def combine(a: int, b: int): ...
+
+            combine.expand(a=seed(), b=[1, 2])
+
+        dr = dag_maker.create_dagrun()
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        (seed_ti,) = decision.schedulable_tis
+        seed_ti.state = TaskInstanceState.SUCCESS
+        XComModel.set_for_attempt(
+            task_instance_id=seed_ti.id,
+            key="return_value",
+            value=[0, 1],
+            mapped_length=2,
+            session=session,
+        )
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        ti = next(t for t in decision.schedulable_tis if t.map_index == 0)
+        ti.set_state(State.QUEUED, session=session)
+        # Simulate the upstream being cleared and re-run to an empty list while this
+        # expanded TI is still queued.
+        session.execute(update(XComModelV2).values(mapped_length=0))
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "length 0" in response.json()["detail"]["message"]
+
+    def test_ti_run_binds_expand_kwargs_over_literal_mappings(self, client, dag_maker, session):
+        with dag_maker("test_mapped_stub_expand_kwargs_literal", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, extracted, retries_num: int = 3): ...
+
+            transform.partial(extracted={"a": 1}).expand_kwargs(
+                [{"country": "uk"}, {"country": "fr", "extracted": extract(), "retries_num": 5}], strict=False
+            )
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.map_index: ti for ti in dr.get_task_instances() if ti.task_id == "transform"}
+
+        response = self._run_stub_ti(client, tis[0], session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {"name": "extracted", "kind": "literal", "value": {"a": 1}},
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 3,
+                "from_default": True,
+            },
+        ]
+        response = self._run_stub_ti(client, tis[1], session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"][1:] == [
+            {"name": "extracted", "kind": "xcom", "task_id": "extract"},
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 5,
+            },
+        ]
+
+    @pytest.mark.parametrize(
+        ("strict", "region"),
+        [
+            pytest.param(
+                True,
+                {"name": "region", "kind": "literal", "value_schema": {"type": "string"}, "value": "eu"},
+                id="strict-binds-partial",
+            ),
+            pytest.param(
+                False,
+                {
+                    "name": "region",
+                    "kind": "xcom",
+                    "value_schema": {"type": "string"},
+                    "task_id": "extract",
+                    "element_index": 1,
+                    "kwarg": "region",
+                    "fallback": {"kind": "literal", "value": "eu"},
+                },
+                id="non-strict-falls-back-to-partial",
+            ),
+        ],
+    )
+    def test_ti_run_binds_expand_kwargs_over_upstream_output_by_kwarg(
+        self, client, dag_maker, session, strict, region
+    ):
+        with dag_maker("test_mapped_stub_expand_kwargs_xcom", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, region: str, scale: int = 2): ...
+
+            transform.partial(region="eu").expand_kwargs(extract(), strict=strict)
+
+        dr = dag_maker.create_dagrun()
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=1, session=session)
+        assert response.status_code == 200
+        element = {"kind": "xcom", "task_id": "extract", "element_index": 1}
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "value_schema": {"type": "string"}, **element, "kwarg": "country"},
+            region,
+            {
+                "name": "scale",
+                "value_schema": {"type": "integer", "format": "int64"},
+                **element,
+                "kwarg": "scale",
+                "fallback": {"kind": "literal", "value": 2},
+            },
+        ]
+
+    def test_ti_run_binds_stub_inside_mapped_task_group(self, client, dag_maker, session):
+        with dag_maker("test_task_group_stub", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def seed(n: int): ...
+
+            @task.stub
+            def prepare(country: str): ...
+
+            @task.stub
+            def transform(country: str, prepared, rows, seeded, retries_num: int = 3): ...
+
+            rows = extract()
+            seeded = seed.expand(n=[1, 2])
+
+            @task_group
+            def group(country):
+                transform(country, prepare(country), rows, seeded)
+
+            group.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(
+            ti for ti in dr.get_task_instances() if ti.task_id == "group.transform" and ti.map_index == 1
+        )
+
+        response = self._run_stub_ti(client, ti, session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "fr"},
+            {"name": "prepared", "kind": "xcom", "task_id": "group.prepare", "map_index": 1},
+            {"name": "rows", "kind": "xcom", "task_id": "extract"},
+            {"name": "seeded", "kind": "sequence", "task_id": "seed"},
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 3,
+                "from_default": True,
+            },
+        ]
+
+    def test_ti_run_rejects_stub_bound_to_missing_mapped_task_group(self, client, dag_maker, session):
+        """A stored binding naming a mapped task group the Dag lacks fails with a structured error."""
+        with dag_maker("test_task_group_stub_missing_group", serialized=True, session=session):
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(
+            ti for ti in dr.get_task_instances() if ti.task_id == "group.transform" and ti.map_index == 0
+        )
+        entries = [{"name": "country", "kind": "param", "group_arg": {"group_id": "gone", "key": "country"}}]
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.services.task_instances.derive_mapped_arg_bindings",
+            autospec=True,
+            side_effect=lambda task, ti, _, **kwargs: derive_mapped_arg_bindings(task, ti, entries, **kwargs),
+        ):
+            response = self._run_stub_ti(client, ti, session=session)
+
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "'gone' is missing" in response.json()["detail"]["message"]
+
+    def test_ti_run_binds_expand_kwargs_mapping_read_from_upstream_by_kwarg(self, client, dag_maker, session):
+        with dag_maker("test_mapped_stub_expand_kwargs_xcom_item", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, region: str = "eu"): ...
+
+            transform.expand_kwargs([{"country": "uk"}, extract()])
+
+        dr = dag_maker.create_dagrun()
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform", map_index=1), session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {
+                "name": "country",
+                "kind": "xcom",
+                "value_schema": {"type": "string"},
+                "task_id": "extract",
+                "kwarg": "country",
+            },
+            {
+                "name": "region",
+                "kind": "xcom",
+                "value_schema": {"type": "string"},
+                "task_id": "extract",
+                "kwarg": "region",
+                "fallback": {"kind": "literal", "value": "eu"},
+            },
+        ]
+
+    def test_ti_run_falls_back_to_partial_upstream_output(self, client, dag_maker, session):
+        with dag_maker("test_mapped_stub_expand_kwargs_xcom_fallback", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def regions(): ...
+
+            @task.stub
+            def transform(country: str, region: str): ...
+
+            transform.partial(region=regions()).expand_kwargs(extract(), strict=False)
+
+        dr = dag_maker.create_dagrun()
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=0, session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"][1]["fallback"] == {"kind": "xcom", "task_id": "regions"}
+
+    def test_ti_run_binds_mapped_upstream_whole_output_through_strict_partial(
+        self, client, dag_maker, session
+    ):
+        with dag_maker("test_mapped_stub_expand_kwargs_sequence_partial", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def produce(n: int): ...
+
+            @task.stub
+            def transform(country: str, totals): ...
+
+            transform.partial(totals=produce.expand(n=[1, 2])).expand_kwargs(extract())
+
+        dr = dag_maker.create_dagrun()
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=0, session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"][1] == {
+            "name": "totals",
+            "kind": "sequence",
+            "task_id": "produce",
+        }
+
+    def test_ti_run_binds_expand_kwargs_over_mapped_zip(self, client, dag_maker, session):
+        with dag_maker("test_mapped_stub_expand_kwargs_zip_map", serialized=True, session=session):
+
+            @task.stub
+            def countries(): ...
+
+            @task.stub
+            def regions(): ...
+
+            @task.stub
+            def transform(country: str, region: str, scale: int = 2): ...
+
+            transform.expand_kwargs(countries().zip(regions()).map(_to_kwargs))
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "countries", ["uk", "fr"], session=session)
+        self._push_return_value(dr, "regions", ["eu", "eu"], session=session)
+
+        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=1, session=session)
+        assert response.status_code == 200
+        element = {
+            "kind": "tuple",
+            "parts": [
+                {"kind": "xcom", "task_id": "countries", "element_index": 1},
+                {"kind": "xcom", "task_id": "regions", "element_index": 1},
+            ],
+            "apply_map": True,
+        }
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "value_schema": {"type": "string"}, **element, "kwarg": "country"},
+            {"name": "region", "value_schema": {"type": "string"}, **element, "kwarg": "region"},
+            {
+                "name": "scale",
+                "value_schema": {"type": "integer", "format": "int64"},
+                **element,
+                "kwarg": "scale",
+                "fallback": {"kind": "literal", "value": 2},
+            },
+        ]
+
+    def test_ti_run_flags_map_callables_of_mapped_task_group_arg(self, client, dag_maker, session):
+        with dag_maker("test_task_group_stub_map", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=extract().map(_strip))
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "extract", ["uk ", " fr"], session=session)
+
+        response = self._run_stub_ti(
+            client, dr.get_task_instance("group.transform"), map_index=1, session=session
+        )
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {
+                "name": "country",
+                "kind": "xcom",
+                "value_schema": {"type": "string"},
+                "task_id": "extract",
+                "element_index": 1,
+                "apply_map": True,
+            }
+        ]
+
+    def test_ti_run_binds_stub_inside_mapped_task_group_over_upstream_output(
+        self, client, dag_maker, session
+    ):
+        with dag_maker("test_task_group_stub_xcom", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=extract())
+
+        dr = dag_maker.create_dagrun()
+        self._push_return_value(dr, "extract", ["uk", "fr"], session=session)
+
+        response = self._run_stub_ti(
+            client, dr.get_task_instance("group.transform"), map_index=1, session=session
+        )
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {
+                "name": "country",
+                "kind": "xcom",
+                "value_schema": {"type": "string"},
+                "task_id": "extract",
+                "element_index": 1,
+            }
+        ]
+
+    def test_ti_run_delivers_sequence_binding_of_unmapped_stub(self, client, dag_maker, session):
+        with dag_maker("test_unmapped_stub_reduce", serialized=True, session=session):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(n: int): ...
+
+            @task.stub
+            def report(totals, extracted): ...
+
+            report(transform.expand(n=[1, 2]), extract())
+
+        dr = dag_maker.create_dagrun()
+
+        response = self._run_stub_ti(client, dr.get_task_instance("report"), session=session)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "totals", "kind": "sequence", "task_id": "transform"},
+            {"name": "extracted", "kind": "xcom", "task_id": "extract"},
+        ]
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""

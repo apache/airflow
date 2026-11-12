@@ -33,6 +33,7 @@ import type { LogChannel } from "./log-channel.js";
 import type {
   ArgBindings,
   ArgValueSchema,
+  LiteralArgBinding,
   TaskArgBinding,
   XComArgBinding,
 } from "../generated/supervisor.js";
@@ -124,7 +125,8 @@ export async function resolveArgs(
         binding.name,
         binding.kind === "xcom"
           ? await pullXComArg(binding, deps.client)
-          : literalValue(binding.value),
+          : // checkBindable has already refused every kind but these two.
+            literalValue((binding as LiteralArgBinding).value),
       ]),
     );
   // Literals need no request, so only a call that pulls races the abort signal.
@@ -146,9 +148,8 @@ function checkBindable(binding: TaskArgBinding): void {
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
     return;
   }
-  // Unreachable for the wire union as generated, so `binding` is `never` here.
-  // A newer Airflow can add a kind, and skipping it would silently leave the
-  // argument unbound, so the kind is read back off the value.
+  // The `sequence` and `tuple` kinds land here, as does any kind a newer Airflow
+  // adds. Skipping one would silently leave the argument unbound.
   const kind: unknown = (binding as { kind?: unknown }).kind;
   throw new Error(
     `Task argument "${name}" has binding kind ${JSON.stringify(kind)}, which this version ` +

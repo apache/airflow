@@ -26,9 +26,19 @@ New bodies in this version:
 
 from __future__ import annotations
 
+from typing import Any
+
 from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for, schema
 
-from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
+from airflow.sdk.api.datamodels._generated import (
+    LiteralArgBinding,
+    TIRunContext,
+    TISuccessStatePayload,
+    TupleArgBinding,
+    VariableResponse,
+    XComArgBinding,
+    XComSequenceArgBinding,
+)
 from airflow.sdk.execution_time.comms import PutVariable
 
 
@@ -84,3 +94,35 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
         """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
         if "value" in request.body and request.body["value"] is None:
             request.body["value"] = "None"
+
+
+class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
+    """
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
+
+    The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
+    the two migrations are not confused. The supervisor does not start a task on an older runtime
+    when any binding needs this version, so no binding is dropped on the way down.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(XComArgBinding).field("map_index").didnt_exist,
+        schema(XComArgBinding).field("element_index").didnt_exist,
+        # The generated client flattens the bindings' shared base, so each binding drops these itself.
+        *(
+            schema(binding).field(field).didnt_exist
+            for binding in (XComArgBinding, LiteralArgBinding, XComSequenceArgBinding, TupleArgBinding)
+            for field in ("apply_map", "kwarg", "fallback")
+        ),
+    )
+
+
+def is_mapped_arg_binding(binding: dict[str, Any]) -> bool:
+    """Whether *binding* uses a shape or field this version added."""
+    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
+        return True
+    return any(
+        binding.get(field) is not None for field in ("map_index", "element_index", "kwarg", "fallback")
+    )

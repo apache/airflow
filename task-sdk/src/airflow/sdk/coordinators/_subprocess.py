@@ -561,9 +561,21 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         this task instance through the backend, deleting that XCom here leaves the stored object in the
         backend's storage.
 
-        If an XCom cannot be deleted, this try fails and the task does not run.
+        If an XCom cannot be deleted, or the runtime is too old to read the task's arguments, this try
+        fails and the task does not run.
         """
         self._execution_timeout_seconds = ti_context.execution_timeout
+        if self._runtime_lacks_mapped_arg_bindings(ti_context):
+            reason = (
+                "The task's arguments need a runtime at supervisor schema version 2027-02-28 or later, "
+                f"but it is at {self._subprocess_schema_version}; upgrade its SDK"
+            )
+            self.process_log.error(reason)
+            self._pending_terminal_state_msg = TaskState(
+                state=TaskInstanceState.FAILED, end_date=datetime.now(tz=UTC), retry_reason=reason
+            )
+            self.kill(signal.SIGKILL)
+            return None
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
@@ -585,6 +597,23 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.
         return ti_context.model_copy(update={"xcom_keys_to_clear": []})
+
+    def _runtime_lacks_mapped_arg_bindings(self, ti_context: TIRunContext) -> bool:
+        if (version := self._subprocess_schema_version) is None or not ti_context.arg_bindings:
+            return False
+        # Imported here, like the migrator's own cadwyn import, so a Python-only worker never pays for it.
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
+            AddMappedStubArgBindingsToSupervisorTIRunContext,
+            is_mapped_arg_binding,
+        )
+
+        if get_schema_version_migrator().has_change(
+            version, AddMappedStubArgBindingsToSupervisorTIRunContext
+        ):
+            return False
+        return any(
+            is_mapped_arg_binding(binding.model_dump(mode="json")) for binding in ti_context.arg_bindings
+        )
 
     def wait(self) -> int:
         code = super().wait()
