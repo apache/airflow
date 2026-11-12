@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import base64
+import dataclasses
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -29,6 +31,7 @@ from pydantic_ai.durable_exec import (
     JSON_CODEC,
     BaseDurabilityCapability,
     CapabilityOperationId,
+    DurabilityCodec,
     DurabilityEngineSpec,
     DurableOperationId,
     JournalCallableOperationBackend,
@@ -51,7 +54,7 @@ from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_core import PydanticSerializationError
 
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request, fingerprint_tool_call
-from airflow.providers.common.ai.durable.journal import current_journal
+from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.masking import mask_secrets
@@ -121,11 +124,100 @@ def _active_run(active: _ActiveRun) -> Iterator[None]:
         _ACTIVE_RUN.reset(token)
 
 
-def _not_journalable(error: Exception) -> BaseException:
-    # The same value fails the same way on every retry, so retrying the task cannot help.
-    return DurableJournalError(
-        f"durable execution could not record a step's result, because it is not JSON-serializable: {error}"
+# A recorded ``bytes`` value: a dict whose only key is this, holding the bytes as base64.
+_BYTES_KEY = "__airflow_bytes__"
+
+# The kinds of pydantic-ai's recorded tool call result that hold the tool's value in ``result``.
+_TOOL_RESULT_KINDS = frozenset({"tool_return", "tool_content_result"})
+
+
+def _tag_bytes(value: Any) -> Any:
+    """
+    Replace the ``bytes`` in a tool result with base64 the journal can hold.
+
+    The model sees bytes as base64 (pydantic-ai's ``tool_return_ta``), but ``JSON_CODEC``
+    encodes them as UTF-8 text: it fails on bytes that are not UTF-8 and turns the rest into
+    ``str``, so the retry would show the model something else. Tagged, they load back as the
+    same bytes. Only the parts of a result that a tool fills freely are walked; a typed value
+    such as ``BinaryContent`` encodes its own bytes.
+    """
+    if isinstance(value, bytes):
+        return {_BYTES_KEY: base64.b64encode(value).decode("ascii")}
+    if isinstance(value, dict):
+        return {key: _tag_bytes(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_tag_bytes(item) for item in value]
+    if isinstance(value, ToolReturn):
+        return dataclasses.replace(
+            value, return_value=_tag_bytes(value.return_value), metadata=_tag_bytes(value.metadata)
+        )
+    if (
+        dataclasses.is_dataclass(value)
+        and not isinstance(value, type)
+        and getattr(value, "kind", None) in _TOOL_RESULT_KINDS
+        and any(attribute.name == "result" and attribute.init for attribute in dataclasses.fields(value))
+    ):
+        # pydantic-ai's recorded tool call result, a shape its journals keep loading across versions.
+        return dataclasses.replace(value, result=_tag_bytes(getattr(value, "result")))
+    return value
+
+
+def _untag_bytes(payload: Any) -> Any:
+    """
+    Turn what :func:`_tag_bytes` recorded back into bytes.
+
+    A payload without tags loads as it is, and so does a dict a tool built that only looks
+    like one, with a value that is not base64.
+    """
+    if isinstance(payload, dict):
+        if len(payload) == 1 and isinstance(encoded := payload.get(_BYTES_KEY), str):
+            try:
+                return base64.b64decode(encoded, validate=True)
+            except ValueError:  # binascii.Error, or a value that is not ASCII
+                return payload
+        return {key: _untag_bytes(item) for key, item in payload.items()}
+    if isinstance(payload, list):
+        return [_untag_bytes(item) for item in payload]
+    return payload
+
+
+def _mask_payload(payload: Any) -> Any:
+    """Mask the secrets in an encoded payload, including inside its bytes, which base64 hides from the masker."""
+    return _tag_bytes(mask_secrets(_untag_bytes(payload)))
+
+
+def _is_model_response(payload: Any) -> bool:
+    # Bytes are never tagged in a model response, so text the model wrote, such as tool call
+    # arguments, is never read as a tag. The second shape is a streamed response from
+    # pydantic-ai before 2.60, recorded with its events.
+    return isinstance(payload, dict) and (
+        payload.get("kind") == "response" or ("response" in payload and "events" in payload)
     )
+
+
+class _JournalCodec(DurabilityCodec):
+    """
+    pydantic-ai's ``JSON_CODEC``, recording bytes as base64 and returning failures instead of raising them.
+
+    A result that does not encode comes back as :class:`Unrecordable`, so the journal decides
+    whether that fails the task (:meth:`JournalStep.cannot_record`), and ``load`` hands the
+    live value on to the run either way.
+    """
+
+    def dump(self, tp: Any, value: Any) -> Any:
+        try:
+            return JSON_CODEC.dump(tp, _tag_bytes(value))
+        except (PydanticSerializationError, TypeError, ValueError, RecursionError) as error:
+            # RecursionError: a result that contains itself, or is nested too deep to walk.
+            return Unrecordable(value, error)
+
+    def load(self, tp: Any, payload: Any) -> Any:
+        if isinstance(payload, Unrecordable):
+            return payload.value
+        return JSON_CODEC.load(tp, payload if _is_model_response(payload) else _untag_bytes(payload))
+
+
+_JOURNAL_CODEC = _JournalCodec()
 
 
 class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
@@ -176,8 +268,7 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
         engine_name="Airflow",
         durable_unit_noun="step",
         durable_container_noun="task",
-        codec=JSON_CODEC,
-        serialization_failure=_not_journalable,
+        codec=_JOURNAL_CODEC,
     )
 
     def __init__(
@@ -325,7 +416,7 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
                     return step.payload
                 # The masking wrapper AgentOperator adds sits outside this durable unit, so mask
                 # before recording: secrets must not reach the journal any more than the model.
-                return await step.run(body, to_record=mask_secrets)
+                return await step.run(body, to_record=_mask_payload)
             case ToolsetValidateToolArgumentsId():
                 # Local validation of the arguments the recorded call was made with: nothing to
                 # save by replaying it, and it is the same on every attempt, so it takes no position.
@@ -371,7 +462,12 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             return step.payload
         ledger.record_live_model_request(had_request_credit=had_request_credit)
         payload = await step.run(body)
-        ledger.track_chain(_load_model_response(payload, streaming=streaming), parameters)
+        if isinstance(payload, Unrecordable):
+            # Left unrecorded by a journal that does not fail on it: the live response is the value.
+            response = payload.value if isinstance(payload.value, ModelResponse) else payload.value.response
+        else:
+            response = _load_model_response(payload, streaming=streaming)
+        ledger.track_chain(response, parameters)
         return payload
 
     async def _fingerprint_model_request(
@@ -403,8 +499,8 @@ class _JournaledToolset(WrapperToolset[Any]):
     Results, and the control-flow exceptions a tool raises for the model (``ModelRetry``,
     ``ToolFailed``, ``ApprovalRequired``, ``CallDeferred``), are recorded as values, so a
     retry replays them exactly. Any other exception is recorded as a failure and the call
-    runs again on retry. A result that is not JSON-serializable fails the task, as it does
-    for the toolsets pydantic-ai runs as durable steps.
+    runs again on retry. Results are encoded as for the toolsets pydantic-ai runs as durable
+    steps, bytes included, and one that cannot be encoded is handled the same way.
     """
 
     durability: AirflowDurability[Any] = field(repr=False, kw_only=True)
@@ -483,16 +579,15 @@ async def _run_and_record_tool(step: JournalStep, call: Callable[[], Awaitable[A
 
 
 def _record_tool_payload(step: JournalStep, payload: dict[str, Any]) -> None:
-    try:
-        encoded = JSON_CODEC.dump(Any, payload)
-    except (PydanticSerializationError, TypeError, ValueError) as error:
-        # As for the toolsets pydantic-ai runs as durable steps: the same value fails the same
-        # way on every attempt, and the model could not have read it either.
-        raise _not_journalable(error) from error
-    step.record(mask_secrets(encoded))
+    encoded = _JOURNAL_CODEC.dump(Any, payload)
+    if isinstance(encoded, Unrecordable):
+        step.cannot_record(encoded.error)
+    else:
+        step.record(_mask_payload(encoded))
 
 
 def _decode_tool_payload(payload: Any) -> Any:
+    payload = _untag_bytes(payload)
     kind = payload.get("kind") if isinstance(payload, dict) else None
     match kind:
         case "tool_return" if "tool_return" in payload:
@@ -525,14 +620,12 @@ def _is_journaled_tool_payload(payload: object) -> bool:
     if not isinstance(payload, dict):
         return False
     match payload.get("kind"):
-        case "tool_return" if "tool_return" in payload:
+        case "tool_return" if "tool_return" in payload or "result" in payload:
             try:
-                JSON_CODEC.load(ToolReturn, payload["tool_return"])
+                _decode_tool_payload(payload)
             except (TypeError, ValueError):
                 return False
             return True
-        case "tool_return":
-            return "result" in payload
         case "model_retry" | "tool_failed":
             return isinstance(payload.get("message"), str)
         case "approval_required" | "call_deferred":

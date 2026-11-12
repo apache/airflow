@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+import time_machine
 
 from airflow._shared.timezones import timezone
 from airflow.api.common.airflow_health import (
@@ -31,7 +32,8 @@ from airflow.api.common.airflow_health import (
     get_airflow_health,
     get_jobs_health,
 )
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
+from airflow.jobs.job import Job, JobState, health_check_threshold
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import provide_session
@@ -83,13 +85,14 @@ def _create_job(
     runner_class,
     *,
     hostname: str,
-    heartbeat: datetime,
+    heartbeat: datetime | None,
     state: JobState = JobState.RUNNING,
     end_date: datetime | None = None,
     team_names: list[str] | None = None,
     bundle_names: list[str] | None = None,
 ) -> Job:
     job = Job(
+        job_type=runner_class.job_type,
         state=state,
         latest_heartbeat=heartbeat,
         hostname=hostname,
@@ -97,10 +100,6 @@ def _create_job(
         team_names=team_names or [],
         bundle_names=bundle_names,
     )
-    if runner_class is TriggererJobRunner:
-        runner_class(job=job, capacity=1)
-    else:
-        runner_class(job=job)
     session.add(job)
     return job
 
@@ -482,39 +481,71 @@ class TestAirflowHealthFromDb:
     @pytest.fixture(autouse=True)
     def cleanup_jobs(self):
         clear_db_jobs()
+        health_check_threshold.cache_clear()
         yield
         clear_db_jobs()
+        health_check_threshold.cache_clear()
 
+    @pytest.mark.parametrize(
+        ("runner_class", "threshold"),
+        [(SchedulerJobRunner, 17), (TriggererJobRunner, 41.5), (DagProcessorJobRunner, 73)],
+    )
+    @pytest.mark.parametrize("latest_failed", [False, True])
+    @time_machine.travel("2026-11-09T09:00:00Z", tick=False)
+    @conf_vars(
+        {
+            ("scheduler", "scheduler_health_check_threshold"): "17",
+            ("triggerer", "triggerer_health_check_threshold"): "41.5",
+            ("dag_processor", "health_check_threshold"): "73",
+        }
+    )
     @provide_session
-    def test_get_jobs_health_returns_unfinished_jobs_ordered_by_heartbeat(self, *, session):
-        older = timezone.utcnow() - timedelta(minutes=5)
-        newer = timezone.utcnow()
-        older_job = _create_job(session, SchedulerJobRunner, hostname="older", heartbeat=older)
-        newer_job = _create_job(session, SchedulerJobRunner, hostname="newer", heartbeat=newer)
+    def test_get_jobs_health_returns_live_jobs_and_latest_unfinished(
+        self, runner_class, threshold, latest_failed, *, session
+    ):
+        now = timezone.utcnow()
+        cutoff = now - timedelta(seconds=threshold)
+        _create_job(session, runner_class, hostname="live-newer", heartbeat=now - timedelta(seconds=1))
+        _create_job(
+            session, runner_class, hostname="live-older", heartbeat=cutoff + timedelta(microseconds=1)
+        )
+        _create_job(session, runner_class, hostname="at-threshold", heartbeat=cutoff)
+        _create_job(session, runner_class, hostname="stale", heartbeat=cutoff - timedelta(microseconds=1))
         _create_job(
             session,
-            SchedulerJobRunner,
+            runner_class,
             hostname="ended",
-            heartbeat=newer,
-            end_date=newer,
+            heartbeat=now + timedelta(seconds=1),
+            end_date=now,
         )
-        unfinished_failed = _create_job(
+        _create_job(
             session,
-            SchedulerJobRunner,
+            runner_class,
             hostname="failed-unfinished",
-            heartbeat=older - timedelta(minutes=1),
+            heartbeat=now if latest_failed else now - timedelta(seconds=2),
             state=JobState.FAILED,
         )
-        _create_job(session, TriggererJobRunner, hostname="triggerer", heartbeat=newer)
+        other_runner = SchedulerJobRunner if runner_class is TriggererJobRunner else TriggererJobRunner
+        _create_job(session, other_runner, hostname="other-component", heartbeat=now)
+        session.commit()
+
+        jobs = get_jobs_health(runner_class, session=session)
+
+        expected = ["live-newer", "live-older"]
+        if latest_failed:
+            expected.insert(0, "failed-unfinished")
+        assert [job.hostname for job in jobs] == expected
+
+    @provide_session
+    def test_get_jobs_health_keeps_one_job_with_null_heartbeat(self, *, session):
+        _create_job(session, SchedulerJobRunner, hostname="no-heartbeat-1", heartbeat=None)
+        _create_job(session, SchedulerJobRunner, hostname="no-heartbeat-2", heartbeat=None)
         session.commit()
 
         jobs = get_jobs_health(SchedulerJobRunner, session=session)
 
-        assert [job.hostname for job in jobs] == [
-            newer_job.hostname,
-            older_job.hostname,
-            unfinished_failed.hostname,
-        ]
+        assert len(jobs) == 1
+        assert jobs[0].latest_heartbeat is None
 
     def test_get_airflow_health_no_jobs(self):
         health_status = get_airflow_health()
@@ -589,6 +620,9 @@ class TestAirflowHealthFromDb:
         _create_job(session, SchedulerJobRunner, hostname="stale-2", heartbeat=second)
         _create_job(session, SchedulerJobRunner, hostname="stale-3", heartbeat=third)
         session.commit()
+
+        jobs = get_jobs_health(SchedulerJobRunner, session=session)
+        assert [job.hostname for job in jobs] == ["stale-1"]
 
         health_status = get_airflow_health()
 

@@ -107,7 +107,7 @@ alongside `pr-management-triage` is out of scope here.
 ## Stage 1: invoking the `pr-management-triage` skill
 
 The skill is provided by the [`apache/magpie`](https://github.com/apache/magpie) framework,
-installed from its plugin marketplace (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-magpie) for the install commands). Nothing is
+installed from its plugin marketplace (see [Agent-assisted contribution](33_agent_assisted_contribution.md) for the install commands). Nothing is
 committed to this repo, so the install is per-developer and one-off; afterwards Claude Code
 exposes the skill as `magpie-pr-management:pr-management-triage`. Its entry point is
 [`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md); the rest of the directory breaks
@@ -253,16 +253,18 @@ Pull requests labelled `fork ci required` run their CI in the contributor's fork
 fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns five things
 for them, and the triage skill must treat those pull requests as out of scope for each:
 
-- **Draft state.** The reconciler keeps the pull request in draft until the fork run for its
-  latest commit is green, and undrafts only what it drafted.
+- **Draft state.** The reconciler keeps the pull request in draft until the fork CI runs for its
+  latest commit, undrafts it only when that run is green, and undrafts only what it drafted. A
+  failed run does not draft it.
 - **`ready for maintainer review`.** The reconciler adds it when the fork run is green and the
   pull request is not a draft the author made (it adds it once the author marks it ready), and
-  removes it when a new push starts a new run.
+  removes it when a new push starts a new run or the author converts the pull request to draft.
 - **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
   changes CI-defining files, and removes it once the state is anything else. These pull requests
   are not drafted and get no `ready for maintainer review` label. Their `Fork CI / Tests (AMD)`
   status stays pending without `CI passed`, and they keep `needs project ci` until a maintainer
-  reviews the CI change and adds `use project ci`.
+  reviews the CI change and adds `use project ci`. A draft the author made gets neither label
+  until the author marks it ready for review.
 - **Closing for changing the gate.** The reconciler closes a pull request that changes the fork
   CI gate (its code, configuration other than the author's own `[pilot]` entry, the `gate` job
   of `ci-amd.yml` or the monitor), and reports it on Slack. Add `use project ci` to accept such
@@ -280,8 +282,8 @@ reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> 
 or ask the author to push. Pull requests that change CI-defining files are not drafted
 and get no `ready for maintainer review` label even when the fork run is green. Their
 `Fork CI / Tests (AMD)` status stays pending without `CI passed`, and they are labelled
-`needs project ci` until a maintainer reviews the CI change and adds `use project ci`. For
-every other pull request, when the fork run is green and trusted, the reconciler also posts the
+`needs project ci` until a maintainer reviews the CI change and adds `use project ci`, unless
+the author keeps the pull request a draft. For every other pull request, when the fork run is green and trusted, the reconciler also posts the
 `CI passed` status the merge ruleset requires, so it can be merged or auto-merged without project
 CI. See
 [Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).

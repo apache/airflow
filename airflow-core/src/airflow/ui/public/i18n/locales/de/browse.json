@@ -28,6 +28,7 @@
         "lastParsed": "Zuletzt geparst",
         "parseDuration": "Parsezeit"
       },
+      "importErrorForbidden": "Keine Berechtigung den Import-Fehler zu lesen.",
       "importErrorGone": "Der Importfehler ist nicht mehr aufgetreten. Vermutlich durch ein Wiedereinlesen behoben.",
       "neverParsed": "Nie",
       "parsedFile_one": "Geparste Datei",

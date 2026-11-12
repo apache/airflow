@@ -88,30 +88,14 @@ class _IsAliveFilter(BaseParam[bool]):
         if self.value is None and self.skip_none:
             return select
 
-        from datetime import timedelta
+        from sqlalchemy import case
 
-        from sqlalchemy import and_, case, or_
+        from airflow.jobs.job import Job
 
-        from airflow._shared.timezones import timezone
-        from airflow.jobs.job import Job, JobState, health_check_threshold
-
-        now = timezone.utcnow()
-        # Only the concrete core job types are persisted here and their thresholds come from config
-        # rather than the per-row heartrate, so the cutoff is a bound timestamp and the predicate stays
-        # portable. Kept in sync with Job._is_alive: alive means RUNNING with a heartbeat newer than the
-        # job type's health-check threshold. The case wraps the result so it is always True/False (never
-        # NULL), keeping the negated is_alive=False query exact.
-        fresh_per_type = or_(
-            *(
-                and_(
-                    Job.job_type == job_type,
-                    Job.latest_heartbeat > now - timedelta(seconds=health_check_threshold(job_type, 0)),
-                )
-                for job_type in ("SchedulerJob", "TriggererJob", "DagProcessorJob")
-            )
-        )
+        # The case wraps the result so it is always True/False (never NULL), keeping the negated
+        # is_alive=False query exact.
         alive = case(
-            (and_(Job.state == JobState.RUNNING, Job.latest_heartbeat.is_not(None), fresh_per_type), True),
+            (Job.is_alive_clause(("SchedulerJob", "TriggererJob", "DagProcessorJob")), True),
             else_=False,
         )
         return select.where(alive if self.value else ~alive)

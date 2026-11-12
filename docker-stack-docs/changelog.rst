@@ -34,6 +34,13 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.5.0
+~~~~~~~~~~~~~
+
+  * The default Python version of the image changed from 3.13 to 3.14. The images without a
+    ``-pythonX.Y`` suffix - such as ``apache/airflow:3.5.0``, ``latest`` and their ``slim-`` variants -
+    now use Python 3.14. Use the ``-python3.13`` images to stay on Python 3.13.
+
 Airflow 3.4.0
 ~~~~~~~~~~~~~
 

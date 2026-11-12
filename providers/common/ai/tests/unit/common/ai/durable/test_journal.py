@@ -420,6 +420,79 @@ class TestFailuresDuringReplay:
         assert results == ["a recorded", "b recorded", "c recorded"]
 
 
+async def _failed_attempt_then_retry_that_diverges_at_once(memory_storage):
+    """
+    Return a retry about to pause at position 6 that ran 0..5 live and left 1 unrecorded.
+
+    The failed attempt recorded 0..5, with ``try1-1`` at 1 and its model's answer at 4, and
+    failed because of that answer, so it stopped being trusted from 4. The retry's first step
+    asks something else, so it stops replaying at 0, below that; its tool at 1 raises.
+    """
+    first = DurableJournal(memory_storage).start_run()
+    for position in range(6):
+        await first.run(
+            f"s{position}",
+            kind="model" if position == 4 else "tool",
+            fingerprint=f"s{position}",
+            body=lambda p=position: ok(f"try1-{p}"),
+        )
+    first.fail(RuntimeError("the model's answers failed the run"), model_at_fault=True)
+    assert memory_storage.entries[build_run_meta_key(first.key)]["diverge_from"] == 4
+
+    retry = DurableJournal(memory_storage).start_run()
+    await retry.run("s0", kind="tool", fingerprint="changed", body=lambda: ok("retry-0"))
+    with pytest.raises(RuntimeError):
+        await retry.run("s1", kind="tool", fingerprint="s1", body=boom)
+    for position in range(2, 6):
+        await retry.run(
+            f"s{position}",
+            kind="model" if position == 4 else "tool",
+            fingerprint=f"s{position}",
+            body=lambda p=position: ok(f"retry-{p}"),
+        )
+    return retry
+
+
+class TestPause:
+    @pytest.mark.asyncio
+    async def test_entries_the_attempt_left_unrecorded_below_the_stored_boundary_do_not_replay(
+        self, memory_storage
+    ):
+        retry = await _failed_attempt_then_retry_that_diverges_at_once(memory_storage)
+
+        retry.pause()
+
+        resumed = DurableJournal(memory_storage).start_run()
+        replayed = await resumed.run("s0", kind="tool", fingerprint="changed", body=lambda: ok("live"))
+        rerun = await resumed.run("s1", kind="tool", fingerprint="s1", body=lambda: ok("live"))
+        assert (replayed, rerun) == ("retry-0", "live")
+        assert memory_storage.entries[build_run_meta_key(retry.key)]["diverge_from"] == 6
+
+    @pytest.mark.asyncio
+    async def test_an_entry_that_could_not_be_deleted_is_not_trusted(self, memory_storage):
+        retry = await _failed_attempt_then_retry_that_diverges_at_once(memory_storage)
+
+        with mock.patch.object(memory_storage, "delete_steps", autospec=True):
+            retry.pause()
+
+        # The failed attempt's entry at 1 is still there, so the resume runs everything from 1 live.
+        assert memory_storage.entries[build_run_meta_key(retry.key)]["diverge_from"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_resume_still_replaying_leaves_the_boundary_where_it_is(self, memory_storage):
+        retry = await _failed_attempt_then_retry_that_diverges_at_once(memory_storage)
+        retry.pause()
+        meta = dict(memory_storage.entries[build_run_meta_key(retry.key)])
+
+        resumed = DurableJournal(memory_storage).start_run()
+        await resumed.run("s0", kind="tool", fingerprint="changed", body=lambda: ok("live"))
+        resumed.pause()
+
+        assert memory_storage.entries[build_run_meta_key(resumed.key)] == meta
+        assert await resumed.run("s1", kind="tool", fingerprint="s1", body=lambda: ok("live")) == "live"
+        assert await resumed.run("s2", kind="tool", fingerprint="s2", body=lambda: ok("live")) == "retry-2"
+
+
 class TestCleanup:
     @pytest.mark.asyncio
     async def test_cleanup_reaches_a_run_started_by_a_step_that_now_replays(self, memory_storage):
