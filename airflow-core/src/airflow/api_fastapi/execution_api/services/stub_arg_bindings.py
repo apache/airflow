@@ -231,7 +231,9 @@ class _MappedArgBindingDeriver:
         return self._bind_default(param)
 
     def _bind_group_arg(self, param: _ArgParam, group_arg: _GroupArg) -> TaskArgBinding:
-        group = cast("SerializedMappedTaskGroup", self.dag.task_group_dict[group_arg.group_id])
+        if (group := self.dag.task_group_dict.get(group_arg.group_id)) is None:
+            raise UndeliverableMappedArgBindingsError(f"mapped task group {group_arg.group_id!r} is missing")
+        group = cast("SerializedMappedTaskGroup", group)
         expand_input = group._expand_input
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
             index = self._get_sub_indexes(expand_input, param.expand_keys)[group_arg.key]
