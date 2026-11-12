@@ -1102,14 +1102,26 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
 
         assert "rows" in json.loads(result)
 
-    def test_query_unqualified_resolves_to_default_schema(self):
+    @pytest.mark.parametrize("table", ["public.orders", "orders"], ids=["qualified", "unqualified"])
+    def test_query_unqualified_resolves_to_default_schema(self, table):
         """``public.orders`` and ``orders`` denote the same table when schema='public'."""
         ts = SQLToolset("pg", allowed_tables=["orders"], schema="public")
         ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
 
-        # Qualifying with the default schema must still match the bare allow-list entry.
-        result = _run_query(ts, "SELECT * FROM public.orders")
+        result = _run_query(ts, f"SELECT * FROM {table}")
         assert "rows" in json.loads(result)
+
+    @pytest.mark.parametrize(
+        ("allowed_tables", "error", "match"),
+        [
+            (["db.sales.orders"], ValueError, "'table' or 'schema.table'"),
+            ("orders", TypeError, "not a string"),
+        ],
+        ids=["three_parts", "bare_string"],
+    )
+    def test_malformed_allowed_tables_rejected_at_construction(self, allowed_tables, error, match):
+        with pytest.raises(error, match=match):
+            SQLToolset("pg", allowed_tables=allowed_tables)
 
     def test_no_allowlist_leaves_queries_unrestricted(self):
         """Without allowed_tables the query tool behaves exactly as before (allow-all)."""

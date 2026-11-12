@@ -25,6 +25,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
+        SQLSafetyError,
+        canonical_allowed_functions,
+        canonical_allowed_tables,
+        find_allowed_tables_violations,
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
@@ -32,6 +36,8 @@ except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
+
+from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -43,6 +49,21 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
+
+# Distinguishes "allowed_tables not passed" (no restriction) from an explicit value, as in
+# SQLToolset: an explicit None is rejected like [], so an allow-list a Dag builds at parse
+# time (e.g. from a missing Variable) can never resolve to "allow every table".
+_UNSET: Any = object()
+
+
+def _last_sql_refusal(error: BaseException) -> SQLSafetyError | None:
+    """Return the ``SQLSafetyError`` behind pydantic-ai giving up on output retries, if any."""
+    cause = error.__cause__
+    while cause is not None:
+        if isinstance(cause, SQLSafetyError):
+            return cause
+        cause = cause.__cause__
+    return None
 
 
 class LLMSQLQueryOperator(LLMOperator):
@@ -80,13 +101,31 @@ class LLMSQLQueryOperator(LLMOperator):
     :param db_conn_id: Connection ID for database schema introspection.
         The connection must resolve to a ``DbApiHook``.
     :param table_names: Tables to include in the LLM's schema context.
-        Used with ``db_conn_id`` for automatic introspection.
+        Used with ``db_conn_id`` for automatic introspection. This does not restrict
+        the tables the generated SQL may reference; use ``allowed_tables`` for that.
     :param schema_context: Manual schema context string. When provided,
         this is used instead of ``db_conn_id`` introspection.
     :param validate_sql: Whether to validate generated SQL via AST parsing.
         Default ``True`` (safe by default).
     :param allowed_sql_types: SQL statement types to allow.
         Default: ``(Select, Union, Intersect, Except)``.
+    :param allowed_tables: Tables the generated SQL may reference, as ``table`` or
+        ``schema.table`` entries. When set, SQL that reaches any other table, or uses a
+        construct that cannot be checked against the list, is rejected with
+        ``SQLSafetyError``: this includes SQL comments, quoted identifiers, table-valued
+        functions and functions sqlglot does not recognize. The model is told the allowed
+        tables, and a refused answer is sent back to it as long as ``output_retries``
+        allows. Matching is case-insensitive; with no default schema, an unqualified entry
+        matches only unqualified references (``orders`` does not match ``sales.orders``)
+        and catalog-qualified references never match. Not a template field, so the
+        allow-list is fixed when the Dag is parsed rather than at run time. Requires
+        ``validate_sql=True`` and a SQL dialect (``dialect``, or ``db_conn_id`` to detect it),
+        and must name at least one table. Omit it for no restriction; an explicit ``None``
+        is rejected like an empty list.
+    :param allowed_functions: Names of functions sqlglot does not recognize that are
+        safe to run while ``allowed_tables`` is set, e.g. ``["json_build_object"]`` or a
+        project UDF. Matching is case-insensitive. Only consulted when ``allowed_tables``
+        is set; ``None`` (default) rejects every unrecognized function.
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
     :param datasource_config: A
@@ -125,6 +164,8 @@ class LLMSQLQueryOperator(LLMOperator):
         schema_context: str | None = None,
         validate_sql: bool = True,
         allowed_sql_types: tuple[type[exp.Expr], ...] = DEFAULT_ALLOWED_TYPES,
+        allowed_tables: list[str] = _UNSET,
+        allowed_functions: list[str] | None = None,
         dialect: str | None = None,
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
@@ -133,12 +174,34 @@ class LLMSQLQueryOperator(LLMOperator):
             raise TypeError(
                 "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
             )
+        if allowed_tables is not _UNSET:
+            if not allowed_tables:
+                raise ValueError(
+                    f"allowed_tables must name at least one table, got {allowed_tables!r}. Omit the "
+                    "argument to allow every table. An empty or missing value is rejected rather than "
+                    "read as 'no restriction' so that an allow-list built at runtime cannot silently widen."
+                )
+            if not validate_sql:
+                raise ValueError(
+                    "allowed_tables requires validate_sql=True; it is enforced on the parsed SQL."
+                )
+            if not dialect and not db_conn_id:
+                raise ValueError(
+                    "allowed_tables requires a SQL dialect so the query is parsed the way the database "
+                    "reads it: set dialect, or db_conn_id to detect it from the database hook."
+                )
+            # Called for validation only, so a malformed list fails when the Dag is parsed;
+            # _check_sql recomputes both from the attributes it enforces.
+            canonical_allowed_tables(allowed_tables)
+        canonical_allowed_functions(allowed_functions)
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
         self.schema_context = schema_context
         self.validate_sql = validate_sql
         self.allowed_sql_types = allowed_sql_types
+        self.allowed_tables: list[str] | None = None if allowed_tables is _UNSET else allowed_tables
+        self.allowed_functions = allowed_functions
         self.dialect = dialect
         self.datasource_config = datasource_config
 
@@ -164,16 +227,29 @@ class LLMSQLQueryOperator(LLMOperator):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
+        if self.allowed_tables is not None:
+            self._require_dialect()  # before any tokens are spent; _check_sql repeats it
+
         schema_info = self._get_schema_context()
 
         full_system_prompt = self._build_system_prompt(schema_info)
 
         agent = self._create_agent(output_type=str, instructions=full_system_prompt)
-        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
+        if self.allowed_tables is not None:
+            agent.output_validator(self._retry_unsafe_sql)
+        try:
+            result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
+        except UnexpectedModelBehavior as e:
+            # Once output_retries run out, pydantic-ai reports its own error with the last
+            # refusal only in the cause chain; surface the documented SQLSafetyError instead.
+            refusal = _last_sql_refusal(e)
+            if refusal is None:
+                raise
+            raise SQLSafetyError(str(refusal)) from e
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
-            _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+            self._check_sql(sql)
 
         self.log.info("Generated SQL:\n%s", sql)
 
@@ -193,9 +269,48 @@ class LLMSQLQueryOperator(LLMOperator):
         """Resume after human review, re-validating if the reviewer modified the SQL."""
         output = self._complete_review(context, generated_output, event, decision)
         if output is not None and output != generated_output:
-            _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+            self._check_sql(output)
         self._clear_usage_budget(context)
         return output
+
+    def _retry_unsafe_sql(self, output: str) -> str:
+        """Send a refusal back to the model so ``output_retries`` lets it rewrite the query."""
+        try:
+            self._check_sql(self._strip_llm_output(output, dialect=self._resolved_dialect))
+        except SQLSafetyError as e:
+            raise ModelRetry(str(e)) from e
+        return output
+
+    def _check_sql(self, sql: str) -> None:
+        """Validate the statement types of ``sql`` and, when set, the tables it may reference."""
+        statements = _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+        if self.allowed_tables is None:
+            return
+        # Also reached when Human-in-the-Loop review resumes, possibly on another worker.
+        self._require_dialect()
+        violations = find_allowed_tables_violations(
+            statements,
+            canonical_allowed_tables(self.allowed_tables),
+            allowed_functions=canonical_allowed_functions(self.allowed_functions),
+        )
+        if violations.unverifiable_sources:
+            raise SQLSafetyError(
+                "SQL uses a data source that cannot be checked against allowed_tables: "
+                f"{'; '.join(violations.unverifiable_sources)}."
+            )
+        if violations.disallowed_tables:
+            raise SQLSafetyError(
+                "SQL references tables that are not in allowed_tables: "
+                f"{', '.join(violations.disallowed_tables)}. Allowed tables: {', '.join(self.allowed_tables)}."
+            )
+
+    def _require_dialect(self) -> None:
+        """Refuse to enforce ``allowed_tables`` without a dialect, which could misread the SQL."""
+        if self._resolved_dialect is None:
+            raise ValueError(
+                f"allowed_tables requires a SQL dialect, but none could be resolved from "
+                f"dialect={self.dialect!r} or the hook of db_conn_id={self.db_conn_id!r}. Set dialect."
+            )
 
     @staticmethod
     def _strip_llm_output(raw: str, *, dialect: str | None = None) -> str:
@@ -284,6 +399,12 @@ class LLMSQLQueryOperator(LLMOperator):
             "(INSERT, UPDATE, DELETE, DROP, etc.)\n"
             "- Use proper syntax for the specified dialect\n"
         )
+        if self.allowed_tables is not None:
+            prompt += (
+                f"- Only reference these tables: {', '.join(self.allowed_tables)}\n"
+                "- Write table names unquoted and exactly as listed\n"
+                "- Do not include SQL comments\n"
+            )
         if self.system_prompt:
             prompt += f"\nAdditional instructions:\n{self.system_prompt}\n"
         return prompt

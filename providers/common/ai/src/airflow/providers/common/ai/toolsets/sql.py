@@ -24,7 +24,11 @@ from typing import TYPE_CHECKING, Any
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         SQLSafetyError,
-        collect_table_references,
+        TableKey,
+        canonical_allowed_functions,
+        canonical_allowed_tables,
+        canonical_table_key,
+        find_allowed_tables_violations,
         parse_sql as _parse_sql,
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
@@ -304,9 +308,7 @@ class SQLToolset(AirflowToolset):
         self._db_conn_id = db_conn_id
         # Case-folded so matching a query's function names (also case-folded) is
         # case-insensitive, mirroring how allowed_tables is compared.
-        self._allowed_functions: frozenset[str] = (
-            frozenset(f.casefold() for f in allowed_functions) if allowed_functions else frozenset()
-        )
+        self._allowed_functions: frozenset[str] = canonical_allowed_functions(allowed_functions)
         self._schema = schema
         self._allow_writes = allow_writes
         self._max_rows = max_rows
@@ -317,55 +319,26 @@ class SQLToolset(AirflowToolset):
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
         # tests, plus the schemas to introspect. Built once: every reference -- a
         # discovery hit, a get_schema arg, or a table parsed out of a query -- is
-        # normalised to the same shape and matched against this set.
-        #
-        # Identifiers are case-folded: databases reflect them in their own case
-        # (Snowflake stores unquoted names uppercase but reflects them lowercased), so
-        # a byte-exact match against the user's entries would silently miss. Unqualified
-        # entries resolve to the default ``schema`` (``None`` when unset) so that
-        # ``"orders"`` and ``"<schema>.orders"`` denote the same table. Allow-list
-        # entries carry no catalog, so any catalog-qualified reference
-        # (``otherdb.public.orders``) has a non-null catalog in its key and cannot match
-        # -- that closes cross-database access the single-connection allow-list can't
-        # describe.
-        self._allowed_canonical: frozenset[tuple[str | None, str | None, str]] | None = None
+        # normalised to the same shape (see ``canonical_allowed_tables``) and matched
+        # against this set.
+        self._allowed_canonical: frozenset[TableKey] | None = None
         # Qualified entries ("SCHEMA.TABLE") are listed under their own schema and
         # returned fully qualified; unqualified entries (and allow-all) use the
         # default ``schema``.
         self._qualified_schemas: frozenset[str] = frozenset()
         self._include_default_schema: bool = True
         if self._allowed_tables is not None:
-            canonical: set[tuple[str | None, str | None, str]] = set()
-            qualified_schemas: set[str] = set()
-            include_default = False
-            for entry in self._allowed_tables:
-                entry_schema, sep, table = entry.rpartition(".")
-                if sep:
-                    qualified_schemas.add(entry_schema)
-                    canonical.add(self._canonical_ref("", entry_schema, table))
-                else:
-                    include_default = True
-                    canonical.add(self._canonical_ref("", self._schema, entry))
-            self._allowed_canonical = frozenset(canonical)
-            self._qualified_schemas = frozenset(qualified_schemas)
-            self._include_default_schema = include_default
-
-    @staticmethod
-    def _canonical_ref(
-        catalog: str | None, schema: str | None, table: str
-    ) -> tuple[str | None, str | None, str]:
-        """Normalise a ``(catalog, schema, table)`` reference to its case-folded comparison key."""
-        return (
-            catalog.casefold() if catalog else None,
-            schema.casefold() if schema else None,
-            table.casefold(),
-        )
+            self._allowed_canonical = canonical_allowed_tables(allowed_tables, self._schema)
+            self._qualified_schemas = frozenset(
+                entry.rpartition(".")[0] for entry in self._allowed_tables if "." in entry
+            )
+            self._include_default_schema = any("." not in entry for entry in self._allowed_tables)
 
     def _is_ref_allowed(self, catalog: str | None, schema: str | None, table: str) -> bool:
         """Membership test for a resolved ``(catalog, schema, table)`` reference (allow-all when unset)."""
         if self._allowed_canonical is None:
             return True
-        return self._canonical_ref(catalog, schema, table) in self._allowed_canonical
+        return canonical_table_key(catalog, schema, table) in self._allowed_canonical
 
     @property
     def id(self) -> str:
@@ -471,10 +444,10 @@ class SQLToolset(AirflowToolset):
         # Dedupe by (schema, table) so a table reachable both qualified and via the
         # default schema (e.g. "public.users" and "users" with schema="public") is
         # listed once. Case-folded because databases reflect identifiers in their case.
-        seen: set[tuple[str | None, str | None, str]] = set()
+        seen: set[TableKey] = set()
 
         def add(schema: str | None, name: str, display: str) -> None:
-            key = self._canonical_ref("", schema, name)
+            key = canonical_table_key("", schema, name)
             if self._is_ref_allowed("", schema, name) and key not in seen:
                 seen.add(key)
                 tables.append(display)
@@ -588,20 +561,20 @@ class SQLToolset(AirflowToolset):
         """
         if self._allowed_canonical is None:
             return
-        scan = collect_table_references(statements, allowed_functions=self._allowed_functions)
-        if scan.unverifiable_sources:
+        violations = find_allowed_tables_violations(
+            statements,
+            self._allowed_canonical,
+            default_schema=self._schema,
+            allowed_functions=self._allowed_functions,
+        )
+        if violations.unverifiable_sources:
             raise SQLSafetyError(
                 f"Query uses a data source that cannot be checked against allowed_tables: "
-                f"{'; '.join(scan.unverifiable_sources)}. Query the allowed tables directly: "
+                f"{'; '.join(violations.unverifiable_sources)}. Query the allowed tables directly: "
                 f"use list_tables to see them."
             )
-        disallowed = [
-            ".".join(part for part in (catalog, schema, table) if part)
-            for catalog, schema, table in scan.tables
-            if not self._is_ref_allowed(catalog, schema or self._schema, table)
-        ]
-        if disallowed:
+        if violations.disallowed_tables:
             raise SQLSafetyError(
                 f"Query references tables that are not in the allowed tables list: "
-                f"{', '.join(sorted(set(disallowed)))}. Use list_tables to see the allowed tables."
+                f"{', '.join(violations.disallowed_tables)}. Use list_tables to see the allowed tables."
             )

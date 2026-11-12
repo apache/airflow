@@ -23,6 +23,8 @@ from airflow.providers.common.ai.utils.sql_validation import (
     _DATA_MODIFYING_NODES,
     DEFAULT_ALLOWED_TYPES,
     SQLSafetyError,
+    canonical_allowed_functions,
+    canonical_allowed_tables,
     collect_table_references,
     parse_sql,
     resolve_sqlglot_dialect,
@@ -374,6 +376,11 @@ class TestParseSQL:
         with pytest.raises(SQLSafetyError, match="parse error"):
             parse_sql("SELECT FROM WHERE )(")
 
+    def test_rejects_untokenizable(self):
+        """An unbalanced quote fails in sqlglot's tokenizer (TokenError), not its parser."""
+        with pytest.raises(SQLSafetyError, match="parse error"):
+            parse_sql("I can't write that query")
+
 
 class TestCollectTableReferences:
     """``collect_table_references`` reports the real tables a query reaches."""
@@ -502,13 +509,107 @@ class TestCollectTableReferences:
         [
             ("SELECT * FROM dblink('h', 'SELECT 1') AS t(x int)", "postgres"),
             ("SELECT * FROM generate_series(1, 10)", "postgres"),
+            ("SELECT * FROM LATERAL read_parquet('/tmp/private.parquet')", "duckdb"),
+            ("SELECT * FROM LATERAL generate_series(1, 10)", "postgres"),
         ],
-        ids=["dblink", "generate_series"],
+        ids=["dblink", "generate_series", "lateral_read_parquet", "lateral_generate_series"],
     )
     def test_flags_table_valued_functions_as_unverifiable(self, sql, dialect):
         scan = collect_table_references(parse_sql(sql, dialect=dialect))
         assert scan.tables == []
         assert scan.unverifiable_sources
+
+    def test_lateral_subquery_tables_are_still_reported(self):
+        """A LATERAL subquery is checkable: its tables are scanned like any other."""
+        sql = "SELECT * FROM orders o, LATERAL (SELECT * FROM items i WHERE i.order_id = o.id) x"
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert set(scan.tables) == {("", "", "orders"), ("", "", "items")}
+        assert scan.unverifiable_sources == []
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            ("SELECT * FROM orders o CROSS JOIN LATERAL unnest(o.tags) t", "postgres"),
+            ("SELECT * FROM orders o, LATERAL FLATTEN(input => o.tags) f", "snowflake"),
+            ("SELECT * FROM orders LATERAL VIEW explode(items) t AS item", "spark"),
+            ("SELECT * FROM orders LATERAL VIEW OUTER inline(items) t", "hive"),
+            ("SELECT * FROM orders o CROSS APPLY OPENJSON(o.doc) AS j", "tsql"),
+        ],
+        ids=["unnest", "flatten", "explode", "inline", "openjson"],
+    )
+    def test_lateral_column_generators_are_checkable(self, sql, dialect):
+        """A column generator under LATERAL only expands its arguments, like UNNEST in FROM."""
+        scan = collect_table_references(parse_sql(sql, dialect=dialect))
+        assert scan.tables == [("", "", "orders")]
+        assert scan.unverifiable_sources == []
+
+    def test_lateral_column_generator_arguments_are_scanned(self):
+        sql = "SELECT * FROM orders o CROSS JOIN LATERAL unnest(ARRAY(SELECT name FROM salaries)) t"
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert set(scan.tables) == {("", "", "orders"), ("", "", "salaries")}
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT * FROM LATERAL dblink('h', 'SELECT 1') AS t(x int)",
+            "SELECT * FROM LATERAL pg_catalog.dblink('h', 'SELECT 1') AS t(x int)",
+        ],
+        ids=["lateral", "lateral_schema_qualified"],
+    )
+    def test_flags_allowed_function_under_lateral_as_unverifiable(self, sql):
+        """allowed_functions permits a function call, not an unchecked LATERAL row source."""
+        scan = collect_table_references(
+            parse_sql(sql, dialect="postgres"), allowed_functions=frozenset({"dblink"})
+        )
+        assert scan.unverifiable_sources
+
+    @pytest.mark.parametrize(
+        "sql",
+        ["SELECT * FROM orders WHERE id IN secret", "SELECT * FROM orders WHERE id IN main.secret"],
+        ids=["bare", "schema_qualified"],
+    )
+    def test_flags_in_bare_name_as_unverifiable(self, sql):
+        """SQLite reads `IN <name>` as a table, but sqlglot parses the name as a column."""
+        scan = collect_table_references(parse_sql(sql, dialect="sqlite"))
+        assert scan.unverifiable_sources == ["an IN <name> source"]
+
+    def test_flags_allowed_function_after_in_as_unverifiable(self):
+        """allowed_functions permits a function call, not SQLite's `IN json_each(...)` row source."""
+        scan = collect_table_references(
+            parse_sql("SELECT * FROM orders WHERE id IN json_each('[1]')", dialect="sqlite"),
+            allowed_functions=frozenset({"json_each"}),
+        )
+        assert scan.unverifiable_sources == ["an IN <name> source"]
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            ("SELECT * FROM orders WHERE id IN (1, 2)", "sqlite"),
+            ("SELECT * FROM orders WHERE id IN (id)", "sqlite"),
+            ("SELECT * FROM orders WHERE id IN UNNEST([1, 2])", "bigquery"),
+        ],
+        ids=["list", "parenthesized_column", "unnest"],
+    )
+    def test_in_list_and_unnest_are_checkable(self, sql, dialect):
+        scan = collect_table_references(parse_sql(sql, dialect=dialect))
+        assert scan.tables == [("", "", "orders")]
+        assert scan.unverifiable_sources == []
+
+    def test_in_subquery_tables_are_still_reported(self):
+        sql = "SELECT * FROM orders WHERE id IN (SELECT order_id FROM salaries)"
+        scan = collect_table_references(parse_sql(sql, dialect="sqlite"))
+        assert set(scan.tables) == {("", "", "orders"), ("", "", "salaries")}
+        assert scan.unverifiable_sources == []
+
+    def test_dialect_decides_where_a_backslash_string_ends(self):
+        """MySQL's backslash escape ends the first literal early, so the subquery on secret is real."""
+        sql = "SELECT 'a\\' AS x, ' , (SELECT pw FROM secret) AS b -- '\nFROM orders"
+
+        def tables(dialect):
+            return {table.name for table in parse_sql(sql, dialect=dialect)[0].find_all(exp.Table)}
+
+        assert tables("mysql") == {"secret", "orders"}
+        assert tables(None) == {"orders"}
 
     @pytest.mark.parametrize(
         ("sql", "dialect"),
@@ -721,6 +822,38 @@ _READ_STATEMENTS = {
     "cte_select": "WITH c AS (SELECT 1 AS a) SELECT * FROM c",
     "union_all": "SELECT 1 UNION ALL SELECT 2",
 }
+
+
+class TestCanonicalAllowLists:
+    def test_unqualified_entry_resolves_to_default_schema(self):
+        assert canonical_allowed_tables(["orders", "Sales.Items"], "public") == {
+            (None, "public", "orders"),
+            (None, "sales", "items"),
+        }
+
+    @pytest.mark.parametrize(
+        "entry",
+        ["db.sales.orders", "", ".orders", "sales."],
+        ids=["three_parts", "empty", "empty_schema", "empty_table"],
+    )
+    def test_rejects_malformed_table_entry(self, entry):
+        with pytest.raises(ValueError, match="must be 'table' or 'schema.table'"):
+            canonical_allowed_tables([entry])
+
+    @pytest.mark.parametrize("helper", [canonical_allowed_tables, canonical_allowed_functions])
+    def test_rejects_a_bare_string(self, helper):
+        """Iterating "orders" would allow the tables o, r, d, e and s."""
+        with pytest.raises(TypeError, match="not a string"):
+            helper("orders")
+
+    @pytest.mark.parametrize("entry", [None, {"table": "orders"}], ids=["none", "dict"])
+    def test_rejects_non_string_table_entry(self, entry):
+        with pytest.raises(TypeError, match="entries must be strings"):
+            canonical_allowed_tables([entry])
+
+    def test_functions_are_case_folded(self):
+        assert canonical_allowed_functions(["JSON_Build_Object"]) == {"json_build_object"}
+        assert canonical_allowed_functions(None) == frozenset()
 
 
 class TestSqlglotDriftTripwires:
