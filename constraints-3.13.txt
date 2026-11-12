@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-11T03:12:24.011653
+# This constraints file was automatically generated on 2026-11-12T13:32:26.613545
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -203,7 +203,7 @@ apache-airflow-providers-ydb==2.6.1
 apache-airflow-providers-zendesk==4.12.1
 apache-beam==2.78.0rc1
 apispec==6.10.1
-apprise==2.1.0
+apprise==2.2.0
 argcomplete==3.7.2
 arrow==1.4.0
 asana==5.5.1
@@ -258,7 +258,7 @@ blinker==1.9.0
 boto3==1.43.117
 botocore==1.43.117
 cachelib==0.17.0
-cachetools==7.3.0
+cachetools==8.0.0
 cadwyn==8.2.0
 capi_param_builder_python==1.3.2
 cassandra-driver==3.30.1
@@ -315,7 +315,7 @@ exasol-telemetry-client==0.2.1
 executing==2.3.0
 facebook_business==26.0.4
 fastapi-cli==0.0.32
-fastapi==0.162.0
+fastapi==0.162.2
 fastavro==1.13.1
 fastcore==2.2.39
 fasteners==0.20
@@ -590,7 +590,7 @@ pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.12
-pycryptodome==4.3.0
+pycryptodome==4.4.0
 pydantic-ai-slim==2.66.0
 pydantic-extra-types==2.11.1
 pydantic-graph==2.66.0
@@ -605,7 +605,7 @@ pyiceberg==0.12.0
 pykerberos==1.2.4
 pymongo==4.19.0
 pymssql==2.4.6
-pyodbc==5.4.0
+pyodbc==5.5.0
 pyodps==0.13.3
 pyparsing==3.3.3
 pypsrp==0.9.1
