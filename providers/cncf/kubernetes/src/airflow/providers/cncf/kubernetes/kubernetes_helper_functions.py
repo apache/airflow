@@ -85,18 +85,26 @@ def _should_retry_api(exc: BaseException) -> bool:
     return isinstance(exc, TRANSIENT_CONNECTION_ERRORS)
 
 
+def _get_retry_after_seconds(exc: BaseException | None) -> float | None:
+    """Return the delay a 429 response asks for in Retry-After, or None when it gives no usable one."""
+    if isinstance(exc, (SyncApiException, AsyncApiException)) and exc.status == 429:
+        retry_after = (exc.headers or {}).get("Retry-After")
+        if retry_after:
+            try:
+                return float(int(retry_after))
+            except ValueError:
+                pass
+    return None
+
+
 class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
     """Wait strategy that honors Retry-After header on 429, else falls back to exponential backoff."""
 
     def __call__(self, retry_state):
         exc = retry_state.outcome.exception() if retry_state.outcome else None
-        if isinstance(exc, (SyncApiException, AsyncApiException)) and exc.status == 429:
-            retry_after = (exc.headers or {}).get("Retry-After")
-            if retry_after:
-                try:
-                    return float(int(retry_after))
-                except ValueError:
-                    pass
+        retry_after = _get_retry_after_seconds(exc)
+        if retry_after is not None:
+            return retry_after
         # Inline exponential fallback
         return _default_wait(retry_state)
 

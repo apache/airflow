@@ -22,7 +22,7 @@ import json
 import os
 import tempfile
 from collections.abc import AsyncGenerator
-from functools import cached_property
+from functools import cached_property, wraps
 from time import sleep
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -32,6 +32,7 @@ from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config, watch as async_watch
+from kubernetes_asyncio.client.rest import RESTResponse
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
@@ -45,6 +46,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_RETRY_WAIT_MAX,
     API_RETRY_WAIT_MIN,
     TRANSIENT_CONNECTION_ERRORS,
+    _get_retry_after_seconds,
     _should_retry_api,
     generic_api_retry,
 )
@@ -78,6 +80,29 @@ WATCH_RETRYABLE_ERRORS: tuple[type[BaseException], ...] = (
     async_client.exceptions.ApiException,
     *TRANSIENT_CONNECTION_ERRORS,
 )
+
+
+def _raise_for_watch_status(list_func):
+    """
+    Wrap a list call for ``Watch.stream`` so a non-2xx response raises with its own headers.
+
+    ``Watch.stream`` passes ``_preload_content=False``, which skips the client's status check, and
+    ``Watch`` then raises an ``ApiException`` built from the Status body alone. That exception has
+    no headers, so a 429's ``Retry-After`` would never reach the reconnect loop.
+
+    ``wraps`` is required: ``Watch`` reads the list call's docstring to find its return type.
+    """
+
+    @wraps(list_func)
+    async def call(*args, **kwargs):
+        response = await list_func(*args, **kwargs)
+        if not 200 <= response.status <= 299:
+            body = await response.read()
+            response.release()
+            raise async_client.ApiException(http_resp=RESTResponse(response, body))
+        return response
+
+    return call
 
 
 def _load_body_to_dict(body: str) -> dict:
@@ -1224,9 +1249,10 @@ class AsyncKubernetesHook(KubernetesHook):
         resourceVersion. The watch stops when the pod is terminal or deleted,
         and falls back to polling if watch access is denied.
 
-        Transient failures are retried by the reconnect loop below rather than by
-        ``@generic_api_retry``: that decorator would only wrap the construction of this
-        generator, never its iteration, and resuming a stream needs ``last_rv`` anyway.
+        Transient failures of the watch request are retried by the reconnect loop below rather
+        than by ``@generic_api_retry``: that decorator would only wrap the construction of this
+        generator, never its iteration, and resuming a stream needs ``last_rv`` anyway. A failed
+        ``get_pod`` ends the watch instead, because that call has already used its own retry.
 
         :param name: Pod name to watch events for
         :param namespace: Kubernetes namespace
@@ -1267,7 +1293,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     # Passing timeout_seconds makes Watch re-raise the client's TimeoutError instead
                     # of reconnecting itself, so the except below treats it like a dropped socket.
                     async for event_watched in w.stream(
-                        v1_api.list_namespaced_event,
+                        _raise_for_watch_status(v1_api.list_namespaced_event),
                         namespace=namespace,
                         field_selector=f"involvedObject.name={name}",
                         resource_version=last_rv,
@@ -1281,7 +1307,7 @@ class AsyncKubernetesHook(KubernetesHook):
                             last_rv = event.metadata.resource_version
 
                         # A delivered event means the connection works; don't let unrelated
-                        # blips hours apart add up to an exhausted budget.
+                        # blips add up to an exhausted budget.
                         transient_retries = 0
                         yield event
 
@@ -1315,16 +1341,17 @@ class AsyncKubernetesHook(KubernetesHook):
                     last_rv = None
                     continue
 
-                # One short-lived 5xx or dropped socket should not end event logging for the
-                # rest of the pod's life. The budget matches stop_after_attempt(API_RETRIES),
-                # which counts the first try, so API_RETRIES - 1 reconnects follow it.
-                # get_pod carries its own @generic_api_retry, so a failure from it that
-                # _should_retry_api accepts has already been retried and signals a sustained
-                # outage; letting it consume this budget too is what stops the watch instead
-                # of looping forever.
-                if _should_retry_api(e) and transient_retries < API_RETRIES - 1:
+                # One short-lived 5xx or dropped socket should not end event logging while the
+                # pod starts. The budget matches stop_after_attempt(API_RETRIES), which counts
+                # the first try, so API_RETRIES - 1 reconnects follow it.
+                # Only the watch request is retried here. A failure from get_pod (w is still
+                # None) has already used that call's own @generic_api_retry, so it signals a
+                # sustained outage, and retrying it again would multiply the reads per pod.
+                if w is not None and _should_retry_api(e) and transient_retries < API_RETRIES - 1:
                     transient_retries += 1
-                    delay = min(API_RETRY_WAIT_MIN * 2 ** (transient_retries - 1), API_RETRY_WAIT_MAX)
+                    delay = _get_retry_after_seconds(e)
+                    if delay is None:
+                        delay = min(API_RETRY_WAIT_MIN * 2 ** (transient_retries - 1), API_RETRY_WAIT_MAX)
                     self.log.warning(
                         "Transient error while watching events for pod '%s' (attempt %d/%d), "
                         "reconnecting in %.1fs: %s",
