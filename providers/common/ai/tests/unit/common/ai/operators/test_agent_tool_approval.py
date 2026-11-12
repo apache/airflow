@@ -306,14 +306,16 @@ class TestPause:
 
         assert _TOOL_APPROVAL_REQUESTED_KEY not in store.data
 
-    def test_a_fresh_run_deletes_a_stale_transcript(self):
+    # On by default with retries: a transcript left by a try before the upgrade turned the default on.
+    @pytest.mark.parametrize("kwargs", [{}, {"retries": 2}], ids=["not-durable", "durable-by-default"])
+    def test_a_fresh_run_deletes_a_stale_transcript(self, kwargs):
         store = _FakeTaskStateStore()
         store.data[_TOOL_APPROVAL_TRANSCRIPT_KEY] = "left over from a try that ended while waiting"
 
         def answer(messages, info):
             return ModelResponse(parts=[TextPart("done")])
 
-        assert _operator(answer, [_Shop().toolset()]).execute(_context(store)) == "done"
+        assert _operator(answer, [_Shop().toolset()], **kwargs).execute(_context(store)) == "done"
         assert _TOOL_APPROVAL_TRANSCRIPT_KEY not in store.data
 
     def test_deny_on_timeout_sets_reject_as_the_timeout_default(self):
@@ -846,8 +848,12 @@ def _fails_once_after_refund(model_fn):
     return model
 
 
+# How the tests of durable approval turn durable execution on; ``TestDurable`` runs each test both ways.
+_DURABLE_ON: dict[str, Any] = {"durable": True}
+
+
 def _durable(model_fn, toolsets, **kwargs) -> AgentOperator:
-    return _operator(model_fn, toolsets, durable=True, **kwargs)
+    return _operator(model_fn, toolsets, **{**_DURABLE_ON, **kwargs})
 
 
 def _durable_pause(op: AgentOperator, ctx: Any) -> TaskAwaitingInput:
@@ -857,7 +863,13 @@ def _durable_pause(op: AgentOperator, ctx: Any) -> TaskAwaitingInput:
 
 
 class TestDurable:
-    """With ``durable=True`` the approval is a step of the journal, and the resume replays up to it."""
+    """Under durable execution the approval is a step of the journal, and the resume replays up to it."""
+
+    @pytest.fixture(
+        autouse=True, params=[{"durable": True}, {"retries": 2}], ids=["durable-true", "default-with-retries"]
+    )
+    def durable_kwargs(self, request, monkeypatch) -> None:
+        monkeypatch.setattr(f"{__name__}._DURABLE_ON", request.param)
 
     def test_pauses_without_saving_a_transcript_or_reporting_a_failed_run(self):
         shop, store = _Shop(), _FakeTaskStateStore()
@@ -890,6 +902,8 @@ class TestDurable:
         assert shop.calls == [("lookup", 1), ("refund", 1)]
         # One request before the pause, and one after it: the first is replayed on resume.
         assert model.calls == 2
+        # Success deletes the journal and the saved answers; before 3.4 the note that it asked stays.
+        assert set(store.data) <= {_TOOL_APPROVAL_REQUESTED_KEY}
 
     def test_reject_tells_the_agent_why_and_skips_the_call(self):
         shop, store = _Shop(), _FakeTaskStateStore()
@@ -920,6 +934,9 @@ class TestDurable:
         upsert.assert_not_called()
         assert shop.calls == [("lookup", 1), ("refund", 1)]
         assert output == "order 1 costs $10 | refunded order 1"
+        # Success deletes the journal and the saved answers. Before 3.4 the task instance keeps
+        # the note that it asked, so a later try or clear does not ask again.
+        assert store.data == ({} if repeat_supported else {_TOOL_APPROVAL_REQUESTED_KEY: True})
 
     def test_a_tool_that_raises_approval_required_itself_is_not_asked_about_again_on_retry(self):
         refunds = []
@@ -1358,7 +1375,7 @@ class TestDurable:
                 python_callable=lambda: "Refund order 1",
                 llm_conn_id="llm",
                 toolsets=[shop.toolset()],
-                durable=True,
+                **_DURABLE_ON,
             )
             op.llm_hook = MagicMock(spec=["create_agent"])
             op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(_lookup_and_refund), **kw)
