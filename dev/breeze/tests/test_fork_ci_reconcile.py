@@ -36,6 +36,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_STATUS_CONTEXT_PREFIX,
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
+    BaseCheck,
     Marker,
     parse_marker,
     render_marker,
@@ -60,8 +61,8 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     build_slack_payload,
     changes_ci_definition,
     classify,
+    compare_with_base,
     compute_projection,
-    count_commits_behind,
     discover,
     drop_reported,
     fetch_fork_observations,
@@ -97,6 +98,8 @@ CONFIG = GateConfig(enabled=True, enabled_since=datetime(2026, 10, 1, tzinfo=UTC
 RUN_URL = "https://github.com/someone/airflow/actions/runs/1"
 PROJECT_RUN_URL = "https://github.com/apache/airflow/actions/runs/2"
 GREEN = ForkObservation(suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url=RUN_URL)
+MERGE_BASE = "def4567890aa"
+CURRENT_BASE = BaseCheck(MERGE_BASE, 3)
 
 
 def _pr(**overrides) -> PullRequestSnapshot:
@@ -129,7 +132,7 @@ def _classify(
     bypass_run=None,
     changes_ci_files=False,
     config=CONFIG,
-    behind=None,
+    base=CURRENT_BASE,
     head_shared_across_bases=False,
     gate_change=None,
 ):
@@ -143,7 +146,7 @@ def _classify(
         repo=REPO,
         find_bypass_run=find_bypass,
         changes_ci_files=changes,
-        count_behind=mock.Mock(return_value=behind),
+        compare_base=mock.Mock(return_value=base),
         head_shared_across_bases=head_shared_across_bases,
         find_gate_change=lambda: gate_change,
     )
@@ -472,66 +475,116 @@ UNVERIFIED_STATUS = (
 )
 
 
-CI_PASSED = ("success", RUN_URL, "Fork CI passed for this commit")
+CI_PASSED = ("success", RUN_URL, "Fork CI passed; base main@def4567890 was 3 commits behind, no overlap")
 CI_PASSED_REVOKED = ("pending", RUN_URL, "Fork CI result no longer trusted for this commit")
+OVERLAPPING_BASE = BaseCheck(MERGE_BASE, 3, ("a.py",))
+REBASE_NEEDED = ("pending", RUN_URL, "Rebase on main and push: main changed 1 of the same files since")
 
 
 @pytest.mark.parametrize(
-    ("fork", "changes_ci_files", "ci_passed_state", "expected"),
+    ("fork", "changes_ci_files", "base", "ci_passed_state", "expected"),
     [
-        pytest.param(GREEN, False, None, CI_PASSED, id="green-posts-success"),
-        pytest.param(GREEN, False, "success", None, id="green-already-posted"),
-        pytest.param(GREEN, False, "pending", CI_PASSED, id="green-after-revoke"),
-        pytest.param(GREEN, True, None, None, id="unverified-gets-none"),
+        pytest.param(GREEN, False, CURRENT_BASE, None, CI_PASSED, id="green-posts-success"),
+        pytest.param(GREEN, False, CURRENT_BASE, "success", None, id="green-already-posted"),
+        pytest.param(GREEN, False, CURRENT_BASE, "pending", CI_PASSED, id="green-after-revoke"),
+        pytest.param(GREEN, True, CURRENT_BASE, None, None, id="unverified-gets-none"),
+        pytest.param(GREEN, False, OVERLAPPING_BASE, None, REBASE_NEEDED, id="old-base-asks-to-rebase"),
+        pytest.param(GREEN, False, OVERLAPPING_BASE, "success", REBASE_NEEDED, id="old-base-revokes"),
+        pytest.param(GREEN, False, OVERLAPPING_BASE, "pending", None, id="old-base-already-pending"),
+        pytest.param(GREEN, False, None, None, None, id="base-not-compared-gets-none"),
+        pytest.param(GREEN, False, None, "success", CI_PASSED_REVOKED, id="base-not-compared-revokes"),
         pytest.param(
             ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
             False,
+            CURRENT_BASE,
             "success",
             CI_PASSED_REVOKED,
             id="failed-rerun-revokes",
         ),
-        pytest.param(GREEN, True, "success", CI_PASSED_REVOKED, id="unverified-after-retarget-revokes"),
+        pytest.param(
+            GREEN, True, CURRENT_BASE, "success", CI_PASSED_REVOKED, id="unverified-after-retarget-revokes"
+        ),
         pytest.param(
             ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL),
             False,
+            CURRENT_BASE,
             None,
             None,
             id="running-gets-none",
         ),
     ],
 )
-def test_ci_passed_reports_trusted_green_only(fork, changes_ci_files, ci_passed_state, expected):
-    plan, _, _ = _classify(_pr(ci_passed_state=ci_passed_state), fork, changes_ci_files=changes_ci_files)
+def test_ci_passed_reports_trusted_green_on_a_current_base_only(
+    fork, changes_ci_files, base, ci_passed_state, expected
+):
+    plan, _, _ = _classify(
+        _pr(ci_passed_state=ci_passed_state), fork, changes_ci_files=changes_ci_files, base=base
+    )
 
     assert plan.ci_passed == expected
 
 
+def test_green_whose_base_cannot_be_compared_is_reported():
+    plan, _, _ = _classify(_pr(), GREEN, base=None)
+
+    assert plan.state == ForkState.GREEN
+    assert any("could not be compared with `main`" in item for item in plan.unknown)
+
+
+KEPT_BASE = BaseCheck("kept", 300, None)
+
+
 @pytest.mark.parametrize(
-    ("pr_overrides", "behind", "expected_behind", "warned"),
+    ("pr_overrides", "compared", "expected_base"),
     [
-        pytest.param({}, 250, 250, True, id="counted-on-decision"),
-        pytest.param({}, 3, 3, False, id="close-to-base"),
+        pytest.param({}, True, CURRENT_BASE, id="compared-on-decision"),
         pytest.param(
-            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW, behind=300)},
-            None,
-            300,
-            True,
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW, base=KEPT_BASE)},
+            False,
+            KEPT_BASE,
             id="kept-from-the-marker",
         ),
         pytest.param(
-            {"current_status": GREEN_STATUS, "marker": Marker("green", "old-sha", NOW, behind=300)},
-            None,
-            None,
-            False,
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "old-sha", NOW, base=KEPT_BASE)},
+            True,
+            CURRENT_BASE,
             id="not-kept-for-another-commit",
+        ),
+        pytest.param(
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW)},
+            True,
+            CURRENT_BASE,
+            id="compared-for-a-marker-without-base",
+        ),
+        pytest.param(
+            {
+                "current_status": GREEN_STATUS,
+                "marker": Marker("green", "abc123", NOW, base=KEPT_BASE),
+                "last_base_change_at": NOW,
+                "status_created_at": NOW - timedelta(hours=1),
+            },
+            True,
+            CURRENT_BASE,
+            id="compared-again-after-retarget",
         ),
     ],
 )
-def test_green_records_how_far_behind_the_base_branch(pr_overrides, behind, expected_behind, warned):
-    plan, _, _ = _classify(_pr(**pr_overrides), GREEN, behind=behind)
+def test_green_records_the_base_it_tested(pr_overrides, compared, expected_base):
+    compare_base = mock.Mock(return_value=CURRENT_BASE)
+    plan = classify(
+        _pr(**pr_overrides),
+        GREEN,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        compare_base=compare_base,
+    )
 
-    assert parse_marker(plan.marker_comment).behind == expected_behind
-    assert ("commits behind `main`" in plan.marker_comment) is warned
+    assert compare_base.called is compared
+    assert parse_marker(plan.marker_comment).base == expected_base
+    assert f"[`{expected_base.sha[:10]}`]" in plan.marker_comment
 
 
 @pytest.mark.parametrize(
@@ -2481,18 +2534,64 @@ def test_apply_plan_posts_ci_passed_under_its_own_context(client):
     assert mock.call(42, "abc123", *CI_PASSED, context="CI passed") in client.set_status.call_args_list
 
 
+def _compare(behind, files, merge_base=MERGE_BASE):
+    return {"merge_base_commit": {"sha": merge_base}, "behind_by": behind, "files": files}
+
+
+def _files(*paths):
+    return [{"filename": path} for path in paths]
+
+
+HEAD_COMPARE = f"repos/{REPO}/compare/providers-fab%2Fv1-5...someone:abc123?per_page=1"
+BASE_COMPARE = f"repos/{REPO}/compare/{MERGE_BASE}...providers-fab%2Fv1-5?per_page=1"
+PR_FILES = f"repos/{REPO}/pulls/42/files?per_page=100"
+
+
 @pytest.mark.parametrize(
-    ("side_effect", "expected"),
+    ("responses", "expected", "expected_calls"),
     [
-        pytest.param([{"behind_by": 17}], 17, id="counted"),
-        pytest.param(GitHubError("gh api failed: HTTP 500"), None, id="unreadable"),
+        pytest.param(
+            [_compare(0, _files("a.py"))], BaseCheck(MERGE_BASE, 0, ()), [HEAD_COMPARE], id="up-to-date"
+        ),
+        pytest.param(
+            [_compare(5, _files("a.py", "b.py")), _compare(0, _files("c.py"))],
+            BaseCheck(MERGE_BASE, 5, ()),
+            [HEAD_COMPARE, BASE_COMPARE],
+            id="no-overlap",
+        ),
+        pytest.param(
+            [
+                _compare(5, [*_files("b.py"), {"filename": "new.py", "previous_filename": "a.py"}]),
+                _compare(0, _files("b.py", "a.py", "c.py")),
+            ],
+            BaseCheck(MERGE_BASE, 5, ("a.py", "b.py")),
+            [HEAD_COMPARE, BASE_COMPARE],
+            id="overlap-with-rename",
+        ),
+        pytest.param(
+            [_compare(5, _files("a.py")), _compare(0, _files(*(f"f{i}" for i in range(300))))],
+            BaseCheck(MERGE_BASE, 5, None),
+            [HEAD_COMPARE, BASE_COMPARE],
+            id="base-side-at-cap",
+        ),
+        pytest.param(
+            [
+                _compare(5, _files(*(f"f{i}" for i in range(300)))),
+                _compare(0, _files("g.py", "f301")),
+                _files(*(f"f{i}" for i in range(400))),
+            ],
+            BaseCheck(MERGE_BASE, 5, ("f301",)),
+            [HEAD_COMPARE, BASE_COMPARE, PR_FILES],
+            id="large-pull-request-listed-in-full",
+        ),
+        pytest.param(GitHubError("gh api failed: HTTP 500"), None, [HEAD_COMPARE], id="unreadable"),
     ],
 )
-def test_count_commits_behind(client, side_effect, expected):
-    client.rest_get.side_effect = side_effect
+def test_compare_with_base(client, responses, expected, expected_calls):
+    client.rest_get.side_effect = responses
 
-    assert count_commits_behind(client, REPO, _pr(base_ref="v3-1-test")) == expected
-    assert client.rest_get.call_args.args[0] == f"repos/{REPO}/compare/v3-1-test...someone:abc123?per_page=1"
+    assert compare_with_base(client, REPO, _pr(base_ref="providers-fab/v1-5")) == expected
+    assert [call.args[0] for call in client.rest_get.call_args_list] == expected_calls
 
 
 def _fork_job(name, status="completed", conclusion="success", url=None):

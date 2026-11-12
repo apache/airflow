@@ -1013,6 +1013,8 @@ is the source the ruleset accepts.
   pending or failing one would say, and it never competes with project CI's own check.
 - `green_unverified` gets no `CI passed`: the fork run used CI files the pull request changed, so
   it is not evidence. Once a maintainer adds `use project ci`, project CI reports the check.
+- A `green` run whose base is not current gets a `pending` `CI passed` asking to rebase, and one
+  whose base could not be compared gets none (see "Tested base").
 - When the head commit leaves `green`, for example a re-run in the fork that fails, a `success`
   posted earlier is overwritten with `pending` so the pull request cannot merge on it.
 - A pull request released with `use project ci` keeps any `success` the reconciler posted for
@@ -1076,14 +1078,46 @@ conditions: completed, first attempt, its commit does not change `.github/workfl
 did project CI work by the tampering check's rules. Of its jobs only the gate and the jobs that
 also run in a gated run started, none failed, and at least one was cancelled.
 
-### Far behind the base branch
+### Tested base
 
-A fork run tests the pushed commit as it is, while project CI tests it merged with the base
-branch. When a head commit turns green, the reconciler counts the commits it is behind its base
-branch (`behind_by` of `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`, once per
-head commit, stored in the marker). From 200 commits behind, about four days of `main`, the
-state comment says so and asks the contributor to rebase, since the merged result can still
-fail. The count is advisory and does not change the state.
+A fork run tests the pushed commit as it is, while project CI's `pull_request` run tests GitHub's
+merge commit of the pull request into its base branch. A fork run on an old base could otherwise go
+green and merge although the merged result was never tested. So `CI passed` is only reported for a
+fork run whose base is close enough to the base branch that the merge changes nothing the pull
+request touches.
+
+When a head commit turns green, the reconciler compares it with the base branch, once per head
+commit, and stores the result in the marker as `"base": {"sha", "behind", "overlap"}`:
+
+- `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>` gives the merge base, the commit
+  of the base branch the fork run tested on top of (`sha`), the commits the base branch has since
+  (`behind`), and the files the pull request changes.
+- When `behind` is not zero, `GET /repos/apache/airflow/compare/<merge base>...<base>` gives the
+  files the base branch changed since. `overlap` is the paths in both lists, a renamed file
+  counting under both paths.
+
+`CI passed` is reported only when the base is current: fewer than `MAX_BEHIND_COMMITS` (200, about
+four days of `main`) commits behind and no overlap. Otherwise the state stays `green` (the pull
+request can be reviewed, and its status, labels and draft state are those of `green`), the state
+comment lists the overlapping files or says how far behind the base is and gives the rebase
+commands, and `CI passed` is posted as `pending` with a description saying to rebase. A rebase and
+push starts a new fork run, which is compared again when it turns green. Every green state comment
+names the base commit the run tested and how far behind it was, and the `CI passed` description
+names it as well.
+
+The compare API lists at most 300 files. A pull request with more is listed with
+`GET /repos/apache/airflow/pulls/<n>/files` instead (up to 3000); a base branch that changed 300 or
+more files since the merge base cannot be checked and counts as overlapping, which a rebase
+resolves. When the compare fails, `CI passed` is not reported, the failure is reported to Slack and
+the next run compares again. A marker written before this check, with no `base`, is compared again
+on the next run, so a pull request that already had `CI passed` loses it if its base turns out not
+to be current. A retarget compares again, as it decides green trust again.
+
+This narrows the gap to project CI without closing it. A base change in other files can still break
+the pull request, within at most 200 commits, which matches what project CI leaves open after its
+run: a `pull_request` run is not repeated when the base branch moves, so the merged result at merge
+time is not the one it tested either. Testing the merge commit in the fork itself was considered and
+rejected; see "Known limitations".
 
 ### Unknown failures and attention items go to Slack
 
@@ -1130,8 +1164,8 @@ Per run, with ~700 gated pull requests: ~28 GraphQL calls for pass 2, ~14 for fo
 ~1 for pass 1, plus one REST call per pull request in `setup_required`, a few paginated REST
 calls for the recent `pull_request` runs, one REST call per base branch for its workflow
 files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated pull request,
-one changed-files call per head commit that turns green, plus one mutation per actual state
-change. Job statuses add a jobs call and a status call per pull request with a fork run in
+one changed-files call and one or two compare calls per head commit that turns green, plus one
+mutation per actual state change. Job statuses add a jobs call and a status call per pull request with a fork run in
 progress or a completed run not yet reported, and up to two status mutations per job, at most
 `MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Pull requests that pass 1 labelled and
 the search does not list yet add one GraphQL call per 25. Well inside
@@ -1335,6 +1369,17 @@ as a failed check rather than a crash.
 - An external pull request that legitimately changes workflow files, was released with `use
   project ci` and then had that label removed is closed on the next run, because both
   signals hold. Keeping `use project ci` on such a pull request is the intended handling.
+- Fork CI tests the head commit, not the pull request merged into its base branch; "Tested base"
+  only bounds the difference. Testing the merged result in the fork was rejected because:
+  every job of the fork run checks out the pushed commit (about 60 `actions/checkout` steps across
+  `ci-amd.yml` and its reusable workflows, plus the image builds and caches keyed by the commit),
+  and each would have to check out one merge commit fixed for the whole run; the first push of a
+  branch happens before its pull request exists, so there is no `refs/pull/<n>/merge` to test yet;
+  GitHub computes that ref asynchronously after each push and replaces it whenever the base branch
+  moves, so a run would have to wait for it and could find its commit gone mid-run; and the
+  reconciler would have to trust the run's own report of which merge it tested. Merging the base
+  branch into the head in every job instead needs the shared history of both, which shallow
+  checkouts do not have.
 
 ## Testing
 
@@ -1351,7 +1396,8 @@ as a failed check rather than a crash.
   close), a fork with a name other than `airflow`, marker round-trips, status
   desired-vs-current comparison, the unknown-failure collection, green trust (a change to
   CI-defining files keeps the status pending without drafting the pull request, decided once
-  per commit) and the gate
+  per commit), the tested base (`CI passed` only on a current base, the marker and comment naming
+  the base, compared again for a new commit, a retarget or a marker without a base) and the gate
   tampering check: a tampered run on an earlier commit is caught after a clean push, each
   signal alone does not close, short runs and gate-only jobs do not count, an in-progress
   non-gate job, a removed, duplicated or long-running gate job and an injected workflow with a

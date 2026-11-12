@@ -25,24 +25,27 @@ import pytest
 from airflow_breeze.utils.fork_ci_messages import (
     _STATE_TEXTS,
     _STATUS_DESCRIPTIONS,
-    BEHIND_WARNING_COMMITS,
     CI_CHANGE_MARKER,
     CI_MODIFICATION_MARKER,
-    CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
     GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
+    MAX_BEHIND_COMMITS,
     MAX_LISTED_CI_FILES,
+    OVERLAP_LISTED,
+    BaseCheck,
     Marker,
     ci_change_approval_comment,
     ci_modification_note_comment,
+    ci_passed_description,
     gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
     nudge_comment,
     parse_marker,
+    rebase_needed_description,
     released_comment,
     render_marker,
     state_comment,
@@ -57,8 +60,9 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
 @pytest.mark.parametrize(
     "marker",
     [
-        pytest.param(MARKER, id="without-behind"),
-        pytest.param(replace(MARKER, behind=12), id="behind"),
+        pytest.param(MARKER, id="without-base"),
+        pytest.param(replace(MARKER, base=BaseCheck("def456", 12, ("a.py",))), id="base"),
+        pytest.param(replace(MARKER, base=BaseCheck("def456", 12, None)), id="base-unchecked"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
         pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
@@ -67,27 +71,81 @@ def test_marker_round_trip(marker):
     assert parse_marker(f"text before\n{render_marker(marker)}\ntext after") == marker
 
 
-def test_marker_without_behind_keeps_its_rendering():
-    assert "behind" not in render_marker(MARKER)
+def test_marker_without_base_keeps_its_rendering():
+    assert "base" not in render_marker(MARKER)
     assert "jobs" not in render_marker(MARKER)
 
 
-@pytest.mark.parametrize(
-    ("state", "behind", "warned"),
-    [
-        pytest.param("green", BEHIND_WARNING_COMMITS, True, id="green-far-behind"),
-        pytest.param("green_unverified", BEHIND_WARNING_COMMITS + 1, True, id="unverified-far-behind"),
-        pytest.param("green", BEHIND_WARNING_COMMITS - 1, False, id="green-close"),
-        pytest.param("green", None, False, id="green-not-counted"),
-        pytest.param("failed", BEHIND_WARNING_COMMITS, False, id="failed"),
-    ],
-)
-def test_state_comment_warns_about_a_branch_far_behind(state, behind, warned):
-    text = state_comment(
-        Marker(state, "a", MARKER.since, behind=behind), fork="u/airflow", run_url=None, base_ref="v3-1-test"
+def test_marker_from_before_the_base_check_has_no_base():
+    marker = parse_marker(
+        '<!-- fork-ci-gate: {"behind": 3, "sha": "a", "since": "2026-10-15T10:00:00+00:00", "state": "green"} -->'
     )
 
-    assert ("commits behind `v3-1-test`" in text) is warned
+    assert marker is not None
+    assert marker.base is None
+
+
+@pytest.mark.parametrize(
+    ("base", "current"),
+    [
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS - 1), True, id="close-no-overlap"),
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS), False, id="far-behind"),
+        pytest.param(BaseCheck("d", 1, ("a.py",)), False, id="overlap"),
+        pytest.param(BaseCheck("d", 1, None), False, id="unchecked"),
+    ],
+)
+def test_base_check_is_current(base, current):
+    assert base.is_current is current
+
+
+@pytest.mark.parametrize(
+    ("state", "base", "expected", "unexpected"),
+    [
+        pytest.param(
+            "green",
+            BaseCheck("d" * 40, 3),
+            [
+                "`v3-1-test` at [`dddddddddd`](https://github.com/apache/airflow/commit/" + "d" * 40,
+                "3 commits",
+            ],
+            ["Rebase needed"],
+            id="current",
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d", MAX_BEHIND_COMMITS),
+            ["Rebase needed", "too far behind", "git rebase upstream/v3-1-test"],
+            [],
+            id="far-behind",
+        ),
+        pytest.param(
+            "green_unverified",
+            BaseCheck("d", 4, ("a.py", "b.py")),
+            ["Rebase needed", "`a.py`, `b.py`."],
+            [],
+            id="overlap",
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d", 4, tuple(f"f{i:02}.py" for i in range(OVERLAP_LISTED + 2))),
+            [f"`f{OVERLAP_LISTED - 1:02}.py` and 2 more."],
+            [f"`f{OVERLAP_LISTED:02}.py`"],
+            id="overlap-shortened",
+        ),
+        pytest.param(
+            "green", BaseCheck("d", 4, None), ["Rebase needed", "too many files"], [], id="unchecked"
+        ),
+        pytest.param("failed", BaseCheck("d", MAX_BEHIND_COMMITS), [], ["tested this branch"], id="failed"),
+        pytest.param("green", None, [], ["tested this branch"], id="not-compared"),
+    ],
+)
+def test_state_comment_says_which_base_was_tested(state, base, expected, unexpected):
+    text = state_comment(
+        Marker(state, "a", MARKER.since, base=base), fork="u/airflow", run_url=None, base_ref="v3-1-test"
+    )
+
+    assert all(part in text for part in expected)
+    assert not any(part in text for part in unexpected)
 
 
 @pytest.mark.parametrize(
@@ -164,7 +222,16 @@ def test_setup_texts_give_the_exact_command(text):
 
 
 def test_status_descriptions_fit_github_limit():
-    descriptions = [*_STATUS_DESCRIPTIONS.values(), CI_PASSED_DESCRIPTION, CI_PASSED_REVOKED_DESCRIPTION]
+    base_ref = "providers-cncf-kubernetes/v10-22"
+    descriptions = [
+        *_STATUS_DESCRIPTIONS.values(),
+        CI_PASSED_REVOKED_DESCRIPTION,
+        ci_passed_description(BaseCheck("d" * 40, 199), base_ref=base_ref),
+        *(
+            rebase_needed_description(BaseCheck("d" * 40, 9999, overlap), base_ref=base_ref)
+            for overlap in ((), ("a",) * 300, None)
+        ),
+    ]
     assert all(len(description) < 140 for description in descriptions)
 
 

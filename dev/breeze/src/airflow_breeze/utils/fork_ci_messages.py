@@ -43,7 +43,6 @@ JOB_NAME_MAX_LENGTH = 100
 # CI's gate job reports it; for a gated pull request, which never runs project CI, the reconciler
 # reports it from the fork run.
 CI_PASSED_CONTEXT = "CI passed"
-CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
 # Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
 # request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
@@ -51,9 +50,12 @@ CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commi
 CI_RUN_STARTED_CONTEXT = "CI run started"
 CI_RUN_STARTED_DESCRIPTION = "CI runs in the contributor's fork - details open the run"
 CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - details open the run"
-# A fork run tests the head commit as it is, not merged with the base branch. Further behind than
-# this, it says little about the result after merge.
-BEHIND_WARNING_COMMITS = 200
+# A fork run tests the head commit as it is, not merged with the base branch as project CI does. From
+# this many commits behind, `CI passed` is withheld until the branch is rebased, as it is when the
+# base branch changed any file the pull request changes.
+MAX_BEHIND_COMMITS = 200
+# Overlapping files named in the state comment; the marker keeps them all.
+OVERLAP_LISTED = 10
 MARKER_PREFIX = "<!-- fork-ci-gate: "
 MARKER_PATTERN = re.compile(r"<!-- fork-ci-gate: (?P<payload>.*?) -->")
 DESIGN_URL = (
@@ -83,12 +85,33 @@ WHY_FORK_CI = (
 
 
 @dataclass(frozen=True)
+class BaseCheck:
+    """
+    The base a green fork run tested, compared with the base branch when the run turned green.
+
+    :param sha: the merge base of the head commit and the base branch, the base the run tested.
+    :param behind: commits on the base branch since ``sha``.
+    :param overlap: paths that both the pull request and the base branch since ``sha`` change;
+        None when GitHub listed too many changed files on either side to tell.
+    """
+
+    sha: str
+    behind: int
+    overlap: tuple[str, ...] | None = ()
+
+    @property
+    def is_current(self) -> bool:
+        """Whether the run tested close enough to the merged result for `CI passed`."""
+        return self.behind < MAX_BEHIND_COMMITS and self.overlap == ()
+
+
+@dataclass(frozen=True)
 class Marker:
     state: str
     sha: str
     since: datetime
-    # Commits the head commit was behind its base branch when its fork CI turned green.
-    behind: int | None = None
+    # Set when the head commit's fork CI turned green and its base could be compared.
+    base: BaseCheck | None = None
     # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
     jobs: str | None = None
     # Set only by a reconciler that ran the gate protection check for this head commit, so a
@@ -98,8 +121,12 @@ class Marker:
 
 def render_marker(marker: Marker) -> str:
     data: dict[str, object] = {"state": marker.state, "sha": marker.sha, "since": marker.since.isoformat()}
-    if marker.behind is not None:
-        data["behind"] = marker.behind
+    if marker.base is not None:
+        data["base"] = {
+            "sha": marker.base.sha,
+            "behind": marker.base.behind,
+            "overlap": None if marker.base.overlap is None else list(marker.base.overlap),
+        }
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
     if marker.gate_checked:
@@ -114,11 +141,19 @@ def parse_marker(body: str) -> Marker | None:
         return None
     try:
         data = json.loads(match.group("payload"))
+        # A marker written before the base was checked carries only "behind"; its base is checked again.
+        base = data.get("base")
         return Marker(
             state=data["state"],
             sha=data["sha"],
             since=datetime.fromisoformat(data["since"]),
-            behind=data.get("behind"),
+            base=None
+            if base is None
+            else BaseCheck(
+                sha=base["sha"],
+                behind=base["behind"],
+                overlap=None if base["overlap"] is None else tuple(base["overlap"]),
+            ),
             jobs=data.get("jobs"),
             gate_checked=data.get("gate_checked") is True,
         )
@@ -178,12 +213,44 @@ _AUTHOR_DRAFT_TEXTS = {
 }
 
 
-def behind_warning(behind: int, *, base_ref: str) -> str:
-    return (
-        f"**This branch is {behind} commits behind `{base_ref}`.** Fork CI tests the branch as it is, "
-        f"while the merged result also contains those commits, so it can still fail after the merge. "
-        f"Rebase on `{base_ref}` and push to test it against the current code."
+def tested_base_text(base: BaseCheck, *, base_ref: str) -> str:
+    text = (
+        f"Fork CI tested this branch on top of `{base_ref}` at "
+        f"[`{base.sha[:10]}`](https://github.com/apache/airflow/commit/{base.sha}), "
+        f"{base.behind} commits behind `{base_ref}` when the run turned green. Fork CI tests the branch "
+        f"as it is, while project CI would test it merged with the current `{base_ref}`."
     )
+    if base.is_current:
+        return f"{text} No commit since changed a file this pull request changes."
+    if base.overlap is None:
+        reason = f"`{base_ref}` changed too many files since to tell whether it changed the same files."
+    elif base.overlap:
+        listed = ", ".join(f"`{path}`" for path in base.overlap[:OVERLAP_LISTED])
+        more = len(base.overlap) - OVERLAP_LISTED
+        reason = f"`{base_ref}` changed files this pull request changes since: {listed}" + (
+            f" and {more} more." if more > 0 else "."
+        )
+    else:
+        reason = "That is too far behind to say much about the merged result."
+    return (
+        f"{text}\n\n**Rebase needed.** {reason} The `CI passed` check is not reported until fork CI is "
+        f"green for a branch rebased on `{base_ref}`:\n\n"
+        f"```bash\ngit fetch upstream\ngit rebase upstream/{base_ref}\ngit push --force-with-lease\n```"
+    )
+
+
+def ci_passed_description(base: BaseCheck, *, base_ref: str) -> str:
+    return f"Fork CI passed; base {base_ref}@{base.sha[:10]} was {base.behind} commits behind, no overlap"
+
+
+def rebase_needed_description(base: BaseCheck, *, base_ref: str) -> str:
+    if base.overlap is None:
+        why = f"{base_ref} changed too many files since to check"
+    elif base.overlap:
+        why = f"{base_ref} changed {len(base.overlap)} of the same files since"
+    else:
+        why = f"base is {base.behind} commits behind"
+    return f"Rebase on {base_ref} and push: {why}"
 
 
 def state_comment(
@@ -191,12 +258,8 @@ def state_comment(
 ) -> str:
     text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
     parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
-    if (
-        marker.state in ("green", "green_unverified")
-        and marker.behind is not None
-        and marker.behind >= BEHIND_WARNING_COMMITS
-    ):
-        parts.append(behind_warning(marker.behind, base_ref=base_ref))
+    if marker.state in ("green", "green_unverified") and marker.base is not None:
+        parts.append(tested_base_text(marker.base, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
     if marker.state == "setup_required":
