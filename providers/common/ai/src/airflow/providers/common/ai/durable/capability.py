@@ -617,7 +617,11 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
                 return await body()
             case CapabilityOperationId():
                 step = self._claim(
-                    active, operation_id, name, kind="other", fingerprint=_capability_fingerprint(cache_key)
+                    active,
+                    operation_id,
+                    name,
+                    kind="other",
+                    fingerprint=_fingerprint_capability_operation(cache_key),
                 )
                 if step.replayed:
                     active.ledger.record_capability_replay(step.payload)
@@ -832,7 +836,7 @@ def _is_journaled_tool_payload(payload: object) -> bool:
     return False
 
 
-def _capability_fingerprint(cache_key: tuple[object, ...]) -> str | None:
+def _fingerprint_capability_operation(cache_key: tuple[object, ...]) -> str | None:
     """
     Fingerprint a capability operation that settles deferred tool calls, such as an approval, by those calls.
 

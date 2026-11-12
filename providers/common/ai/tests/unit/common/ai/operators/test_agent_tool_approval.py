@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import timedelta
 from typing import Any
@@ -1472,13 +1473,30 @@ class TestDurableAnswersStayWithTheirRequest:
         upsert.assert_called_once()
         assert ("refund", 1) not in shop.calls
 
-    def test_a_tool_that_needs_approval_called_from_inside_another_tool_fails_the_task(self):
-        """A tool runs the agent again, and that run asks for approval: a replay of the tool would skip it."""
+    @pytest.mark.parametrize(
+        "run_child",
+        [
+            pytest.param(lambda child: child(), id="same-task"),
+            pytest.param(lambda child: asyncio.to_thread(lambda: asyncio.run(child())), id="to-thread"),
+            pytest.param(
+                lambda child: asyncio.get_running_loop().run_in_executor(None, lambda: asyncio.run(child())),
+                id="run-in-executor",
+            ),
+        ],
+    )
+    def test_a_tool_that_needs_approval_called_from_inside_another_tool_fails_the_task(self, run_child):
+        """
+        A tool runs the agent again, and that run asks for approval: a replay of the tool would skip it.
+
+        ``run_in_executor`` does not copy the context into its thread, so the inner run cannot
+        tell from a context variable that it runs inside the tool's step.
+        """
         refunds, store = [], _FakeTaskStateStore()
 
         async def delegate(ctx: RunContext[None]) -> str:
             assert ctx.agent is not None
-            result = await ctx.agent.run("CHILD")
+            agent = ctx.agent
+            result = await run_child(lambda: agent.run("CHILD"))
             return f"delegate got {result.output!r}"
 
         def refund(order_id: int) -> str:
@@ -1497,7 +1515,9 @@ class TestDurableAnswersStayWithTheirRequest:
             FunctionToolset(tools=[Tool(delegate, takes_ctx=True), Tool(refund, requires_approval=True)])
         ]
         with patch(UPSERT, autospec=True) as upsert:
-            with pytest.raises(UnsupportedToolDeferralError, match="from inside the"):
+            with pytest.raises(
+                UnsupportedToolDeferralError, match=r"while a tool call was running \(.*delegate.*\)"
+            ):
                 _durable(model, toolsets).execute(_context(store))
 
         upsert.assert_not_called()

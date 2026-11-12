@@ -23,6 +23,7 @@ import hashlib
 import json
 import sys
 from collections.abc import Awaitable, Callable, Iterable, Sequence
+from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from functools import cached_property
@@ -55,7 +56,6 @@ from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_cal
 from airflow.providers.common.ai.durable.journal import (
     DurableJournal,
     build_task_storage,
-    executing_step,
     journal_scope,
 )
 from airflow.providers.common.ai.exceptions import (
@@ -276,7 +276,7 @@ def _refuse_external_calls(requests: DeferredToolRequests) -> None:
         )
 
 
-def _call_content(call: ToolCallPart) -> str | None:
+def _fingerprint_call_content(call: ToolCallPart) -> str | None:
     """Fingerprint what a reviewer sees of a call, its tool and arguments, but not the id the model gave it."""
     return fingerprint_tool_call(call.tool_name, call.args_as_dict(), None)
 
@@ -308,7 +308,7 @@ class _ToolApprovalAnswer:
         """
         settled: dict[str, bool | ToolDenied] = {}
         for call in pending:
-            answered = (call.tool_name, _call_content(call))
+            answered = (call.tool_name, _fingerprint_call_content(call))
             if answered[1] is not None and answered in self.calls:
                 self.calls.remove(answered)
                 settled[call.tool_call_id] = self.approval
@@ -378,7 +378,9 @@ class _DurableToolApproval(AbstractCapability[Any]):
         return await self.settle(ctx, requests, step)
 
 
-def _only_for(requests: DeferredToolRequests, results: DeferredToolResults) -> DeferredToolResults:
+def _filter_results_to_requests(
+    requests: DeferredToolRequests, results: DeferredToolResults
+) -> DeferredToolResults:
     """Keep the results for the calls in ``requests``, so a handler cannot settle a call it was not given."""
     approval_ids = {call.tool_call_id for call in requests.approvals}
     call_ids = {call.tool_call_id for call in requests.calls}
@@ -1020,7 +1022,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 capabilities.insert(
                     0,
                     _DurableToolApproval(
-                        next_step=self._next_approval_step,
+                        next_step=self._claim_next_approval_step,
                         settle=lambda ctx, requests, step: self._settle_tool_approvals(
                             approval_context, ctx, requests, step
                         ),
@@ -1193,13 +1195,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         agent: Agent[Any, Any],
         run_usage: RunUsage,
         run_kwargs: dict[str, Any],
-    ) -> tuple[Any, RunUsage]:
+    ) -> Any:
         """Run ``self.prompt`` via ``_run_agent_tracked``, reporting usage-at-failure on any raise."""
+        scope = journal_scope(self._durable_journal) if self._durable_journal is not None else nullcontext()
         try:
-            if self._durable_journal is not None:
-                with journal_scope(self._durable_journal):
-                    return self._run_agent_tracked(agent, self.prompt, run_usage=run_usage, **run_kwargs)
-            return self._run_agent_tracked(agent, self.prompt, run_usage=run_usage, **run_kwargs)
+            with scope:
+                result, _ = self._run_agent_tracked(agent, self.prompt, run_usage=run_usage, **run_kwargs)
+            return result
         except BaseException as error:
             if not _is_awaiting_input(error):
                 self._report_failed_run(context, run_usage, run_id=run_kwargs["run_id"])
@@ -1282,7 +1284,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # A killed run raises RunCancelled (see run_agent_sync), which propagates to fail the
         # task. The journal cleanup in _complete_run is skipped on the raise, keeping it for the retry.
         try:
-            result, _ = self._run_and_report_on_failure(context, agent, run_usage, run_kwargs)
+            result = self._run_and_report_on_failure(context, agent, run_usage, run_kwargs)
         finally:
             # Also on a raise: the failed attempt is the one Airflow retries.
             if self._durable_journal is not None:
@@ -1521,7 +1523,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise ToolApprovalError(
                 "The transcript saved when the task paused for tool approval is missing or was modified."
             )
-        if not self._answers_waiting_request(event):
+        if not self._is_answer_for_waiting_request(event):
             calls = [
                 part
                 for message in ModelMessagesTypeAdapter.validate_json(transcript)
@@ -1541,7 +1543,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 },
             )
 
-        approval = self._approval_from_answer(event)
+        approval = self._build_approval_from_answer(event)
 
         usage_limits = coerce_usage_limits(self.usage_limits)
         ti = context["task_instance"]
@@ -1600,7 +1602,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 "did not see."
             )
 
-    def _answers_waiting_request(self, event: dict[str, Any]) -> bool:
+    def _is_answer_for_waiting_request(self, event: dict[str, Any]) -> bool:
         """Whether the answer is for the approval request waiting now, not one a form left open showed."""
         if (answered := _answered_request(event)) is None or answered == self._approval_pause_number:
             return True
@@ -1613,7 +1615,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         )
         return False
 
-    def _approval_from_answer(self, event: dict[str, Any]) -> bool | ToolDenied:
+    def _build_approval_from_answer(self, event: dict[str, Any]) -> bool | ToolDenied:
         """Turn the reviewer's answer into the result each paused call gets: run it, or tell the agent why not."""
         if event.get("timedout"):
             # on_tool_approval_timeout="deny": nobody refused, so do not tell the agent a person did.
@@ -1650,10 +1652,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 skipped,
             )
 
-    def _next_approval_step(self, requests: DeferredToolRequests) -> int | None:
+    def _claim_next_approval_step(self, requests: DeferredToolRequests) -> int | None:
         if self._asking_other_handlers:
             return None
-        if (step := executing_step()) is not None:
+        # The task's agent asks for approval once its tool calls have finished, so a tool call still
+        # running means this run is inside it. Asked of the journal, not the context: a tool can run
+        # the agent in a thread that does not inherit the context, such as with ``loop.run_in_executor``.
+        journal = self._durable_journal
+        if journal is not None and (running := journal.find_executing_tool_steps()):
             # A tool's own work (an agent it runs, or calls it makes inline) is not run again once
             # the tool is recorded, so an approval reached there would not be reached on replay, and
             # every later approval step would be numbered one lower and get another step's answer.
@@ -1661,9 +1667,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 _refuse_external_calls(requests)
             raise UnsupportedToolDeferralError(
                 "The agent called tools that need approval "
-                f"({', '.join(call.tool_name for call in requests.approvals)}) from inside the "
-                f"{step.name!r} step, such as an agent run by a tool. With durable, a tool that needs "
-                "approval has to be called by the task's agent itself."
+                f"({', '.join(call.tool_name for call in requests.approvals)}) while a tool call was "
+                f"running ({', '.join(repr(step.name) for step in running)}), such as from an agent run "
+                "by a tool. With durable, a tool that needs approval has to be called by the task's agent "
+                "itself."
             )
         self._approval_steps += 1
         return self._approval_steps
@@ -1703,7 +1710,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             finally:
                 self._asking_other_handlers = False
             if result:
-                result = _only_for(remaining, result)
+                result = _filter_results_to_requests(remaining, result)
                 settled.update(result)
                 remaining = remaining.remaining(result)
         if remaining is None:
@@ -1720,7 +1727,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             remaining.approvals,
             continuation={
                 "step": step,
-                "calls": [[call.tool_name, _call_content(call)] for call in remaining.approvals],
+                "calls": [[call.tool_name, _fingerprint_call_content(call)] for call in remaining.approvals],
                 "toolset_ids": self._toolset_ids(),
             },
             resume_with=_DURABLE_APPROVAL_RESUME,
@@ -1747,12 +1754,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         """
         self._approval_pause_number = pause_number
         self._check_review_answer(event, toolset_ids)
-        if self._answers_waiting_request(event):
+        if self._is_answer_for_waiting_request(event):
             answer = _ToolApprovalAnswer(
                 step=step,
                 calls=[(str(name), fingerprint) for name, fingerprint in calls],
                 toolset_ids=toolset_ids,
-                approval=self._approval_from_answer(event),
+                approval=self._build_approval_from_answer(event),
             )
             store = context["task_state_store"]
             stored = _STORED_ANSWERS_ADAPTER.validate_python(store.get(_TOOL_APPROVAL_ANSWERS_KEY) or [])

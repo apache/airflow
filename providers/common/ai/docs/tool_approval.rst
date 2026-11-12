@@ -257,9 +257,9 @@ Requirements and limits
   not supported; the task fails without retrying.
 - With ``durable=True``, a tool that needs approval has to be called by the task's agent
   itself. One reached from inside another tool, such as the task's agent run again by a tool
-  (``ctx.agent.run``), fails the task with ``UnsupportedToolDeferralError`` unless the tool
-  catches it: once that tool is recorded, a retry replays it without reaching the approval
-  again.
+  (``ctx.agent.run``, in the tool's event loop or in a thread it starts), fails the task
+  with ``UnsupportedToolDeferralError`` unless the tool catches it: once that tool is
+  recorded, a retry replays it without reaching the approval again.
 - Without ``durable=True``, the conversation so far, including tool results, is kept
   in the task's :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
   while the task waits. It is deleted when the resumed run succeeds or fails, and replaced
