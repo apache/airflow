@@ -5694,7 +5694,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value', 'task group cycle'],
+    enum: ['asset conflict', 'asset partition pending', 'duplicate dag id', 'non-existent pool', 'runtime varying value', 'task group cycle'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 

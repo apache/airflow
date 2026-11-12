@@ -730,6 +730,44 @@ including ``partition_key`` in the request body):
         "partition_key": "us|2026-03-10T09:00:00"
       }'
 
+.. _monitor-pending-asset-partitions:
+
+Monitoring pending partitioned runs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To surface partitioned consumers that have waited longer than you expect, set
+:ref:`[scheduler] asset_partition_pending_timeouts <config:scheduler__asset_partition_pending_timeouts>`.
+The value is a JSON object mapping exact Dag IDs to positive, finite numbers of seconds.
+The default, ``{}``, disables monitoring. For example, in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [scheduler]
+    asset_partition_pending_timeouts = {"clean_and_combine_player_stats": 7200}
+
+Use the same setting on every scheduler. For each configured, active partitioned Dag,
+the scheduler adds an ``asset partition pending`` warning when its oldest pending-run
+row is strictly older than the configured threshold. The warning appears with the
+Dag's other warnings in the UI and through ``GET /api/v2/dagWarnings`` in the
+:doc:`REST API </stable-rest-api-ref>`. It reports the total number of pending-run rows
+and the oldest row's creation time; this count is not a count of distinct partition keys.
+
+Age is measured from the pending row's creation time. Choose a threshold that allows
+for expected upstream delays and rollup windows. Paused, draining, and stale Dags are
+excluded. Time spent paused is still included in the age, so a resumed Dag can warn
+on its first check.
+
+Each scheduler checks up to 100 Dag IDs every 60 seconds, rotating through configured
+Dags and Dags with an existing warning. Updates are eventually consistent: with more
+than 100 Dags, a full pass takes multiple checks. The warning clears on the next check
+of that Dag when no pending rows exceed the threshold, the Dag becomes ineligible,
+or its policy is removed.
+
+This advisory warning does not send notifications or recover inputs automatically.
+It only examines existing pending rows. When there is no pending row, it cannot detect
+stale assets, missed expected runs, or progress already removed after a Dag definition
+change. Use separate freshness or expected-cadence monitoring for these cases.
+
 Rollup mappers
 ~~~~~~~~~~~~~~
 

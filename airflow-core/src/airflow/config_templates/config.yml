@@ -2817,6 +2817,25 @@ scheduler:
       type: integer
       example: ~
       default: "0"
+    asset_partition_pending_timeouts:
+      description: |
+        Maximum pending age in seconds for each monitored partitioned asset Dag, as a JSON object
+        mapping exact Dag IDs to positive numbers. Empty by default. When the oldest pending row
+        exceeds its threshold, the scheduler records an ``asset partition pending`` Dag warning
+        in the UI and Dag warnings API. This does not fail a run or change scheduling.
+
+        Every 60 seconds, each scheduler checks up to 100 configured Dags or Dags with existing
+        warnings, rotating through the remainder on subsequent checks. Use the same configuration
+        on every scheduler. Paused, draining and stale Dags are excluded, but paused time counts
+        toward pending age when a Dag resumes. Removing a policy clears its warning on a later check.
+
+        The age is measured from the pending row's creation, not from its last event. Missing runs
+        with no pending row are not detected. Queries include historical rows for the selected Dags;
+        consider database cost when enabling this for large histories.
+      version_added: 3.5.0
+      type: string
+      example: '{"daily_sales": 3600, "hourly_inventory": 900}'
+      default: "{{}}"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)

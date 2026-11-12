@@ -4801,6 +4801,22 @@ class TestSchedulerJob:
 
         call_regular_interval.assert_any_call(mock.ANY, 123.0, cleanup_processor_metadata, non_fatal=True)
 
+    @mock.patch.object(EventScheduler, "call_regular_interval", autospec=True)
+    def test_partition_wait_warnings_run_every_minute_without_stopping_scheduling(
+        self, call_regular_interval
+    ):
+        scheduler_job = Job()
+        scheduler_job.heartbeat = mock.create_autospec(scheduler_job.heartbeat)
+        self.job_runner = SchedulerJobRunner(
+            job=scheduler_job, num_runs=1, executors=[MockExecutor(do_update=False)]
+        )
+
+        self.job_runner._run_scheduler_loop()
+
+        call_regular_interval.assert_any_call(
+            mock.ANY, 60.0, self.job_runner._asset_partition_wait_monitor.check, non_fatal=True
+        )
+
     def test_adopt_or_reset_orphaned_tasks(self, dag_maker, session):
         with dag_maker("test_execute_helper_reset_orphaned_tasks", session=session):
             op1 = EmptyOperator(task_id="op1")
@@ -15564,6 +15580,129 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
         assert asset_event.source_task_id == "hi"
         assert "asset-event-producer-" in asset_event.source_dag_id
         assert asset_event.source_run_id == "test"
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@time_machine.travel("2026-11-12T12:00:00+00:00", tick=False)
+@conf_vars(
+    {
+        ("scheduler", "batch_asset_events"): "True",
+        ("scheduler", "asset_partition_pending_timeouts"): '{"dependency-edit-consumer": 60}',
+    }
+)
+def test_partition_wait_warning_after_dependency_edit_clears_when_real_run_is_created(
+    dag_maker: DagMaker, session: Session
+):
+    asset_a = Asset(name="dependency-edit-a")
+    asset_b = Asset(name="dependency-edit-b")
+    dag_id = "dependency-edit-consumer"
+    with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset_a), session=session):
+        EmptyOperator(task_id="consumer")
+    session.commit()
+
+    # B already has an event, but this Dag did not depend on B when it arrived.
+    with dag_maker(
+        dag_id="dependency-edit-producer-b-early", schedule=PartitionedAtRuntime(), session=session
+    ) as producer_dag:
+        EmptyOperator(task_id="hi", outlets=[asset_b])
+    producer_run = dag_maker.create_dagrun(partition_key="waiting-partition", session=session)
+    [producer_ti] = producer_run.get_task_instances(session=session)
+    session.commit()
+    TaskInstance.register_asset_changes_in_db(
+        ti=producer_ti,
+        task_outlets=[outlet.asprofile() for outlet in producer_dag.get_task("hi").outlets],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    historical_b_event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == producer_dag.dag_id,
+            AssetEvent.source_run_id == producer_run.run_id,
+        )
+    )
+    assert historical_b_event is not None
+    assert historical_b_event.partition_key == "waiting-partition"
+    assert (
+        session.scalar(select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == dag_id))
+        is None
+    )
+    assert (
+        session.scalar(
+            select(PartitionedAssetKeyLog).where(
+                PartitionedAssetKeyLog.asset_event_id == historical_b_event.id
+            )
+        )
+        is None
+    )
+
+    with dag_maker(
+        dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset_a & asset_b), session=session
+    ):
+        EmptyOperator(task_id="consumer")
+    session.commit()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="dependency-edit-producer-a",
+        asset=asset_a,
+        partition_key="waiting-partition",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    assert (
+        session.scalar(
+            select(PartitionedAssetKeyLog).where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                PartitionedAssetKeyLog.asset_id == historical_b_event.asset_id,
+            )
+        )
+        is None
+    )
+    session.add(DagWarning(dag_id, "non-existent pool", "Unrelated warning"))
+    session.commit()
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
+    session.commit()
+
+    with time_machine.travel("2026-11-12T12:01:01+00:00", tick=False):
+        runner._asset_partition_wait_monitor.check()
+        warning_query = select(DagWarning).where(
+            DagWarning.dag_id == dag_id, DagWarning.warning_type == "asset partition pending"
+        )
+        assert session.scalar(warning_query) is not None
+        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id)) == 0
+
+        resumed_apdr = _produce_and_register_asset_event(
+            dag_id="dependency-edit-producer-b",
+            asset=asset_b,
+            partition_key="waiting-partition",
+            session=session,
+            dag_maker=dag_maker,
+        )
+        assert resumed_apdr.id == apdr.id
+        assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
+        session.commit()
+
+        runner._asset_partition_wait_monitor.check()
+
+    assert session.scalar(warning_query) is None
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
+    assert dag_run is not None
+    assert dag_run.state == DagRunState.QUEUED
+    assert dag_run.partition_key == "waiting-partition"
+    assert len(dag_run.consumed_asset_events) == 2
+    assert historical_b_event.id not in {event.id for event in dag_run.consumed_asset_events}
+    assert (
+        session.scalar(
+            select(DagWarning.message).where(
+                DagWarning.dag_id == dag_id, DagWarning.warning_type == "non-existent pool"
+            )
+        )
+        == "Unrelated warning"
+    )
 
 
 @pytest.mark.need_serialized_dag
