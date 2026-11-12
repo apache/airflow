@@ -38,6 +38,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_executor_fields
 from airflow.dag_processing.importer_routing import get_claiming_importer
+from airflow.dag_processing.loop_checks import normalize_loops
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParseRequest,
@@ -431,6 +432,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             try:
                 deserialized = DagSerialization.validate_serialized_dag(dag.data)
                 self._apply_team_rules(dag.data, deserialized)
+                normalize_loops(dag.data, deserialized)
             except DeserializationError as e:
                 message = f"Cannot load the serialized Dag: {e}"
             except Exception as e:

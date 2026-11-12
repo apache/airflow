@@ -25,6 +25,11 @@ import type {
   DagSpec,
   GetXComOpts,
   JsonValue,
+  LoopContext,
+  LoopDecision,
+  LoopOptions,
+  LoopRef,
+  LoopTaskRef,
   Node,
   SetXComOpts,
   TaskClient,
@@ -41,6 +46,7 @@ import type {
   TaskSpec,
   TaskStateStore,
   TaskStateStoreSetOpts,
+  XComSequence,
 } from "../src/index.js";
 import * as sdk from "../src/index.js";
 import {
@@ -49,6 +55,7 @@ import {
   Dag,
   getClient,
   getContext,
+  getLoop,
   Label,
   NEVER_EXPIRE,
   SUPERVISOR_API_VERSION,
@@ -281,6 +288,47 @@ describe("public API", () => {
     });
   });
 
+  it("exports the task loop surface of ADR-0003", async () => {
+    await expect(getLoop()).rejects.toThrow(/^getLoop\(\) is only available inside a task handler/);
+    expectTypeOf<typeof getLoop>().toEqualTypeOf<() => Promise<LoopContext>>();
+    expectTypeOf<LoopDecision>().toEqualTypeOf<{
+      readonly stop: boolean;
+      readonly reason?: string;
+    }>();
+    expectTypeOf<LoopOptions>().toMatchTypeOf<TaskSpec>();
+    expectTypeOf<LoopOptions["maxIterations"]>().toEqualTypeOf<number>();
+    expectTypeOf<LoopRef>().toMatchTypeOf<Node>();
+    expectTypeOf<Extract<keyof LoopContext, string>>().toEqualTypeOf<
+      "index" | "maxIterations" | "getPrevious"
+    >();
+    expectTypeOf<Extract<keyof XComSequence<number>, string>>().toEqualTypeOf<
+      "length" | "at" | "slice"
+    >();
+
+    type Metrics = { error: number };
+    const dag = new Dag("public_api_loop");
+    const refine = dag.taskGroup("refine");
+    const evaluated = refine.task("evaluate", async (): Promise<Metrics> => ({ error: 0 }))();
+    const loop = refine.loop(
+      async ({ result }: { result: Metrics }) => ({ stop: result.error < 1 }),
+      { result: evaluated },
+      { maxIterations: 3 },
+    );
+    // Inside the loop the reference reads one iteration's value; outside, all() reads every one.
+    expectTypeOf(evaluated).toEqualTypeOf<LoopTaskRef<Metrics>>();
+    expectTypeOf(evaluated.all()).toEqualTypeOf<TaskRef<XComSequence<Metrics>>>();
+    expectTypeOf<LoopTaskRef<Metrics>>().toMatchTypeOf<TaskRef<Metrics>>();
+    dag.task(
+      "report",
+      async (_: { history: XComSequence<Metrics> }) => undefined,
+    )({
+      history: evaluated.all(),
+    });
+    expect(loop).toMatchObject({ dagId: "public_api_loop", groupId: "refine" });
+    expect(evaluated.loopId).toBe("refine");
+    expectTypeOf<LoopRef["before"]>().toEqualTypeOf<(...downstream: readonly Node[]) => LoopRef>();
+  });
+
   it("exports public error classes", () => {
     const err = new VariableNotFoundError("missing");
     expect(err).toBeInstanceOf(Error);
@@ -333,7 +381,7 @@ describe("public API", () => {
     // A group is a scope and an edge endpoint, and nests the same way at
     // every depth.
     expectTypeOf<Extract<keyof TaskGroupRef, string>>().toEqualTypeOf<
-      "dagId" | "groupId" | "task" | "taskGroup" | "before" | "after"
+      "dagId" | "groupId" | "task" | "taskGroup" | "loop" | "before" | "after"
     >();
     expectTypeOf<TaskGroupRef["groupId"]>().toEqualTypeOf<string>();
     expectTypeOf<TaskGroupRef["taskGroup"]>().toEqualTypeOf<

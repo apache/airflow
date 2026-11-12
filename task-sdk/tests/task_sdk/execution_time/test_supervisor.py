@@ -4911,6 +4911,46 @@ class TestHandleRequest:
             **{"retry_reason": None, "loop_decision": None, **extra},
         )
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            TaskState(state=TaskInstanceState.FAILED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+        ],
+        ids=["task_state", "succeed_task"],
+    )
+    def test_loop_decision_reason_is_masked_before_it_is_sent(self, watched_subprocess, mocker, message):
+        """A gate's reason is masked here, once for a runtime of every language."""
+        watched_subprocess, _ = watched_subprocess
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.redact",
+            autospec=True,
+            side_effect=lambda value: value.replace("hunter2", "***"),
+        )
+        decision = LoopDecisionPayload(stop=False, reason="password hunter2 rejected")
+
+        watched_subprocess._send_terminal_state_msg(message.model_copy(update={"loop_decision": decision}))
+
+        method = "finish" if isinstance(message, TaskState) else "succeed"
+        sent = getattr(watched_subprocess.client.task_instances, method).call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=False, reason="password *** rejected")
+
+    def test_loop_decision_reason_masked_past_the_limit_is_cut_to_it(self, watched_subprocess, mocker):
+        watched_subprocess, _ = watched_subprocess
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.redact",
+            autospec=True,
+            side_effect=lambda value: value.replace("s", "*" * 10),
+        )
+        decision = LoopDecisionPayload(stop=True, reason="s" * 100)
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"), loop_decision=decision)
+        )
+
+        sent = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=True, reason="*" * 512)
+
 
 @pytest.mark.parametrize(
     ("test_method", "excluded_message_types"),
