@@ -1132,10 +1132,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         Run the agent on the worker's event loop.
 
         ``@task.agent`` calls this for an ``async def`` function; the operator itself runs through
-        :meth:`execute`. The agent run is awaited on the event loop, and the bookkeeping of a successful run (usage budget, run metadata, message history) makes no
-        blocking call to the supervisor on it. What has no async counterpart (the connection
-        lookup, the task state store before Airflow 3.4, the usage report of a failed run, the
-        pause for a tool approval) runs the synchronous code in a worker thread.
+        :meth:`execute`. The agent run is awaited on the event loop, and the bookkeeping of a
+        successful run (usage budget, run metadata, message history) makes no blocking call to
+        the supervisor on it.
+
+        What has no async counterpart (the connection lookup, the task state store before
+        Airflow 3.4, the usage report of a failed run, the pause for a tool approval) runs the
+        synchronous code in a worker thread.
         """
         self._reject_unsupported_on_async_path()
         usage_limits = coerce_usage_limits(self.usage_limits)
