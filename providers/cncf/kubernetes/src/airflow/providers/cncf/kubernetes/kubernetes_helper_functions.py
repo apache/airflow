@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
-from aiohttp import ClientConnectionError
+from aiohttp import ClientConnectionError, ClientPayloadError
 from kubernetes.client.rest import ApiException as SyncApiException
 from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
@@ -66,9 +66,14 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 # Connection-level failures (socket reset, DNS blip, read timeout) worth retrying — the api server
 # never saw the request, or its reply was lost. Covers both kube clients: urllib3 (sync) and aiohttp
 # (async). Shared so this decorator and the KubernetesExecutor agree on what counts as transient.
+# urllib3's HTTPError already spans a body cut off mid-read and a read timeout. aiohttp reports
+# those two outside ClientConnectionError: ClientPayloadError when the socket dies after the
+# response headers, and a bare TimeoutError when the total request timeout expires.
 TRANSIENT_CONNECTION_ERRORS: tuple[type[BaseException], ...] = (
     HTTPError,
     ClientConnectionError,
+    ClientPayloadError,
+    TimeoutError,
     KubernetesApiException,
 )
 

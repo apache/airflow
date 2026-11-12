@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import aiofiles
 import requests
-from aiohttp import ClientPayloadError
 from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
@@ -73,20 +72,11 @@ JOB_FINAL_STATUS_CONDITION_TYPES = {
 
 JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
 
-# The watch holds its response body open for up to timeout_seconds, which makes it the call here
-# most exposed to two failures TRANSIENT_CONNECTION_ERRORS leaves out: a socket that dies after
-# the headers surfaces as ClientPayloadError, and a half-open one only as the TimeoutError from
-# the total timeout _TimeoutAsyncK8sApiClient sets. Watch.next re-raises that TimeoutError instead
-# of reconnecting, because watch_pod_events always passes timeout_seconds. Kept out of the shared
-# tuple, which generic_api_retry and the KubernetesExecutor also use.
-WATCH_STREAM_ERRORS: tuple[type[BaseException], ...] = (ClientPayloadError, TimeoutError)
-
 # Hoisted out of the ``except`` clause in watch_pod_events: mypy rejects star-unpacking a tuple
 # of exception types inside an except expression.
 WATCH_RETRYABLE_ERRORS: tuple[type[BaseException], ...] = (
     async_client.exceptions.ApiException,
     *TRANSIENT_CONNECTION_ERRORS,
-    *WATCH_STREAM_ERRORS,
 )
 
 
@@ -1274,6 +1264,8 @@ class AsyncKubernetesHook(KubernetesHook):
                 async with self.get_conn() as connection:
                     v1_api = async_client.CoreV1Api(connection)
 
+                    # Passing timeout_seconds makes Watch re-raise the client's TimeoutError instead
+                    # of reconnecting itself, so the except below treats it like a dropped socket.
                     async for event_watched in w.stream(
                         v1_api.list_namespaced_event,
                         namespace=namespace,
@@ -1330,9 +1322,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 # _should_retry_api accepts has already been retried and signals a sustained
                 # outage; letting it consume this budget too is what stops the watch instead
                 # of looping forever.
-                if (
-                    _should_retry_api(e) or isinstance(e, WATCH_STREAM_ERRORS)
-                ) and transient_retries < API_RETRIES - 1:
+                if _should_retry_api(e) and transient_retries < API_RETRIES - 1:
                     transient_retries += 1
                     delay = min(API_RETRY_WAIT_MIN * 2 ** (transient_retries - 1), API_RETRY_WAIT_MAX)
                     self.log.warning(

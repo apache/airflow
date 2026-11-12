@@ -21,6 +21,7 @@ import re
 from unittest import mock
 
 import pytest
+from aiohttp import ClientPayloadError
 from kubernetes.client.rest import ApiException as SyncApiException
 from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from urllib3.exceptions import HTTPError
@@ -48,6 +49,12 @@ def test_should_retry_api():
     assert _should_retry_api(exc)
 
     exc = KubernetesApiException()
+    assert _should_retry_api(exc)
+
+    exc = ClientPayloadError()
+    assert _should_retry_api(exc)
+
+    exc = TimeoutError()
     assert _should_retry_api(exc)
 
     exc = SyncApiException(status=500)
