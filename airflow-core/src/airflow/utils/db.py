@@ -1627,7 +1627,12 @@ def _create_global_lock_mysql(lock: DBLocks, lock_timeout: int) -> Generator[Non
 def _create_global_lock_postgresql(
     session: Session, lock: DBLocks, lock_timeout: int
 ) -> Generator[None, None, None]:
-    """Create a global advisory lock for PostgreSQL using transactional advisory locks."""
+    """
+    Create a global advisory lock for PostgreSQL using session-level advisory locks.
+
+    The lock connection stays in an open transaction while the lock is held, which keeps it
+    on one server connection behind a transaction-pooling PgBouncer.
+    """
     bind = session.get_bind()
     if hasattr(bind, "connect"):
         conn = bind.connect()
@@ -1642,10 +1647,12 @@ def _create_global_lock_postgresql(
                 text("SELECT set_config('lock_timeout', :timeout, false)"),
                 {"timeout": str(lock_timeout)},
             )
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         else:
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+        # No bound parameter: under psycopg3 a parameterized statement keeps its snapshot while
+        # the connection sits idle in transaction, and CREATE INDEX CONCURRENTLY run by a
+        # migration in this process would wait on it forever.
+        conn.execute(text(f"SELECT pg_advisory_lock({int(lock.value)})"))
 
         yield
     finally:
