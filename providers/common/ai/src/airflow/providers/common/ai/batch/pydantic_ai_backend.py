@@ -86,7 +86,7 @@ from airflow.providers.common.ai.utils.task_logger import get_task_logger
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
-    from airflow.providers.common.ai.batch.base import BatchRequest
+    from airflow.providers.common.ai.batch.base import BatchRequest, BatchStatus
     from airflow.providers.common.ai.batch.output_schema import OutputSpec
     from airflow.sdk import Connection
 
@@ -224,6 +224,8 @@ class PydanticAIBatchAdapter(BatchAdapter):
     conn_types = frozenset({"pydanticai"})
     #: ``True`` when a key that is not a typed setting is passed to the provider as a raw request field.
     accepts_raw_params: ClassVar[bool] = True
+    #: The key of the batch's ``provider_details`` that names the uploaded input file.
+    input_file_key: ClassVar[str] = "input_file"
 
     def __init__(
         self,
@@ -567,7 +569,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
         self._handle = _BATCH_ADAPTER.dump_json(batch).decode()
         return SubmitResult(
             batch_id=batch.id,
-            provider_input_ref=(batch.provider_details or {}).get("input_file"),
+            provider_input_ref=(batch.provider_details or {}).get(self.input_file_key),
             handle=self._handle,
         )
 
@@ -679,6 +681,94 @@ class PydanticAIBatchAdapter(BatchAdapter):
         if response.text:
             return ExtractedOutput(kind="json_text", text=response.text)
         return ExtractedOutput(kind="absent")
+
+
+class OpenAIBatchAdapter(PydanticAIBatchAdapter):
+    """
+    Batch adapter for OpenAI's Batch API, on the Responses API (``/v1/responses``).
+
+    pydantic-ai batches only its Responses model, so an ``openai-chat:`` model id is built as the
+    ``openai:`` model of the same name and logged. Azure OpenAI has no adapter. A batch's group
+    includes the model, so every request must use the same one. Raw Responses fields in
+    ``request_params`` (``user``, ``metadata``, ...) go through ``extra_body``; the typed form of
+    a setting is preferred where one exists (``openai_reasoning_effort``, not ``reasoning_effort``).
+
+    A batch gateway that implements ``/v1/files`` and ``/v1/batches`` for ``/v1/responses`` works
+    through the connection's ``host``; one that implements those only for ``/v1/chat/completions``
+    does not.
+    """
+
+    name = "openai"
+    #: OpenAI's documented limit: 50,000 requests or 200 MB, whichever is reached first.
+    max_requests = 50_000
+    max_payload_bytes = 200_000_000
+    allows_per_request_model = False
+    input_file_key = "input_file_id"
+
+    #: Job statuses that end a batch, as the status this provider reports. A job that expired or was
+    #: cancelled still yields a row per request, and those rows carry the counts.
+    _ENDED_STATUSES: ClassVar[dict[str, BatchStatus]] = {
+        "failed": "failed",
+        "expired": "expired",
+        "cancelled": "cancelled",
+    }
+
+    @classmethod
+    def _settings_type(cls) -> type:
+        # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
+        from pydantic_ai.models.openai import OpenAIResponsesModelSettings
+
+        return OpenAIResponsesModelSettings
+
+    @staticmethod
+    def _responses_model_id(model_id: str) -> str:
+        """Return ``model_id`` with pydantic-ai's Chat Completions prefix swapped for the Responses one."""
+        prefix, sep, bare = model_id.partition(":")
+        if sep and prefix == "openai-chat":
+            log.info(
+                "Batches run on the OpenAI Responses API; using openai:<model> in place of openai-chat:<model>",
+                model=bare,
+            )
+            return f"openai:{bare}"
+        return model_id
+
+    async def _amodel(self, model_id: str) -> Model:
+        return await super()._amodel(self._responses_model_id(model_id))
+
+    async def _unrecorded_batch(self, model: Model, batch_id: str) -> Batch:
+        """
+        Refuse a batch an earlier version of this provider submitted, which cannot be read back.
+
+        That version created OpenAI batches against ``/v1/chat/completions``. pydantic-ai decodes
+        only Responses output, so the results of such a batch cannot be read.
+        """
+        raise LLMBatchStateReadError(
+            f"Batch {batch_id!r} was submitted by an earlier version of this provider to the Chat "
+            "Completions endpoint, and this version reads only Responses API batches. Let it finish or "
+            "cancel it at OpenAI, then delete this task's batch state file under the result path's "
+            "'_airflow_batch_state' directory so a retry submits a new batch."
+        )
+
+    async def _describe(self, model: Model, batch: Batch) -> BatchState:
+        # ``ended`` covers every terminal job status, so the outcome is in the job's own status.
+        job_status = (batch.provider_details or {}).get("status")
+        if batch.status == "ended" and job_status in self._ENDED_STATUSES:
+            status = self._ENDED_STATUSES[job_status]
+            message = self._failure_message(batch) if status == "failed" else None
+            return BatchState(status=status, counts=None, error_message=message)
+        return await super()._describe(model, batch)
+
+    @staticmethod
+    def _failure_message(batch: Batch) -> str:
+        """Describe a job OpenAI rejected before running it, from the validation errors on the handle."""
+        message = f"OpenAI batch {batch.id} failed before processing."
+        reasons = []
+        for error in (batch.provider_details or {}).get("errors", []):
+            if not isinstance(error, Mapping):
+                continue
+            where = f"line {error['line']}: " if error.get("line") is not None else ""
+            reasons.append(f"{where}{error.get('message') or error.get('code') or 'unknown error'}")
+        return f"{message} {'; '.join(reasons)}" if reasons else message
 
 
 class AnthropicBatchAdapter(PydanticAIBatchAdapter):

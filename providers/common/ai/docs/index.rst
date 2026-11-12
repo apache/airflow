@@ -231,7 +231,7 @@ Extra                 Dependencies
 ``anthropic``         ``pydantic-ai-slim[anthropic]>=2.66.0``, ``anthropic>=1.15.0,<2``
 ``bedrock``           ``pydantic-ai-slim[bedrock]>=2.46.0``
 ``google``            ``pydantic-ai-slim[google]>=2.66.0``, ``google-genai>=2.30.0``
-``openai``            ``pydantic-ai-slim[openai]>=2.46.0``, ``openai>=2.47.0``
+``openai``            ``pydantic-ai-slim[openai]>=2.66.0``, ``openai>=3.31.0``
 ``typesafe``          ``typesafe-sdk>=0.6.0``
 ``mcp``               ``pydantic-ai-slim[mcp]>=2.46.0``
 ``modal``             ``apache-airflow-providers-modal``, ``modal>=1.5.2``

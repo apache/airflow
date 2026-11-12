@@ -96,7 +96,8 @@ class LLMBatchOperator(BaseOperator):
     :param model_id: Model identifier as ``"<provider>:<model>"`` (e.g.
         ``"openai:gpt-5"``). Falls back to the connection's Model field, as
         ``LLMOperator`` does. A bare name takes the connection's Default
-        Provider, and ``openai-chat:`` selects the OpenAI adapter.
+        Provider, and ``openai-chat:`` selects the OpenAI adapter, which runs the
+        batch on the Responses API.
     :param system_prompt: System-level instructions applied to every request
         that does not set its own ``system_prompt`` override.
     :param output_type: Expected output type. Default ``str``. Set to a
@@ -104,14 +105,14 @@ class LLMBatchOperator(BaseOperator):
         supports) for structured output; every result row is plain JSON.
     :param max_tokens: Output token cap for requests that do not set their
         own. Sent as ``max_tokens`` to Anthropic and as
-        ``max_completion_tokens`` to OpenAI.
+        ``max_output_tokens`` to OpenAI.
     :param request_params: Extra parameters for every request
         (e.g. ``{"temperature": 0.2}``); a request's own ``params`` wins on
         conflicting keys. The keys the operator manages (``model``, the
         messages, the token cap and the structured-output directive) cannot
-        be overridden from here. OpenAI merges them into the request body as-is.
-        Anthropic takes sampling and ``anthropic_*`` keys as typed settings and
-        merges every other key into the body. Gemini accepts typed settings only.
+        be overridden from here. OpenAI and Anthropic take sampling and provider-prefixed
+        (``openai_*``, ``anthropic_*``) keys as typed settings and merge every other
+        key into the request body. Gemini accepts typed settings only.
         Templated: every string inside the dict is rendered, and Jinja hands back
         a string, so a numeric parameter written as a template needs
         ``render_template_as_native_obj=True`` on the Dag.
@@ -146,12 +147,12 @@ class LLMBatchOperator(BaseOperator):
     :param on_orphaned_intent: What to do when a previous attempt recorded
         its intent to submit but no batch id, and the provider-side lookup
         finds no matching batch: ``"resubmit"`` (default) submits a new
-        batch; ``"fail"`` raises instead. Anthropic and Gemini offer no such
-        lookup, so ``"resubmit"`` may pay twice there if the original request
-        did reach the provider.
-    :param completion_window: OpenAI-specific completion window. Only
-        ``"24h"`` is offered by the API today. Ignored by Anthropic and Gemini, which warn when it is
-        set to anything else.
+        batch; ``"fail"`` raises instead. The built-in adapters offer no such
+        lookup, so ``"resubmit"`` may pay twice if the original request did
+        reach the provider.
+    :param completion_window: Completion window for an adapter that lets the caller choose
+        one. Only ``"24h"`` is offered by the providers today, and the built-in adapters
+        ignore it, warning when it is set to anything else.
     """
 
     template_fields: Sequence[str] = (
@@ -383,9 +384,9 @@ class LLMBatchOperator(BaseOperator):
                 output_schema_digest=output_schema_digest,
                 intent_at=intent_at,
             )
-            if self.completion_window != _DEFAULT_COMPLETION_WINDOW and adapter_name != "openai":
+            if self.completion_window != _DEFAULT_COMPLETION_WINDOW:
                 self.log.warning(
-                    "completion_window=%r is ignored: the %s batch API has no such setting.",
+                    "completion_window=%r is ignored: %s batches run on the provider's default window.",
                     self.completion_window,
                     adapter_name,
                 )

@@ -543,6 +543,15 @@ class TestCompletionWindow:
 
         assert any("completion_window" in r.getMessage() for r in caplog.records)
 
+    def test_a_non_default_window_is_flagged_for_openai_too(self, fake_adapter, result_path, caplog):
+        with _running(fake_adapter), caplog.at_level(logging.WARNING):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, completion_window="12h").execute(
+                    _context()
+                )
+
+        assert any("completion_window" in r.getMessage() for r in caplog.records)
+
     def test_the_default_window_is_not_flagged(self, fake_adapter, result_path, caplog):
         with _running(fake_adapter), caplog.at_level(logging.WARNING):
             with pytest.raises(TaskDeferred):

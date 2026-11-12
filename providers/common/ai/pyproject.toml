@@ -88,19 +88,16 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-# @task.llm_batch drives the Anthropic and Gemini batch APIs through pydantic-ai's Model.batch_*
-# methods, so the anthropic floor is 1.15.0, the one pydantic-ai-slim[anthropic] 2.66 asks for.
-# The OpenAI adapter still talks to its SDK directly. openai 2.47.0 is the first release that
-# accepts the httpx2 client pydantic-ai-slim>=2.33 hands it (2.45 and 2.46 raise TypeError on it);
-# pydantic-ai-slim[openai]>=2.33.0 itself asks for openai>=3, so this floor only matters to an
-# install that overrides that requirement.
+# @task.llm_batch drives the OpenAI, Anthropic and Gemini batch APIs through pydantic-ai's
+# Model.batch_* methods, so the anthropic and openai floors (1.15.0 and 3.31.0) are the ones
+# pydantic-ai-slim[anthropic] and pydantic-ai-slim[openai] 2.66 ask for.
 # anthropic is capped below 2 because pydantic-ai's Anthropic model (up to 2.59.0) calls
 # BetaMessageParam(...), which anthropic 2 turned into a Union that cannot be instantiated.
 "anthropic" = ["pydantic-ai-slim[anthropic]>=2.66.0", "anthropic>=1.15.0,<2"]
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.46.0"]
 # google-genai 2.30.0 is the floor pydantic-ai-slim[google] 2.66 asks for; Gemini batch mode needs it.
 "google" = ["pydantic-ai-slim[google]>=2.66.0", "google-genai>=2.30.0"]
-"openai" = ["pydantic-ai-slim[openai]>=2.46.0", "openai>=2.47.0"]
+"openai" = ["pydantic-ai-slim[openai]>=2.66.0", "openai>=3.31.0"]
 # TypeSafe Jev: answers typed questions (pick one of N, a bounded score, a yes/no
 # probability) and cannot emit text, so it fits a branch or a classification but not a
 # summary. It arrives through pydantic-ai's own ``typesafe:`` provider, so the hook needs
@@ -202,8 +199,10 @@ dev = [
     "pydantic-ai-skills>=1.2.0,<2",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
-    # @task.llm_batch's OpenAI adapter calls its SDK directly, and the Anthropic and Gemini adapters
-    # build real pydantic-ai models on them. The dev group needs them so those tests run instead of skipping.
+    # @task.llm_batch's adapters build real pydantic-ai models on these SDKs.
+    # The dev group needs them so those tests run instead of skipping.
+    # Not raised to the extra's 3.31.0 floor: the llamaindex extra caps openai below 3 (see the conflicts
+    # declared in the root pyproject.toml), and the dev group is resolved with it.
     "openai>=2.47.0",
     "anthropic>=1.15.0,<2",
     "google-genai>=2.30.0",

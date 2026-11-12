@@ -81,34 +81,54 @@ Changelog
   only the signature and the annotated type, not the behaviour.
 
 .. note::
-  ``@task.llm_batch`` now runs Anthropic batches through pydantic-ai's ``Model.batch_*`` methods and
-  adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex ``google-cloud:``
-  model id is refused with the fix in the message). This raises the ``pydantic-ai-slim`` floor to
-  2.66.0 and the ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the
-  ``google`` extra.
+  ``@task.llm_batch`` now runs OpenAI and Anthropic batches through pydantic-ai's ``Model.batch_*``
+  methods and adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex
+  ``google-cloud:`` model id is refused with the fix in the message). This raises the
+  ``pydantic-ai-slim`` floor to 2.66.0, the ``openai`` extra's ``openai`` floor to 3.31.0 and the
+  ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the ``google``
+  extra.
 
-  What changes for an existing Anthropic task:
+  What changes for an existing task:
 
   - ``request_params`` and a request's ``params`` keep working. The sampling settings (``temperature``,
-    ``top_p``, ``top_k``, ``stop_sequences``) and ``anthropic_*`` settings are typed, and every other
-    key is still sent as a Messages field. A setting the model would silently drop, such as ``seed``,
-    now fails before submission, and a key the operator manages (``model``, ``messages``, ...) is
-    ignored with a warning.
-  - Structured output uses the model's native JSON-schema output instead of a forced tool call, except
-    for models without it.
+    ``top_p``, ...) and the provider-prefixed settings (``openai_*``,
+    ``anthropic_*``) are typed, and every other key is still sent as a request field. A setting the
+    model would silently drop (``seed`` on Anthropic; ``seed``, ``top_k``, ``frequency_penalty``,
+    ``presence_penalty``, ``logit_bias`` and ``stop_sequences`` on OpenAI) now fails before
+    submission, and a key the operator manages (``model``, ``messages``, ``input``, ...) is ignored
+    with a warning. A Chat Completions key has to be written the Responses way on OpenAI, for example
+    ``openai_reasoning_effort`` instead of ``reasoning_effort``.
+  - OpenAI batches run on the Responses API (``/v1/responses``) instead of Chat Completions, because
+    pydantic-ai batches only its Responses model. An ``openai-chat:`` model id is built as
+    ``openai:`` and logged. A gateway that implements batches only for ``/v1/chat/completions`` stops
+    working; whether LiteLLM implements them for ``/v1/responses`` has not been verified. Azure OpenAI
+    still has no adapter.
+  - Structured output uses the model's native JSON-schema output instead of a forced tool call or
+    ``response_format``, except for models without it.
   - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
-  - The state file records pydantic-ai's batch handle (state version 2). A batch that an earlier
-    version of this provider submitted and is still running is re-attached; its state file is left as it is. An
-    outdated batch from an earlier version that was recorded under a different connection cannot be
-    cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
+  - OpenAI no longer recovers a batch whose submit response was never recorded by reading the batch's
+    metadata. Like Anthropic and Gemini, it falls through to ``on_orphaned_intent``, whose default
+    ``"resubmit"`` submits a new batch.
+  - ``completion_window`` is ignored by every built-in adapter, and a value other than ``"24h"`` now logs
+    a warning.
+  - The state file records pydantic-ai's batch handle (state version 2). An Anthropic batch that an
+    earlier version of this provider submitted and is still running is re-attached; its state file is
+    left as it is. An OpenAI batch from an earlier version cannot be: it was created against Chat
+    Completions and its results cannot be read. The task fails with ``LLMBatchStateReadError``
+    naming the batch; let it finish or cancel it at OpenAI, delete the task's state file and retry.
+    An outdated batch from an earlier version that was recorded under a different connection cannot
+    be cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
   - Results are read as one list per batch, so landing a batch holds all of its response bodies in
     memory at once rather than streaming them. Rows are still written one at a time. Size workers for
     your largest batch, or split large inputs across mapped task instances with ``.expand()``.
   - A task that was deferred by an earlier version of this provider and is still waiting when you
     upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
     re-attaches to the batch.
-  - ``completion_window`` is ignored by Anthropic and Gemini, and a value other than ``"24h"`` now logs a
-    warning.
+  - pydantic-ai deletes an OpenAI batch's uploaded input file only in the process that submitted the
+    batch, and only once it has seen the job complete and collected its results. A deferrable task
+    collects them in another process, and an expired or cancelled job never completes, so OpenAI keeps
+    the file for 30 days. Gemini's file is deleted when the submitting process collects an ended job,
+    and otherwise expires.
 
   A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
 

@@ -255,7 +255,7 @@ class BatchAdapter(ABC):
         """
         Upload/submit the batch and return the provider's batch id.
 
-        Where the provider offers batch-level metadata (OpenAI), record both
+        Where the provider offers batch-level metadata, record both
         ``idempotency_key`` and ``input_fingerprint`` there so
         :meth:`find_orphaned_batch` can read them back. The key alone identifies
         the task instance, not this submission of it: it is stable across a

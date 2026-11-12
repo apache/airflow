@@ -25,10 +25,10 @@ import pytest
 
 from airflow.providers.common.ai.batch import dispatch
 from airflow.providers.common.ai.batch.base import BatchAdapter
-from airflow.providers.common.ai.batch.openai import OpenAIBatchAdapter
 from airflow.providers.common.ai.batch.pydantic_ai_backend import (
     AnthropicBatchAdapter,
     GoogleBatchAdapter,
+    OpenAIBatchAdapter,
 )
 from airflow.providers.common.ai.exceptions import (
     BatchProviderNotYetSupportedError,
@@ -91,7 +91,7 @@ class TestGetAdapterClass:
             dispatch.get_adapter_class("pydanticai", "groq:llama")
 
     def test_openai_chat_prefix_selects_the_openai_adapter(self):
-        """pydantic-ai's Chat Completions prefix names the endpoint the OpenAI adapter submits to."""
+        """``openai-chat`` is served by the OpenAI adapter, which runs the batch on the Responses API."""
         assert dispatch.get_adapter_class("pydanticai", "openai-chat:gpt-5") is OpenAIBatchAdapter
 
     @pytest.mark.parametrize("model_id", ["google-cloud:gemini-2.5-flash", "google-vertex:gemini-2.5-flash"])
@@ -132,30 +132,34 @@ class TestRegistration:
 
 
 class TestBuildAdapter:
-    def test_build_adapter_from_connection_maps_password_and_host(self):
-        pytest.importorskip("openai")
-        conn = Connection(
-            conn_id="c", conn_type="pydanticai", password="sk-test", host="https://gateway.example"
-        )
+    def test_openai_adapter_is_built_from_the_connection_hook(self):
+        conn = Connection(conn_id="my_openai", conn_type="pydanticai", password="sk-test")
+        hook = mock.create_autospec(PydanticAIHook, instance=True)
+        hook._get_fallback_conn_ids.return_value = []
+        with mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook) as get_hook:
+            adapter = dispatch.build_adapter_from_connection(
+                "openai", conn, model_id="openai:gpt-5-mini", batch_handle='{"id": "b"}'
+            )
 
-        adapter = dispatch.build_adapter_from_connection("openai", conn)
-
+        get_hook.assert_called_once_with("my_openai", {"model_id": "openai:gpt-5-mini"})
         assert isinstance(adapter, OpenAIBatchAdapter)
-        assert adapter._client.api_key == "sk-test"
-        assert str(adapter._client.base_url).rstrip("/") == "https://gateway.example"
-        adapter.close()
+        assert adapter._hook is hook
+        assert adapter._handle == '{"id": "b"}'
 
     def test_build_adapter_fetches_the_connection_by_id(self):
-        pytest.importorskip("openai")
         conn = Connection(conn_id="c", conn_type="pydanticai", password="sk-test", host=None)
-        with mock.patch.object(
-            dispatch.BaseHook, "get_connection", autospec=True, return_value=conn
-        ) as get_conn:
-            adapter = dispatch.build_adapter("openai", llm_conn_id="my_openai")
+        hook = mock.create_autospec(PydanticAIHook, instance=True)
+        hook._get_fallback_conn_ids.return_value = []
+        with (
+            mock.patch.object(
+                dispatch.BaseHook, "get_connection", autospec=True, return_value=conn
+            ) as get_conn,
+            mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook),
+        ):
+            adapter = dispatch.build_adapter("openai", llm_conn_id="my_openai", model_id="openai:gpt-5")
 
         get_conn.assert_called_once_with("my_openai")
         assert isinstance(adapter, OpenAIBatchAdapter)
-        adapter.close()
 
     def test_pydantic_ai_adapter_is_built_from_the_connection_hook(self):
         conn = Connection(conn_id="my_anthropic", conn_type="pydanticai", password="sk-ant")

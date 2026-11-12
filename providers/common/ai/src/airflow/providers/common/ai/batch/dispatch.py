@@ -28,7 +28,7 @@ This is a separate decision from
 have a batch API".
 
 Adapters are imported lazily, only once a request is dispatched to them, so
-importing this module never requires ``openai``/``anthropic`` to be installed.
+importing this module never requires ``openai``/``anthropic``/``google-genai`` to be installed.
 Another package can add an adapter in two ways: call :func:`register_adapter`
 at import time, or declare an entry point in the
 ``airflow.providers.common.ai.batch_adapters`` group whose name is the model
@@ -56,13 +56,14 @@ ENTRY_POINT_GROUP = "airflow.providers.common.ai.batch_adapters"
 
 #: adapter name -> (module path, class name), resolved lazily by :func:`import_adapter_class`.
 _ADAPTER_MODULES: dict[str, tuple[str, str]] = {
-    "openai": ("airflow.providers.common.ai.batch.openai", "OpenAIBatchAdapter"),
+    "openai": ("airflow.providers.common.ai.batch.pydantic_ai_backend", "OpenAIBatchAdapter"),
     "anthropic": ("airflow.providers.common.ai.batch.pydantic_ai_backend", "AnthropicBatchAdapter"),
     "google": ("airflow.providers.common.ai.batch.pydantic_ai_backend", "GoogleBatchAdapter"),
 }
 
 #: model_id prefix -> the adapter that serves it under another name. ``openai-chat`` is
-#: pydantic-ai's Chat Completions prefix, and Chat Completions is what the ``openai`` adapter submits.
+#: pydantic-ai's Chat Completions prefix; the ``openai`` adapter batches on the Responses API
+#: instead and builds the ``openai:`` model of the same name.
 _ADAPTER_ALIASES: dict[str, str] = {"openai-chat": "openai"}
 
 #: model_id prefixes that name a platform whose batch API has no adapter, with the fix to offer.
@@ -169,7 +170,7 @@ def get_adapter_class(conn_type: str | None, model_id: str | None) -> type[Batch
             f"accepts {sorted(adapter_cls.conn_types)}. Azure OpenAI, Bedrock and Vertex batch "
             "need their own adapters (deployment-scoped or object-storage based APIs). Until "
             "one exists, point a 'pydanticai' connection at the public endpoint, or route "
-            "through an OpenAI-compatible gateway that exposes /v1/files and /v1/batches."
+            "through a gateway that exposes /v1/files and /v1/batches for /v1/responses."
         )
     return adapter_cls
 
