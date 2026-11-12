@@ -131,12 +131,15 @@ def find_asf_yaml_sync_violations(asf_yaml_text: str, pilot_users: Iterable[str]
         return ["all entries in bypass_users must be strings"]
 
     violations = []
-    seen = set()
-    duplicates = []
+    seen_casefolded: set[str] = set()
+    duplicates: list[str] = []
+    seen_duplicates: set[str] = set()
     for u in bypass_users:
-        if u in seen and u not in duplicates:
+        folded = u.casefold()
+        if folded in seen_casefolded and folded not in seen_duplicates:
             duplicates.append(u)
-        seen.add(u)
+            seen_duplicates.add(folded)
+        seen_casefolded.add(folded)
     if duplicates:
         violations.append(f"duplicate users in bypass_users: {', '.join(sorted(duplicates))}")
 

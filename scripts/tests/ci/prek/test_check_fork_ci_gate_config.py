@@ -187,6 +187,19 @@ github:
             id="duplicate-bypass-user",
         ),
         pytest.param(
+            """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users:
+        - Alice
+        - alice
+""",
+            ["Alice"],
+            "duplicate users in bypass_users: alice",
+            id="duplicate-bypass-user-case-insensitive",
+        ),
+        pytest.param(
             "not: [valid: yaml",
             ["alice"],
             "failed to parse YAML",
