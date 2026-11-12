@@ -32,6 +32,7 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.xcom import reject_reserved_xcom_key
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
@@ -54,7 +55,6 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchi
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
-    LOOP_XCOM_PREFIX,
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
     build_loop_sequence_order,
@@ -67,7 +67,7 @@ from airflow.models.task_coordinates import (
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XCOM_RETURN_KEY, XComModel, xcom_entity
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
 from airflow.utils.state import TaskInstanceState
 
@@ -712,10 +712,7 @@ def set_xcom(
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
-    if key.startswith(LOOP_XCOM_PREFIX):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
-    if key == EXTERNAL_CLEAR_TARGET_XCOM_KEY:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved XCom key")
+    reject_reserved_xcom_key(key)
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
@@ -818,8 +815,7 @@ def delete_xcom(
     token=_TriggerAwareTIToken,
 ):
     """Delete a single XCom Value."""
-    if key.startswith(LOOP_XCOM_PREFIX):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
+    reject_reserved_xcom_key(key)
 
     owner = _find_writer_id(
         token,
