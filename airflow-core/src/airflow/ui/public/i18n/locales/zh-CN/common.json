@@ -40,8 +40,11 @@
   "createdAssetEvent_other": "已创建资源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活跃执行数",
+    "bundleVersion": "套件包版本",
     "catchup": "自动回填",
     "dagRunTimeout": "Dag 执行超时",
     "defaultArgs": "默认参数",
@@ -90,7 +93,6 @@
   "dagRun_other": "Dag 执行",
   "dagRunId": "Dag 执行 ID",
   "dagRunState": "Dag 执行状态",
-  "dagWarnings": "Dag 警告 / 错误",
   "delete": "删除",
   "diff": "差异对比",
   "diffCompareWith": "比较对象",
@@ -116,6 +118,7 @@
     "home": "首页",
     "invalidUrl": "找不到页面。请检查 URL 后重试。",
     "notFound": "找不到页面",
+    "reload": "重新加载页面",
     "title": "错误"
   },
   "errors": {
@@ -137,18 +140,25 @@
     "all": "全部",
     "and": "且",
     "any": "任何",
+    "hiddenAsset": "隐藏的资源",
     "or": "或"
   },
   "filter": "筛选",
   "filters": {
     "addFilter": "添加筛选条件",
+    "allIterations": "全部",
     "completedAt": "完成时间",
     "date": "日期",
     "durationFrom": "持续时间起始",
     "durationTo": "持续时间结束",
     "endTime": "结束时间",
+    "iteration": "迭代",
     "logicalDateFrom": "逻辑日期起始",
     "logicalDateTo": "逻辑结束日期",
+    "loop": "循环",
+    "loopAllIterations": "{{loop}} 全部迭代",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "选择循环",
     "maxActiveRunsFrom": "活跃执行数上限起始值",
     "maxActiveRunsTo": "活跃执行数上限结束值",
     "removeFilter": "移除筛选条件",
@@ -158,6 +168,7 @@
     "selectDateRange": "选择日期范围",
     "selectDateTime": "选择日期和时间",
     "startTime": "开始时间",
+    "switchIteration": "切换迭代",
     "time": "时间"
   },
   "fullscreen": {
@@ -166,6 +177,12 @@
   "generateToken": "生成令牌",
   "includedIn": "包含于",
   "key": "键",
+  "loading": "加载中...",
+  "logLevel": {
+    "hide": "隐藏日志级别",
+    "hotkey": "l",
+    "show": "显示日志级别"
+  },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
@@ -192,6 +209,7 @@
     "plugins": "插件",
     "security": "安全"
   },
+  "no": "否",
   "noItemsFound": "找不到 {{modelName}}",
   "note": {
     "add": "添加笔记",
@@ -204,6 +222,10 @@
     "write": "编写"
   },
   "overallStatus": "整体状态",
+  "pagination": {
+    "nextPage": "下一页",
+    "previousPage": "上一页"
+  },
   "partition_one": "分区",
   "partition_other": "分区",
   "partitionedDagRun_one": "分区 Dag 执行",
@@ -213,7 +235,7 @@
   },
   "pause": "暂停",
   "pendingDagRun_one": "1 个待执行 Dag 执行",
-  "pendingDagRun_other": "{{count}} 个待执行 Dag 执行",
+  "pendingDagRun_other": "{{count, number}} 个待执行 Dag 执行",
   "presetFilters": {
     "deleteTitle": "删除预设筛选条件",
     "deleteWarning": "预设筛选条件仅保存在此浏览器中。",
@@ -250,7 +272,8 @@
   "search": {
     "advanced": {
       "description": "在值中的任意位置匹配（子串搜索）。在大型部署中较慢，因为它无法使用默认的 B-tree 索引。详情请参阅文档中关于自定义元数据索引的章节。",
-      "title": "任意位置匹配"
+      "title": "任意位置匹配",
+      "toggleLabel": "切换任意位置匹配搜索"
     }
   },
   "security": {
@@ -264,6 +287,10 @@
   "selected": "已选择",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "清除任务实例时默认保留任务存储条目，而不是将其丢弃。",
+        "label": "清除时保留任务存储"
+      },
       "preventRunningTask": {
         "helper": "清除任务实例时跳过正在执行的任务。",
         "label": "防止清除正在执行的任务"
@@ -277,6 +304,13 @@
         "label": "清除任务的默认选项"
       },
       "title": "清除"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "在 Dags 列表中显示每个 Dag 最近的任务状态。关闭后将不再加载这些状态，可改善包含大量 Dags 的部署的性能。",
+        "label": "显示最近任务"
+      },
+      "title": "Dags 列表"
     },
     "description": "这些偏好设置仅保存在此浏览器中，并适用于整个应用。",
     "general": {
@@ -295,6 +329,10 @@
         "helper": "未单独设置布局方向的 Dag 和资源图表所使用的方向。",
         "label": "默认图表方向"
       },
+      "taskGroupsExpanded": {
+        "helper": "在您尚未保存分组选择的 Dag 中展开任务分组，已有选择保持不变。",
+        "label": "默认展开任务分组"
+      },
       "title": "图表"
     },
     "marking": {
@@ -303,6 +341,13 @@
         "label": "标记状态的默认选项"
       },
       "title": "标记状态"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description)各搜索框的设置和共享链接中的设置仍优先使用。",
+        "label": "默认在任意位置匹配"
+      },
+      "title": "搜索"
     },
     "taskInstance": {
       "defaultTab": {
@@ -326,26 +371,29 @@
     },
     "descriptions": {
       "clearRun": "清除 $t(dagRun_one)",
-      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "clearTaskInstance": "清除$t(taskInstance_one)",
       "downloadLogs": "下载日志",
       "focusFilterSearch": "聚焦筛选搜索框",
       "focusLogSearch": "搜索日志",
       "focusSearch": "聚焦搜索框",
-      "markRunFailed": "将 $t(dagRun_one) 标记为失败",
-      "markRunSuccess": "将 $t(dagRun_one) 标记为成功",
-      "markTaskFailed": "将 $t(task_one) 标记为失败",
-      "markTaskGroupFailed": "将 $t(taskGroup_one) 标记为失败",
-      "markTaskGroupSuccess": "将 $t(taskGroup_one) 标记为成功",
-      "markTaskSuccess": "将 $t(task_one) 标记为成功",
-      "navigateTasks": "浏览 $t(task_other)",
+      "markRunFailed": "将 $t(dagRun_one)标记为失败",
+      "markRunSuccess": "将 $t(dagRun_one)标记为成功",
+      "markTaskFailed": "将$t(task_one)标记为失败",
+      "markTaskGroupFailed": "将$t(taskGroup_one)标记为失败",
+      "markTaskGroupSuccess": "将$t(taskGroup_one)标记为成功",
+      "markTaskSuccess": "将$t(task_one)标记为成功",
+      "navigateTasks": "浏览$t(task_other)",
       "openGraphFilters": "打开图表筛选器",
       "scrollBottom": "滚动到最下方",
       "scrollTop": "滚动到最上方",
       "searchDags": "搜索 $t(dag_other)",
+      "selectGridCellRange": "选择一个范围内的$t(taskInstance_other)或$t(taskGroup_other)",
       "showHelp": "显示$t(shortcuts.title)",
       "toggleExpand": "展开或收起所有分组",
       "toggleFullscreen": "切换全屏",
       "toggleGraphGrid": "切换图形与网格视图",
+      "toggleGridCellSelection": "在所选项中添加或移除$t(taskInstance_one)或$t(taskGroup_one)",
+      "toggleLogLevel": "切换日志级别显示",
       "toggleSource": "切换来源显示",
       "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
       "toggleTimestamp": "切换时间戳显示",
@@ -375,6 +423,7 @@
     "no_status": "无状态",
     "none": "无状态",
     "open": "开放",
+    "pending": "待处理",
     "planned": "已计划",
     "queued": "排队中",
     "removed": "已移除",
@@ -388,6 +437,8 @@
     "upstream_failed": "上游任务失败"
   },
   "switchDag": "切换 $t(dag_one)",
+  "switchDagRun": "切换 $t(dagRun_one)",
+  "switchMapIndex": "切换$t(mapIndex)",
   "table": {
     "completedAt": "完成时间",
     "createdAt": "创建时间",
@@ -433,6 +484,9 @@
     "executorConfig": "执行器配置",
     "hostname": "主机名称",
     "id": "ID",
+    "iteration": "迭代",
+    "loopDecision": "决策",
+    "loopIterations": "已执行迭代数",
     "maxTries": "最大尝试次数",
     "pid": "PID",
     "pool": "资源池",
@@ -441,7 +495,13 @@
     "queue": "排队",
     "queuedWhen": "开始排队时间",
     "renderedMapIndex": "已渲染映射索引",
+    "retryAt": "重试时间",
     "scheduledWhen": "开始调度时间",
+    "stateReason": "状态原因",
+    "stateReasonSummary": {
+      "failed": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后停止",
+      "upForRetry": "在第 {{tryNumber}} 次尝试（共 {{totalTries}} 次）后重试"
+    },
     "trigger": "触发器",
     "triggerer": {
       "assigned": "指派的触发器",
@@ -458,14 +518,19 @@
   "taskInstance_other": "任务实例",
   "teams": {
     "more_one": "及其他 1 个团队",
-    "more_other": "及其他 {{count}} 个团队",
+    "more_other": "及其他 {{count, number}} 个团队",
     "none": "无团队",
     "title": "团队"
   },
   "timeRange": {
+    "anyTime": "不限时间",
+    "in": "在",
+    "last7Days": "最近 7 天",
     "last12Hours": "最近 12 小时",
     "last24Hours": "最近 24 小时",
+    "last30Days": "最近 30 天",
     "lastHour": "最近 1 小时",
+    "latestRun": "最近一次执行",
     "pastWeek": "过去一周"
   },
   "timestamp": {
@@ -484,21 +549,21 @@
     "bulkClear": {
       "error": "批量清除 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功清除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功清除 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量清除 {{resourceName}} 请求"
       }
     },
     "bulkDelete": {
       "error": "批量删除 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功删除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功删除 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量删除 {{resourceName}} 请求"
       }
     },
     "bulkUpdate": {
       "error": "批量更新 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功更新 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功更新 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量更新 {{resourceName}} 请求"
       }
     },
@@ -519,7 +584,7 @@
     "import": {
       "error": "导入 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功导入 {{count}} 个 {{resourceName}}。",
+        "description": "已成功导入 {{count, number}} 个 {{resourceName}}。",
         "title": "已提交导入 {{resourceName}} 请求"
       }
     },
@@ -558,5 +623,6 @@
     "tooltip": "按 {{hotkey}} 切换换行",
     "unwrap": "不换行",
     "wrap": "换行"
-  }
+  },
+  "yes": "是"
 }

@@ -25,12 +25,15 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -395,6 +398,81 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	}
 }
 
+// The supervisor drops a SetXCom it cannot decode without replying, so a value
+// that is not JSON must be rejected before it is sent or the task hangs.
+func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		wantErr string
+	}{
+		{
+			name:    "datetime",
+			value:   time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
+			wantErr: "time.Time is not JSON representable",
+		},
+		{name: "uuid", value: uuid.New(), wantErr: "[]byte is not JSON representable"},
+		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
+		{
+			// Regression: a key that decodes to a slice used to panic the decoder.
+			name:    "uuid map key",
+			value:   map[uuid.UUID]string{uuid.New(): "a"},
+			wantErr: "map keys must be strings",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&bytes.Buffer{}, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			err := client.PushXCom(context.Background(), ti, "return_value", tc.value)
+
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Zero(t, requestBuf.Len(), "a rejected value must not reach the supervisor")
+		})
+	}
+}
+
+// A task that returns a nil slice or a nil any pushes null, so PushXCom must not
+// inherit the task state store's nil rule.
+func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "nil", value: nil},
+		{name: "typed nil", value: []string(nil)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			require.NoError(t, client.PushXCom(context.Background(), ti, "return_value", tc.value))
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			require.Contains(t, sentMap, "value")
+			assert.Nil(t, sentMap["value"])
+		})
+	}
+}
+
 // TestCoordinatorClientGetXComMapIndex verifies the GetXCom frame omits
 // map_index when none is supplied and propagates a real index otherwise,
 // including index 0: a plain deref into the nullable interface{} field would let
@@ -466,14 +544,24 @@ func TestResolveDefaultExpiry(t *testing.T) {
 		name    string
 		env     string
 		unset   bool
-		want    any
+		want    *genmodels.Time
 		wantErr string
+		// The timestamp only wraps for day counts that need a 64-bit int.
+		needs64BitInt bool
 	}{
 		{name: "unset is an error", unset: true, wantErr: "is not set"},
-		{name: "honours supervisor value", env: "7", want: now.UTC().AddDate(0, 0, 7)},
+		{
+			name: "honours supervisor value",
+			env:  "7",
+			want: genmodels.TimePtr(now.UTC().AddDate(0, 0, 7)),
+		},
 		{name: "zero days never expires", env: "0", want: nil},
 		// Python's config parser accepts a whole-number float spelling.
-		{name: "whole float accepted", env: "7.0", want: now.UTC().AddDate(0, 0, 7)},
+		{
+			name: "whole float accepted",
+			env:  "7.0",
+			want: genmodels.TimePtr(now.UTC().AddDate(0, 0, 7)),
+		},
 		{name: "unparsable is an error", env: "abc", wantErr: "failed to convert value to int"},
 		// conf.get returns "" for an empty setting, which must not read as unset.
 		{name: "empty is an error", env: "", wantErr: "failed to convert value to int"},
@@ -485,14 +573,23 @@ func TestResolveDefaultExpiry(t *testing.T) {
 			wantErr: "failed to convert value to int",
 		},
 		{
-			name:    "day count that wraps the timestamp is an error",
-			env:     "9223372036854775807",
-			wantErr: "overflows the expiry timestamp",
+			name:    "out of int range is an error",
+			env:     strconv.FormatUint(math.MaxInt+1, 10),
+			wantErr: "failed to convert value to int",
+		},
+		{
+			name:          "day count that wraps the timestamp is an error",
+			env:           "9223372036854775807",
+			wantErr:       "overflows the expiry timestamp",
+			needs64BitInt: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.needs64BitInt && strconv.IntSize < 64 {
+				t.Skip("requires 64-bit int")
+			}
 			// Setenv registers the restore, so unsetting it here is undone after.
 			t.Setenv(defaultRetentionDaysEnv, tc.env)
 			if tc.unset {
@@ -506,10 +603,6 @@ func TestResolveDefaultExpiry(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			if tc.want == nil {
-				assert.Nil(t, got, "a nil expiry must be untyped so msgpack encodes null")
-				return
-			}
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -1129,6 +1222,140 @@ func TestCoordinatorClientDeleteXCom(t *testing.T) {
 				want["map_index"] = tc.wantMapIndex
 			}
 			assert.Equal(t, want, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// clientWithReply returns a client whose supervisor answers its one request with body and errBody,
+// and the buffer that holds the request it sends.
+func clientWithReply(
+	t *testing.T,
+	body, errBody map[string]any,
+) (*CoordinatorClient, *bytes.Buffer) {
+	t.Helper()
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, body, errBody)))
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	return NewCoordinatorClient(comm, testTIID), &requestBuf
+}
+
+// TestCoordinatorClientTriggerDagRun verifies the TriggerDagRun frame, that a Dag run which already
+// exists is reported instead of returned as an error, and that any other supervisor error is
+// returned.
+func TestCoordinatorClientTriggerDagRun(t *testing.T) {
+	logicalDate := time.Date(2026, 9, 30, 1, 2, 3, 0, time.UTC)
+	tests := []struct {
+		name              string
+		errBody           map[string]any
+		wantAlreadyExists bool
+		wantErrCode       string
+	}{
+		{name: "triggered"},
+		{
+			name: "already exists",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "DAGRUN_ALREADY_EXISTS",
+				"detail": map[string]any{"message": "exists"},
+			},
+			wantAlreadyExists: true,
+		},
+		{
+			name: "other error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 500},
+			},
+			wantErrCode: "API_SERVER_ERROR",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client, requestBuf := clientWithReply(t, nil, tc.errBody)
+
+			alreadyExists, err := client.triggerDagRun(
+				context.Background(),
+				genmodels.TriggerDagRun{
+					DagID:       "downstream",
+					RunID:       "run_1",
+					LogicalDate: genmodels.TimePtr(logicalDate),
+					Conf:        &genmodels.Conf{"k": "v"},
+				},
+			)
+			assert.Equal(t, tc.wantAlreadyExists, alreadyExists)
+			if tc.wantErrCode != "" {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, tc.wantErrCode, apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(requestBuf)
+			require.NoError(t, err)
+			got := rawToMap(t, sent.Body)
+			assert.Equal(t, "TriggerDagRun", got["type"])
+			assert.Equal(t, "downstream", got["dag_id"])
+			assert.Equal(t, "run_1", got["run_id"])
+			assert.Equal(t, map[string]any{"k": "v"}, got["conf"])
+			assert.NotContains(t, got, "run_after", "an unset run_after must stay off the wire")
+		})
+	}
+}
+
+func TestCoordinatorClientGetDagRunState(t *testing.T) {
+	client, requestBuf := clientWithReply(
+		t, map[string]any{"type": "DagRunStateResult", "state": "running"}, nil,
+	)
+
+	state, err := client.getDagRunState(context.Background(), "downstream", "run_1")
+	require.NoError(t, err)
+	assert.Equal(t, "running", state)
+
+	sent, err := readFrame(requestBuf)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"type":   "GetDagRunState",
+		"dag_id": "downstream",
+		"run_id": "run_1",
+	}, rawToMap(t, sent.Body))
+}
+
+func TestCoordinatorClientGetDagRunStateError(t *testing.T) {
+	client, _ := clientWithReply(t, nil, map[string]any{
+		"type":   "ErrorResponse",
+		"error":  "DAGRUN_NOT_FOUND",
+		"detail": map[string]any{"status_code": 404},
+	})
+
+	_, err := client.getDagRunState(context.Background(), "downstream", "run_1")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, "DAGRUN_NOT_FOUND", apiErr.Err)
+}
+
+func TestCoordinatorClientIsDagPaused(t *testing.T) {
+	for _, paused := range []bool{true, false} {
+		t.Run(strconv.FormatBool(paused), func(t *testing.T) {
+			client, requestBuf := clientWithReply(t, map[string]any{
+				"type":      "DagResult",
+				"dag_id":    "downstream",
+				"is_paused": paused,
+			}, nil)
+
+			got, err := client.isDagPaused(context.Background(), "downstream")
+			require.NoError(t, err)
+			assert.Equal(t, paused, got)
+
+			sent, err := readFrame(requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":   "GetDag",
+				"dag_id": "downstream",
+			}, rawToMap(t, sent.Body))
 		})
 	}
 }

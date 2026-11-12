@@ -33,6 +33,9 @@ import (
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
 	dagID string
+	// file is the source file that called Dag, as the compiler recorded it. It is empty when the
+	// runtime cannot report a caller.
+	file string
 	// Dag and Task copy the specs they are given with copySpec, so a caller cannot change a
 	// registered Dag through a spec it still holds.
 	spec DagSpec
@@ -47,9 +50,9 @@ type DagRef struct {
 	// in common.
 	groups     []*TaskGroupRef
 	groupsByID map[string]*TaskGroupRef
-	// edgeLabels holds every edge between two tasks of the Dag, whether Inputs, Before or After
-	// declared it, and the label that Label put on it. An edge with no label maps to the empty
-	// string, so a lookup reports whether the edge has been declared.
+	// edgeLabels maps each edge between two tasks of the Dag to its label, whether Inputs, Before or
+	// After declared the edge. An edge with no label maps to the empty string, so a lookup reports
+	// whether the edge has been declared.
 	edgeLabels map[edgeKey]string
 	// groupEdges holds the edges that have a task group at one end or both, in the order they
 	// were first declared, and groupEdgeLabels holds their labels as edgeLabels does. Registration
@@ -71,8 +74,11 @@ type DagRef struct {
 // [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the methods of [TaskGroupRef] panic once the Dag
 // is registered.
 //
-// [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
-// --airflow-metadata manifest and cannot run their tasks.
+// The bundle embeds the source file that calls Dag, so call it from the file that declares the Dag.
+// A Dag built in a factory function belongs to the file of the factory.
+//
+// [BundleRef.Serve] sends the registered Dags to the Dag processor and runs their tasks, but does
+// not list them in the dags of the --airflow-metadata manifest.
 //
 // Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
 // when it builds or validates a Dag:
@@ -91,6 +97,7 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 		))
 	}
 	d := &DagRef{dagID: dagID}
+	_, d.file, _, _ = runtime.Caller(1)
 	if len(spec) == 1 {
 		if err := checkDagSpec(spec[0]); err != nil {
 			panic(fmt.Sprintf("airflow.Dag: Dag %q: %v", dagID, err))
@@ -208,6 +215,7 @@ type TaskRef struct {
 //   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
 //   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
 //   - the year of the StartDate or the EndDate of the TaskSpec in UTC is not from 1 to 9999
+//   - the TaskSpec sets PriorityWeight outside the 32-bit range, from -2147483648 to 2147483647
 //   - the inputs passed to Inputs do not match the parameters of fn after the Context
 //   - the task_id, with the group_ids that prefix it, is longer than 250 characters, or holds a
 //     character other than a letter, a digit, an underscore, a dash or a dot, as Python's

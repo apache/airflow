@@ -254,30 +254,39 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
 
     FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
     TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
-    ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
+    ERROR_MESSAGE = "Image for container '{name}' cannot be pulled, unable to start: {reason}\n{message}"
 
     pod_status = pod.status
-    if not pod_status.container_statuses:
-        return None
-
-    for container_status in pod_status.container_statuses:
+    # ``init_container_statuses`` also lists native sidecars -- init containers with
+    # ``restartPolicy: Always`` -- which can fail a restart mid-run. Scan init containers
+    # only until ``Initialized`` is true: one that cannot pull keeps it false, and kubelet
+    # keeps it true once any main container has started, even while a sidecar restarts.
+    initialized = any(
+        condition.type == "Initialized" and condition.status == "True"
+        for condition in (pod_status.conditions or [])
+    )
+    container_statuses = [
+        # Init containers first: while one of them is stuck pulling, the main
+        # container only reports ``PodInitializing``, which matches no state below.
+        *([] if initialized else (pod_status.init_container_statuses or [])),
+        *(pod_status.container_statuses or []),
+    ]
+    for container_status in container_statuses:
         container_state: V1ContainerState = container_status.state
         container_waiting: V1ContainerStateWaiting | None = container_state.waiting
         if not container_waiting:
             continue
 
-        if container_waiting.reason in FATAL_STATES:
-            return ERROR_MESSAGE.format(
-                reason=container_waiting.reason, message=container_waiting.message or ""
-            )
+        reason = container_waiting.reason
+        message = container_waiting.message or ""
 
-        if container_waiting.reason in TRANSIENT_STATES:
-            message_lower = (container_waiting.message or "").lower()
-            is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
-            if not is_transient:
-                return ERROR_MESSAGE.format(
-                    reason=container_waiting.reason, message=container_waiting.message or ""
-                )
+        # The message can quote the image name, so a transient pattern can match by
+        # accident; it only ever excuses a TRANSIENT_STATES reason.
+        if reason in FATAL_STATES or (
+            reason in TRANSIENT_STATES
+            and not any(pattern in message.lower() for pattern in TRANSIENT_ERROR_PATTERNS)
+        ):
+            return ERROR_MESSAGE.format(name=container_status.name, reason=reason, message=message)
     return None
 
 
@@ -444,16 +453,25 @@ class PodManager(LoggingMixin):
         return self.run_pod_async(pod)
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: float = 10) -> None:
-        """Read pod events and write into log."""
+        """
+        Read pod events and write into log.
+
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
+        """
         resource_version = None
         seen_events: set[str] = set()
         while not self.stop_watching_events:
-            events = self.read_pod_events(pod, resource_version)
-            if events.metadata and events.metadata.resource_version:
-                resource_version = events.metadata.resource_version
-            for event in events.items:
-                log_pod_event(self, event, seen_events)
-                resource_version = event.metadata.resource_version
+            try:
+                events = self.read_pod_events(pod, resource_version)
+                if events.metadata and events.metadata.resource_version:
+                    resource_version = events.metadata.resource_version
+                for event in events.items:
+                    log_pod_event(self, event, seen_events)
+                    resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                return
             await asyncio.sleep(check_interval)
 
     async def await_pod_start(
@@ -1192,19 +1210,28 @@ class AsyncPodManager(LoggingMixin):
         )
 
     async def watch_pod_events(self, pod: V1Pod, startup_check_interval: float = 30) -> None:
-        """Watch pod events and write to log."""
+        """
+        Watch pod events and write to log.
+
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
+        """
         seen_events: set[str] = set()
         resource_version = None
         while not self.stop_watching_events:
-            async for event in self._hook.watch_pod_events(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                resource_version=resource_version,
-                timeout_seconds=startup_check_interval,
-            ):
-                if event:
-                    log_pod_event(self, event, seen_events)
-                    resource_version = event.metadata.resource_version
+            try:
+                async for event in self._hook.watch_pod_events(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=resource_version,
+                    timeout_seconds=startup_check_interval,
+                ):
+                    if event:
+                        log_pod_event(self, event, seen_events)
+                        resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                return
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1

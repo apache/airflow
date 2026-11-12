@@ -55,6 +55,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.expandinput import MappedArgument
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup  # noqa: SDK001
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
@@ -62,6 +63,7 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.sdk.definitions.external_clear import DeclaresExternalClearTarget  # noqa: SDK001
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
@@ -87,7 +89,11 @@ from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
-from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.definitions.taskgroup import (
+    SerializedLoopTaskGroup,
+    SerializedMappedTaskGroup,
+    SerializedTaskGroup,
+)
 from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
@@ -231,19 +237,6 @@ def _encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     if _get_registered_priority_weight_strategy(importable_string) is None:
         raise _PriorityWeightStrategyNotRegistered(importable_string)
     return importable_string
-
-
-def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
-    """
-    Decode a previously serialized priority weight strategy.
-
-    In this version, we only store the importable string, so we just need to get the class
-    from the dictionary of registered classes and instantiate it with no parameters.
-    """
-    priority_weight_strategy_class = _get_registered_priority_weight_strategy(var)
-    if priority_weight_strategy_class is None:
-        raise _PriorityWeightStrategyNotRegistered(var)
-    return priority_weight_strategy_class()
 
 
 # Builtin exceptions a BASE_EXC_SER node can rebuild into. A user defined subclass
@@ -1077,6 +1070,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if op.inherits_from_skipmixin:
             serialize_op["_can_skip_downstream"] = True
 
+        # A cross-Dag clear target known at parse time, so clearing can follow it without the task running.
+        if isinstance(op, DeclaresExternalClearTarget) and (target := op.external_clear_target) is not None:
+            serialize_op["_external_clear_target"] = target.serialize()
+
         if op.is_stub:
             # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
             # which only lang-SDK (non-Python) workloads ever need.
@@ -1205,9 +1202,9 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
-            elif k in ("is_stub", "_arg_bindings"):
-                # Both are restored unconditionally below: is_stub must fail closed rather than go
-                # through generic decoding, and _arg_bindings is plain JSON, not {__type, __var}.
+            elif k in ("is_stub", "_arg_bindings", "_external_clear_target"):
+                # All are restored unconditionally below: is_stub must fail closed rather than go
+                # through generic decoding, and the others are plain JSON, not {__type, __var}.
                 continue
             elif (
                 k in cls._decorated_fields
@@ -1218,8 +1215,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             elif k == "_on_failure_fail_dagrun":
                 k = "on_failure_fail_dagrun"
             elif k == "weight_rule":
+                # Decoded by SerializedBaseOperator.weight_rule, so loading a Dag does not need the plugin.
                 k = "_weight_rule"
-                v = _decode_priority_weight_strategy(v)
             elif k == "retry_exponential_backoff":
                 if isinstance(v, bool):
                     v = 2.0 if v else 0
@@ -1271,6 +1268,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # on this path, so anything that is not JSON ``true`` means "not a stub".
         setattr(op, "is_stub", encoded_op.get("is_stub") is True)
         setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
+        setattr(op, "_external_clear_target", encoded_op.get("_external_clear_target"))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
@@ -1503,6 +1501,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                             and attrname in op._BaseOperator__init_kwargs
                             and op._BaseOperator__init_kwargs[attrname] == var
                         ):
+                            return False
+                        # Mapped operators carry explicit values in partial_kwargs, not __init_kwargs.
+                        partial_kwargs = getattr(op, "partial_kwargs", None)
+                        if partial_kwargs and attrname in partial_kwargs and partial_kwargs[attrname] == var:
                             return False
 
                 # If client_defaults doesn't have this field (matches schema default),
@@ -1872,9 +1874,7 @@ class DagSerialization(BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = decode_timetable(v)
-            elif k == "weight_rule":
-                v = _decode_priority_weight_strategy(v)
+                k = "_encoded_timetable"
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":
@@ -2151,9 +2151,9 @@ class DagSerialization(BaseSerialization):
         Fill in the Dag settings a serialized Dag leaves unset from the Airflow config, as a Python Dag does.
 
         A Lang-SDK runtime cannot read the Airflow config, so it leaves ``max_active_tasks``,
-        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup`` and
-        ``disable_bundle_versioning`` out unless the Dag sets them. A value the Dag sets is kept.
-        *serialized_obj* is changed in place.
+        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup``,
+        ``disable_bundle_versioning`` and the tasks' default ``execution_timeout`` out unless the Dag
+        sets them. A value the Dag sets is kept. *serialized_obj* is changed in place.
         """
         dag = serialized_obj.get("dag")
         if not isinstance(dag, dict):
@@ -2173,15 +2173,19 @@ class DagSerialization(BaseSerialization):
         ):
             if key not in dag:
                 dag[key] = get(section, option)
+        if (execution_timeout := conf.gettimedelta("core", "default_task_execution_timeout")) is not None:
+            task_defaults = serialized_obj.setdefault("client_defaults", {}).setdefault("tasks", {})
+            task_defaults.setdefault("execution_timeout", execution_timeout.total_seconds())
 
     @classmethod
     def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:
         """
         Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
 
-        It must match the JSON schema, have unique task ids and deserialize. Like a Dag built with the SDK,
-        it must not set a ``max_active_runs`` its timetable forbids, nor ``catchup`` without a
-        ``start_date``, and its task graph must have no cycle. *serialized_obj* is not changed.
+        It must match the JSON schema, have unique task ids and deserialize with a timetable and complete
+        deadline alert definitions. Like a Dag built with the SDK, it must not set a ``max_active_runs``
+        its timetable forbids, nor ``catchup`` without a ``start_date``, and its task graph must have no
+        cycle. *serialized_obj* is not changed.
 
         :return: The deserialized Dag.
         :raises DeserializationError: if it does not.
@@ -2201,24 +2205,34 @@ class DagSerialization(BaseSerialization):
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} has more than one task with id {', '.join(map(repr, duplicates))}"
             )
+        # The schema also accepts a single alert and the UUIDs a stored Dag keeps, but storing a Dag
+        # needs each alert's definition.
+        deadline = serialized_obj["dag"].get("deadline")
+        if deadline is not None and not (
+            isinstance(deadline, list) and all(isinstance(alert, dict) for alert in deadline)
+        ):
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} must list its deadline alert definitions")
         try:
             deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
+            timetable = deserialized.timetable
+            for alert in deadline or ():
+                decode_deadline_alert(alert)
         except Exception as e:
             cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
             ) from e
-        if (
-            limit := deserialized.timetable.active_runs_limit
-        ) is not None and deserialized.max_active_runs > limit:
+        if timetable is None:
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} has no timetable")
+        if (limit := timetable.active_runs_limit) is not None and deserialized.max_active_runs > limit:
             raise DeserializationError(
                 dag_id,
                 f"Dag {dag_id!r} sets max_active_runs {deserialized.max_active_runs}, "
-                f"but {type(deserialized.timetable).__name__} allows at most {limit}",
+                f"but {type(timetable).__name__} allows at most {limit}",
             )
         if (
             deserialized.catchup
-            and deserialized.timetable.can_be_scheduled
+            and timetable.can_be_scheduled
             and not (deserialized.start_date or "start_date" in deserialized.default_args)
         ):
             raise DeserializationError(dag_id, f"Dag {dag_id!r} sets catchup but no start_date")
@@ -2258,6 +2272,14 @@ class TaskGroupSerialization(BaseSerialization):
         if task_group.doc_md is not None:
             encoded["doc_md"] = task_group.doc_md
 
+        if isinstance(task_group, LoopTaskGroup):
+            encoded["loop"] = {
+                "max_iterations": task_group.max_iterations,
+                "has_until": task_group.has_until,
+                "terminal_task_id": task_group.terminal_task_id,
+                "gate_task_id": task_group.gate_task_id,
+            }
+
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
             encoded["is_mapped"] = True
@@ -2281,7 +2303,12 @@ class TaskGroupSerialization(BaseSerialization):
         kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
-        if not encoded_group.get("is_mapped"):
+        group: SerializedTaskGroup
+        if "loop" in encoded_group:
+            group = SerializedLoopTaskGroup(
+                group_id=group_id, parent_group=parent_group, dag=dag, **encoded_group["loop"], **kwargs
+            )
+        elif not encoded_group.get("is_mapped"):
             group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
         else:
             xi = encoded_group["expand_input"]

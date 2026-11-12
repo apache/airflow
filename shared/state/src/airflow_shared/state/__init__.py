@@ -21,6 +21,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -30,20 +31,49 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-@dataclass(frozen=True)
+_SENTINEL_REGION_ID = UUID(int=0)
+
+
+@dataclass(frozen=True, init=False)
 class TaskScope:
     """
     Identifies the state namespace for a single task instance (or retry thereof).
 
-    ``map_index`` defaults to ``-1`` for non-mapped tasks. For mapped tasks,
-    set it to the actual mapped index. ``get``/``set``/``delete`` always match
-    on ``(dag_id, run_id, task_id, map_index)`` exactly.
+    Storage matches ``(dag_id, run_id, task_id, region_id, region_index)`` exactly.
+    The zero region UUID preserves legacy namespaces. ``map_index`` remains a
+    compatibility name for the stored index, not a public mapped position.
     """
 
     dag_id: str
     run_id: str
     task_id: str
-    map_index: int = -1
+    region_index: int = -1
+    region_id: UUID = _SENTINEL_REGION_ID
+
+    def __init__(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        region_id: UUID = _SENTINEL_REGION_ID,
+        *,
+        region_index: int | None = None,
+    ) -> None:
+        if map_index is not None and region_index is not None and map_index != region_index:
+            raise ValueError("map_index and region_index must identify the same stored index")
+        if region_index is None:
+            region_index = map_index if map_index is not None else -1
+        object.__setattr__(self, "dag_id", dag_id)
+        object.__setattr__(self, "run_id", run_id)
+        object.__setattr__(self, "task_id", task_id)
+        object.__setattr__(self, "region_id", region_id)
+        object.__setattr__(self, "region_index", region_index)
+
+    @property
+    def map_index(self) -> int:
+        """Return the stored index for legacy state backend callers."""
+        return self.region_index
 
 
 @dataclass(frozen=True)
@@ -149,8 +179,9 @@ class BaseStoreBackend(ABC):
         """
         Return the stored JSON encoded value string, or None if the key does not exist.
 
-        Must handle both ``TaskScope`` and ``AssetScope``. The execution API calls
-        ``json.loads`` on the returned string from here, so it must be a valid JSON document.
+        Must handle both ``TaskScope`` and ``AssetScope``. :meth:`get_value` decodes the
+        returned string with ``json.loads``, so it must be a valid JSON document. It is
+        never the JSON ``null``, since :meth:`set` never receives one.
         """
 
     @abstractmethod
@@ -168,7 +199,8 @@ class BaseStoreBackend(ABC):
 
         Must handle both ``TaskScope`` and ``AssetScope``. ``value`` is always a
         JSON encoded string (the execution API calls ``json.dumps`` before passing it
-        here); store it verbatim so ``get`` can return it unchanged.
+        here); store it verbatim so ``get`` can return it unchanged. It is never the
+        JSON ``null``; callers reject a null value before it reaches the backend.
 
         ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
         Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
@@ -194,8 +226,8 @@ class BaseStoreBackend(ABC):
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. When ``all_map_indices=True``, the ``map_index`` filter is
-        dropped and state is wiped across every mapped instance — for use by external
-        callers (UI, CLI) only, not from within a running task.
+        dropped and state is wiped across every mapped instance in the selected region.
+        This flag is for external callers (UI, CLI), not a running task.
         For ``AssetScope`` the flag has no effect.
         """
 
@@ -243,13 +275,35 @@ class BaseStoreBackend(ABC):
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. When ``all_map_indices=True``, the ``map_index`` filter is
-        dropped and state is wiped across every mapped instance — for use by external
-        callers (UI, CLI) only, not from within a running task.
+        dropped and state is wiped across every mapped instance in the selected region.
+        This flag is for external callers (UI, CLI), not a running task.
         For ``AssetScope`` the flag has no effect.
 
         ``session`` is optional. If provided, implementations should use it directly.
         If ``None``, implementations manage their own async session internally.
         """
+
+    def get_value(self, scope: StoreScope, key: str, *, session: Session | None = None) -> JsonValue:
+        """
+        Return the decoded value for the given key, or None if the key does not exist.
+
+        The default implementation decodes what :meth:`get` returns. A stored JSON ``null``
+        breaks the :meth:`set` contract, so it is treated as a missing key. A backend that
+        stores values natively, rather than as JSON strings, can override this to skip
+        decoding on reads.
+        """
+        kwargs = {"session": session} if session is not None else {}
+        if (value := self.get(scope, key, **kwargs)) is None:
+            return None
+        return json.loads(value)
+
+    async def aget_value(
+        self, scope: StoreScope, key: str, *, session: AsyncSession | None = None
+    ) -> JsonValue:
+        """Async variant of :meth:`get_value`."""
+        if (value := await self.aget(scope, key, session=session)) is None:
+            return None
+        return json.loads(value)
 
     def cleanup(self) -> None:
         """

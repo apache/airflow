@@ -67,6 +67,8 @@ Task Decorators:
 
 .. autoapifunction:: airflow.sdk.task_group
 
+.. autoapifunction:: airflow.sdk.task_handler
+
 .. autoapifunction:: airflow.sdk.setup
 
 .. autoapifunction:: airflow.sdk.teardown
@@ -94,6 +96,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.bases.xcom.XComCoordinate
+
 .. autoapiclass:: airflow.sdk.BranchMixIn
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue
@@ -109,6 +113,10 @@ Callbacks
 .. autoclass:: airflow.sdk.AsyncCallback
 
 .. autoclass:: airflow.sdk.SyncCallback
+
+.. autoclass:: airflow.sdk.CallbackSource
+
+.. autoclass:: airflow.sdk.CallbackMeta
 
 Deadline Alerts
 ---------------
@@ -129,6 +137,8 @@ Connections & Variables
 Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
+
+.. autoapiclass:: airflow.sdk.LoopDecision
 
 .. autoclass:: airflow.sdk.TaskInstance
 
@@ -163,6 +173,16 @@ Tasks page in the core docs for usage and design rationale.
 .. autoapiclass:: airflow.sdk.RetryDecision
 
 .. autoclass:: airflow.sdk.RetryAction
+
+Clearing Tasks in Other Dags
+----------------------------
+An operator can name a task in another Dag to clear, with everything downstream of it, whenever the
+operator's task is cleared with its downstream tasks. A target known when the Dag is parsed goes in an
+``external_clear_target`` property, and is stored with the Dag version. A target that depends on the run
+comes from ``get_external_clear_target(context)``, which the task runner calls after a successful run.
+``ExternalTaskMarker`` in the standard provider does both.
+
+.. autoapiclass:: airflow.sdk.ExternalClearTarget
 
 State Enums
 -----------
@@ -207,6 +227,8 @@ Timetables
 .. autoapiclass:: airflow.sdk.AssetAndTimeSchedule
 
 .. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.AssetTriggeredTimetable
 
 .. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
 
@@ -309,6 +331,41 @@ See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a con
 .. rubric:: Node.js (TypeScript)
 
 .. autoapiclass:: airflow.sdk.coordinators.node.NodeCoordinator
+
+Dag Importers
+-------------
+
+|experimental|
+
+Dag importers turn the contents of a Dag bundle into Dags. This interface may still change in a minor
+release while it is being stabilized. See :doc:`apache-airflow:administration-and-deployment/dag-importers` for how
+importers are configured and how to write one.
+
+.. autoapiclass:: airflow.sdk.importers.AbstractDagImporter
+
+.. autoapiclass:: airflow.sdk.importers.DagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.FileDagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.FilesystemDagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.DagImportResult
+
+.. autoapiclass:: airflow.sdk.importers.DagImportError
+
+.. autoapiclass:: airflow.sdk.importers.DagImportWarning
+
+.. autoapiclass:: airflow.sdk.importers.DagSourceCode
+
+.. autoapifunction:: airflow.sdk.importers.find_file_dag_definitions
+
+.. autoapifunction:: airflow.sdk.importers.get_file_suffix
+
+.. rubric:: Built-in importers
+
+.. autoapiclass:: airflow.sdk.importers.PythonDagImporter
+
+.. autoapiclass:: airflow.sdk.importers.ZipImporter
 
 Execution Time Components
 -------------------------

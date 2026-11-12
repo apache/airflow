@@ -78,7 +78,9 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
+    HITLDetailResponse,
     InactiveAssetsResponse,
+    LoopDecisionPayload,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -115,6 +117,8 @@ _trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
+
+    from airflow.sdk.api.client import ServerResponseError
 
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
@@ -207,6 +211,11 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     The supervisor extracts this to restore the task runner's trace context before making outbound HTTP
     calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
     rather than under the supervisor's own span.
+    """
+    ti_id: UUID | None = None
+    """Id of the task instance whose trigger made this request, set only by the triggerer's trigger runner.
+
+    The supervisor forwards it so the API can act as that task instance.
     """
 
 
@@ -800,6 +809,18 @@ class ErrorResponse(BaseModel):
     detail: dict | None = None
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
+    @classmethod
+    def from_server_error(cls, error: ServerResponseError) -> ErrorResponse:
+        """Build the response that tells a task the API server rejected its request."""
+        return cls(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": error.response.status_code,
+                "message": str(error),
+                "detail": error.response.json(),
+            },
+        )
+
 
 class OKResponse(BaseModel):
     ok: bool
@@ -832,6 +853,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
         required for the tagged union deserialization.
         """
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
+
+
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
+
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
+
+    @classmethod
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
+        """Add the discriminator field the tagged union needs to the HITLDetailResponse API response."""
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
 
 
 class DagResult(DagResponse):
@@ -878,6 +910,7 @@ ToTask = Annotated[
     | InactiveAssetsResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
+    | HITLDetailResponseResult
     | OKResponse
     | PreviousDagRunResult,
     Field(discriminator="type"),
@@ -902,6 +935,7 @@ class TaskState(BaseModel):
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
     retry_reason: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class SucceedTask(TISuccessStatePayload):
@@ -941,6 +975,7 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -953,6 +988,7 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -961,6 +997,7 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -970,6 +1007,7 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -991,6 +1029,11 @@ class SetXCom(BaseModel):
     dag_result: bool = False
     mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
+
+    @property
+    def resolved_map_index(self) -> int:
+        """The map index, or -1 when the task is not mapped."""
+        return -1 if self.map_index is None else self.map_index
 
 
 class DeleteXCom(BaseModel):
@@ -1094,7 +1137,7 @@ class GetVariableKeys(BaseModel):
 
 class PutVariable(BaseModel):
     key: str
-    value: str | None
+    value: str
     description: str | None
     type: Literal["PutVariable"] = "PutVariable"
 
@@ -1123,6 +1166,13 @@ class SetRenderedMapIndex(BaseModel):
 
     rendered_map_index: str
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
+
+
+class SetExecutionTimeout(BaseModel):
+    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+
+    timeout_seconds: Annotated[float, Field(gt=0)]
+    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
 
 
 class TriggerDagRun(TriggerDAGRunPayload):
@@ -1334,6 +1384,7 @@ ToSupervisor = Annotated[
     | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
+    | SetExecutionTimeout
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState

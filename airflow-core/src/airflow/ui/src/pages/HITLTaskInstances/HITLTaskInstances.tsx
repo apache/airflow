@@ -32,6 +32,7 @@ import type { HITLDetail } from "openapi/requests/types.gen";
 import { IconButton, RouterLink } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx";
@@ -44,7 +45,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh, useDocumentTitle } from "src/utils";
-import { getHITLState, isHITLPending } from "src/utils/hitl";
+import { getHITLState, HITL_PENDING_STATES, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { HITLFilters } from "./HITLFilters";
@@ -114,7 +115,7 @@ const taskInstanceColumns = ({
   runId?: string;
   taskId?: string;
   translate: TFunction;
-}): Array<ColumnDef<HITLDetail>> => [
+}): Array<ColumnDef<DataTableFeatures, HITLDetail>> => [
   {
     accessorKey: "task_instance_state",
     cell: ({ row: { original } }: HITLRow) => (
@@ -302,7 +303,7 @@ export const HITLTaskInstances = ({
         Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
           ? effectiveResponseReceived === "true"
           : undefined,
-      state: effectiveResponseReceived === "false" ? ["deferred", "awaiting_input"] : undefined,
+      state: effectiveResponseReceived === "false" ? HITL_PENDING_STATES : undefined,
       subjectSearch,
       taskId,
       ...taskIdArg,

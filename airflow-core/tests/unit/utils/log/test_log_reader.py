@@ -136,7 +136,7 @@ class TestLogView:
         )
         assert logs[2].event == "::endgroup::"
         assert logs[3].event == "try_number=1."
-        assert metadata == {"end_of_log": True, "log_pos": 1}
+        assert metadata == {"end_of_log": True}
 
     def test_test_read_log_chunks_should_read_latest_files(self):
         task_log_reader = TaskLogReader()
@@ -151,7 +151,7 @@ class TestLogView:
         )
         assert logs[2].event == "::endgroup::"
         assert logs[3].event == f"try_number={ti.try_number}."
-        assert metadata == {"end_of_log": True, "log_pos": 1}
+        assert metadata == {"end_of_log": True}
 
     def test_test_test_read_log_stream_should_read_one_try(self):
         task_log_reader = TaskLogReader()

@@ -22,7 +22,7 @@ package org.apache.airflow.sdk.internal
 /**
  * @suppress
  *
- * Names the registrar generated for a class of `@Builder.TaskHandler`
+ * Names the registrar generated for a class of `@Airflow.TaskHandler`
  * methods: a top-level class in the handler class's package, named after that
  * class and any class enclosing it, so `Outer.Inner` is served by
  * `Outer_InnerHandlers`.
@@ -38,7 +38,7 @@ fun registrarName(binaryName: String): String = "${binaryName.replace('$', '_')}
 /**
  * @suppress
  *
- * Names the builder generated for a `@Builder.Dag` class: a top-level class
+ * Names the builder generated for an `@Airflow.Dag` class: a top-level class
  * in the Dag class's package, named by the annotation's `to` or, when that is
  * blank, `<Class>Builder`.
  *

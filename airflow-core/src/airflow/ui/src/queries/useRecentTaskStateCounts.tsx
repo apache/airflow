@@ -47,15 +47,22 @@ export const useRecentTaskStateCounts = (
     .map((dag) => dag.latest_dag_runs[0]?.id)
     .filter((id): id is number => id !== undefined)
     .sort((left, right) => left - right);
+  const dagIdsWithRuns = new Set(
+    (dags ?? []).filter((dag) => dag.latest_dag_runs.length > 0).map((dag) => dag.dag_id),
+  );
 
   const { data, isLoading } = useDagServiceGetRecentTaskInstanceStateCountsUi({ dagRunIds }, undefined, {
     enabled: show && dagRunIds.length > 0,
     placeholderData: (prev) => prev,
-    refetchInterval: hasUnfinishedRun ? refetchInterval : false,
+    refetchInterval: hasUnfinishedRun && refetchInterval,
   });
 
   return {
-    entriesByDag: Object.fromEntries((data?.dags ?? []).map((entry) => [entry.dag_id, entry])),
+    entriesByDag: Object.fromEntries(
+      (data?.dags ?? [])
+        .filter((entry) => dagIdsWithRuns.has(entry.dag_id))
+        .map((entry) => [entry.dag_id, entry]),
+    ),
     isLoading,
     show,
   };

@@ -99,8 +99,9 @@ def test_module_contract_accepts_legacy_modules_without_supports_durable_executi
 
 
 def test_module_contract_preserves_supports_durable_execution_true():
-    validated = validate_modules_catalog({"modules": [_module_payload(supports_durable_execution=True)]})
-    assert validated["modules"][0]["supports_durable_execution"] is True
+    payload = _module_payload(supports_durable_execution=True)
+    validate_modules_catalog({"modules": [payload]})
+    assert ModuleContract.model_validate(payload).supports_durable_execution is True
 
 
 def test_module_contract_accepts_legacy_modules_without_supports_deferrable():
@@ -110,8 +111,18 @@ def test_module_contract_accepts_legacy_modules_without_supports_deferrable():
 
 
 def test_module_contract_preserves_supports_deferrable_true():
-    validated = validate_modules_catalog({"modules": [_module_payload(supports_deferrable=True)]})
-    assert validated["modules"][0]["supports_deferrable"] is True
+    payload = _module_payload(supports_deferrable=True)
+    validate_modules_catalog({"modules": [payload]})
+    assert ModuleContract.model_validate(payload).supports_deferrable is True
+
+
+def test_module_contract_omits_guide_url_for_undocumented_classes():
+    assert ModuleContract.model_validate(_module_payload()).guide_url is None
+
+
+def test_module_contract_preserves_guide_url_value():
+    guide_url = "https://example.invalid/docs/toolsets.html#exampletoolset"
+    assert ModuleContract.model_validate(_module_payload(guide_url=guide_url)).guide_url == guide_url
 
 
 def test_connection_type_contract_defaults_external_services_to_empty_list():

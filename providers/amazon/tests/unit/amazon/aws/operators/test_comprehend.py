@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.comprehend import (
 )
 from airflow.providers.amazon.version_compat import NOTSET
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -173,7 +174,8 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(ComprehendHook, "get_waiter")
@@ -183,10 +185,11 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.JOB_ID
-        assert comprehend_hook.get_waiter.call_count == wait_for_completion
+        assert comprehend_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
@@ -275,7 +278,8 @@ class TestComprehendCreateDocumentClassifierOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(ComprehendHook, "get_waiter")
@@ -285,10 +289,11 @@ class TestComprehendCreateDocumentClassifierOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.CLASSIFIER_ARN
-        assert comprehend_hook.get_waiter.call_count == wait_for_completion
+        assert comprehend_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):

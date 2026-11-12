@@ -77,6 +77,7 @@ const (
 	TypeGetXComSequenceItem         = "GetXComSequenceItem"
 	TypeGetXComSequenceSlice        = "GetXComSequenceSlice"
 	TypeHITLDetailRequestResult     = "HITLDetailRequestResult"
+	TypeHITLDetailResponseResult    = "HITLDetailResponseResult"
 	TypeInactiveAssetsResult        = "InactiveAssetsResult"
 	TypeMaskSecret                  = "MaskSecret"
 	TypeOKResponse                  = "OKResponse"
@@ -90,6 +91,7 @@ const (
 	TypeSentFDs                     = "SentFDs"
 	TypeSetAssetStateStoreByName    = "SetAssetStateStoreByName"
 	TypeSetAssetStateStoreByURI     = "SetAssetStateStoreByUri"
+	TypeSetExecutionTimeout         = "SetExecutionTimeout"
 	TypeSetRenderedFields           = "SetRenderedFields"
 	TypeSetRenderedMapIndex         = "SetRenderedMapIndex"
 	TypeSetTaskStateStore           = "SetTaskStateStore"
@@ -281,6 +283,9 @@ func EnsureType(m any) any {
 	case HITLDetailRequestResult:
 		b.Type = TypeHITLDetailRequestResult
 		return b
+	case HITLDetailResponseResult:
+		b.Type = TypeHITLDetailResponseResult
+		return b
 	case InactiveAssetsResult:
 		b.Type = TypeInactiveAssetsResult
 		return b
@@ -319,6 +324,9 @@ func EnsureType(m any) any {
 		return b
 	case SetAssetStateStoreByURI:
 		b.Type = TypeSetAssetStateStoreByURI
+		return b
+	case SetExecutionTimeout:
+		b.Type = TypeSetExecutionTimeout
 		return b
 	case SetRenderedFields:
 		b.Type = TypeSetRenderedFields

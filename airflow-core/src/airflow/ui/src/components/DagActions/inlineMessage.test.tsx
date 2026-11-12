@@ -18,7 +18,7 @@
  */
 import type { ReactNode } from "react";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { TFunction } from "i18next";
 import { describe, expect, it } from "vitest";

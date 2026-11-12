@@ -26,8 +26,8 @@ build: pack
 
 # One-step build + pack. The single `go tool airflow-go-pack`
 # invocation runs `go build` internally, queries the binary for its
-# DAG/task identity via --airflow-metadata, and appends the source plus
-# airflow-metadata.yaml plus AFBNDL01 trailer. The output is a single
+# DAG/task identity via --airflow-metadata, and appends the source files
+# plus airflow-metadata.yaml plus AFBNDL01 trailer. The output is a single
 # self-contained executable bundle, named after the bundle's package
 # directory and written to the current directory. Drop it into the
 # Dag bundle named by ExecutableCoordinator's task_handler_bundle_name

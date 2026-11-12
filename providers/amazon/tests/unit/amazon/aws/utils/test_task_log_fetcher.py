@@ -174,6 +174,14 @@ class TestAwsTaskLogFetcher:
     def test_get_last_log_messages_with_no_log_events(self, mock_conn):
         assert self.log_fetcher.get_last_log_messages(2) == []
 
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_get_last_log_messages_with_missing_log_stream(self, log_conn_mock):
+        log_conn_mock.get_log_events.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException"}}, "GetLogEvents"
+        )
+        assert self.log_fetcher.get_last_log_messages(2) == []
+        self.logger_mock.warning.assert_called_once()
+
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(

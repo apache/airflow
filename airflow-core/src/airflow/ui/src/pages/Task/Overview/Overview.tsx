@@ -34,7 +34,10 @@ import { TrendCountButton } from "src/components/TrendCountButton";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
+import { useLoopGroupNode } from "src/queries/useIsLoopGroup";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { LoopHistoryChart } from "./LoopHistoryChart";
 
 const defaultHour = "24";
 
@@ -80,6 +83,9 @@ export const Overview = () => {
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
   );
+  const groupNode = useLoopGroupNode(groupId ?? "");
+  const loopNode = groupNode?.is_loop === true ? groupNode : undefined;
+
   const { data: pluginData } = usePluginServiceGetPlugins();
   const reactApps = pluginData?.plugins.flatMap((plugin) => plugin.react_apps) ?? [];
   const taskOverviewReactPlugins = useScopedPluginViews(reactApps, "task_overview");
@@ -118,11 +124,12 @@ export const Overview = () => {
         />
       </HStack>
       <HStack alignItems="flex-start" flexWrap="wrap" gap={5} my={5} order={4}>
+        {loopNode === undefined ? undefined : <LoopHistoryChart groupId={loopNode.id} />}
         <Box
           borderRadius={4}
           borderStyle="solid"
           borderWidth={1}
-          flex="1 1 520px"
+          flex="1 1 400px"
           maxWidth="900px"
           minWidth="320px"
           p={2}
@@ -130,7 +137,11 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="310px" w="full" />
           ) : (
-            <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
+            <DurationChart
+              // oxlint-disable-next-line unicorn/prefer-spread -- a spread would drop the optional chain
+              entries={tiData?.task_instances.slice().reverse()}
+              kind="Task Instance"
+            />
           )}
         </Box>
       </HStack>

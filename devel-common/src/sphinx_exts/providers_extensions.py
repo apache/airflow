@@ -25,13 +25,12 @@ from pathlib import Path
 from typing import Any
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from provider_yaml_utils import load_package_data
-
 from sphinx_exts.operators_and_hooks_ref import (
     DEFAULT_HEADER_SEPARATOR,
     BaseJinjaReferenceDirective,
     _render_template,
 )
+from sphinx_exts.provider_yaml_utils import load_package_data
 
 
 def find_class_methods_with_specific_calls(
@@ -515,8 +514,39 @@ class OpenLineageSupportedClassesDirective(BaseJinjaReferenceDirective):
         return _render_openlineage_supported_classes_content()
 
 
+def _find_provider_package_data(package_name: str) -> dict[str, Any]:
+    for provider in load_package_data():
+        if provider["package-name"] == package_name:
+            return provider
+    raise ValueError(f"No provider.yaml found for package '{package_name}'")
+
+
+def _render_connection_services_content(package_name: str) -> str:
+    provider = _find_provider_package_data(package_name)
+    rows = [
+        {
+            "hook_name": conn["hook-name"],
+            "services": conn.get("external-services") or [],
+            "ref": f"howto/connection:{conn['connection-type']}",
+        }
+        for conn in provider.get("connection-types", [])
+    ]
+    return _render_template("provider_connection_services.rst.jinja2", rows=rows)
+
+
+class ProviderConnectionServicesDirective(BaseJinjaReferenceDirective):
+    """Render a table of a provider's connection types and the external services each reaches."""
+
+    required_arguments = 1
+    optional_arguments = 0
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_connection_services_content(self.arguments[0])
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("airflow-providers-openlineage-supported-classes", OpenLineageSupportedClassesDirective)
+    app.add_directive("provider-connection-services", ProviderConnectionServicesDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}

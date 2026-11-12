@@ -20,7 +20,7 @@
  * Separate from VersionDiff.test.tsx: importing the i18n config initializes the shared instance for
  * the whole file, and the sibling asserts on untranslated keys.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -78,6 +78,30 @@ describe("VersionDiff in English", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(/^1 change ·/u)).toBeInTheDocument();
+    expect(screen.getByText("1 change")).toBeInTheDocument();
+  });
+
+  it("leaves the serializer schema out when both versions share it", () => {
+    render(
+      <Wrapper>
+        <VersionDiff baseVersionNumber={1} diff={oneChange} targetVersionNumber={2} />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByText(/Serialized schema/u)).not.toBeInTheDocument();
+  });
+
+  it("mentions the serializer schema when the versions were stored by different ones", () => {
+    render(
+      <Wrapper>
+        <VersionDiff
+          baseVersionNumber={1}
+          diff={{ ...oneChange, serializer_versions: { base: 2, target: 3 } }}
+          targetVersionNumber={2}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText("1 change · Serialized schema 2 → 3")).toBeInTheDocument();
   });
 });

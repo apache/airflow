@@ -54,6 +54,16 @@ if AIRFLOW_V_3_3_PLUS:
 
 pytestmark = pytest.mark.db_test
 
+# Patch the ExecutorLoader class object bound at import time by the module that calls init_executors()
+# (Job before Airflow 3.2, SchedulerJobRunner since), not the one currently in
+# airflow.executors.executor_loader: tests in other providers (e.g. cncf.kubernetes, celery) reload() that
+# module, which replaces the class there, so a patch via the module path never reaches the scheduler.
+SCHEDULER_EXECUTOR_LOADER = (
+    "airflow.jobs.scheduler_job_runner.ExecutorLoader"
+    if AIRFLOW_V_3_2_PLUS
+    else "airflow.jobs.job.ExecutorLoader"
+)
+
 
 @pytest.mark.parametrize(
     "uuid_executor",
@@ -538,13 +548,13 @@ class TestEdgeExecutor:
             assert job in session
         assert executor.running == {key}
 
-    def test_scheduler_restart_adopts_queued_edge_task(self, dag_maker, session):
+    @mock.patch(f"{SCHEDULER_EXECUTOR_LOADER}.init_executors", autospec=True)
+    def test_scheduler_restart_adopts_queued_edge_task(self, mock_init_executors, dag_maker, session):
         with dag_maker("test_dag", session=session):
             EmptyOperator(task_id="test_task")
         dag_run = dag_maker.create_dagrun()
         previous_scheduler_job = Job()
-        executor = EdgeExecutor()
-        restarted_scheduler_job = Job() if AIRFLOW_V_3_2_PLUS else Job(executor=executor)
+        restarted_scheduler_job = Job()
         session.add_all([previous_scheduler_job, restarted_scheduler_job])
         session.flush()
         ti = dag_run.get_task_instance("test_task", session=session)
@@ -566,13 +576,10 @@ class TestEdgeExecutor:
         session.commit()
         # A restarted scheduler loads the task instance from the database, not from this session.
         session.expunge_all()
+        executor = EdgeExecutor()
+        mock_init_executors.return_value = [executor]
 
-        runner = (
-            SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0, executors=[executor])
-            if AIRFLOW_V_3_2_PLUS
-            else SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0)
-        )
-        runner.adopt_or_reset_orphaned_tasks()
+        SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0).adopt_or_reset_orphaned_tasks()
 
         ti.refresh_from_db(session=session)
         assert ti.state == TaskInstanceState.QUEUED
@@ -837,7 +844,9 @@ class _WorkloadFactory:
             session.execute(delete(EdgeJobModel))
             session.commit()
 
-    def _make_execute_task(self, task_id: str = "test_task", dag_id: str = "test_dag") -> ExecuteTask:
+    def _make_execute_task(
+        self, task_id: str = "test_task", dag_id: str = "test_dag", priority_weight: int = 1
+    ) -> ExecuteTask:
         ti = TaskInstanceDTO(
             id=uuid4(),
             dag_version_id=uuid4(),
@@ -848,7 +857,7 @@ class _WorkloadFactory:
             map_index=-1,
             pool_slots=1,
             queue="default",
-            priority_weight=1,
+            priority_weight=priority_weight,
         )
         return ExecuteTask(
             ti=ti,
@@ -1067,6 +1076,19 @@ class TestQueueWorkload(_WorkloadFactory):
             assert len(jobs) == 1
             assert jobs[0].state == TaskInstanceState.QUEUED
 
+    def test_queue_workload_stores_task_priority_weight(self):
+        executor = EdgeExecutor()
+
+        with create_session() as session:
+            executor.queue_workload(self._make_execute_task(priority_weight=42), session=session)
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)).priority_weight == 42
+
+        with create_session() as session:
+            executor.queue_workload(self._make_execute_task(priority_weight=7), session=session)
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)).priority_weight == 7
+
     def test_queue_workload_execute_callback(self):
         executor = EdgeExecutor()
         workload = self._make_execute_callback()
@@ -1082,6 +1104,19 @@ class TestQueueWorkload(_WorkloadFactory):
             assert job.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}"
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
+
+    def test_queue_workload_stores_command_longer_than_2048_chars(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_callback()
+        workload.callback.data["kwargs"]["context"] = {"dag_run": {"conf": {"payload": "x" * 4096}}}
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            assert job is not None
+            assert job.command == workload.model_dump_json()
 
     def test_queue_workload_execute_callback_existing_job(self):
         executor = EdgeExecutor()

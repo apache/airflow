@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import pathlib
@@ -185,7 +186,25 @@ class _BinaryDigestCache:
 _digest_cache = _BinaryDigestCache(maxsize=_VERIFY_CACHE_MAXSIZE)
 
 
-def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
+@attrs.define
+class _VerifiedBundle:
+    """A bundle whose trailer and binary digest check out, with its metadata and the open file."""
+
+    file: BinaryIO
+    footer: _Footer
+    metadata: dict[str, Any]
+
+
+@contextlib.contextmanager
+def _open_checked_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle]:
+    """
+    Open *path* and yield it as a verified bundle.
+
+    The file stays open for the ``with`` block, so a caller can read more regions from the
+    bundle it verified.
+
+    :raises ValueError: with the reason *path* is not a usable bundle.
+    """
     # One open per bundle: trailer-parse, hash (on cache miss), and
     # metadata-read all share the same fd, and the stat that keys the
     # digest cache comes from that fd too. This both halves the syscall
@@ -194,55 +213,65 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
     try:
         f = open(path, "rb")
     except OSError as exc:
-        log.debug("Cannot open bundle file; skipping", path=str(path), error=str(exc))
-        return None
+        raise ValueError(f"Cannot open bundle file {path}: {exc}") from exc
 
     with f:
         try:
             st = os.fstat(f.fileno())
         except OSError as exc:
-            log.debug("Cannot stat bundle file; skipping", path=str(path), error=str(exc))
-            return None
+            raise ValueError(f"Cannot stat bundle file {path}: {exc}") from exc
 
         try:
             footer = _Footer.read(f, path, st.st_size)
-        except (OSError, ValueError) as exc:
-            log.debug("Invalid bundle trailer; skipping", path=str(path), error=str(exc))
-            return None
+        except OSError as exc:
+            raise ValueError(f"Cannot read bundle trailer of {path}: {exc}") from exc
         if footer is None:
-            return None
+            raise ValueError(f"{path} has no bundle trailer")
 
         cache_key: _DigestKey = (str(path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size)
         actual_digest = _digest_cache.get(cache_key)
         if actual_digest is None:
             try:
                 actual_digest = _hash_open_file(f, footer.source_start, path)
-            except (OSError, ValueError) as exc:
-                log.debug("Failed to hash bundle binary region", path=str(path), error=str(exc))
-                return None
+            except OSError as exc:
+                raise ValueError(f"Cannot hash the binary region of {path}: {exc}") from exc
             _digest_cache.put(cache_key, actual_digest)
 
         if actual_digest != footer.binary_sha256:
-            log.debug(
-                "Bundle binary_sha256 mismatch; skipping",
-                path=str(path),
-                expected=footer.binary_sha256.hex(),
-                actual=actual_digest.hex(),
+            raise ValueError(
+                f"{path} binary SHA-256 does not match its trailer; "
+                "was it changed after packing, for example by strip or codesign?"
             )
-            return None
 
         try:
             f.seek(footer.metadata_start)
             metadata_bytes = f.read(footer.metadata_len)
         except OSError as exc:
-            log.debug("Cannot read bundle metadata; skipping", path=str(path), error=str(exc))
-            return None
+            raise ValueError(f"Cannot read the metadata of {path}: {exc}") from exc
 
-    try:
-        return parse_metadata_mapping(metadata_bytes, source="bundle metadata")
-    except ValueError as exc:
-        log.debug("Cannot decode bundle metadata; skipping", path=str(path), error=str(exc))
-        return None
+        try:
+            metadata = parse_metadata_mapping(metadata_bytes, source="bundle metadata")
+        except ValueError as exc:
+            raise ValueError(f"Cannot decode the metadata of {path}: {exc}") from exc
+
+        yield _VerifiedBundle(file=f, footer=footer, metadata=metadata)
+
+
+@contextlib.contextmanager
+def _open_verified_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle | None]:
+    """Like :func:`_open_checked_bundle`, but yield ``None`` instead of raising for an unusable bundle."""
+    with contextlib.ExitStack() as stack:
+        try:
+            bundle = stack.enter_context(_open_checked_bundle(path))
+        except ValueError as exc:
+            log.debug("Not a usable bundle; skipping", path=str(path), error=str(exc))
+            bundle = None
+        yield bundle
+
+
+def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
+    with _open_verified_bundle(path) as bundle:
+        return None if bundle is None else bundle.metadata
 
 
 def _dag_ids(metadata: dict[str, Any]) -> set[str]:
@@ -352,7 +381,11 @@ class _Bundle(ResolvedBundle):
 @attrs.define(kw_only=True)
 class ExecutableCoordinator(SubprocessCoordinator):
     """
-    Coordinator that launches a native executable subprocess for task execution.
+    Coordinator that launches a native executable subprocess for task execution and Dag parsing.
+
+    It runs the bundle that holds a Python Dag's task handlers, and it parses the native Dags of
+    every bundle in a Dag bundle: the Dag processor runs each bundle binary to collect its Dags.
+    A task of a native Dag runs the bundle its Dag was parsed from.
 
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
@@ -377,3 +410,26 @@ class ExecutableCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
+
+    def _build_bundle_command(self, path: pathlib.Path) -> tuple[list[str], str | None]:
+        """Return the command that runs the verified bundle at *path*, and its supervisor schema version."""
+        try:
+            with _open_checked_bundle(path) as checked:
+                metadata = checked.metadata
+        except ValueError as exc:
+            raise ValueError(f"{path} is not a valid executable bundle: {exc}") from exc
+        try:
+            bundle = _Bundle(path=path.resolve(), schema_version=extract_supervisor_schema_version(metadata))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Bundle {path} has no usable supervisor schema version: {exc}") from exc
+        if (reason := _ensure_executable(path)) is not None:
+            raise ValueError(f"Cannot run bundle {path}: {reason}")
+        return [str(bundle.path)], bundle.schema_version
+
+    def _build_dag_file_command(
+        self, *, what: TaskInstance, path: pathlib.Path
+    ) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)

@@ -496,6 +496,11 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
 	start := logical.Add(-time.Hour)
 	end := logical.Add(time.Hour)
+	runAfter := end.Add(30 * time.Minute)
+	conf := genmodels.Conf{
+		"export_date": "2026-06-09",
+		"output":      map[string]any{"bucket": "reports"},
+	}
 
 	var got contexttest.Context
 	bundle := buildBundle(t, func(r testBundle) {
@@ -516,13 +521,15 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 			MapIndex:  ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-		// The supervisor nests scheduling timestamps under dag_run; the
-		// generated nullable date-time fields hold time.Time values directly.
+		// The supervisor nests scheduling timestamps under dag_run.
 		TIContext: genmodels.TIRunContext{
 			DagRun: genmodels.DagRun{
-				LogicalDate:       logical,
-				DataIntervalStart: start,
-				DataIntervalEnd:   end,
+				LogicalDate:       genmodels.TimePtr(logical),
+				DataIntervalStart: genmodels.TimePtr(start),
+				DataIntervalEnd:   genmodels.TimePtr(end),
+				RunAfter:          genmodels.Time(runAfter),
+				RunType:           genmodels.DagRunTypeManual,
+				Conf:              &conf,
 			},
 		},
 	}
@@ -552,6 +559,9 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+	assert.Equal(t, runAfter, dagRun.RunAfter)
+	assert.Equal(t, genmodels.DagRunTypeManual, dagRun.RunType)
+	assert.Equal(t, map[string]any(conf), dagRun.Conf)
 }
 
 // Guards against the runtime binding the task state store to an empty task instance id.
@@ -1361,7 +1371,8 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	logsConn := <-logsCh
 	defer logsConn.Close()
 
-	// Serve expects StartupDetails as the first frame, so it fails to decode a VariableResult.
+	// Serve expects StartupDetails or DagFileParseRequest first, so it fails to decode a
+	// VariableResult.
 	payload, err := encodeRequest(
 		0,
 		map[string]any{"type": "VariableResult", "key": "k", "value": "v"},
@@ -1381,4 +1392,66 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	require.NoError(t, commConn.SetReadDeadline(time.Now().Add(time.Second)))
 	_, err = readFrame(commConn)
 	require.Error(t, err)
+}
+
+// parseBundle is a bundle that serializes Dags and has no task to run.
+type parseBundle struct {
+	testBundle
+	*serializedDags
+}
+
+const dagParseRequestID = 7
+
+// startDagParse runs Serve for dags and sends it a DagFileParseRequest. It returns the frame that
+// Serve answers with and the channel that gets what Serve returns.
+func startDagParse(t *testing.T, dags *serializedDags) (frame IncomingFrame, done <-chan error) {
+	t.Helper()
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	t.Cleanup(cleanup)
+
+	served := make(chan error, 1)
+	go func() { served <- Serve(parseBundle{testBundle{}, dags}, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	t.Cleanup(func() { commConn.Close() })
+	logsConn := <-logsCh
+	t.Cleanup(func() { logsConn.Close() })
+	deadline := time.Now().Add(10 * time.Second)
+	require.NoError(t, commConn.SetDeadline(deadline))
+	require.NoError(t, logsConn.SetDeadline(deadline))
+
+	payload, err := encodeRequest(dagParseRequestID, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err = readFrame(commConn)
+	require.NoError(t, err)
+	require.True(t, isNilRaw(frame.Err))
+	return frame, served
+}
+
+func TestServeDagFileParseRequestEndToEnd(t *testing.T) {
+	dags := &serializedDags{dags: []bundle.SerializedDag{serializedDag("etl")}}
+	frame, done := startDagParse(t, dags)
+
+	assert.EqualValues(t, dagParseRequestID, frame.ID)
+	var result genmodels.DagFileParsingResult
+	require.NoError(t, decodeBody(frame.Body, &result))
+	assert.Equal(t, "DagFileParsingResult", result.Type)
+	assert.Equal(t, "/bundles/go/etl", result.Fileloc)
+	require.Len(t, result.SerializedDags, 1)
+	assert.Equal(t, "etl", result.SerializedDags[0].Data["dag"].(map[string]any)["dag_id"])
+	assert.Equal(t, "etl", dags.relative)
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after it sent the Dag parsing result")
+	}
 }

@@ -20,7 +20,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
+from botocore.config import Config
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -45,19 +48,23 @@ DEFAULT_AWS_CONN_ID = "aws_default"
 
 class AwsDuckDBHook(DuckDBHook):
     """
-    Interact with DuckDB using AWS credentials brokered by Airflow.
+    Interact with DuckDB with access to Amazon S3.
 
-    Extends :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook` with an S3 secret built from
-    an Airflow AWS connection, so ``read_parquet('s3://...')`` and ``COPY ... TO 's3://...'`` work
-    with no credential wiring in the Dag.
+    Extends :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook` with a DuckDB S3 secret, so
+    ``read_parquet('s3://...')`` and ``COPY ... TO 's3://...'`` work with no credential wiring in the
+    Dag. The secret takes its region and endpoint from an Airflow AWS connection, and its credentials
+    too with the ``config`` strategy.
 
     Two credential strategies are supported:
 
     ``credential_chain`` (the default)
         Issues ``CREATE SECRET (TYPE s3, PROVIDER credential_chain)``, which resolves credentials
         through the AWS SDK inside DuckDB's ``aws`` extension. Nothing secret is written into SQL
-        text, and because DuckDB holds the resolution itself the SDK refreshes expiring credentials,
-        so a query that outlives a set of temporary credentials does not fail partway through.
+        text, and the secret is created with ``REFRESH 'auto'``: when S3 rejects expired credentials,
+        DuckDB resolves the chain again and retries, so a query that outlives a set of temporary
+        credentials does not fail partway through. Before DuckDB 1.5.6, only opening a file to read
+        refreshes the credentials, so listing files, reading further into a file that is already
+        open, and writing can still fail once the credentials expire.
 
     ``config``
         Resolves credentials through :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
@@ -66,6 +73,9 @@ class AwsDuckDBHook(DuckDBHook):
         become part of the SQL statement. Needed when the connection carries static keys the AWS SDK
         running inside DuckDB cannot see, or when talking to an S3-compatible endpoint with its own
         credentials. Prefer ``credential_chain`` where it works.
+
+    When ``credential_strategy`` is not set and the AWS connection has credentials (keys, a
+    ``role_arn`` or a ``profile_name``), the hook warns that ``credential_chain`` does not use them.
 
     Either strategy is better than none: DuckDB's ``httpfs`` extension has its own HTTP client which
     reads credentials from the standard ``AWS_*`` environment variables but does **not** implement the
@@ -79,9 +89,11 @@ class AwsDuckDBHook(DuckDBHook):
     ``autoinstall_extensions=False`` to forbid the download, in which case the extensions have to be
     present already, either in an ``extension_directory`` or baked into the image.
 
-    :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` used to reach S3. Defaults to
-        ``aws_default``. Set to ``None`` to use no Airflow connection and let the AWS SDK resolve
-        credentials from the environment instead.
+    :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` the S3 secret's region and
+        endpoint come from, and its credentials too with the ``config`` strategy. Defaults to
+        ``aws_default``. Set to ``None`` to use no Airflow AWS connection: the region and endpoint
+        then come only from this hook's own parameters, and ``config`` takes credentials from
+        boto3's default chain. ``credential_chain`` takes credentials from the environment either way.
     :param region_name: region for the S3 secret. Defaults to the region from ``aws_conn_id``.
     :param credential_strategy: ``credential_chain``, ``config``, or ``none`` to create no secret at
         all (for a DuckDB database that never touches S3).
@@ -94,7 +106,8 @@ class AwsDuckDBHook(DuckDBHook):
 
     As with :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook`, every parameter may also be set
     in the DuckDB connection ``extra``, and an explicit argument wins. ``aws_conn_id`` resolves on
-    whether the key is present, so ``{"aws_conn_id": null}`` selects the ambient AWS environment.
+    whether the key is present, so ``{"aws_conn_id": null}`` selects no AWS connection rather than
+    ``aws_default``.
     """
 
     #: ``httpfs`` provides the S3 filesystem; ``aws`` provides the credential chain secret provider.
@@ -138,6 +151,8 @@ class AwsDuckDBHook(DuckDBHook):
         self._credential_chain = credential_chain
         self._s3_endpoint_url = s3_endpoint_url
         self._secret_name = secret_name
+        self._aws_identity_looked_up = False
+        self._ignored_credentials_checked = False
 
     @property
     def aws_conn_id(self) -> str | None:
@@ -197,12 +212,13 @@ class AwsDuckDBHook(DuckDBHook):
         return self.connection_extra.get("endpoint_url") or self.aws_hook.conn_config.endpoint_url
 
     def configure_secrets(self, conn: DuckDBPyConnection) -> None:
-        """Create the DuckDB S3 secret for this connection."""
+        """Create the DuckDB S3 secret for this connection, and log the AWS identity it uses."""
         strategy = self.credential_strategy
         if strategy == "none":
             self.log.debug("credential_strategy is 'none'; not creating a DuckDB S3 secret.")
             return
 
+        self._warn_if_connection_credentials_are_ignored()
         self._validate_identifier(self.secret_name, "secret")
         parts = ["TYPE s3", *self._provider_clauses(strategy)]
 
@@ -232,11 +248,69 @@ class AwsDuckDBHook(DuckDBHook):
                 error,
             )
 
+        self._log_aws_identity(strategy, region, endpoint_url)
+
+    def _warn_if_connection_credentials_are_ignored(self) -> None:
+        """Warn once per hook when ``credential_chain`` leaves the AWS connection's credentials unused."""
+        if self._ignored_credentials_checked:
+            return
+        self._ignored_credentials_checked = True
+        explicit = self._credential_strategy or self.connection_extra.get("credential_strategy")
+        if explicit or self.aws_conn_id is None:
+            return
+        # profile_name counts: boto3 resolves it like every other AWS hook, DuckDB's chain would not.
+        conn_config = self.aws_hook.conn_config
+        if (
+            conn_config.aws_access_key_id
+            or conn_config.aws_session_token
+            or conn_config.role_arn
+            or conn_config.profile_name
+        ):
+            self.log.warning(
+                "The AWS connection %r has credentials, but DuckDB is using its own credential chain, so "
+                "they are not used. Set credential_strategy to 'config' to use them, or to "
+                "'credential_chain' to silence this warning.",
+                self.aws_conn_id,
+            )
+
+    def _log_aws_identity(
+        self, strategy: CredentialStrategy, region: str | None, endpoint_url: str | None
+    ) -> None:
+        """Log the AWS identity once per hook, to help debug S3 ``HTTP 403`` errors."""
+        if self._aws_identity_looked_up:
+            return
+        self._aws_identity_looked_up = True
+        try:
+            if endpoint_url:
+                host = urlsplit(endpoint_url if "//" in endpoint_url else f"//{endpoint_url}").hostname or ""
+                if not host.endswith((".amazonaws.com", ".amazonaws.com.cn")):
+                    return  # Not AWS (e.g. MinIO), so no AWS identity applies.
+            aws_config = self.aws_hook.config
+            bounded = Config(
+                # Keeps an unreachable STS endpoint from delaying the task by more than a few seconds.
+                connect_timeout=2,
+                read_timeout=2,
+                retries={"total_max_attempts": 1},
+                # Caller names only the operator (_PythonDecoratedOperator for @task), so name the hook too.
+                user_agent_extra=f"AwsDuckDBHook {aws_config.user_agent_extra or ''}".strip(),
+            )
+            sts_hook = StsHook(
+                # DuckDB's credential chain ignores the connection's credentials, so boto3 has to as well.
+                aws_conn_id=self.aws_conn_id if strategy == "config" else None,
+                region_name=region,
+                config=aws_config.merge(bounded),
+            )
+            self.log.info("AWS identity: %s", sts_hook.get_conn().get_caller_identity()["Arn"])
+        except Exception as error:  # Not BaseException: a task timeout must still stop the task.
+            self.log.debug("Could not look up the AWS identity: %s", error)
+
     def _provider_clauses(self, strategy: CredentialStrategy) -> list[str]:
         if strategy == "credential_chain":
             clauses = ["PROVIDER credential_chain"]
             if self.credential_chain:
                 clauses.append(f"CHAIN '{self._quote(self.credential_chain)}'")
+            # Without REFRESH, DuckDB keeps the credentials it first resolved for the life of the secret.
+            clauses.append("REFRESH 'auto'")
             return clauses
         if strategy == "config":
             credentials = self.aws_hook.get_credentials(region_name=self.get_region_name())

@@ -17,13 +17,8 @@
 
 .. _howto/operator:llm_sql_query:
 
-Natural language to SQL: ``LLMSQLQueryOperator``
-================================================
-
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
+Natural language to SQL: ``LLMSQLQueryOperator`` and ``@task.llm_sql``
+======================================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator` to generate
 SQL queries from natural language using an LLM.
@@ -74,7 +69,9 @@ the schema context.
 
     Object-storage schema introspection requires the ``datafusion`` extra of
     ``apache-airflow-providers-common-sql``. Install it with
-    ``pip install "apache-airflow-providers-common-sql[datafusion]"``.
+    ``pip install "apache-airflow-providers-common-sql[datafusion]"``. ``common.sql`` pins
+    ``datafusion`` below 52 because the DataFusion 52 crate is not supported with
+    ``iceberg-core``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python
@@ -188,3 +185,6 @@ After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the generated SQL is also
 logged (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

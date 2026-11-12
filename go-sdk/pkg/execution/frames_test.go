@@ -20,6 +20,8 @@ package execution
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,6 +110,18 @@ func TestWriteAndReadFrame(t *testing.T) {
 	assert.Equal(t, "GetConnection", bodyMap["type"])
 	assert.Equal(t, "my_db", bodyMap["conn_id"])
 	assert.True(t, isNilRaw(frame.Err))
+}
+
+func TestReadFrameRejectsLengthPastPlatformInt(t *testing.T) {
+	if strconv.IntSize == 64 {
+		t.Skip("a length past a 64-bit int does not fit the 4-byte prefix")
+	}
+	var buf bytes.Buffer
+	require.NoError(t, binary.Write(&buf, binary.BigEndian, uint32(math.MaxInt32)+1))
+
+	_, err := readFrame(&buf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds this platform's max")
 }
 
 func TestDecodeResponseFrame(t *testing.T) {

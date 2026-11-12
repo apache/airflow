@@ -61,6 +61,7 @@ CONFIG_DEFAULTS = {
     "assign_public_ip": "False",
     "platform_version": "LATEST",
     "check_health_on_startup": "True",
+    "run_task_concurrency": "1",
 }
 
 
@@ -74,6 +75,7 @@ class EcsQueuedTask:
     executor_config: ExecutorConfigType
     attempt_number: int
     next_attempt_time: datetime.datetime
+    throttled_attempts: int = 0
 
 
 @dataclass
@@ -106,6 +108,7 @@ class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     CHECK_HEALTH_ON_STARTUP = "check_health_on_startup"
     MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
     REGION_NAME = "region_name"
+    RUN_TASK_CONCURRENCY = "run_task_concurrency"
     RUN_TASK_KWARGS = "run_task_kwargs"
 
 
@@ -125,15 +128,13 @@ class EcsExecutorTask:
         started_at: Any | None = None,
         stopped_reason: str | None = None,
         external_executor_id: str | None = None,
-        stop_code: str | None = None,
-    ) -> None:
+    ):
         self.task_arn = task_arn
         self.last_status = last_status
         self.desired_status = desired_status
         self.containers = containers
         self.started_at = started_at
         self.stopped_reason = stopped_reason
-        self.stop_code = stop_code
         self.external_executor_id = external_executor_id
 
     def get_task_state(self) -> str:

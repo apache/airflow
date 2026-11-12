@@ -34,7 +34,6 @@ except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -49,11 +48,6 @@ if TYPE_CHECKING:
 class LLMSQLQueryOperator(LLMOperator):
     """
     Generate SQL queries from natural language using an LLM.
-
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
 
     Inherits from :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     for LLM access and optionally uses a
@@ -79,8 +73,10 @@ class LLMSQLQueryOperator(LLMOperator):
         for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in SQL
         safety prompt. Use for domain-specific guidance.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param db_conn_id: Connection ID for database schema introspection.
         The connection must resolve to a ``DbApiHook``.
     :param table_names: Tables to include in the LLM's schema context.
@@ -93,6 +89,10 @@ class LLMSQLQueryOperator(LLMOperator):
         Default: ``(Select, Union, Intersect, Except)``.
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
+    :param datasource_config: A
+        :class:`~airflow.providers.common.sql.config.DataSourceConfig` for an object-storage
+        table whose schema is introspected through DataFusion. The DataFusion engine of
+        ``common.sql`` pins ``datafusion`` below 52.
 
     ``usage_limits`` is inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
@@ -100,7 +100,8 @@ class LLMSQLQueryOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``,
+    ``fail_on_reject``, ``ignore_downstream_trigger_rules``).
     When ``allow_modifications=True`` and the reviewer edits the SQL, the
     modified query is re-validated against the same safety rules before being
     returned.
@@ -128,7 +129,10 @@ class LLMSQLQueryOperator(LLMOperator):
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)  # SQL operator always returns str
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
+            )
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
@@ -164,11 +168,8 @@ class LLMSQLQueryOperator(LLMOperator):
 
         full_system_prompt = self._build_system_prompt(schema_info)
 
-        agent = self.llm_hook.create_agent(
-            output_type=str, instructions=full_system_prompt, **self.agent_params
-        )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        agent = self._create_agent(output_type=str, instructions=full_system_prompt)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
@@ -179,6 +180,7 @@ class LLMSQLQueryOperator(LLMOperator):
         if self.require_approval:
             self.defer_for_approval(context, sql)  # type: ignore[misc]
 
+        self._clear_usage_budget(context)
         return sql
 
     def execute_complete(
@@ -187,11 +189,12 @@ class LLMSQLQueryOperator(LLMOperator):
         generated_output: str,
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
-    ) -> str:
+    ) -> Any:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
-        output = super().execute_complete(context, generated_output, event, decision)
-        if output != generated_output:
+        output = self._complete_review(context, generated_output, event, decision)
+        if output is not None and output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+        self._clear_usage_budget(context)
         return output
 
     @staticmethod

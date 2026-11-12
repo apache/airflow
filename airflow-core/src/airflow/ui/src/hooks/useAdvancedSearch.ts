@@ -36,11 +36,7 @@ export const useAdvancedSearch = (key: string) => {
     readParams: (params) => {
       const urlValues = params.getAll(SearchParamsKeys.ADVANCED_SEARCH);
 
-      if (urlValues.includes(key)) {
-        return true;
-      }
-
-      return urlValues.includes(`-${key}`) ? false : undefined;
+      return urlValues.includes(key) || (!urlValues.includes(`-${key}`) && undefined);
     },
     storageKey: advancedSearchKey(key),
     writeParams: (params, nextEnabled) => {

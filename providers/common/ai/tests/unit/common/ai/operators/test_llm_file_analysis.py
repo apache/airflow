@@ -23,10 +23,15 @@ from uuid import uuid4
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai.usage import RunUsage
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.usage import RunUsage, UsageLimits
 
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 from airflow.providers.common.compat.sdk import TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
@@ -90,12 +95,41 @@ class TestLLMFileAnalysisOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
             "file_path",
             "file_conn_id",
         }
         assert set(LLMFileAnalysisOperator.template_fields) == expected
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_builds_agent_with_model_settings_and_output_retries_only(
+        self, mock_build_request, mock_hook_cls
+    ):
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
+        )
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("Analysis complete")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="test",
+            prompt="Summarize the file",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            model_settings={"temperature": 0},
+            output_retries=2,
+        )
+        op.execute(context={})
+
+        create_agent_kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert set(create_agent_kwargs) == {"output_type", "instructions", "model_settings", "retries"}
+        assert create_agent_kwargs["model_settings"] == {"temperature": 0}
+        assert create_agent_kwargs["retries"] == 2
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
@@ -107,7 +141,7 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result("Analysis complete")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -132,21 +166,45 @@ class TestLLMFileAnalysisOperator:
             sample_rows=10,
         )
         mock_agent.run_sync.assert_called_once_with(
-            "prepared prompt", usage_limits=None, cancellation_token=ANY
+            "prepared prompt", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
+
+    @pytest.mark.parametrize("model_name", ["gpt-5", None])
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_run_usage_run_id_and_model_name_pushed_to_xcom(
+        self, mock_build_request, mock_hook_cls, make_reporting_agent, reporting_task_instance, model_name
+    ):
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
+        )
+        mock_agent, expected_pushes = make_reporting_agent("Analysis complete", model_name=model_name)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMFileAnalysisOperator(
+            task_id="test", prompt="Summarize the file", llm_conn_id="my_llm", file_path="/tmp/app.log"
+        )
+        ti = reporting_task_instance
+
+        op.execute(context={"task_instance": ti})
+
+        assert {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list} == expected_pushes
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
-    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_build_request, mock_hook_cls):
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_build_request, mock_hook_cls, usage_budget_context
+    ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_build_request.return_value = FileAnalysisRequest(
             user_content="prepared prompt",
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result("Analysis complete")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -157,7 +215,7 @@ class TestLLMFileAnalysisOperator:
             file_path="/tmp/app.log",
             usage_limits={"cost_limit": "0.5"},
         )
-        op.execute(context={})
+        op.execute(context=usage_budget_context)
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
@@ -173,7 +231,7 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -200,7 +258,7 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -216,6 +274,34 @@ class TestLLMFileAnalysisOperator:
 
         assert result == {"findings": ["error spike"]}
         assert not isinstance(result, Summary)
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_dumps_a_model_the_worker_cannot_register_from_a_list_of_types(
+        self, mock_build_request, mock_hook_cls
+    ):
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt",
+            resolved_paths=["/tmp/app.log"],
+            total_size_bytes=10,
+        )
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="test",
+            prompt="Summarize the file",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            output_type=[Summary, int],
+        )
+        result = op.execute(context={})
+
+        assert result == {"findings": ["error spike"]}
 
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
@@ -243,6 +329,81 @@ class TestLLMFileAnalysisOperator:
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+class TestLLMFileAnalysisOperatorUsageBudget:
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_earlier_attempts_usage_counts_against_the_limit(
+        self,
+        mock_build_request,
+        mock_hook_cls,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=2)
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
+        )
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="analysis")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+        op = LLMFileAnalysisOperator(
+            task_id="t",
+            prompt="Summarize",
+            llm_conn_id="c",
+            file_path="/tmp/app.log",
+            usage_limits=UsageLimits(request_limit=2),
+        )
+
+        with pytest.raises(UsageLimitExceeded, match="request_limit"):
+            op.execute(context=usage_budget_context)
+
+        assert calls == []
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_successful_run_clears_the_budget(
+        self,
+        mock_build_request,
+        mock_hook_cls,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
+        )
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("analysis")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMFileAnalysisOperator(
+            task_id="t",
+            prompt="Summarize",
+            llm_conn_id="c",
+            file_path="/tmp/app.log",
+            usage_limits=UsageLimits(request_limit=2),
+        )
+
+        assert op.execute(context=usage_budget_context) == "analysis"
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestLLMFileAnalysisOperatorApproval:
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
@@ -258,7 +419,7 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -292,7 +453,7 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -368,7 +529,7 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result("output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 

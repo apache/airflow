@@ -47,7 +47,7 @@ from tests_common.test_utils.version_compat import (
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
-    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+    from airflow.models.dagbag import DagBag  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -72,7 +72,7 @@ class TestTimedeltaSensor:
         if AIRFLOW_V_3_3_PLUS:
             self.dagbag = DagBag(dag_folder=DEV_NULL)
         else:
-            self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)  # type: ignore[call-arg]
+            self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)
         self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
     def test_timedelta_sensor(self, mocker):

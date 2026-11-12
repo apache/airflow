@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-10-30",
+  "api_version": "2027-02-28",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -1900,10 +1900,45 @@
         "DAGRUN_ALREADY_EXISTS",
         "PERMISSION_DENIED",
         "GENERIC_ERROR",
-        "API_SERVER_ERROR"
+        "API_SERVER_ERROR",
+        "XCOM_BACKEND_ERROR"
       ],
       "title": "ErrorType",
       "type": "string"
+    },
+    "ExternalClearTargetPayload": {
+      "additionalProperties": false,
+      "description": "A task in another Dag that clearing the reporting task also clears, as resolved when it ran.",
+      "properties": {
+        "dag_id": {
+          "minLength": 1,
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "format": "date-time",
+          "title": "Logical Date",
+          "type": "string"
+        },
+        "recursion_depth": {
+          "exclusiveMinimum": 0,
+          "title": "Recursion Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_id",
+        "logical_date",
+        "recursion_depth"
+      ],
+      "title": "ExternalClearTargetPayload",
+      "type": "object"
     },
     "GetAssetByName": {
       "properties": {
@@ -2836,6 +2871,11 @@
     },
     "GetXCom": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2888,6 +2928,11 @@
     "GetXComCount": {
       "description": "Get the number of (mapped) XCom values available.",
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2922,6 +2967,11 @@
     },
     "GetXComSequenceItem": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2961,6 +3011,11 @@
     },
     "GetXComSequenceSlice": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -3136,6 +3191,78 @@
       "title": "HITLDetailRequestResult",
       "type": "object"
     },
+    "HITLDetailResponseResult": {
+      "description": "Response to GetHITLDetailResponse request.",
+      "properties": {
+        "response_received": {
+          "title": "Response Received",
+          "type": "boolean"
+        },
+        "responded_by_user": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HITLUser"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "chosen_options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chosen Options"
+        },
+        "params_input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params Input"
+        },
+        "type": {
+          "const": "HITLDetailResponseResult",
+          "default": "HITLDetailResponseResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "response_received",
+        "responded_at",
+        "chosen_options"
+      ],
+      "title": "HITLDetailResponseResult",
+      "type": "object"
+    },
     "HITLUser": {
       "description": "Schema for a Human-in-the-loop users.",
       "properties": {
@@ -3220,6 +3347,33 @@
         "data"
       ],
       "title": "LazyDeserializedDAG",
+      "type": "object"
+    },
+    "LoopDecisionPayload": {
+      "additionalProperties": false,
+      "description": "A loop gate's evaluation of its ``until`` callable.",
+      "properties": {
+        "stop": {
+          "title": "Stop",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "stop"
+      ],
+      "title": "LoopDecisionPayload",
       "type": "object"
     },
     "MaskSecret": {
@@ -3442,6 +3596,31 @@
           "default": -1,
           "title": "Map Index"
         },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "duration": {
           "anyOf": [
             {
@@ -3495,15 +3674,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "description": {
           "anyOf": [
@@ -3717,6 +3889,27 @@
         "value"
       ],
       "title": "SetAssetStateStoreByUri",
+      "type": "object"
+    },
+    "SetExecutionTimeout": {
+      "description": "Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.",
+      "properties": {
+        "timeout_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Timeout Seconds",
+          "type": "number"
+        },
+        "type": {
+          "const": "SetExecutionTimeout",
+          "default": "SetExecutionTimeout",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "timeout_seconds"
+      ],
+      "title": "SetExecutionTimeout",
       "type": "object"
     },
     "SetRenderedFields": {
@@ -4012,6 +4205,28 @@
           "default": null,
           "title": "Rendered Map Index"
         },
+        "loop_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "external_clear_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalClearTargetPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "type": {
           "const": "SucceedTask",
           "default": "SucceedTask",
@@ -4258,6 +4473,17 @@
           ],
           "default": null,
           "title": "Retry Reason"
+        },
+        "loop_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -4544,15 +4770,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -4570,15 +4789,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "type": {
           "const": "VariableResult",
@@ -5102,16 +5314,101 @@
       "title": "DagRun",
       "type": "object"
     },
+    "LoopContext": {
+      "description": "Pinned loop definition and enclosing iteration for a task execution.",
+      "properties": {
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 1,
+          "title": "Index",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "exclusiveMinimum": 0,
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "terminal_task_id": {
+          "title": "Terminal Task Id",
+          "type": "string"
+        },
+        "terminal_is_mapped": {
+          "title": "Terminal Is Mapped",
+          "type": "boolean"
+        },
+        "region_id": {
+          "format": "uuid",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "trajectory": {
+          "minimum": 1,
+          "title": "Trajectory",
+          "type": "integer"
+        },
+        "forked_from_region_id": {
+          "format": "uuid",
+          "title": "Forked From Region Id",
+          "type": "string"
+        },
+        "resumes_from_index": {
+          "title": "Resumes From Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "node_id",
+        "index",
+        "max_iterations",
+        "terminal_task_id",
+        "terminal_is_mapped",
+        "region_id",
+        "trajectory"
+      ],
+      "title": "LoopContext",
+      "type": "object"
+    },
     "TIRunContext": {
       "description": "Response schema for TaskInstance run context.",
       "properties": {
         "dag_run": {
           "$ref": "#/$defs/DagRun"
         },
+        "loop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expanded_ti_count": {
+          "title": "Expanded Ti Count",
+          "type": "integer"
+        },
         "task_reschedule_count": {
           "default": 0,
           "title": "Task Reschedule Count",
           "type": "integer"
+        },
+        "first_task_reschedule_start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Task Reschedule Start Date"
         },
         "max_tries": {
           "title": "Max Tries",
@@ -5199,6 +5496,19 @@
           "default": null,
           "title": "Arg Bindings"
         },
+        "execution_timeout": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.",
+          "title": "Execution Timeout"
+        },
         "multi_team": {
           "default": false,
           "title": "Multi Team",
@@ -5244,6 +5554,15 @@
         "map_index": {
           "default": -1,
           "title": "Map Index",
+          "type": "integer"
+        },
+        "region_id": {
+          "format": "uuid",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "region_index": {
+          "title": "Region Index",
           "type": "integer"
         },
         "hostname": {

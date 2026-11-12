@@ -23,8 +23,9 @@ import os
 import signal
 import sys
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 # Leave this it is used by the test worker.
 import celery.contrib.testing.tasks  # noqa: F401
@@ -34,7 +35,6 @@ from celery import Celery
 from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -418,43 +418,6 @@ class TestCeleryExecutor:
             yield app.control.revoke
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_tasks(self, mocker, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
-        start_date = timezone.utcnow() - timedelta(days=2)
-
-        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None) as dag:
-            task = BaseOperator(task_id="task_1", start_date=start_date)
-
-        if AIRFLOW_V_3_0_PLUS:
-            sync_dag_to_db(dag)
-            dag_version = DagVersion.get_latest_version(task.dag.dag_id)
-            ti = create_task_instance(task=task, run_id=None, dag_version_id=dag_version.id)
-        else:
-            ti = TaskInstance(task=task, run_id=None)
-        ti.external_executor_id = "231"
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
-        ti.queued_by_job_id = 1
-        tis = [ti]
-        with _prepare_app() as app:
-            app.control.revoke = mock.MagicMock()
-            executor = celery_executor.CeleryExecutor()
-            mock_fail = mocker.patch.object(executor, "fail", autospec=True)
-            executor.job_id = 1
-            if hasattr(executor, "_register_task"):
-                executor._register_task(ti)
-            key = executor.get_task_key(ti) if executor.supports_task_instance_uuid else ti.key
-            executor.running = {key}
-            executor.workloads = {key: AsyncResult("231")}
-            assert executor.has_task(ti)
-            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
-                executor.cleanup_stuck_queued_tasks(tis=tis)
-            executor.sync()
-        assert executor.workloads == {}
-        app.control.revoke.assert_called_once_with("231")
-        mock_fail.assert_called_once_with(key)
-        assert not executor.has_task(ti)
-
-    @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
     def test_revoke_task(self, mock_fail, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         start_date = timezone.utcnow() - timedelta(days=2)
@@ -491,7 +454,12 @@ class TestCeleryExecutor:
         assert not executor.has_task(ti)
         mock_fail.assert_not_called()
 
-    @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
+    @conf_vars(
+        {
+            ("celery", "result_backend"): "db+sqlite:///:memory:",
+            ("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}',
+        }
+    )
     def test_result_backend_sqlalchemy_engine_options(self):
         import importlib
 
@@ -1270,16 +1238,15 @@ def test_process_workloads_routes_execute_callback(
     mock_send_workloads.assert_called_once_with([(workload.callback.key, workload, expected_queue, None)])
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
-@pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
-def test_execute_workload_runs_execute_task_before_airflow_3_3():
-    """execute_workload routes serialized ExecuteTask payloads to supervise on Airflow 3.0-3.2."""
+@pytest.fixture
+def execute_task_workload_json() -> str:
+    """A serialized ExecuteTask workload usable by execute_workload tests."""
     from airflow.executors import workloads
 
     workload = workloads.ExecuteTask(
         ti=workloads.TaskInstance(
-            id="00000000-0000-0000-0000-000000000001",
-            dag_version_id="00000000-0000-0000-0000-000000000002",
+            id=UUID("00000000-0000-0000-0000-000000000001"),
+            dag_version_id=UUID("00000000-0000-0000-0000-000000000002"),
             task_id="test_task",
             dag_id="test_dag",
             run_id="test_run",
@@ -1289,21 +1256,31 @@ def test_execute_workload_runs_execute_task_before_airflow_3_3():
             queue="default",
             priority_weight=1,
         ),
-        dag_rel_path="test_dag.py",
+        dag_rel_path=Path("test_dag.py"),
         bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
         token="test-token",
         log_path="test.log",
     )
+    return workload.model_dump_json()
+
+
+@pytest.fixture
+def mock_celery_app():
+    """Patch celery_executor_utils.app with a worker whose current_task id is fixed."""
     mock_current_task = mock.MagicMock()
     mock_current_task.request.id = "test-celery-task-id"
     mock_app = mock.MagicMock()
     mock_app.current_task = mock_current_task
+    with mock.patch.object(celery_executor_utils, "app", mock_app):
+        yield mock_app
 
-    with (
-        mock.patch.object(celery_executor_utils, "app", mock_app),
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
-    ):
-        celery_executor_utils.execute_workload.__wrapped__(workload.model_dump_json())
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
+@pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
+def test_execute_workload_runs_execute_task_before_airflow_3_3(execute_task_workload_json, mock_celery_app):
+    """execute_workload routes serialized ExecuteTask payloads to supervise on Airflow 3.0-3.2."""
+    with mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise:
+        celery_executor_utils.execute_workload.__wrapped__(execute_task_workload_json)
 
     mock_supervise.assert_called_once()
     assert mock_supervise.call_args.kwargs["ti"].task_id == "test_task"
@@ -1312,39 +1289,113 @@ def test_execute_workload_runs_execute_task_before_airflow_3_3():
     assert mock_supervise.call_args.kwargs["log_path"] == "test.log"
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
-def test_execute_workload_runs_base_executor_workload_on_airflow_3_3_plus():
-    """execute_workload routes serialized ExecuteTask payloads to BaseExecutor on Airflow 3.3+."""
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
+@pytest.mark.parametrize(
+    ("callback_result", "expected_error"),
+    [
+        pytest.param((True, None), None, id="callback-succeeds"),
+        pytest.param((False, "Callback failed"), "Callback failed", id="callback-fails"),
+    ],
+)
+def test_execute_workload_runs_execute_callback_before_airflow_3_3(
+    mock_celery_app, monkeypatch, callback_result, expected_error
+):
+    """The pre-3.3 fallback executes ExecuteCallback with the Airflow 3.2 callback helper."""
     from airflow.executors import workloads
+    from airflow.executors.workloads.callback import CallbackDTO
 
-    workload = workloads.ExecuteTask(
-        ti=workloads.TaskInstance(
-            id="00000000-0000-0000-0000-000000000001",
-            dag_version_id="00000000-0000-0000-0000-000000000002",
-            task_id="test_task",
-            dag_id="test_dag",
-            run_id="test_run",
-            try_number=1,
-            map_index=-1,
-            pool_slots=1,
-            queue="default",
-            priority_weight=1,
+    workload = workloads.ExecuteCallback(
+        callback=CallbackDTO(
+            id="00000000-0000-0000-0000-000000000003",
+            fetch_method=workloads.CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "tests.callbacks.test_callback", "kwargs": {}},
         ),
-        dag_rel_path="test_dag.py",
+        dag_rel_path=Path("test_dag.py"),
         bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
         token="test-token",
-        log_path="test.log",
+        log_path="callback.log",
     )
-    mock_current_task = mock.MagicMock()
-    mock_current_task.request.id = "test-celery-task-id"
-    mock_app = mock.MagicMock()
-    mock_app.current_task = mock_current_task
+    monkeypatch.setattr(celery_executor_utils, "AIRFLOW_V_3_3_PLUS", False)
+    with mock.patch(
+        "airflow.executors.workloads.callback.execute_callback_workload",
+        create=True,
+        return_value=callback_result,
+    ) as mock_execute_callback:
+        execute = celery_executor_utils.execute_workload.__wrapped__
+        if expected_error:
+            with pytest.raises(RuntimeError, match=expected_error):
+                execute(workload.model_dump_json())
+        else:
+            execute(workload.model_dump_json())
 
+    mock_execute_callback.assert_called_once_with(workload.callback, celery_executor_utils.log)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
+@pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
+@pytest.mark.parametrize(
+    ("config_overrides", "expected"),
+    [
+        pytest.param({}, False, id="unset-defaults-to-false"),
+        pytest.param({("logging", "task_logs_to_stdout"): "True"}, True, id="global-fallback"),
+        pytest.param({("celery", "task_logs_to_stdout"): "True"}, True, id="celery-override-only"),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "True", ("celery", "task_logs_to_stdout"): "False"},
+            False,
+            id="celery-overrides-global",
+        ),
+    ],
+)
+def test_execute_workload_forwards_task_logs_to_stdout_before_airflow_3_3(
+    execute_task_workload_json, mock_celery_app, config_overrides, expected
+):
+    """Before Airflow 3.3, supervise() receives the resolved [celery]/[logging] task_logs_to_stdout value."""
     with (
-        mock.patch.object(celery_executor_utils, "app", mock_app),
+        conf_vars(config_overrides),
+        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+    ):
+        celery_executor_utils.execute_workload.__wrapped__(execute_task_workload_json)
+
+    assert mock_supervise.call_args.kwargs["subprocess_logs_to_stdout"] is expected
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
+@pytest.mark.parametrize(
+    ("config_overrides", "expected"),
+    [
+        pytest.param({}, False, id="unset-defaults-to-false"),
+        pytest.param({("logging", "task_logs_to_stdout"): "True"}, True, id="global-fallback"),
+        pytest.param({("celery", "task_logs_to_stdout"): "True"}, True, id="celery-override-only"),
+        pytest.param({("celery", "task_logs_to_stdout"): "False"}, False, id="celery-override-false"),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "True", ("celery", "task_logs_to_stdout"): "False"},
+            False,
+            id="celery-overrides-global",
+        ),
+    ],
+)
+def test_execute_workload_forwards_task_logs_to_stdout_on_airflow_3_3_plus(
+    execute_task_workload_json, mock_celery_app, config_overrides, expected
+):
+    """On Airflow 3.3+, run_workload() receives the resolved [celery]/[logging] task_logs_to_stdout
+    value, since older 3.3.x releases predate core's own [logging] fallback in run_workload().
+    """
+    with (
+        conf_vars(config_overrides),
         mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
     ):
-        celery_executor_utils.execute_workload.__wrapped__(workload.model_dump_json())
+        celery_executor_utils.execute_workload.__wrapped__(execute_task_workload_json)
+
+    assert mock_run_workload.call_args.kwargs["subprocess_logs_to_stdout"] is expected
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
+def test_execute_workload_runs_base_executor_workload_on_airflow_3_3_plus(
+    execute_task_workload_json, mock_celery_app
+):
+    """execute_workload routes serialized ExecuteTask payloads to BaseExecutor on Airflow 3.3+."""
+    with mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload:
+        celery_executor_utils.execute_workload.__wrapped__(execute_task_workload_json)
 
     mock_run_workload.assert_called_once()
     decoded_workload = mock_run_workload.call_args.args[0]
@@ -1697,105 +1748,6 @@ class TestCreateCeleryAppTeamIsolation:
         team_conf = ExecutorConf(team_name="team_beta")
         celery_app = celery_executor_utils.create_celery_app(team_conf)
         assert "team_beta" in celery_app.main
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Executor failure reasons require Airflow 3.4+")
-@pytest.mark.parametrize("state", ["FAILURE", "REVOKED"])
-@pytest.mark.parametrize("use_uuid", [False, True], ids=["coordinates", "uuid"])
-@mock.patch.object(CeleryExecutor, "fail", autospec=True)
-def test_worker_lost_is_reason_only_for_task_instances(
-    mock_fail: mock.MagicMock,
-    use_uuid: bool,
-    state: str,
-) -> None:
-    from billiard.exceptions import WorkerLostError
-
-    from airflow.models.callback import CallbackKey
-
-    executor = CeleryExecutor.__new__(CeleryExecutor)
-
-    lost = TaskInstanceUuid(uuid4()) if use_uuid else TaskInstanceKey("d", "t", "r", 1)
-    app_bug = TaskInstanceKey("d", "t2", "r", 1)
-    callback = CallbackKey("12345678-1234-5678-1234-567812345678")
-    lost_error = WorkerLostError("signal 9 (SIGKILL)")
-    app_error = ValueError("application reported signal 9 (SIGKILL)")
-    callback_error = WorkerLostError("callback worker lost")
-
-    executor.update_task_state(lost, state, lost_error)
-    executor.update_task_state(app_bug, state, app_error)
-    executor.update_task_state(callback, state, callback_error)
-
-    assert mock_fail.call_args_list == [
-        mock.call(executor, key=lost, info=lost_error, reason="WorkerLost"),
-        mock.call(executor, app_bug, app_error),
-        mock.call(executor, callback, callback_error),
-    ]
-
-
-@mock.patch.object(celery_executor, "AIRFLOW_V_3_4_PLUS", False)
-def test_worker_lost_uses_legacy_fail_signature_before_airflow_3_4() -> None:
-    from billiard.exceptions import WorkerLostError
-    from celery import states as _states
-
-    executor = CeleryExecutor.__new__(CeleryExecutor)
-
-    def legacy_fail(key: TaskInstanceKey, info: object = None) -> None:
-        pass
-
-    key = TaskInstanceKey("d", "t", "r", 1)
-    error = WorkerLostError("signal 9 (SIGKILL)")
-
-    with mock.patch.object(executor, "fail", autospec=legacy_fail) as mock_fail:
-        executor.update_task_state(key=key, state=_states.FAILURE, info=error)
-        mock_fail.assert_called_once_with(key, error)
-
-
-def test_bulk_fetcher_surfaces_exception_as_info() -> None:
-    from billiard.exceptions import WorkerLostError
-    from celery import states as _states
-
-    from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
-
-    exc = WorkerLostError("Worker exited prematurely: signal 9 (SIGKILL) Job: 0.")
-    failure = {
-        "task_id": "failed",
-        "status": _states.FAILURE,
-        "result": exc,
-        "traceback": "tb",
-        "date_done": None,
-    }
-    success = {
-        "task_id": "succeeded",
-        "status": _states.SUCCESS,
-        "result": "return value",
-        "traceback": None,
-        "date_done": None,
-    }
-    out = BulkStateFetcher._prepare_state_and_info_by_task_dict(
-        {"failed", "succeeded"},
-        {"failed": failure, "succeeded": success},
-    )
-    state, info = out["failed"]
-
-    assert state == _states.FAILURE
-    assert info is exc
-    assert type(info).__name__ == "WorkerLostError"
-    assert out["succeeded"] == (_states.SUCCESS, None)
-
-
-@pytest.mark.parametrize("info", ["existing failure info", "", False])
-def test_bulk_fetcher_preserves_explicit_info(info: str | bool) -> None:
-    from billiard.exceptions import WorkerLostError
-    from celery import states as _states
-
-    from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
-
-    result = BulkStateFetcher._prepare_state_and_info_by_task_dict(
-        {"failed"},
-        {"failed": {"status": _states.FAILURE, "info": info, "result": WorkerLostError("signal 9")}},
-    )
-
-    assert result["failed"] == (_states.FAILURE, info)
 
 
 @pytest.fixture

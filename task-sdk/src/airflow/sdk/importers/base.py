@@ -34,10 +34,16 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
-    from typing import Self
+    from typing import Protocol, Self
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG
+
+    class _SiblingResource(Protocol):
+        """A readable handle to a resource, e.g. a :class:`pathlib.Path` or :class:`zipfile.Path`."""
+
+        def read_bytes(self) -> bytes: ...
+
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +69,22 @@ class DagDefinition(ABC):
     def read_text(self, encoding: str = "utf-8") -> str:
         """Read and return the content of the resource as a string."""
         return self.read_bytes().decode(encoding)
+
+    def sibling(self, relpath: str) -> _SiblingResource:
+        """
+        Return a readable handle to a resource stored next to this definition.
+
+        The handle supports ``read_bytes()``. Resolution is relative to the
+        directory of the definition's own file and raises if *relpath* escapes
+        it. This is close to a Python Dag's default Jinja search path, but
+        stricter: a path escaping via a symlink is rejected (Jinja's
+        ``FileSystemLoader`` would allow it), and a Dag-level
+        ``template_searchpath`` is not consulted.
+
+        The base cannot locate siblings; a definition type that can hold them
+        overrides this.
+        """
+        raise NotImplementedError(f"{type(self).__name__} cannot resolve sibling resources")
 
     @abstractmethod
     def as_file(self) -> contextlib.AbstractContextManager[Path]:
@@ -132,6 +154,13 @@ class FilesystemDagDefinition(FileDagDefinition):
 
     def read_bytes(self) -> bytes:
         return self.path.read_bytes()
+
+    def sibling(self, relpath: str) -> Path:
+        base = self.path.parent.resolve()
+        target = base.joinpath(relpath).resolve()
+        if not target.is_relative_to(base):
+            raise ValueError(f"{relpath!r} resolves outside the Dag file's directory {str(base)!r}")
+        return target
 
     @contextlib.contextmanager
     def as_file(self) -> Generator[Path, None, None]:

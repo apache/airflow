@@ -269,7 +269,12 @@ You can also filter events by their ``extra`` key-value pairs:
         for event in events:
             print(event.extra)
 
-The ``.extra(key, value)`` method can be chained multiple times; all conditions are combined with AND logic. Other chaining methods include ``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and ``.limit(n)``.
+The ``.extra(key, value)`` method can be chained multiple times; all conditions
+are combined with AND logic. Other chaining methods include
+``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and
+``.limit(n)``. The timestamp passed to ``.after()`` and ``.before()`` can be an
+ISO 8601 string, or a :class:`~datetime.datetime` object. It must include
+timezone information in either case.
 
 The REST API also supports filtering asset events by extra key-value pairs using the ``extra`` query parameter (repeat for multiple conditions):
 
@@ -532,6 +537,8 @@ depend on whether the producer and consumer have a team association:
 
 When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
 consuming Dags, preserving backward compatibility.
+
+.. _asset-partitions:
 
 Asset partitions
 ----------------

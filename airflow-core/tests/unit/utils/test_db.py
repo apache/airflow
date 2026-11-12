@@ -30,24 +30,30 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, Table, delete, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, delete, select, text
+from sqlalchemy.orm import declarative_base
 
 from airflow import settings
 from airflow.models import Base as airflow_base
 from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
+    DBLocks,
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
+    _normalize_mysql_server_default,
     check_migrations,
     check_team_names_can_be_lower_cased,
     compare_server_default,
     compare_type,
+    create_global_lock,
     downgrade,
     get_default_connections,
     initdb,
+    reflect_tables,
     resetdb,
+    synchronize_log_template,
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
@@ -226,6 +232,25 @@ class TestDb:
     def test_has_pending_upgrade_ops(self, initialized_db):
         config = _get_alembic_config()
         check(config)
+
+    @pytest.mark.parametrize(
+        ("reflected", "rendered"),
+        [
+            pytest.param(
+                "unhex(_utf8mb4\\'00000000000000000000000000000000\\')",
+                "UNHEX('00000000000000000000000000000000')",
+                id="mysql8-charset-introducer-and-escaped-quotes",
+            ),
+            pytest.param(
+                "unhex('00000000000000000000000000000000')",
+                "UNHEX('00000000000000000000000000000000')",
+                id="plain-expression",
+            ),
+            pytest.param("(0)", "false", id="boolean"),
+        ],
+    )
+    def test_normalize_mysql_server_default_matches_rendered_default(self, reflected, rendered):
+        assert _normalize_mysql_server_default(reflected) == _normalize_mysql_server_default(rendered)
 
     def test_default_connections_sort(self):
         conn_ids = [c.conn_id for c in get_default_connections()]
@@ -431,6 +456,69 @@ class TestDb:
         lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
 
         assert bool(lss) is False
+
+
+class TestReflectTablesSchemaQualified:
+    def test_reflect_tables_uses_mapped_class_configured_schema(self, mocker):
+        metadata = MetaData()
+        table = Table(
+            "scoped_model", metadata, Column("id", Integer, primary_key=True), schema="custom_schema"
+        )
+
+        class _ScopedModel(declarative_base(metadata=metadata)):
+            __tablename__ = "scoped_model"
+            __table__ = table
+
+        mock_reflect = mocker.patch.object(MetaData, "reflect")
+        session = mocker.MagicMock()
+
+        reflect_tables([_ScopedModel], session)
+
+        mock_reflect.assert_called_once_with(
+            bind=session.bind,
+            schema="custom_schema",
+            only=["scoped_model"],
+            extend_existing=True,
+            resolve_fks=False,
+        )
+
+    def test_synchronize_log_template_finds_table_in_configured_schema(self, mocker):
+        from airflow.models.tasklog import LogTemplate
+
+        metadata = MetaData()
+        Table(
+            LogTemplate.__tablename__,
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("filename", String(2000)),
+            Column("elasticsearch_id", String(2000)),
+            schema="custom_schema",
+        )
+        mocker.patch.object(LogTemplate.__table__, "schema", "custom_schema")
+        mocker.patch("airflow.utils.db.reflect_tables", return_value=metadata)
+        session = mocker.MagicMock()
+
+        synchronize_log_template(session=session)
+
+        session.execute.assert_called()
+
+
+@pytest.mark.backend("postgres")
+def test_postgres_migration_lock_does_not_block_create_index_concurrently():
+    """The held migration lock must not block CREATE INDEX CONCURRENTLY run by migrations."""
+    engine = settings.get_engine()
+    table = "test_migration_lock_cic"
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as ddl:
+        ddl.execute(text(f"DROP TABLE IF EXISTS {table}"))
+        ddl.execute(text(f"CREATE TABLE {table} (id INTEGER)"))
+        try:
+            with create_session() as session, create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+                # Fails with a statement timeout instead of hanging if the lock connection blocks it.
+                ddl.execute(text("SET statement_timeout = '10s'"))
+                ddl.execute(text(f"CREATE INDEX CONCURRENTLY idx_{table} ON {table} (id)"))
+        finally:
+            ddl.execute(text("RESET statement_timeout"))
+            ddl.execute(text(f"DROP TABLE IF EXISTS {table}"))
 
 
 class TestAutocommitEngineForMySQL:

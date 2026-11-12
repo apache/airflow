@@ -28,6 +28,7 @@ import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
 import { Modal, RouterLink } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
@@ -63,7 +64,7 @@ const isPendingDagRun = ({ dag_run_state: state, exception_reason: reason }: Bac
 const getColumns = (
   isPartitioned: boolean,
   translate: (key: string) => string,
-): Array<ColumnDef<BackfillDagRunResponse>> => [
+): Array<ColumnDef<DataTableFeatures, BackfillDagRunResponse>> => [
   {
     accessorKey: isPartitioned ? "partition_key" : "logical_date",
     cell: ({ row }) => {
@@ -164,7 +165,7 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
   });
   const shouldPoll = backfill?.completed_at === null;
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns(
+  const { data, error, isLoading } = useBackfillServiceListBackfillDagRuns(
     {
       backfillId: backfillId ?? 0,
       limit: pageSize,
@@ -206,7 +207,6 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
         columns={getColumns(isPartitioned, translate)}
         data={data?.backfill_dag_runs ?? []}
         initialState={tableState}
-        isFetching={isFetching}
         isLoading={isBackfillLoading || isLoading}
         modelName="common:slot"
         onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}

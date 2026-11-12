@@ -21,7 +21,9 @@
 # trusted checksum and `./gradlew build` fails in java-sdk-release-verify.yml.
 #
 # This is a MANUAL job: a committer runs it from the Actions tab (or `gh workflow
-# run`) with the PR number. It checks that PR out, regenerates the metadata, and
+# run`) with the PR number. It checks that PR out, regenerates the metadata with
+# the same script as the `regenerate-java-sdk-verification-metadata` prek hook
+# (so stale entries are dropped and Static checks agree with the result), and
 # pushes the refreshed file back onto the PR branch. Being workflow_dispatch, it
 # runs with the committer's own trigger and the normal repo GITHUB_TOKEN -- no
 # standing Dependabot secret or pull_request_target write token required.
@@ -77,18 +79,19 @@ jobs:
           persist-credentials: false
       # 11: main build toolchain, 17/21: example toolchains + Gradle runtime.
       - name: Install JDK toolchains
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
         with:
           distribution: temurin
           java-version: |
             11
             17
             21
+      # Same script as the `regenerate-java-sdk-verification-metadata` prek hook: it
+      # rewrites the file from an empty component list and resolves every task the
+      # hook does. Plain `--write-verification-metadata` only appends, leaving the
+      # superseded versions behind, and the hook then fails Static checks on them.
       - name: Regenerate verification-metadata.xml
-        working-directory: java-sdk
-        # `build` resolves the same configurations the release-verify check does,
-        # so every newly-bumped artifact gets a recorded sha256.
-        run: ./gradlew --no-daemon --write-verification-metadata sha256 build
+        run: python3 scripts/ci/prek/regenerate_java_sdk_verification_metadata.py
       - name: Commit and push if the metadata changed
         env:
           # Explicit token push: the checkout stores no credentials

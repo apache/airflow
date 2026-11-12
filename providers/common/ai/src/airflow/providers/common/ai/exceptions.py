@@ -23,6 +23,26 @@ class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
 
 
+class ToolRunnerMaxIterationsError(RuntimeError):
+    """
+    Raised when an Anthropic tool runner reaches ``max_iterations`` while the model is still calling tools.
+
+    The runner's last message asks for tools and holds no answer. Airflow's default retry
+    behaviour retries it like any other exception, and a fresh attempt may finish within
+    the limit.
+    """
+
+
+class MCPToolsetNotSupportedError(NotImplementedError):
+    """
+    Raised when ``MCPToolset`` is handed to a framework adapter's ``AirflowTools``.
+
+    An MCP session belongs to the event loop that opened it, so the framework connects to the
+    server with its own MCP client instead. The adapters this provider ships name that client
+    in the message.
+    """
+
+
 class ToolApprovalError(RuntimeError):
     """
     Raised when a run paused for tool approval cannot resume safely.
@@ -34,22 +54,60 @@ class ToolApprovalError(RuntimeError):
 
 class ToolApprovalAlreadyRequestedError(AirflowFailException):
     """
-    Raised when a task instance asks for a second tool approval.
+    Raised on Airflow 3.3 when a task instance asks for a second tool approval.
 
-    Airflow keeps one approval request per task instance, across retries and clears, and a
-    second request would show the reviewer the first one's details. The task fails without
-    retrying, since a retry would ask again.
+    Airflow 3.3 keeps one approval request per task instance, across retries and clears, and
+    a second request would show the reviewer the first one's details. The task fails without
+    retrying, since a retry would ask again. Airflow 3.4 replaces a repeat request's details,
+    so there the run pauses again instead.
     """
 
 
 class UnsupportedToolDeferralError(AirflowFailException):
     """
-    Raised when an agent defers a tool call that ``AgentOperator`` cannot resolve.
+    Raised when an agent defers a tool call that nothing in the task can resolve.
 
-    Either the tool hands its work to an external system, or it needs approval where
-    approval is not available (before Airflow 3.3, or with ``durable``,
-    ``enable_hitl_review``, code mode or a ``SandboxToolset``). A retry would repeat
-    the same call, so the task fails without retrying.
+    In ``AgentOperator``, either the tool hands its work to an external system, or it needs
+    approval where approval is not available (before Airflow 3.3, or with ``durable``,
+    ``enable_hitl_review``, code mode or a ``SandboxToolset``). In ``run_durably`` for the
+    OpenAI Agents SDK, a tool call needs approval and the run cannot pause the task for it,
+    such as before Airflow 3.4 or with a ``session``. A retry would repeat the same call, so
+    the task fails without retrying.
+    """
+
+
+class SQLToolsetConnectionError(AirflowException):
+    """
+    Raised when a ``SQLToolset`` tool cannot reach its database.
+
+    The connection is not defined or does not supply a ``DbApiHook``, connecting fails, or
+    SQLAlchemy cannot be set up or loses the connection. No change to the SQL fixes it, so
+    the attempt fails for Airflow to retry instead of the model getting the error. Match it
+    in a retry policy to treat an unreachable database differently from other failures.
+
+    When the driver's message carries a secret the masker cannot remove from the exception,
+    the toolset raises a ``RuntimeError`` with the masked message instead.
+    """
+
+
+class DurableToolMetadataError(AirflowFailException):
+    """
+    Raised when a tool's ``airflow`` metadata is not ``True``, ``False`` or ``None``.
+
+    Durable execution checks it when the agent lists its tools, before the first model
+    request. Every attempt would fail the same way, so the task fails without retrying.
+    """
+
+
+class DurableJournalError(AirflowFailException):
+    """
+    Raised when durable execution cannot record or replay a step.
+
+    A step's result is not JSON-serializable, or the journal holds a result this version
+    cannot replay. Or a task resumed with the answer to an approval, and the run, which
+    took a different path this time, never came back to the call the answer is for. The
+    same step fails the same way on every attempt, and an answer cannot be matched to a
+    call nobody was asked about, so the task fails without retrying.
     """
 
 
@@ -67,6 +125,15 @@ class LLMFileAnalysisLimitExceededError(LLMFileAnalysisError):
 
 class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatError):
     """Raised when image/PDF inputs are used without ``multi_modal=True``."""
+
+
+class ReviewedOutputValidationError(ValueError):
+    """
+    Raised when a reviewer-approved output cannot be converted back into the operator's ``output_type``.
+
+    Typically the reviewer edited the output into something the type rejects, for example free text
+    for an ``int``. The task fails instead of passing a value of the wrong type to downstream tasks.
+    """
 
 
 class LowConfidenceError(ValueError):

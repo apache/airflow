@@ -12,9 +12,9 @@
   "requiredAction_one": "Ação Necessária",
   "requiredAction_other": "Ações Necessárias",
   "requiredAction_zero": "Nenhuma ação necessária",
-  "requiredActionCount_many": "Ações Necessárias ({{count}})",
-  "requiredActionCount_one": "Ação Necessária ({{count}})",
-  "requiredActionCount_other": "Ações Necessárias ({{count}})",
+  "requiredActionCount_many": "Ações Necessárias ({{count, number}})",
+  "requiredActionCount_one": "Ação Necessária ({{count, number}})",
+  "requiredActionCount_other": "Ações Necessárias ({{count, number}})",
   "requiredActionCount_zero": "Nenhuma ação necessária",
   "requiredActionState": "Estado da Ação Necessária",
   "response": {
@@ -25,8 +25,23 @@
     "received": "Resposta recebida em ",
     "respond": "Responder",
     "responded_by_user_name": "Respondido por (Nome de usuário)",
+    "selectAtLeastOne": "Selecione pelo menos uma opção",
     "success": "Resposta de {{taskId}} bem-sucedida",
     "title": "Instância de Tarefa Humana - {{taskId}}"
+  },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Selecione uma ação necessária para ver os detalhes"
+    },
+    "list": {
+      "completedRequiredActions": "Ações necessárias concluídas ({{count, number}})",
+      "loadError": "Não foi possível carregar as ações necessárias",
+      "loadingActions": "Carregando ações necessárias...",
+      "pendingRequiredActions": "Ações necessárias pendentes ({{count, number}})"
+    },
+    "openReviewDrawer": "Abrir painel de revisão",
+    "pageLimitHint": "Apenas as primeiras ações são mostradas aqui. Use \"$t(review.viewAll)\" para ver todas.",
+    "viewAll": "Ver todas as ações necessárias"
   },
   "state": {
     "approvalReceived": "Aprovação Recebida",

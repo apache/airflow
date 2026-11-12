@@ -10,6 +10,40 @@
       "eventType": "סוג אירוע"
     }
   },
+  "dagBundles": {
+    "active": "פעיל",
+    "columns": {
+      "active": "פעיל",
+      "importErrors": "שגיאות ייבוא",
+      "lastRefreshed": "רוענן לאחרונה",
+      "name": "שם",
+      "version": "גרסה"
+    },
+    "detail": {
+      "status": "סטטוס"
+    },
+    "files": {
+      "columns": {
+        "file": "קובץ",
+        "lastParsed": "נותח לאחרונה",
+        "parseDuration": "משך הניתוח"
+      },
+      "importErrorForbidden": "אין לך הרשאה לקרוא את שגיאת הייבוא הזו.",
+      "importErrorGone": "שגיאת ייבוא זו אינה מתועדת עוד. כנראה שהיא תוקנה והניתוח מחדש זיהה זאת.",
+      "neverParsed": "אף פעם",
+      "parsedFile_one": "קובץ שנותח",
+      "parsedFile_other": "קבצים שנותחו",
+      "parsedFile_two": "קבצים שנותחו",
+      "parsedFilesNote": "מוצגים רק קבצים שמגדירים Dag או שהייבוא שלהם נכשל.",
+      "showImportError_one": "הצג שגיאה",
+      "showImportError_other": "הצגת {{count, number}} שגיאות",
+      "showImportError_two": "הצגת {{count, number}} שגיאות"
+    },
+    "inactive": "לא פעיל",
+    "neverRefreshed": "אף פעם",
+    "notRefreshedYet": "טרם רוענן",
+    "notVersioned": "ללא גרסה"
+  },
   "deadlines": {
     "columns": {
       "alertName": "שם התראה",
@@ -40,6 +74,7 @@
     "columns": {
       "dag": "Dag",
       "key": "מפתח",
+      "timestamp": "חותמת זמן",
       "value": "ערך"
     },
     "delete": {
@@ -57,6 +92,9 @@
       "successTitle": "XCom עודכן",
       "title": "ערוך XCom"
     },
+    "entry_one": "רשומת XCom",
+    "entry_other": "רשומות XCom",
+    "entry_two": "רשומות XCom",
     "key": "מפתח",
     "title": "XCom",
     "value": "ערך"
