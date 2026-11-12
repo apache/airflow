@@ -164,12 +164,6 @@ def dag_state_change_process_pool_size() -> int:
 
 
 @cache
-def api_server_max_pending_events() -> int:
-    """[openlineage] api_server_max_pending_events."""
-    return conf.getint(_CONFIG_SECTION, "api_server_max_pending_events", fallback="1000")
-
-
-@cache
 def execution_timeout() -> int:
     """[openlineage] execution_timeout."""
     return conf.getint(_CONFIG_SECTION, "execution_timeout", fallback="10")

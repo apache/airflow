@@ -3440,7 +3440,7 @@ class TestExecuteRouting:
                 listener.before_stopping(component=app)
 
     def test_before_stopping_shuts_down_thread_pool_in_api_server(self):
-        """In API server, before_stopping shuts down ThreadPoolExecutor with wait=False and cancel_futures=True."""
+        """In API server, before_stopping shuts down ThreadPoolExecutor with wait=True."""
         from concurrent.futures import ThreadPoolExecutor
 
         from fastapi import FastAPI
@@ -3454,13 +3454,12 @@ class TestExecuteRouting:
 
         listener.before_stopping(component=app)
 
-        mock_thread_executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+        mock_thread_executor.shutdown.assert_called_once_with(wait=True)
         assert listener._thread_executor is None
 
     def test_fork_safety_recreates_lock_and_resets_executors(self):
-        """When PID changes (simulating fork), inherited locked mutex does not deadlock and executors reset."""
+        """After fork, _after_fork_child recreates lock and resets executors."""
         listener = OpenLineageListener()
-        listener._pid = 12345
         mock_thread_executor = MagicMock()
         mock_process_executor = MagicMock()
         listener._thread_executor = mock_thread_executor
@@ -3470,15 +3469,12 @@ class TestExecuteRouting:
         listener._lock.acquire()
         assert listener._lock.locked()
 
-        # In child process with a new PID
-        with mock.patch("os.getpid", return_value=99999):
-            # If _check_pid does not recreate _lock, acquiring it will deadlock
-            listener._check_pid()
-            assert listener._pid == 99999
-            assert listener._thread_executor is None
-            assert listener._executor is None
-            # Lock should now be unlocked and fresh
-            assert not listener._lock.locked()
+        # Child process receives _after_fork_child notification
+        listener._after_fork_child()
+        assert listener._thread_executor is None
+        assert listener._executor is None
+        # Lock should now be unlocked and fresh
+        assert not listener._lock.locked()
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
     @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
@@ -3508,24 +3504,15 @@ class TestExecuteRouting:
         _, kwargs = mock_process_executor.call_args
         assert "initializer" in kwargs
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
-    def test_api_server_env_var_prevents_process_pool_fail_open(
-        self, mock_process_executor, mock_thread_executor
-    ):
-        """When _AIRFLOW_COMPONENT=api_server, listener uses ThreadPoolExecutor even if on_starting was not called."""
-        listener = OpenLineageListener()
-        # on_starting was never called, self._is_api_server_flag is False
-        assert listener._is_api_server_flag is False
+    def test_api_server_identified_by_fastapi_component(self):
+        """FastAPI component in on_starting marks listener as API server."""
+        from fastapi import FastAPI
 
-        with mock.patch.dict("os.environ", {"_AIRFLOW_COMPONENT": "api_server"}):
-            assert listener._is_api_server is True
-            _ = listener.executor
-            mock_process_executor.assert_not_called()
-            mock_thread_executor.assert_called_once_with(
-                max_workers=1,
-                thread_name_prefix="openlineage-api-executor",
-            )
+        listener = OpenLineageListener()
+        assert listener._is_api_server is False
+        app = FastAPI()
+        listener.on_starting(component=app)
+        assert listener._is_api_server is True
 
     def test_submit_callable_concurrent_runtime_errors_do_not_destroy_new_executor(self):
         """If another thread already recreated the executor, a secondary RuntimeError does not destroy it."""
@@ -3562,7 +3549,6 @@ class TestExecuteRouting:
 
         def child_work(queue):
             try:
-                listener._check_pid()
                 is_none = listener._thread_executor is None
                 adapter_in_child = _get_process_adapter()
                 diff_adapter = id(adapter_in_child) != id(adapter_in_parent)
@@ -3580,82 +3566,3 @@ class TestExecuteRouting:
         assert err is None
         assert is_none is True
         assert diff_adapter is True
-
-    def test_bounded_semaphore_drops_events_when_queue_saturated(self):
-        """API server drops events when bounded semaphore capacity is reached."""
-        listener = OpenLineageListener()
-        listener._is_api_server = True
-
-        with mock.patch("airflow.providers.openlineage.conf.api_server_max_pending_events", return_value=2):
-            listener._semaphore = None
-
-            gate = threading.Event()
-
-            def blocking_worker():
-                gate.wait(timeout=5)
-                return "done"
-
-            # Submit task 1 - starts executing
-            fut1 = listener.submit_callable(blocking_worker)
-            assert not fut1.done()
-
-            # Submit task 2 - queued (capacity reached: 2)
-            fut2 = listener.submit_callable(blocking_worker)
-            assert not fut2.done()
-
-            # Submit task 3 - should be rejected immediately without blocking
-            start_time = time.time()
-            fut3 = listener.submit_callable(blocking_worker)
-            duration = time.time() - start_time
-            assert duration < 0.2, f"Submission took {duration:.3f}s, must not block"
-
-            assert fut3.done()
-            with pytest.raises(RuntimeError, match="OpenLineage API server queue saturated"):
-                fut3.result()
-
-            # Release the gate to let workers finish
-            gate.set()
-            assert fut1.result(timeout=2) == "done"
-            assert fut2.result(timeout=2) == "done"
-
-            # After completion, semaphore has capacity again
-            fut4 = listener.submit_callable(lambda: "success")
-            assert fut4.result(timeout=2) == "success"
-
-    def test_bounded_semaphore_disabled_when_zero(self):
-        """When api_server_max_pending_events == 0, semaphore is None (unbounded)."""
-        listener = OpenLineageListener()
-        listener._is_api_server = True
-
-        with mock.patch("airflow.providers.openlineage.conf.api_server_max_pending_events", return_value=0):
-            listener._semaphore = None
-            sem = listener._get_semaphore()
-            assert sem is None
-
-    def test_bounded_semaphore_not_used_in_scheduler(self):
-        """When _is_api_server is False, semaphore is not used."""
-        listener = OpenLineageListener()
-        listener._is_api_server = False
-
-        sem = listener._get_semaphore()
-        assert sem is None
-
-    def test_bounded_semaphore_permit_released_on_submission_failure(self):
-        """When executor submit throws an unhandled exception, semaphore permit is released."""
-        listener = OpenLineageListener()
-        listener._is_api_server = True
-
-        with mock.patch("airflow.providers.openlineage.conf.api_server_max_pending_events", return_value=1):
-            listener._semaphore = None
-            sem = listener._get_semaphore()
-            assert sem._value == 1
-
-            broken_executor = mock.MagicMock()
-            broken_executor.submit.side_effect = RuntimeError("Fatal worker creation failure")
-            listener._thread_executor = broken_executor
-
-            with pytest.raises(RuntimeError, match="Fatal worker creation failure"):
-                listener.submit_callable(lambda: "never")
-
-            # Verify permit was restored and not leaked
-            assert sem._value == 1

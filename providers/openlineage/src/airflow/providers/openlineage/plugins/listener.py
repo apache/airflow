@@ -169,37 +169,20 @@ class OpenLineageListener:
     def __init__(self):
         self._executor: ProcessPoolExecutor | None = None
         self._thread_executor: ThreadPoolExecutor | None = None
-        self._semaphore: threading.BoundedSemaphore | None = None
-        self._is_api_server_flag: bool = False
-        self._pid: int = os.getpid()
+        self._is_api_server: bool = False
         self._lock = threading.Lock()
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
+        if hasattr(os, "register_at_fork"):
+            os.register_at_fork(after_in_child=self._after_fork_child)
 
-    @property
-    def _is_api_server(self) -> bool:
-        return self._is_api_server_flag or os.environ.get("_AIRFLOW_COMPONENT") == "api_server"
-
-    @_is_api_server.setter
-    def _is_api_server(self, value: bool) -> None:
-        self._is_api_server_flag = value
-
-    def _check_pid(self) -> None:
-        """Reset executors if the process was forked (e.g. Gunicorn master to worker)."""
-        current_pid = os.getpid()
-        if self._pid != current_pid:
-            # Fork occurred. The inherited lock might be held by a thread that no longer exists in this child.
-            # Replace it with a fresh lock using double-checked locking to avoid races between child threads.
-            new_lock = threading.Lock()
-            with new_lock:
-                if self._pid != current_pid:
-                    self._lock = new_lock
-                    self._executor = None
-                    self._thread_executor = None
-                    self._semaphore = None
-                    _get_process_adapter.cache_clear()
-                    self._pid = current_pid
+    def _after_fork_child(self) -> None:
+        """Reset executors and adapter cache if the process was forked."""
+        self._lock = threading.Lock()
+        self._executor = None
+        self._thread_executor = None
+        _get_process_adapter.cache_clear()
 
     if AIRFLOW_V_3_0_PLUS:
 
@@ -1147,7 +1130,6 @@ class OpenLineageListener:
 
     @property
     def executor(self) -> Executor:
-        self._check_pid()
         if self._is_api_server:
             if not self._thread_executor:
                 with self._lock:
@@ -1177,25 +1159,24 @@ class OpenLineageListener:
     @hookimpl
     def on_starting(self, component) -> None:
         self.log.debug("on_starting: %s", component.__class__.__name__)
-        if component.__class__.__name__ == "FastAPI" or getattr(component, "__module__", "").startswith(
-            "fastapi"
-        ):
+        from fastapi import FastAPI
+
+        if isinstance(component, FastAPI):
             self._is_api_server = True
 
     @hookimpl
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
-        self._check_pid()
         with self._lock:
             thread_executor, self._thread_executor = self._thread_executor, None
-            self._semaphore = None
             process_executor, self._executor = self._executor, None
 
         if thread_executor is not None:
             try:
-                thread_executor.shutdown(wait=False, cancel_futures=True)
-            except Exception:
+                thread_executor.shutdown(wait=True)
+            except BaseException:
                 self.log.warning("OpenLineage thread executor did not shut down cleanly.", exc_info=True)
+                thread_executor.shutdown(wait=False, cancel_futures=True)
 
         if process_executor is None:
             # Do not build a pool just to tear it down -- on the task runner this hook fires at the
@@ -1374,64 +1355,29 @@ class OpenLineageListener:
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
-    def _get_semaphore(self) -> threading.BoundedSemaphore | None:
-        if not self._is_api_server:
-            return None
-        if self._semaphore is None:
-            with self._lock:
-                if self._semaphore is None:
-                    max_pending = conf.api_server_max_pending_events()
-                    if max_pending > 0:
-                        # Capacity includes 1 actively running thread plus queue buffer
-                        self._semaphore = threading.BoundedSemaphore(max_pending)
-        return self._semaphore
-
     def submit_callable(self, callable, *args, **kwargs):
-        sem = self._get_semaphore()
-        if sem is not None and not sem.acquire(blocking=False):
-            max_pending = conf.api_server_max_pending_events()
-            self.log.warning(
-                "OpenLineage API server event queue saturated (limit=%d); dropping event to prevent memory growth under collector latency/outage.",
-                max_pending,
-            )
-            from concurrent.futures import Future
-
-            rejected_fut = Future()
-            rejected_fut.set_exception(
-                RuntimeError(f"OpenLineage API server queue saturated (limit={max_pending})")
-            )
-            return rejected_fut
-
+        current_executor = self.executor
         try:
-            current_executor = self.executor
-            try:
-                fut = current_executor.submit(callable, *args, **kwargs)
-            except RuntimeError:
-                if self._is_api_server:
-                    self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
-                    with self._lock:
-                        if self._thread_executor is current_executor:
-                            with suppress(Exception):
-                                self._thread_executor.shutdown(wait=False, cancel_futures=True)
-                            self._thread_executor = None
-                            self._semaphore = None
-                else:
-                    self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
-                    with self._lock:
-                        if self._executor is current_executor:
-                            with suppress(Exception):
-                                self._executor.shutdown(wait=False)
-                            self._executor = None
-                fut = self.executor.submit(callable, *args, **kwargs)
+            fut = current_executor.submit(callable, *args, **kwargs)
+        except RuntimeError:
+            if self._is_api_server:
+                self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
+                with self._lock:
+                    if self._thread_executor is current_executor:
+                        with suppress(Exception):
+                            self._thread_executor.shutdown(wait=False, cancel_futures=True)
+                        self._thread_executor = None
+            else:
+                self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
+                with self._lock:
+                    if self._executor is current_executor:
+                        with suppress(Exception):
+                            self._executor.shutdown(wait=False)
+                        self._executor = None
+            fut = self.executor.submit(callable, *args, **kwargs)
 
-            if sem is not None:
-                fut.add_done_callback(lambda _: sem.release())
-            fut.add_done_callback(self.log_submit_error)
-            return fut
-        except BaseException:
-            if sem is not None:
-                sem.release()
-            raise
+        fut.add_done_callback(self.log_submit_error)
+        return fut
 
     def log_submit_error(self, fut):
         if fut.exception():
