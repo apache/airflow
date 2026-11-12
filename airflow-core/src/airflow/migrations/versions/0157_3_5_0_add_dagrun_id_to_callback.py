@@ -42,17 +42,24 @@ depends_on = None
 airflow_version = "3.5.0"
 
 
-def _deserialize_data(data):
+def _deserialize_callback_data(data):
     if isinstance(data, str):
         try:
             data = json.loads(data)
         except json.JSONDecodeError:
-            return {}
-    return data.get("__var", data) if isinstance(data, dict) else {}
+            return None
+    if not isinstance(data, dict):
+        return None
+    callback_data = data.get("__var", data)
+    return (data, callback_data) if isinstance(callback_data, dict) else None
 
 
 def _extract_dagrun_id(data) -> int | None:
-    dagrun_id = _deserialize_data(data).get("dag_run_id")
+    deserialized_data = _deserialize_callback_data(data)
+    if deserialized_data is None:
+        return None
+    _, callback_data = deserialized_data
+    dagrun_id = callback_data.get("dag_run_id")
     if dagrun_id is None:
         return None
     try:
@@ -167,19 +174,10 @@ def _restore_legacy_dagrun_id(conn, batch_size: int) -> None:
             return
 
         for callback_id, data, dagrun_id in rows:
-            if isinstance(data, str):
-                try:
-                    serialized_data = json.loads(data)
-                except json.JSONDecodeError:
-                    continue
-            elif isinstance(data, dict):
-                serialized_data = data
-            else:
+            deserialized_data = _deserialize_callback_data(data)
+            if deserialized_data is None:
                 continue
-
-            callback_data = serialized_data.get("__var", serialized_data)
-            if not isinstance(callback_data, dict):
-                continue
+            serialized_data, callback_data = deserialized_data
             callback_data["dag_run_id"] = str(dagrun_id)
             conn.execute(
                 callback.update().where(callback.c.id == callback_id).values(data=json.dumps(serialized_data))
