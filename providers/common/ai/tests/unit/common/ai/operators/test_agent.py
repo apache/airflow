@@ -4352,6 +4352,26 @@ class TestAgentOperatorAsync:
         pause.assert_called_once()
         context["task_instance"].axcom_push.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_a_refused_tool_approval_pause_reports_the_failed_run(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """A run that asks for external execution cannot pause: the attempt fails, and reports its
+        run id and usage the way ``execute`` does."""
+        requests = DeferredToolRequests(calls=[ToolCallPart("external_tool", {}, tool_call_id="call-1")])
+        _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result(requests))
+        context = _make_async_context()
+        ti = context["task_instance"]
+        ti.xcom_push.side_effect = _refused_on_the_event_loop(lambda **kwargs: None)
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        with pytest.raises(UnsupportedToolDeferralError, match="external_tool"):
+            await op.aexecute(context)
+
+        assert {c.kwargs["key"] for c in ti.xcom_push.call_args_list} == {"run_id", "usage"}
+        ti.axcom_push.assert_not_awaited()
+
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

@@ -1183,9 +1183,16 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
         """Async version of :meth:`_complete_run`, without the features :meth:`aexecute` refuses."""
         log_run_summary(self.log, result, usage=attempt_usage)
         if isinstance(result.output, DeferredToolRequests):
-            await asyncio.to_thread(
-                self._pause_for_tool_approval, context, result, attempt_usage=attempt_usage
-            )
+            try:
+                await asyncio.to_thread(
+                    self._pause_for_tool_approval, context, result, attempt_usage=attempt_usage
+                )
+            except BaseException as e:
+                # As in _complete_run: a refused pause is the first point this attempt is known
+                # to have failed.
+                if (run_usage := self._run_usage) is not None and not _is_awaiting_input(e):
+                    await asyncio.to_thread(self._report_failed_run, context, run_usage, run_id=result.run_id)
+                raise
         await self._aemit_run_metadata(context, result, usage=attempt_usage)
         if self._usage_budget and (run_usage := self._run_usage) is not None:
             self._log_cumulative_usage(run_usage)
