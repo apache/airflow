@@ -72,6 +72,8 @@ from airflow_breeze.utils.fork_ci_messages import (
     STATUS_CONTEXT,
     STATUS_STATES,
     Marker,
+    deleted_fork_close_comment,
+    failed_inactivity_close_comment,
     fork_actions_url,
     gate_modified_close_comment,
     inactivity_close_comment,
@@ -103,9 +105,6 @@ CI_WORKFLOW_PATH = f".github/workflows/{CI_WORKFLOW_FILE}"
 GATE_PROTECTED_PATHS = frozenset(
     {
         GATE_SCRIPT_PATH,
-        "dev/breeze/src/airflow_breeze/utils/fork_ci_github.py",
-        "dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py",
-        "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py",
         ".github/workflows/fork-ci-monitor.yml",
     }
 )
@@ -236,7 +235,7 @@ class ForkState(str, Enum):
     GATE_MODIFIED = "gate_modified"
 
 
-CLOSABLE_STATES = frozenset({ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH})
+CLOSABLE_STATES = frozenset({ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH, ForkState.FAILED})
 
 
 @dataclass(frozen=True)
@@ -287,6 +286,7 @@ class PullRequestSnapshot:
     last_reopened_at: datetime | None = None
     last_reopened_by_anyone_at: datetime | None = None
     last_base_change_at: datetime | None = None
+    last_comment_at: datetime | None = None
     # (changed at, previous base, new base) for each retarget, oldest first.
     base_changes: tuple[tuple[datetime, str, str], ...] = ()
     current_status: tuple[str, str, str] | None = None
@@ -682,7 +682,18 @@ def classify(
         return release(ForkState.UNGATED, functools.partial(ungated_comment, base_ref=pr.base_ref))
 
     if pr.head_repo is None:
-        plan.unknown.append("head repository no longer exists")
+        _enter_state(plan, pr, labels, ForkState.CLOSED)
+        _set_marker_comment(
+            plan,
+            pr,
+            state_comment(
+                Marker(ForkState.CLOSED.value, pr.head_sha, now),
+                fork=None,
+                run_url=None,
+            ),
+        )
+        plan.new_comments.append(deleted_fork_close_comment())
+        plan.close = True
         return plan
 
     reason = decide(_gate_event(pr, repo), config).reason
@@ -711,7 +722,10 @@ def classify(
     reopened_since_closing = {
         ForkState.CLOSED.value: pr.last_reopened_by_anyone_at,
         ForkState.GATE_BYPASSED.value: pr.last_reopened_at,
-        ForkState.GATE_MODIFIED.value: pr.last_reopened_at,
+        ForkState.GATE_MODIFIED.value: max(
+            (t for t in (pr.last_reopened_by_anyone_at, pr.last_reopened_at) if t is not None),
+            default=None,
+        ),
     }
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
@@ -821,7 +835,17 @@ def classify(
             workflow_disabled_comment(fork=pr.head_repo, workflow_state=fork.workflow_state)
         )
 
-    if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
+    inactive_for_closing = state in (ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH) or (
+        state == ForkState.FAILED
+        and (
+            pr.last_comment_at is None or now - pr.last_comment_at >= timedelta(days=config.close_after_days)
+        )
+    )
+    if (
+        state in CLOSABLE_STATES
+        and now - since >= timedelta(days=config.close_after_days)
+        and inactive_for_closing
+    ):
         _enter_state(plan, pr, labels, ForkState.CLOSED)
         _set_marker_comment(
             plan,
@@ -832,7 +856,11 @@ def classify(
                 run_url=None,
             ),
         )
-        plan.new_comments.append(inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo))
+        if state == ForkState.FAILED:
+            comment = failed_inactivity_close_comment(days=config.close_after_days)
+        else:
+            comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo or "")
+        plan.new_comments.append(comment)
         plan.close = True
         return plan
 
@@ -894,7 +922,7 @@ fragment PassTwoFields on PullRequest {
       labels(first: 50) { nodes { name } }
       timelineItems(
         last: 100,
-        itemTypes: [CONVERT_TO_DRAFT_EVENT, UNLABELED_EVENT, REOPENED_EVENT, BASE_REF_CHANGED_EVENT]
+        itemTypes: [CONVERT_TO_DRAFT_EVENT, UNLABELED_EVENT, REOPENED_EVENT, BASE_REF_CHANGED_EVENT, ISSUE_COMMENT]
       ) {
         nodes {
           __typename
@@ -902,6 +930,7 @@ fragment PassTwoFields on PullRequest {
           ... on UnlabeledEvent { createdAt label { name } }
           ... on ReopenedEvent { createdAt actor { login } }
           ... on BaseRefChangedEvent { createdAt previousRefName currentRefName }
+          ... on IssueComment { createdAt author { login } }
         }
       }
       commits(last: 1) { nodes { commit {
@@ -914,7 +943,7 @@ fragment PassTwoFields on PullRequest {
       } } }
       comments(first: 100) {
         pageInfo { hasNextPage endCursor }
-        nodes { databaseId body author { login } }
+        nodes { databaseId body createdAt author { login } }
       }
 }
 """
@@ -983,6 +1012,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
     last_reopened = None
     last_reopened_by_anyone = None
     last_base_change = None
+    last_comment_at = None
     base_changes = []
     for item in (node.get("timelineItems") or {}).get("nodes") or []:
         if item["__typename"] == "ConvertToDraftEvent":
@@ -1002,6 +1032,10 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
             label = (item.get("label") or {}).get("name")
             if label == LABEL_USE_PROJECT_CI:
                 last_unlabel = parse_github_datetime(item["createdAt"])
+        elif item["__typename"] == "IssueComment":
+            if not _is_bot(_login(item.get("author"))):
+                t = parse_github_datetime(item["createdAt"])
+                last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
 
     current_status = None
     status_created_at = None
@@ -1027,6 +1061,10 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
             status_created_at = parse_github_datetime(context.get("createdAt") or "")
 
     comments = node.get("comments") or {}
+    for c in comments.get("nodes") or []:
+        if not _is_bot(_login(c.get("author"))) and c.get("createdAt"):
+            t = parse_github_datetime(c["createdAt"])
+            last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
     found = find_marker_comment(comments.get("nodes") or [])
     page_info = comments.get("pageInfo") or {}
     comments_cursor = page_info.get("endCursor") if found is None and page_info.get("hasNextPage") else None
@@ -1052,6 +1090,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         last_reopened_at=last_reopened,
         last_reopened_by_anyone_at=last_reopened_by_anyone,
         last_base_change_at=last_base_change,
+        last_comment_at=last_comment_at,
         base_changes=tuple(base_changes),
         current_status=current_status,
         status_created_at=status_created_at,
@@ -1698,7 +1737,7 @@ def fetch_fork_observations(
             suites = [
                 suite
                 for suite in (commit.get("checkSuites") or {}).get("nodes") or []
-                if (run := suite.get("workflowRun") or {}).get("event") == "push"
+                if (run := suite.get("workflowRun") or {}).get("event") in ("push", "workflow_dispatch")
                 and _workflow_file((run.get("workflow") or {}).get("resourcePath")) == CI_WORKFLOW_FILE
             ]
             if not suites:
@@ -2291,7 +2330,7 @@ query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
   repository(owner: $owner, name: $name) { pullRequest(number: $number) {
     comments(first: 100, after: $cursor) {
       pageInfo { hasNextPage endCursor }
-      nodes { databaseId body author { login } }
+      nodes { databaseId body createdAt author { login } }
     }
   } }
 }
@@ -2306,6 +2345,10 @@ def find_state_comment(client: GitHubClient, repo: str, pr: PullRequestSnapshot)
         comments = client.graphql(
             COMMENTS_QUERY, {"owner": owner, "name": name, "number": pr.number, "cursor": cursor}
         )["repository"]["pullRequest"]["comments"]
+        for c in comments.get("nodes") or []:
+            if not _is_bot(_login(c.get("author"))) and c.get("createdAt"):
+                t = parse_github_datetime(c["createdAt"])
+                pr = replace(pr, last_comment_at=max(filter(None, (pr.last_comment_at, t)), default=t))
         found = find_marker_comment(comments["nodes"])
         if found is not None:
             marker, comment_id, body, error = found

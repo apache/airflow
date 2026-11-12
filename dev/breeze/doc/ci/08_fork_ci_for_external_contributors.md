@@ -570,7 +570,7 @@ stateDiagram-v2
             unverified_author_draft --> unverified_ready: author marks it ready
         }
     }
-    gated --> closed: setup_required or awaiting_push for close_after_days (30 days)
+    gated --> closed: setup_required, awaiting_push, or failed without comments for close_after_days (30 days); or deleted head repository
     gated --> released: maintainer adds use project ci
     gated --> ungated: base branch without fork CI, e.g. v3-3-test
     gated --> gate_modified: pull request changes the gate
@@ -599,7 +599,7 @@ review, and `needs project ci` waits for a maintainer to review the CI change an
 | released | Usual review with project CI | undraft, except the author's draft | unchanged | remove |
 | ungated | Usual review with project CI | undraft, except the author's draft | unchanged | remove |
 | closed | Author sets up fork CI and reopens | unchanged | remove | remove |
-| gate_modified | Maintainer reopens and adds `use project ci` | unchanged | remove | remove |
+| gate_modified | Author restores the gate and reopens, or maintainer adds `use project ci` | unchanged | remove | remove |
 | gate_bypassed | Maintainer reopens and adds `use project ci` | unchanged | remove | remove |
 
 The reconciler never undrafts the author's draft. It does not draft a closed pull request either,
@@ -613,7 +613,7 @@ since the draft-state job runs after the close and GitHub refuses to draft a clo
 | **failed**: conclusion is failure, cancelled or timed out | `failure` (red), link to the run | update with the run link |
 | **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
-| **closed**: setup_required or awaiting_push for `close_after_days` | unchanged | close with a new comment; reopening restarts the clock |
+| **closed**: setup_required or awaiting_push for `close_after_days`, failed for `close_after_days` without human comments, or deleted head repository | unchanged | close with a new comment; reopening restarts the clock |
 | **released**: the pull request carries `use project ci` | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **ungated**: the base branch has no gate, for example after retargeting to an older release branch | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
@@ -806,9 +806,9 @@ tampering check applies to (`external` and `pilot`), the reconciler lists the ch
 per head commit, counting a renamed file under both paths, and closes the pull request
 with a comment explaining why when it changes any of:
 
-- `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`, the reconciler modules
-  `fork_ci_reconcile.py`, `fork_ci_github.py` and `fork_ci_messages.py`, or
-  `.github/workflows/fork-ci-monitor.yml`;
+- `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` or `.github/workflows/fork-ci-monitor.yml`
+  (edits to reconciler modules under `dev/breeze/src/` are classified as CI-defining files that
+  transition green runs to `green_unverified` with `needs project ci`);
 - `.github/fork-ci-gate.toml`, other than adding, changing or removing the author's own
   `[pilot]` entry, which is how contributors join and leave the pilot (the configuration is
   parsed from the head commit and compared with its version at the pull request's merge base,
@@ -839,10 +839,9 @@ released to project CI.
 
 The state is `gate_modified`: the pull request loses `ready for maintainer review`
 and `needs project ci`, gets an `error` status linking its changed files, and the closure is
-reported to Slack as an attention item. Gate tampering is checked first and wins. As for gate
-tampering, only a reopen by someone other than the author counts: an open pull request whose
-marker says `gate_modified` and that was not reopened since is closed again, and a maintainer's
-reopen without restoring the gate closes it again on the next run. A maintainer who wants the
+reported to Slack as an attention item. Gate tampering is checked first and wins. When closed for `gate_modified`,
+the author can revert or remove the gate change and reopen the pull request; if reopened with the
+gate change still present, it is closed again on the next run. A maintainer who wants the
 change adds `use project ci`, which releases the pull request before any of these checks. Each
 of these files carries a comment saying so.
 
@@ -1169,8 +1168,7 @@ Unknown means any of:
   conclusion outside the modelled set.
 - A workflow state outside `active` / `disabled_fork` / `disabled_manually` / `disabled_inactivity` / not found.
 - A mutation that returned an error (label, comment, close, status).
-- A head repository that no longer exists.
-- A state comment whose marker cannot be parsed.
+- A state comment whose marker cannot be parsed. (A head repository that no longer exists is auto-closed with a polite explanation rather than alerted).
 
 Expected states never alert. The message lists the pull request numbers and the reason for
 each, with a link to the workflow run, so a maintainer can act. The run itself still ends

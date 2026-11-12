@@ -731,6 +731,35 @@ def test_close_clock(marker, should_close):
 
 
 @pytest.mark.parametrize(
+    ("marker", "last_comment_at", "should_close"),
+    [
+        pytest.param(_marker("failed", days_ago=7), None, True, id="failed-seven-days-no-comments"),
+        pytest.param(
+            _marker("failed", days_ago=7), NOW - timedelta(days=8), True, id="failed-seven-days-old-comments"
+        ),
+        pytest.param(
+            _marker("failed", days_ago=7),
+            NOW - timedelta(days=2),
+            False,
+            id="failed-seven-days-recent-comments",
+        ),
+        pytest.param(_marker("failed", days_ago=6.9), None, False, id="failed-under-seven-days"),
+    ],
+)
+def test_failing_pull_request_inactivity_clock(marker, last_comment_at, should_close):
+    pr = _pr(marker=marker, last_comment_at=last_comment_at)
+    failed_fork = ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE")
+    plan, _, _ = _classify(pr, failed_fork)
+
+    assert plan.close is should_close
+    if should_close:
+        assert plan.state == ForkState.CLOSED
+        assert "Closing this pull request because CI has been failing in your fork" in plan.new_comments[0]
+    else:
+        assert plan.state == ForkState.FAILED
+
+
+@pytest.mark.parametrize(
     "reopened_at",
     [pytest.param(None, id="never-reopened"), pytest.param(NOW - timedelta(days=31), id="reopened-before")],
 )
@@ -867,10 +896,15 @@ def test_both_override_labels_are_reported():
     assert len(plan.attention) == 1
 
 
-def test_deleted_head_repository_is_unknown():
+def test_deleted_head_repository_is_closed():
     plan, _, _ = _classify(_pr(head_repo=None), GREEN)
 
-    assert plan.unknown == ["head repository no longer exists"]
+    assert plan.state == ForkState.CLOSED
+    assert plan.close is True
+    assert (
+        "Closing this pull request because the head fork repository no longer exists." in plan.new_comments[0]
+    )
+    assert plan.unknown == []
     assert plan.status is None
     assert plan.draft is None
 
@@ -2268,6 +2302,44 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
     assert client.graphql.call_args.args[1] == {"o0": "someone", "n0": "my-airflow", "s0": "sha1"}
 
 
+def test_fetch_fork_observations_accepts_workflow_dispatch(client):
+    pr = parse_pull_request(_pr_node(1, head_repo="someone/my-airflow", head_sha="sha1"))
+    client.graphql.return_value = {
+        "pr0": {
+            "object": {
+                "checkSuites": {
+                    "nodes": [
+                        {
+                            "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:40:00Z",
+                            "status": "COMPLETED",
+                            "conclusion": "SUCCESS",
+                            "workflowRun": {
+                                "databaseId": 88,
+                                "runAttempt": 1,
+                                "url": "dispatch-run",
+                                "event": "workflow_dispatch",
+                                "workflow": {"resourcePath": "/x/ci-amd.yml"},
+                            },
+                        },
+                    ]
+                }
+            }
+        }
+    }
+
+    observations = fetch_fork_observations(client, [pr])
+
+    assert observations[1] == ForkObservation(
+        suite_status="COMPLETED",
+        suite_conclusion="SUCCESS",
+        run_url="dispatch-run",
+        run_id=88,
+        run_attempt=1,
+        completed_at=datetime(2026, 11, 2, 0, 40, tzinfo=UTC),
+    )
+
+
 def test_state_comment_is_found_beyond_the_first_page(client):
     marker = _marker("running")
     first_page = {
@@ -3289,6 +3361,34 @@ def test_unfinished_gate_change_closure_is_retried():
     assert "Closing this pull request because it changes the fork CI gate." in plan.new_comments[0]
 
 
+def test_author_reopen_allowed_when_gate_change_removed():
+    pr = _pr(
+        marker=_marker("gate_modified", days_ago=1),
+        last_reopened_by_anyone_at=NOW,
+    )
+    plan, _, _ = _classify(pr, GREEN, gate_change=None)
+
+    assert plan.state == ForkState.GREEN
+    assert plan.close is False
+
+
+def test_author_reopen_reclosed_when_gate_change_remains():
+    pr = _pr(
+        marker=_marker("gate_modified", days_ago=1),
+        last_reopened_by_anyone_at=NOW,
+    )
+    plan, _, _ = _classify(
+        pr, GREEN, gate_change="it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`"
+    )
+
+    assert plan.state == ForkState.GATE_MODIFIED
+    assert plan.close is True
+    assert (
+        "changes the fork CI gate: it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`"
+        in plan.new_comments[0]
+    )
+
+
 PILOT_BASE = "enabled = true\n[pilot]\nother = 2026-10-01T00:00:00Z\n"
 
 
@@ -3382,6 +3482,12 @@ def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="
             {},
             "it changes `.github/workflows/fork-ci-monitor.yml`",
             id="monitor-moved-away",
+        ),
+        pytest.param(
+            [{"filename": "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py"}],
+            {},
+            None,
+            id="reconciler-code-allowed",
         ),
         pytest.param(
             [{"filename": ".github/fork-ci-gate.toml"}],

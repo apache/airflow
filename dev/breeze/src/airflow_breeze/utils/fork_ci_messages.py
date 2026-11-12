@@ -190,7 +190,12 @@ def behind_warning(behind: int, *, base_ref: str) -> str:
 
 
 def state_comment(
-    marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main", author_draft: bool = False
+    marker: Marker,
+    *,
+    fork: str | None = None,
+    run_url: str | None,
+    base_ref: str = "main",
+    author_draft: bool = False,
 ) -> str:
     text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
     parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
@@ -202,7 +207,7 @@ def state_comment(
         parts.append(behind_warning(marker.behind, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
-    if marker.state == "setup_required":
+    if marker.state == "setup_required" and fork:
         parts.append(_setup_instructions(fork))
     parts.append(f"How this works: [fork CI for external contributors]({DESIGN_URL}).")
     return "\n\n".join(parts) + FOOTER
@@ -226,8 +231,18 @@ def gate_modified_close_comment(*, change: str | None) -> str:
         "monitor, and a pull request whose CI runs in a fork must not change it, because the change would "
         "decide where its own CI runs. The one exception is adding, changing or removing your own `[pilot]` "
         "entry in `.github/fork-ci-gate.toml`.\n\n"
-        "If the change is wanted, a maintainer can reopen the pull request and add the `use project ci` "
-        "label." + FOOTER
+        "If the change was accidental, you can revert or remove the change to the gate files and reopen "
+        "the pull request. If the change is wanted, a maintainer can reopen the pull request and add the "
+        "`use project ci` label." + FOOTER
+    )
+
+
+def deleted_fork_close_comment() -> str:
+    return (
+        "Closing this pull request because the head fork repository no longer exists.\n\n"
+        "GitHub cannot merge a pull request or run CI once the head repository has been deleted. "
+        "If you would like to continue this work, please push the branch to a new or restored fork "
+        "and open a new pull request." + FOOTER
     )
 
 
@@ -268,6 +283,16 @@ def inactivity_close_comment(*, days: int, fork: str) -> str:
         f"Closing this pull request because CI has not run in your fork for {days} days. {WHY_FORK_CI}\n\n"
         "You are welcome to reopen it at any time after setting up fork CI:\n\n"
         f"{_setup_instructions(fork)}\n\nReopening restarts the {days}-day period." + FOOTER
+    )
+
+
+def failed_inactivity_close_comment(*, days: int) -> str:
+    return (
+        f"Closing this pull request because CI has been failing in your fork and there has been no "
+        f"activity for {days} days. {WHY_FORK_CI}\n\n"
+        "You are welcome to reopen this pull request at any time after fixing the failures and "
+        "pushing the branch again.\n\n"
+        f"Reopening restarts the {days}-day period." + FOOTER
     )
 
 
