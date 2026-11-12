@@ -422,6 +422,10 @@ export type ErrorType1 =
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
   | "API_SERVER_ERROR";
+export type DagId7 = string;
+export type TaskId5 = string;
+export type LogicalDate3 = string;
+export type RecursionDepth = number;
 export type Name13 = string;
 export type Type27 = "GetAssetByName";
 export type Uri6 = string;
@@ -459,33 +463,33 @@ export type AliasName1 = string;
 export type Type33 = "GetAssetsByAlias";
 export type ConnId2 = string;
 export type Type34 = "GetConnection";
-export type DagId7 = string;
+export type DagId8 = string;
 export type LogicalDates = string[] | null;
 export type RunIds = string[] | null;
 export type States = string[] | null;
 export type Type35 = "GetDRCount";
-export type DagId8 = string;
-export type Type36 = "GetDag";
 export type DagId9 = string;
+export type Type36 = "GetDag";
+export type DagId10 = string;
 export type RunId6 = string;
 export type Type37 = "GetDagRun";
-export type DagId10 = string;
+export type DagId11 = string;
 export type RunId7 = string;
 export type Type38 = "GetDagRunState";
 export type TiId3 = string;
 export type Type39 = "GetHITLDetailResponse";
 export type TiId4 = string;
 export type Type40 = "GetPrevSuccessfulDagRun";
-export type DagId11 = string;
-export type LogicalDate3 = string;
+export type DagId12 = string;
+export type LogicalDate4 = string;
 export type State3 = string | null;
 export type Type41 = "GetPreviousDagRun";
-export type DagId12 = string;
-export type TaskId5 = string;
-export type LogicalDate4 = string | null;
+export type DagId13 = string;
+export type TaskId6 = string;
+export type LogicalDate5 = string | null;
 export type MapIndex4 = number;
 export type Type42 = "GetPreviousTI";
-export type DagId13 = string;
+export type DagId14 = string;
 export type MapIndex5 = number | null;
 export type TaskIds = string[] | null;
 export type TaskGroupId = string | null;
@@ -493,7 +497,7 @@ export type LogicalDates1 = string[] | null;
 export type RunIds1 = string[] | null;
 export type States1 = string[] | null;
 export type Type43 = "GetTICount";
-export type DagId14 = string;
+export type DagId15 = string;
 export type RunId8 = string;
 export type Type44 = "GetTaskBreadcrumbs";
 export type TiId5 = string;
@@ -502,7 +506,7 @@ export type Type45 = "GetTaskRescheduleStartDate";
 export type TiId6 = string;
 export type Key8 = string;
 export type Type46 = "GetTaskStateStore";
-export type DagId15 = string;
+export type DagId16 = string;
 export type MapIndex6 = number | null;
 export type TaskIds1 = string[] | null;
 export type TaskGroupId1 = string | null;
@@ -517,30 +521,30 @@ export type Offset = number;
 export type Type49 = "GetVariableKeys";
 export type PreviousIteration = boolean;
 export type Key10 = string;
-export type DagId16 = string;
+export type DagId17 = string;
 export type RunId9 = string;
-export type TaskId6 = string;
+export type TaskId7 = string;
 export type MapIndex7 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
 export type PreviousIteration1 = boolean;
 export type Key11 = string;
-export type DagId17 = string;
+export type DagId18 = string;
 export type RunId10 = string;
-export type TaskId7 = string;
+export type TaskId8 = string;
 export type Type51 = "GetXComCount";
 export type PreviousIteration2 = boolean;
 export type Key12 = string;
-export type DagId18 = string;
+export type DagId19 = string;
 export type RunId11 = string;
-export type TaskId8 = string;
+export type TaskId9 = string;
 export type Offset1 = number;
 export type Type52 = "GetXComSequenceItem";
 export type PreviousIteration3 = boolean;
 export type Key13 = string;
-export type DagId19 = string;
+export type DagId20 = string;
 export type RunId12 = string;
-export type TaskId9 = string;
+export type TaskId10 = string;
 export type Start = number | null;
 export type Stop = number | null;
 export type Step = number | null;
@@ -581,10 +585,10 @@ export type StartDate4 = string | null;
 export type EndDate3 = string | null;
 export type Type59 = "PrevSuccessfulDagRunResult";
 export type Type60 = "PreviousDagRunResult";
-export type TaskId10 = string;
-export type DagId20 = string;
+export type TaskId11 = string;
+export type DagId21 = string;
 export type RunId13 = string;
-export type LogicalDate5 = string | null;
+export type LogicalDate6 = string | null;
 export type StartDate5 = string | null;
 export type EndDate4 = string | null;
 export type State4 = string | null;
@@ -627,9 +631,9 @@ export type Key17 = string;
 export type ExpiresAt = string | null;
 export type Type72 = "SetTaskStateStore";
 export type Key18 = string;
-export type DagId21 = string;
+export type DagId22 = string;
 export type RunId14 = string;
-export type TaskId11 = string;
+export type TaskId12 = string;
 export type MapIndex9 = number | null;
 export type DagResult1 = boolean;
 export type MappedLength = number | null;
@@ -665,7 +669,7 @@ export type RenderedMapIndex5 = string | null;
 export type RetryReason1 = string | null;
 export type Type81 = "TaskStateStoreResult";
 export type Type82 = "TaskStatesResult";
-export type LogicalDate6 = string | null;
+export type LogicalDate7 = string | null;
 export type RunAfter2 = string | null;
 export type Conf2 = {
   [k: string]: unknown;
@@ -673,7 +677,7 @@ export type Conf2 = {
 export type ResetDagRun = boolean | null;
 export type PartitionKey7 = string | null;
 export type Note2 = string | null;
-export type DagId22 = string;
+export type DagId23 = string;
 export type DagRunId = string;
 export type Type83 = "TriggerDagRun";
 export type TiId9 = string;
@@ -1414,6 +1418,18 @@ export interface ErrorResponse {
   type?: Type26;
 }
 /**
+ * A task in another Dag that clearing the reporting task also clears, as resolved when it ran.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "ExternalClearTargetPayload".
+ */
+export interface ExternalClearTargetPayload {
+  dag_id: DagId7;
+  task_id: TaskId5;
+  logical_date: LogicalDate3;
+  recursion_depth: RecursionDepth;
+}
+/**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "GetAssetByName".
  */
@@ -1499,7 +1515,7 @@ export interface GetConnection {
  * via the `definition` "GetDRCount".
  */
 export interface GetDRCount {
-  dag_id: DagId7;
+  dag_id: DagId8;
   logical_dates?: LogicalDates;
   run_ids?: RunIds;
   states?: States;
@@ -1510,7 +1526,7 @@ export interface GetDRCount {
  * via the `definition` "GetDag".
  */
 export interface GetDag {
-  dag_id: DagId8;
+  dag_id: DagId9;
   type?: Type36;
 }
 /**
@@ -1518,7 +1534,7 @@ export interface GetDag {
  * via the `definition` "GetDagRun".
  */
 export interface GetDagRun {
-  dag_id: DagId9;
+  dag_id: DagId10;
   run_id: RunId6;
   type?: Type37;
 }
@@ -1527,7 +1543,7 @@ export interface GetDagRun {
  * via the `definition` "GetDagRunState".
  */
 export interface GetDagRunState {
-  dag_id: DagId10;
+  dag_id: DagId11;
   run_id: RunId7;
   type?: Type38;
 }
@@ -1554,8 +1570,8 @@ export interface GetPrevSuccessfulDagRun {
  * via the `definition` "GetPreviousDagRun".
  */
 export interface GetPreviousDagRun {
-  dag_id: DagId11;
-  logical_date: LogicalDate3;
+  dag_id: DagId12;
+  logical_date: LogicalDate4;
   state?: State3;
   type?: Type41;
 }
@@ -1566,9 +1582,9 @@ export interface GetPreviousDagRun {
  * via the `definition` "GetPreviousTI".
  */
 export interface GetPreviousTI {
-  dag_id: DagId12;
-  task_id: TaskId5;
-  logical_date?: LogicalDate4;
+  dag_id: DagId13;
+  task_id: TaskId6;
+  logical_date?: LogicalDate5;
   map_index?: MapIndex4;
   state?: TaskInstanceState | null;
   type?: Type42;
@@ -1578,7 +1594,7 @@ export interface GetPreviousTI {
  * via the `definition` "GetTICount".
  */
 export interface GetTICount {
-  dag_id: DagId13;
+  dag_id: DagId14;
   map_index?: MapIndex5;
   task_ids?: TaskIds;
   task_group_id?: TaskGroupId;
@@ -1592,7 +1608,7 @@ export interface GetTICount {
  * via the `definition` "GetTaskBreadcrumbs".
  */
 export interface GetTaskBreadcrumbs {
-  dag_id: DagId14;
+  dag_id: DagId15;
   run_id: RunId8;
   type?: Type44;
 }
@@ -1619,7 +1635,7 @@ export interface GetTaskStateStore {
  * via the `definition` "GetTaskStates".
  */
 export interface GetTaskStates {
-  dag_id: DagId15;
+  dag_id: DagId16;
   map_index?: MapIndex6;
   task_ids?: TaskIds1;
   task_group_id?: TaskGroupId1;
@@ -1652,9 +1668,9 @@ export interface GetVariableKeys {
 export interface GetXCom {
   previous_iteration?: PreviousIteration;
   key: Key10;
-  dag_id: DagId16;
+  dag_id: DagId17;
   run_id: RunId9;
-  task_id: TaskId6;
+  task_id: TaskId7;
   map_index?: MapIndex7;
   include_prior_dates?: IncludePriorDates;
   type?: Type50;
@@ -1668,9 +1684,9 @@ export interface GetXCom {
 export interface GetXComCount {
   previous_iteration?: PreviousIteration1;
   key: Key11;
-  dag_id: DagId17;
+  dag_id: DagId18;
   run_id: RunId10;
-  task_id: TaskId7;
+  task_id: TaskId8;
   type?: Type51;
 }
 /**
@@ -1680,9 +1696,9 @@ export interface GetXComCount {
 export interface GetXComSequenceItem {
   previous_iteration?: PreviousIteration2;
   key: Key12;
-  dag_id: DagId18;
+  dag_id: DagId19;
   run_id: RunId11;
-  task_id: TaskId8;
+  task_id: TaskId9;
   offset: Offset1;
   type?: Type52;
 }
@@ -1693,9 +1709,9 @@ export interface GetXComSequenceItem {
 export interface GetXComSequenceSlice {
   previous_iteration?: PreviousIteration3;
   key: Key13;
-  dag_id: DagId19;
+  dag_id: DagId20;
   run_id: RunId12;
-  task_id: TaskId9;
+  task_id: TaskId10;
   start: Start;
   stop: Stop;
   step: Step;
@@ -1800,10 +1816,10 @@ export interface PreviousDagRunResult {
  * via the `definition` "PreviousTIResponse".
  */
 export interface PreviousTIResponse {
-  task_id: TaskId10;
-  dag_id: DagId20;
+  task_id: TaskId11;
+  dag_id: DagId21;
   run_id: RunId13;
-  logical_date?: LogicalDate5;
+  logical_date?: LogicalDate6;
   start_date?: StartDate5;
   end_date?: EndDate4;
   state?: State4;
@@ -1945,9 +1961,9 @@ export interface SetTaskStateStore {
 export interface SetXCom {
   key: Key18;
   value: JsonValue;
-  dag_id: DagId21;
+  dag_id: DagId22;
   run_id: RunId14;
-  task_id: TaskId11;
+  task_id: TaskId12;
   map_index?: MapIndex9;
   dag_result?: DagResult1;
   mapped_length?: MappedLength;
@@ -1989,6 +2005,7 @@ export interface SucceedTask {
   outlet_events?: OutletEvents;
   rendered_map_index?: RenderedMapIndex4;
   loop_decision?: LoopDecisionPayload | null;
+  external_clear_target?: ExternalClearTargetPayload | null;
   type?: Type76;
 }
 /**
@@ -2063,13 +2080,13 @@ export interface TaskStates {
  * via the `definition` "TriggerDagRun".
  */
 export interface TriggerDagRun {
-  logical_date?: LogicalDate6;
+  logical_date?: LogicalDate7;
   run_after?: RunAfter2;
   conf?: Conf2;
   reset_dag_run?: ResetDagRun;
   partition_key?: PartitionKey7;
   note?: Note2;
-  dag_id: DagId22;
+  dag_id: DagId23;
   run_id: DagRunId;
   type?: Type83;
 }

@@ -28,12 +28,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cadwyn import (
-    RequestInfo,
-    VersionChange,
-    convert_request_to_next_version_for,
-    schema,
-)
+from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for, schema
 
 from airflow.sdk.api.datamodels._generated import (
     LiteralArgBinding,
