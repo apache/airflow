@@ -333,6 +333,9 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
             ledger.settle()
         if journal.clean_up_after_run:
             durable_run.cleanup()
+        else:
+            # The task keeps the journal past the run, until its own work is done.
+            durable_run.complete()
         return result
 
     async def _model_for_fingerprint(
