@@ -1341,6 +1341,12 @@ class AsyncKubernetesHook(KubernetesHook):
                 # cannot fix.
                 raise
 
+            else:
+                # A stream the server ended without an error, usually at its timeout, proves the
+                # connection as well as an event does, and it is all a pod with no new events ever
+                # produces.
+                transient_retries = 0
+
             finally:
                 if w is not None:
                     w.stop()

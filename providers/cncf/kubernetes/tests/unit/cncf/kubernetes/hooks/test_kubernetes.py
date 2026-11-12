@@ -1650,9 +1650,14 @@ class TestAsyncKubernetesHook:
         return stream()
 
     @staticmethod
-    def _event_stream(event):
+    def _event_stream(*events, then_raise=None):
+        """A ``Watch.stream`` replacement that yields ``events``, then ends or raises."""
+
         async def stream(*_, **__):
-            yield {"object": event}
+            for event in events:
+                yield {"object": event}
+            if then_raise is not None:
+                raise then_raise
 
         return stream()
 
@@ -1741,6 +1746,54 @@ class TestAsyncKubernetesHook:
         assert [call.args[0] for call in mock_sleep.await_args_list] == [
             min(API_RETRY_WAIT_MIN * 2**n, API_RETRY_WAIT_MAX) for n in range(API_RETRIES - 1)
         ]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "proof_of_connection",
+        [
+            pytest.param("event", id="event_delivered"),
+            pytest.param("clean_end", id="stream_ended_without_events"),
+        ],
+    )
+    @mock.patch(HOOK_MODULE + ".asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch(KUBE_ASYNC_HOOK.format("get_pod"))
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    async def test_async_watch_pod_events_resets_retry_budget_when_connection_works(
+        self, mock_watch_class, mock_get_pod, mock_sleep, proof_of_connection, kube_config_loader
+    ):
+        """More transient errors than the budget allows are survived when the connection works in between."""
+        mock_pod = mock.MagicMock(spec=["status"])
+        mock_pod.status.phase = "Running"
+        mock_get_pod.return_value = mock_pod
+
+        mock_event = mock.Mock(spec=["metadata"])
+        mock_event.metadata.resource_version = "99"
+        last_event = mock.Mock(spec=["metadata"])
+        last_event.metadata.resource_version = "100"
+
+        streams = []
+        for _ in range(API_RETRIES):
+            error = async_client.ApiException(status=503)
+            if proof_of_connection == "event":
+                streams.append(self._event_stream(mock_event, then_raise=error))
+            else:
+                streams.extend([self._failing_stream(error), self._event_stream()])
+        streams.append(self._event_stream(last_event))
+        self._watch_returning(mock_watch_class, streams)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        async for event in hook.watch_pod_events(name=POD_NAME, namespace=NAMESPACE):
+            if event is last_event:
+                break
+
+        # Every backoff is the first one, so no error was counted on top of an earlier one.
+        assert [call.args[0] for call in mock_sleep.await_args_list] == [API_RETRY_WAIT_MIN] * API_RETRIES
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_MODULE + ".asyncio.sleep", new_callable=mock.AsyncMock)
