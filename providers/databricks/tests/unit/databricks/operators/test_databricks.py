@@ -2555,6 +2555,7 @@ class TestDatabricksRunNowOperator:
         op.execute(None)
 
         db_mock.repair_run.assert_called_once()
+        assert db_mock.get_run.call_count == 2
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_sync_repair_reads_job_parameters_from_merged_json(self, db_mock_class):
