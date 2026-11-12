@@ -482,20 +482,20 @@ def test_submit_asset_event_to_shared_task_and_asset_watcher(session, create_tas
     assert asset_event.extra == {"from_trigger": True, "payload": payload}
 
 
-@pytest.mark.parametrize("owner", ["task", "asset_watcher", "callback", "none"])
-def test_submit_event_records_the_event_time_for_every_kind(session, create_task_instance, owner):
+@pytest.mark.parametrize("used_by", ["task", "asset_watcher", "callback", "none"])
+def test_submit_event_records_the_event_time_for_every_kind(session, create_task_instance, used_by):
     t0 = timezone.datetime(2026, 10, 21, 12, 0, 0)
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     session.add(trigger)
     session.flush()
-    if owner == "task":
+    if used_by == "task":
         task_instance = create_task_instance(session=session, logical_date=t0, state=State.DEFERRED)
         task_instance.trigger_id = trigger.id
-    elif owner == "asset_watcher":
+    elif used_by == "asset_watcher":
         asset = AssetModel("event_time")
         asset.add_trigger(trigger, "w")
         session.add(asset)
-    elif owner == "callback":
+    elif used_by == "callback":
         callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
         callback.trigger = trigger
         session.add(callback)
@@ -783,13 +783,13 @@ def test_submit_failure_records_the_failure_on_the_row(session, caller_triggerer
     assert _failure_state(session, trigger.id) == (expected if recorded else (None,) * 4)
 
 
-def test_a_trigger_without_an_owner_stores_sql_null(session):
-    # An asset watcher's trigger: its owners are the asset_watcher rows, and rows the migration did not fill
+def test_a_trigger_without_a_used_by_ref_stores_sql_null(session):
+    # An asset watcher's trigger: it is used by the asset_watcher rows, and rows the migration did not fill
     # in are NULL too.
     session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
     session.commit()
 
-    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.owner_ref.is_(None))) == 1
+    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.used_by_ref.is_(None))) == 1
 
 
 def test_submit_failure_starts_a_new_streak_at_the_first_failure(session):
@@ -2165,18 +2165,18 @@ def test_status_is_the_same_in_sql_and_python(session, owner, consecutive_failur
 
 
 @pytest.mark.parametrize(
-    ("owner_ref", "watched", "expected"),
+    ("used_by_ref", "watched", "expected"),
     [
         pytest.param({"ti_id": "0199f3a8-0000-7000-8000-000000000001"}, False, "task", id="task"),
         pytest.param(
             {"callback_id": "0199f3a8-0000-7000-8000-000000000002"}, False, "callback", id="callback"
         ),
         pytest.param(None, True, "asset_watcher", id="asset-watcher"),
-        pytest.param(None, False, None, id="no-owner"),
+        pytest.param(None, False, None, id="not-used"),
     ],
 )
-def test_kind_is_the_same_in_sql_and_python(session, owner_ref, watched, expected):
-    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, owner_ref=owner_ref)
+def test_kind_is_the_same_in_sql_and_python(session, used_by_ref, watched, expected):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, used_by_ref=used_by_ref)
     session.add(trigger)
     session.flush()
     if watched:

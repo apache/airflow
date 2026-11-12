@@ -74,6 +74,7 @@ from tests_common.test_utils.db import (
     clear_db_logs,
     clear_db_runs,
     clear_db_teams,
+    clear_db_triggers,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
@@ -332,6 +333,20 @@ def _create_asset_dag_run(session, num: int = 2):
     session.commit()
 
 
+def _watch_assets(session, watched: dict[str, list[int]]) -> dict[str, int]:
+    """Create a trigger for each name, watching the assets with these ids; return the triggers' ids."""
+    triggers = {name: Trigger(classpath=name, kwargs={}) for name in watched}
+    session.add_all(triggers.values())
+    session.flush()
+    session.add_all(
+        AssetWatcherModel(name=f"{name}_{asset_id}", asset_id=asset_id, trigger_id=triggers[name].id)
+        for name, asset_ids in watched.items()
+        for asset_id in asset_ids
+    )
+    session.commit()
+    return {name: trigger.id for name, trigger in triggers.items()}
+
+
 class TestAssets:
     @pytest.fixture
     def time_freezer(self) -> Generator:
@@ -352,6 +367,7 @@ class TestAssets:
         yield
 
         clear_db_assets()
+        clear_db_triggers()
         clear_db_runs()
         clear_db_dags()
         clear_db_teams()
@@ -463,6 +479,26 @@ class TestGetAssets(TestAssets):
         assert [asset["id"] for asset in body["assets"]] == [1, 3]
         # The count must be scoped too, so the existence of hidden assets does not leak.
         assert body["total_entries"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
+    def test_filter_by_trigger_id_returns_the_readable_assets_its_watchers_watch(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        self.create_assets(session=session, num=4)
+        trigger_ids = _watch_assets(session, {"shared": [1, 2, 3], "other": [4]})
+        mock_get_authorized_assets.return_value = {1, 2, 4}
+
+        def assets(trigger_id):
+            response = test_client.get("/assets", params={"trigger_id": trigger_id})
+            assert response.status_code == 200
+            body = response.json()
+            return [asset["id"] for asset in body["assets"]], body["total_entries"]
+
+        assert assets(trigger_ids["shared"]) == ([1, 2], 2)
+        assert assets(trigger_ids["other"]) == ([4], 1)
+        assert assets(trigger_ids["other"] + 1) == ([], 0)
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_should_return_only_references_of_readable_dags(
@@ -1422,6 +1458,27 @@ class TestGetAssetEvents(TestAssets):
         response = test_client.get("/assets/events", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == total_entries
+
+    @provide_session
+    def test_filter_by_trigger_id_pages_the_events_of_its_watched_assets(self, test_client, *, session):
+        # However many assets a trigger watches, the request names only the trigger.
+        self.create_assets(num=3)
+        session.add_all(
+            AssetEvent(id=i, asset_id=asset_id, timestamp=DEFAULT_DATE + timedelta(days=i))
+            for i, asset_id in enumerate([1, 1, 1, 2, 2, 3], start=1)
+        )
+        trigger_ids = _watch_assets(session, {"shared": [1, 2], "other": [3]})
+
+        def events(trigger_id, **params):
+            response = test_client.get("/assets/events", params={"trigger_id": trigger_id, **params})
+            assert response.status_code == 200
+            body = response.json()
+            return [event["id"] for event in body["asset_events"]], body["total_entries"]
+
+        assert events(trigger_ids["shared"], offset=2, limit=2) == ([3, 4], 5)
+        assert events(trigger_ids["shared"], order_by="-timestamp", offset=1, limit=3) == ([4, 3, 2], 5)
+        assert events(trigger_ids["other"]) == ([6], 1)
+        assert events(trigger_ids["other"] + 1) == ([], 0)
 
     @pytest.mark.parametrize(
         ("params", "expected_ids"),

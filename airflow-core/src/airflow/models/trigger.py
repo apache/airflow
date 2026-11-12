@@ -85,7 +85,7 @@ class RecordedFailure(NamedTuple):
 
 
 class TriggerKind(str, Enum):
-    """What a trigger runs for, worked out from its owner rather than stored."""
+    """What a trigger runs for, worked out from what it is used by rather than stored."""
 
     TASK = "task"
     CALLBACK = "callback"
@@ -164,11 +164,12 @@ class Trigger(Base):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_event_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
-    # Who the trigger runs for, written once by whoever creates it: ``dag_id`` is the owner's Dag and
-    # ``owner_ref`` the owner within it, ``{"ti_id": ...}`` or ``{"callback_id": ...}``. Both stay empty for
-    # asset watchers, whose owners are the asset_watcher rows, shared and changing as Dags are parsed.
+    # What the trigger is used by, written once by whoever creates it: ``dag_id`` is its Dag and
+    # ``used_by_ref`` the task instance or callback within it, ``{"ti_id": ...}`` or ``{"callback_id": ...}``.
+    # Both stay empty for asset watchers, which are the asset_watcher rows, shared and changing as Dags are
+    # parsed.
     dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    owner_ref: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    used_by_ref: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
 
     # Denormalized from dag_bundle_team to keep the triggerer's ~1s polling queries join-free,
     # especially since it's eventually consistent and trigger rows are ephemeral.
@@ -204,7 +205,7 @@ class Trigger(Base):
         team_name: str | None = None,
         *,
         dag_id: str | None = None,
-        owner_ref: dict[str, Any] | None = None,
+        used_by_ref: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
@@ -213,7 +214,7 @@ class Trigger(Base):
         self.queue = queue
         self.team_name = team_name
         self.dag_id = dag_id
-        self.owner_ref = owner_ref
+        self.used_by_ref = used_by_ref
 
     @property
     def kwargs(self) -> dict[str, Any]:
@@ -289,7 +290,7 @@ class Trigger(Base):
         queue: str | None = None,
         *,
         dag_id: str | None = None,
-        owner_ref: dict[str, Any] | None = None,
+        used_by_ref: dict[str, Any] | None = None,
     ) -> Trigger:
         """
         Create a trigger row from kwargs that are already in their serde-encoded form.
@@ -297,7 +298,7 @@ class Trigger(Base):
         The kwargs are stored exactly as given and decoded by the triggerer when it creates
         the trigger, the same as kwargs stored by :meth:`from_object`.
         """
-        trigger = cls(classpath=classpath, kwargs={}, queue=queue, dag_id=dag_id, owner_ref=owner_ref)
+        trigger = cls(classpath=classpath, kwargs={}, queue=queue, dag_id=dag_id, used_by_ref=used_by_ref)
         trigger.encrypted_kwargs = cls._encrypt_serialized_kwargs(serialized_kwargs)
         return trigger
 
@@ -490,11 +491,11 @@ class Trigger(Base):
 
     @property
     def kind(self) -> TriggerKind | None:
-        """What the trigger runs for, from the owner recorded on it or its watchers; keep in step with :meth:`kind_expression`."""
-        owner_ref = self.owner_ref or {}
-        if "ti_id" in owner_ref:
+        """What the trigger runs for, from what it is used by; keep in step with :meth:`kind_expression`."""
+        used_by_ref = self.used_by_ref or {}
+        if "ti_id" in used_by_ref:
             return TriggerKind.TASK
-        if "callback_id" in owner_ref:
+        if "callback_id" in used_by_ref:
             return TriggerKind.CALLBACK
         if self.asset_watchers:
             return TriggerKind.ASSET_WATCHER
@@ -504,16 +505,16 @@ class Trigger(Base):
     def kind_expression(cls) -> ColumnElement[str | None]:
         """Return the SQL for :attr:`kind`."""
         return case(
-            (cls.owner_ref["ti_id"].as_string().is_not(None), TriggerKind.TASK.value),
-            (cls.owner_ref["callback_id"].as_string().is_not(None), TriggerKind.CALLBACK.value),
+            (cls.used_by_ref["ti_id"].as_string().is_not(None), TriggerKind.TASK.value),
+            (cls.used_by_ref["callback_id"].as_string().is_not(None), TriggerKind.CALLBACK.value),
             (cls.id.in_(select(AssetWatcherModel.trigger_id)), TriggerKind.ASSET_WATCHER.value),
             else_=None,
         )
 
     @classmethod
-    def owner_still_refers_expression(cls) -> ColumnElement[bool]:
+    def still_used_expression(cls) -> ColumnElement[bool]:
         """
-        Whether the recorded owner still refers to the trigger.
+        Whether what the trigger is recorded as used by still refers to it.
 
         A trigger it no longer refers to (a task that resumed or failed, a finished callback, a removed
         watcher) is deleted on the triggerer's next cleanup.
@@ -524,11 +525,11 @@ class Trigger(Base):
         # and sets off its JIT on large tables.
         return or_(
             and_(
-                cls.owner_ref["ti_id"].as_string().is_not(None),
+                cls.used_by_ref["ti_id"].as_string().is_not(None),
                 cls.id.in_(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id.is_not(None))),
             ),
             and_(
-                cls.owner_ref["callback_id"].as_string().is_not(None),
+                cls.used_by_ref["callback_id"].as_string().is_not(None),
                 cls.id.in_(select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))),
             ),
             cls.id.in_(select(AssetWatcherModel.trigger_id)),
