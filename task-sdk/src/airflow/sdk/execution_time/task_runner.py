@@ -60,8 +60,12 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
-from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
-from airflow.sdk.bases.xcom import BaseXCom, _is_legacy_xcom_backend
+from airflow.sdk.bases.xcom import (
+    BaseXCom,
+    build_loop_error,
+    is_legacy_xcom_backend,
+    is_stored_through_backend,
+)
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -139,6 +143,7 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    _CURRENT_TEAM_NAME_ENV_VAR,
     AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
@@ -152,6 +157,7 @@ from airflow.sdk.execution_time.context import (
     context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
+    set_current_team_name,
 )
 from airflow.sdk.execution_time.email_backend import (
     _DEFAULT_EMAIL_BACKEND,
@@ -1006,11 +1012,7 @@ def _xcom_push(
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
-    if key == XCOM_SKIPMIXIN_KEY:
-        # The branch/skip decision is control-plane data the scheduler reads (via
-        # NotPreviouslySkippedDep) to skip mapped or cleared downstream tasks. It must
-        # bypass any custom XCom backend, which could externalize it into a pointer the
-        # scheduler cannot interpret, silently leaving those tasks unskipped (#50491).
+    if not is_stored_through_backend(key):
         _xcom_push_to_db(ti, key, value)
         return
 
@@ -1136,16 +1138,11 @@ def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: L
 
 
 def check_xcom_backend_supports_loops(dag) -> None:
-    if not _is_legacy_xcom_backend(XCom):
+    if not is_legacy_xcom_backend(XCom):
         return
     if not any(isinstance(group, LoopTaskGroup) for group in dag.task_group.get_task_group_dict().values()):
         return
-    raise TypeError(
-        f"Dag {dag.dag_id!r} uses a loop, but XCom backend {XCom.__module__}.{XCom.__qualname__} stores "
-        "values through serialize_value rather than store_value, so every iteration of a task could store "
-        "its XCom in the same place. Implement store_value and include ti.id in the storage location; for "
-        "XComObjectStorageBackend, upgrade apache-airflow-providers-common-io."
-    )
+    raise build_loop_error(XCom, f"Dag {dag.dag_id!r}")
 
 
 @detail_span("parse")
@@ -1309,6 +1306,8 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
+
+    set_current_team_name(msg.ti_context.dag_run.team_name)
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
@@ -2775,6 +2774,8 @@ def reinit_supervisor_comms() -> None:
     can continue to access variables etc.
     """
     import socket
+
+    set_current_team_name(os.environ.get(_CURRENT_TEAM_NAME_ENV_VAR))
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
