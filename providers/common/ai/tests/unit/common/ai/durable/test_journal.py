@@ -25,7 +25,12 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.ai.durable import journal as journal_module
-from airflow.providers.common.ai.durable.base import build_run_meta_key, build_step_key
+from airflow.providers.common.ai.durable.base import (
+    RUN_ID_KEY,
+    RUNS_KEY,
+    build_run_meta_key,
+    build_step_key,
+)
 from airflow.providers.common.ai.durable.journal import (
     DurableJournal,
     DurableRun,
@@ -804,6 +809,193 @@ class TestCleanup:
         await retry_journal.start_run().run("other", kind="tool", fingerprint="o", body=lambda: ok(2))
 
         retry_journal.cleanup()
+
+        assert memory_storage.entries == {}
+
+
+class TestStoreCalls:
+    @pytest.mark.asyncio
+    async def test_a_first_attempt_reads_back_only_the_run_id_and_the_run_list(self, memory_storage):
+        """No earlier attempt started the run, so every lookup of a step or of the run's entry would miss."""
+        journal = DurableJournal(memory_storage)
+        journal.get_run_id(default="ti-try-1")
+        durable_run = journal.start_run()
+        for name in "abc":
+            await durable_run.run(name, kind="tool", fingerprint=name, body=lambda: ok(1))
+        with pytest.raises(RuntimeError):
+            await durable_run.run("d", kind="tool", fingerprint="d", body=boom)
+        durable_run.fail(RuntimeError("tool failed"))
+
+        assert memory_storage.loads() == [RUN_ID_KEY, RUNS_KEY]
+        assert memory_storage.saves() == [
+            RUN_ID_KEY,
+            RUNS_KEY,
+            *(build_step_key(0, position) for position in range(3)),
+            build_run_meta_key(0),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_a_retry_reads_back_only_the_runs_an_earlier_attempt_started(self, memory_storage):
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("a", kind="tool", fingerprint="a", body=lambda: ok("recorded"))
+        first.fail(RuntimeError("worker died"))
+        memory_storage.calls.clear()
+
+        retry_journal = DurableJournal(memory_storage)
+        replayed = await retry_journal.start_run().run(
+            "a", kind="tool", fingerprint="a", body=lambda: ok("live")
+        )
+        new_run = retry_journal.start_run()
+        await new_run.run("b", kind="tool", fingerprint="b", body=lambda: ok("live"))
+
+        assert replayed == "recorded"
+        assert memory_storage.loads() == [RUNS_KEY, build_run_meta_key(0), build_step_key(0, 0)]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_deletes_every_run_in_one_call_without_reading_anything(self, memory_storage):
+        journal = DurableJournal(memory_storage)
+        journal.get_run_id(default="ti-try-1")
+        for _ in range(2):
+            durable_run = journal.start_run()
+            for name in "ab":
+                await durable_run.run(name, kind="tool", fingerprint=name, body=lambda: ok(1))
+        before_cleanup = len(memory_storage.calls)
+
+        journal.cleanup()
+
+        assert memory_storage.calls[before_cleanup:] == [
+            (
+                "delete",
+                [
+                    build_step_key(0, 0),
+                    build_step_key(0, 1),
+                    build_step_key(1, 0),
+                    build_step_key(1, 1),
+                    RUNS_KEY,
+                    RUN_ID_KEY,
+                ],
+            )
+        ]
+        assert memory_storage.entries == {}
+
+    @pytest.mark.asyncio
+    async def test_a_run_that_cleans_up_after_itself_deletes_its_steps_and_the_run_list_in_one_call(
+        self, memory_storage
+    ):
+        durable_run = DurableJournal(memory_storage, clean_up_after_run=True).start_run()
+        for name in "ab":
+            await durable_run.run(name, kind="tool", fingerprint=name, body=lambda: ok(1))
+        before_cleanup = len(memory_storage.calls)
+
+        durable_run.cleanup()
+
+        assert memory_storage.calls[before_cleanup:] == [
+            ("delete", [build_step_key(0, 0), build_step_key(0, 1), RUNS_KEY])
+        ]
+        assert memory_storage.entries == {}
+
+    @pytest.mark.asyncio
+    async def test_a_run_that_cleans_up_while_another_is_listed_leaves_the_other_on_the_list(
+        self, memory_storage
+    ):
+        journal = DurableJournal(memory_storage, clean_up_after_run=True)
+        journal.start_run()
+        second = journal.start_run()
+        await second.run("a", kind="tool", fingerprint="a", body=lambda: ok(1))
+        before_cleanup = len(memory_storage.calls)
+
+        second.cleanup()
+
+        assert memory_storage.calls[before_cleanup:] == [
+            ("delete", [build_step_key(1, 0)]),
+            ("save", RUNS_KEY),
+        ]
+        assert memory_storage.entries == {RUNS_KEY: {"runs": ["0"]}}
+
+    @pytest.mark.asyncio
+    async def test_a_run_the_run_list_never_listed_records_nothing(self, memory_storage):
+        """A retry looks up only listed runs, so steps of an unlisted run would never replay or be deleted."""
+        memory_storage.refuse.add(RUNS_KEY)
+        durable_run = DurableJournal(memory_storage).start_run()
+        await durable_run.run("a", kind="tool", fingerprint="a", body=lambda: ok(1))
+        durable_run.fail(RuntimeError("worker died"))
+
+        assert memory_storage.entries == {}
+        assert durable_run.journal.stats.not_recorded == [("tool", "a")]
+
+    @pytest.mark.asyncio
+    async def test_a_run_list_write_that_failed_is_retried_before_the_first_step_is_recorded(
+        self, memory_storage
+    ):
+        memory_storage.refuse.add(RUNS_KEY)
+        first = DurableJournal(memory_storage).start_run()
+        memory_storage.refuse.clear()
+        await first.run("a", kind="tool", fingerprint="a", body=lambda: ok("recorded"))
+        first.fail(RuntimeError("worker died"))
+
+        retry = DurableJournal(memory_storage).start_run()
+
+        assert await retry.run("a", kind="tool", fingerprint="a", body=lambda: ok("live")) == "recorded"
+
+    @pytest.mark.asyncio
+    async def test_a_first_attempt_cleanup_deletes_every_write_it_sent(self, memory_storage):
+        """
+        A write reported as failed may still have landed, so it is deleted.
+
+        A step claimed with ``replayable=False`` sends no write, so nothing is deleted for it.
+        """
+        memory_storage.lose_ack.update({build_step_key(0, 2), build_run_meta_key(0)})
+        durable_run = DurableJournal(memory_storage, clean_up_after_run=True).start_run()
+        await durable_run.run("a", kind="tool", fingerprint="a", body=lambda: ok(1))
+        await durable_run.run("live", kind="tool", fingerprint=None, body=lambda: ok(2), replayable=False)
+        await durable_run.run("lost", kind="tool", fingerprint="l", body=lambda: ok(3))
+        await durable_run.run("d", kind="tool", fingerprint="d", body=lambda: ok(4))
+        durable_run.fail(RuntimeError("an agent a tool ran failed, and the tool went on"))
+        before_cleanup = len(memory_storage.calls)
+
+        durable_run.cleanup()
+
+        assert memory_storage.calls[before_cleanup:] == [
+            (
+                "delete",
+                [
+                    build_step_key(0, 0),
+                    build_step_key(0, 2),
+                    build_step_key(0, 3),
+                    build_run_meta_key(0),
+                    RUNS_KEY,
+                ],
+            )
+        ]
+        assert memory_storage.entries == {}
+
+    @pytest.mark.parametrize("key", [build_step_key(0, 0), build_run_meta_key(0)], ids=["step", "run entry"])
+    @pytest.mark.asyncio
+    async def test_a_write_that_raised_after_landing_is_still_deleted(self, memory_storage, key):
+        memory_storage.raise_after_storing.add(key)
+        durable_run = DurableJournal(memory_storage, clean_up_after_run=True).start_run()
+
+        async def run_that_fails_and_is_caught():
+            await durable_run.run("a", kind="tool", fingerprint="a", body=lambda: ok(1))
+            durable_run.fail(RuntimeError("an agent a tool ran failed, and the tool went on"))
+
+        with pytest.raises(OSError, match="could not write"):
+            await run_that_fails_and_is_caught()
+
+        durable_run.cleanup()
+
+        assert memory_storage.entries == {}
+
+    @pytest.mark.asyncio
+    async def test_cleanup_deletes_the_entry_of_a_run_that_failed_in_this_attempt(self, memory_storage):
+        """An agent a tool ran can fail while the task goes on to succeed."""
+        journal = DurableJournal(memory_storage)
+        durable_run = journal.start_run()
+        with pytest.raises(RuntimeError):
+            await durable_run.run("a", kind="tool", fingerprint="a", body=boom)
+        durable_run.fail(RuntimeError("tool failed"))
+
+        journal.cleanup()
 
         assert memory_storage.entries == {}
 

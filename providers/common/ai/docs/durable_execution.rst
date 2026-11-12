@@ -100,6 +100,18 @@ On **Airflow 3.3 and later** the journal is kept in the
 task instance. No configuration is needed. Each step is written to the Airflow metadata
 database; for agents with large model responses or tool results, set
 ``[workers] state_store_backend`` to offload the values to external storage instead.
+Without it, a step larger than ``[state_store] max_value_storage_bytes`` (64 KB by
+default) is still written to the database, and the task log warns that it exceeds the
+limit.
+
+When the agent run succeeds, its journal is deleted. On 3.3 and later, every step the
+agent completes is one write to the task state store, a call the task makes to the API
+server while the agent waits. A first attempt reads back only the list of agent runs the
+task started (and, in ``AgentOperator``, the run id), since no earlier attempt recorded
+anything; a retry also looks up each step of a run an earlier attempt started, and stops
+looking once the run takes a different path from that attempt. Deleting the journal is
+one call per entry; before 3.3 it rewrites the journal file instead, or removes it once
+nothing is left in it.
 
 On **Airflow before 3.3** the journal is a JSON file on ObjectStorage, and the location
 must be set:

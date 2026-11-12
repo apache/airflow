@@ -48,6 +48,7 @@ from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.durable import AirflowDurability
+from airflow.providers.common.ai.durable.base import RUNS_KEY
 from airflow.providers.common.ai.durable.capability import _JournalCodec
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
 from airflow.providers.common.ai.exceptions import DurableJournalError
@@ -162,6 +163,27 @@ class TestReplay:
         assert calls["query"] == 1
         # The first model step replayed; only the one that failed runs again.
         assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_a_first_attempt_reads_back_nothing_but_the_run_list(self, memory_storage):
+        calls = Calls()
+        toolset = FunctionToolset(id="db")
+
+        @toolset.tool_plain
+        def query(sql: str) -> str:
+            return "3 rows"
+
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[toolset],
+            capabilities=[AirflowDurability()],
+        )
+
+        await attempt(memory_storage, agent)
+
+        assert memory_storage.loads() == [RUNS_KEY]
+        assert [step["kind"] for step in memory_storage.steps()] == ["model", "tool", "model"]
 
     @pytest.mark.asyncio
     async def test_changed_prompt_runs_everything_again(self, memory_storage):

@@ -269,18 +269,23 @@ class DurableRun:
     a successful run deletes every step an earlier attempt left behind.
     """
 
-    def __init__(self, journal: DurableJournal, key: str) -> None:
+    def __init__(self, journal: DurableJournal, key: str, *, started_before: bool = True) -> None:
         self.journal = journal
         self.key = key
         self.diverged = False
         # Where this attempt stopped replaying, when it did.
         self._diverged_at: int | None = None
         self._position = 0
+        # Whether an earlier attempt started this run. When none did, the journal holds nothing
+        # of it to read back: no step, no entry about the run, no step beyond this attempt's.
+        self._started_before = started_before
         # Read on first use: where the last failed attempt's entries stop being trusted,
         # and how far any attempt got.
         self._diverge_from: int | None = None
         self._high_water = 0
         self._meta_loaded = False
+        # Whether this attempt sent a write for the run's entry.
+        self._meta_written = False
         # Whether the step claimed last replayed; a step without a fingerprint replays only
         # if it did, so it is never matched against a different preceding conversation.
         self._previous_replayed = True
@@ -292,6 +297,9 @@ class DurableRun:
         # The furthest position this attempt recorded a step at, and every position it recorded.
         self._last_saved = -1
         self._saved: set[int] = set()
+        # Every position this attempt sent a write for, including writes reported as failed,
+        # which may still have landed; cleanup of a run no earlier attempt started deletes these.
+        self._written_positions: set[int] = set()
         # The position of the last model step this attempt claimed.
         self._last_model_position: int | None = None
         # Read with the rest of the run's entry: whether the previous attempt failed because
@@ -312,7 +320,7 @@ class DurableRun:
         return self._position
 
     def _load_meta(self) -> None:
-        if self._meta_loaded:
+        if self._meta_loaded or not self._started_before:
             return
         self._meta_loaded = True
         meta = self.journal.storage.load_step(build_run_meta_key(self.key)) or {}
@@ -328,9 +336,12 @@ class DurableRun:
         """
         Return the entry the previous attempt recorded at ``position``, without claiming it.
 
-        ``None`` when nothing usable was recorded there, or the run has already diverged.
-        The entry is a dict with ``name``, ``kind``, ``fingerprint`` and ``payload``.
+        ``None`` when nothing usable was recorded there, no earlier attempt started the run, or
+        the run has already diverged. The entry is a dict with ``name``, ``kind``,
+        ``fingerprint`` and ``payload``.
         """
+        if not self._started_before:
+            return None
         self._load_meta()
         if self.diverged or (self._diverge_from is not None and position >= self._diverge_from):
             return None
@@ -473,6 +484,9 @@ class DurableRun:
     def save(self, position: int, entry: dict[str, Any]) -> bool:
         """Store ``entry`` at ``position``; ``False`` when the storage skipped it."""
         self._last_saved = max(self._last_saved, position)
+        if not self.journal._ensure_runs_listed():
+            return False
+        self._written_positions.add(position)
         if not self.journal.storage.save_step(build_step_key(self.key, position), entry):
             return False
         self._saved.add(position)
@@ -661,7 +675,9 @@ class DurableRun:
             "paused": paused,
             "tool_failure": tool_failure,
         }
-        self.journal.storage.save_step(build_run_meta_key(self.key), meta)
+        if self.journal._ensure_runs_listed():
+            self._meta_written = True
+            self.journal.storage.save_step(build_run_meta_key(self.key), meta)
 
     def _next_tool_failure(self, step: JournalStep | None) -> _ToolFailure | None:
         """
@@ -683,14 +699,20 @@ class DurableRun:
 
     def cleanup(self) -> None:
         """Delete this run's steps. Call only once the run, and anything that consumes it, has succeeded."""
+        self.journal._delete_runs([self])
+
+    def _get_keys(self) -> list[str]:
+        """Return the keys this run may hold in the journal: its steps, from any attempt, and its entry."""
+        if not self._started_before:
+            keys = [build_step_key(self.key, position) for position in sorted(self._written_positions)]
+            return [*keys, build_run_meta_key(self.key)] if self._meta_written else keys
         self._load_meta()
         end = max(self._high_water, self._position)
         # An attempt killed before it could note how far it got may have gone further.
         while self.journal.storage.load_step(build_step_key(self.key, end)) is not None:
             end += 1
         keys = [build_step_key(self.key, position) for position in range(end)]
-        self.journal.storage.delete_steps([*keys, build_run_meta_key(self.key)])
-        self.journal._forget_run(self.key)
+        return [*keys, build_run_meta_key(self.key)]
 
     def reject(self, step: JournalStep, *, reason: str) -> None:
         """
@@ -753,6 +775,9 @@ class DurableJournal:
         # an earlier attempt started that this one never reaches (an agent called from a tool
         # that now replays) is still deleted.
         self._known_runs: list[str] | None = None
+        # Whether the stored run list holds every run in ``_known_runs``. A retry looks up only the
+        # runs on it, so a run's steps are written only once it is listed.
+        self._runs_listed = True
         # Errors a run of this attempt failed with and took as its own, with the run's key. An agent
         # run inside a step fails before the run the step belongs to, so that run can tell.
         self._run_failures: list[tuple[BaseException, str]] = []
@@ -794,13 +819,20 @@ class DurableJournal:
         else:
             key = str(self._top_level_runs)
             self._top_level_runs += 1
-        durable_run = DurableRun(self, key)
-        self._runs.append(durable_run)
         known = self._load_known_runs()
+        durable_run = DurableRun(self, key, started_before=key in known)
+        self._runs.append(durable_run)
         if key not in known:
             known.append(key)
-            self.storage.save_step(RUNS_KEY, {"runs": known})
+            self._runs_listed = False
+            self._ensure_runs_listed()
         return durable_run
+
+    def _ensure_runs_listed(self) -> bool:
+        """Store the run list if a write of it failed or is due; return whether it holds every run."""
+        if not self._runs_listed:
+            self._runs_listed = self.storage.save_step(RUNS_KEY, {"runs": self._load_known_runs()})
+        return self._runs_listed
 
     def _load_known_runs(self) -> list[str]:
         if self._known_runs is None:
@@ -812,20 +844,30 @@ class DurableJournal:
     def cleanup(self) -> None:
         """Delete the steps of every run in this attempt. Call only once the task's work has succeeded."""
         started = {durable_run.key: durable_run for durable_run in self._runs}
-        for key in dict.fromkeys([*self._load_known_runs(), *started]):
-            (started.get(key) or DurableRun(self, key)).cleanup()
-        self.storage.delete_steps([RUN_ID_KEY])
+        runs = [
+            started.get(key) or DurableRun(self, key)
+            for key in dict.fromkeys([*self._load_known_runs(), *started])
+        ]
+        self._delete_runs(runs, also=[RUN_ID_KEY])
         log.debug("Durable journal cleaned up")
 
-    def _forget_run(self, key: str) -> None:
+    def _delete_runs(self, runs: Sequence[DurableRun], *, also: Sequence[str] = ()) -> None:
+        """
+        Delete the keys of ``runs`` and ``also``, and take the runs off the run list.
+
+        One delete call, with the run list in it once no run is left on it; when other runs stay
+        listed, the shorter list is saved after it. The runs' keys go first, so a task killed
+        partway through keeps the list that leads a later cleanup to what is left.
+        """
+        keys = [key for durable_run in runs for key in durable_run._get_keys()]
+        deleted = {durable_run.key for durable_run in runs}
         known = self._load_known_runs()
-        if key not in known:
-            return
-        known.remove(key)
-        if known:
-            self.storage.save_step(RUNS_KEY, {"runs": known})
-        else:
-            self.storage.delete_steps([RUNS_KEY])
+        self._known_runs = [key for key in known if key not in deleted]
+        if not self._known_runs and known:
+            keys.append(RUNS_KEY)
+        self.storage.delete_steps([*keys, *also])
+        if self._known_runs and len(self._known_runs) < len(known):
+            self.storage.save_step(RUNS_KEY, {"runs": self._known_runs})
 
     def log_summary(self, logger: logging.Logger | Any) -> None:
         """Log what this attempt replayed and recorded, and which steps a retry would run again."""
