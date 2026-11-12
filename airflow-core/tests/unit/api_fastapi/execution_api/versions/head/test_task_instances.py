@@ -59,6 +59,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, T
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_mapped_arg_bindings
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -1969,6 +1970,36 @@ class TestTIRunState:
                 "from_default": True,
             },
         ]
+
+    def test_ti_run_rejects_stub_bound_to_missing_mapped_task_group(self, client, dag_maker, session):
+        """A stored binding naming a mapped task group the Dag lacks fails with a structured error."""
+        with dag_maker("test_task_group_stub_missing_group", serialized=True, session=session):
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(
+            ti for ti in dr.get_task_instances() if ti.task_id == "group.transform" and ti.map_index == 0
+        )
+        entries = [{"name": "country", "kind": "param", "group_arg": {"group_id": "gone", "key": "country"}}]
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.services.task_instances.derive_mapped_arg_bindings",
+            autospec=True,
+            side_effect=lambda task, ti, _, **kwargs: derive_mapped_arg_bindings(task, ti, entries, **kwargs),
+        ):
+            response = self._run_stub_ti(client, ti, session=session)
+
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "'gone' is missing" in response.json()["detail"]["message"]
 
     def test_ti_run_binds_expand_kwargs_mapping_read_from_upstream_by_kwarg(self, client, dag_maker, session):
         with dag_maker("test_mapped_stub_expand_kwargs_xcom_item", serialized=True, session=session):
