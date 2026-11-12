@@ -375,8 +375,8 @@ depending on the pydantic-ai version and the toolset, such a result fails the ta
 it comes back changed (as text, a list or a dict), which can make the steps after that
 tool call run again. Put bytes in a dict instead. A result the journal cannot encode,
 such as an object with no JSON form, fails the task with ``DurableJournalError`` and no
-retry, since it would fail the same way every time. A write the task state store
-refuses does not fail the task: the task log names the step, and a retry runs it again.
+retry, since it would fail the same way every time. A write the storage refuses or
+fails does not fail the task: the task log names the step, and a retry runs it again.
 
 Limitations
 -----------

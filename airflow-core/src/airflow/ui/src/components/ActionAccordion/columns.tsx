@@ -30,7 +30,7 @@ import { StateBadge } from "src/components/StateBadge";
 // Keyed by coordinate rather than row id: a retry of the same execution comes back with a new
 // id, and an exclusion the user ticked should survive that.
 export const taskInstanceKey = (ti: TaskInstanceResponse): string =>
-  `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}:${ti.region_id}:${ti.region_index}`;
+  `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}:${ti.region_id}:${ti.region_index}`;
 
 // When provided, rows render a leading checkbox so the user can exclude individual
 // task instances from the action. Excluded keys are tracked by the caller.
@@ -62,10 +62,15 @@ const renderSelectAllHeader = (
   );
 };
 
+type ColumnOptions = {
+  readonly hasLoopIteration?: boolean;
+  readonly hasMultipleDags?: boolean;
+};
+
 export const getColumns = (
   translate: TFunction,
   selection?: RowSelection,
-  hasLoopIteration = false,
+  { hasLoopIteration = false, hasMultipleDags = false }: ColumnOptions = {},
 ): Array<MetaColumn<TaskInstanceResponse>> => [
   ...(selection
     ? [
@@ -86,6 +91,15 @@ export const getColumns = (
           header: ({ table }: { table: Table<DataTableFeatures, TaskInstanceResponse> }) =>
             renderSelectAllHeader(selection, table),
           meta: { skeletonWidth: 10 },
+        } satisfies MetaColumn<TaskInstanceResponse>,
+      ]
+    : []),
+  // A clear can reach tasks in other Dags, and same-named tasks there would be indistinguishable.
+  ...(hasMultipleDags
+    ? [
+        {
+          accessorKey: "dag_id",
+          header: translate("dagId"),
         } satisfies MetaColumn<TaskInstanceResponse>,
       ]
     : []),
