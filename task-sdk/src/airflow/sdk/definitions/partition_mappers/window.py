@@ -20,7 +20,7 @@
 # copy. The ``check-window-in-sync`` prek hook enforces that the two stay in sync.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -28,6 +28,29 @@ import attrs
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+
+def _validate_step(window_cls: type[Window], step: timedelta | None) -> timedelta | None:
+    """
+    Return *step* if *window_cls* can enumerate its period in increments of *step*.
+
+    Mirrors the core ``_validate_step`` so an invalid step fails at Dag parse time.
+    """
+    if step is None:
+        return None
+    if window_cls.period is None:
+        raise TypeError(f"{window_cls.__name__} does not support 'step'; its period has no fixed length.")
+    if not isinstance(step, timedelta):
+        raise TypeError(f"{window_cls.__name__} 'step' must be a timedelta, got {type(step).__name__!r}.")
+    if step <= timedelta(0) or step % timedelta(seconds=1):
+        raise ValueError(
+            f"{window_cls.__name__} 'step' must be a positive whole number of seconds, got {step}."
+        )
+    if window_cls.period % step:
+        raise ValueError(
+            f"{window_cls.__name__} 'step' must divide its period ({window_cls.period}) evenly, got {step}."
+        )
+    return step
 
 
 class Window:
@@ -57,6 +80,10 @@ class Window:
         starting at the upstream key (forward in time);
         ``Window.Direction.BACKWARD`` fans out the trailing period ending at the
         upstream key (the mirror of FORWARD).
+    :param step: Spacing between upstream keys for fixed-length windows
+        (``HourWindow``, ``DayWindow``, ``WeekWindow``); must divide the period
+        evenly. ``None`` (default) keeps the window's built-in unit, e.g. one
+        minute for ``HourWindow``. Calendar windows reject it.
     """
 
     class Direction(str, Enum):
@@ -74,33 +101,51 @@ class Window:
     #: ``datetime``. Mirrors the same attribute on the core ``Window``.
     expected_decoded_type: ClassVar[type] = str
 
-    def __init__(self, *, direction: Window.Direction = Direction.FORWARD) -> None:
+    #: Length of one downstream period for windows that accept ``step``;
+    #: ``None`` for windows whose period length varies (month, quarter, year).
+    period: ClassVar[timedelta | None] = None
+
+    def __init__(
+        self, *, direction: Window.Direction = Direction.FORWARD, step: timedelta | None = None
+    ) -> None:
         self.direction = self.Direction(direction)
+        self.step = _validate_step(type(self), step)
 
     def serialize(self) -> dict[str, Any]:
-        return {"direction": self.direction.value}
+        data: dict[str, Any] = {"direction": self.direction.value}
+        # Omitted when unset so Dags without a step keep their existing rollup fingerprint.
+        if self.step is not None:
+            data["step"] = int(self.step.total_seconds())
+        return data
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Window:
-        return cls(direction=cls.Direction(data["direction"]))
+        step = data.get("step")
+        return cls(
+            direction=cls.Direction(data["direction"]),
+            step=None if step is None else timedelta(seconds=step),
+        )
 
 
 class HourWindow(Window):
-    """Sixty consecutive minute keys making up one hour."""
+    """Consecutive keys making up one hour: sixty minute keys, or ``step`` apart when set."""
 
     expected_decoded_type: ClassVar[type] = datetime
+    period: ClassVar[timedelta | None] = timedelta(hours=1)
 
 
 class DayWindow(Window):
-    """Twenty-four consecutive hourly keys making up one day."""
+    """Consecutive keys making up one day: twenty-four hourly keys, or ``step`` apart when set."""
 
     expected_decoded_type: ClassVar[type] = datetime
+    period: ClassVar[timedelta | None] = timedelta(days=1)
 
 
 class WeekWindow(Window):
-    """Seven consecutive daily keys making up one week."""
+    """Consecutive keys making up one week: seven daily keys, or ``step`` apart when set."""
 
     expected_decoded_type: ClassVar[type] = datetime
+    period: ClassVar[timedelta | None] = timedelta(weeks=1)
 
 
 class MonthWindow(Window):

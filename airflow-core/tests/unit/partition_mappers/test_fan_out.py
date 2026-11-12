@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -337,3 +338,17 @@ class TestFanOutMapper:
         mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert restored.max_downstream_keys is None
+
+    def test_window_with_step_requires_explicit_downstream_mapper(self):
+        with pytest.raises(ValueError, match="custom step"):
+            FanOutMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow(step=timedelta(hours=6)))
+
+    def test_window_with_step_and_explicit_downstream_mapper(self):
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfDayMapper(),
+            window=DayWindow(step=timedelta(hours=6)),
+            downstream_mapper=StartOfHourMapper(),
+        )
+        assert list(mapper.to_downstream("2024-01-15T03:30:00")) == [
+            f"2024-01-15T{hour:02d}" for hour in (0, 6, 12, 18)
+        ]
