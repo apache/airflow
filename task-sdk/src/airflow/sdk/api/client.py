@@ -118,6 +118,8 @@ if TYPE_CHECKING:
     from datetime import datetime
     from typing import ParamSpec
 
+    from tenacity.stop import stop_base
+
     P = ParamSpec("P")
     T = TypeVar("T")
 
@@ -1219,8 +1221,7 @@ class CallbackOperations:
 
         retrying = Retrying(
             retry=retry_if_exception(_should_retry_api_request),
-            # At least the usual number of attempts, and keep going while the server is down.
-            stop=stop_after_attempt(API_RETRIES) & stop_after_delay(API_RETRY_WAIT_MAX),
+            stop=_callback_run_stop(),
             wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
             before_sleep=before_sleep,
             reraise=True,
@@ -1297,6 +1298,11 @@ API_CALLBACK_RUN_READ_TIMEOUT = API_TIMEOUT * max(API_RETRIES, 1)
 API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
 API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
 API_CLIENT_USE_PUBLIC_CERTS = conf.getboolean("api", "client_use_public_certs", fallback=True)
+
+
+def _callback_run_stop() -> stop_base:
+    """Make at least the usual number of attempts, and keep going while the server is down."""
+    return stop_after_attempt(API_RETRIES) & stop_after_delay(API_RETRY_WAIT_MAX)
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
