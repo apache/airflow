@@ -31,6 +31,9 @@ from airflow.providers.common.ai.batch.base import (
     evaluate_batch_counts,
 )
 from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, LLMBatchModelMismatchError
+from airflow.providers.common.compat.sdk import Connection
+
+from unit.common.ai.batch.legacy_adapter import LegacyAdapter
 
 
 class _FakeAdapter(BatchAdapter):
@@ -119,6 +122,13 @@ class TestBatchAdapterAbstractContract:
         with pytest.raises(TypeError, match="find_orphaned_batch"):
             _MissingOrphanRecovery()
 
+    def test_an_adapter_that_cannot_read_results_cannot_instantiate(self):
+        class _NoExtraction(_FakeAdapter):
+            extract_output = BatchAdapter.__dict__["extract_output"]
+
+        with pytest.raises(TypeError, match="extract_output"):
+            _NoExtraction()
+
 
 class TestResolveRequestModel:
     """The per-request model cross-adapter check lives once, concretely, on the ABC."""
@@ -186,3 +196,26 @@ class TestEvaluateBatchCounts:
     def test_empty_counts_is_partial(self):
         """An empty breakdown (e.g. a zero-request batch) must not vacuously read as success."""
         assert evaluate_batch_counts({}) == "partial"
+
+
+class TestAdaptersWrittenBeforeTheHandleExisted:
+    def test_from_connection_reads_the_password_and_host(self):
+        conn = Connection(conn_id="c", conn_type="pydanticai", password="sk-test", host="https://gw")
+
+        adapter = LegacyAdapter.from_connection(conn, model_id="acme:m", batch_handle="h", output_spec=None)
+
+        assert (adapter.api_key, adapter.base_url) == ("sk-test", "https://gw")
+
+    @pytest.mark.asyncio
+    async def test_the_async_polling_and_cancel_run_the_sync_methods(self):
+        adapter = LegacyAdapter()
+
+        state = await adapter.aget_batch("b1")
+        await adapter.acancel_batch("b1")
+
+        assert state.status == "completed"
+        assert (adapter.polled, adapter.cancelled) == (["b1"], ["b1"])
+
+    def test_the_output_directive_is_optional(self):
+        with pytest.raises(NotImplementedError, match="output directive"):
+            LegacyAdapter().build_output_directive(None)

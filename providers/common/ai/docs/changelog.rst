@@ -80,6 +80,38 @@ Changelog
   typed ``str``; in 1.1.0 it defaulted to ``None`` and was typed ``str | None``. This changes
   only the signature and the annotated type, not the behaviour.
 
+.. note::
+  ``@task.llm_batch`` now runs Anthropic batches through pydantic-ai's ``Model.batch_*`` methods and
+  adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex ``google-cloud:``
+  model id is refused with the fix in the message). This raises the ``pydantic-ai-slim`` floor to
+  2.66.0 and the ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the
+  ``google`` extra.
+
+  What changes for an existing Anthropic task:
+
+  - ``request_params`` and a request's ``params`` keep working. The sampling settings (``temperature``,
+    ``top_p``, ``top_k``, ``stop_sequences``) and ``anthropic_*`` settings are typed, and every other
+    key is still sent as a Messages field. A setting the model would silently drop, such as ``seed``,
+    now fails before submission, and a key the operator manages (``model``, ``messages``, ...) is
+    ignored with a warning.
+  - Structured output uses the model's native JSON-schema output instead of a forced tool call, except
+    for models without it.
+  - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
+  - The state file records pydantic-ai's batch handle (state version 2). A batch that an earlier
+    version of this provider submitted and is still running is re-attached; its state file is left as it is. An
+    outdated batch from an earlier version that was recorded under a different connection cannot be
+    cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
+  - Results are read as one list per batch, so landing a batch holds all of its response bodies in
+    memory at once rather than streaming them. Rows are still written one at a time. Size workers for
+    your largest batch, or split large inputs across mapped task instances with ``.expand()``.
+  - A task that was deferred by an earlier version of this provider and is still waiting when you
+    upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
+    re-attaches to the batch.
+  - ``completion_window`` is ignored by Anthropic and Gemini, and a value other than ``"24h"`` now logs a
+    warning.
+
+  A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
+
 1.1.0
 .....
 

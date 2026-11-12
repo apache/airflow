@@ -26,6 +26,7 @@ import pytest
 
 from airflow.providers.common.ai.batch import state as state_module
 from airflow.providers.common.ai.batch.state import (
+    SCHEMA_VERSION,
     BatchStateRecord,
     compute_fingerprint,
     compute_identity_key,
@@ -208,7 +209,7 @@ class TestPhaseAAndPhaseBWrites:
         )
         record = read_state(result_path, "k1")
         assert record == BatchStateRecord(
-            schema_version=1,
+            schema_version=SCHEMA_VERSION,
             key="k1",
             input_fingerprint="fp1",
             output_schema_digest="sd1",
@@ -222,6 +223,51 @@ class TestPhaseAAndPhaseBWrites:
             request_count=12345,
             submitted_at="2026-09-11T04:00:00+00:00",
         )
+
+    def test_provider_handle_round_trips(self, result_path):
+        write_submitted(
+            result_path,
+            key="k3",
+            input_fingerprint="fp1",
+            output_schema_digest="sd1",
+            intent_at=None,
+            adapter="anthropic",
+            llm_conn_id="my_anthropic",
+            model_id="anthropic:claude-sonnet-4-5",
+            output_type_ref=None,
+            batch_id="msgbatch_1",
+            provider_input_ref=None,
+            request_count=1,
+            submitted_at="2026-09-11T04:00:00+00:00",
+            provider_handle='{"id": "msgbatch_1"}',
+        )
+
+        assert read_state(result_path, "k3").provider_handle == '{"id": "msgbatch_1"}'
+
+    def test_a_version_1_record_reads_with_no_handle(self, result_path):
+        write_submitted(
+            result_path,
+            key="k4",
+            input_fingerprint="fp1",
+            output_schema_digest="sd1",
+            intent_at=None,
+            adapter="anthropic",
+            llm_conn_id="my_anthropic",
+            model_id="anthropic:claude-sonnet-4-5",
+            output_type_ref=None,
+            batch_id="msgbatch_1",
+            provider_input_ref=None,
+            request_count=1,
+            submitted_at="2026-09-11T04:00:00+00:00",
+        )
+        path = result_path / "_airflow_batch_state" / "k4.json"
+        data = json.loads(path.read_text())
+        data["schema_version"] = 1
+        del data["provider_handle"]
+        path.write_text(json.dumps(data))
+
+        legacy = read_state(result_path, "k4")
+        assert (legacy.schema_version, legacy.provider_handle, legacy.batch_id) == (1, None, "msgbatch_1")
 
     def test_write_submitted_allows_null_intent_at(self, result_path):
         """A fresh (non-orphan-recovered) submit still has a real intent_at; this covers the

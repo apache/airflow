@@ -76,7 +76,10 @@ dependencies = [
     # (AirflowDurability) builds on the durable backend API pydantic-ai-slim published in 2.36.0;
     # 2.46.0 is the first release whose CombinedToolset passes a tool call the tool definition it
     # was handed, so tool metadata a wrapper sets (SetToolMetadata's replay opt-out) reaches it.
-    "pydantic-ai-slim>=2.46.0",
+    # 2.66.0 is the release @task.llm_batch's pydantic-ai backend is tested against. The Model.batch_*
+    # methods it drives first shipped in 2.62.0 and have the same signatures there, but 2.62 to 2.66 changed
+    # the batch encoders (2.62 rejects max_retries in the settings, 2.66 drops it), so only 2.66 is tested.
+    "pydantic-ai-slim>=2.66.0",
     # Airflow 3 brings structlog in through the Task SDK; Airflow 2 does not. 24.2.0 is the first
     # release whose render_to_log_kwargs hands ``stacklevel`` to stdlib logging under that name.
     "structlog>=24.2.0",
@@ -85,18 +88,18 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-# @task.llm_batch talks to the provider batch APIs through the vendor SDKs directly, since
-# pydantic-ai has no batch abstraction. anthropic 1.1.0 is the first release whose tool
-# runner runs a turn's tool calls only when the turn ends in tool_use, which the tool
-# runner adapter in airflow.providers.common.ai.tools.anthropic relies on. openai
-# 2.47.0 is the first release that accepts the httpx2 client pydantic-ai-slim>=2.33 hands it
-# (2.45 and 2.46 raise TypeError on it); pydantic-ai-slim[openai]>=2.33.0 itself asks for
-# openai>=3, so this floor only matters to an install that overrides that requirement.
+# @task.llm_batch drives the Anthropic and Gemini batch APIs through pydantic-ai's Model.batch_*
+# methods, so the anthropic floor is 1.15.0, the one pydantic-ai-slim[anthropic] 2.66 asks for.
+# The OpenAI adapter still talks to its SDK directly. openai 2.47.0 is the first release that
+# accepts the httpx2 client pydantic-ai-slim>=2.33 hands it (2.45 and 2.46 raise TypeError on it);
+# pydantic-ai-slim[openai]>=2.33.0 itself asks for openai>=3, so this floor only matters to an
+# install that overrides that requirement.
 # anthropic is capped below 2 because pydantic-ai's Anthropic model (up to 2.59.0) calls
 # BetaMessageParam(...), which anthropic 2 turned into a Union that cannot be instantiated.
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.46.0", "anthropic>=1.1.0,<2"]
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.66.0", "anthropic>=1.15.0,<2"]
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.46.0"]
-"google" = ["pydantic-ai-slim[google]>=2.46.0"]
+# google-genai 2.30.0 is the floor pydantic-ai-slim[google] 2.66 asks for; Gemini batch mode needs it.
+"google" = ["pydantic-ai-slim[google]>=2.66.0", "google-genai>=2.30.0"]
 "openai" = ["pydantic-ai-slim[openai]>=2.46.0", "openai>=2.47.0"]
 # TypeSafe Jev: answers typed questions (pick one of N, a bounded score, a yes/no
 # probability) and cannot emit text, so it fits a branch or a classification but not a
@@ -199,10 +202,11 @@ dev = [
     "pydantic-ai-skills>=1.2.0,<2",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
-    # @task.llm_batch's OpenAI/Anthropic adapters call these SDKs directly. The dev group
-    # needs them so the adapter tests, which build real SDK models, run instead of skipping.
+    # @task.llm_batch's OpenAI adapter calls its SDK directly, and the Anthropic and Gemini adapters
+    # build real pydantic-ai models on them. The dev group needs them so those tests run instead of skipping.
     "openai>=2.47.0",
-    "anthropic>=1.1.0,<2",
+    "anthropic>=1.15.0,<2",
+    "google-genai>=2.30.0",
     # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
     "pydantic-ai-harness[codemode]>=0.35.0",
     "boat-sdk>=1.9.3",
