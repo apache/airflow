@@ -1607,9 +1607,13 @@ export type DryRunBackfillResponse = {
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
     /**
-     * Exact number of matching items for offset pagination. ``null`` for cursor pagination, which never counts the matching rows.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
-    total_entries?: number | null;
+    total_entries: number;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */

@@ -306,6 +306,8 @@ export const Events = () => {
         }
         previousCursor={data?.previous_cursor}
         skeletonCount={undefined}
+        total={data?.total_entries}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
     </>
   );

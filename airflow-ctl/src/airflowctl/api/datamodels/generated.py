@@ -2695,10 +2695,17 @@ class EventLogCollectionResponse(BaseModel):
 
     event_logs: Annotated[list[EventLogResponse], Field(title="Event Logs")]
     total_entries: Annotated[
+        int,
+        Field(
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
+            title="Total Entries",
+        ),
+    ]
+    total_entries_limit: Annotated[
         int | None,
         Field(
-            description="Exact number of matching items for offset pagination. ``null`` for cursor pagination, which never counts the matching rows.",
-            title="Total Entries",
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
         ),
     ] = None
     next_cursor: Annotated[

@@ -5748,6 +5748,11 @@ export const $EventLogCollectionResponse = {
             title: 'Event Logs'
         },
         total_entries: {
+            type: 'integer',
+            title: 'Total Entries',
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
             anyOf: [
                 {
                     type: 'integer'
@@ -5756,8 +5761,8 @@ export const $EventLogCollectionResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Total Entries',
-            description: 'Exact number of matching items for offset pagination. ``null`` for cursor pagination, which never counts the matching rows.'
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -5785,7 +5790,7 @@ export const $EventLogCollectionResponse = {
         }
     },
     type: 'object',
-    required: ['event_logs'],
+    required: ['event_logs', 'total_entries'],
     title: 'EventLogCollectionResponse',
     description: 'Event Log collection response supporting both offset and cursor pagination.'
 } as const;

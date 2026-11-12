@@ -55,10 +55,15 @@ class EventLogCollectionResponse(BaseModel):
     """Event Log collection response supporting both offset and cursor pagination."""
 
     event_logs: Iterable[EventLogResponse]
-    total_entries: int | None = Field(
+    total_entries: int = Field(
+        description="Number of matching items. For offset pagination this is the exact total. "
+        "For cursor pagination it is capped at ``total_entries_limit``; a value equal to that "
+        "limit means at least that many items match.",
+    )
+    total_entries_limit: int | None = Field(
         default=None,
-        description="Exact number of matching items for offset pagination. "
-        "``null`` for cursor pagination, which never counts the matching rows.",
+        description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset "
+        "pagination, where ``total_entries`` is exact.",
     )
     next_cursor: str | None = Field(
         default=None,

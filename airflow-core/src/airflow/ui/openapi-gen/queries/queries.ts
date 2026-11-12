@@ -1031,9 +1031,10 @@ export const useEventLogServiceGetEventLog = <TData = Common.EventLogServiceGetE
 * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 *
 * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-* When `cursor` is provided, `offset` is ignored and `total_entries` is ``null``, so the listing
-* never counts the table. ``next_cursor`` is ``null`` when there are no more pages;
-* ``previous_cursor`` is ``null`` on the first page.
+* When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+* `total_entries_limit` (a value equal to that limit means at least that many events match).
+* ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null`` on
+* the first page.
 * @param data The data for the request.
 * @param data.regionId
 * @param data.regionIndex

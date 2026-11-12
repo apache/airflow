@@ -61,10 +61,14 @@ it("filters a regional audit tab by the pass coordinates, keeping every try and 
   });
 });
 
-it("pages the audit log by cursor instead of counting rows", async () => {
-  const events = vi
-    .spyOn(EventLogService, "getEventLogs")
-    .mockResolvedValue({ event_logs: [], next_cursor: "page-2", previous_cursor: null });
+it("pages the audit log by cursor and shows a capped total as a minimum", async () => {
+  const events = vi.spyOn(EventLogService, "getEventLogs").mockResolvedValue({
+    event_logs: [],
+    next_cursor: "page-2",
+    previous_cursor: null,
+    total_entries: 50_000,
+    total_entries_limit: 50_000,
+  });
 
   render(
     <BaseWrapper>
@@ -82,13 +86,14 @@ it("pages the audit log by cursor instead of counting rows", async () => {
 
   const next = await screen.findByTestId("next");
 
+  expect(await screen.findByRole("heading", { name: /^50,000\+/u })).toBeInTheDocument();
   expect(screen.getByTestId("prev")).toBeDisabled();
   fireEvent.click(next);
   await waitFor(() => expect(events.mock.lastCall?.[0]).toMatchObject({ cursor: "page-2" }));
 });
 
 it("names the audit log date filter after the When column it filters", async () => {
-  vi.spyOn(EventLogService, "getEventLogs").mockResolvedValue({ event_logs: [] });
+  vi.spyOn(EventLogService, "getEventLogs").mockResolvedValue({ event_logs: [], total_entries: 0 });
 
   render(
     <BaseWrapper>
