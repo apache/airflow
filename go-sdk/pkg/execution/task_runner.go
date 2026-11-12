@@ -176,19 +176,7 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		if err != nil {
 			return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
 		}
-		kind, _ := m["kind"].(string)
-		if kind == "xcom" || kind == "literal" {
-			if field := findUnsupportedBindingField(m); field != "" {
-				return nil, fmt.Errorf(
-					"arg_bindings[%d] (%q): %s is set, which this version of the Go SDK "+
-						"cannot bind yet",
-					i,
-					name,
-					field,
-				)
-			}
-		}
-		switch kind {
+		switch kind, _ := m["kind"].(string); kind {
 		case "xcom":
 			taskID, ok := m["task_id"].(string)
 			if !ok || taskID == "" {
@@ -221,25 +209,6 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		}
 	}
 	return args, nil
-}
-
-// unsupportedBindingFields resolve an argument per map index, which this SDK does not do yet.
-// A literal never carries map_index or element_index, so one list serves both kinds.
-var unsupportedBindingFields = []string{
-	"map_index",
-	"element_index",
-	"apply_map",
-	"kwarg",
-	"fallback",
-}
-
-func findUnsupportedBindingField(m map[string]any) string {
-	for _, field := range unsupportedBindingFields {
-		if v := m[field]; v != nil && v != false {
-			return field
-		}
-	}
-	return ""
 }
 
 func argValueSchema(raw any) (*genmodels.ArgValueSchema, error) {
