@@ -1039,7 +1039,8 @@ repos:
           ^airflow-core/docs/.*/diagram_[^/]*\.py$|
           ^contributing-docs/images/diagram_[^/]*\.py$|
           ^docs/images/.*\.py$|
-          ^airflow-ctl/docs/images/diagrams/.*\.py$
+          ^airflow-ctl/docs/images/diagrams/.*\.py$|
+          ^dev/breeze/doc/ci/images/diagram_[^/]*\.py$
         pass_filenames: true
       - id: prevent-deprecated-sqlalchemy-usage
         name: Prevent deprecated sqlalchemy usage
