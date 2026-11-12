@@ -22,6 +22,7 @@
     },
     "favoriteState": "מצב מועדף",
     "favoriteStatePlaceholder": "בחר מצב מועדף…",
+    "hasImportErrors": "קיימות שגיאות ייבוא",
     "noTimetableTypesFound": "לא נמצאו סוגי לוחות זמנים",
     "paused": {
       "active": "פעיל",
@@ -129,6 +130,7 @@
     "dagRuns": "חפש $t(common:dagRun_other)",
     "dags": "חפש Dags",
     "hotkey": "+K",
+    "mapIndexes": "חפש $t(common:mapIndex)",
     "tasks": "חפש משימות"
   },
   "sort": {

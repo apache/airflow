@@ -30,6 +30,8 @@ type Props = {
   readonly children: ReactNode;
   /** Width of the panel. The default suits a search; a short fixed list wants to shrink to fit. */
   readonly contentWidth?: BoxProps["width"];
+  /** Marks the naming half as the page the user is on, as `CrumbText` does for a plain level. */
+  readonly isCurrent?: boolean;
   /** Names the chevron for the tooltip and for assistive technology. */
   readonly label: string;
   readonly onOpenChange: (open: boolean) => void;
@@ -51,6 +53,7 @@ type Props = {
 export const CrumbSwitcher = ({
   children,
   contentWidth = "sm",
+  isCurrent = false,
   label,
   onOpenChange,
   open,
@@ -71,7 +74,9 @@ export const CrumbSwitcher = ({
     <Popover.Anchor asChild>
       <CrumbGroup shape={shape}>
         {to === undefined ? (
-          <CrumbStatic paddingInlineEnd={CUT_PADDING}>{children}</CrumbStatic>
+          <CrumbStatic aria-current={isCurrent ? "page" : undefined} paddingInlineEnd={CUT_PADDING}>
+            {children}
+          </CrumbStatic>
         ) : (
           <CrumbLink paddingInlineEnd={CUT_PADDING} to={to}>
             {children}

@@ -32,10 +32,11 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
+    GetXcomFilterParams,
+    GetXComSliceFilterParams,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -66,7 +67,7 @@ from airflow.models.task_coordinates import (
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
 from airflow.utils.state import TaskInstanceState
 
@@ -390,16 +391,6 @@ def get_mapped_xcom_by_index(
     return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
 
 
-class GetXComSliceFilterParams(BaseModel):
-    """Class to house slice params."""
-
-    start: int | None = None
-    stop: int | None = None
-    step: int | None = None
-    include_prior_dates: bool = False
-    previous_iteration: bool = False
-
-
 def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
     if high <= low:
         return query.limit(0)
@@ -560,15 +551,6 @@ def head_xcom(
     # Tell the caller how many items in this query. We define a custom range unit (HTTP spec only defines
     # "bytes" but we can add our own)
     response.headers["Content-Range"] = f"map_indexes {count}"
-
-
-class GetXcomFilterParams(BaseModel):
-    """Class to house the params that can optionally be set for Get XCom."""
-
-    map_index: int = -1
-    include_prior_dates: bool = False
-    offset: int | None = None
-    previous_iteration: bool = False
 
 
 @router.get(
@@ -732,6 +714,8 @@ def set_xcom(
 
     if key.startswith(LOOP_XCOM_PREFIX):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
+    if key == EXTERNAL_CLEAR_TARGET_XCOM_KEY:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved XCom key")
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.

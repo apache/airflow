@@ -30,6 +30,25 @@ class XComResponse(BaseModel):
     """The returned XCom value in a JSON-compatible format."""
 
 
+class GetXComSliceFilterParams(BaseModel):
+    """Class to house slice params."""
+
+    start: int | None = None
+    stop: int | None = None
+    step: int | None = None
+    include_prior_dates: bool = False
+    previous_iteration: bool = False
+
+
+class GetXcomFilterParams(BaseModel):
+    """Class to house the params that can optionally be set for Get XCom."""
+
+    map_index: int = -1
+    include_prior_dates: bool = False
+    offset: int | None = None
+    previous_iteration: bool = False
+
+
 class XComSequenceIndexResponse(RootModel):
     """XCom schema with minimal structure for index-based access."""
 

@@ -103,11 +103,8 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     def analyze_review(image_url: str):
         return ["Describe what you see:", ImageUrl(url=image_url)]
 
-.. note::
-
-    Combining a non-string prompt with ``enable_hitl_review=True`` is not
-    currently supported -- the HITL session model stores the prompt as a
-    string, so a ``Sequence`` prompt will raise at the review boundary.
+With ``enable_hitl_review=True``, the review session stores the prompt's text
+and a placeholder such as ``[image/png, 2048 bytes]`` for each non-text part.
 
 Structured output
 -----------------
@@ -443,9 +440,9 @@ Parameters
   every Airflow version. A step that re-runs live because the conversation
   changed since the previous attempt is counted like any other live call, and
   a retry whose cross-attempt total already sits at a limit can still start
-  when the steps it needs are recorded. Clearing a failed task instance starts
-  a fresh budget but keeps the journal its attempts left behind, so what the
-  rerun replays from it is free there too. See :doc:`../durable_execution`.
+  when the steps it needs are recorded. Clearing a finished task instance
+  starts a fresh budget; whether its rerun replays from the journal depends on
+  the Airflow version and how the task was cleared (:ref:`durable-clear`).
 - ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
   conversation so later requests read them back at a discount. Default ``True``; a no-op for
   providers that cache on their own. See :ref:`agent-prompt-caching`.

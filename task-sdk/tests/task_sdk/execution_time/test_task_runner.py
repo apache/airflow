@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import contextvars
 import functools
+import inspect
 import json
 import os
 import textwrap
@@ -61,6 +62,7 @@ from airflow.sdk import (
     BaseOperator,
     BaseOperatorLink,
     Connection,
+    ExternalClearTarget,
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
@@ -75,6 +77,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
     DagRunState,
+    ExternalClearTargetPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -203,6 +206,7 @@ from airflow.sdk.execution_time.task_runner import (
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.importers import DagSourceCode
 from airflow.sdk.serde import deserialize
+from airflow.sdk.state import BaseStoreBackend
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.callback import CallbackTrigger
 from airflow.triggers.testing import SuccessTrigger
@@ -3599,6 +3603,62 @@ class TestRuntimeTaskInstance:
 
         assert result == ["only"]
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("pull_method", "get_all_method"),
+        [
+            pytest.param("xcom_pull", "get_all", id="sync"),
+            pytest.param("axcom_pull", "aget_all", id="async"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("pull_kwargs", "expected"),
+        [
+            pytest.param({"default": "fallback_value"}, "fallback_value", id="default passed"),
+            pytest.param({}, None, id="default not passed"),
+        ],
+    )
+    async def test_xcom_pull_uses_default_when_no_map_indexes_and_no_xcom(
+        self, create_runtime_ti, mock_supervisor_comms, pull_method, get_all_method, pull_kwargs, expected
+    ):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="pull_task"))
+
+        with patch.object(XCom, get_all_method, autospec=True, return_value=None):
+            result = getattr(runtime_ti, pull_method)(key="missing_key", task_ids="task_a", **pull_kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+
+        assert result == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("pull_method", "get_all_method"),
+        [
+            pytest.param("xcom_pull", "get_all", id="sync"),
+            pytest.param("axcom_pull", "aget_all", id="async"),
+        ],
+    )
+    async def test_xcom_pull_default_fills_correct_position_with_multiple_task_ids(
+        self, create_runtime_ti, mock_supervisor_comms, pull_method, get_all_method
+    ):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="pull_task"))
+
+        def get_all_side_effect(*, run_id, key, task_id, dag_id, include_prior_dates):
+            if task_id == "task_with_xcom":
+                return ["stored_value"]
+            return None
+
+        with patch.object(XCom, get_all_method, autospec=True, side_effect=get_all_side_effect):
+            result = getattr(runtime_ti, pull_method)(
+                key="my_key",
+                task_ids=["task_with_xcom", "task_without_xcom"],
+                default="my_default",
+            )
+            if inspect.isawaitable(result):
+                result = await result
+
+        assert result == ["stored_value", "my_default"]
+
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
     ):
@@ -4952,6 +5012,98 @@ def _recording_email_backend(
     than imported because the Task SDK must not depend on ``airflow-core``.
     """
     raise AssertionError("should be patched in the test")
+
+
+class _ClearTargetOperator(BaseOperator):
+    """Points a clear at ``child.wait`` on the rendered ``target_date``."""
+
+    template_fields = ("target_date",)
+
+    def __init__(self, *, target_date: str | None, **kwargs):
+        super().__init__(**kwargs)
+        self.target_date = target_date
+
+    def execute(self, context):
+        pass
+
+    def get_external_clear_target(self, context):
+        logical_date = None if self.target_date is None else datetime.fromisoformat(self.target_date)
+        return ExternalClearTarget(dag_id="child", task_id="wait", logical_date=logical_date)
+
+
+class TestExternalClearTarget:
+    @staticmethod
+    def _run(runtime_ti):
+        return run(
+            runtime_ti,
+            context=runtime_ti.get_template_context(),
+            log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+        )
+
+    def test_reports_target_resolved_from_rendered_templates(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(
+            task_id="mark", target_date="{{ logical_date.replace(hour=0).isoformat() }}"
+        )
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert isinstance(msg, SucceedTask)
+        assert msg.external_clear_target == ExternalClearTargetPayload(
+            dag_id="child", task_id="wait", logical_date=timezone.datetime(2026, 10, 1), recursion_depth=10
+        )
+
+    def test_target_without_a_date_points_at_the_run_logical_date(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = _ClearTargetOperator(task_id="mark", target_date=None)
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        _, msg, _ = self._run(runtime_ti)
+
+        assert msg.external_clear_target.logical_date == timezone.datetime(2026, 10, 1, 5)
+
+    def test_target_without_a_date_reports_nothing_in_a_run_without_one(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = _ClearTargetOperator(task_id="mark", target_date=None)
+        runtime_ti = create_runtime_ti(task=task, logical_date=None)
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.external_clear_target is None
+
+    @pytest.mark.parametrize("declares_target", [False, True], ids=["no-method", "returns-none"])
+    def test_operator_without_target_reports_nothing(
+        self, create_runtime_ti, mock_supervisor_comms, declares_target
+    ):
+        class PlainOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        class NoTargetThisRun(PlainOperator):
+            def get_external_clear_target(self, context):
+                return None
+
+        task_class = NoTargetThisRun if declares_target else PlainOperator
+        runtime_ti = create_runtime_ti(task=task_class(task_id="plain"))
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.external_clear_target is None
+
+    def test_target_that_cannot_be_resolved_fails_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(task_id="mark", target_date="{{ params.get('missing', '') }}")
+        runtime_ti = create_runtime_ti(task=task)
+
+        state, msg, error = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(msg, TaskState)
+        assert isinstance(error, ValueError)
 
 
 class TestEmailNotifications:
@@ -7463,38 +7615,135 @@ class TestTaskInstanceStateOperations:
         ]
         assert ClearTaskStateStore not in sent_types
 
+    @staticmethod
+    @contextlib.contextmanager
+    def _patch_state_backend(backend):
+        # Both modules resolve the backend independently, so both lookups need patching.
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=backend,
+            ),
+        ):
+            yield backend
+
+    @staticmethod
+    def _run_and_finalize(runtime_ti, log):
+        # The clear lives at the tail of finalize(), so run() alone would not reach it.
+        context = runtime_ti.get_template_context()
+        state, msg, error = run(runtime_ti, context=context, log=log)
+        finalize(runtime_ti, state, context, log, error)
+        return state, msg, error
+
     @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_clears_backend_without_comms_roundtrip(
-        self, create_runtime_ti, mock_supervisor_comms
-    ):
-        """clear_on_success calls backend.clear() directly without sending ClearTaskStateStore comms."""
-        mock_backend = mock.MagicMock()
+    def test_clear_on_success_clears_db_refs_before_backend(self, create_runtime_ti, mock_supervisor_comms):
+        """clear_on_success sends ClearTaskStateStore before deleting from the backend."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        order = []
+        mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
+        backend.clear.side_effect = lambda *a, **kw: order.append("clear")
 
         class MyOperator(BaseOperator):
             def execute(self, context):
                 pass
 
-        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+
+        with self._patch_state_backend(backend):
+            self._run_and_finalize(runtime_ti, mock.MagicMock())
+
+        backend.clear.assert_called_once()
+        assert order.index("ClearTaskStateStore") < order.index("clear")
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_runs_after_success_is_reported(self, create_runtime_ti, mock_supervisor_comms):
+        """The backend is cleared only after SucceedTask is reported and the success callbacks have run."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        order = []
+        mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
+        backend.clear.side_effect = lambda *a, **kw: order.append("clear")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t", on_success_callback=lambda context: order.append("callback"))
         runtime_ti = create_runtime_ti(task=task)
 
-        with (
-            mock.patch(
-                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
-                return_value=mock_backend,
-            ),
-            mock.patch(
-                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
-                return_value=mock_backend,
-            ),
-        ):
-            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+        with self._patch_state_backend(backend):
+            state, _, _ = self._run_and_finalize(runtime_ti, mock.MagicMock())
 
-        mock_backend.clear.assert_called_once()
-        sent_types = [
-            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
-            for call in mock_supervisor_comms.send.call_args_list
-        ]
-        assert ClearTaskStateStore not in sent_types
+        assert state == TaskInstanceState.SUCCESS
+        assert order.index("SucceedTask") < order.index("callback") < order.index("clear")
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_failure_does_not_fail_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        """A backend that cannot be cleared leaves the task successful and logs where the orphans are."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        backend.clear.side_effect = ConnectionError("object storage is down")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+        log = mock.MagicMock()
+
+        with self._patch_state_backend(backend):
+            state, msg, error = self._run_and_finalize(runtime_ti, log)
+
+        backend.clear.assert_called_once()
+        assert state == TaskInstanceState.SUCCESS
+        assert error is None
+        assert isinstance(msg, SucceedTask)
+        assert runtime_ti._terminal_state_send_failed is False
+        log.exception.assert_called_once()
+        scope = runtime_ti.get_template_context()["task_state_store"]._scope
+        log.info.assert_any_call(
+            "Clearing task state as clear_on_success is enabled.",
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            region_id=str(scope.region_id),
+            region_index=scope.region_index,
+        )
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    @pytest.mark.parametrize("outcome", ["task_raised", "success_send_raised"])
+    def test_clear_on_success_skipped_when_success_was_not_delivered(
+        self, outcome, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A task that did not report success keeps its state, so its retry can resume from it."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                if outcome == "task_raised":
+                    raise RuntimeError("training blew up")
+
+        if outcome == "success_send_raised":
+
+            def send(msg, **kwargs):
+                if isinstance(msg, SucceedTask):
+                    raise ConnectionError("supervisor socket gone")
+                return None
+
+            mock_supervisor_comms.send.side_effect = send
+
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+
+        with self._patch_state_backend(backend):
+            state, _, _ = self._run_and_finalize(runtime_ti, mock.MagicMock())
+
+        assert state == (
+            TaskInstanceState.SUCCESS if outcome == "success_send_raised" else TaskInstanceState.FAILED
+        )
+        assert runtime_ti._state_store_clear_owed is False
+        backend.clear.assert_not_called()
 
 
 class _WalkerModelA(BaseModel):

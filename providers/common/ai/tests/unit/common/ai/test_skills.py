@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -136,6 +137,16 @@ class TestResolveGitWithHook:
         assert locations[0].commit == "0123abc"
         assert locations[0].directory.endswith(os.sep + "skills")
         assert locations[1] == _SkillsLocation("/local/skills")
+
+    def test_empty_repository_clones_with_no_commit(self, tmp_path):
+        empty = tmp_path / "empty.git"
+        subprocess.run(["git", "init", "--bare", "-q", str(empty)], check=True)
+        source = GitSkills(repo_url=empty.as_uri())
+
+        locations, cleanup = _materialize_skills([source])
+        cleanup()
+
+        assert locations[0].commit is None
 
     @patch("airflow.providers.git.hooks.git.GitHook")
     @patch("git.Repo")

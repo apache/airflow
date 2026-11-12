@@ -382,11 +382,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         a warning). Default ``False``. A replayed step adds nothing to the usage
         counted against ``usage_limits`` or reported in the ``usage`` XCom -- not
         its request, tokens, cost, or tool calls -- so every attempt counts only
-        the model and tool calls it actually makes. This holds the same way after
-        clearing a failed task instance: it starts a fresh budget but keeps the
-        journal its attempts left behind, and whatever the rerun replays from it
-        is free. The agent's ``run_id`` (and its ``conversation_id``, when there is
-        no message history) stays the first attempt's on every retry.
+        the model and tool calls it actually makes. Clearing a finished task
+        instance starts a fresh budget; whether its rerun replays from the journal
+        depends on the Airflow version and how the task was cleared
+        (:ref:`durable-clear`). The agent's ``run_id`` (and its
+        ``conversation_id``, when there is no message history) stays the first
+        attempt's on every retry.
         On Airflow >= 3.3 the journal is kept in the AIP-103 task state store, so
         no extra configuration is needed. On older Airflow versions it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
@@ -1029,14 +1030,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise
 
     def execute(self, context: Context) -> Any:
-        if self.enable_hitl_review and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: enable_hitl_review=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The HITL session model requires a string prompt. Return a str "
-                f"prompt, or disable enable_hitl_review."
-            )
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 

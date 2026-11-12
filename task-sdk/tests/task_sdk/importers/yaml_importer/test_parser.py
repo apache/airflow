@@ -90,6 +90,19 @@ def test_template_marker():
     assert isinstance(t.with_["k2"], TemplateRef)
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("{$f: {$t: '{{ ds }}.sql'}}", id="short"),
+        pytest.param("{$file: {$template: '{{ ds }}.sql'}}", id="long"),
+        pytest.param("{$t: {$f: {$t: '{{ ds }}.sql'}}}", id="inside-template"),
+    ],
+)
+def test_templated_filename_rejected(value):
+    with pytest.raises(YamlDagParseError, match="templated filename"):
+        _task(f"- {{id: t, uses: X, with: {{sql: {value}}}}}")
+
+
 def test_const_is_verbatim_not_recursed():
     t = _task("- {id: t, run: {a: {$const: {$x: not-a-ref}}}}")
     assert isinstance(t.run["a"], ConstRef)

@@ -550,7 +550,7 @@ ARG_DB_DRY_RUN = Arg(
 )
 ARG_DB_SKIP_ARCHIVE = Arg(
     ("--skip-archive",),
-    help="Don't preserve purged records in an archive table.",
+    help="Delete purged records directly without creating an archive table.",
     action="store_true",
 )
 ARG_DB_EXPORT_FORMAT = Arg(
@@ -767,7 +767,7 @@ ARG_API_SERVER_WORKERS = Arg(
 )
 ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
-    default=120,
+    default=conf.get("api", "worker_timeout"),
     type=int,
     help="The timeout for waiting on API server workers",
 )

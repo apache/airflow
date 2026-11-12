@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import to_jsonable_python
@@ -58,24 +58,41 @@ try:
         resolve_function_tool_failure_error_function,
         set_function_tool_failure_error_function,
     )
+    from openai.types.responses import ResponseFunctionToolCall
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.durable.fingerprint import _digest, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import _EXECUTING_STEP, current_journal
+from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.tools.openai_agents import _REPLAY_RETRY, _RETRY_COUNT, _RetryLimitReached
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
-from airflow.providers.common.ai.utils.masking import mask_secrets
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
+from airflow.providers.common.compat.sdk import Param, get_current_context
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_4_PLUS
+from airflow.providers.standard.operators.python import PythonOperator
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
-    from agents import AgentOutputSchemaBase, Handoff, ModelSettings, ModelTracing, RunResult, Tool
+    from agents import (
+        AgentOutputSchemaBase,
+        Handoff,
+        ModelSettings,
+        ModelTracing,
+        RunResult,
+        RunState,
+        Tool,
+        ToolApprovalItem,
+    )
     from agents.items import TResponseInputItem, TResponseStreamEvent
     from agents.retry import ModelRetryAdvice, ModelRetryAdviceRequest
     from agents.tool_context import ToolContext
 
     from airflow.providers.common.ai.durable.journal import DurableRun, JournalStep
+    from airflow.providers.standard.utils.hitl import InputResponse
 
 __all__ = ["run_durably", "run_durably_sync"]
 
@@ -91,6 +108,7 @@ _MODEL_AT_FAULT = (
     MaxTurnsExceeded,
     OutputGuardrailTripwireTriggered,
     ToolInputGuardrailTripwireTriggered,
+    _RetryLimitReached,
 )
 
 # The tool results the SDK hands the model as structured content rather than as text.
@@ -102,6 +120,11 @@ _DEFAULT_FAILURE_HANDLED = "_function_tool_default_failure_handled"
 
 # Arguments that keep the conversation on OpenAI's servers, which a replayed model call never reaches.
 _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_response_id")
+
+# Set on the copy of a function tool that reports through the journal, so that reserving a position
+# skips tools nothing wraps, such as those of MCP servers or of a handoff agent with a named model,
+# and on the copy of an agent whose calls replay, so that only its approvals pause the task.
+_DURABLE_MARKER = "_airflow_durable"
 
 
 async def run_durably(
@@ -145,11 +168,20 @@ async def run_durably(
     function tools of an agent reached through ``handoff()``, and its model too unless the
     agent's ``model`` is a model name or not set, and streamed runs. A tool call that fails,
     including one whose exception ``failure_error_function`` turns into text for the model,
-    is not recorded either, so a retry runs it again. A replayed model call reports no
+    is not recorded either, so a retry runs it again. A failure the model could correct,
+    which an ``AirflowTools`` tool answers with ``{"error": ...}``, is recorded, and still
+    counts against the tool's retry limit when it replays; a run that used that limit up asks
+    the model again from its last request on a retry. A replayed model call reports no
     usage, since it costs nothing.
 
     A ``session`` makes every retry run live: the SDK adds the failed try's prompt to it
     before the first model call, so that call no longer asks what it asked then.
+
+    A tool call that needs approval (``needs_approval``) is asked with the standard
+    provider's ``request_input()``, which pauses the task in Required Actions. The answer
+    resumes the task, the run replays up to the call, and the call is approved, or rejected
+    with the reviewer's reason as its result. Steps are deleted only once a run ends without
+    a pending approval.
 
     Outside a task there is no journal, and this is ``Runner.run``.
 
@@ -160,6 +192,10 @@ async def run_durably(
     :raises ValueError: When ``previous_response_id``, ``conversation_id`` or
         ``auto_previous_response_id`` is passed: a replayed call never reaches the
         conversation OpenAI keeps for them.
+    :raises UnsupportedToolDeferralError: When the run stops for a tool call that needs
+        approval and cannot pause for it: before Airflow 3.4 or without a standard provider
+        that has ``request_input()``, with a ``session``, or for a call by an agent whose
+        model is not recorded. The task fails without retrying.
     """
     if (journal := current_journal()) is None:
         return await Runner.run(starting_agent, input, run_config=run_config, **kwargs)
@@ -174,11 +210,25 @@ async def run_durably(
     if isinstance(config.model, Model):
         config.model = _DurableModel(config.model, durable_run)
     agent = _get_durable_agent(starting_agent, durable_run, {})
-    try:
-        result = await Runner.run(agent, input, run_config=config, **kwargs)
-    except BaseException as error:
-        durable_run.fail(error, model_at_fault=isinstance(error, _MODEL_AT_FAULT))
-        raise
+
+    async def run(run_input: str | list[TResponseInputItem] | RunState[Any]) -> RunResult:
+        try:
+            return await Runner.run(agent, run_input, run_config=config, **kwargs)
+        except BaseException as error:
+            durable_run.fail(error, model_at_fault=isinstance(error, _MODEL_AT_FAULT))
+            raise
+
+    result = await run(input)
+    # Each answer comes from a person through Required Actions. Asking pauses the task, which
+    # then runs again from the top: the run replays up to here and gets the answer back.
+    answered: set[str] = set()
+    while result.interruptions:
+        result = await run(
+            _answer_approvals(result, durable_run, answered, has_session=kwargs.get("session") is not None)
+        )
+    if _answer_left_unread(durable_run, answered):
+        _did_not_come_back(durable_run)
+    # Only now: a run paused for approval replays what it recorded when the task resumes.
     if journal.clean_up_after_run:
         durable_run.cleanup()
     return result
@@ -195,11 +245,191 @@ def run_durably_sync(
     return run_coroutine_sync(run_durably(starting_agent, input, run_config=run_config, **kwargs))
 
 
+def _answer_approvals(
+    result: RunResult, durable_run: DurableRun, answered: set[str], *, has_session: bool
+) -> RunState[Any]:
+    """
+    Return the run's state with every pending tool call approved or rejected by a person.
+
+    A call is asked through ``request_input()``, which pauses the task the first time and
+    returns the answer once the task resumes; its key goes into ``answered``. A call whose
+    result is already recorded was approved and ran in an earlier run of the task, so it is
+    approved again without asking.
+
+    :raises UnsupportedToolDeferralError: When the run cannot pause for the approval.
+    :raises DurableJournalError: When the task resumed with an answer but the run did not come
+        back to the call it answers.
+    """
+    if (request_input := _get_request_input()) is None:
+        _cannot_pause(
+            result,
+            durable_run,
+            "pausing a task for input needs Airflow 3.4+ and a standard provider that has request_input()",
+        )
+    if (reason := _why_approval_cannot_pause(result, has_session)) is not None:
+        _cannot_pause(result, durable_run, reason)
+    durable_run.pause()
+    state = result.to_state()
+    for item in result.interruptions:
+        call = item.raw_item
+        if durable_run.has_recorded(call.call_id):
+            log.info(
+                "Durable: %s ran after it was approved in an earlier run of this task; approving it again",
+                item.tool_name,
+            )
+            state.approve(item)
+            continue
+        # The call comes back the same on every resume, as the answer that made it replays.
+        # Its fingerprint keeps an answer from applying to a different call that reuses its id.
+        key = f"{durable_run.key}:{call.call_id}:{_build_tool_fingerprint(call.name, call.arguments, call.call_id)}"
+        if _answer_left_unread(durable_run, answered, asking=key):
+            # The task resumed with an answer to a call this run never reached; asking about
+            # this one instead would never end, and request_input() refuses to.
+            _did_not_come_back(durable_run, stopped_at_another_call=True)
+        answer = request_input(
+            subject=f"{item.agent.name} wants to call {item.tool_name}",
+            body=_describe_call(item),
+            options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
+            # An empty default, not None: some UI versions show a null one as "[object Object]".
+            params={
+                "reason": Param(
+                    "",
+                    type=["string", "null"],
+                    description="Sent to the agent when you reject the call (optional).",
+                )
+            },
+            key=key,
+        )
+        answered.add(key)
+        responder = LLMApprovalMixin._describe_responder(dict(answer))
+        if answer["chosen_options"] == [LLMApprovalMixin.APPROVE]:
+            log.info("Durable: %s approved by %s", item.tool_name, responder)
+            state.approve(item)
+        else:
+            log.info("Durable: %s rejected by %s", item.tool_name, responder)
+            # A field left empty comes back as None or "", and some UI versions send the param's spec.
+            reason = answer["params_input"].get("reason")
+            reason = reason.strip() if isinstance(reason, str) else ""
+            state.reject(item, rejection_message=reason or None)
+    return state
+
+
+def _answer_left_unread(durable_run: DurableRun, answered: set[str], *, asking: str | None = None) -> bool:
+    """
+    Whether the task resumed with an answer to an approval of this run that the run never asked again for.
+
+    ``asking`` is the key the run is about to ask for; an answer already given to it is read
+    by that call rather than left unread.
+    """
+    try:
+        # Optional: the answer log comes with request_input(), newer than the standard provider common.ai requires.
+        from airflow.providers.standard.utils.hitl import answer_log_var
+    except ImportError:
+        return False
+    answer_log = answer_log_var.get()
+    return (
+        answer_log is not None
+        and answer_log.latest.startswith(f"{durable_run.key}:")
+        and answer_log.latest not in answered
+        and (asking is None or asking not in answer_log.answers)
+    )
+
+
+def _did_not_come_back(durable_run: DurableRun, *, stopped_at_another_call: bool = False) -> NoReturn:
+    """
+    Fail the task resumed with an answer whose call the run never reached again.
+
+    ``stopped_at_another_call`` is set when the run stopped at another call that needs approval
+    (a clear asks about that one), and not when it finished without one (a clear replays the result).
+    """
+    then = (
+        "Clear the task to ask about the call it stopped at instead."
+        if stopped_at_another_call
+        else "It finished without that call; clearing the task replays that result without asking."
+    )
+    error = DurableJournalError(
+        "The task resumed with an answer to a tool approval, but the agent run did not come back "
+        "to the call it answers: a step before that call gave a different result this time, such "
+        "as a tool that always runs live, a prompt built from live data, or a change to the Dag "
+        f"while the task waited. {then}"
+    )
+    durable_run.fail(error)
+    raise error
+
+
+def _get_request_input() -> Callable[..., InputResponse] | None:
+    """Return the standard provider's ``request_input()``, or ``None`` where it cannot pause a task."""
+    if not AIRFLOW_V_3_4_PLUS:
+        return None
+    try:
+        # Optional: request_input() is newer than the standard provider release common.ai requires.
+        from airflow.providers.standard.operators.hitl import request_input
+    except ImportError:
+        return None
+    return request_input
+
+
+def _cannot_pause(result: RunResult, durable_run: DurableRun, reason: str) -> NoReturn:
+    tools = ", ".join(sorted({f"{item.tool_name} ({item.agent.name})" for item in result.interruptions}))
+    error = UnsupportedToolDeferralError(
+        f"The agent stopped to ask for approval to call {tools}, and run_durably() cannot "
+        f"pause the task for it: {reason}. Remove the approval requirement (needs_approval, "
+        "or require_approval on an MCP server), or call Runner.run and handle "
+        "result.interruptions yourself."
+    )
+    # Counted against the model's last answer, so a clear asks the model again from there:
+    # what was recorded after it, such as an agent tool's answer given while it waited for
+    # approval, never replays, and the turns before it still do.
+    durable_run.fail(error, model_at_fault=True)
+    raise error
+
+
+def _why_approval_cannot_pause(result: RunResult, has_session: bool) -> str | None:
+    if has_session:
+        return (
+            "a run with a session asks the model again on every resume, so the call it paused on "
+            "never comes back to receive the answer"
+        )
+    for item in result.interruptions:
+        if not isinstance(item.raw_item, ResponseFunctionToolCall) or not getattr(
+            item.agent, _DURABLE_MARKER, False
+        ):
+            return (
+                f"{item.tool_name} is not a function tool of an agent whose model run_durably() "
+                "records, such as an agent used through as_tool() or reached through handoff(), "
+                "so its call would not come back the same when the task resumes"
+            )
+    try:
+        task = get_current_context()["task"]
+    except RuntimeError:
+        # A journal set with journal_scope() outside a running task, such as in a unit test.
+        return "there is no running task to pause"
+    if not isinstance(task, PythonOperator):
+        return f"request_input() can pause a @task or PythonOperator, and this is a {type(task).__name__}"
+    return None
+
+
+def _describe_call(item: ToolApprovalItem) -> str:
+    """Describe the call for the reviewer in Markdown: the agent, the tool and its masked arguments."""
+    arguments = dumps_masked(_parse_arguments(item.raw_item.arguments), indent=2)
+    tool = next(
+        (tool for tool in item.agent.tools if isinstance(tool, FunctionTool) and tool.name == item.tool_name),
+        None,
+    )
+    description = f" — {tool.description}" if tool is not None and tool.description else ""
+    return (
+        f"**Agent:** {item.agent.name}\n\n**Tool:** {item.tool_name}{description}\n\n"
+        f"**Arguments**\n\n```json\n{arguments}\n```"
+    )
+
+
 def _get_durable_agent(agent: Agent[Any], durable_run: DurableRun, seen: dict[int, Agent[Any]]) -> Agent[Any]:
     """Return a copy of ``agent`` whose model, function tools and handoff agents go through the journal."""
     if (done := seen.get(id(agent))) is not None:
         return done
     durable_agent = agent.clone()
+    # Its calls replay the same on resume, so an approval it asks for can pause the task.
+    setattr(durable_agent, _DURABLE_MARKER, True)
     # Recorded before the handoffs are copied, so agents that hand off to each other copy once.
     seen[id(agent)] = durable_agent
     if isinstance(agent.model, Model):
@@ -219,6 +449,7 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
+    setattr(durable_tool, _DURABLE_MARKER, True)
     invoke = tool.on_invoke_tool
     # Exceptions a custom failure_error_function turned into text, by tool call.
     handled: dict[str, Exception] = {}
@@ -233,27 +464,31 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         set_function_tool_failure_error_function(durable_tool, remember)
         invoke = bind(durable_tool)
 
+    # An AirflowTools tool, whose correctable failures count against its retry limit.
+    replay_retry = getattr(tool, _REPLAY_RETRY, None)
+
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
         if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
-        try:
-            parsed = json.loads(arguments) if arguments else {}
-        except json.JSONDecodeError:
-            parsed = arguments
-        fingerprint = fingerprint_tool_call(
-            tool.name,
-            # As recorded model answers are masked, so a replayed call's arguments can be too.
-            mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
-            ctx.tool_call_id,
-        )
-        step = durable_run.claim(f"tool:{tool.name}", kind="tool", fingerprint=fingerprint)
+        name = f"tool:{tool.name}"
+        fingerprint = _build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id)
+        step = durable_run.claim_reserved(ctx.tool_call_id, name, kind="tool", fingerprint=fingerprint)
         if step.replayed:
+            # Such a tool's result is text, so a dict is one recorded with the count it left in the
+            # tool's retry budget. Restored, so the retry limit spans attempts.
+            if replay_retry is not None and isinstance(step.payload, dict):
+                await replay_retry(ctx, step.payload["retry"])
+                return step.payload["output"]
             return step.payload
         try:
             with step.executing():
                 output = await invoke(ctx, arguments)
         except Exception as error:
-            step.fail(error)
+            # The model's answers used this tool's retry limit up, not this call, so the run fails
+            # on the model's account and a retry asks it again from its last request. The limit of
+            # a tool inside an agent this one calls through as_tool is that call's failure.
+            if not (replay_retry is not None and isinstance(error, _RetryLimitReached)):
+                step.fail(error)
             raise
         # A failure the SDK turned into text for the model is not recorded, so a retry runs the
         # call again, as it does a call that raised.
@@ -261,11 +496,32 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
             step.fail(handled_error)
         elif not getattr(ctx, _DEFAULT_FAILURE_HANDLED, False):
             # Secrets must not reach the journal any more than the model.
-            step.record(mask_secrets(_as_sent(output)))
+            payload = mask_secrets(_as_sent(output))
+            if replay_retry is not None and (retry := getattr(ctx, _RETRY_COUNT, None)) is not None:
+                payload = {"output": payload, "retry": retry}
+            step.record(payload)
         return output
 
     durable_tool.on_invoke_tool = on_invoke_tool
     return durable_tool
+
+
+def _parse_arguments(arguments: str) -> Any:
+    """Return a tool call's arguments as the model sent them: parsed JSON, or the raw text when it is not JSON."""
+    try:
+        return json.loads(arguments) if arguments else {}
+    except json.JSONDecodeError:
+        return arguments
+
+
+def _build_tool_fingerprint(name: str, arguments: str, call_id: str) -> str | None:
+    parsed = _parse_arguments(arguments)
+    return fingerprint_tool_call(
+        name,
+        # As recorded model answers are masked, so a replayed call's arguments can be too.
+        mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
+        call_id,
+    )
 
 
 def _as_sent(output: Any) -> Any:
@@ -345,13 +601,16 @@ class _DurableModel(Model):
         )
         if step.replayed:
             try:
-                return ModelResponse(
+                replayed = ModelResponse(
                     output=_OUTPUT_ITEMS.validate_python(step.payload["output"]),
                     usage=Usage(),
                     response_id=step.payload.get("response_id"),
                 )
             except (ValidationError, KeyError, TypeError) as error:
                 self.durable_run.reject(step, reason=f"the recorded model response cannot be read: {error}")
+            else:
+                self._reserve_tool_steps(replayed, tools)
+                return replayed
 
         async def call() -> ModelResponse:
             return await self.wrapped.get_response(
@@ -359,10 +618,34 @@ class _DurableModel(Model):
             )
 
         try:
-            return await step.run(call, to_record=_record_response)
+            response = await step.run(call, to_record=_record_response)
         except Exception:
             self.failed_step = step
             raise
+        self._reserve_tool_steps(response, tools)
+        return response
+
+    def _reserve_tool_steps(self, response: ModelResponse, tools: list[Tool]) -> None:
+        """
+        Claim a position for each of the response's tool calls, in the order the model made them.
+
+        A call whose tool never runs (held for approval, stopped by a guardrail) leaves its position
+        empty, which a retry runs live without disturbing the positions after it. The steps the
+        previous response reserved and no tool took are dropped.
+        """
+        durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
+        self.durable_run.reserve(
+            [
+                (
+                    item.call_id,
+                    f"tool:{item.name}",
+                    _build_tool_fingerprint(item.name, item.arguments, item.call_id),
+                )
+                for item in response.output
+                if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names
+            ],
+            kind="tool",
+        )
 
     def _retried(self, fingerprint: str | None) -> JournalStep | None:
         """
