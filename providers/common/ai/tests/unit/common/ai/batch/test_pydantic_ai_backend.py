@@ -23,8 +23,8 @@ from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
-import structlog.testing
 from pydantic import BaseModel, TypeAdapter
+from structlog.typing import FilteringBoundLogger
 
 pytest.importorskip("anthropic")
 pytest.importorskip("google.genai")
@@ -50,6 +50,7 @@ from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.google import GoogleProvider
 
+from airflow.providers.common.ai.batch import pydantic_ai_backend as backend_module
 from airflow.providers.common.ai.batch.output_schema import build_output_spec
 from airflow.providers.common.ai.batch.pydantic_ai_backend import (
     AnthropicBatchAdapter,
@@ -529,15 +530,16 @@ class TestRequestSettings:
     def test_the_dropped_keys_are_logged_once_for_the_whole_batch(self):
         adapter = AnthropicBatchAdapter(model_id=CLAUDE, model_factory=lambda _id: _claude())
 
-        with structlog.testing.capture_logs() as logs:
+        with mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log:
             _real_encode(
                 adapter,
                 [{"prompt": "a"}, {"prompt": "b", "params": {"model": "x"}}, {"prompt": "c"}],
                 request_params={"system": "x"},
             )
 
-        warnings = [entry for entry in logs if entry["log_level"] == "warning"]
-        assert [entry["keys"] for entry in warnings] == [["model", "system"]]
+        log.warning.assert_called_once_with(
+            "Ignoring request parameters the batch sets itself", keys=["model", "system"]
+        )
 
     def test_a_typed_setting_the_model_would_silently_drop_is_rejected(self):
         adapter = AnthropicBatchAdapter(model_id=CLAUDE)
@@ -911,12 +913,12 @@ class TestAdapterRegistration:
         conn = Connection(conn_id="primary", conn_type="pydanticai")
         with (
             mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook),
-            structlog.testing.capture_logs() as logs,
+            mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log,
         ):
             adapter = AnthropicBatchAdapter.from_connection(conn, model_id=CLAUDE)
 
-        assert [entry["log_level"] for entry in logs] == ["warning"]
-        assert "fallback" in logs[0]["event"]
+        log.warning.assert_called_once()
+        assert "fallback" in log.warning.call_args.args[0]
         assert adapter._hook is hook
 
     def test_the_hook_builds_the_model_the_adapter_polls(self):
