@@ -107,6 +107,7 @@ class TestGetPlugins:
                 "destination": "dag",
                 "category": "browse",
                 "nav_top_level": False,
+                "show_icon_with_label": False,
                 "applies_to": {
                     "dag.tags.name": ["ml", "production"],
                     "dag.dag_id": ["example_dag"],
@@ -128,6 +129,7 @@ class TestGetPlugins:
                         "icon_dark_mode": None,
                         "name": "Google",
                         "nav_top_level": False,
+                        "show_icon_with_label": False,
                         "url_route": None,
                         "applies_to": None,
                     },
@@ -140,6 +142,7 @@ class TestGetPlugins:
                         "label": "The Apache Software Foundation",
                         "name": "apache",
                         "nav_top_level": False,
+                        "show_icon_with_label": False,
                         "url_route": None,
                         "applies_to": None,
                     },
