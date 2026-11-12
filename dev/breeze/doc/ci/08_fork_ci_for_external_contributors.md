@@ -93,7 +93,7 @@ Non-goals:
                      │ GraphQL: checkSuites  │      ├─ per labelled PR: fork state ->    │
                      │ REST: workflow state  │      │    draft/undraft, labels, comment, │
                      └───────────────────────│      │    commit status with run link,    │
-                                             │      │    close after 7 days or when the  │
+                                             │      │    close after 30 days or when the │
                                              │      │    PR tampered with the gate       │
                                              │      └─ unknown failures -> Slack         │
                                              └───────────────────────────────────────────┘
@@ -126,7 +126,7 @@ enabled = false
 enabled_since = 2026-01-01T00:00:00Z
 
 # Days without any fork CI activity after which a gated pull request is closed.
-close_after_days = 7
+close_after_days = 30
 
 # Organisations exempted under AIP-120 §2.2. Keys are display names used in comments,
 # values are GitHub logins. Changes go through a reviewed pull request.
@@ -238,7 +238,9 @@ Consequences for the other components:
   reconciler removes `fork ci required`, undrafts it if the bot drafted it, edits the state
   comment to say project CI is in use, and posts a `success` status with the description
   "Project CI in use (label `use project ci`)". Project CI then runs on the next push, or when
-  a maintainer closes and reopens the pull request.
+  a maintainer closes and reopens the pull request. From that run on, and until project CI has
+  passed on the head commit, the pull request cannot merge: its `CI passed` status is `pending`
+  (see "The `CI passed` check").
 - Both override labels on one pull request resolve to project CI and are reported to Slack as
   a conflict.
 
@@ -408,7 +410,8 @@ run's event, and fails when it cannot read them.
 
 Both rules use the same list as "Trusting a green fork run", so a gated pull request whose runs are
 approved automatically is also one whose green fork run is trusted, and one that changes CI is both
-left waiting for approval and labelled `needs project ci` once its fork run is green. The gate
+left waiting for approval and labelled `needs project ci` once its fork run is green, unless its
+author keeps it a draft. The gate
 tampering check still applies to every run a maintainer approves by hand.
 
 The approval reads only API metadata and the git objects of the merge commit; it never checks out or
@@ -501,8 +504,12 @@ state targetUrl description } } } } }`), and the reconciler's own state comment
 (`comments(first: 100)`, the earliest comment by `github-actions` with the marker, paging
 through the remaining comments of the rare pull request with more). The reconciler creates that
 comment on first contact and only edits it afterwards, so a marker posted by anyone else, or
-echoed later by another workflow, is ignored. The fork state is then fetched in batches of 50 with one GraphQL
-query per batch using aliases. Owner and name come from the pull request's
+echoed later by another workflow, is ignored. The search index can take minutes to list a pull
+request under the label pass 1 has just added, so the pull requests pass 1 labelled that the
+search does not list yet are read by number with the same fields, 25 per query, and reconciled in
+the same run. If that read fails, they are left for the next run. The fork state is then
+fetched in batches of 50 with one GraphQL query per batch using aliases. Owner and name come
+from the pull request's
 `headRepository { nameWithOwner }`, never a fixed `airflow`, because a fork can be renamed or
 created as `airflow-1` on a name collision:
 
@@ -532,34 +539,98 @@ pull requests without a fork run for their head commit, not by the total.
 
 ### State machine
 
-| Observed fork state | Draft | `ready for maintainer review` | Commit status | Comment |
-|---|---|---|---|---|
-| **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | draft | remove | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
-| **awaiting_push**: enabled, no run for the head SHA | draft | remove | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
-| **running**: run in progress | unchanged (a rebase of an approved pull request does not draft it; a failed run does) | remove | `pending` (yellow), link to the run | update state and run link |
-| **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
-| **green**: conclusion success and the pull request does not change CI-defining files | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
-| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | undraft\* | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
-| setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
-| **ungated**: the base branch has no gate, for example after retargeting to an older release branch | undraft\* | unchanged | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
-| **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | draft | remove | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
-| **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | draft | remove | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    [*] --> gated: discovery adds fork ci required
+    state gated {
+        [*] --> setup_required: workflow not enabled in the fork
+        [*] --> awaiting_push: workflow enabled, no run for the head commit
+        [*] --> running: fork run in progress
+        setup_required --> awaiting_push: author enables the workflow
+        awaiting_push --> running: author pushes
+        running --> failed: run fails, is cancelled or times out
+        running --> green: run passes, no CI-defining change
+        running --> green_unverified: run passes, CI-defining change
+        failed --> running: author pushes
+        green --> running: author pushes
+        green_unverified --> running: author pushes
+        running --> setup_required: workflow disabled
+        awaiting_push --> setup_required: workflow disabled
+        state green {
+            [*] --> green_ready: not a draft, or the bot's draft
+            [*] --> green_author_draft: the author's draft
+            green_ready --> green_author_draft: author converts to draft
+            green_author_draft --> green_ready: author marks it ready
+        }
+        state green_unverified {
+            [*] --> unverified_ready: not a draft, or the bot's draft
+            [*] --> unverified_author_draft: the author's draft
+            unverified_ready --> unverified_author_draft: author converts to draft
+            unverified_author_draft --> unverified_ready: author marks it ready
+        }
+    }
+    gated --> closed: setup_required or awaiting_push for close_after_days (30 days)
+    gated --> released: maintainer adds use project ci
+    gated --> ungated: base branch without fork CI, e.g. v3-3-test
+    gated --> gate_modified: pull request changes the gate
+    gated --> gate_bypassed: project CI ran without use project ci (gate tampering)
+    closed --> gated: reopened
+```
 
-\* only if the last convert-to-draft event on the pull request was by `github-actions[bot]`;
-a pull request the author drafted stays a draft.
+The draft state and the two review labels depend only on the state and on whether the pull
+request is the author's draft: a draft whose last convert-to-draft event was not by
+`github-actions[bot]`, or a pull request opened as a draft. `compute_projection` in
+`fork_ci_reconcile.py` holds this table, and `test_projection_table` checks it. The table follows
+one rule: a draft waits for the author, `ready for maintainer review` waits for a maintainer
+review, and `needs project ci` waits for a maintainer to review the CI change and add
+`use project ci`.
+
+| State | Next | Draft | `ready for maintainer review` | `needs project ci` |
+|---|---|---|---|---|
+| setup_required | Author enables the workflow | draft | remove | remove |
+| awaiting_push | Author pushes | draft | remove | remove |
+| failed | Author fixes and pushes | unchanged | remove | remove |
+| running | Nobody, fork CI runs | unchanged | remove | remove |
+| green | Maintainer reviews | undraft | add | remove |
+| green, author's draft | Author marks it ready | unchanged | remove | remove |
+| green_unverified | Maintainer reviews the CI change and adds `use project ci` | undraft | remove | add |
+| green_unverified, author's draft | Author marks it ready | unchanged | remove | remove |
+| released | Usual review with project CI | undraft, except the author's draft | unchanged | remove |
+| ungated | Usual review with project CI | undraft, except the author's draft | unchanged | remove |
+| closed | Author sets up fork CI and reopens | unchanged | remove | remove |
+| gate_modified | Maintainer reopens and adds `use project ci` | unchanged | remove | remove |
+| gate_bypassed | Maintainer reopens and adds `use project ci` | unchanged | remove | remove |
+
+The reconciler never undrafts the author's draft. It does not draft a closed pull request either,
+since the draft-state job runs after the close and GitHub refuses to draft a closed pull request.
+
+| Observed fork state | Commit status | Comment |
+|---|---|---|
+| **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
+| **awaiting_push**: enabled, no run for the head SHA | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
+| **running**: run in progress | `pending` (yellow), link to the run | update state and run link |
+| **failed**: conclusion is failure, cancelled or timed out | `failure` (red), link to the run | update with the run link |
+| **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
+| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
+| **closed**: setup_required or awaiting_push for `close_after_days` | unchanged | close with a new comment; reopening restarts the clock |
+| **released**: the pull request carries `use project ci` | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
+| **ungated**: the base branch has no gate, for example after retargeting to an older release branch | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
+| **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
+| **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
 
 Rules that sit under the table:
 
 - **Gate tampering wins.** The `gate_bypassed` check is evaluated first for every pull
   request whose eligibility reason is `external` or `pilot`; when it holds, the fork state is not
-  consulted at all. A pull request that was already `green` and undrafted is drafted again,
-  loses the review label and is closed on the same run.
+  consulted at all. A pull request that was already `green` loses the review label and is
+  closed on the same run.
 
 - **A new push resets the row.** The head SHA is recorded in the state comment. A push to a
   green pull request is observed as `running` or `awaiting_push` on the next run, which removes
   the review label, so maintainers never see an unverified push in the queue. `awaiting_push`
-  also drafts it; `running` leaves the draft state alone, so rebasing an approved pull request
-  drafts it only if the new run fails.
+  also drafts it. `running` and `failed` leave the draft state alone, so a rebase of an approved
+  pull request that hits a flaky test does not draft it and cancel its auto-merge.
 - **Author drafts are respected.** "draft" in the table means the reconciler converts to draft
   if the pull request is not already one. On `green` it undrafts only when GitHub's timeline
   shows the last convert-to-draft actor was `github-actions[bot]`. A pull request the author
@@ -607,8 +678,8 @@ decided or recorded for the old commit, and the next run decides for the new one
 seen, the state is `green_unverified` instead of `green`. The pull request is not drafted (a
 draft the reconciler made earlier is undone, as for `green`), but it gets no review label, the
 status is pending, and it is labelled `needs project ci` so maintainers can list these pull
-requests, review the change and add `use project ci`. Without `CI passed` it cannot be merged
-until then. It is not posted to Slack:
+requests, review the change and add `use project ci`. A draft the author made gets no label
+until the author marks it ready for review. Without `CI passed` it cannot be merged until then. It is not posted to Slack:
 the label already lists these pull requests, and a post for every new green commit would bury
 the CI breakages that channel is for.
 The reconciler removes `needs project ci` as soon as the state is anything else. A renamed file
@@ -710,8 +781,8 @@ contributor losing their collaborator association) with full runs in the last si
 (`TAMPER_WINDOW`) is closed. Signal 1 exists so that an external pull request that edits
 `ci-amd.yml` legitimately, and leaves the gate intact, is not closed for touching the file.
 
-When both hold the reconciler records `gate_bypassed` in the state comment marker, drafts the
-pull request, removes `ready for maintainer review`, posts an `error` status whose
+When both hold the reconciler records `gate_bypassed` in the state comment marker, removes
+`ready for maintainer review`, posts an `error` status whose
 `target_url` is the project CI run that should not have happened, posts a new comment and
 closes. The comment says which run was observed, that changes to `.github/workflows/` from a
 gated pull request cannot be verified in `apache/airflow` without a maintainer, and that a
@@ -766,7 +837,7 @@ run checks the pull request again, with the gate configuration of its new base. 
 retarget to a base without the gate in between could close a pull request that should be
 released to project CI.
 
-The state is `gate_modified`: the pull request is drafted, loses `ready for maintainer review`
+The state is `gate_modified`: the pull request loses `ready for maintainer review`
 and `needs project ci`, gets an `error` status linking its changed files, and the closure is
 reported to Slack as an attention item. Gate tampering is checked first and wins. As for gate
 tampering, only a reopen by someone other than the author counts: an open pull request whose
@@ -933,12 +1004,12 @@ suspicious-change flags) is unaffected.
 
 ### The `CI passed` check
 
-The "Require CI on main" ruleset requires a `CI passed` check from GitHub Actions before a pull
-request can merge or auto-merge. Project CI's `CI passed` job reports it, but a gated pull
+The "Require CI on main" ruleset requires a `CI passed` check before a pull request can merge or
+auto-merge; the required check names no integration, so a check run or a commit status of that
+name from any source satisfies it. Project CI's `CI passed` job reports it, but a gated pull
 request never runs project CI, so the reconciler reports it instead: when the state of the head
 commit is `green`, it posts a `CI passed` commit status with state `success`, linking the fork
-run. A commit status written with the monitor's `GITHUB_TOKEN` comes from GitHub Actions, which
-is the source the ruleset accepts.
+run.
 
 - Only `success` is posted. Without the status a gated pull request cannot merge, which is what a
   pending or failing one would say, and it never competes with project CI's own check.
@@ -946,9 +1017,59 @@ is the source the ruleset accepts.
   it is not evidence. Once a maintainer adds `use project ci`, project CI reports the check.
 - When the head commit leaves `green`, for example a re-run in the fork that fails, a `success`
   posted earlier is overwritten with `pending` so the pull request cannot merge on it.
-- A pull request released with `use project ci` keeps any `success` the reconciler posted for
-  its current head commit. A maintainer who wants the project CI result before merging waits
-  for project CI before enabling auto-merge, or pushes a new commit.
+- A pull request carrying `use project ci` cannot merge on the fork result. GitHub requires both to
+  pass when a check run and a commit status have the same name and that name is required, so the
+  `CI passed` status and project CI's `CI passed` check run must both succeed. The run that
+  releases the pull request (see "Override labels") overwrites a fork `success` on its head commit
+  with `pending` ("Waiting for project CI (use project ci)"). It reads the labels from the pull
+  request node rather than from the label search, which lags behind a new label by minutes; a
+  `success` that project CI earned is kept. A labelled pull request that gets a new head commit can already carry a fork `success`
+  posted for another gated pull request on that commit, while project CI's check run does not exist
+  until it runs; the pass over labelled pull requests below overwrites that one.
+- Every monitor run also searches the open pull requests carrying the label, as they have left the
+  state machine, and keeps the status in line with project CI. It only writes when the head commit
+  already has a `CI passed` status: the project check run alone decides otherwise, and a `pending`
+  the monitor created would block the pull request after project CI passed. The project CI result is
+  the newest `pull_request` run of a project CI workflow file on the head commit whose job named
+  exactly `CI passed` exists; a run that has no such job and reports `CI passed (run cancelled)` or
+  `CI passed (project CI not run)` is ignored and does not hide an older run's result (a re-run
+  keeps its check suite, so one that has both is judged by its `CI passed` job). While that
+  job has not succeeded, a `success` is overwritten with `pending`; once it has, the monitor posts
+  `success` ("Project CI passed for this commit"). Adding the label does not start project CI (see
+  "Override labels"): the pull request stays blocked until a maintainer starts it and it passes,
+  and then until the next monitor run posts the `success`, which can take about 15 minutes.
+  Removing the label returns the pull request to the normal flow above: removing it updates the
+  pull request, so discovery (open pull requests updated within the last 24 hours) labels it
+  `fork ci required` again and the next run reports the fork result, replacing the waiting
+  `pending` once the fork run is green.
+  A pull request that is not gated after the label is removed (for example the gate is off) is not
+  labelled again, so discovery posts the project CI `success` for it instead, when its head commit's
+  `CI passed` status is one the reconciler wrote and is not `success`, and project CI has passed.
+  Discovery only sees pull requests updated within the last 24 hours: one whose project CI passes
+  later than that without any other update stays `pending` until it is updated.
+- A commit status belongs to the commit, so the monitor never posts a fork `CI passed` `success`
+  on a head commit that a pull request carrying `use project ci` has, even for another pull
+  request on the same commit; the project CI pass owns those. Revocations to `pending` always go
+  through. When the list of those commits cannot be read, it posts no fork `success` in that run. The list comes from a search that lags behind a new label, so
+  before posting a fork `success` the monitor also reads the pull request itself, and the open
+  pull requests of the same head branch (the listing that finds fork pull requests), and skips the
+  post when one now carries the label or the head commit is new. A duplicate pull request from
+  another branch at the same commit is not found this way.
+- The protection is eventual, not atomic. Nothing reacts to the label when it is added
+  (`pull_request_target` is not used, see "Goals and non-goals"), so a fork `success` posted
+  before the label stays until the next monitor run that completes: normally within one cadence
+  (15 minutes), longer when GitHub delays or drops a scheduled run or a run fails, and one more
+  cycle when the label arrives after a run has taken its snapshot of the pull request. The pull
+  request can merge on the fork result in that window. A maintainer who adds the label to a pull
+  request whose fork CI is green waits for the `pending` before merging or enabling auto-merge,
+  or starts the monitor by hand (`workflow_dispatch`). A strict merge-time guarantee needs a
+  required check bound to a source, which is out of scope here. Revoking a `success` is never
+  limited by the per-run budget of commit statuses; posting the project CI `success` is.
+- Known limitation: the ruleset accepts `CI passed` from any source, so a pull request that changes
+  workflows can make its own project CI run produce a `CI passed` check run. This holds for every
+  pull request that runs project CI; reviewers must check changes to CI files before adding
+  `use project ci`, and again on every push of a labelled pull request, since the label survives
+  pushes.
 - In a gated run of `ci-amd.yml` every job after the gate is skipped, so project CI's `CI passed`
   job must not report success there; it reports under another name when `build-info` is
   skipped, and the reconciler's status is the only `CI passed` the pull request has.
@@ -1064,7 +1185,8 @@ files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated 
 one changed-files call per head commit that turns green, plus one mutation per actual state
 change. Job statuses add a jobs call and a status call per pull request with a fork run in
 progress or a completed run not yet reported, and up to two status mutations per job, at most
-`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Well inside
+`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Pull requests that pass 1 labelled and
+the search does not list yet add one GraphQL call per 25. Well inside
 the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
 budget stays observable.
 
@@ -1245,8 +1367,9 @@ as a failed check rather than a crash.
 ## Known limitations
 
 - Drafting, the setup comment and the commit status arrive within one cadence of the event
-  they reflect, not instantly. The cadence can be lowered to 5 minutes without changing the
-  budget analysis, since unchanged pull requests cost no mutations.
+  they reflect, not instantly. The cadence can be lowered, but the per-run write budgets are
+  sized for four runs an hour against the `GITHUB_TOKEN` limits shared by every workflow of the
+  repository, so they must be scaled down with it.
 - The workflows API lists workflows from the fork's default branch. A fork whose `main`
   predates `ci-amd.yml` reports it missing; the setup comment covers this with
   `gh repo sync`.

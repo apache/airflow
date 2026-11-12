@@ -119,7 +119,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-cassandra>=3.7.0"
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -261,6 +261,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
+]
+"huggingface" = [
+    "apache-airflow-providers-huggingface>=0.1.0"
 ]
 "ibm.db2" = [
     "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\""
@@ -431,7 +434,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-arrow>=0.1.0",
     "apache-airflow-providers-apache-beam>=5.8.1",
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
@@ -479,6 +482,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-huggingface>=0.1.0",
     "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\"",
     "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
@@ -585,7 +589,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.13.6",
+    "uv>=0.13.7",
 ]
 
 [project.urls]
@@ -598,7 +602,7 @@ Homepage = "https://airflow.apache.org/"
 "Source Code" = "https://github.com/apache/airflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
-Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+Bluesky = "https://bsky.app/profile/airflow.apache.org"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.build]
@@ -1243,6 +1247,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/http/src",
     "$MYPY_CONFIG_FILE_DIR/providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/huggingface/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/huggingface/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/src",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/src",
@@ -1467,24 +1473,22 @@ ci-image = [
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
 required-version = ">=0.13.4"
 no-build-isolation-package = ["sphinx-redoc"]
-# pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
-# llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
-# google-cloud-aiplatform[evaluation]) still cap openai below 3. Without this override the
-# workspace lock cannot move pydantic-ai-slim past 2.31, which is incompatible with anthropic
-# 1.x, so the Anthropic path could not run in the CI image at all. Holding openai on 2.x is the
-# pairing constraints-main already ships and the one `pip check` in the image build accepts
-# (pip ignores extra-gated requirements, but not llama-index's unconditional cap). pydantic-ai's
-# OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
-# move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
-# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and google-cloud-aiplatform
-# lifts its litellm cap (<1.86 below Python 3.14) far enough to reach the fixed litellm.
-override-dependencies = ["openai>=2.47.0,<3"]
-# The override replaces every package's openai requirement, not only pydantic-ai-slim's, so the
-# resolver no longer rejects a release that needs openai>=3 unconditionally, and only `pip check`
-# in the image build catches it. Cap each such package here at its last openai 2.x release, which
-# is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
-# openai>=3.0.0; the Azure provider needs >=2.2.0.
-constraint-dependencies = ["azure-ai-projects<2.5"]
+# Common AI's "llamaindex" extra cannot be installed alongside its "openai" extra:
+# llama-index-llms-openai (up to 0.8.3) caps openai below 3, and pydantic-ai-slim[openai]>=2.33
+# needs openai>=3. Declaring them as conflicting lets uv.lock resolve each one on its own, so the
+# CI image gets openai 3 and the LlamaIndex tests run in the agent framework job instead, with
+# the openai 2.x that llama-index pulls in. Remove this once run-llama/llama_index#22939 is
+# released and the llama-index packages are back in Common AI's dev group, together with the
+# workarounds that exist only because of it: LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS in
+# scripts/docker/entrypoint_ci.sh (otherwise the "llamaindex" extra silently stays out of the
+# lowest-dependency sync), the llama-index entry in the agent framework CI matrix and in breeze's
+# verification plan, and released=(openai) in scripts/in_container/run_agent_framework_tests.sh.
+conflicts = [
+    [
+        { package = "apache-airflow-providers-common-ai", extra = "llamaindex" },
+        { package = "apache-airflow-providers-common-ai", extra = "openai" },
+    ],
+]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
@@ -1560,6 +1564,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-huggingface = false
 apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
@@ -1681,7 +1686,6 @@ qdrant-client = "Capped (#62193)"
 airbyte-api = "1.x breaks provider tests (#69081)"
 mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
 anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
-azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1759,6 +1763,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-huggingface = false
 apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
@@ -1932,6 +1937,7 @@ apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-huggingface = { workspace = true }
 apache-airflow-providers-ibm-db2 = { workspace = true }
 apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
@@ -2078,6 +2084,7 @@ members = [
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
+    "providers/huggingface",
     "providers/ibm/db2",
     "providers/ibm/mq",
     "providers/imap",

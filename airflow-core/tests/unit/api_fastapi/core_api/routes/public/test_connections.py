@@ -1268,7 +1268,7 @@ class TestConnection(TestConnectionEndpoint):
         ) as spy_secrets:
             response = test_client.post(
                 "/connections/test",
-                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+                json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE},
             )
 
         assert response.status_code == 200
@@ -1353,7 +1353,7 @@ class TestConnection(TestConnectionEndpoint):
 
         body = {
             "connection_id": TEST_CONN_ID,
-            "conn_type": "new_sqlite",
+            "conn_type": "sqlite",
             "password": "***",
         }
 
@@ -1364,8 +1364,7 @@ class TestConnection(TestConnectionEndpoint):
         assert response.json()["status"] is True
         # Verify that the existing password was used, not "***"
         assert captured_value["password"] == "existing_password"
-        # Verify that payload info were used for other fields
-        assert captured_value["conn_type"] == "new_sqlite"
+        assert captured_value["conn_type"] == "sqlite"
 
         # Verify DB was not mutated
         session.expire_all()
@@ -1393,6 +1392,7 @@ class TestConnection(TestConnectionEndpoint):
         body = {
             "connection_id": TEST_CONN_ID,
             "conn_type": "fs",
+            "password": "caller_password",
             "extra": '{"path": "/", "new_key": "new_value"}',
         }
 
@@ -1451,7 +1451,12 @@ class TestConnection(TestConnectionEndpoint):
             captured_extra["value"] = self.extra
             return True, "mocked"
 
-        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", "extra": '{"path": "***"}'}
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "password": "caller_password",
+            "extra": '{"path": "***"}',
+        }
         with mock.patch.object(Connection, "test_connection", mock_test_connection):
             response = test_client.post("/connections/test", json=body)
 
@@ -1481,7 +1486,7 @@ class TestConnection(TestConnectionEndpoint):
             "connection_id": TEST_CONN_ID,
             "conn_type": "fs",
             "password": "***",
-            "extra": '{"path": "/", "new_key": "new_value"}',
+            "extra": '{"path": "/", "existing_key": "existing_value"}',
         }
 
         with mock.patch.object(Connection, "test_connection", mock_test_connection):
@@ -1491,10 +1496,7 @@ class TestConnection(TestConnectionEndpoint):
         assert response.json()["status"] is True
         # Verify that the existing password was used, not "***"
         assert captured_values["password"] == "existing_password"
-        # Verify that new_key is reflected in the merged extra
-        merged_extra = json.loads(captured_values["extra"])
-        assert merged_extra["new_key"] == "new_value"
-        assert merged_extra["path"] == "/"
+        assert json.loads(captured_values["extra"]) == {"path": "/", "existing_key": "existing_value"}
 
         # Verify DB was not mutated
         session.expire_all()
@@ -1509,6 +1511,16 @@ class TestConnection(TestConnectionEndpoint):
         [
             pytest.param({"host": "other_host"}, id="host-changed"),
             pytest.param({"host": "stored_host", "port": 9999}, id="port-changed"),
+            pytest.param({"conn_type": "http"}, id="conn-type-changed"),
+            pytest.param({"schema": "http://other_host:8080/path"}, id="schema-changed"),
+            pytest.param({"login": "other_login"}, id="login-changed"),
+            pytest.param(
+                {
+                    "password": "***",
+                    "extra": json.dumps({"api_key": "***", "proxies": {"http": "http://other"}}),
+                },
+                id="extra-changed",
+            ),
         ],
     )
     def test_should_reject_test_when_target_overridden_without_credentials(
@@ -1520,7 +1532,9 @@ class TestConnection(TestConnectionEndpoint):
                 conn_type="sqlite",
                 host="stored_host",
                 port=1234,
+                login="stored_login",
                 password="existing_password",
+                extra=json.dumps({"api_key": "existing_key"}),
             )
         )
         session.commit()
@@ -1568,6 +1582,7 @@ class TestConnection(TestConnectionEndpoint):
         tested_connection = mock_test.call_args.args[0]
         assert tested_connection.password == expected_password
 
+    @pytest.mark.enable_redact
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_reuse_stored_extra_when_host_and_port_are_blank(self, test_client, session):
         """Hidden unused host/port (None vs "") must not skip restoring masked extra."""

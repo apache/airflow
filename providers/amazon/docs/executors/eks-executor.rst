@@ -68,6 +68,11 @@ roughly fifteen minutes, so the executor registers a refresh hook that the Kuber
 calls on every authenticated request. The hook reuses the current token and gets a new one
 a minute before it expires.
 
+If something outside Airflow rotates the executor's AWS keys, such as a sidecar that rewrites
+the credentials file or a secrets backend that stores them in the connection, the executor picks
+up the new keys without a restart. When the old keys stop working, the scheduler may log a
+warning that the cluster rejected the token, and the request is retried once with the new keys.
+
 Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` or
 ``UPDATING``, since EKS keeps the Kubernetes API available during an update (see `Update
 existing cluster to new Kubernetes version

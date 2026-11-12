@@ -314,3 +314,48 @@ describe("FilterBar URL synchronization", () => {
     await waitFor(() => expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument());
   });
 });
+
+describe("FilterBar reset", () => {
+  it("shows Reset for an external filter even with no pills", () => {
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        hasExternalFilters
+        onFiltersChange={vi.fn()}
+        showPresetFilters={false}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByRole("button", { name: "common:reset" })).toBeInTheDocument();
+  });
+
+  it("hides Reset with no pills and no external filter", () => {
+    render(<FilterBar configs={[booleanConfig]} onFiltersChange={vi.fn()} showPresetFilters={false} />, {
+      wrapper,
+    });
+
+    expect(screen.queryByRole("button", { name: "common:reset" })).not.toBeInTheDocument();
+  });
+
+  it("calls onReset instead of onFiltersChange when given", () => {
+    const onFiltersChange = vi.fn();
+    const onReset = vi.fn();
+
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={onFiltersChange}
+        onReset={onReset}
+        showPresetFilters={false}
+      />,
+      { wrapper },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "common:reset" }));
+
+    expect(onReset).toHaveBeenCalledOnce();
+    expect(onFiltersChange).not.toHaveBeenCalled();
+  });
+});

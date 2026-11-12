@@ -29,14 +29,20 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import AbstractCapability, Toolset, WrapperCapability
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
+from pydantic_ai.toolsets import DynamicToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.durable.capability import DURABLE_UNIT_TOOLSETS, AirflowDurability
+from airflow.providers.common.ai.durable.capability import (
+    DURABLE_UNIT_TOOLSETS,
+    AirflowDurability,
+    _get_chosen_toolset_id,
+    _give_durable_ids,
+)
 from airflow.providers.common.ai.durable.journal import DurableJournal, build_task_storage, journal_scope
 from airflow.providers.common.ai.exceptions import (
     ToolApprovalAlreadyRequestedError,
@@ -61,6 +67,7 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_for_xcom
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -94,21 +101,23 @@ try:
     # See LLMOperator: Newer ``apache-airflow-task-sdk`` versions register declared ``output_type`` classes
     # from a worker-side DAG walk, so the model instance flows through XCom; older
     # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
-    from airflow.sdk.serde import (
-        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
-        iter_pydantic_models,
-    )
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from types import UnionType
+
     import jinja2
     from pydantic_ai import Agent
     from pydantic_ai.capabilities import AgentCapability
     from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.output import OutputSpec
+    from pydantic_ai.toolsets import ToolsetFunc
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
+    from airflow.providers.common.ai.durable.capability import _GivenIds
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -250,26 +259,6 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
     )
 
 
-def _dump_unregistered_models(value: Any, registered: set[type]) -> Any:
-    """Return *value* with each model whose class is not in *registered* dumped to a JSON-compatible dict."""
-    if isinstance(value, BaseModel):
-        if type(value) in registered:
-            return value
-        # A python-mode model_dump() leaves values such as plain Enum members, HttpUrl and Path in the
-        # dict, and the default XCom serializer raises TypeError for those values.
-        return value.model_dump(mode="json")
-    # The default XCom serializer already pushes a subclass of list, tuple or dict, such as a NamedTuple
-    # or an OrderedDict, as the plain type. Building the plain type here does not change what a
-    # downstream task receives.
-    if isinstance(value, list):
-        return [_dump_unregistered_models(item, registered) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_dump_unregistered_models(item, registered) for item in value)
-    if isinstance(value, dict):
-        return {key: _dump_unregistered_models(item, registered) for key, item in value.items()}
-    return value
-
-
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
@@ -305,10 +294,16 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
         for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the agent.
-    :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output; the model instance is
+    :param output_type: Expected output type. Default ``str``. A single type
+        (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
+        union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
+        as alternatives (a union). pydantic-ai output markers (``ToolOutput(...)``,
+        ``NativeOutput(...)``) and output functions are also accepted.
+        For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
-        directly. The class must be defined at module scope -- nested classes
+        directly, except inside a list of types, where it is returned as a ``dict``
+        because the worker registers only the classes it finds in a single type or a union.
+        The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``). The connection IDs of
@@ -391,17 +386,22 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         a warning). Default ``False``. A replayed step adds nothing to the usage
         counted against ``usage_limits`` or reported in the ``usage`` XCom -- not
         its request, tokens, cost, or tool calls -- so every attempt counts only
-        the model and tool calls it actually makes. This holds the same way after
-        clearing a failed task instance: it starts a fresh budget but keeps the
-        journal its attempts left behind, and whatever the rerun replays from it
-        is free. The agent's ``run_id`` (and its ``conversation_id``, when there is
-        no message history) stays the first attempt's on every retry.
+        the model and tool calls it actually makes. Clearing a finished task
+        instance starts a fresh budget; whether its rerun replays from the journal
+        depends on the Airflow version and how the task was cleared
+        (:ref:`durable-clear`). The agent's ``run_id`` (and its
+        ``conversation_id``, when there is no message history) stays the first
+        attempt's on every retry.
         On Airflow >= 3.3 the journal is kept in the AIP-103 task state store, so
         no extra configuration is needed. On older Airflow versions it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
-        Toolsets pydantic-ai runs as durable steps (``FunctionToolset``,
-        ``MCPToolset``, ``DynamicToolset``) need a unique ``id``, and so do
-        capabilities with ``@durable_operation`` methods.
+        A pydantic-ai ``MCPToolset`` needs a unique ``id``, and so do capabilities
+        with ``@durable_operation`` methods. A ``FunctionToolset`` or a function that
+        builds a toolset, passed in ``toolsets`` or ``agent_params["toolsets"]``, needs
+        none, and neither does a ``FunctionToolset`` held directly by a ``Toolset``
+        capability (:ref:`durable-toolset-ids`). A tool with the metadata
+        ``{"airflow": False}`` runs again on every attempt instead of replaying
+        (:ref:`durable-tool-opt-out`).
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against
@@ -499,11 +499,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
         leaves it to anyone who can act on the task's Required Actions.
 
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape.
+    :param serialize_output: If ``True``, an output that is itself a Pydantic ``BaseModel`` is
+        dumped with ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal``
+        fields keep their types. Default ``False``: a model whose class the worker registers from
+        ``output_type`` flows through XCom unchanged. Some outputs are pushed as dicts either way;
+        see :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -535,7 +535,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type = str,
+        output_type: OutputSpec[Any] | UnionType = str,
         toolsets: list[AbstractToolset] | None = None,
         capabilities: list[AgentCapability[Any]] | None = None,
         enable_tool_logging: bool = True,
@@ -654,42 +654,42 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         """
         Refuse a toolset whose steps durable replay would have no name for.
 
-        pydantic-ai records each call of a ``FunctionToolset``, ``MCPToolset`` or
-        ``DynamicToolset`` under the toolset's ``id``, and refuses to run one without it.
-        The id is what a retry matches recorded calls by, so it has to come from the Dag
-        author: one derived from the toolset's position would point a retry at another
-        toolset's results as soon as the list is reordered. Checked here so the Dag fails
-        to load rather than at the first run.
+        pydantic-ai names the durable steps of a ``FunctionToolset``, ``MCPToolset`` or
+        ``DynamicToolset`` after the toolset's ``id``, and refuses to run one without it. The
+        toolsets ``_build_agent`` hands the agent are given ids here as it gives them
+        (``_give_durable_ids``), and a leaf still without one is refused: an ``MCPToolset``, whose
+        server URL or command can carry credentials, or a function without a qualified name.
+        Checked here so the Dag fails to load rather than at the first run.
         """
-        missing = {
-            type(leaf).__name__
-            for toolset in self._declared_toolsets()
-            for leaf in iter_toolsets(toolset)
-            if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is None
-        }
-        # A function that builds a toolset per run becomes a DynamicToolset with no id.
-        if any(
-            not isinstance(toolset, AbstractToolset)
-            for toolset in (*(self.toolsets or []), *(self.agent_params.get("toolsets") or []))
-        ):
-            missing.add("DynamicToolset")
-        if kinds := sorted(missing):
-            raise ValueError(
-                f"durable=True needs a unique id on every {' and '.join(kinds)}, such as "
-                f"{kinds[0]}(..., id='orders'): durable replay records each tool call under it. "
-                "Set it on the toolset itself, and pass a function that builds a toolset as "
-                "DynamicToolset(function, id=...); the id of a Toolset capability around a toolset "
-                "does not reach it."
-            )
+        given: _GivenIds = {}
+        leaves = [
+            leaf
+            for toolset in self._running_toolsets()
+            for leaf in iter_toolsets(_give_durable_ids(toolset, given))
+            if isinstance(leaf, DURABLE_UNIT_TOOLSETS)
+        ]
         # One instance listed twice is one toolset to pydantic-ai; two instances sharing an id
-        # would have their recorded calls filed under one name.
+        # would have their recorded calls filed under one name. Each listing of a function
+        # becomes a DynamicToolset of its own, so two lambdas in one module share an id.
         first_by_id: dict[str, AbstractToolset[Any]] = {}
         duplicates: list[str] = []
-        for toolset in self._running_toolsets():
-            for leaf in iter_toolsets(toolset):
-                if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is not None:
-                    if first_by_id.setdefault(leaf.id, leaf) is not leaf and leaf.id not in duplicates:
-                        duplicates.append(leaf.id)
+        for leaf in leaves:
+            if (toolset_id := _get_chosen_toolset_id(leaf)) is None and isinstance(leaf, DynamicToolset):
+                raise ValueError(
+                    "durable=True names the steps of a toolset built per run after the function that "
+                    f"builds it, but {leaf.toolset_func!r} has no __qualname__. Pass it as "
+                    "DynamicToolset(function, id=...)."
+                )
+            if toolset_id is None:
+                raise ValueError(
+                    "durable=True needs a unique id on every MCPToolset, such as "
+                    "MCPToolset(..., id='weather'): durable replay records each tool call under it, and "
+                    "none is derived from the server's URL or command, which can carry credentials. Set "
+                    "it on the toolset itself; the id of a Toolset capability around a toolset does not "
+                    "reach it."
+                )
+            if first_by_id.setdefault(toolset_id, leaf) is not leaf and toolset_id not in duplicates:
+                duplicates.append(toolset_id)
         if duplicates:
             raise ValueError(
                 f"durable=True needs a unique id on each toolset, but more than one toolset has the id "
@@ -857,13 +857,18 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # masked here as well because toolset wrappers a capability adds (get_wrapper_toolset,
         # as ToolLoggingCapability does) run below the capability hooks and would otherwise see
         # the unmasked result. The durable journal masks what it records on its own.
+        given_ids: _GivenIds = {}
+
+        def prepare(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:
+            return ensure_masked(_give_durable_ids(toolset, given_ids) if self.durable else toolset)
+
         if self.toolsets:
-            toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
+            toolsets: list[AbstractToolset] = [prepare(ts) for ts in self.toolsets]
             extra_kwargs["toolsets"] = toolsets
         elif extra_kwargs.get("toolsets"):
-            extra_kwargs["toolsets"] = [ensure_masked(ts) for ts in extra_kwargs["toolsets"]]
+            extra_kwargs["toolsets"] = [prepare(ts) for ts in extra_kwargs["toolsets"]]
         capabilities = [
-            _replace_capability_toolset(capability, ensure_masked)
+            _replace_capability_toolset(capability, prepare)
             for capability in self.capabilities or passed_through or []
         ]
         if self.durable:
@@ -929,15 +934,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 candidates.append(toolset)
         return candidates
 
-    def _running_toolsets(self) -> list[AbstractToolset[Any]]:
+    def _running_toolsets(self) -> list[AbstractToolset[Any] | ToolsetFunc[Any]]:
         """
-        Return the toolsets ``_build_agent`` hands the agent.
+        Return the toolsets ``_build_agent`` hands the agent, including functions that build one per run.
 
         Unlike ``_declared_toolsets``, ``agent_params["toolsets"]`` counts only when
         ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise.
         """
-        listed = self.toolsets or self.agent_params.get("toolsets") or []
-        candidates = [toolset for toolset in listed if isinstance(toolset, AbstractToolset)]
+        candidates = list(self.toolsets or self.agent_params.get("toolsets") or [])
         for capability in self._declared_capabilities:
             if (toolset := _resolve_capability_toolset(capability)) is not None:
                 candidates.append(toolset)
@@ -1050,14 +1054,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise
 
     def execute(self, context: Context) -> Any:
-        if self.enable_hitl_review and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: enable_hitl_review=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The HITL session model requires a string prompt. Return a str "
-                f"prompt, or disable enable_hitl_review."
-            )
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
@@ -1243,20 +1239,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         """Return the XCom value, with dicts in place of models that a downstream task could not load."""
         if not self.do_xcom_push:
             return output
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            return output.model_dump()
-        if not _CORE_WALKER:
-            # iter_pydantic_models could not be imported, so the worker registers no class.
-            # _serialize_model_output is always True when that import fails, so a model at the top level was
-            # already dumped above. The class of a model inside a list, tuple or dict is not registered
-            # either, so this call passes an empty set of registered classes to dump that model too.
-            return _dump_unregistered_models(output, set())
-        # A downstream task can load a model from XCom only if the worker registered the model's class.
-        # The worker registers the classes that iter_pydantic_models finds in output_type.
-        # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-        # function, a TypeAliasType or a NewType. For these output types the operator pushes each model
-        # as a dict, including models inside a list, tuple or dict.
-        return _dump_unregistered_models(output, set(iter_pydantic_models(self.output_type)))
+        return dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:
         """

@@ -84,7 +84,9 @@ test.describe("Mapped task tries", () => {
     });
 
     // Details and Logs describe the same try, so navigation and reload must preserve try 2.
-    await page.getByRole("link", { exact: true, name: "Details" }).click();
+    // At the desktop viewport the Details tab does not fit in the row and sits behind "More".
+    await page.getByTestId("nav-tabs-more").click();
+    await page.getByRole("menuitem", { exact: true, name: "Details" }).click();
     await expect(page).toHaveURL(/\/details\?try_number=2$/u);
     await expect(
       page.getByRole("row").filter({ has: page.getByRole("cell", { exact: true, name: "State" }) }),
