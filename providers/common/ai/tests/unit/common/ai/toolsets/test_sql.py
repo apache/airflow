@@ -69,7 +69,7 @@ def _make_mock_db_hook(
     mock = MagicMock(spec=DbApiHook)
     mock.inspector = MagicMock(spec=Inspector)
     mock.inspector.get_table_names.return_value = table_names or ["users", "orders"]
-    mock.get_table_schema.return_value = table_schema or [
+    mock.inspector.get_columns.return_value = table_schema or [
         {"name": "id", "type": "INTEGER"},
         {"name": "name", "type": "VARCHAR"},
     ]
@@ -305,7 +305,7 @@ class TestSQLToolsetGetSchema:
             "columns": [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}],
             "column_count": 2,
         }
-        mock_hook.get_table_schema.assert_called_once_with("users", schema=None)
+        mock_hook.inspector.get_columns.assert_called_once_with("users", schema=None)
 
     def test_name_contains_filters_the_columns(self):
         """``name_contains`` threads from the tool call through to the bounded result."""
@@ -366,13 +366,13 @@ class TestSQLToolsetGetSchema:
         assert "error" in data
         assert "secrets" in data["error"]
         # The guard must short-circuit before touching the database.
-        ts._hook.get_table_schema.assert_not_called()
+        ts._hook.inspector.get_columns.assert_not_called()
 
     def test_introspection_error_raises_model_retry(self):
         """A failure while reading a table's schema is returned to the agent as a retry."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.get_table_schema.side_effect = Exception('relation "users" does not exist')
+        ts._hook.inspector.get_columns.side_effect = Exception('relation "users" does not exist')
 
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(
@@ -932,7 +932,7 @@ class TestSQLToolsetMultiSchema:
         hook = MagicMock(spec=DbApiHook)
         hook.inspector = MagicMock()
         hook.inspector.get_table_names.side_effect = lambda schema=None: tables_by_schema.get(schema, [])
-        hook.get_table_schema.return_value = [{"name": "id", "type": "INTEGER"}]
+        hook.inspector.get_columns.return_value = [{"name": "id", "type": "INTEGER"}]
         return hook
 
     def test_list_tables_spans_multiple_schemas(self):
@@ -984,7 +984,9 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert result == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
-        ts._hook.get_table_schema.assert_called_once_with("DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO")
+        ts._hook.inspector.get_columns.assert_called_once_with(
+            "DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO"
+        )
 
     def test_get_schema_blocks_table_outside_allowed_schema(self):
         ts = SQLToolset("sf", allowed_tables=["MODEL_ASTRO.X"])
@@ -998,14 +1000,14 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert "error" in result
-        ts._hook.get_table_schema.assert_not_called()
+        ts._hook.inspector.get_columns.assert_not_called()
 
     def test_get_schema_unqualified_uses_default_schema(self):
         ts = SQLToolset("pg", schema="public")
         ts._hook = self._schema_aware_hook({"public": ["users"]})
 
         asyncio.run(ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock()))
-        ts._hook.get_table_schema.assert_called_once_with("users", schema="public")
+        ts._hook.inspector.get_columns.assert_called_once_with("users", schema="public")
 
     def test_list_tables_matches_case_insensitively(self):
         """Snowflake reflects unquoted names lowercased; uppercase allowed_tables still match."""
@@ -1038,7 +1040,9 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert "error" not in result
-        ts._hook.get_table_schema.assert_called_once_with("deployment_image_details", schema="MODEL_ASTRO")
+        ts._hook.inspector.get_columns.assert_called_once_with(
+            "deployment_image_details", schema="MODEL_ASTRO"
+        )
 
     def test_list_tables_deduplicates_same_table(self):
         """A table listed both qualified and unqualified appears once."""

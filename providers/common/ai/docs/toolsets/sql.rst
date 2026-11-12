@@ -471,7 +471,10 @@ subqueries and joins.
   or ``Connection '<id>' does not provide a DbApiHook`` when the connection is
   of the wrong type. Match that class in a retry policy
   (:doc:`../retry_policies`) to retry an unreachable database on a different
-  schedule from other failures. Inside :doc:`../code_mode` the split does not hold: a
+  schedule from other failures. When the driver's message carries a secret the
+  masker cannot remove from the exception, the task fails with a ``RuntimeError``
+  holding the masked message instead, and a rule on the class does not match it.
+  Inside :doc:`../code_mode` the split does not hold: a
   tool the model's code calls hands any exception back to the model as a
   retry, this one included.
   Once connected, an error from the statement becomes a ``ModelRetry`` so the

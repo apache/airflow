@@ -109,7 +109,7 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
 }
 
 
-def _unreachable(conn_id: str, error: Exception) -> SQLToolsetConnectionError:
+def _build_connection_error(conn_id: str, error: Exception) -> SQLToolsetConnectionError:
     return SQLToolsetConnectionError(f"Could not reach the database of connection {conn_id!r}: {error}")
 
 
@@ -120,12 +120,12 @@ def _raise_connection_failures(get_conn: Callable[[], Any], conn_id: str) -> Cal
         try:
             return get_conn()
         except Exception as e:
-            raise _unreachable(conn_id, e) from e
+            raise _build_connection_error(conn_id, e) from e
 
     return wrapper
 
 
-def _lost_connection(error: Exception) -> bool:
+def _is_lost_connection(error: Exception) -> bool:
     """
     Whether SQLAlchemy reports ``error`` as a connection failure rather than a failing statement.
 
@@ -420,7 +420,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             try:
                 hook = BaseHook.get_connection(self._db_conn_id).get_hook()
             except Exception as e:
-                raise _unreachable(self._db_conn_id, e) from e
+                raise _build_connection_error(self._db_conn_id, e) from e
             if not isinstance(hook, DbApiHook):
                 raise SQLToolsetConnectionError(
                     f"Connection {self._db_conn_id!r} does not provide a DbApiHook. "
@@ -435,12 +435,11 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     def _get_inspector(self) -> Inspector:
         hook = self._get_db_hook()
         # Building the inspector fetches credentials (Databricks), loads the SQLAlchemy dialect
-        # and connects, none of which goes through get_conn. The hook caches it, so the
-        # get_table_schema call after this reuses it.
+        # and connects, none of which goes through get_conn.
         try:
             return hook.inspector
         except Exception as e:
-            raise _unreachable(self._db_conn_id, e) from e
+            raise _build_connection_error(self._db_conn_id, e) from e
 
     # ------------------------------------------------------------------
     # AbstractToolset interface
@@ -499,8 +498,8 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             # answer without data, or spend its retries on something no SQL can fix.
             raise
         except Exception as e:
-            if _lost_connection(e):
-                raise _unreachable(self._db_conn_id, e) from e
+            if _is_lost_connection(e):
+                raise _build_connection_error(self._db_conn_id, e) from e
             # The statement failed: hand the database's own error back to the agent so it
             # can fix its SQL within the run, bounded by the tool's max_retries.
             raise ModelRetry(
@@ -562,8 +561,10 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
             return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
-        self._get_inspector()  # get_table_schema reads through it
-        columns = self._get_db_hook().get_table_schema(table, schema=schema)
+        columns = [
+            {"name": col["name"], "type": str(col["type"])}
+            for col in self._get_inspector().get_columns(table, schema=schema)
+        ]
         return build_schema_result(
             columns,
             max_columns=self._max_columns,
@@ -579,7 +580,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         try:
             dialect_name = getattr(hook, "dialect_name", None)
         except Exception as e:
-            raise _unreachable(self._db_conn_id, e) from e
+            raise _build_connection_error(self._db_conn_id, e) from e
         return resolve_sqlglot_dialect(dialect_name)
 
     def _query(self, sql: str) -> str:
