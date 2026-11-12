@@ -238,7 +238,9 @@ Consequences for the other components:
   reconciler removes `fork ci required`, undrafts it if the bot drafted it, edits the state
   comment to say project CI is in use, and posts a `success` status with the description
   "Project CI in use (label `use project ci`)". Project CI then runs on the next push, or when
-  a maintainer closes and reopens the pull request.
+  a maintainer closes and reopens the pull request. From that run on, and until project CI has
+  passed on the head commit, the pull request cannot merge: its `CI passed` status is `pending`
+  (see "The `CI passed` check").
 - Both override labels on one pull request resolve to project CI and are reported to Slack as
   a conflict.
 
@@ -933,12 +935,12 @@ suspicious-change flags) is unaffected.
 
 ### The `CI passed` check
 
-The "Require CI on main" ruleset requires a `CI passed` check from GitHub Actions before a pull
-request can merge or auto-merge. Project CI's `CI passed` job reports it, but a gated pull
+The "Require CI on main" ruleset requires a `CI passed` check before a pull request can merge or
+auto-merge; the required check names no integration, so a check run or a commit status of that
+name from any source satisfies it. Project CI's `CI passed` job reports it, but a gated pull
 request never runs project CI, so the reconciler reports it instead: when the state of the head
 commit is `green`, it posts a `CI passed` commit status with state `success`, linking the fork
-run. A commit status written with the monitor's `GITHUB_TOKEN` comes from GitHub Actions, which
-is the source the ruleset accepts.
+run.
 
 - Only `success` is posted. Without the status a gated pull request cannot merge, which is what a
   pending or failing one would say, and it never competes with project CI's own check.
@@ -946,9 +948,59 @@ is the source the ruleset accepts.
   it is not evidence. Once a maintainer adds `use project ci`, project CI reports the check.
 - When the head commit leaves `green`, for example a re-run in the fork that fails, a `success`
   posted earlier is overwritten with `pending` so the pull request cannot merge on it.
-- A pull request released with `use project ci` keeps any `success` the reconciler posted for
-  its current head commit. A maintainer who wants the project CI result before merging waits
-  for project CI before enabling auto-merge, or pushes a new commit.
+- A pull request carrying `use project ci` cannot merge on the fork result. GitHub requires both to
+  pass when a check run and a commit status have the same name and that name is required, so the
+  `CI passed` status and project CI's `CI passed` check run must both succeed. The run that
+  releases the pull request (see "Override labels") overwrites a fork `success` on its head commit
+  with `pending` ("Waiting for project CI (use project ci)"). It reads the labels from the pull
+  request node rather than from the label search, which lags behind a new label by minutes; a
+  `success` that project CI earned is kept. A labelled pull request that gets a new head commit can already carry a fork `success`
+  posted for another gated pull request on that commit, while project CI's check run does not exist
+  until it runs; the pass over labelled pull requests below overwrites that one.
+- Every monitor run also searches the open pull requests carrying the label, as they have left the
+  state machine, and keeps the status in line with project CI. It only writes when the head commit
+  already has a `CI passed` status: the project check run alone decides otherwise, and a `pending`
+  the monitor created would block the pull request after project CI passed. The project CI result is
+  the newest `pull_request` run of a project CI workflow file on the head commit whose job named
+  exactly `CI passed` exists; a run that has no such job and reports `CI passed (run cancelled)` or
+  `CI passed (project CI not run)` is ignored and does not hide an older run's result (a re-run
+  keeps its check suite, so one that has both is judged by its `CI passed` job). While that
+  job has not succeeded, a `success` is overwritten with `pending`; once it has, the monitor posts
+  `success` ("Project CI passed for this commit"). Adding the label does not start project CI (see
+  "Override labels"): the pull request stays blocked until a maintainer starts it and it passes,
+  and then until the next monitor run posts the `success`, which can take about 15 minutes.
+  Removing the label returns the pull request to the normal flow above: removing it updates the
+  pull request, so discovery (open pull requests updated within the last 24 hours) labels it
+  `fork ci required` again and the next run reports the fork result, replacing the waiting
+  `pending` once the fork run is green.
+  A pull request that is not gated after the label is removed (for example the gate is off) is not
+  labelled again, so discovery posts the project CI `success` for it instead, when its head commit's
+  `CI passed` status is one the reconciler wrote and is not `success`, and project CI has passed.
+  Discovery only sees pull requests updated within the last 24 hours: one whose project CI passes
+  later than that without any other update stays `pending` until it is updated.
+- A commit status belongs to the commit, so the monitor never posts a fork `CI passed` `success`
+  on a head commit that a pull request carrying `use project ci` has, even for another pull
+  request on the same commit; the project CI pass owns those. Revocations to `pending` always go
+  through. When the list of those commits cannot be read, it posts no fork `success` in that run. The list comes from a search that lags behind a new label, so
+  before posting a fork `success` the monitor also reads the pull request itself, and the open
+  pull requests of the same head branch (the listing that finds fork pull requests), and skips the
+  post when one now carries the label or the head commit is new. A duplicate pull request from
+  another branch at the same commit is not found this way.
+- The protection is eventual, not atomic. Nothing reacts to the label when it is added
+  (`pull_request_target` is not used, see "Goals and non-goals"), so a fork `success` posted
+  before the label stays until the next monitor run that completes: normally within one cadence
+  (15 minutes), longer when GitHub delays or drops a scheduled run or a run fails, and one more
+  cycle when the label arrives after a run has taken its snapshot of the pull request. The pull
+  request can merge on the fork result in that window. A maintainer who adds the label to a pull
+  request whose fork CI is green waits for the `pending` before merging or enabling auto-merge,
+  or starts the monitor by hand (`workflow_dispatch`). A strict merge-time guarantee needs a
+  required check bound to a source, which is out of scope here. Revoking a `success` is never
+  limited by the per-run budget of commit statuses; posting the project CI `success` is.
+- Known limitation: the ruleset accepts `CI passed` from any source, so a pull request that changes
+  workflows can make its own project CI run produce a `CI passed` check run. This holds for every
+  pull request that runs project CI; reviewers must check changes to CI files before adding
+  `use project ci`, and again on every push of a labelled pull request, since the label survives
+  pushes.
 - In a gated run of `ci-amd.yml` every job after the gate is skipped, so project CI's `CI passed`
   job must not report success there; it reports under another name when `build-info` is
   skipped, and the reconciler's status is the only `CI passed` the pull request has.
@@ -1245,8 +1297,9 @@ as a failed check rather than a crash.
 ## Known limitations
 
 - Drafting, the setup comment and the commit status arrive within one cadence of the event
-  they reflect, not instantly. The cadence can be lowered to 5 minutes without changing the
-  budget analysis, since unchanged pull requests cost no mutations.
+  they reflect, not instantly. The cadence can be lowered, but the per-run write budgets are
+  sized for four runs an hour against the `GITHUB_TOKEN` limits shared by every workflow of the
+  repository, so they must be scaled down with it.
 - The workflows API lists workflows from the fork's default branch. A fork whose `main`
   predates `ci-amd.yml` reports it missing; the setup comment covers this with
   `gh repo sync`.
