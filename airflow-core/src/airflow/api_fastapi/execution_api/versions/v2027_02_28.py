@@ -103,3 +103,16 @@ class AddCallbackStateEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
     )
+
+
+class AddLogIdTemplateField(VersionChange):
+    """Add the Dag-run-pinned ``log_id_template`` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("log_id_template").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_log_id_template_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove log_id_template field for older API versions."""
+        response.body.pop("log_id_template", None)

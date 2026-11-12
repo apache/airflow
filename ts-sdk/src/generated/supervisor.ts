@@ -275,6 +275,7 @@ export type FromDefault = boolean;
  */
 export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
+export type LogIdTemplate = string | null;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
@@ -1085,6 +1086,7 @@ export interface TIRunContext {
   arg_bindings?: ArgBindings;
   execution_timeout?: ExecutionTimeout;
   multi_team?: MultiTeam;
+  log_id_template?: LogIdTemplate;
 }
 /**
  * Pinned loop definition and enclosing iteration for a task execution.
