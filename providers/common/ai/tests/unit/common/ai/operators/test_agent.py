@@ -121,6 +121,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
+from unit.common.ai.default_executor import default_executor_taken
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 from unit.common.ai.tool_parts import is_tool_retry
@@ -4559,6 +4560,21 @@ class TestAgentOperatorAsync:
         assert raised.value is awaiting_input
         mock_pause.assert_called_once()
         mock_report.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_reporting_a_failed_run_does_not_need_the_default_executor(self, mock_hook_cls):
+        """A supervisor call in flight reads its reply on the default executor; the report must not wait for it."""
+        _make_async_mock_agent(mock_hook_cls, side_effect=RuntimeError("boom"))
+        context = _make_async_context()
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        async with default_executor_taken():
+            with pytest.raises(RuntimeError, match="boom"):
+                await asyncio.wait_for(op.aexecute(context), timeout=5)
+
+        pushed = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert pushed == {"run_id", "usage"}
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

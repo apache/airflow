@@ -28,13 +28,13 @@ constructed on 3.3+ (see ``UsageBudgetMixin._build_usage_budget``).
 
 from __future__ import annotations
 
-import asyncio
 import dataclasses
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.utils.coroutines import run_off_loop
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_4_PLUS
 
@@ -179,7 +179,7 @@ async def adelete_usage_record(accessor: TaskStateStoreAccessor) -> None:
     """Async version of :func:`delete_usage_record`."""
     if not AIRFLOW_V_3_4_PLUS:
         # The task state store has async accessors from Airflow 3.4.
-        await asyncio.to_thread(delete_usage_record, accessor)
+        await run_off_loop(delete_usage_record, accessor)
         return
     try:
         await accessor.adelete(USAGE_BUDGET_KEY)
@@ -217,7 +217,7 @@ class TaskStateStoreUsageBudget:
         """Async version of :meth:`load`."""
         if not AIRFLOW_V_3_4_PLUS:
             # The task state store has async accessors from Airflow 3.4.
-            return await asyncio.to_thread(self.load)
+            return await run_off_loop(self.load)
         return self._parse(await self._store.aget(USAGE_BUDGET_KEY))
 
     def _parse(self, raw: Any) -> RunUsage:
@@ -247,7 +247,7 @@ class TaskStateStoreUsageBudget:
         """Async version of :meth:`save`."""
         if not AIRFLOW_V_3_4_PLUS:
             # The task state store has async accessors from Airflow 3.4.
-            await asyncio.to_thread(self.save, usage)
+            await run_off_loop(self.save, usage)
             return
         try:
             from airflow.sdk.execution_time.context import NEVER_EXPIRE

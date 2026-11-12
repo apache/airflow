@@ -24,11 +24,11 @@ and output serialization.
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
+from airflow.providers.common.ai.utils.coroutines import run_off_loop
 from airflow.providers.common.ai.utils.prompt import call_arguments
 from airflow.providers.common.ai.utils.validation import (
     validate_prompt,
@@ -119,11 +119,10 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator, BaseAsyncOperato
         validate_prompt(self.prompt, decorator_name="@task.agent")
 
         # As in execute(): render only the prompt the callable returned, with the arguments of
-        # the call available by name. In a worker thread, since a template can read a Variable
-        # or a Connection with a blocking call to the supervisor, which must not happen on the
-        # event loop.
+        # the call available by name. Off the event loop, since a template can read a Variable
+        # or a Connection with a blocking call to the supervisor.
         context_merge(context, call_arguments(self.python_callable, self.op_args, self.op_kwargs))
-        self.prompt = await asyncio.to_thread(self.render_template, self.prompt, context)
+        self.prompt = await run_off_loop(self.render_template, self.prompt, context)
         return await AgentOperator.aexecute(self, context)
 
 

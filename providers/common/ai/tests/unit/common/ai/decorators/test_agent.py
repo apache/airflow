@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import threading
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -32,6 +33,7 @@ from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from unit.common.ai.default_executor import default_executor_taken
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -340,6 +342,17 @@ class TestAgentDecoratedOperatorAsync:
 
         assert rendered_on
         assert rendered_on[0] != threading.get_ident()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.aexecute", autospec=True)
+    async def test_rendering_the_prompt_does_not_need_the_default_executor(self, mock_aexecute):
+        """A supervisor call in flight reads its reply on the default executor; rendering must not wait for it."""
+        op = _AgentDecoratedOperator(task_id="test", python_callable=_async_prompt, llm_conn_id="my_llm")
+
+        async with default_executor_taken():
+            await asyncio.wait_for(op.aexecute(_make_async_context()), timeout=5)
+
+        mock_aexecute.assert_awaited_once()
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.aexecute", autospec=True)

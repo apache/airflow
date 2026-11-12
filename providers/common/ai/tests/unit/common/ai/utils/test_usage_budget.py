@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from pydantic import TypeAdapter
@@ -33,6 +35,7 @@ from airflow.providers.common.ai.utils.usage_budget import (
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from unit.common.ai.default_executor import default_executor_taken
 
 # Float measures such as ``audio_seconds``, added to RunUsage in pydantic-ai 2.50.
 _FLOAT_FIELDS = [field.name for field in dataclasses.fields(RunUsage) if field.type in (float, "float")]
@@ -337,3 +340,22 @@ class TestTaskStateStoreUsageBudgetAsync:
 
         await budget.asave(RunUsage())
         await budget.aclear()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.utils.usage_budget.AIRFLOW_V_3_4_PLUS", False)
+    async def test_the_synchronous_store_calls_do_not_need_the_default_executor(self):
+        """Before Airflow 3.4 the store has no async accessors, so its blocking calls leave the loop."""
+        store = FakeTaskStateStore()
+        budget = TaskStateStoreUsageBudget(store, max_tries=1)
+
+        async def round_trip() -> RunUsage:
+            await budget.asave(RunUsage(requests=2))
+            loaded = await budget.aload()
+            await budget.aclear()
+            return loaded
+
+        async with default_executor_taken():
+            loaded = await asyncio.wait_for(round_trip(), timeout=5)
+
+        assert loaded == RunUsage(requests=2)
+        assert USAGE_BUDGET_KEY not in store.store

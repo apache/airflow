@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import copy
 import hashlib
 import json
@@ -61,6 +60,7 @@ from airflow.providers.common.ai.observability import (
 )
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
+from airflow.providers.common.ai.utils.coroutines import run_off_loop
 from airflow.providers.common.ai.utils.logging import (
     MODEL_NAME_XCOM_KEY,
     format_usage_for_xcom,
@@ -145,7 +145,7 @@ async def _axcom_push(ti: Any, *, key: str, value: Any) -> None:
         await ti.axcom_push(key=key, value=value)
     else:
         # Airflow 3.2 runs async tasks but has no ``axcom_push``: push from a worker thread.
-        await asyncio.to_thread(ti.xcom_push, key=key, value=value)
+        await run_off_loop(ti.xcom_push, key=key, value=value)
 
 
 class HITLReviewLink(BaseOperatorLink):
@@ -1138,7 +1138,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         What has no async counterpart (the connection lookup, the task state store before
         Airflow 3.4, the usage report of a failed run, the pause for a tool approval) runs the
-        synchronous code in a worker thread.
+        synchronous code on the provider's own worker thread.
         """
         self._reject_unsupported_on_async_path()
         usage_limits = coerce_usage_limits(self.usage_limits)
@@ -1161,7 +1161,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 agent, self.prompt, run_usage=run_usage, **run_kwargs
             )
         except BaseException:
-            await asyncio.to_thread(self._report_failed_run, context, run_usage, run_id=run_kwargs["run_id"])
+            await run_off_loop(self._report_failed_run, context, run_usage, run_id=run_kwargs["run_id"])
             raise
         return await self._acomplete_run(context, result, attempt_usage=attempt_usage)
 
@@ -1170,14 +1170,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         log_run_summary(self.log, result, usage=attempt_usage)
         if isinstance(result.output, DeferredToolRequests):
             try:
-                await asyncio.to_thread(
+                await run_off_loop(
                     self._pause_for_tool_approval, context, result, attempt_usage=attempt_usage
                 )
             except BaseException as e:
                 # As in _complete_run: a refused pause is the first point this attempt is known
                 # to have failed.
                 if (run_usage := self._run_usage) is not None and not _is_awaiting_input(e):
-                    await asyncio.to_thread(self._report_failed_run, context, run_usage, run_id=result.run_id)
+                    await run_off_loop(self._report_failed_run, context, run_usage, run_id=result.run_id)
                 raise
         await self._aemit_run_metadata(context, result, usage=attempt_usage)
         if self._usage_budget and (run_usage := self._run_usage) is not None:
@@ -1363,7 +1363,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     async def _adelete_approval_transcript(self, store: TaskStateStoreAccessor) -> None:
         if not AIRFLOW_V_3_4_PLUS:
             # The task state store has async accessors from Airflow 3.4.
-            await asyncio.to_thread(self._delete_approval_transcript, store)
+            await run_off_loop(self._delete_approval_transcript, store)
             return
         try:
             await store.adelete(_TOOL_APPROVAL_TRANSCRIPT_KEY)
