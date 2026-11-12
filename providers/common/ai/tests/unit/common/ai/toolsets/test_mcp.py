@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 
 _HOOK_PATH = "airflow.providers.common.ai.hooks.mcp.MCPHook"
@@ -35,6 +36,9 @@ class TestMCPToolsetInit:
         ts = MCPToolset("my_mcp_server", tool_prefix="weather")
         assert ts._tool_prefix == "weather"
 
+    def test_tool_prefix_defaults_to_empty_string(self):
+        assert MCPToolset("my_mcp_server")._tool_prefix == ""
+
 
 class TestMCPToolsetGetServer:
     @patch(_HOOK_PATH, autospec=True)
@@ -46,7 +50,7 @@ class TestMCPToolsetGetServer:
         server = ts._get_server()
 
         mock_hook_cls.assert_called_once_with(
-            mcp_conn_id="mcp_conn", tool_prefix=None, token_provider=None, env_provider=None
+            mcp_conn_id="mcp_conn", tool_prefix="", token_provider=None, env_provider=None
         )
         mock_hook_cls.return_value.get_conn.assert_called_once()
         assert server is mock_server
@@ -73,7 +77,7 @@ class TestMCPToolsetGetServer:
         ts._get_server()
 
         mock_hook_cls.assert_called_once_with(
-            mcp_conn_id="mcp_conn", tool_prefix=None, token_provider=provider, env_provider=None
+            mcp_conn_id="mcp_conn", tool_prefix="", token_provider=provider, env_provider=None
         )
 
     @patch(_HOOK_PATH, autospec=True)
@@ -87,7 +91,7 @@ class TestMCPToolsetGetServer:
         ts._get_server()
 
         mock_hook_cls.assert_called_once_with(
-            mcp_conn_id="mcp_conn", tool_prefix=None, token_provider=None, env_provider=env_provider
+            mcp_conn_id="mcp_conn", tool_prefix="", token_provider=None, env_provider=env_provider
         )
 
     @patch(_HOOK_PATH, autospec=True)
@@ -136,5 +140,10 @@ class TestMCPToolsetDelegation:
 
 class TestMCPToolsetOutsidePydanticAI:
     def test_points_other_frameworks_to_their_own_mcp_client(self):
-        with pytest.raises(NotImplementedError, match="framework's own MCP client"):
+        with pytest.raises(MCPToolsetNotSupportedError) as exc_info:
             MCPToolset(mcp_conn_id="mcp_default").airflow_tools()
+
+        assert str(exc_info.value) == (
+            "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through "
+            "AirflowTools. Connect your framework's own MCP client to the server instead."
+        )

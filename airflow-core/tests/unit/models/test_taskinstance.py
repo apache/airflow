@@ -21,7 +21,6 @@ import contextlib
 import datetime
 import json
 import operator
-import os
 import pathlib
 import re
 from typing import TYPE_CHECKING, cast
@@ -41,7 +40,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
-from airflow import settings
+from airflow import plugins_manager, settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
@@ -97,7 +96,13 @@ from airflow.sdk import (
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineReference, VariableInterval
+from airflow.sdk.definitions.deadline import (
+    DAGRUN_CREATED_TIMING,
+    DAGRUN_QUEUED_TIMING,
+    BaseDeadlineReference,
+    DeadlineReference,
+    VariableInterval,
+)
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
@@ -105,7 +110,7 @@ from airflow.sdk.serde import serialize
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.encoders import encode_deadline_reference, ensure_serialized_asset
 from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -853,6 +858,67 @@ class TestTaskInstance:
             .execution_options(include_all_attempts=True)
         )
         assert history.try_number == try_number
+
+    @time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+    def test_prepare_next_try_for_retry_stores_deadline_and_starts_empty(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="retry",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=30),
+            )
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.task = task
+        ti.try_number = 1
+        ti.start_date = timezone.utcnow() - datetime.timedelta(minutes=5)
+        ti.end_date = timezone.utcnow()
+        ti.duration = 300.0
+        ti.hostname = "worker-1"
+        ti.unixname = "airflow"
+        ti.pid = 1234
+        ti.queued_dttm = ti.scheduled_dttm = ti.last_heartbeat_at = ti.start_date
+        ti.state = State.UP_FOR_RETRY
+        session.flush()
+
+        successor = ti.prepare_db_for_next_try(session)
+        session.flush()
+        session.expire(successor)
+
+        assert successor.retry_at == timezone.utcnow() + datetime.timedelta(seconds=30)
+        assert successor.next_retry_datetime() == successor.retry_at
+        assert successor.start_date is None
+        assert successor.end_date is None
+        assert successor.duration is None
+        assert successor.hostname is None
+        assert successor.unixname is None
+        assert successor.pid is None
+        assert successor.queued_dttm is None
+        assert successor.scheduled_dttm is None
+        assert successor.last_heartbeat_at is None
+
+    def test_next_retry_datetime_without_stored_deadline_uses_previous_attempt(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="retry",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(seconds=30),
+            )
+        ti = dag_maker.create_dagrun(session=session).task_instances[0]
+        ti.task = task
+        ti.try_number = 1
+        failed_at = timezone.datetime(2026, 10, 29, 12)
+        ti.end_date = failed_at
+        ti.state = State.UP_FOR_RETRY
+        successor = ti.prepare_db_for_next_try(session)
+        successor.task = task
+        # A row written before retry_at existed still carries the failed attempt's dates.
+        successor.retry_at = None
+        successor.end_date = failed_at + datetime.timedelta(days=1)
+        session.flush()
+
+        assert successor.next_retry_datetime() == failed_at + datetime.timedelta(seconds=30)
 
     def test_next_retry_datetime(self, dag_maker):
         delay = datetime.timedelta(seconds=30)
@@ -2818,17 +2884,6 @@ class TestTaskInstance:
             run_task_instance(ti, task)
         assert ti.state == State.UP_FOR_RETRY
 
-    def _env_var_check_callback(self):
-        assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
-        assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
-        assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert (
-            DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
-            )
-            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
-        )
-
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)
 
@@ -2865,6 +2920,7 @@ class TestTaskInstance:
             "priority_weight": 123,
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
+            "is_stub": False,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -2884,6 +2940,7 @@ class TestTaskInstance:
             "context_carrier": {},
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
+            "retry_at": None,
             "working_set": True,
             "archived_reason": None,
         }
@@ -3182,7 +3239,7 @@ class TestTaskInstance:
         assert successor.try_number == original_try + 1
         assert successor.working_set is True
         assert successor.state == TaskInstanceState.UP_FOR_RETRY
-        assert successor.end_date == attempt.end_date
+        assert successor.end_date is None
         assert (
             session.scalar(
                 sa.select(sa.func.count())
@@ -3627,6 +3684,7 @@ def test_defer_task(create_task_instance):
     assert isinstance(trigger_row, Trigger)
     assert trigger_row.classpath == "trigger_cls"
     assert trigger_row.kwargs == {"key": "value"}
+    assert (trigger_row.dag_id, trigger_row.owner_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
 
     # Check that session.flush was called
     session.flush.assert_called_once()
@@ -4105,11 +4163,9 @@ class TestMappedTaskInstanceReceiveValue:
         session.flush()
 
         with assert_queries_count(5, margin=1):
-            new_tis = list(
-                dag_run._revise_map_indexes_if_mapped(
-                    mapped_tis[0],
-                    session=session,
-                )
+            new_tis, _ = dag_run._revise_map_indexes_if_mapped(
+                mapped_tis[0],
+                session=session,
             )
         # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
         assert sorted(ti.map_index for ti in new_tis) == [3, 4]
@@ -4283,32 +4339,6 @@ class TestMappedTaskInstanceReceiveValue:
         assert isinstance(result, LazyXComSelectSequence), (
             f"Expected LazyXComSelectSequence for mapped XComs, got {type(result)}"
         )
-
-
-def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
-    backend = os.environ.get("BACKEND")
-    if backend == "mysql":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
-        ]
-    if backend == "postgres":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
-        ]
-    if backend == "sqlite":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
-        ]
-    raise RuntimeError(f"unknown backend {backend!r}")
 
 
 def test_expand_non_templated_field(dag_maker, session):
@@ -5010,6 +5040,161 @@ def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_make
     assert args[0] == deadline.id
 
 
+@pytest.mark.parametrize(
+    ("timing", "should_recalculate"),
+    [
+        pytest.param(DAGRUN_QUEUED_TIMING, True, id="queued"),
+        pytest.param(DAGRUN_CREATED_TIMING, False, id="created"),
+    ],
+)
+def test_clear_task_instances_recalculates_custom_queued_deadlines(
+    dag_maker, session, monkeypatch, timing, should_recalculate
+):
+    """Test that clearing tasks recalculates custom deadlines registered as queued-anchored."""
+    # An offset of its own, so the new deadline can only come from the reference's own evaluation
+    # and not from the queued_at the built-in reference would return.
+    offset = datetime.timedelta(minutes=30)
+
+    class CustomReference(BaseDeadlineReference):
+        evaluation_timing = timing
+
+        def _evaluate_with(self, *, session, dagrun):
+            return dagrun.queued_at + offset
+
+    reference = encode_deadline_reference(CustomReference())
+    # Decoding the alert to resolve its interval goes through the plugin registry, which is where
+    # a custom reference has to be registered for the scheduler to resolve it at all.
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_deadline_references_plugins",
+        lambda: {reference["__class_path"]: CustomReference},
+    )
+
+    with dag_maker(
+        dag_id="test_recalculate_custom_deadlines",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    interval = datetime.timedelta(hours=1)
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=session.scalar(
+            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+        ),
+        reference=reference,
+        interval=serialize(interval),
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_queued_at + offset + interval
+    session.add(
+        Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=original_deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+    )
+    session.flush()
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+    clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
+
+    if should_recalculate:
+        assert deadline.deadline_time == dag_run.queued_at + offset + interval
+    else:
+        assert deadline.deadline_time == original_deadline_time
+
+
+def test_clear_task_instances_skips_deadline_whose_reference_raises(dag_maker, session, monkeypatch):
+    """A clear must survive a custom reference that raises while it is being re-anchored.
+
+    The evaluation is the Dag author's own code and is reached straight from the clear API, so
+    anything it raises would otherwise surface there as an HTTP 500.
+    """
+
+    class RaisingReference(BaseDeadlineReference):
+        evaluation_timing = DAGRUN_QUEUED_TIMING
+
+        def _evaluate_with(self, *, session, dagrun):
+            raise RuntimeError("deliberate failure inside a custom deadline reference")
+
+    reference = encode_deadline_reference(RaisingReference())
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_deadline_references_plugins",
+        lambda: {reference["__class_path"]: RaisingReference},
+    )
+
+    with dag_maker(
+        dag_id="test_recalculate_raising_reference",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    interval = datetime.timedelta(hours=1)
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=session.scalar(
+            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+        ),
+        reference=reference,
+        interval=serialize(interval),
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_queued_at + interval
+    session.add(
+        Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=original_deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+    )
+    session.flush()
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+
+    with mock.patch("airflow.models.taskinstance.log") as mock_log:
+        clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    assert dag_run.queued_at > original_queued_at
+
+    deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
+    assert deadline.deadline_time == original_deadline_time
+
+    assert mock_log.warning.call_count == 1
+    msg, *args = mock_log.warning.call_args.args
+    assert "Error while recalculating deadline" in msg
+    assert args[0] == deadline.id
+
+
 def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     """
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
@@ -5067,6 +5252,60 @@ class TestMakeTaskCarrier:
         carrier = new_task_run_carrier(None)
         assert isinstance(carrier, dict)
         assert "traceparent" in carrier
+
+
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_refresh_from_task_copies_is_stub(is_stub):
+    """ti_run gates on the row, so the flag has to travel from the task to the TaskInstance."""
+    ser_task = create_scheduler_operator(EmptyOperator(task_id="empty"))
+    ser_task.is_stub = is_stub
+
+    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.is_stub is is_stub
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("decorator", "expected"),
+    [pytest.param(task.stub, True, id="stub"), pytest.param(task, False, id="regular")],
+)
+def test_scheduled_task_instances_carry_is_stub(dag_maker, decorator, expected):
+    """A scheduled row carries the flag, whichever of the two write paths filled it in."""
+    with dag_maker("test_scheduled_is_stub", serialized=True):
+
+        @decorator
+        def transform(country: str): ...
+
+        transform("uk")
+
+    (ti,) = dag_maker.create_dagrun().get_task_instances()
+
+    assert ti.is_stub is expected
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("is_stub", [True, False])
+def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
+    """The scheduler bulk-inserts rows from this mapping, so the flag has to be in it."""
+    with dag_maker("test_insert_mapping_is_stub"):
+        EmptyOperator(task_id="t1")
+    session.flush()
+
+    op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+    op.is_stub = is_stub
+    dag_run = mock.MagicMock()
+    dag_run.context_carrier = new_dagrun_trace_carrier()
+
+    mapping = TaskInstance.insert_mapping(
+        run_id="test_run",
+        task=op,
+        map_index=0,
+        dag_version_id=None,
+        dag_run=dag_run,
+    )
+
+    assert mapping["is_stub"] is is_stub
 
 
 @pytest.mark.db_test

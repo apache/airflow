@@ -24,7 +24,7 @@ import itertools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, TypedDict, cast, overload
+from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 
 import attrs
 import structlog
@@ -37,6 +37,7 @@ from airflow.exceptions import (
     AirflowException,
     DagNotPartitionedError,
     DagVersionNotFound,
+    DeserializationError,
     InvalidPartitionKeyError,
     NodeNotFound,
     TaskNotFound,
@@ -50,9 +51,14 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.tasklog import LogTemplate
-from airflow.serialization.decoders import decode_deadline_alert, resolve_deadline_alert_interval
+from airflow.serialization.decoders import (
+    decode_deadline_alert,
+    decode_timetable,
+    resolve_deadline_alert_interval,
+)
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -142,7 +148,9 @@ class SerializedDAG:
     # These are set dynamically during deserialization.
     task_dict: dict[str, SerializedOperator] = attrs.field(init=False)
     task_group: SerializedTaskGroup = attrs.field(init=False)
-    timetable: Timetable = attrs.field(init=False)
+    _timetable: Timetable = attrs.field(init=False)
+    # Decoded on first access, so loading a Dag does not need the timetable's plugin.
+    _encoded_timetable: dict[str, Any] | None = attrs.field(init=False, default=None)
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
 
     # Only on serialized dag.
@@ -159,6 +167,23 @@ class SerializedDAG:
 
     def __repr__(self) -> str:
         return f"<SerializedDAG: {self.dag_id}>"
+
+    @property
+    def timetable(self) -> Timetable:
+        if (encoded := self._encoded_timetable) is not None:
+            try:
+                self._timetable = decode_timetable(encoded)
+                self._encoded_timetable = None
+            except TimetableNotRegistered:
+                raise
+            except Exception as err:
+                raise DeserializationError(self.dag_id) from err
+        return self._timetable
+
+    @timetable.setter
+    def timetable(self, value: Timetable) -> None:
+        self._timetable = value
+        self._encoded_timetable = None
 
     @classmethod
     def get_serialized_fields(cls) -> frozenset[str]:
@@ -205,6 +230,7 @@ class SerializedDAG:
         dags: Collection[DAG | LazyDeserializedDAG],
         parse_duration: float | None = None,
         *,
+        enforce_bundle_ownership: bool = False,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -224,6 +250,7 @@ class SerializedDAG:
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags={d.dag_id: LazyDeserializedDAG.from_dag(d) for d in dags},
+            enforce_bundle_ownership=enforce_bundle_ownership,
         )
 
         orm_dags = dag_op.add_dags(session=session)
@@ -1121,11 +1148,12 @@ class SerializedDAG:
         only_failed: bool = False,
         only_running: bool = False,
         only_new: Literal[True],
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> set[str]: ...  # pragma: no cover
 
     @overload
@@ -1138,11 +1166,12 @@ class SerializedDAG:
         only_failed: bool = False,
         only_running: bool = False,
         only_new: Literal[False] = False,
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1155,11 +1184,12 @@ class SerializedDAG:
         only_failed: bool = False,
         only_running: bool = False,
         only_new: bool,
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> set[str] | list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1171,12 +1201,13 @@ class SerializedDAG:
         only_failed: bool = False,
         only_running: bool = False,
         only_new: bool = False,
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1189,11 +1220,12 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1205,12 +1237,13 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1224,12 +1257,13 @@ class SerializedDAG:
         only_failed: bool = False,
         only_running: bool = False,
         only_new: bool = False,
-        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        prevent_running_task: bool | None = None,
     ) -> int | Iterable[TaskInstance] | set[str]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1245,6 +1279,7 @@ class SerializedDAG:
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
         :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+        :param prevent_running_task: raise instead of clearing a task instance that is running
         :param session: The sqlalchemy session to use
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared. A task excluded here is still archived when it sits in
@@ -1343,6 +1378,7 @@ class SerializedDAG:
             session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            prevent_running_task=prevent_running_task,
             later_loop_iterations=not (only_failed or only_running),
             whole_task_keys={
                 (ti.dag_id, ti.run_id, ti.task_id)

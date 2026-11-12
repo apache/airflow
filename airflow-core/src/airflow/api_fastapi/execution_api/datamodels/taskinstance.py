@@ -24,8 +24,10 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
+    Discriminator,
     Field,
     JsonValue,
+    PositiveInt,
     Tag,
     TypeAdapter,
     WithJsonSchema,
@@ -122,6 +124,15 @@ class TITerminalStatePayload(StrictBaseModel):
     loop_decision: LoopDecisionPayload | None = None
 
 
+class ExternalClearTargetPayload(StrictBaseModel):
+    """A task in another Dag that clearing the reporting task also clears, as resolved when it ran."""
+
+    dag_id: Annotated[str, Field(min_length=1)]
+    task_id: Annotated[str, Field(min_length=1)]
+    logical_date: UtcDateTime
+    recursion_depth: PositiveInt
+
+
 class TISuccessStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to success state."""
 
@@ -144,6 +155,8 @@ class TISuccessStatePayload(StrictBaseModel):
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
     rendered_map_index: str | None = None
     loop_decision: LoopDecisionPayload | None = None
+    external_clear_target: ExternalClearTargetPayload | None = None
+    """A task in another Dag to clear whenever this attempt is cleared with its downstream tasks."""
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -297,7 +310,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIAwaitingInputStatePayload, Tag("awaiting_input")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Field(discriminator=ti_state_discriminator),
+    Discriminator(ti_state_discriminator),
 ]
 
 
@@ -555,12 +568,15 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
-    execution_timeout: float | None = None
-    """
-    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
-
-    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
-    """
+    execution_timeout: float | None = Field(
+        default=None,
+        description=(
+            "The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. "
+            "Unset when the task sets none. Zero means no timeout and a negative value has already "
+            "elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, "
+            "and gets no value here."
+        ),
+    )
 
     multi_team: bool = False
     """

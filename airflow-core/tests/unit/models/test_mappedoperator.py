@@ -416,7 +416,7 @@ def test_stable_mapped_indexes_do_not_query_historical_max_try(dag_maker, sessio
     live = run.get_task_instance(mapped.task_id, map_index=0, session=session)
     live.task = dag.task_dict[mapped.task_id]
     try:
-        new_tis = run._revise_map_indexes_if_mapped(live, session=session)
+        new_tis, _ = run._revise_map_indexes_if_mapped(live, session=session)
     finally:
         event.remove(session.bind, "before_cursor_execute", capture_sql)
 
@@ -437,7 +437,7 @@ def test_missing_mapped_index_uses_retained_max_try(dag_maker, session):
     live = run.get_task_instance(mapped.task_id, map_index=0, session=session)
     live.task = dag.task_dict[mapped.task_id]
 
-    new_tis = run._revise_map_indexes_if_mapped(live, session=session)
+    new_tis, _ = run._revise_map_indexes_if_mapped(live, session=session)
 
     assert len(new_tis) == 1
     assert new_tis[0].map_index == 1
@@ -2280,10 +2280,11 @@ def test_expansion_grows_and_shrinks_within_one_region(mapped_dag, session):
 
     push_mapped_length(dr.get_task_instance(upstream_id, session=session), list(range(5)), session=session)
     first[0].task = serialized
-    assert [ti.region_index for ti in dr._revise_map_indexes_if_mapped(first[0], session=session)] == [3, 4]
+    new_tis, removed = dr._revise_map_indexes_if_mapped(first[0], session=session)
+    assert ([ti.region_index for ti in new_tis], removed) == ([3, 4], set())
 
     push_mapped_length(dr.get_task_instance(upstream_id, session=session), list(range(2)), session=session)
-    assert dr._revise_map_indexes_if_mapped(first[0], session=session) == []
+    assert dr._revise_map_indexes_if_mapped(first[0], session=session) == ([], {2, 3, 4})
     session.expire_all()
     states = {ti.region_index: ti.state for ti in _live_tis(session, dr, serialized.task_id)}
     assert states[0] is None

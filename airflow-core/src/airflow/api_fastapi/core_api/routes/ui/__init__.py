@@ -25,6 +25,7 @@ from airflow.api_fastapi.core_api.routes.ui.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.ui.calendar import calendar_router
 from airflow.api_fastapi.core_api.routes.ui.config import config_router
 from airflow.api_fastapi.core_api.routes.ui.connections import connections_router
+from airflow.api_fastapi.core_api.routes.ui.dag_bundles import dag_bundles_router
 from airflow.api_fastapi.core_api.routes.ui.dag_runs import dag_runs_router
 from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
 from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
@@ -49,6 +50,7 @@ ui_router.include_router(execution_router)
 ui_router.include_router(partitioned_dag_runs_router)
 ui_router.include_router(config_router)
 ui_router.include_router(connections_router)
+ui_router.include_router(dag_bundles_router)
 ui_router.include_router(dags_router)
 ui_router.include_router(dependencies_router)
 ui_router.include_router(dashboard_router)

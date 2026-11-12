@@ -32,18 +32,16 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
-# Tells "durable left at its default" apart from an explicit durable=True/False, so only an explicit
-# value warns that it has no effect here.
-_DURABLE_UNSET: Any = object()
-
 
 class ResumableJobMixin:
     """Airflow < 3.3 stand-in: no ``task_state_store`` to resume from, so every try submits a new job."""
 
     external_id_key: str = "remote_job_id"
 
-    def __init__(self, *, durable: bool = _DURABLE_UNSET, **kwargs: Any) -> None:
-        if durable is not _DURABLE_UNSET:
+    def __init__(self, *, durable: bool | None = None, **kwargs: Any) -> None:
+        # None means "left at its default", so only an explicit durable=True/False warns that it has no
+        # effect here. The operators only forward durable when it is not None.
+        if durable is not None:
             warnings.warn(
                 "`durable` has no effect on Airflow versions below 3.3.",
                 UserWarning,

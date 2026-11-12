@@ -86,6 +86,22 @@ github:
     creation_cap:
       enabled: true
       max_open_pull_requests: 5
+      # Exempt from the cap. This list replaces GitHub's bypass list on every sync, so users added
+      # by hand in the repository settings are removed. Fork CI pilot participants are exempt
+      # because their CI runs in their own forks; keep them in sync with [pilot] in
+      # .github/fork-ci-gate.toml.
+      bypass_users:
+        - aaron-y-chen
+        - Andrushika
+        - Dev-iL
+        - justinpakzad
+        - meel-ayush
+        - Prab-27
+        - raphaelauv
+        - SameerMesiah97
+        - sreecharan-desu
+        - stephen-bracken
+        - yuseok89
 
   # Legacy branch protection is being migrated to Rulesets below.
   #
@@ -136,9 +152,13 @@ github:
             strict_required_status_checks_policy: false
             required_status_checks:
               - context: "CI passed"
+              # Reported by the fork CI monitor once the head commit has a CI run, in the
+              # contributor's fork for a gated pull request or in apache/airflow otherwise; until
+              # then GitHub lists it on the pull request as expected and waiting.
+              - context: "CI run started"
     # The branches `ci-amd.yml` runs pull request CI for, apart from `main`. A release branch gets
     # the "CI passed" job only when it is backported there; until then its PRs need a committer to
-    # bypass the rule.
+    # bypass the rule. "CI run started" comes from the fork CI monitor on `main`, for every base.
     - name: "Require CI on release branches"
       target: branch
       enforcement: active
@@ -165,6 +185,10 @@ github:
             strict_required_status_checks_policy: false
             required_status_checks:
               - context: "CI passed"
+              # Reported by the fork CI monitor once the head commit has a CI run, in the
+              # contributor's fork for a gated pull request or in apache/airflow otherwise; until
+              # then GitHub lists it on the pull request as expected and waiting.
+              - context: "CI run started"
     - name: "Branch protection"
       type: branch
       branches:

@@ -16,74 +16,109 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+/**
+ * Paging buttons for the Grid's run columns, one component per side.
+ *
+ * Both sides are pinned to the edges of the Grid's scrollport, so paging stays reachable however
+ * far the runs are scrolled. Each is a zero-width sticky box: sticky keeps it at the scrollport's
+ * edge instead of the content's, and zero width keeps it out of the flex layout, so the buttons
+ * never affect column alignment.
+ *
+ * Sticky holds a box at its natural position until that position would cross the edge, so each side
+ * has to sit where it belongs in the flow: the Grid renders OlderRunsButton before the run columns
+ * and NewerRunsButtons after them.
+ */
+import { Box, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight, FiChevronsRight } from "react-icons/fi";
 
 import { IconButton } from "src/system-components";
 
-type Props = {
+const BUTTON_PROPS = { size: "2xs", variant: "ghost" } as const;
+
+type NewerProps = {
   readonly hasNewerRuns: boolean;
-  readonly hasOlderRuns: boolean;
   readonly isLoading: boolean;
   readonly latestNotVisible: boolean;
   readonly onJumpToLatest: () => void;
   readonly onNewerRuns: () => void;
-  readonly onOlderRuns: () => void;
 };
 
-/**
- * Absolutely-positioned navigation buttons that appear at the left and right
- * edges of the grid header bar area.  They do not participate in the flex
- * layout so they never affect column alignment.
- */
-export const GridPaginationButtons = ({
+type OlderProps = {
+  readonly hasOlderRuns: boolean;
+  readonly isLoading: boolean;
+  readonly onOlderRuns: () => void;
+  readonly taskNameColumnWidthPx: number;
+};
+
+export const NewerRunsButtons = ({
   hasNewerRuns,
-  hasOlderRuns,
   isLoading,
   latestNotVisible,
   onJumpToLatest,
   onNewerRuns,
-  onOlderRuns,
-}: Props) => {
+}: NewerProps) => {
   const { t: translate } = useTranslation("dag");
 
-  // Shared props applied to every pagination button.
-  const buttonProps = { loading: isLoading, size: "2xs", variant: "ghost" } as const;
-
-  const newerLabel = translate("grid.buttons.newerRuns");
-  const resetLabel = translate("grid.buttons.resetToLatest");
-  const olderLabel = translate("grid.buttons.olderRuns");
+  if (!latestNotVisible && !hasNewerRuns) {
+    return undefined;
+  }
 
   return (
-    <>
-      {latestNotVisible || hasNewerRuns ? (
-        <Flex bottom={0} flexDirection="column" gap={1} position="absolute" right={1} zIndex={1}>
-          {latestNotVisible ? (
-            <IconButton label={resetLabel} onClick={onJumpToLatest} {...buttonProps}>
-              <FiChevronsRight />
-            </IconButton>
-          ) : undefined}
-          {hasNewerRuns ? (
-            <IconButton label={newerLabel} onClick={onNewerRuns} {...buttonProps}>
-              <FiChevronRight />
-            </IconButton>
-          ) : undefined}
-        </Flex>
-      ) : undefined}
-      {hasOlderRuns ? (
-        <IconButton
-          bottom={0}
-          label={olderLabel}
-          left={-6}
-          onClick={onOlderRuns}
-          position="absolute"
-          zIndex={1}
-          {...buttonProps}
-        >
-          <FiChevronLeft />
-        </IconButton>
-      ) : undefined}
-    </>
+    <Box insetEnd={1} position="sticky" width={0} zIndex={1}>
+      <Flex bottom={0} flexDirection="column" gap={1} insetEnd={0} position="absolute">
+        {latestNotVisible ? (
+          <IconButton
+            label={translate("grid.buttons.resetToLatest")}
+            loading={isLoading}
+            onClick={onJumpToLatest}
+            {...BUTTON_PROPS}
+          >
+            <FiChevronsRight />
+          </IconButton>
+        ) : undefined}
+        {hasNewerRuns ? (
+          <IconButton
+            label={translate("grid.buttons.newerRuns")}
+            loading={isLoading}
+            onClick={onNewerRuns}
+            {...BUTTON_PROPS}
+          >
+            <FiChevronRight />
+          </IconButton>
+        ) : undefined}
+      </Flex>
+    </Box>
+  );
+};
+
+export const OlderRunsButton = ({
+  hasOlderRuns,
+  isLoading,
+  onOlderRuns,
+  taskNameColumnWidthPx,
+}: OlderProps) => {
+  const { t: translate } = useTranslation("dag");
+
+  if (!hasOlderRuns) {
+    return undefined;
+  }
+
+  // Stopping at the task name column's inner edge rather than the scrollport's keeps the button
+  // overlapping that column by the same few pixels as when nothing is scrolled.
+  return (
+    <Box insetStart={`${taskNameColumnWidthPx}px`} position="sticky" width={0} zIndex={1}>
+      <IconButton
+        bottom={0}
+        insetStart={-6}
+        label={translate("grid.buttons.olderRuns")}
+        loading={isLoading}
+        onClick={onOlderRuns}
+        position="absolute"
+        {...BUTTON_PROPS}
+      >
+        <FiChevronLeft />
+      </IconButton>
+    </Box>
   );
 };

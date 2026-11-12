@@ -98,7 +98,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
-from airflow.models.asset import AssetActive
+from airflow.models.asset import AssetActive, AssetEvent
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
@@ -116,11 +116,11 @@ from airflow.models.task_coordinates import (
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
-from airflow.models.xcom import build_xcom_read_query, xcom_entity
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, is_deadlock_error
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
 router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
@@ -197,6 +197,7 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.is_stub,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -288,8 +289,8 @@ def ti_run(
         )
         # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
         # queueing, so a retry and a resume from deferral each waited for a slot of their own.
-        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
-        # end_date is set), so the two disagree on retries by design.
+        # task.scheduled_duration is one sample per try (emit_state_change_metric returns early once
+        # the try has an end_date, as after a sensor reschedule), so the two disagree on resumes by design.
         # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
         emit_queued_duration = ti.queued_dttm is not None
 
@@ -302,6 +303,7 @@ def ti_run(
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
         retry_delay_override=None,
+        retry_at=None,
         retry_reason=None,
     )
 
@@ -322,7 +324,8 @@ def ti_run(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
                 .options(
-                    joinedload(DR.consumed_asset_events),
+                    joinedload(DR.consumed_asset_events).selectinload(AssetEvent.asset),
+                    joinedload(DR.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     *eager_load_teams(DR.dag_model),
                     *dag_tag_options,
                 )
@@ -342,11 +345,9 @@ def ti_run(
             )
 
         # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
-        # because for a Python task the task runner also purges them from a custom XCom backend, and only
-        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
-        # deletes these XComs before the runtime starts the task and does not purge them, because those
-        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
-        # backend.
+        # because the worker also purges them from a custom XCom backend, and only workers can reach that
+        # backend. For a language SDK task (Java, Go, TypeScript), the supervisor deletes and purges them
+        # before the runtime starts the task.
 
         # However, do not clear it for deferral
         xcom_keys: list[str] = []
@@ -382,30 +383,38 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        serialized_task = get_task(dag_bag, ti, session=session)
+        # Only a lang-SDK (foreign-runtime) task needs its definition here: a Python task parses its
+        # Dag file itself. ti.is_stub carries the row's own copy of the serialized flag, so a Python
+        # task never loads the serialized Dag. The arg_bindings version check also covers
+        # execution_timeout, which only exists in a later API version.
+        if (
+            client_supports_arg_bindings()
+            and ti.is_stub
+            and (serialized_task := get_task(dag_bag, ti, session=session)) is not None
+        ):
+            # The route excludes unset fields, keeping responses without a captured TaskFlow arg spec lean.
+            if arg_bindings := get_arg_bindings(serialized_task):
+                try:
+                    context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+                except ValidationError:
+                    log.exception(
+                        "Serialized arg_bindings spec failed validation",
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        dag_version_id=ti.dag_version_id,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail={
+                            "reason": "invalid_arg_bindings",
+                            "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                        },
+                    )
 
-        # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
-        # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
-            try:
-                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
-            except ValidationError:
-                log.exception(
-                    "Serialized arg_bindings spec failed validation",
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    dag_version_id=ti.dag_version_id,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail={
-                        "reason": "invalid_arg_bindings",
-                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
-                    },
-                )
-
-        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
-            context.execution_timeout = execution_timeout
+            # The runtime cannot read the execution_timeout set on a Python stub, so it gets it here.
+            # A Python task enforces its own and sends that to the supervisor.
+            if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
+                context.execution_timeout = execution_timeout
 
         # Only set if they are non-null
         if ti.next_method:
@@ -673,7 +682,14 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
-        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason", "loop_decision"},
+        exclude={
+            "task_outlets",
+            "outlet_events",
+            "retry_delay_seconds",
+            "retry_reason",
+            "loop_decision",
+            "external_clear_target",
+        },
         exclude_unset=True,
     )
     if "rendered_map_index" in data:
@@ -693,8 +709,9 @@ def ti_update_state(
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
-    except Exception:
-        if loop_gate is not None:
+    except Exception as e:
+        # A deadlock is transient: return a 5xx so the Task SDK client retries instead of failing the TI.
+        if loop_gate is not None or is_deadlock_error(e):
             raise
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(
@@ -760,6 +777,17 @@ def ti_update_state(
         )
 
     if updated_state == TaskInstanceState.SUCCESS:
+        if (
+            isinstance(ti_patch_payload, TISuccessStatePayload)
+            and (target := ti_patch_payload.external_clear_target) is not None
+        ):
+            # Written here, from the validated payload, because tasks cannot write this key themselves.
+            XComModel.set_for_attempt(
+                task_instance_id=task_instance_id,
+                key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+                value=target.model_dump(mode="json"),
+                session=session,
+            )
         if conf.getboolean("state_store", "clear_on_success"):
             scope = TaskScope(
                 dag_id=dag_id,
@@ -959,6 +987,8 @@ def _create_ti_state_update_query_and_update_state(
             kwargs={},
             queue=ti_patch_payload.queue,
             team_name=get_team_name_for_ti(task_instance_id, session),
+            dag_id=dag_id,
+            owner_ref={"ti_id": str(task_instance_id)},
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)

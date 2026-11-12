@@ -73,6 +73,10 @@ class BasicBundle(BaseDagBundle):
         pass
 
 
+def test_refresh_may_change_source_by_default():
+    assert BasicBundle.refresh_changes_source is True
+
+
 def test_dag_bundle_root_storage_path():
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): None}):
         assert get_bundle_storage_root_path() == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
@@ -301,7 +305,7 @@ class TestBundleUsageTrackingManager:
             assert len(bundle_folders) == 5
             num += 1
             with time_machine.travel(h0 + timedelta(hours=when_hours), tick=False):
-                BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=bundle_name)
+                BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=bundle_name)
                 lock_files = list(bundle_tracking_dir.iterdir())
                 assert len(lock_files) == expected_remaining
                 bundle_folders = list(b.versions_dir.iterdir())

@@ -18,12 +18,13 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import inspect
 import json
 import logging
 import sys
 from collections import OrderedDict
 from contextlib import nullcontext
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import ModuleType, SimpleNamespace
@@ -32,7 +33,7 @@ from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 from uuid import UUID
 
 import pytest
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from pydantic_ai import Agent, DeferredToolRequests, RunContext, Tool, ToolOutput
 from pydantic_ai.capabilities import (
     AbstractCapability,
@@ -46,6 +47,7 @@ from pydantic_ai.capabilities import (
 )
 from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed, UsageLimitExceeded
 from pydantic_ai.messages import (
+    BinaryContent,
     ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
@@ -72,6 +74,7 @@ from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
+from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
     OWNER_TAG,
@@ -106,6 +109,7 @@ from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
+from unit.common.ai.tool_parts import is_tool_retry
 
 try:
     from airflow.sdk.serde import (
@@ -137,6 +141,11 @@ SummaryNewType = NewType("SummaryNewType", Summary)
 
 class SummaryKind(Enum):
     SHORT = "short"
+
+
+class SerializedByAlias(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True)
+    full_name: str = Field(serialization_alias="fullName")
 
 
 class LinkedSummary(BaseModel):
@@ -480,7 +489,7 @@ class TestAgentOperatorToolsetTemplating:
         assert "Rendered toolset sql-tenant_acme" in caplog.messages
 
     def test_rendering_twice_logs_once(self, caplog):
-        """@task.agent renders a second time; by then the id no longer changes."""
+        """On a second render the id no longer changes."""
         op = AgentOperator(
             task_id="t",
             prompt="p",
@@ -786,6 +795,21 @@ class TestAgentOperatorExecute:
         mock_agent.run_sync.assert_called_once_with(
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
+
+    def test_output_type_is_annotated_like_llm_operator(self):
+        annotation = inspect.signature(AgentOperator.__init__).parameters["output_type"].annotation
+        assert annotation == inspect.signature(LLMOperator.__init__).parameters["output_type"].annotation
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_passes_a_union_output_type_to_the_agent(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = _make_mock_agent(Summary(text="ok"), make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", output_type=Summary | int)
+        op.execute(context=_make_context())
+
+        expected = [Summary | int, DeferredToolRequests] if AIRFLOW_V_3_3_PLUS else Summary | int
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"] == expected
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_keys_the_run_by_attempt_without_a_task_instance_id(
@@ -1122,7 +1146,7 @@ class TestAgentOperatorExecute:
             pytest.param(
                 ToolOutput(tuple[Summary, int]),
                 (Summary(text="ok"), 1),
-                ({"text": "ok", "score": 0.0}, 1),
+                [{"text": "ok", "score": 0.0}, 1],
                 False,
                 id="tuple-in-output-marker",
             ),
@@ -1136,14 +1160,14 @@ class TestAgentOperatorExecute:
             pytest.param(
                 ToolOutput(list[tuple[dict[str, list[Summary]], int]]),
                 [({"a": [Summary(text="ok")]}, 1)],
-                [({"a": [{"text": "ok", "score": 0.0}]}, 1)],
+                [[{"a": [{"text": "ok", "score": 0.0}]}, 1]],
                 False,
                 id="nested-containers-in-output-marker",
             ),
             pytest.param(
                 ToolOutput(SummaryPair),
                 SummaryPair(Summary(text="ok"), 1),
-                ({"text": "ok", "score": 0.0}, 1),
+                [{"text": "ok", "score": 0.0}, 1],
                 False,
                 id="named-tuple-in-output-marker",
             ),
@@ -1236,9 +1260,9 @@ class TestAgentOperatorExecute:
             pytest.param(list[Summary], id="list"),
         ],
     )
-    @patch("airflow.providers.common.ai.operators.agent._CORE_WALKER", False)
+    @patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_dumps_nested_models_without_the_worker_walk(
+    def test_execute_pushes_nested_models_as_dicts_without_the_worker_walk(
         self, mock_hook_cls, make_mock_run_result, output_type
     ):
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
@@ -1251,6 +1275,51 @@ class TestAgentOperatorExecute:
         result = op.execute(context=MagicMock())
 
         assert result == [{"text": "ok", "score": 0.0}]
+        assert type(result[0]) is dict
+
+    @pytest.mark.parametrize(
+        ("output_type", "output", "serialize_output"),
+        [
+            pytest.param(
+                [SerializedByAlias, int], SerializedByAlias(full_name="Ann"), False, id="serialize-by-alias"
+            ),
+            pytest.param(
+                ToolOutput(tuple[Summary, date]),
+                (Summary(text="ok"), date(2026, 1, 2)),
+                False,
+                id="date-next-to-model-in-tuple",
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_pushes_the_same_value_as_the_llm_operator(
+        self,
+        mock_agent_hook_cls,
+        mock_llm_hook_cls,
+        make_mock_run_result,
+        output_type,
+        output,
+        serialize_output,
+    ):
+        mock_agent_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            output, make_mock_run_result
+        )
+        mock_llm_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            output, make_mock_run_result
+        )
+        kwargs = {
+            "prompt": "Analyze this",
+            "llm_conn_id": "my_llm",
+            "output_type": output_type,
+            "serialize_output": serialize_output,
+        }
+
+        agent_result = AgentOperator(task_id="agent", **kwargs).execute(context=MagicMock())
+        llm_result = LLMOperator(task_id="llm", **kwargs).execute(context=MagicMock())
+
+        assert agent_result == llm_result
+        assert type(agent_result) is type(llm_result)
 
     @pytest.mark.parametrize(
         "output",
@@ -1450,6 +1519,7 @@ class TestAgentOperatorExecute:
                 [Summary(text="ok")],
                 [{"text": "ok", "score": 0.0}],
                 id="list-in-output-marker",
+                marks=requires_typed_xcom,
             ),
             pytest.param(
                 ToolOutput(LinkedSummary),
@@ -2322,28 +2392,23 @@ class TestAgentOperatorDurable:
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
-class TestAgentOperatorMultimodalPromptGuard:
-    """AgentOperator.execute raises before agent.run_sync when enable_hitl_review=True
-    and self.prompt is not a string -- covering direct construction and the native
-    template rendering escape (where a string template renders to a Sequence)."""
-
+class TestAgentOperatorMultimodalPromptReview:
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_hitl_review(self, mock_hook_cls):
+    def test_execute_with_hitl_review_accepts_a_sequence_prompt(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
+        prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = "Initial output"
 
-        op = AgentOperator(
-            task_id="t",
-            prompt="placeholder",
-            llm_conn_id="c",
-            enable_hitl_review=True,
-        )
-        op.prompt = ["x", object()]  # simulate post-template-render value
+        op = AgentOperator(task_id="t", prompt="placeholder", llm_conn_id="c", enable_hitl_review=True)
+        op.prompt = prompt
 
-        with pytest.raises(TypeError, match="enable_hitl_review=True"):
-            op.execute(context=MagicMock())
-
-        mock_agent.run_sync.assert_not_called()
+        assert op.execute(context=MagicMock()) == "Initial output"
+        assert mock_agent.run_sync.call_args.args[0] == prompt
 
 
 def _sample_history():
@@ -4110,7 +4175,7 @@ class TestAgentOperatorMasksToolOutput:
     @pytest.mark.parametrize(
         ("error", "reply_is"),
         [
-            pytest.param(ModelRetry, lambda part: isinstance(part, RetryPromptPart), id="model-retry"),
+            pytest.param(ModelRetry, is_tool_retry, id="model-retry"),
             pytest.param(
                 ToolFailed,
                 lambda part: isinstance(part, ToolReturnPart) and part.outcome == "failed",

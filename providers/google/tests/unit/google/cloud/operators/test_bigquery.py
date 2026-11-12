@@ -21,12 +21,13 @@ import json
 import logging
 import os
 from contextlib import suppress
+from typing import Any
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
 import pandas as pd
 import pytest
-from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
+from google.cloud.bigquery import DEFAULT_RETRY, QueryJob, ScalarQueryParameter, Table
 from google.cloud.bigquery.routine import Routine
 from google.cloud.exceptions import Conflict, NotFound
 
@@ -1035,6 +1036,121 @@ class TestBigQueryUpsertTableOperator:
 
 
 class TestBigQueryInsertJobOperator:
+    @pytest.mark.parametrize("configured_location", [None, "EU"])
+    @pytest.mark.parametrize("durable", [False, True])
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook", autospec=True)
+    def test_submitted_job_uses_actual_location_for_links_and_cancellation(
+        self, mock_hook: MagicMock, durable: bool, configured_location: str | None
+    ) -> None:
+        hook = mock_hook.return_value
+        hook.labels = {}
+        hook.generate_job_id.return_value = "submitted-job"
+        job = MagicMock(
+            spec=QueryJob,
+            job_id="submitted-job",
+            location="asia-northeast3",
+            state="DONE",
+            error_result=None,
+        )
+        job.to_api_repr.return_value = {"configuration": {"query": {}}}
+        hook.insert_job.return_value = job
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration={"query": {"query": "SELECT 1", "useLegacySql": False}},
+            project_id=TEST_GCP_PROJECT_ID,
+            location=configured_location,
+            deferrable=False,
+            durable=durable,
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+        ti = MagicMock(spec_set=["try_number", "stats_tags", "xcom_push"], try_number=1, stats_tags={})
+        context = {"ti": ti, "task": op, "task_state_store": task_store}
+
+        assert op.execute(context) == "submitted-job"
+        op.on_kill()
+
+        ti.xcom_push.assert_any_call(
+            key="bigquery_job_detail",
+            value={
+                "project_id": TEST_GCP_PROJECT_ID,
+                "job_id": "submitted-job",
+                "location": "asia-northeast3",
+            },
+        )
+        ti.xcom_push.assert_any_call(
+            key="job_id_path", value=f"{TEST_GCP_PROJECT_ID}:asia-northeast3:submitted-job"
+        )
+        hook.cancel_job.assert_called_once_with(
+            job_id="submitted-job", project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3"
+        )
+        assert hook.insert_job.call_args.kwargs["location"] == configured_location
+        assert op.location == configured_location
+
+        job.location = None
+        hook.cancel_job.reset_mock()
+        ti.xcom_push.reset_mock()
+        op._persist_job_links(job, context)
+        op.on_kill()
+
+        ti.xcom_push.assert_any_call(
+            key="bigquery_job_detail",
+            value={
+                "project_id": TEST_GCP_PROJECT_ID,
+                "job_id": "submitted-job",
+                "location": configured_location,
+            },
+        )
+        ti.xcom_push.assert_any_call(
+            key="job_id_path", value=f"{TEST_GCP_PROJECT_ID}:{configured_location or 'US'}:submitted-job"
+        )
+        hook.cancel_job.assert_called_once_with(
+            job_id="submitted-job", project_id=TEST_GCP_PROJECT_ID, location=configured_location
+        )
+
+    @pytest.mark.parametrize("configured_location", [None, "EU"])
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook", autospec=True)
+    def test_defers_with_actual_job_location(
+        self, mock_hook: MagicMock, configured_location: str | None
+    ) -> None:
+        hook = mock_hook.return_value
+        hook.labels = {}
+        hook.location = "US"
+        hook.generate_job_id.return_value = "submitted-job"
+        for actual_location in ("asia-northeast3", None):
+            job = MagicMock(spec=QueryJob, job_id="submitted-job", location=actual_location)
+            job.to_api_repr.return_value = {"configuration": {"query": {}}}
+            job.running.return_value = True
+            hook.insert_job.return_value = job
+            op = BigQueryInsertJobOperator(
+                task_id="insert_query_job",
+                configuration={"query": {"query": "SELECT 1", "useLegacySql": False}},
+                project_id=TEST_GCP_PROJECT_ID,
+                location=configured_location,
+                deferrable=True,
+                durable=False,
+            )
+            ti = MagicMock(spec_set=["try_number", "xcom_push"], try_number=1)
+            context = {"ti": ti, "task": op}
+
+            with pytest.raises(TaskDeferred) as deferred:
+                op.execute(context)
+
+            assert isinstance(deferred.value.trigger, BigQueryInsertJobTrigger)
+            assert deferred.value.trigger.location == (
+                actual_location or configured_location or hook.location
+            )
+            assert deferred.value.trigger.job_id == "submitted-job"
+            ti.xcom_push.assert_any_call(
+                key="bigquery_job_detail",
+                value={
+                    "project_id": TEST_GCP_PROJECT_ID,
+                    "job_id": "submitted-job",
+                    "location": actual_location or configured_location,
+                },
+            )
+            assert op.location == configured_location
+
     def test_init_does_not_snapshot_templated_job_id(self):
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -1171,7 +1287,7 @@ class TestBigQueryInsertJobOperator:
             }
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(
-            state="DONE", job_id=real_job_id, error_result=False
+            state="DONE", job_id=real_job_id, error_result=False, location=None
         )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
@@ -1224,6 +1340,7 @@ class TestBigQueryInsertJobOperator:
         }
 
         mock_job.job_id = real_job_id
+        mock_job.location = None
         mock_job.error_result = False
         mock_job.state = "DONE"
         mock_job.result.side_effect = AirflowTaskTimeout()
@@ -2306,6 +2423,163 @@ class TestBigQueryInsertJobOperator:
     not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
 )
 class TestBigQueryInsertJobOperatorDurable:
+    @pytest.mark.parametrize("keep_previous_job", [False, True])
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook", autospec=True)
+    def test_cancel_during_replacement_does_not_use_previous_job_location(
+        self, mock_hook: MagicMock, keep_previous_job: bool
+    ) -> None:
+        hook = mock_hook.return_value
+        hook.labels = {}
+        hook.generate_job_id.return_value = "replacement-job"
+        hook.get_job.return_value = MagicMock(
+            spec=QueryJob,
+            job_id="previous-job",
+            location="asia-northeast3",
+            state="DONE",
+            error_result="failed",
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = {"job_id": "previous-job", "location": "asia-northeast3"}
+        context = self._context(task_store)
+        op = self._make_operator(deferrable=False)
+
+        assert op.get_job_status("previous-job", context) == "error"
+        op.on_kill()
+        hook.cancel_job.assert_called_once_with(
+            job_id="previous-job", project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3"
+        )
+        hook.cancel_job.reset_mock()
+        if not keep_previous_job:
+            del op._job
+
+        def interrupt_submission(**kwargs: Any) -> None:
+            op.on_kill()
+            raise AirflowTaskTimeout()
+
+        hook.insert_job.side_effect = interrupt_submission
+        with pytest.raises(AirflowTaskTimeout):
+            op.submit_job(context)
+
+        hook.cancel_job.assert_called_once_with(
+            job_id="replacement-job", project_id=TEST_GCP_PROJECT_ID, location=TEST_DATASET_LOCATION
+        )
+        assert op.location == TEST_DATASET_LOCATION
+
+    @pytest.mark.parametrize("status", ["RUNNING", "success", "error", "not_found"])
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_recovers_returned_location_after_worker_failure(self, mock_hook: MagicMock, status: str) -> None:
+        values: dict = {}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.side_effect = values.get
+        task_store.set.side_effect = values.__setitem__
+        hook = mock_hook.return_value
+        hook.generate_job_id.return_value = "original-job"
+        job = MagicMock(
+            spec=QueryJob,
+            job_id="original-job",
+            location="asia-northeast3",
+            state="RUNNING",
+            error_result=None,
+        )
+        job.result.side_effect = RuntimeError("worker failed")
+        hook.insert_job.return_value = job
+        op = self._make_operator()
+        op.location = None
+
+        with pytest.raises(RuntimeError, match="worker failed"):
+            op.execute(self._context(task_store))
+
+        assert values == {
+            "bigquery_job_id": "original-job",
+            "bigquery_job_location": {"job_id": "original-job", "location": "asia-northeast3"},
+        }
+        op.on_kill()
+        hook.cancel_job.assert_called_once_with(
+            job_id="original-job", project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3"
+        )
+        hook.cancel_job.reset_mock()
+        hook.insert_job.reset_mock()
+        job.result.side_effect = lambda **_: setattr(job, "state", "DONE")
+        job.state = "RUNNING" if status == "RUNNING" else "DONE"
+        job.error_result = "failed" if status == "error" else None
+        hook.get_job.return_value = job
+        if status == "not_found":
+            hook.get_job.side_effect = NotFound("gone")
+        hook.generate_job_id.return_value = "replacement-job"
+        hook.insert_job.return_value = MagicMock(
+            spec=QueryJob, job_id="replacement-job", location="EU", state="DONE", error_result=None
+        )
+        op = self._make_operator()
+        op.location = "EU" if status in ("error", "not_found") else None
+
+        context = self._context(task_store)
+        result = op.execute(context)
+
+        hook.get_job.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3", job_id="original-job"
+        )
+        if status in ("error", "not_found"):
+            assert result == "replacement-job"
+            assert hook.insert_job.call_args.kwargs["location"] == "EU"
+            assert values["bigquery_job_location"] == {"job_id": "replacement-job", "location": "EU"}
+        else:
+            assert result == "original-job"
+            hook.insert_job.assert_not_called()
+
+        expected_location = "EU" if status in ("error", "not_found") else "asia-northeast3"
+        context["ti"].xcom_push.assert_any_call(
+            key="bigquery_job_detail",
+            value={"project_id": TEST_GCP_PROJECT_ID, "job_id": result, "location": expected_location},
+        )
+        context["ti"].xcom_push.assert_any_call(
+            key="job_id_path", value=f"{TEST_GCP_PROJECT_ID}:{expected_location}:{result}"
+        )
+        op.on_kill()
+        hook.cancel_job.assert_called_once_with(
+            job_id=result, project_id=TEST_GCP_PROJECT_ID, location=expected_location
+        )
+        assert op.location == ("EU" if status in ("error", "not_found") else None)
+
+    @pytest.mark.parametrize(
+        "saved_location",
+        [
+            None,
+            {"job_id": "other-job", "location": "asia-northeast3"},
+            {"job_id": "stored-job-id", "location": None},
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_recovery_uses_location_only_from_matching_record(
+        self, mock_hook: MagicMock, saved_location: dict[str, str | None] | None
+    ) -> None:
+        values: dict[str, dict[str, str | None] | None] = {
+            "bigquery_job_location": {"job_id": "stored-job-id", "location": "asia-northeast3"}
+        }
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.side_effect = values.get
+        hook = mock_hook.return_value
+        hook.get_job.return_value = MagicMock(
+            spec=QueryJob,
+            job_id="stored-job-id",
+            location="asia-northeast3",
+            state="DONE",
+            error_result=None,
+        )
+
+        assert self._make_operator().get_job_status("stored-job-id", self._context(task_store)) == "success"
+        hook.get_job.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3", job_id="stored-job-id"
+        )
+
+        values["bigquery_job_location"] = saved_location
+        hook.get_job.reset_mock()
+        hook.get_job.side_effect = NotFound("Job not found in the configured location")
+
+        assert self._make_operator().get_job_status("stored-job-id", self._context(task_store)) == "not_found"
+        hook.get_job.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID, location=TEST_DATASET_LOCATION, job_id="stored-job-id"
+        )
+
     @staticmethod
     def _context(task_store=None):
         ctx: dict = {"ti": MagicMock(stats_tags={}, try_number=1)}
@@ -2325,11 +2599,15 @@ class TestBigQueryInsertJobOperatorDurable:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_persists_job_id_to_task_state_store_on_fresh_submit(self, mock_hook):
+    def test_checkpoints_job_id_and_location_with_optional_store(self, mock_hook: MagicMock) -> None:
         op = self._make_operator()
         mock_hook.return_value.generate_job_id.return_value = "generated-job-id"
         mock_hook.return_value.insert_job.return_value = MagicMock(
-            state="DONE", job_id="generated-job-id", error_result=False
+            spec=QueryJob,
+            state="DONE",
+            job_id="generated-job-id",
+            error_result=False,
+            location=TEST_DATASET_LOCATION,
         )
         task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = None
@@ -2337,8 +2615,17 @@ class TestBigQueryInsertJobOperatorDurable:
         result = op.execute(self._context(task_store))
 
         mock_hook.return_value.insert_job.assert_called_once()
-        task_store.set.assert_called_once_with("bigquery_job_id", "generated-job-id")
+        assert task_store.set.call_args_list == [
+            mock.call(
+                "bigquery_job_location", {"job_id": "generated-job-id", "location": TEST_DATASET_LOCATION}
+            ),
+            mock.call("bigquery_job_id", "generated-job-id"),
+        ]
         assert result == "generated-job-id"
+
+        mock_hook.return_value.insert_job.reset_mock()
+        assert self._make_operator().execute(self._context()) == "generated-job-id"
+        mock_hook.return_value.insert_job.assert_called_once()
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_reconnects_to_running_job_without_resubmitting(self, mock_hook):
@@ -2396,7 +2683,7 @@ class TestBigQueryInsertJobOperatorDurable:
         mock_hook.return_value.get_job.return_value = failed_job
         mock_hook.return_value.generate_job_id.return_value = "new-job-id"
         mock_hook.return_value.insert_job.return_value = MagicMock(
-            state="DONE", job_id="new-job-id", error_result=False
+            state="DONE", job_id="new-job-id", error_result=False, location=TEST_DATASET_LOCATION
         )
         task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = "stored-job-id"
@@ -2404,7 +2691,10 @@ class TestBigQueryInsertJobOperatorDurable:
         result = op.execute(self._context(task_store))
 
         mock_hook.return_value.insert_job.assert_called_once()
-        task_store.set.assert_called_once_with("bigquery_job_id", "new-job-id")
+        assert task_store.set.call_args_list == [
+            mock.call("bigquery_job_location", {"job_id": "new-job-id", "location": TEST_DATASET_LOCATION}),
+            mock.call("bigquery_job_id", "new-job-id"),
+        ]
         assert result == "new-job-id"
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -2472,7 +2762,7 @@ class TestBigQueryInsertJobOperatorDurable:
         mock_hook.return_value.get_job.side_effect = NotFound("gone")
         mock_hook.return_value.generate_job_id.return_value = "new-job-id"
         mock_hook.return_value.insert_job.return_value = MagicMock(
-            state="DONE", job_id="new-job-id", error_result=False
+            state="DONE", job_id="new-job-id", error_result=False, location=TEST_DATASET_LOCATION
         )
         task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = "stored-job-id"
@@ -2480,7 +2770,10 @@ class TestBigQueryInsertJobOperatorDurable:
         result = op.execute(self._context(task_store))
 
         mock_hook.return_value.insert_job.assert_called_once()
-        task_store.set.assert_called_once_with("bigquery_job_id", "new-job-id")
+        assert task_store.set.call_args_list == [
+            mock.call("bigquery_job_location", {"job_id": "new-job-id", "location": TEST_DATASET_LOCATION}),
+            mock.call("bigquery_job_id", "new-job-id"),
+        ]
         assert result == "new-job-id"
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")

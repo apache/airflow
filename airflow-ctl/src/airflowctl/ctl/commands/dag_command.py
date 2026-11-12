@@ -23,6 +23,7 @@ import sys
 from typing import Literal
 
 import rich
+from rich.markup import escape
 from rich.text import Text
 
 from airflowctl.api.client import (
@@ -55,12 +56,16 @@ def update_dag_state(
     try:
         response = api_client.dags.update(dag_id=dag_id, dag_body=dag_body)
     except ServerResponseError as e:
-        rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]")
+        rich.print(
+            f"[red]Error while trying to {operation} Dag {escape(dag_id)}: {escape(str(e))}[/red]",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
-    response_dict = response.model_dump()
-    rich.print(f"[green]Dag {operation} successful {dag_id}[/green]")
-    rich.print("[green]Further Dag details:[/green]")
+    response_dict = response.model_dump(mode="json")
+    # Status lines go to stderr so stdout carries only the --output data (e.g. JSON for jq).
+    rich.print(f"[green]Dag {operation} successful {dag_id}[/green]", file=sys.stderr)
+    rich.print("[green]Further Dag details:[/green]", file=sys.stderr)
     AirflowConsole().print_as(
         data=[response_dict],
         output=output,
@@ -115,10 +120,11 @@ def next_execution(args, api_client=NEW_API_CLIENT) -> dict | None:
     try:
         response = api_client.dags.get(dag_id=args.dag_id)
     except ServerResponseError as e:
-        rich.print(f"[red]Error retrieving Dag {args.dag_id}: {e}[/red]")
+        rich.print(f"[red]Error retrieving Dag {escape(args.dag_id)}: {escape(str(e))}[/red]")
         sys.exit(1)
 
-    next_exec_data = {field: getattr(response, field) for field in _NEXT_EXECUTION_FIELDS}
+    response_dict = response.model_dump(mode="json")
+    next_exec_data = {field: response_dict[field] for field in _NEXT_EXECUTION_FIELDS}
 
     if all(value is None for value in next_exec_data.values()):
         rich.print(f"[yellow]No upcoming run scheduled for Dag {args.dag_id}.[/yellow]")
@@ -242,7 +248,7 @@ def _print_dag_runs_to_clear(dag_id: str, dag_runs: list) -> None:
         partition_date = getattr(dag_run, "partition_date", None)
         partition_date_display = partition_date.isoformat() if partition_date is not None else "-"
         rich.print(
-            f"  - {dag_run.dag_run_id} (logical date: {logical_date}, partition date: {partition_date_display})"
+            f"  - {escape(dag_run.dag_run_id)} (logical date: {logical_date}, partition date: {partition_date_display})"
         )
 
 
