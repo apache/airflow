@@ -8654,7 +8654,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "asyncssh", specifier = ">=2.12.0" },
+    { name = "asyncssh", specifier = ">=2.18.0" },
     { name = "paramiko", specifier = ">=4.0.0" },
 ]
 
