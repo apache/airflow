@@ -179,7 +179,7 @@ def _unwrap_external_ref(stored: JsonValue) -> str | None:
 def _validate_state_store_value(value: JsonValue) -> None:
     if value is None:
         raise ValueError("Cannot set value as None")
-    # get() would read such a value back as a backend reference
+    # get() reads the exact wrapper as a reference, and older SDKs read any dict holding this key as one.
     if isinstance(value, dict) and _EXTERNAL_STATE_REF_KEY in value:
         raise ValueError(
             f"{_EXTERNAL_STATE_REF_KEY!r} is reserved and cannot be a top-level key of the value"

@@ -385,7 +385,7 @@ class TestStateStoreObjectStorageBackend:
         "base_default",
         [pytest.param(None, id="sdk-keeps-inline"), pytest.param('{"x": 1}', id="sdk-wraps-every-return")],
     )
-    def test_serialize_below_threshold_returns_base_default(
+    def test_serialize_below_threshold_defers_to_base_class(
         self, request, kind, scope_fixture, base_default, base_path
     ):
         """Below the threshold the backend defers to the installed SDK's default instead of offloading."""
