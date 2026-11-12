@@ -215,13 +215,13 @@ jobs:
         shell: bash
       # A branch tip can have the version number of a released Airflow, so only git_version tells which
       # one is installed. The tests below install Airflow the same way and hide their output when they
-      # pass. Airflow is not imported, because that needs a database.
+      # pass. No --backend here: breeze remembers the last one used, and the tests below take it.
       - name: "Check that Airflow installed from the wheels was built from ${{ matrix.target.sha }}"
         env:
           AIRFLOW_CONSTRAINTS_REFERENCE: "${{ matrix.target.airflow-constraints-reference }}"
           SHA: ${{ matrix.target.sha }}
         run: |
-          breeze shell --quiet --backend none \
+          breeze shell --quiet \
             --use-distributions-from-dist \
             --distribution-format wheel \
             --use-airflow-version wheel \
