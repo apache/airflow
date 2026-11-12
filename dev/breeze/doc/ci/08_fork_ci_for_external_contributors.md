@@ -806,9 +806,9 @@ tampering check applies to (`external` and `pilot`), the reconciler lists the ch
 per head commit, counting a renamed file under both paths, and closes the pull request
 with a comment explaining why when it changes any of:
 
-- `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` or `.github/workflows/fork-ci-monitor.yml`
-  (edits to reconciler modules under `dev/breeze/src/` are classified as CI-defining files that
-  transition green runs to `green_unverified` with `needs project ci`);
+- `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`, the reconciler modules
+  `fork_ci_reconcile.py`, `fork_ci_github.py` and `fork_ci_messages.py`, or
+  `.github/workflows/fork-ci-monitor.yml`;
 - `.github/fork-ci-gate.toml`, other than adding, changing or removing the author's own
   `[pilot]` entry, which is how contributors join and leave the pilot (the configuration is
   parsed from the head commit and compared with its version at the pull request's merge base,

@@ -105,6 +105,9 @@ CI_WORKFLOW_PATH = f".github/workflows/{CI_WORKFLOW_FILE}"
 GATE_PROTECTED_PATHS = frozenset(
     {
         GATE_SCRIPT_PATH,
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_github.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py",
         ".github/workflows/fork-ci-monitor.yml",
     }
 )
@@ -124,7 +127,19 @@ GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
 CHECK_RUN_NEEDED_JOB_NAME = "Check if the run is needed"
 PROJECT_CI_NOT_RUN_JOB_NAME = "CI passed (project CI not run)"
 CI_PASSED_CANCELLED_JOB_NAME = "CI passed (run cancelled)"
-BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
+BOT_LOGINS = frozenset(
+    {
+        "github-actions",
+        "github-actions[bot]",
+        "airflow-triage-bot",
+        "codecov",
+        "codecov[bot]",
+        "dependabot",
+        "dependabot[bot]",
+        "asf-ci[bot]",
+        "asfbot",
+    }
+)
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
 FORK_BATCH_SIZE = 50
@@ -420,7 +435,10 @@ def _workflow_file(resource_path: str | None) -> str:
 
 
 def _is_bot(login: str | None) -> bool:
-    return login in BOT_LOGINS
+    if not login:
+        return False
+    normalized = login.casefold()
+    return normalized in BOT_LOGINS or normalized.endswith("[bot]")
 
 
 def observe_fork_state(fork: ForkObservation, marker: Marker | None) -> tuple[ForkState | None, str | None]:
@@ -625,6 +643,7 @@ def classify(
     jobs_reported: str | None = None,
     head_shared_across_bases: bool = False,
     find_gate_change: Callable[[], str | None] = lambda: None,
+    verify_head_repo_unavailable: Callable[[], bool] = lambda: True,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -682,6 +701,9 @@ def classify(
         return release(ForkState.UNGATED, functools.partial(ungated_comment, base_ref=pr.base_ref))
 
     if pr.head_repo is None:
+        if not verify_head_repo_unavailable():
+            plan.unknown.append("head repository is unavailable due to GitHub API error; retrying")
+            return plan
         _enter_state(plan, pr, labels, ForkState.CLOSED)
         _set_marker_comment(
             plan,
@@ -820,7 +842,7 @@ def classify(
         if unverified:
             state = ForkState.GREEN_UNVERIFIED
     plan.state = state
-    since = marker.since if marker and marker.state == state.value else now
+    since = marker.since if marker and marker.state == state.value and marker.sha == pr.head_sha else now
 
     if marker and marker.state == ForkState.SETUP_REQUIRED.value and state == ForkState.AWAITING_PUSH:
         plan.new_comments.append(nudge_comment(fork=pr.head_repo))
@@ -835,11 +857,8 @@ def classify(
             workflow_disabled_comment(fork=pr.head_repo, workflow_state=fork.workflow_state)
         )
 
-    inactive_for_closing = state in (ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH) or (
-        state == ForkState.FAILED
-        and (
-            pr.last_comment_at is None or now - pr.last_comment_at >= timedelta(days=config.close_after_days)
-        )
+    inactive_for_closing = pr.last_comment_at is None or now - pr.last_comment_at >= timedelta(
+        days=config.close_after_days
     )
     if (
         state in CLOSABLE_STATES
@@ -922,7 +941,15 @@ fragment PassTwoFields on PullRequest {
       labels(first: 50) { nodes { name } }
       timelineItems(
         last: 100,
-        itemTypes: [CONVERT_TO_DRAFT_EVENT, UNLABELED_EVENT, REOPENED_EVENT, BASE_REF_CHANGED_EVENT, ISSUE_COMMENT]
+        itemTypes: [
+          CONVERT_TO_DRAFT_EVENT,
+          UNLABELED_EVENT,
+          REOPENED_EVENT,
+          BASE_REF_CHANGED_EVENT,
+          ISSUE_COMMENT,
+          PULL_REQUEST_REVIEW,
+          PULL_REQUEST_REVIEW_COMMENT
+        ]
       ) {
         nodes {
           __typename
@@ -931,6 +958,8 @@ fragment PassTwoFields on PullRequest {
           ... on ReopenedEvent { createdAt actor { login } }
           ... on BaseRefChangedEvent { createdAt previousRefName currentRefName }
           ... on IssueComment { createdAt author { login } }
+          ... on PullRequestReview { createdAt author { login } }
+          ... on PullRequestReviewComment { createdAt author { login } }
         }
       }
       commits(last: 1) { nodes { commit {
@@ -1019,9 +1048,10 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
             last_draft_actor = _login(item.get("actor"))
         elif item["__typename"] == "BaseRefChangedEvent":
             last_base_change = parse_github_datetime(item["createdAt"])
-            base_changes.append(
-                (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
-            )
+            if last_base_change is not None:
+                base_changes.append(
+                    (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
+                )
         elif item["__typename"] == "ReopenedEvent":
             last_reopened_by_anyone = parse_github_datetime(item["createdAt"])
             # Only a reopen by someone else counts for the gate tampering check: an author closing
@@ -1032,10 +1062,11 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
             label = (item.get("label") or {}).get("name")
             if label == LABEL_USE_PROJECT_CI:
                 last_unlabel = parse_github_datetime(item["createdAt"])
-        elif item["__typename"] == "IssueComment":
+        elif item["__typename"] in ("IssueComment", "PullRequestReviewComment", "PullRequestReview"):
             if not _is_bot(_login(item.get("author"))):
-                t = parse_github_datetime(item["createdAt"])
-                last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
+                t = parse_github_datetime(item.get("createdAt") or "")
+                if t is not None:
+                    last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
 
     current_status = None
     status_created_at = None
@@ -1743,7 +1774,13 @@ def fetch_fork_observations(
             if not suites:
                 observations[pr.number] = ForkObservation()
                 continue
-            latest = max(suites, key=lambda suite: suite["createdAt"])
+            latest = max(
+                suites,
+                key=lambda suite: (
+                    suite["createdAt"],
+                    (suite.get("workflowRun") or {}).get("runAttempt") or 1,
+                ),
+            )
             observations[pr.number] = ForkObservation(
                 suite_status=latest["status"],
                 suite_conclusion=latest["conclusion"],
@@ -2074,12 +2111,18 @@ class BypassFinder:
             paginate=True,
         )
         window_start = self._now - TAMPER_WINDOW
-        return [
-            pull["number"]
-            for pull in pulls
-            if pull["number"] != pr.number
-            and (pull.get("closed_at") is None or parse_github_datetime(pull["closed_at"]) >= window_start)
-        ]
+        active_pulls = []
+        for pull in pulls:
+            if pull["number"] == pr.number:
+                continue
+            closed_at_str = pull.get("closed_at")
+            if closed_at_str is None:
+                active_pulls.append(pull["number"])
+            else:
+                closed_at = parse_github_datetime(closed_at_str)
+                if closed_at is not None and closed_at >= window_start:
+                    active_pulls.append(pull["number"])
+        return active_pulls
 
     def find(self, pr: PullRequestSnapshot) -> str | None:
         if not pr.head_repo:
@@ -2417,6 +2460,16 @@ def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapsho
         console_print(f"[warning]#{pr.number}: could not count commits behind {pr.base_ref}: {e}[/]")
         return None
     return compare.get("behind_by")
+
+
+def check_head_repo_unavailable(client: GitHubClient, repo: str, pr_number: int) -> bool:
+    try:
+        pr_data = client.rest_get(f"repos/{repo}/pulls/{pr_number}")
+        if not isinstance(pr_data, dict):
+            return False
+        return (pr_data.get("head") or {}).get("repo") is None
+    except Exception:
+        return False
 
 
 def find_heads_shared_across_bases(prs: Iterable[PullRequestSnapshot]) -> set[str]:
@@ -2775,6 +2828,9 @@ def run_reconcile(
                 jobs_reported=jobs_reported,
                 head_shared_across_bases=pr.head_sha in shared_heads,
                 find_gate_change=functools.partial(gate_change_finder.find, pr),
+                verify_head_repo_unavailable=functools.partial(
+                    check_head_repo_unavailable, client, repo, pr.number
+                ),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.

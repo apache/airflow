@@ -45,6 +45,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
+    GATE_PROTECTED_PATHS,
     JOB_STATUSES_DEFERRED_NOTE,
     JOB_STATUSES_FAILED_REASON,
     RATE_LIMITED_NOTE,
@@ -59,10 +60,12 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     Projection,
     PullRequestChangedError,
     PullRequestSnapshot,
+    _is_bot,
     apply_plan,
     build_job_statuses,
     build_slack_payload,
     changes_ci_definition,
+    check_head_repo_unavailable,
     classify,
     compute_projection,
     count_commits_behind,
@@ -141,6 +144,7 @@ def _classify(
     behind=None,
     head_shared_across_bases=False,
     gate_change=None,
+    verify_head_repo_unavailable=lambda: True,
 ):
     find_bypass = mock.Mock(return_value=bypass_run)
     changes = mock.Mock(return_value=changes_ci_files)
@@ -155,6 +159,7 @@ def _classify(
         count_behind=mock.Mock(return_value=behind),
         head_shared_across_bases=head_shared_across_bases,
         find_gate_change=lambda: gate_change,
+        verify_head_repo_unavailable=verify_head_repo_unavailable,
     )
     return plan, find_bypass, changes
 
@@ -907,6 +912,30 @@ def test_deleted_head_repository_is_closed():
     assert plan.unknown == []
     assert plan.status is None
     assert plan.draft is None
+
+
+def test_deleted_head_repository_retries_on_api_error():
+    plan, _, _ = _classify(_pr(head_repo=None), GREEN, verify_head_repo_unavailable=lambda: False)
+
+    assert plan.state is None
+    assert plan.close is False
+    assert plan.unknown == ["head repository is unavailable due to GitHub API error; retrying"]
+    assert plan.new_comments == []
+
+
+def test_check_head_repo_unavailable():
+    client = mock.Mock()
+    client.rest_get.return_value = {"head": {"repo": None}}
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is True
+
+    client.rest_get.return_value = {"head": {"repo": {"full_name": "user/repo"}}}
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is False
+
+    client.rest_get.return_value = None
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is False
+
+    client.rest_get.side_effect = GitHubError("500 Internal Server Error")
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is False
 
 
 def test_malformed_marker_is_reported_and_rewritten():
@@ -3486,8 +3515,8 @@ def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="
         pytest.param(
             [{"filename": "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py"}],
             {},
-            None,
-            id="reconciler-code-allowed",
+            "it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py`",
+            id="reconciler-code-protected",
         ),
         pytest.param(
             [{"filename": ".github/fork-ci-gate.toml"}],
@@ -3892,6 +3921,148 @@ def test_mark_older_pilot_pull_request(
     marked = mark_older_pilot_pull_request(_pr(author_login=author), config, repo=REPO, now=NOW)
 
     assert (marked.ci_run_at, marked.pilot_joined_at) == (expected_ci_run_at, expected_pilot_joined_at)
+
+
+def test_gate_protected_paths_includes_all_five_files():
+    expected = {
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_github.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py",
+        ".github/workflows/fork-ci-monitor.yml",
+    }
+    assert expected == GATE_PROTECTED_PATHS
+
+
+@pytest.mark.parametrize(
+    ("login", "expected"),
+    [
+        ("github-actions", True),
+        ("github-actions[bot]", True),
+        ("airflow-triage-bot", True),
+        ("Airflow-Triage-Bot", True),
+        ("codecov", True),
+        ("codecov[bot]", True),
+        ("Codecov[Bot]", True),
+        ("dependabot", True),
+        ("dependabot[bot]", True),
+        ("asf-ci[bot]", True),
+        ("asfbot", True),
+        ("ASFBot", True),
+        ("custom-linter[bot]", True),
+        ("ayushmeel", False),
+        ("potiuk", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_is_bot(login, expected):
+    assert _is_bot(login) is expected
+
+
+def test_failing_pull_request_inactivity_clock_resets_on_new_commit_sha():
+    pr = _pr(
+        marker=_marker("failed", days_ago=7, sha="old_sha"),
+        head_sha="new_sha",
+    )
+    failed_fork = ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE")
+    plan, _, _ = _classify(pr, failed_fork)
+
+    assert plan.close is False
+    assert plan.state == ForkState.FAILED
+
+
+def test_setup_required_inactivity_clock_resets_on_recent_human_comment():
+    pr = _pr(
+        marker=_marker("setup_required", days_ago=7),
+        last_comment_at=NOW - timedelta(days=2),
+    )
+    plan, _, _ = _classify(pr, ForkObservation(workflow_state="disabled_fork"))
+
+    assert plan.close is False
+    assert plan.state == ForkState.SETUP_REQUIRED
+
+
+def test_parse_pull_request_tracks_reviews_and_comments():
+    node = _pr_node(
+        1,
+        timelineItems={
+            "nodes": [
+                {
+                    "__typename": "PullRequestReview",
+                    "createdAt": "2026-11-05T00:00:00Z",
+                    "author": {"login": "reviewer"},
+                },
+                {
+                    "__typename": "PullRequestReviewComment",
+                    "createdAt": "2026-11-06T12:00:00Z",
+                    "author": {"login": "code-suggester"},
+                },
+                {
+                    "__typename": "IssueComment",
+                    "createdAt": "2026-11-07T00:00:00Z",
+                    "author": {"login": "human-author"},
+                },
+                {
+                    "__typename": "IssueComment",
+                    "createdAt": "2026-11-08T00:00:00Z",
+                    "author": {"login": "Airflow-Triage-Bot"},
+                },
+                {
+                    "__typename": "PullRequestReviewComment",
+                    "createdAt": "2026-11-09T00:00:00Z",
+                    "author": {"login": "codecov[bot]"},
+                },
+            ]
+        },
+    )
+    pr = parse_pull_request(node)
+    assert pr.last_comment_at == datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+
+
+def test_fetch_fork_observations_orders_by_created_at_and_run_attempt(client):
+    pr = parse_pull_request(_pr_node(1, head_repo="someone/my-airflow", head_sha="sha1"))
+    client.graphql.return_value = {
+        "pr0": {
+            "object": {
+                "checkSuites": {
+                    "nodes": [
+                        {
+                            "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:30:00Z",
+                            "status": "COMPLETED",
+                            "conclusion": "FAILURE",
+                            "workflowRun": {
+                                "databaseId": 88,
+                                "runAttempt": 1,
+                                "url": "attempt-1",
+                                "event": "workflow_dispatch",
+                                "workflow": {"resourcePath": "/x/ci-amd.yml"},
+                            },
+                        },
+                        {
+                            "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:50:00Z",
+                            "status": "COMPLETED",
+                            "conclusion": "SUCCESS",
+                            "workflowRun": {
+                                "databaseId": 88,
+                                "runAttempt": 2,
+                                "url": "attempt-2",
+                                "event": "workflow_dispatch",
+                                "workflow": {"resourcePath": "/x/ci-amd.yml"},
+                            },
+                        },
+                    ]
+                }
+            }
+        }
+    }
+
+    observations = fetch_fork_observations(client, [pr])
+    assert observations[1].run_attempt == 2
+    assert observations[1].suite_conclusion == "SUCCESS"
+    assert observations[1].run_url == "attempt-2"
 
 
 def test_older_pilot_pull_request_stays_checked_for_tampering_after_its_gated_run_is_deleted():
