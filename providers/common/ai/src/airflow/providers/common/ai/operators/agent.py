@@ -380,7 +380,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
         Toolsets pydantic-ai runs as durable steps (``FunctionToolset``,
         ``MCPToolset``, ``DynamicToolset``) need a unique ``id``, and so do
-        capabilities with ``@durable_operation`` methods.
+        capabilities with ``@durable_operation`` methods. A tool with the metadata
+        ``{"airflow": False}`` runs again on every attempt instead of replaying
+        (:ref:`durable-tool-opt-out`).
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against

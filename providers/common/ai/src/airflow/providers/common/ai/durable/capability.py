@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, cast
 
 from pydantic_ai.durable_exec import (
     JSON_CODEC,
@@ -49,14 +49,15 @@ from pydantic_ai.exceptions import (
 )
 from pydantic_ai.messages import ModelResponse, ToolReturn
 from pydantic_ai.tools import AgentDepsT
-from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
+from pydantic_ai.toolsets import DynamicToolset, FunctionToolset, ToolsetTool
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_core import PydanticSerializationError
 
+from airflow.providers.common.ai.durable.base import TOOL_CONFIG_KEY
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
-from airflow.providers.common.ai.exceptions import DurableJournalError
+from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
@@ -69,11 +70,11 @@ if TYPE_CHECKING:
     from pydantic_ai.durable_exec._operation import DurableOperation, ParamsT, ResultT, WireT
     from pydantic_ai.durable_exec._operation_backend import BoundDurableOperation
     from pydantic_ai.messages import ModelMessage
-    from pydantic_ai.models import Model, ModelRequestParameters
+    from pydantic_ai.models import Model, ModelRequestContext, ModelRequestParameters
     from pydantic_ai.run import AgentRunResult
     from pydantic_ai.settings import ModelSettings
-    from pydantic_ai.tools import RunContext
-    from pydantic_ai.toolsets import AbstractToolset, ToolsetTool
+    from pydantic_ai.tools import RunContext, ToolDefinition
+    from pydantic_ai.toolsets import AbstractToolset
 
     from airflow.providers.common.ai.durable.journal import DurableRun, JournalStep, StepKind
 
@@ -99,8 +100,39 @@ else:
 # types have changed since, so replaying it would fail on every retry.
 _UNLOADABLE = "the recorded result no longer loads, so it was written by another version"
 
-_NO_CONFIG: RoleBasedOperationConfig[None] = RoleBasedOperationConfig(
-    model=None, event=None, capability=None, tool=None
+# How an operation's step is run: looked up in the journal and recorded, or always run live.
+_StepMode: TypeAlias = Literal["journal", "live"]
+
+
+def _is_tool_journaled(tool_def: ToolDefinition) -> bool:
+    """Whether calls of a tool are journaled; ``metadata={"airflow": False}`` runs them live on every attempt."""
+    setting = (tool_def.metadata or {}).get(TOOL_CONFIG_KEY)
+    if setting is None:
+        return True
+    if isinstance(setting, bool):
+        return setting
+    raise DurableToolMetadataError(
+        f"Tool {tool_def.name!r} has invalid {TOOL_CONFIG_KEY!r} metadata: expected True or False, "
+        f"got {type(setting).__name__}."
+    )
+
+
+def _resolve_tool_step_mode(
+    operation_id: DurableOperationId, tool: object | None, tool_name: str
+) -> _StepMode:
+    # Never pydantic-ai's ``False``, which would take the call out of the backend: a live call still
+    # takes its position, so the steps after it keep theirs, and a failure is still the step's own.
+    if isinstance(tool, ToolsetTool) and not _is_tool_journaled(tool.tool_def):
+        return "live"
+    return "journal"
+
+
+_STEP_MODES: RoleBasedOperationConfig[_StepMode] = RoleBasedOperationConfig(
+    model="journal",
+    event="journal",
+    capability="journal",
+    tool="journal",
+    resolve_tool=_resolve_tool_step_mode,
 )
 
 
@@ -253,6 +285,12 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
     soon as the run succeeds, so that clearing the task later starts it fresh: a task that
     runs several agents replays only the run that failed, and runs the ones before it again.
 
+    A tool that must run on every attempt, such as one that reads the current time or
+    creates a temporary table, opts out with ``metadata={"airflow": False}``; for tools of
+    a toolset you do not define, such as ``SQLToolset``, add the capability
+    ``SetToolMetadata(tools=[...], airflow=False)``. pydantic-ai's own ``MCPToolset`` refuses the
+    opt-out; the provider's ``MCPToolset`` accepts it.
+
     Toolsets the agent calls through pydantic-ai's durable backend need a unique ``id``
     (``FunctionToolset(id=...)``, ``MCPToolset(..., id=...)``), as do capabilities that
     contribute ``@durable_operation`` methods; the ids name the steps in the journal.
@@ -289,6 +327,17 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
 
     def get_durable_operation_backend(self) -> _AirflowOperationBackend:
         return _AirflowOperationBackend(self)
+
+    async def before_model_request(
+        self, ctx: RunContext[AgentDepsT], request_context: ModelRequestContext
+    ) -> ModelRequestContext:
+        # A bad ``airflow`` metadata value fails the task here, before the model is first asked,
+        # rather than when the model calls the tool, which every retry would reach again. The
+        # request's tool definitions carry the metadata other capabilities set on the toolsets.
+        if self.in_durable_context:
+            for tool_def in request_context.model_request_parameters.function_tools:
+                _is_tool_journaled(tool_def)
+        return await super().before_model_request(ctx, request_context)
 
     def get_wrapper_toolset(self, toolset: AbstractToolset[AgentDepsT]) -> AbstractToolset[AgentDepsT] | None:
         """Journal the leaf toolsets pydantic-ai's backend does not, then let the base wrap the rest."""
@@ -350,12 +399,12 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
         return model
 
 
-class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
+class _AirflowOperationBackend(JournalCallableOperationBackend[_StepMode]):
     """Runs each durable operation through the task's durable journal."""
 
     def __init__(self, durability: AirflowDurability[Any]) -> None:
         super().__init__(
-            agent_name=durability.name, default_model_id=durability.default_model_id, config=_NO_CONFIG
+            agent_name=durability.name, default_model_id=durability.default_model_id, config=_STEP_MODES
         )
         self._durability = durability
         # How pydantic-ai decodes each operation's result, by operation.
@@ -398,7 +447,7 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
         name: str,
         body: Callable[[], Awaitable[object]],
         cache_key: tuple[object, ...],
-        config: None,
+        config: _StepMode,
     ) -> object:
         active = _ACTIVE_RUN.get()
         if active is None:
@@ -414,6 +463,7 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
                     name,
                     _tool_fingerprint(cache_key),
                     valid_payload=partial(self._loads, operation_id),
+                    replayable=config == "journal",
                 )
                 if step.replayed:
                     return step.payload
@@ -528,8 +578,9 @@ class _JournaledToolset(WrapperToolset[Any]):
             fingerprint_tool_call(name, tool_args, ctx.tool_call_id),
             valid_payload=_is_journaled_tool_payload,
             # A toolset whose calls act on a system Airflow cannot observe, such as a managed
-            # agent, runs them again on every attempt.
-            replayable=leaf.replayable if isinstance(leaf, AirflowToolset) else True,
+            # agent, runs them again on every attempt, and so does a tool opted out by its metadata.
+            replayable=(not isinstance(leaf, AirflowToolset) or leaf.replayable)
+            and _is_tool_journaled(tool.tool_def),
         )
         if step.replayed:
             if isinstance(leaf, AirflowToolset):
@@ -582,6 +633,8 @@ async def _run_and_record_tool(step: JournalStep, call: Callable[[], Awaitable[A
 
 
 def _record_tool_payload(step: JournalStep, payload: dict[str, Any]) -> None:
+    if not step.replayable:
+        return
     encoded = _JOURNAL_CODEC.dump(Any, payload)
     if isinstance(encoded, Unrecordable):
         step.cannot_record(encoded.error)

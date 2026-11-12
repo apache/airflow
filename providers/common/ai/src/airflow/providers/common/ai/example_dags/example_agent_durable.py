@@ -18,7 +18,11 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+
+from pydantic_ai import Tool
+from pydantic_ai.capabilities import SetToolMetadata
+from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -120,3 +124,35 @@ if SQLToolset is not None:
     # [END howto_capability_airflow_durability]
 
     example_airflow_durability_capability()
+
+
+# ---------------------------------------------------------------------------
+# 4. Tools that run on every attempt instead of replaying
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_durable_tool_opt_out]
+def today() -> str:
+    """Return today's date in UTC."""
+    return datetime.now(UTC).date().isoformat()
+
+
+if SQLToolset is not None:
+
+    @dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)}, tags=["example"])
+    def example_agent_durable_tool_opt_out():
+        AgentOperator(
+            task_id="durable_freshness_check",
+            prompt="Which tables in load_log have not been loaded today?",
+            llm_conn_id="pydanticai_default",
+            durable=True,
+            toolsets=[
+                FunctionToolset(tools=[Tool(today, metadata={"airflow": False})], id="calendar"),
+                SQLToolset(db_conn_id="postgres_default", allowed_tables=["load_log"]),
+            ],
+            capabilities=[SetToolMetadata(tools=["query"], airflow=False)],
+        )
+
+    # [END howto_agent_durable_tool_opt_out]
+
+    example_agent_durable_tool_opt_out()
