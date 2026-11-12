@@ -42,6 +42,7 @@ from airflow.providers.common.ai.tools._from_toolset import (
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
+from unit.common.ai.sqlite_connection import sqlite_connection
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 
@@ -114,11 +115,20 @@ class TestSQLToolsetAirflowTools:
         assert "sql" in result.content
         ts._hook.run.assert_not_called()
 
-    def test_a_database_that_keeps_failing_fails_the_call(self):
-        """Bad credentials are not the model's to fix; the tool's retry budget ends the loop."""
+    def test_a_database_that_cannot_be_reached_fails_the_first_call(self, tmp_path):
+        ts = SQLToolset("warehouse")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "missing" / "warehouse.db"),
+            pytest.raises(ToolCallError, match="Could not reach the database of connection 'warehouse'"),
+        ):
+            asyncio.run(_by_name(ts.airflow_tools())["query"].call({"sql": "SELECT status FROM orders"}))
+
+    def test_a_statement_that_keeps_failing_fails_the_call(self):
+        """The tool's retry budget ends a loop the model cannot correct its way out of."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.run.side_effect = ConnectionError("authentication failed")
+        ts._hook.run.side_effect = RuntimeError("canceling statement due to statement timeout")
         query = _by_name(ts.airflow_tools())["query"]
 
         first = asyncio.run(query.call({"sql": "SELECT 1"}))
@@ -132,7 +142,7 @@ class TestSQLToolsetAirflowTools:
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
         ts._hook.run.side_effect = RuntimeError(
-            f"could not connect to postgresql://svc:{registered_secret}@db"
+            f'invalid input syntax for type uuid: "postgresql://svc:{registered_secret}@db"'
         )
 
         result = asyncio.run(_by_name(ts.airflow_tools())["query"].call({"sql": "SELECT 1"}))
