@@ -113,6 +113,16 @@ def test_a_failed_dating_step_fails_the_command(mocks):
     assert result.exit_code == 4
 
 
+def test_a_failed_container_run_is_not_dated_or_published(mocks):
+    run_command, execute_command_in_shell = mocks
+    execute_command_in_shell.return_value = subprocess.CompletedProcess(args=[], returncode=5)
+
+    result = CliRunner().invoke(extract_data, [])
+
+    assert result.exit_code == 5
+    assert run_command.call_count == 1
+
+
 def test_stops_before_the_container_when_extract_metadata_fails(mocks):
     run_command, execute_command_in_shell = mocks
     run_command.return_value = subprocess.CompletedProcess(args=[], returncode=3)

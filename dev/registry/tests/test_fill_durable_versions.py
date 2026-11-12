@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from unittest import mock
 
@@ -118,10 +119,19 @@ class TestDurableGroup:
         assert marker == ("cncf-kubernetes", DURABLE_TOKENS["marker"], POD_PATH)
         assert mixin[1] == "execute_resumable"
 
-    def test_marker_token_also_catches_the_durable_parameter(self):
-        """AgentOperator took `durable` a release before it took task_state_store."""
-        assert "durable: bool" in DURABLE_TOKENS["marker"]
-        assert "task_state_store" in DURABLE_TOKENS["marker"]
+    @pytest.mark.parametrize(
+        ("line", "matches"),
+        [
+            # AgentOperator in common-ai 0.1.0, a release before it took task_state_store.
+            pytest.param("        durable: bool = False,", True, id="agent-0.1.0-signature"),
+            pytest.param(
+                '        task_state_store = context.get("task_state_store")', True, id="kpo-10.20.0-store"
+            ),
+            pytest.param("        deferrable: bool = False,", False, id="unrelated-flag"),
+        ],
+    )
+    def test_marker_pattern_against_real_source_lines(self, line, matches):
+        assert bool(re.search(DURABLE_TOKENS["marker"], line)) is matches
 
     @pytest.mark.parametrize(
         "module",

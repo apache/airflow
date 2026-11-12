@@ -481,6 +481,16 @@ class TestDurableMetadata:
         meta = get_durable_metadata(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin)
         assert meta["durable_gating_class"].endswith("ManuallyDurableOperator")
 
+    @patch("extract_parameters._repo_relative_source", autospec=True)
+    def test_subclass_in_another_provider_is_gated_by_the_parents_provider(self, repo_relative_source):
+        """Mirrors EksPodOperator in amazon inheriting durability from KubernetesPodOperator."""
+        repo_relative_source.side_effect = {
+            ManuallyDurableOperator: Path("providers/cncf/kubernetes/src/airflow/providers/x.py"),
+            ManuallyDurableSubclassNoOverride: Path("providers/amazon/src/airflow/providers/y.py"),
+        }.get
+        meta = get_durable_metadata(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin)
+        assert meta["durable_gating_provider"] == "cncf-kubernetes"
+
     def test_explicit_false_default_is_the_only_opt_in(self):
         assert get_durable_metadata(OptInDurableOperator, None)["durable_opt_in"] is True
 

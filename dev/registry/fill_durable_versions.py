@@ -37,13 +37,13 @@ from packaging.version import InvalidVersion, Version
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 
+# Inputs to the dating, not part of the published /api/modules.json contract.
+EXTRACTION_ONLY_FIELDS = ("durable_mechanism", "durable_gating_class")
+
 # Patterns matching the mechanism, never its registry declaration, and earliest match wins.
 # KubernetesPodOperator reconnected via task_state_store in 10.20.0 but only declared
 # `__supports_durable_execution` in 10.21.0; AgentOperator took `durable` in common-ai 0.1.0
 # but only moved to task_state_store in 0.7.0.
-# Inputs to the dating, not part of the published /api/modules.json contract.
-EXTRACTION_ONLY_FIELDS = ("durable_mechanism", "durable_gating_class")
-
 DURABLE_TOKENS = {
     "marker": r"task_state_store|durable: bool",
     "resumable_mixin": "execute_resumable",
