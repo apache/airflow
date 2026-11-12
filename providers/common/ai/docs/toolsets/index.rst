@@ -271,8 +271,15 @@ When the model calls a tool with arguments that fail its schema, or the tool ask
 model to try again (``ModelRetry``), the error goes back to the model so it can correct
 the call. What counts differs by toolset:
 
-- ``SQLToolset`` and ``DataFusionToolset`` turn every query error into ``ModelRetry``,
-  so a misspelled column and a dropped connection both count.
+- ``SQLToolset`` counts an error the database returns for a statement, such as a
+  misspelled column, and a statement it refuses itself (a write while
+  ``allow_writes`` is off, a table outside ``allowed_tables``). Failing to reach the
+  database fails the run straight away, except through a hook that only connects when
+  the statement runs; see :doc:`sql`.
+- ``DataFusionToolset`` counts a query naming a column or table that does not exist and,
+  while ``allow_writes`` is off, a statement it refuses itself (a write, or SQL it cannot
+  parse). Other errors from running a query go back to the model as a failed result
+  without using the budget.
 - ``HookToolset`` counts invalid arguments and a call that supplies a pinned
   argument. An exception from the hook itself fails the run straight away.
 - ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or

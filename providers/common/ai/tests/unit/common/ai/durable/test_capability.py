@@ -40,6 +40,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
     ToolReturn,
@@ -59,11 +60,13 @@ from airflow.providers.common.ai.durable.capability import (
     _JournalCodec,
 )
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
-from airflow.providers.common.ai.exceptions import DurableJournalError
+from airflow.providers.common.ai.exceptions import DurableJournalError, SQLToolsetConnectionError
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
 from airflow.providers.common.compat.sdk import AirflowFailException
 
 from unit.common.ai.durable.memory_storage import MemoryStorage
+from unit.common.ai.sqlite_connection import create_orders_table, run_sql, sqlite_connection
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
@@ -942,6 +945,21 @@ def clock_then_lookup(calls: Calls, *, fail_final: list[bool]):
     return model_fn
 
 
+def _query_then_answer(sql: str, *, fail_final: list[bool]):
+    """A model that runs ``sql`` once, then answers with whatever the tool sent back, error or rows."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        if responses_so_far(messages) == 0:
+            return ModelResponse(parts=[ToolCallPart("query", {"sql": sql})])
+        if fail_final[0]:
+            raise RuntimeError("worker died")
+        answered = messages[-1].parts[0]
+        assert isinstance(answered, (RetryPromptPart, ToolReturnPart))
+        return ModelResponse(parts=[TextPart(f"answer: {answered.content}")])
+
+    return model_fn
+
+
 class TestToolOptOut:
     """A tool whose metadata says ``{"airflow": False}`` runs live on every attempt."""
 
@@ -1264,6 +1282,52 @@ class TestGetCallableToolsetId:
     )
     def test_none_for_a_callable_without_a_qualified_name(self, function):
         assert _get_callable_toolset_id(function) is None
+
+
+class TestSQLToolsetErrors:
+    """A database that could not be reached is queried again on retry; a rejected statement replays."""
+
+    @staticmethod
+    def _agent(model_fn) -> Agent[None, str]:
+        return Agent(
+            FunctionModel(model_fn),
+            name="analyst",
+            toolsets=[SQLToolset("warehouse")],
+            capabilities=[AirflowDurability()],
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_query_that_could_not_connect_runs_again_on_retry(self, memory_storage, tmp_path):
+        path = tmp_path / "warehouse" / "warehouse.db"  # its directory does not exist yet
+        model_fn = _query_then_answer("SELECT count(*) FROM orders", fail_final=[False])
+
+        with sqlite_connection("warehouse", path):
+            # A model handed the failure would answer with it; the attempt fails instead.
+            with pytest.raises(
+                SQLToolsetConnectionError, match="connection 'warehouse': .*unable to open database file"
+            ):
+                await attempt(memory_storage, self._agent(model_fn))
+            create_orders_table(path)
+            result = await attempt(memory_storage, self._agent(model_fn))
+
+        assert '"rows":[[2]]' in result.output
+
+    @pytest.mark.asyncio
+    async def test_a_query_naming_a_missing_column_replays_on_retry(self, memory_storage, tmp_path):
+        path = tmp_path / "warehouse.db"
+        create_orders_table(path)
+        fail_final = [True]
+        model_fn = _query_then_answer("SELECT amount FROM orders", fail_final=fail_final)
+
+        with sqlite_connection("warehouse", path):
+            with pytest.raises(RuntimeError):
+                await attempt(memory_storage, self._agent(model_fn))
+            # Run live, the query would now succeed; replayed, it fails as it did.
+            run_sql(path, "ALTER TABLE orders ADD COLUMN amount REAL")
+            fail_final[0] = False
+            result = await attempt(memory_storage, self._agent(model_fn))
+
+        assert "no such column: amount" in result.output
 
 
 class Answer(BaseModel):

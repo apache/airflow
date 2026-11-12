@@ -76,6 +76,20 @@ class UnsupportedToolDeferralError(AirflowFailException):
     """
 
 
+class SQLToolsetConnectionError(AirflowException):
+    """
+    Raised when a ``SQLToolset`` tool cannot reach its database.
+
+    The connection is not defined or does not supply a ``DbApiHook``, connecting fails, or
+    SQLAlchemy cannot be set up or loses the connection. No change to the SQL fixes it, so
+    the attempt fails for Airflow to retry instead of the model getting the error. Match it
+    in a retry policy to treat an unreachable database differently from other failures.
+
+    When the driver's message carries a secret the masker cannot remove from the exception,
+    the toolset raises a ``RuntimeError`` with the masked message instead.
+    """
+
+
 class DurableToolMetadataError(AirflowFailException):
     """
     Raised when a tool's ``airflow`` metadata is not ``True``, ``False`` or ``None``.

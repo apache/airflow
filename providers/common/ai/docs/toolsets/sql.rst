@@ -458,15 +458,33 @@ subqueries and joins.
   walk rejects once ``allowed_tables`` is active. Statements that modify
   data, ``COPY`` among them, are rejected either way while ``allow_writes``
   is ``False``.
-- It does not classify failures. A connection error or a typo in a column
-  name reaching ``list_tables``, ``get_schema`` or ``query`` becomes one
-  ``ModelRetry``, so the two are treated the same way until the retry budget
-  (:ref:`toolset-retry-budget`) runs out and the task fails for Airflow to retry. Two paths do not raise:
-  ``check_query`` catches its own errors and reports them back as a normal
-  ``{"valid": false, ...}`` result, and ``get_schema`` returns a normal
-  ``{"error": ...}`` result instead of raising when the requested table is
-  outside ``allowed_tables``; other ``get_schema`` failures still raise and
-  still become a ``ModelRetry``.
+- It tells an unreachable database from a bad statement by when the error
+  happens, not by what it says. Failing to reach the database fails the
+  attempt straight away for Airflow to retry: the connection is not defined,
+  connecting fails (an unreachable host, rejected credentials), SQLAlchemy
+  cannot be set up for ``list_tables`` or ``get_schema`` (a dialect it cannot
+  load, a token it cannot fetch), or SQLAlchemy reports the connection lost
+  while they run. With :doc:`../durable_execution` the retry queries the
+  database again instead of replaying the failure. The task fails with
+  :class:`~airflow.providers.common.ai.exceptions.SQLToolsetConnectionError`,
+  whose message reads ``Could not reach the database of connection '<id>': ...``,
+  or ``Connection '<id>' does not provide a DbApiHook`` when the connection is
+  of the wrong type. Match that class in a retry policy
+  (:doc:`../retry_policies`) to retry an unreachable database on a different
+  schedule from other failures. Inside :doc:`../code_mode` the split does not hold: a
+  tool the model's code calls hands any exception back to the model as a
+  retry, this one included.
+  Once connected, an error from the statement becomes a ``ModelRetry`` so the
+  model can correct it, bounded by the retry budget
+  (:ref:`toolset-retry-budget`). A connection that drops while a ``query``
+  runs falls in this second group, since the driver reports it like any
+  other statement error; the model usually runs the query again, on a new
+  connection. So does any failure of a hook whose ``get_conn`` does not open
+  a network connection, since nothing is reached until the statement runs.
+  Two paths do not raise: ``check_query`` catches its own errors and reports
+  them back as a normal ``{"valid": false, ...}`` result, and ``get_schema``
+  returns a normal ``{"error": ...}`` result instead of raising when the
+  requested table is outside ``allowed_tables``.
 
 **A real example.** ``example_pydantic_ai_hook.py`` builds an agent around
 ``SQLToolset`` inside a plain ``@task`` function, with no operator involved:
