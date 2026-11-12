@@ -1236,6 +1236,15 @@ class PermittedTriggerFilter(OrmClause[None]):
         self.asset_ids = asset_ids
         self.can_read_an_owner = can_read_an_owner
 
+    def allows(self, *, dag_id: str | None, owner_ref: dict | None, watched_asset_ids: set[int]) -> bool:
+        """Check trigger ownership permissions without expanding SQL IN lists."""
+        owner_ref = owner_ref or {}
+        if owner_ref.get("ti_id") is not None:
+            return dag_id in self.task_dag_ids
+        if owner_ref.get("callback_id") is not None:
+            return dag_id in self.callback_dag_ids
+        return bool(watched_asset_ids & self.asset_ids)
+
     def to_orm(self, select: Select) -> Select:
         # The kind by the owner recorded on the row, as Trigger.kind_expression decides it, but without its CASE:
         # compared in each branch, Postgres evaluates the CASE and its watcher subquery once per branch and row.
