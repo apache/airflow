@@ -200,7 +200,8 @@ class BundleUsageTrackingManager:
                 recently_used,
             )
 
-    def _remove_stale_bundle_versions_for_bundle(self, bundle_name: str):
+    def remove_stale_bundle_versions_for_bundle(self, bundle_name: str):
+        """Remove one bundle's stale versions without constructing the bundle."""
         log.info("checking bundle for stale versions. bundle_name=%s", bundle_name)
         found = self._find_all_tracking_files(bundle_name=bundle_name)
         if not found:
@@ -226,7 +227,7 @@ class BundleUsageTrackingManager:
         for bundle in bundles:
             if not bundle.supports_versioning:
                 continue
-            self._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
+            self.remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
 
 
 @dataclass(frozen=True)
@@ -273,6 +274,14 @@ def unpack_bundle_version(
     return result, None
 
 
+class DagBundleRefreshError(RuntimeError):
+    """A refresh failure with an explicit guarantee about the previous source files."""
+
+    def __init__(self, message: str, *, source_unchanged: bool = False) -> None:
+        super().__init__(message)
+        self.source_unchanged = source_unchanged
+
+
 class BaseDagBundle(ABC):
     """
     Base class for DAG bundles.
@@ -297,6 +306,9 @@ class BaseDagBundle(ABC):
     """
 
     supports_versioning: bool = False
+
+    refresh_changes_source: bool = True
+    """Whether ``refresh()`` may change files being imported by a Dag processor."""
 
     is_initialized: bool = False
     """Set by ``super().initialize()``; overrides must call it last."""
@@ -385,6 +397,11 @@ class BaseDagBundle(ABC):
         This method must ultimately be safe to call concurrently from different threads or processes.
         If it isn't naturally safe, you'll need to make it so with some form of locking.
         There is a `lock` context manager on this class available for this purpose.
+
+        Set ``refresh_changes_source`` to False only if this method never changes the source files.
+        A failed refresh may raise ``DagBundleRefreshError`` with ``source_unchanged=True`` only
+        when the previous source files are guaranteed to be intact; an unchanged version is
+        insufficient if an operation may have partially modified the working tree.
         """
 
     def view_url(self, version: str | None = None) -> str | None:

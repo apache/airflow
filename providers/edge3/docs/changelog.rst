@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Edge workers not reporting the final state of deadline callbacks (#74784)``
+
+Misc
+~~~~
+
+* ``Bump edge3 UI packages: react and react-dom to 19.3.1, @tanstack/react-query to 5.104.3, typescript-eslint and plugins to 8.71.2, vitest and @vitest/coverage-v8 to 4.1.12, eslint to 10.13.0, eslint-plugin-prettier to 5.5.7 (#75291)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Allow FastAPI 0.137+ by requiring cadwyn 8.1 (#75689)``
+
 5.1.0
 .....
 

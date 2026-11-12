@@ -46,6 +46,9 @@ journal for pydantic-ai. Another framework's adapter starts a run with
   ``await run.run(name, kind=..., fingerprint=..., body=...)``.
 * :meth:`DurableRun.claim` and :meth:`JournalStep.record` split it in two, for a
   framework whose hooks see a step's input and its output in separate callbacks.
+
+An adapter that stops the task to wait for input (``request_input()``) calls
+:meth:`DurableRun.pause` first, so that the resumed task replays what this attempt recorded.
 """
 
 from __future__ import annotations
@@ -59,6 +62,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.ai.durable.base import RUN_ID_KEY, RUNS_KEY, build_run_meta_key, build_step_key
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.observability import make_task_instance_run_key
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.sdk import AirflowException, get_current_context
@@ -66,6 +70,7 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     import logging
+    from collections.abc import Sequence
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.sdk import Context
@@ -74,6 +79,19 @@ log = get_task_logger()
 
 StepKind = Literal["model", "tool", "other"]
 """What a step is, for the end-of-run summary and for adapters that treat model steps specially."""
+
+
+@dataclass(frozen=True)
+class Unrecordable:
+    """
+    A step result an adapter could not encode as JSON: the live value, and why.
+
+    A step body returns it in place of the payload; :meth:`JournalStep.run` passes it to
+    :meth:`JournalStep.cannot_record` instead of recording it, and returns it to the adapter.
+    """
+
+    value: Any
+    error: Exception
 
 
 @dataclass
@@ -95,8 +113,21 @@ class JournalStep:
     replayable: bool = True
     replayed: bool = False
     payload: Any = None
+    # Whether this step's replay is in ``stats.replayed``; see :meth:`DurableRun.reserve`.
+    _replay_counted: bool = field(default=False, init=False, repr=False)
     # Agent runs started while this step executes; they are numbered under it.
     nested_runs: int = field(default=0, repr=False)
+
+    def count_as_replayed(self) -> None:
+        """
+        Count this step as replayed, once.
+
+        For a step from :meth:`DurableRun.reserve`, which :meth:`DurableRun.claim_reserved` does;
+        a step from :meth:`DurableRun.claim` is already counted.
+        """
+        if self.replayed and not self._replay_counted:
+            self._replay_counted = True
+            self.durable_run.journal.stats.replayed[self.kind] += 1
 
     async def run(
         self, body: Callable[[], Awaitable[Any]], *, to_record: Callable[[Any], Any] | None = None
@@ -113,7 +144,10 @@ class JournalStep:
         except Exception as error:
             self.fail(error)
             raise
-        self.record(payload if to_record is None else to_record(payload))
+        if isinstance(payload, Unrecordable):
+            self.cannot_record(payload.error)
+        else:
+            self.record(payload if to_record is None else to_record(payload))
         return payload
 
     @contextmanager
@@ -146,6 +180,28 @@ class JournalStep:
             self.durable_run.journal.stats.recorded[self.kind] += 1
             log.debug("Durable: recorded step", position=self.position, step=self.name)
             return True
+        self._mark_not_recorded()
+        return False
+
+    def cannot_record(self, error: Exception) -> None:
+        """
+        Note that the step's result has no form the journal can hold, such as a value with no JSON form.
+
+        :raises DurableJournalError: When the journal fails on such results, as it does by default.
+            Otherwise the step is left unrecorded, as when storage skips a write, and runs again on retry.
+        """
+        if not self.replayable:
+            # Never recorded anyway, so there is nothing to fail or report.
+            return
+        if self.durable_run.journal.fail_on_unrecordable:
+            # The same value fails the same way on every retry, so retrying the task cannot help.
+            raise DurableJournalError(
+                f"durable execution could not record a step's result, because it is not JSON-serializable: {error}"
+            ) from error
+        log.warning("Durable: step result is not JSON-serializable", step=self.name, error=str(error))
+        self._mark_not_recorded()
+
+    def _mark_not_recorded(self) -> None:
         self.durable_run.journal.stats.not_recorded.append((self.kind, self.name))
         # Named here, not only in the summary: this line is logged on every path,
         # including the failed attempt that Airflow retries.
@@ -154,7 +210,6 @@ class JournalStep:
             position=self.position,
             step=self.name,
         )
-        return False
 
     def fail(self, error: BaseException) -> None:
         """
@@ -182,8 +237,9 @@ class DurableRun:
     One agent run's steps in the journal.
 
     Positions are handed out in the order steps are claimed. A step must be claimed
-    before its first ``await``, so concurrent steps (parallel tool calls) take their
-    positions in the order they were started rather than the order they finish.
+    before its first ``await``, so concurrent steps take their positions in the order they
+    were started rather than the order they finish. An adapter whose concurrent steps can
+    be delayed before their claim must claim them itself in a deterministic order.
 
     Besides its steps, a run keeps one entry about itself: where the last attempt that
     failed stopped being trustworthy, and the furthest position any attempt reached, so
@@ -194,6 +250,8 @@ class DurableRun:
         self.journal = journal
         self.key = key
         self.diverged = False
+        # Where this attempt stopped replaying, when it did.
+        self._diverged_at: int | None = None
         self._position = 0
         # Read on first use: where the last failed attempt's entries stop being trusted,
         # and how far any attempt got.
@@ -215,6 +273,11 @@ class DurableRun:
         # Read with the rest of the run's entry: whether the previous attempt failed because
         # of the model's answers, which changes why the retry runs live from ``_diverge_from``.
         self._model_at_fault = False
+        # Read with the rest of the run's entry: whether ``_diverge_from`` is where the task paused
+        # rather than where an attempt failed.
+        self._paused = False
+        # Steps ``reserve`` numbered for the latest model response, by tool call id, until taken.
+        self._reserved: dict[str, JournalStep] = {}
 
     @property
     def position(self) -> int:
@@ -230,6 +293,7 @@ class DurableRun:
         self._diverge_from = diverge_from if isinstance(diverge_from, int) else None
         self._high_water = high_water if isinstance(high_water, int) else 0
         self._model_at_fault = meta.get("model_at_fault") is True
+        self._paused = meta.get("paused") is True
 
     def peek(self, position: int) -> dict[str, Any] | None:
         """
@@ -244,6 +308,47 @@ class DurableRun:
         if position not in self._peeked:
             self._peeked[position] = self.journal.storage.load_step(build_step_key(self.key, position))
         return self._peeked[position]
+
+    def reserve(self, calls: Sequence[tuple[str, str, str | None]], *, kind: StepKind) -> None:
+        """
+        Take a position for each of ``calls`` in order, and keep them for :meth:`claim_reserved`.
+
+        For an adapter that has to number steps before it knows whether they will run. Each call
+        is ``(call_id, name, fingerprint)``. A replay counts in the stats only once the step is
+        taken. Replaces what an earlier ``reserve`` left unclaimed, and a call whose id is
+        already in ``calls`` takes no position. Like :meth:`claim`, call it before the first ``await``.
+        """
+        reserved: dict[str, JournalStep] = {}
+        for call_id, name, fingerprint in calls:
+            if call_id not in reserved:
+                reserved[call_id] = self._claim(
+                    name, kind=kind, fingerprint=fingerprint, replayable=True, count_replay=False
+                )
+        self._reserved = reserved
+
+    def has_recorded(self, call_id: str) -> bool:
+        """Whether the step :meth:`reserve` kept for ``call_id`` holds a result an earlier attempt recorded."""
+        step = self._reserved.get(call_id)
+        return step is not None and step.replayed
+
+    def claim_reserved(
+        self, call_id: str, name: str, *, kind: StepKind, fingerprint: str | None
+    ) -> JournalStep:
+        """
+        Take the step :meth:`reserve` kept for ``call_id``, counting its replay.
+
+        A call whose id was not reserved, or whose reservation is already taken or belongs to
+        another call sharing the id (some non-OpenAI adapters), takes a new position as
+        :meth:`claim` does. Call it before the first ``await``.
+        """
+        step = self._reserved.pop(call_id, None)
+        if step is not None and (step.name, step.fingerprint) != (name, fingerprint):
+            self._reserved[call_id] = step
+            step = None
+        if step is None:
+            step = self.claim(name, kind=kind, fingerprint=fingerprint)
+        step.count_as_replayed()
+        return step
 
     def claim(
         self, name: str, *, kind: StepKind, fingerprint: str | None, replayable: bool = True
@@ -261,6 +366,11 @@ class DurableRun:
             whose effect Airflow cannot observe. It still takes a position, so the steps
             after it keep theirs, but nothing is looked up or recorded for it.
         """
+        return self._claim(name, kind=kind, fingerprint=fingerprint, replayable=replayable, count_replay=True)
+
+    def _claim(
+        self, name: str, *, kind: StepKind, fingerprint: str | None, replayable: bool, count_replay: bool
+    ) -> JournalStep:
         position = self._position
         self._position += 1
         step = JournalStep(self, position, name, kind, fingerprint, replayable=replayable)
@@ -268,15 +378,25 @@ class DurableRun:
             self._last_model_position = position
         self._load_meta()
         if not self.diverged and self._diverge_from is not None and position >= self._diverge_from:
-            self._diverge(
-                position,
-                name,
-                reason=(
-                    "the model's answers from this step on failed the previous attempt, so it is asked again"
-                    if self._model_at_fault
-                    else "the previous attempt failed before reaching this step"
-                ),
-            )
+            if self._paused:
+                # Nothing went wrong: the task paused here and resumed with the input it waited for.
+                self.diverged, self._diverged_at = True, position
+                self._peeked.clear()
+                log.info(
+                    "Durable: the task resumed after a pause; this step and the ones after it run live",
+                    position=position,
+                    step=name,
+                )
+            else:
+                self._diverge(
+                    position,
+                    name,
+                    reason=(
+                        "the model's answers from this step on failed the previous attempt, so it is asked again"
+                        if self._model_at_fault
+                        else "the previous attempt failed before reaching this step"
+                    ),
+                )
         entry = self.peek(position) if replayable else None
         self._peeked.pop(position, None)
         previous_replayed, self._previous_replayed = self._previous_replayed, False
@@ -287,7 +407,9 @@ class DurableRun:
                 return step
             step.replayed = self._previous_replayed = True
             step.payload = entry.get("payload")
-            self.journal.stats.replayed[kind] += 1
+            if count_replay:
+                step._replay_counted = True
+                self.journal.stats.replayed[kind] += 1
             log.debug("Durable: replayed step", position=position, step=name)
             return step
         self._diverge(
@@ -367,10 +489,44 @@ class DurableRun:
             # The entry at the previous attempt's point is still that attempt's, as this one
             # recorded nothing over it (the step there raised, say), so a retry must not replay it.
             diverge_from, rerun_model = previous, self._model_at_fault
+        self._save_meta(diverge_from, model_at_fault=rerun_model)
+
+    def pause(self) -> None:
+        """
+        Record that the task is about to pause, so that resuming it replays what this attempt recorded.
+
+        An adapter calls this before it stops the task to wait for input. Where an earlier
+        attempt's failure, or a different path this attempt took, left entries that must not
+        replay, this attempt has run live from there: what it recorded becomes trusted, and
+        the earlier entries at positions it left empty (a call still waiting for approval, a
+        tool that raised) are deleted. Positions from here on still run live after the pause.
+        """
+        self._load_meta()
+        start = min((p for p in (self._diverge_from, self._diverged_at) if p is not None), default=None)
+        if start is None or self._position <= start:
+            # This attempt has not run anything live past the untrusted entries yet.
+            return
+        stale = {
+            position: build_step_key(self.key, position)
+            for position in range(start, self._position)
+            if position not in self._saved
+        }
+        if stale:
+            self.journal.storage.delete_steps(stale.values())
+        # Deleting is best-effort; an entry that survived must still not replay.
+        survived = [position for position, key in stale.items() if self.journal.storage.load_step(key)]
+        if survived:
+            log.warning("Durable: could not delete entries this attempt replaced", positions=survived)
+        trusted_until = survived[0] if survived else self._position
+        self._diverge_from, self._model_at_fault = trusted_until, False
+        self._save_meta(trusted_until, model_at_fault=False, paused=True)
+
+    def _save_meta(self, diverge_from: int | None, *, model_at_fault: bool, paused: bool = False) -> None:
         meta = {
             "diverge_from": diverge_from,
             "high_water": max(self._high_water, self._position),
-            "model_at_fault": rerun_model,
+            "model_at_fault": model_at_fault,
+            "paused": paused,
         }
         self.journal.storage.save_step(build_run_meta_key(self.key), meta)
 
@@ -397,11 +553,14 @@ class DurableRun:
         step.replayed = False
         step.payload = None
         self._previous_replayed = False
-        self.journal.stats.replayed[step.kind] -= 1
+        if step._replay_counted:
+            step._replay_counted = False
+            self.journal.stats.replayed[step.kind] -= 1
         self._diverge(step.position, step.name, reason=reason)
 
     def _diverge(self, position: int, name: str, *, reason: str) -> None:
-        self.diverged = True
+        if not self.diverged:
+            self.diverged, self._diverged_at = True, position
         self._peeked.clear()
         log.warning(
             "Durable: the run took a different path from the previous attempt; this step and "
@@ -420,11 +579,21 @@ class DurableJournal:
     :param clean_up_after_run: Delete a run's steps as soon as it succeeds. A journal the
         operator manages leaves this off and calls :meth:`cleanup` itself after the
         task's own post-run work has succeeded.
+    :param fail_on_unrecordable: Fail the task on a step result the journal cannot hold
+        (see :meth:`JournalStep.cannot_record`). With ``False`` the step is logged and runs
+        again on retry instead.
     """
 
-    def __init__(self, storage: DurableStorageProtocol, *, clean_up_after_run: bool = False) -> None:
+    def __init__(
+        self,
+        storage: DurableStorageProtocol,
+        *,
+        clean_up_after_run: bool = False,
+        fail_on_unrecordable: bool = True,
+    ) -> None:
         self.storage = storage
         self.clean_up_after_run = clean_up_after_run
+        self.fail_on_unrecordable = fail_on_unrecordable
         self.stats = JournalStats()
         self._runs: list[DurableRun] = []
         self._top_level_runs = 0

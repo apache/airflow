@@ -188,6 +188,9 @@ labelPRBasedOnFilePath:
   provider:http:
     - providers/http/**
 
+  provider:huggingface:
+    - providers/huggingface/**
+
   provider:ibm-mq:
     - providers/ibm/mq/**
 

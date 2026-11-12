@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+.. note::
+  ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
+  ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
+  by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,
+  ``op_args``, ``op_kwargs``, ...) are rendered once before ``execute()`` and are no longer
+  rendered a second time. The returned prompt is still rendered as a Jinja template, and every
+  argument the task is called with, positional ones included, can be referenced in it by name;
+  see the ``@task.llm`` documentation for how to include text from function arguments in it.
+
+.. note::
+  ``run_durably()`` and ``run_durably_sync()`` for the OpenAI Agents SDK no longer return a run
+  that stopped for a tool call that needs approval (``needs_approval``, or ``require_approval`` on
+  an MCP server). On Airflow 3.4+ with a standard provider that has ``request_input()``, a
+  ``@task`` or ``PythonOperator`` pauses in Required Actions and the run resumes with the
+  reviewer's answer; otherwise the task fails with ``UnsupportedToolDeferralError``. Earlier
+  versions returned the stopped run with its ``result.interruptions``. Code that approved them
+  with ``result.to_state()`` and ``state.approve()`` after ``run_durably_sync()`` should call
+  ``Runner.run`` and handle ``result.interruptions`` itself.
+
 1.1.0
 .....
 

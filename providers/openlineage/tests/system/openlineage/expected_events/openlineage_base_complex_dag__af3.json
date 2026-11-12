@@ -336,7 +336,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -514,7 +518,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -692,7 +700,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -703,7 +715,11 @@
                         "inlets_list": [
                             {
                                 "uri": "file://host1/dir2/file2.txt",
-                                "extra": {"etag": "\"0x8D0000000000001\"", "owner": "O'Brien", "has_header": true},
+                                "extra": {
+                                    "etag": "\"0x8D0000000000001\"",
+                                    "owner": "O'Brien",
+                                    "has_header": true
+                                },
                                 "type": "asset"
                             },
                             {
@@ -885,7 +901,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -896,7 +916,11 @@
                         "inlets_list": [
                             {
                                 "uri": "file://host1/dir2/file2.txt",
-                                "extra": {"etag": "\"0x8D0000000000001\"", "owner": "O'Brien", "has_header": true},
+                                "extra": {
+                                    "etag": "\"0x8D0000000000001\"",
+                                    "owner": "O'Brien",
+                                    "has_header": true
+                                },
                                 "type": "asset"
                             },
                             {
@@ -1072,7 +1096,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1090,7 +1118,14 @@
                         "outlets_list": [
                             {
                                 "uri": "file://host/dir/file.txt",
-                                "extra": {"checks": [{"passed": true}], "ratio": 0.5},
+                                "extra": {
+                                    "checks": [
+                                        {
+                                            "passed": true
+                                        }
+                                    ],
+                                    "ratio": 0.5
+                                },
                                 "type": "asset"
                             }
                         ],
@@ -1253,7 +1288,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1271,7 +1310,14 @@
                         "outlets_list": [
                             {
                                 "uri": "file://host/dir/file.txt",
-                                "extra": {"checks": [{"passed": true}], "ratio": 0.5},
+                                "extra": {
+                                    "checks": [
+                                        {
+                                            "passed": true
+                                        }
+                                    ],
+                                    "ratio": 0.5
+                                },
                                 "type": "asset"
                             }
                         ],
@@ -1428,7 +1474,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "deferrable": "{{ result == true }}",
@@ -1592,7 +1642,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "deferrable": "{{ result == true }}",
@@ -1756,7 +1810,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": 0
                     },
                     "task": {
                         "depends_on_past": false,
@@ -1924,7 +1982,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": 0
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2092,7 +2154,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2271,7 +2337,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2450,7 +2520,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": null,
-                        "duration": null
+                        "duration": null,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -2628,7 +2702,11 @@
                         "try_number": "{{ result is number }}",
                         "start_date": "{{ is_datetime(result) }}",
                         "end_date": "{{ is_datetime(result) }}",
-                        "duration": "{{ result is number }}"
+                        "duration": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,

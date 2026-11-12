@@ -134,6 +134,10 @@ updates:
         patterns:
           - "eslint*"
           - "@eslint/*"
+      oxc:
+        patterns:
+          - "oxfmt"
+          - "oxlint*"
       typescript:
         patterns:
           - "typescript*"

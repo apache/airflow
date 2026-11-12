@@ -22,8 +22,9 @@ import warnings
 from collections import Counter
 from collections.abc import AsyncIterator
 from enum import IntEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+from asgiref.sync import sync_to_async
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -53,6 +54,10 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
     :param region_name: The AWS region where the job is running. Used to build the hook.
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    :param cancel_on_kill: If True, stop the job when the user marks the deferred task failed,
+        clears it, or marks it succeeded. Only the Training and Processing job types can be stopped;
+        it is a no-op for the others. Requires ``apache-airflow`` with ``BaseTrigger.on_kill()``
+        support (3.3 and later); below that it is inert.
     :param poke_interval: (deprecated) use ``waiter_delay`` instead.
     :param max_attempts: (deprecated) use ``waiter_max_attempts`` instead.
     """
@@ -67,6 +72,7 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        cancel_on_kill: bool = False,
         poke_interval: int | None = None,
         max_attempts: int | None = None,
     ):
@@ -88,8 +94,13 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts = max_attempts
         self.job_name = job_name
         self.job_type = job_type
+        self.cancel_on_kill = cancel_on_kill
         super().__init__(
-            serialized_fields={"job_name": job_name, "job_type": job_type},
+            serialized_fields={
+                "job_name": job_name,
+                "job_type": job_type,
+                "cancel_on_kill": cancel_on_kill,
+            },
             waiter_name=self._get_job_type_waiter(job_type),
             waiter_args={self._get_waiter_arg_name(job_type): job_name},
             failure_message=f"Error while waiting for {job_type} job",
@@ -112,6 +123,32 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+    # Spelled via the methods themselves so mypy rejects a name that does not exist, but stored as
+    # names so the call still resolves on the hook instance.
+    _STOP_METHODS_BY_JOB_TYPE: ClassVar[dict[str, str]] = {
+        "training": SageMakerHook.stop_training_job.__name__,
+        "processing": SageMakerHook.stop_processing_job.__name__,
+    }
+
+    async def on_kill(self) -> None:
+        """Stop the job when the user acts on the deferred task."""
+        if not self.cancel_on_kill:
+            return
+        # Absent job types are a no-op, not a call against another type's stop API.
+        stop_method = self._STOP_METHODS_BY_JOB_TYPE.get(self.job_type.lower())
+        if stop_method is None:
+            return
+        self.log.info("Stopping SageMaker %s job %s.", self.job_type, self.job_name)
+        hook: SageMakerHook = self.hook()  # type: ignore[assignment]
+        try:
+            await sync_to_async(getattr(hook, stop_method))(self.job_name)
+        except Exception:
+            self.log.exception(
+                "Failed to stop SageMaker %s job %s. The job may still be running.",
+                self.job_type,
+                self.job_name,
+            )
 
     def _event_from_exception(self, error: AirflowException) -> TriggerEvent:
 

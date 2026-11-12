@@ -169,10 +169,10 @@ func runTriggerDagRun(
 		ResetDagRun: spec.ResetDagRun,
 	}
 	if !logicalDate.IsZero() {
-		msg.LogicalDate = logicalDate
+		msg.LogicalDate = genmodels.TimePtr(logicalDate)
 	}
 	if !spec.RunAfter.IsZero() {
-		msg.RunAfter = spec.RunAfter.UTC()
+		msg.RunAfter = genmodels.TimePtr(spec.RunAfter.UTC())
 	}
 	if spec.Conf != nil {
 		conf := genmodels.Conf(spec.Conf)
@@ -193,13 +193,16 @@ func runTriggerDagRun(
 			)
 			return genmodels.TaskState{
 				State:   genmodels.TaskStateStateSkipped,
-				EndDate: time.Now().UTC(),
+				EndDate: genmodels.TimePtr(time.Now().UTC()),
 			}
 		}
 		logger.ErrorContext(ctx, "Dag Run already exists, marking task as failed.",
 			"dag_id", spec.DagID,
 		)
-		return genmodels.TaskState{State: genmodels.TaskStateStateFailed, EndDate: time.Now().UTC()}
+		return genmodels.TaskState{
+			State:   genmodels.TaskStateStateFailed,
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
+		}
 	}
 	logger.InfoContext(ctx, "Dag Run triggered successfully.", "trigger_dag_id", spec.DagID)
 	if err := client.PushXCom(ctx, ti, triggerRunIDXComKey, runID); err != nil {
