@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
-from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.datamodels._generated import LoopDecisionPayload
 from airflow.sdk.bases.decorator import determine_kwargs
 from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
@@ -121,8 +120,7 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
                     f"until must return a bool or LoopDecision, got {type(result).__name__}"
                 )
     if reason is not None:
-        # Mask here, where we can know what the task has masked.
-        reason = cast("str", redact(reason))
+        # The supervisor masks the reason, for a gate of every language.
         try:
             encoded = reason.encode()
         except UnicodeEncodeError:
