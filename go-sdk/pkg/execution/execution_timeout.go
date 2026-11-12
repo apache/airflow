@@ -25,17 +25,23 @@ import (
 )
 
 // resolveExecutionTimeout returns the task's execution_timeout in seconds from ti_context, or nil
-// when it has none. The coordinator has already filled in the worker's default.
+// when the task has no timeout. The coordinator has already filled in the worker's default.
+// As in the Python task runner, zero means no timeout and a negative value has already elapsed.
 func resolveExecutionTimeout(fromContext any) (*float64, error) {
 	if fromContext == nil {
 		return nil, nil
 	}
 	seconds, ok := ifaceFloat(fromContext)
-	if !ok {
+	switch {
+	case !ok:
 		return nil, fmt.Errorf(
 			"ti_context.execution_timeout has unexpected wire shape %T",
 			fromContext,
 		)
+	case seconds == 0:
+		return nil, nil
+	case seconds < 0:
+		return nil, fmt.Errorf("execution_timeout of %g seconds has already elapsed", seconds)
 	}
 	return &seconds, nil
 }
