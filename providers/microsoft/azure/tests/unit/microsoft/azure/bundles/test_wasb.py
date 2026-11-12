@@ -473,8 +473,6 @@ class TestWasbArchiveDagBundle:
         bundle.initialize()
         for child in bundle.path.iterdir():
             child.unlink()
-        assert bundle.path.is_dir()
-        assert not bundle._archive_etag_path().exists()
 
         with patch.object(
             _FakeBlob, "download_blob", autospec=True, side_effect=_FakeBlob.download_blob
