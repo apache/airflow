@@ -2074,10 +2074,11 @@ at `apache/airflow`, so it also works for release-manager setups where the
 apache/airflow clone is configured as `origin`. Set tags for the providers in the
 repository.
 
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behavior would be to clean such local tags up.
-
-If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
+By default (`--clean-tags`), the command recreates tags that already exist and force-pushes them, so
+you can re-run it after a failed push. Don't re-run it after a successful push: it would replace every
+published tag with a new tag object and change the tag dates that the provider metadata uses as release
+dates. Pass `--no-clean-tags` (or set `CLEAN_TAGS=false`) to make it stop at the first tag that already
+exists locally.
 
 As when [pushing the RC tags](#push-the-rc-tags), check out the wave tag first — `tag-providers`
 tags `HEAD`, so the final tags must be created from the wave commit and not from whatever the
