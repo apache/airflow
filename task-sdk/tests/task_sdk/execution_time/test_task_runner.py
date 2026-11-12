@@ -62,6 +62,7 @@ from airflow.sdk import (
     BaseOperator,
     BaseOperatorLink,
     Connection,
+    ExternalClearTarget,
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
@@ -76,6 +77,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
     DagRunState,
+    ExternalClearTargetPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -5010,6 +5012,98 @@ def _recording_email_backend(
     than imported because the Task SDK must not depend on ``airflow-core``.
     """
     raise AssertionError("should be patched in the test")
+
+
+class _ClearTargetOperator(BaseOperator):
+    """Points a clear at ``child.wait`` on the rendered ``target_date``."""
+
+    template_fields = ("target_date",)
+
+    def __init__(self, *, target_date: str | None, **kwargs):
+        super().__init__(**kwargs)
+        self.target_date = target_date
+
+    def execute(self, context):
+        pass
+
+    def get_external_clear_target(self, context):
+        logical_date = None if self.target_date is None else datetime.fromisoformat(self.target_date)
+        return ExternalClearTarget(dag_id="child", task_id="wait", logical_date=logical_date)
+
+
+class TestExternalClearTarget:
+    @staticmethod
+    def _run(runtime_ti):
+        return run(
+            runtime_ti,
+            context=runtime_ti.get_template_context(),
+            log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+        )
+
+    def test_reports_target_resolved_from_rendered_templates(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(
+            task_id="mark", target_date="{{ logical_date.replace(hour=0).isoformat() }}"
+        )
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert isinstance(msg, SucceedTask)
+        assert msg.external_clear_target == ExternalClearTargetPayload(
+            dag_id="child", task_id="wait", logical_date=timezone.datetime(2026, 10, 1), recursion_depth=10
+        )
+
+    def test_target_without_a_date_points_at_the_run_logical_date(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = _ClearTargetOperator(task_id="mark", target_date=None)
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        _, msg, _ = self._run(runtime_ti)
+
+        assert msg.external_clear_target.logical_date == timezone.datetime(2026, 10, 1, 5)
+
+    def test_target_without_a_date_reports_nothing_in_a_run_without_one(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = _ClearTargetOperator(task_id="mark", target_date=None)
+        runtime_ti = create_runtime_ti(task=task, logical_date=None)
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.external_clear_target is None
+
+    @pytest.mark.parametrize("declares_target", [False, True], ids=["no-method", "returns-none"])
+    def test_operator_without_target_reports_nothing(
+        self, create_runtime_ti, mock_supervisor_comms, declares_target
+    ):
+        class PlainOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        class NoTargetThisRun(PlainOperator):
+            def get_external_clear_target(self, context):
+                return None
+
+        task_class = NoTargetThisRun if declares_target else PlainOperator
+        runtime_ti = create_runtime_ti(task=task_class(task_id="plain"))
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.external_clear_target is None
+
+    def test_target_that_cannot_be_resolved_fails_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(task_id="mark", target_date="{{ params.get('missing', '') }}")
+        runtime_ti = create_runtime_ti(task=task)
+
+        state, msg, error = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(msg, TaskState)
+        assert isinstance(error, ValueError)
 
 
 class TestEmailNotifications:

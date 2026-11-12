@@ -54,6 +54,7 @@
   },
   "history": "历史记录",
   "importErrors": {
+    "bundle": "套件包",
     "dagImportError_one": "Dag 导入错误",
     "dagImportError_other": "Dag 导入错误",
     "searchByFile": "依文件搜索",
