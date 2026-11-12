@@ -66,7 +66,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     XComBackendResult,
     _HookRunner,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowConfigException, ErrorType
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
@@ -783,6 +783,31 @@ class TestSubprocessCoordinatorExecuteTask:
         assert popen_calls, "subprocess.Popen was not called"
         return popen_calls[0], cls_kwargs.get("subprocess_schema_version")
 
+    @pytest.mark.parametrize(
+        ("worker_default", "expected"),
+        [
+            pytest.param("", None, id="unset"),
+            pytest.param("10", 10.0, id="seconds"),
+            pytest.param("1_000", 1000.0, id="as-python-reads-it"),
+        ],
+    )
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_passes_the_worker_default_execution_timeout(
+        self, mock_start, mock_client, worker_default, expected
+    ):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"])
+
+        with conf_vars({("core", "default_task_execution_timeout"): worker_default}):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert mock_start.call_args.kwargs["default_execution_timeout"] == expected
+
     def test_command_prefix_preserved(self, mock_client):
         cmd, _ = self._captured_popen_cmd(mock_client, command=["/path/to/runtime", "arg1"])
         assert cmd[:2] == ["/path/to/runtime", "arg1"]
@@ -1351,16 +1376,15 @@ class TestPopenActivitySubprocessExecutionTimeout:
     @pytest.mark.parametrize(
         ("execution_timeout", "worker_default", "elapsed", "sent", "killed"),
         [
-            pytest.param(30.0, "", 35, 30.0, True, id="with-timeout"),
-            pytest.param(None, "", 35, None, False, id="without-timeout"),
-            pytest.param(0.0, "", 35, 0.0, False, id="zero-means-no-timeout"),
-            pytest.param(-30.0, "", 3, -30.0, False, id="negative-keeps-grace-period"),
-            pytest.param(-30.0, "", 6, -30.0, True, id="negative-has-elapsed"),
-            pytest.param(None, "10", 14, 10.0, False, id="worker-default-keeps-grace-period"),
-            pytest.param(None, "10", 16, 10.0, True, id="worker-default-has-elapsed"),
-            pytest.param(None, "1_000", 1004, 1000.0, False, id="worker-default-as-python-reads-it"),
-            pytest.param(30.0, "10", 16, 30.0, False, id="run-context-over-worker-default"),
-            pytest.param(0.0, "10", 35, 0.0, False, id="zero-does-not-fall-back"),
+            pytest.param(30.0, None, 35, 30.0, True, id="with-timeout"),
+            pytest.param(None, None, 35, None, False, id="without-timeout"),
+            pytest.param(0.0, None, 35, 0.0, False, id="zero-means-no-timeout"),
+            pytest.param(-30.0, None, 3, -30.0, False, id="negative-keeps-grace-period"),
+            pytest.param(-30.0, None, 6, -30.0, True, id="negative-has-elapsed"),
+            pytest.param(None, 10.0, 14, 10.0, False, id="worker-default-keeps-grace-period"),
+            pytest.param(None, 10.0, 16, 10.0, True, id="worker-default-has-elapsed"),
+            pytest.param(30.0, 10.0, 16, 30.0, False, id="run-context-over-worker-default"),
+            pytest.param(0.0, 10.0, 35, 0.0, False, id="zero-does-not-fall-back"),
         ],
     )
     @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
@@ -1391,15 +1415,15 @@ class TestPopenActivitySubprocessExecutionTimeout:
             client=client,
             comm_server=MagicMock(spec=socket.socket),
             logs_server=MagicMock(spec=socket.socket),
+            default_execution_timeout=worker_default,
         )
 
-        with conf_vars({("core", "default_task_execution_timeout"): worker_default}):
-            proc._on_child_started(
-                ti=_make_ti(),
-                dag_rel_path="d.py",
-                bundle_info=BundleInfo(name="my-bundle", version=None),
-                sentry_integration="",
-            )
+        proc._on_child_started(
+            ti=_make_ti(),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            sentry_integration="",
+        )
 
         startup = mock_send_msg.call_args.args[1]
         assert startup.ti_context.execution_timeout == sent
@@ -2313,6 +2337,28 @@ class TestExecuteTaskLaunchFailure:
             "does not support."
         )
         assert raised.value.retryable is False
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @conf_vars({("core", "default_task_execution_timeout"): "abc"})
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_fails_without_a_retry_for_a_worker_default_execution_timeout_that_is_not_a_number(
+        self, mock_start, mock_client
+    ):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError, match="default_task_execution_timeout") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is False
+        assert isinstance(raised.value.__cause__, AirflowConfigException)
+        mock_start.assert_not_called()
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")
