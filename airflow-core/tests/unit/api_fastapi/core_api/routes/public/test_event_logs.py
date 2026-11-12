@@ -878,3 +878,23 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             cursor = body["next_cursor"]
 
         assert events == [EVENT_WITH_OWNER_AND_TASK_INSTANCE, TASK_INSTANCE_EVENT]
+
+    @pytest.mark.parametrize("order_by", ["owner_display_name", "-owner_display_name"])
+    def test_cursor_pagination_matches_offset_order(self, test_client, order_by):
+        expected_ids = [
+            log["event_log_id"]
+            for log in test_client.get("/eventLogs", params={"order_by": order_by}).json()["event_logs"]
+        ]
+        event_log_ids = []
+        cursor = ""
+        for _ in expected_ids:
+            response = test_client.get(
+                "/eventLogs", params={"limit": 1, "order_by": order_by, "cursor": cursor}
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            event_log_ids.extend(log["event_log_id"] for log in body["event_logs"])
+            cursor = body["next_cursor"]
+
+        assert event_log_ids == expected_ids
+        assert cursor is None
