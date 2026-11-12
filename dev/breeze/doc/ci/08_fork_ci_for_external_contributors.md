@@ -570,7 +570,7 @@ stateDiagram-v2
             unverified_author_draft --> unverified_ready: author marks it ready
         }
     }
-    gated --> closed: setup_required, awaiting_push, or failed without comments for close_after_days (30 days); or deleted head repository
+    gated --> closed: setup_required, awaiting_push, or failed for close_after_days without comments (30 days); or deleted head repository
     gated --> released: maintainer adds use project ci
     gated --> ungated: base branch without fork CI, e.g. v3-3-test
     gated --> gate_modified: pull request changes the gate
@@ -613,7 +613,7 @@ since the draft-state job runs after the close and GitHub refuses to draft a clo
 | **failed**: conclusion is failure, cancelled or timed out | `failure` (red), link to the run | update with the run link |
 | **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
-| **closed**: setup_required or awaiting_push for `close_after_days`, failed for `close_after_days` without human comments, or deleted head repository | unchanged | close with a new comment; reopening restarts the clock |
+| **closed**: `setup_required`, `awaiting_push`, or `failed` for `close_after_days` without human comments; or deleted head repository | unchanged | close with a new comment; reopening restarts the clock |
 | **released**: the pull request carries `use project ci` | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **ungated**: the base branch has no gate, for example after retargeting to an older release branch | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
@@ -641,12 +641,17 @@ Rules that sit under the table:
   are touched, and adding `use project ci` takes a pull request out of the state machine on the
   next run (see "Override labels"). Removing `fork ci required` by hand is not enough: it updates
   the pull request, so discovery finds it again and labels it back while it is still gated.
-- **Deleted head repository** is reported as unknown (see below) and otherwise left alone.
+- **Deleted head repository** is verified via the GitHub REST API to rule out transient API
+  errors. If confirmed deleted or inaccessible, the pull request is closed with an explanatory
+  comment rather than alerting maintainers.
 - **The close clock** starts at the `since` timestamp recorded for the current state and
-  resets on any state change. Closing for inactivity records `closed` in the marker, so the
-  first run after a reopen sees a state change from `closed` and starts a fresh clock rather
-  than closing the pull request again at once. Only a reopen recorded in the timeline after
-  the marker counts: an open pull request with a `closed` marker and no such reopen is one whose
+  resets on any state change or new commit push. Before closing after `close_after_days` (in
+  `setup_required`, `awaiting_push`, or `failed`), the reconciler checks for recent human activity
+  (including issue comments, reviews, inline diff comments, and suggestions); closure is deferred
+  as long as human discussion has occurred within `close_after_days`. Closing for inactivity records
+  `closed` in the marker, so the first run after a reopen sees a state change from `closed` and starts
+  a fresh clock rather than closing the pull request again at once. Only a reopen recorded in the timeline
+  after the marker counts: an open pull request with a `closed` marker and no such reopen is one whose
   closing comment or close failed, and the next run finishes the closure. The same holds for a
   `gate_bypassed` marker, where only a reopen by someone other than the author counts, so the
   closure is finished even after the offending run has left the tampering check's window.
@@ -855,9 +860,9 @@ an HTML marker the reconciler parses:
 ```
 
 followed by the human text for the current state. Editing does not notify, which is the
-point: state churn is silent. The three moments that need the author's attention, the nudge
-after enabling workflows, the close after inactivity and the close for gate tampering, are
-new comments.
+point: state churn is silent. The moments that need the author's attention, such as the nudge
+after enabling workflows, the close after inactivity or for a deleted fork, and the close for
+gate tampering, are new comments.
 
 All comment texts live in `dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py` as
 templates so wording can be reviewed in one place. Every comment ends with the AI-attribution
