@@ -2594,6 +2594,22 @@ class TestDatabricksRunNowOperator:
         assert mock_handle_exec.called
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_sync_repair_that_succeeds_does_not_fail_the_task(self, db_mock_class):
+        op = DatabricksRunNowOperator(durable=False, task_id=TASK_ID, job_id=JOB_ID, repair_run=True)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run.side_effect = [
+            make_run_with_state_mock("TERMINATED", "FAILED").return_value,
+            make_run_with_state_mock("TERMINATED", "SUCCESS").return_value,
+        ]
+        db_mock.get_latest_repair_id.return_value = None
+
+        op.execute(None)
+
+        db_mock.repair_run.assert_called_once()
+        assert db_mock.get_run.call_count == 2
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_sync_repair_reads_job_parameters_from_merged_json(self, db_mock_class):
         """Exercise the synchronous (non-deferrable) repair branch in
         ``_handle_databricks_operator_execution`` -- the only path that reads ``operator._merged_json`` --
