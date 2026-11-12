@@ -423,8 +423,11 @@ jobs:
         run: df -H
       - name: Create /mnt/airflow-site directory
         run: sudo mkdir -p /mnt/airflow-site && sudo chown -R "${USER}" /mnt/airflow-site
-      # The publish, back-reference and validation steps below use only docs-archive/ in this directory.
-      # The apache/airflow-site repository has no docs-archive/, so these steps work in an empty directory.
+      # breeze requires AIRFLOW_SITE_DIRECTORY to be an existing directory
+      # (`--airflow-site-directory` uses `click.Path(exists=True)`), and the steps below only
+      # read and write docs-archive/ in it. The apache/airflow-site repository has no
+      # docs-archive/, so an empty directory is enough.
+      # TODO: let breeze create the directory itself, then drop this step.
       - name: "Create empty airflow-site directory"
         run: >
           mkdir -p /mnt/airflow-site/airflow-site &&
