@@ -32,12 +32,7 @@ if TYPE_CHECKING:
 
 @attrs.define
 class AssetEvent:
-    """
-    Asset event representation for asset listener hooks.
-
-    ``id``, ``timestamp`` and ``asset_id`` are those of the persisted asset event. The
-    ``source_watcher_name`` and ``source_trigger_classpath`` are only set when the event was emitted by an asset watcher.
-    """
+    """Asset event representation for asset listener hooks."""
 
     asset: SerializedAsset
     extra: dict[str, JsonValue]
@@ -52,5 +47,5 @@ class AssetEvent:
     id: int = attrs.field(kw_only=True)
     timestamp: datetime = attrs.field(kw_only=True)
     asset_id: int = attrs.field(kw_only=True)
-    source_watcher_name: str | None = None
-    source_trigger_classpath: str | None = None
+    source_watcher_name: str | None = None  # Only set for events emitted by an asset watcher.
+    source_trigger_classpath: str | None = None  # Only set for events emitted by an asset watcher.
