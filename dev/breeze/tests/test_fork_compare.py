@@ -27,6 +27,7 @@ from airflow_breeze.utils.fork_compare import (
     COMPARE_FILE_CAP,
     ForkChanges,
     UpstreamFileError,
+    _get_local_git_changes,
     get_fork_changes,
     get_fork_pull_request_labels,
     get_upstream_file,
@@ -90,6 +91,149 @@ def test_get_fork_changes_returns_the_merge_base(mock_gh):
     )
 
     assert get_fork_changes(fork_owner="someone", sha="abc", base="main").merge_base == "base-sha"
+
+
+@mock.patch("airflow_breeze.utils.fork_compare._get_local_git_changes", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)
+def test_get_fork_changes_falls_back_to_local_git_at_cap(mock_gh, mock_local_git):
+    mock_gh.return_value = subprocess.CompletedProcess(
+        [],
+        0,
+        stdout=json.dumps(
+            {"files": [[f"f{i}.py"] for i in range(COMPARE_FILE_CAP)], "merge_base": "base-sha"}
+        ),
+        stderr="",
+    )
+    mock_local_git.return_value = ForkChanges(
+        files=tuple(f"f{i}.py" for i in range(350)), truncated=False, merge_base="local-mb-sha"
+    )
+
+    result = get_fork_changes(fork_owner="someone", sha="abc", base="main")
+
+    assert result == ForkChanges(
+        files=tuple(f"f{i}.py" for i in range(350)), truncated=False, merge_base="local-mb-sha"
+    )
+    mock_local_git.assert_called_once_with(base="main", sha="abc", known_merge_base="base-sha")
+
+
+@mock.patch("airflow_breeze.utils.fork_compare._get_local_git_changes", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)
+def test_get_fork_changes_falls_back_to_local_git_when_gh_fails(mock_gh, mock_local_git):
+    mock_gh.return_value = subprocess.CompletedProcess([], 1, stdout="", stderr="API rate limit exceeded")
+    mock_local_git.return_value = ForkChanges(
+        files=("file1.py", "file2.py"), truncated=False, merge_base="local-mb-sha"
+    )
+
+    result = get_fork_changes(fork_owner="someone", sha="abc", base="main")
+
+    assert result == ForkChanges(files=("file1.py", "file2.py"), truncated=False, merge_base="local-mb-sha")
+    mock_local_git.assert_called_once_with(base="main", sha="abc", known_merge_base=None)
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_command", autospec=True)
+def test_get_local_git_changes_uses_known_merge_base(mock_run_cmd):
+    mock_run_cmd.side_effect = [
+        subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="M\0foo.py\0", stderr=""),
+    ]
+
+    result = _get_local_git_changes(base="main", sha="head-sha", known_merge_base="known-mb")
+
+    assert result == ForkChanges(files=("foo.py",), truncated=False, merge_base="known-mb")
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_command", autospec=True)
+def test_get_local_git_changes_success(mock_run_cmd):
+    mock_run_cmd.side_effect = [
+        subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="mb-sha-123\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="M\0foo.py\0R100\0old.py\0new.py\0", stderr=""),
+    ]
+
+    result = _get_local_git_changes(base="main", sha="head-sha")
+
+    assert result == ForkChanges(
+        files=("foo.py", "old.py", "new.py"), truncated=False, merge_base="mb-sha-123"
+    )
+
+
+@mock.patch("time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_compare.run_command", autospec=True)
+def test_get_local_git_changes_retries_fetch(mock_run_cmd, mock_sleep):
+    mock_run_cmd.side_effect = [
+        subprocess.CompletedProcess([], 1, stdout="", stderr="transient network error"),
+        subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="mb-sha\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="M\0bar.py\0", stderr=""),
+    ]
+
+    result = _get_local_git_changes(base="main", sha="head-sha")
+
+    assert result == ForkChanges(files=("bar.py",), truncated=False, merge_base="mb-sha")
+    mock_sleep.assert_called_once_with(1)
+
+
+@mock.patch("time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_compare.run_command", autospec=True)
+def test_get_local_git_changes_falls_back_to_existing_upstream_ref(mock_run_cmd, mock_sleep):
+    mock_run_cmd.side_effect = [
+        subprocess.CompletedProcess([], 1, stdout="", stderr="network error 1"),
+        subprocess.CompletedProcess([], 1, stdout="", stderr="network error 2"),
+        subprocess.CompletedProcess([], 1, stdout="", stderr="network error 3"),
+        subprocess.CompletedProcess([], 0, stdout="refs/remotes/upstream/main\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="mb-sha\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="M\0cached.py\0", stderr=""),
+    ]
+
+    result = _get_local_git_changes(base="main", sha="head-sha")
+
+    assert result == ForkChanges(files=("cached.py",), truncated=False, merge_base="mb-sha")
+    assert mock_sleep.call_count == 2
+
+
+@mock.patch("time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_compare.run_command", autospec=True)
+def test_get_local_git_changes_returns_none_when_fetch_and_ref_fail(mock_run_cmd, mock_sleep):
+    mock_run_cmd.side_effect = [
+        subprocess.CompletedProcess([], 1, stdout="", stderr="error 1"),
+        subprocess.CompletedProcess([], 1, stdout="", stderr="error 2"),
+        subprocess.CompletedProcess([], 1, stdout="", stderr="error 3"),
+        subprocess.CompletedProcess([], 1, stdout="", stderr="ref missing"),
+    ]
+
+    result = _get_local_git_changes(base="main", sha="head-sha")
+
+    assert result is None
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_command", autospec=True)
+def test_get_local_git_changes_parses_null_delimited_with_spaces_and_copies(mock_run_cmd):
+    diff_output = (
+        "M\0path with spaces/file 1.py\0"
+        "C100\0source path/original.py\0dest path/copy.py\0"
+        "R090\0old dir/rename.py\0new dir/renamed.py\0"
+        "D\0deleted.py\0"
+    )
+    mock_run_cmd.side_effect = [
+        subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout="mb-sha\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout=diff_output, stderr=""),
+    ]
+
+    result = _get_local_git_changes(base="main", sha="head-sha")
+
+    assert result == ForkChanges(
+        files=(
+            "path with spaces/file 1.py",
+            "source path/original.py",
+            "dest path/copy.py",
+            "old dir/rename.py",
+            "new dir/renamed.py",
+            "deleted.py",
+        ),
+        truncated=False,
+        merge_base="mb-sha",
+    )
 
 
 @mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)

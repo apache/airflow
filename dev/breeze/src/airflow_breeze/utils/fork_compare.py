@@ -19,11 +19,14 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, GithubEvents
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.github import run_gh_command
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.run_utils import run_command
 
 # The compare API lists at most this many files: a list that reaches it may be missing some, so
 # the change set is treated as truncated.
@@ -41,6 +44,114 @@ def is_fork_push(github_event: GithubEvents, github_repository: str) -> bool:
     return github_event == GithubEvents.PUSH and github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY
 
 
+def _get_local_git_changes(*, base: str, sha: str, known_merge_base: str | None = None) -> ForkChanges | None:
+    merge_base = None
+    if known_merge_base:
+        has_commit = run_command(
+            ["git", "cat-file", "-e", f"{known_merge_base}^{{commit}}"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        if has_commit.returncode == 0:
+            merge_base = known_merge_base
+        else:
+            for attempt in range(3):
+                fetch_mb = run_command(
+                    [
+                        "git",
+                        "fetch",
+                        "--no-tags",
+                        "--depth=1",
+                        f"https://github.com/{APACHE_AIRFLOW_GITHUB_REPOSITORY}.git",
+                        known_merge_base,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=False,
+                )
+                if fetch_mb.returncode == 0:
+                    merge_base = known_merge_base
+                    break
+                if attempt < 2:
+                    time.sleep(attempt + 1)
+
+    if merge_base is None:
+        base_ref = f"refs/remotes/upstream/{base}"
+        fetched = False
+        for attempt in range(3):
+            fetch_res = run_command(
+                [
+                    "git",
+                    "fetch",
+                    "--no-tags",
+                    "--depth=100",
+                    f"https://github.com/{APACHE_AIRFLOW_GITHUB_REPOSITORY}.git",
+                    f"{base}:{base_ref}",
+                ],
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if fetch_res.returncode == 0:
+                fetched = True
+                break
+            if attempt < 2:
+                time.sleep(attempt + 1)
+
+        if not fetched:
+            verify_ref = run_command(
+                ["git", "rev-parse", "--verify", base_ref],
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if verify_ref.returncode != 0:
+                return None
+
+        mb_res = run_command(
+            ["git", "merge-base", base_ref, sha],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        if mb_res.returncode != 0:
+            return None
+        merge_base = mb_res.stdout.strip()
+
+    diff_res = run_command(
+        ["git", "diff", "-z", "-M", "--name-status", merge_base, sha],
+        capture_output=True,
+        text=True,
+        cwd=AIRFLOW_ROOT_PATH,
+        check=False,
+    )
+    if diff_res.returncode != 0:
+        return None
+    files: list[str] = []
+    tokens = diff_res.stdout.split("\0")
+    if tokens and not tokens[-1]:
+        tokens.pop()
+    i = 0
+    while i < len(tokens):
+        status = tokens[i]
+        if status.startswith(("R", "C")):
+            if i + 2 < len(tokens):
+                files.append(tokens[i + 1])
+                files.append(tokens[i + 2])
+            i += 3
+        else:
+            if i + 1 < len(tokens):
+                files.append(tokens[i + 1])
+            i += 2
+    return ForkChanges(files=tuple(dict.fromkeys(files)), truncated=False, merge_base=merge_base)
+
+
 def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
     """
     Three-dot compare of the pushed commit against the upstream base branch.
@@ -49,8 +160,8 @@ def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
     so a fork whose ``main`` is behind upstream does not inflate the change set. ``base`` is the
     branch line the pushed code belongs to (breeze's default branch at that commit), which a
     branch name cannot be trusted to tell. A renamed file counts under both paths, as in
-    ``git diff``. When the compare fails the change set is reported as truncated, so the run
-    covers everything instead of failing.
+    ``git diff``. When the compare fails or reaches the API file cap, local git diff is used
+    as a fallback before falling back to truncated change set.
 
     ``merge_base`` is the upstream commit the changes are measured from. Checks that compare a
     file with its previous version use it instead of the pushed commit's parent, which after a
@@ -68,18 +179,39 @@ def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
         capture_output=True,
         text=True,
     )
-    if result.returncode != 0:
+    compare_merge_base = None
+    if result.returncode == 0:
+        compare = json.loads(result.stdout or "{}")
+        entries = compare.get("files", [])
+        files = tuple(path for entry in entries for path in entry)
+        compare_merge_base = compare.get("merge_base")
+        if len(entries) < COMPARE_FILE_CAP:
+            return ForkChanges(files=files, truncated=False, merge_base=compare_merge_base)
+        console_print(
+            f"[warning]Compare API returned {len(entries)} files (capped at {COMPARE_FILE_CAP}), "
+            "falling back to local git diff to avoid truncation[/]"
+        )
+    else:
+        files = ()
         console_print(
             f"[warning]Could not compare {fork_owner}:{sha} with {APACHE_AIRFLOW_GITHUB_REPOSITORY}:{base}, "
-            f"so everything runs: {result.stderr.strip()}[/]"
+            f"trying local git diff: {result.stderr.strip()}[/]"
         )
-        return ForkChanges(files=(), truncated=True)
-    compare = json.loads(result.stdout or "{}")
-    entries = compare.get("files", [])
-    files = tuple(path for entry in entries for path in entry)
-    return ForkChanges(
-        files=files, truncated=len(entries) >= COMPARE_FILE_CAP, merge_base=compare.get("merge_base")
+
+    local_changes = _get_local_git_changes(
+        base=base,
+        sha=sha,
+        known_merge_base=compare_merge_base if result.returncode == 0 else None,
     )
+    if local_changes is not None:
+        console_print(
+            f"[info]Local git diff resolved {len(local_changes.files)} changed files "
+            f"(merge base: {local_changes.merge_base})[/]"
+        )
+        return local_changes
+
+    console_print("[warning]Local git diff fallback unavailable, treating change set as truncated[/]")
+    return ForkChanges(files=files, truncated=True, merge_base=compare_merge_base)
 
 
 def get_fork_pull_request_labels(*, fork_owner: str, branch: str, base: str) -> tuple[str, ...]:

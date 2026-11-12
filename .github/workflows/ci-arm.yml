@@ -280,6 +280,46 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: "Check clean integration with upstream target branch"
+        if: github.event_name == 'push' && github.repository != 'apache/airflow'
+        shell: bash
+        run: |
+          target_branch=$(grep -E '^AIRFLOW_BRANCH\s*=\s*' dev/breeze/src/airflow_breeze/branch_defaults.py | sed -E 's/.*"([^"]+)".*/\1/' || echo "main")
+          target_branch="${target_branch:-main}"
+          fetched=0
+          for i in 1 2 3; do
+            if git fetch --no-tags --depth=100 https://github.com/apache/airflow.git "${target_branch}:refs/remotes/upstream/${target_branch}"; then
+              fetched=1
+              break
+            fi
+            sleep "$i"
+          done
+          if [ "${fetched}" -eq 1 ] && git rev-parse --verify "refs/remotes/upstream/${target_branch}" >/dev/null 2>&1; then
+            merge_base=$(git merge-base "refs/remotes/upstream/${target_branch}" HEAD 2>/dev/null || true)
+            if [ -z "${merge_base}" ]; then
+              for i in 1 2 3; do
+                if git fetch --deepen=50 origin "${GITHUB_REF_NAME:-HEAD}"; then
+                  break
+                fi
+                sleep "$i"
+              done
+              merge_base=$(git merge-base "refs/remotes/upstream/${target_branch}" HEAD 2>/dev/null || true)
+            fi
+            if [ -n "${merge_base}" ]; then
+              conflict=0
+              git merge-tree --write-tree --merge-base "${merge_base}" HEAD "refs/remotes/upstream/${target_branch}" >/dev/null 2>&1 || conflict=$?
+              if [ "${conflict}" -eq 1 ]; then
+                echo "::error::Your branch has merge conflicts with apache/airflow:${target_branch}. Please rebase on upstream/${target_branch} before running fork CI."
+                exit 1
+              elif [ "${conflict}" -gt 1 ]; then
+                echo "::warning::Git merge-tree exited with error code ${conflict} (not a merge conflict). Skipping conflict check."
+              fi
+            else
+              echo "::warning::Could not find merge-base with upstream/${target_branch}. Skipping conflict check."
+            fi
+          else
+            echo "::warning::Could not fetch upstream/${target_branch} from https://github.com/apache/airflow.git. Skipping conflict check."
+          fi
       - name: "Fetch the last tested push commit"
         # Selective checks of a push diff against this commit. A two-commit diff only needs the
         # commit itself, not the history in between; if it cannot be fetched, all tests run.
