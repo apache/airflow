@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
+class _AgentDecoratedOperator(DecoratedOperator, AgentOperator, BaseAsyncOperator):
     """
     Wraps a callable that returns a prompt for an agentic LLM workflow.
 

@@ -4252,9 +4252,6 @@ def _make_async_mock_agent(mock_hook_cls, **run):
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="async tasks need Airflow >= 3.2")
 class TestAgentOperatorAsync:
-    def test_operator_is_synchronous_unless_a_subclass_says_otherwise(self):
-        assert AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm").is_async is False
-
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     async def test_aexecute_awaits_the_run_through_the_async_hook_path(

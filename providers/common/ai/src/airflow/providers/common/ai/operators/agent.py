@@ -77,7 +77,6 @@ from airflow.providers.common.compat.sdk import (
     conf,
     redact,
 )
-from airflow.providers.common.compat.standard.operators import BaseAsyncOperator
 from airflow.providers.common.compat.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_3_PLUS,
@@ -274,7 +273,7 @@ def _dump_unregistered_models(value: Any, registered: set[type]) -> Any:
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin, UsageBudgetMixin):
+class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, UsageBudgetMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -826,15 +825,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
         self.agent_params = agent_params
 
     @property
-    def is_async(self) -> bool:
-        """
-        Whether the task runs on the worker's event loop, through :meth:`aexecute`.
-
-        ``False`` for the operator itself; ``@task.agent`` returns ``True`` for an ``async def`` callable.
-        """
-        return False
-
-    @property
     def _llm_hook_params(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
@@ -1060,9 +1050,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
             raise
 
     def execute(self, context: Context) -> Any:
-        if self.is_async:
-            return BaseAsyncOperator.execute(self, context)
-
         if self.enable_hitl_review and not isinstance(self.prompt, str):
             raise TypeError(
                 f"{type(self).__name__}: enable_hitl_review=True is not supported "
@@ -1148,8 +1135,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
         """
         Run the agent on the worker's event loop.
 
-        The async version of :meth:`execute`: the agent run is awaited on the event loop, and the
-        bookkeeping of a successful run (usage budget, run metadata, message history) makes no
+        ``@task.agent`` calls this for an ``async def`` function; the operator itself runs through
+        :meth:`execute`. The agent run is awaited on the event loop, and the bookkeeping of a successful run (usage budget, run metadata, message history) makes no
         blocking call to the supervisor on it. What has no async counterpart (the connection
         lookup, the task state store before Airflow 3.4, the usage report of a failed run, the
         pause for a tool approval) runs the synchronous code in a worker thread.
