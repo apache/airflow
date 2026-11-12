@@ -337,8 +337,8 @@ class _MappedArgBindingDeriver:
                 return XComRef.model_validate(
                     binding.model_dump(include=set(XComRef.model_fields), exclude_unset=True)
                 )
-            case LiteralArgBinding(value=value):
-                return LiteralValue(kind="literal", value=value)
+            case LiteralArgBinding() as binding:
+                return LiteralValue(kind="literal", value=binding.value)
             case _:
                 raise UndeliverableMappedArgBindingsError(
                     f"parameter {param.name!r} cannot fall back to a mapped task's whole output"
@@ -349,8 +349,8 @@ class _MappedArgBindingDeriver:
         if isinstance(value, _XComRef):
             value = value.deref(self.dag)
         match value:
-            case SchedulerPlainXComArg(operator=producer):
-                return self._bind_upstream(param, producer)
+            case SchedulerPlainXComArg():
+                return self._bind_upstream(param, value.operator)
             case SchedulerXComArg():
                 raise UndeliverableMappedArgBindingsError(
                     f"parameter {param.name!r} receives a whole map(), zip() or concat() result"
@@ -378,9 +378,9 @@ class _MappedArgBindingDeriver:
         if isinstance(value, _XComRef):
             value = value.deref(self.dag)
         match value:
-            case SchedulerMapXComArg(arg=arg):
+            case SchedulerMapXComArg():
                 # map() is elementwise, so it moves no index: pick the element, then apply the callables.
-                return self._locate(param, arg, index).model_copy(update={"apply_map": True})
+                return self._locate(param, value.arg, index).model_copy(update={"apply_map": True})
             case SchedulerXComArg():
                 return self._locate(param, value, index)
             case Sequence() if not isinstance(value, str):
@@ -419,12 +419,14 @@ class _MappedArgBindingDeriver:
             # An expanded output is never narrowed to a common mapped ancestor's row first: the SDK
             # forbids expanding inside a mapped task group, and a group expands only over outputs
             # of tasks outside it.
-            case SchedulerPlainXComArg(operator=producer) if producer.get_needs_expansion():
+            case SchedulerPlainXComArg() if arg.operator.get_needs_expansion():
                 return XComRef(
-                    kind="xcom", task_id=producer.task_id, map_index=self._find_row_map_index(producer, index)
+                    kind="xcom",
+                    task_id=arg.operator.task_id,
+                    map_index=self._find_row_map_index(arg.operator, index),
                 )
-            case SchedulerPlainXComArg(operator=producer):
-                return XComRef(kind="xcom", task_id=producer.task_id, element_index=index)
+            case SchedulerPlainXComArg():
+                return XComRef(kind="xcom", task_id=arg.operator.task_id, element_index=index)
             case SchedulerConcatXComArg():
                 return self._locate_ref(*self._find_concatenated(arg, index))
             case _:
