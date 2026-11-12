@@ -110,7 +110,7 @@ Results flow through XCom
 
 Every operator pushes its result to XCom like any other task. A plain string arrives as a
 string. A Pydantic ``output_type`` arrives as the model instance, typed, so a downstream
-task can use attribute access. :doc:`structured_output` explains how the class is
+task can use attribute access (a model inside a list of types arrives as a ``dict``). :doc:`structured_output` explains how the class is
 registered for deserialization and where that stops working.
 
 Related providers
