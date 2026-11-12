@@ -188,7 +188,7 @@ capabilities:
       supported: false
     stub-task-handler:
       supported: false
-      note: "Airflow does not bind arguments to mapped stubs yet"
+      note: "the SDK refuses per-map-index arg bindings until the supervisor resolves them"
   asset-inlets-outlets:
     dag-definition:
       supported: false

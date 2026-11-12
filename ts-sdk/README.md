@@ -151,7 +151,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | **Python Dag with stub TaskHandler** |  |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
 | capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
-| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
+| capability: `mapped-tasks` | MAY | ✗ | – | – | the SDK refuses per-map-index arg bindings until the supervisor resolves them |
 | capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
 | capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
 
