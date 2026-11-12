@@ -48,9 +48,9 @@ batch can have up to 100,000 results, far too much to push through XCom.
     :end-before: [END howto_operator_llm_batch_basic]
 
 Rows are written one at a time, and Anthropic and OpenAI results are read as a stream, so landing a
-batch holds only a small buffer of responses in the worker's memory. Gemini's SDK downloads a batch's
-results in one call, so landing a Gemini batch holds every response body of that batch in memory at
-once. For a Gemini batch of tens of thousands of long responses, size the worker for it, or split the
+batch holds only a small buffer of responses in the worker's memory. Gemini results are still read
+through pydantic-ai, which downloads a batch's results in one call, so landing a Gemini batch holds every
+response body of that batch in memory at once. For a Gemini batch of tens of thousands of long responses, size the worker for it, or split the
 input across mapped task instances with ``.expand()`` so each instance lands one slice.
 
 The manifest
@@ -372,10 +372,9 @@ requests are ``/v1/responses`` bodies and the batch is created against that endp
 in a batch must use the same model, because OpenAI's batch is tied to one, and the operator rejects a
 mixed batch before submitting it. Azure OpenAI (a ``pydanticai_azure`` connection) has no adapter.
 
-The batch's input is uploaded as a file. pydantic-ai deletes it only in the process that submitted the
-batch, and only once that process has seen the job complete and collected its results. A deferrable task
-polls and collects in other processes, and an expired or cancelled job never completes, so in those
-cases OpenAI keeps the input file for its 30-day retention.
+The batch's input is uploaded as a file. pydantic-ai deletes that file only inside its own result
+collection, which the operator does not use because it streams OpenAI results instead, so OpenAI keeps
+the input file for its 30-day retention.
 
 An OpenAI job reports one ended state for every outcome, so the operator reads the job's own status: an
 expired or cancelled job lands whatever results it wrote and reports the rest as ``expired`` or

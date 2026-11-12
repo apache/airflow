@@ -35,11 +35,12 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import dataclasses
 import functools
 import queue
 import threading
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine, Iterator, Mapping
-from contextlib import AsyncExitStack, aclosing, asynccontextmanager
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine, Generator, Iterator, Mapping
+from contextlib import AsyncExitStack, aclosing, asynccontextmanager, closing, suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast
 
@@ -154,6 +155,17 @@ _NO_REQUEST_LIMIT = 2**63 - 1
 #: Decoded rows a batch's results may run ahead of the task that reads them.
 _RESULT_BUFFER = 64
 
+#: Seconds a closed results stream waits for its helper thread to finish after cancelling it.
+_STREAM_JOIN_TIMEOUT = 5.0
+
+
+@dataclasses.dataclass(frozen=True)
+class _ResultsContext:
+    """What a reader needs, besides the raw results, to decode them."""
+
+    model: Model
+    parameters: ModelRequestParameters
+
 
 def _run(coro: Coroutine[Any, Any, T]) -> T:
     """
@@ -229,20 +241,25 @@ def _openai_unrun_result(details: Mapping[str, Any], custom_id: str, line_number
     )
 
 
-def _stream(source: AsyncGenerator[T, None]) -> Iterator[T]:
+def _stream(source: AsyncGenerator[T, None]) -> Generator[T, None, None]:
     """
     Read an async generator from synchronous code without collecting it first.
 
-    The generator runs on its own event loop in a helper thread and hands items over through a queue of
-    :data:`_RESULT_BUFFER` items, so a slow reader holds the download back instead of buffering it. An
-    error from the generator is raised at the reader. Closing the iterator early (or dropping it) stops the
-    helper thread, which closes the generator and so anything it holds open, and waits for it to finish.
+    The generator runs as a task on its own event loop in a helper thread and hands items over through a
+    queue of :data:`_RESULT_BUFFER` items, so a slow reader holds the download back instead of buffering it.
+    An error from the generator is raised at the reader, whatever its type.
+
+    When the reader stops (closes the iterator, is dropped, or fails), the task is cancelled from the reader's
+    thread. A read the generator is awaiting is interrupted rather than waited for, and the generator's own
+    cleanup still runs, so whatever it holds open is closed. The wait for the thread is bounded.
     """
     items: queue.Queue[
-        tuple[Literal["item"], T] | tuple[Literal["error"], Exception] | tuple[Literal["end"], None]
+        tuple[Literal["item"], T] | tuple[Literal["error"], BaseException] | tuple[Literal["end"], None]
     ]
     items = queue.Queue(maxsize=_RESULT_BUFFER)
     closed = threading.Event()
+    started = threading.Event()
+    running: list[tuple[asyncio.AbstractEventLoop, asyncio.Task[None]]] = []
 
     def put(message: tuple[Any, Any]) -> bool:
         # A bounded put that gives up once the reader is gone, so a full queue never strands the thread.
@@ -260,16 +277,28 @@ def _stream(source: AsyncGenerator[T, None]) -> Iterator[T]:
                 if not put(("item", item)):
                     return
             put(("end", None))
-        except Exception as e:
+        except BaseException as e:
+            # Also a cancellation the reader did not ask for: forwarding it keeps the reader from waiting forever.
             put(("error", e))
         finally:
             await source.aclose()
 
-    thread = threading.Thread(target=asyncio.run, args=(produce(),), name="llm-batch-results", daemon=True)
+    async def main() -> None:
+        task = asyncio.ensure_future(produce())
+        running.append((asyncio.get_running_loop(), task))
+        started.set()
+        await asyncio.wait([task])
+
+    thread = threading.Thread(target=asyncio.run, args=(main(),), name="llm-batch-results", daemon=True)
     thread.start()
     try:
         while True:
-            message = items.get()
+            try:
+                message = items.get(timeout=1)
+            except queue.Empty:
+                if not thread.is_alive() and items.empty():
+                    raise RuntimeError("The batch results reader stopped without finishing.") from None
+                continue
             if message[0] == "item":
                 yield message[1]
             elif message[0] == "error":
@@ -278,7 +307,16 @@ def _stream(source: AsyncGenerator[T, None]) -> Iterator[T]:
                 return
     finally:
         closed.set()
-        thread.join()
+        if started.wait(timeout=1):
+            loop, task = running[0]
+            # A RuntimeError means the loop already finished, so there is nothing left to cancel.
+            with suppress(RuntimeError):
+                loop.call_soon_threadsafe(task.cancel)
+        thread.join(timeout=_STREAM_JOIN_TIMEOUT)
+        if thread.is_alive():
+            log.debug(
+                "Batch results thread did not stop within the timeout; it is a daemon and will be left behind"
+            )
 
 
 @functools.cache
@@ -741,20 +779,29 @@ class PydanticAIBatchAdapter(BatchAdapter):
         while results:
             yield results.pop()
 
-    async def _read_results(self, batch_id: str) -> AsyncGenerator[RawResultItem, None]:
+    async def _read_results(self, batch_id: str) -> AsyncGenerator[_ResultsContext | BatchResult, None]:
+        """Yield what decoding needs, then the raw results of an ended batch; decoding runs on the reader's thread."""
         async with self._existing(batch_id) as (model, stored):
             # ``batch_results`` refuses a handle that has not ended, and the stored one is from submit time.
             batch = await model.batch_status(stored)
             if batch.status != "ended":
                 raise LLMBatchJobError(f"Batch {batch_id!r} has not ended (status {batch.status!r}).")
-            parameters = self._output_parameters(model, self._output_spec)
+            yield _ResultsContext(model, self._output_parameters(model, self._output_spec))
             async with aclosing(self._stream_results(model, batch)) as results:
                 async for result in results:
-                    if (row := self._decode_or_skip(model, result, parameters, batch_id)) is not None:
-                        yield row
+                    yield result
 
     def iter_results(self, batch_id: str) -> Iterator[RawResultItem]:
-        return _stream(self._read_results(batch_id))
+        # Only the download crosses to the helper thread. Decoding is synchronous and does no I/O, so it
+        # stays here with the task's logging context.
+        with closing(_stream(self._read_results(batch_id))) as stream:
+            context = cast("_ResultsContext", next(stream))
+            for result in stream:
+                row = self._decode_or_skip(
+                    context.model, cast("BatchResult", result), context.parameters, batch_id
+                )
+                if row is not None:
+                    yield row
 
     def _decode_or_skip(
         self, model: Model, result: BatchResult, parameters: ModelRequestParameters, batch_id: str
