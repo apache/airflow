@@ -21,6 +21,7 @@ import dataclasses
 import json
 import logging
 import sys
+import threading
 from collections import OrderedDict
 from contextlib import nullcontext
 from datetime import timedelta
@@ -4488,7 +4489,10 @@ class TestAgentOperatorAsync:
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     async def test_runs_overlap_on_one_event_loop(self, mock_hook_cls):
+        ran_on: set[int] = set()
+
         async def slow(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            ran_on.add(threading.get_ident())
             await asyncio.sleep(0.2)
             return ModelResponse(parts=[TextPart(content="the answer")])
 
@@ -4503,5 +4507,7 @@ class TestAgentOperatorAsync:
         results = await asyncio.gather(*(op.aexecute(_make_async_context()) for op in ops))
 
         assert results == ["the answer"] * 8
+        # On the loop's own thread: eight worker threads would overlap just as well.
+        assert ran_on == {threading.get_ident()}
         # Eight runs of 0.2 s each take 1.6 s one after the other.
         assert loop.time() - started < 1.0
