@@ -104,8 +104,9 @@ A single run is not faster this way, as its duration is the model's. Tools that 
 such as ``SQLToolset`` and ``HookToolset``, run in a worker thread with either kind of function.
 
 ``durable=True`` and ``enable_hitl_review=True`` do blocking I/O during the run and are not
-supported with an ``async def`` function: the Dag fails to parse with a ``ValueError``. Use a regular
-function for them.
+supported with an ``async def`` function: the Dag fails to parse with a ``ValueError``. A mapped task
+(``.expand()``) is only created when it runs, so there the task fails with the same ``ValueError``.
+Use a regular function for them.
 
 .. _howto/operator:agent-multimodal:
 
