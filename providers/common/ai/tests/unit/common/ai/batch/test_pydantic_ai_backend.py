@@ -20,6 +20,7 @@ import asyncio
 import dataclasses
 import json
 import threading
+import time
 from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 from unittest import mock
@@ -64,6 +65,7 @@ from airflow.providers.common.ai.batch.pydantic_ai_backend import (
     GoogleBatchAdapter,
     PydanticAIBatchAdapter,
     _run,
+    _stream,
 )
 from airflow.providers.common.ai.exceptions import (
     LLMBatchInputError,
@@ -928,6 +930,90 @@ class TestAnthropicResultsStream:
         response.aclose.assert_awaited_once()
         assert len(pulled) <= _RESULT_BUFFER + 3
         assert not [t for t in threading.enumerate() if t.name == "llm-batch-results"]
+
+    def test_a_source_error_mid_stream_still_closes_the_http_response(self, adapter):
+        adapter, _, _ = adapter
+        response = mock.create_autospec(httpx2.Response, instance=True)
+
+        async def chunks():
+            yield _anthropic_line(0)
+            raise RuntimeError("connection reset")
+
+        with self._serve(chunks, response):
+            rows = adapter.iter_results("msgbatch_1")
+            next(rows)
+            with pytest.raises(RuntimeError, match="connection reset"):
+                next(rows)
+
+        response.aclose.assert_awaited_once()
+        assert not [t for t in threading.enumerate() if t.name == "llm-batch-results"]
+
+    def test_rows_are_decoded_on_the_callers_thread(self, adapter):
+        adapter, _, _ = adapter
+        decoded_on: list[threading.Thread] = []
+        decode = adapter._decode_or_skip
+
+        def record(*args, **kwargs):
+            decoded_on.append(threading.current_thread())
+            return decode(*args, **kwargs)
+
+        async def chunks():
+            yield _anthropic_line(0)
+
+        with self._serve(chunks), mock.patch.object(adapter, "_decode_or_skip", side_effect=record):
+            list(adapter.iter_results("msgbatch_1"))
+
+        assert decoded_on == [threading.current_thread()]
+
+
+def _helper_threads() -> list[threading.Thread]:
+    return [t for t in threading.enumerate() if t.name == "llm-batch-results"]
+
+
+class TestStream:
+    """The sync bridge over an async generator must never wait on a read that has stalled."""
+
+    def test_closing_while_the_source_awaits_a_stalled_read_returns_promptly(self):
+        finished = threading.Event()
+
+        async def source():
+            try:
+                yield 1
+                await asyncio.Event().wait()
+            finally:
+                finished.set()
+
+        items = _stream(source())
+        assert next(items) == 1
+        started = time.monotonic()
+        items.close()
+
+        assert time.monotonic() - started < 1
+        assert finished.is_set()
+        assert not _helper_threads()
+
+    @pytest.mark.parametrize("failure", [asyncio.CancelledError(), KeyboardInterrupt()])
+    def test_a_base_exception_from_the_source_reaches_the_reader_instead_of_hanging_it(self, failure):
+        async def source():
+            yield 1
+            raise failure
+
+        items = _stream(source())
+        assert next(items) == 1
+        with pytest.raises(type(failure)):
+            next(items)
+        assert not _helper_threads()
+
+    def test_a_producer_thread_that_dies_without_a_message_fails_the_reader(self):
+        async def source():
+            yield 1
+
+        def die(coro):
+            coro.close()
+
+        with mock.patch.object(backend_module.asyncio, "run", side_effect=die):
+            with pytest.raises(RuntimeError, match="stopped without finishing"):
+                list(_stream(source()))
 
 
 def _ended(state: str | None, *, status: BatchStatus = "ended", count: int = 2) -> Batch:
