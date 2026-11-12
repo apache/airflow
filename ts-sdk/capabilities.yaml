@@ -199,7 +199,7 @@ capabilities:
       supported: false
     stub-task-handler:
       supported: false
-      note: "the SDK refuses per-map-index arg bindings until the supervisor resolves them"
+      note: "not implemented yet; SDK 1.1.0 will add it"
   asset-inlets-outlets:
     dag-definition:
       supported: false

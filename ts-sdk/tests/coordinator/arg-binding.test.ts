@@ -447,13 +447,15 @@ describe("resolveArgs", () => {
   });
 
   it.each([
+    ['binding kind "sequence"', { name: "totals", kind: "sequence", task_id: "make_totals" }],
+    ['binding kind "tuple"', { name: "totals", kind: "tuple", parts: [] }],
     ["map_index", xcom("totals", "make_totals", { map_index: 0 })],
     ["element_index", xcom("totals", "make_totals", { element_index: 1 })],
     ["apply_map", xcom("totals", "make_totals", { apply_map: true })],
     ["apply_map", literal("totals", 1, { apply_map: true })],
     ["kwarg", literal("totals", 1, { kwarg: "totals" })],
     ["fallback", literal("totals", 1, { fallback: { kind: "literal", value: 2 } })],
-  ])("refuses a binding with %s set, before pulling anything", async (field, binding) => {
+  ])("refuses %s as not implemented, before pulling anything", async (what, binding) => {
     const { client, getXComEntry } = makeClient({ make_totals: { found: true, value: 1 } });
     await expect(
       resolveArgs([binding] as ArgBindings, {
@@ -463,10 +465,8 @@ describe("resolveArgs", () => {
         argNames: NO_RENAMES,
       }),
     ).rejects.toThrowError(
-      new RegExp(
-        `Task argument "totals" has ${field} set to .*, which this version of ` +
-          "@apache-airflow/ts-sdk cannot bind yet",
-      ),
+      `Task argument "totals": ${what} needs mapped task support, which this version of ` +
+        "@apache-airflow/ts-sdk does not implement; version 1.1.0 will add it",
     );
     expect(getXComEntry).not.toHaveBeenCalled();
   });

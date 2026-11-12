@@ -71,9 +71,10 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
     val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
     check(seen.add(name)) { "arg_bindings entries have duplicate name: '$name'" }
     val kind = entry["kind"]
+    if (kind == "sequence" || kind == "tuple") error(mappedTaskNotImplemented(name, "binding kind '$kind'"))
     if (kind == "literal" || kind == "xcom") {
       UNSUPPORTED_FIELDS.firstOrNull { entry[it] != null && entry[it] != false }?.let {
-        error("Argument '$name' has $it set, which this version of the Java SDK cannot bind yet")
+        error(mappedTaskNotImplemented(name, it))
       }
     }
     when (kind) {
@@ -100,3 +101,10 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
  * support yet; ignoring one would bind the argument to the wrong value.
  */
 private val UNSUPPORTED_FIELDS = listOf("apply_map", "kwarg", "fallback")
+
+private fun mappedTaskNotImplemented(
+  name: String,
+  what: String,
+): String =
+  "Argument '$name': $what needs mapped task support, which this version of the Java SDK " +
+    "does not implement; version 1.1.0 will add it"

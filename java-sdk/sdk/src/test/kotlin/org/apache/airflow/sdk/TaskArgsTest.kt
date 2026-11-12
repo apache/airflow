@@ -161,20 +161,23 @@ internal class TaskArgsTest {
   }
 
   @Test
-  @DisplayName("Should fail on a binding field this SDK cannot bind yet")
-  fun shouldRejectUnsupportedBindingField() {
+  @DisplayName("Should fail on a binding mapped tasks need, as not implemented yet")
+  fun shouldRejectMappedTaskBinding() {
     val cases =
       listOf(
+        "binding kind 'sequence'" to mapOf("kind" to "sequence", "name" to "x", "task_id" to "upstream"),
+        "binding kind 'tuple'" to mapOf("kind" to "tuple", "name" to "x", "parts" to emptyList<Any>()),
         "apply_map" to mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "apply_map" to true),
         "apply_map" to mapOf("kind" to "literal", "name" to "x", "value" to 1L, "apply_map" to true),
         "kwarg" to mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "kwarg" to "x"),
         "fallback" to
           mapOf("kind" to "literal", "name" to "x", "value" to 1L, "fallback" to mapOf("kind" to "literal")),
       )
-    for ((field, binding) in cases) {
+    for ((what, binding) in cases) {
       val error = assertThrows(IllegalStateException::class.java) { argsWith(listOf(binding)) }
       assertEquals(
-        "Argument 'x' has $field set, which this version of the Java SDK cannot bind yet",
+        "Argument 'x': $what needs mapped task support, which this version of the Java SDK " +
+          "does not implement; version 1.1.0 will add it",
         error.message,
       )
     }

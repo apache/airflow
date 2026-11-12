@@ -471,43 +471,51 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 	}
 }
 
-func TestTaskRunnerArgBindingsUnsupportedField(t *testing.T) {
+func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 	cases := []struct {
-		field string
-		spec  map[string]any
+		what string
+		spec map[string]any
 	}{
 		{
-			field: "map_index",
+			what: `binding kind "sequence"`,
+			spec: map[string]any{"name": "country", "kind": "sequence", "task_id": "extract"},
+		},
+		{
+			what: `binding kind "tuple"`,
+			spec: map[string]any{"name": "country", "kind": "tuple", "parts": []any{}},
+		},
+		{
+			what: "map_index",
 			spec: map[string]any{
 				"name": "country", "kind": "xcom", "task_id": "extract", "map_index": 0,
 			},
 		},
 		{
-			field: "element_index",
+			what: "element_index",
 			spec: map[string]any{
 				"name": "country", "kind": "xcom", "task_id": "extract", "element_index": 1,
 			},
 		},
 		{
-			field: "apply_map",
+			what: "apply_map",
 			spec: map[string]any{
 				"name": "country", "kind": "xcom", "task_id": "extract", "apply_map": true,
 			},
 		},
 		{
-			field: "apply_map",
+			what: "apply_map",
 			spec: map[string]any{
 				"name": "country", "kind": "literal", "value": "x", "apply_map": true,
 			},
 		},
 		{
-			field: "kwarg",
+			what: "kwarg",
 			spec: map[string]any{
 				"name": "country", "kind": "literal", "value": "x", "kwarg": "country",
 			},
 		},
 		{
-			field: "fallback",
+			what: "fallback",
 			spec: map[string]any{
 				"name": "country", "kind": "literal", "value": "x",
 				"fallback": map[string]any{"kind": "literal", "value": "y"},
@@ -515,7 +523,7 @@ func TestTaskRunnerArgBindingsUnsupportedField(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%s on %s", tc.field, tc.spec["kind"]), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s on %s", tc.what, tc.spec["kind"]), func(t *testing.T) {
 			ran := false
 			bundle := buildBundle(t, func(r testBundle) {
 				r.AddDag("test_dag").AddTaskWithName("transform",
@@ -536,8 +544,9 @@ func TestTaskRunnerArgBindingsUnsupportedField(t *testing.T) {
 				t,
 				result,
 				fmt.Sprintf(
-					`("country"): %s is set, which this version of the Go SDK cannot bind yet`,
-					tc.field,
+					`("country"): %s needs mapped task support, which this version of the Go SDK `+
+						"does not implement; version 1.1.0 will add it",
+					tc.what,
 				),
 			)
 			assert.False(t, ran, "the task body must not run on a binding it cannot honour")

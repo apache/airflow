@@ -177,15 +177,12 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 			return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
 		}
 		kind, _ := m["kind"].(string)
+		if kind == "sequence" || kind == "tuple" {
+			return nil, errMappedTaskNotImplemented(i, name, fmt.Sprintf("binding kind %q", kind))
+		}
 		if kind == "xcom" || kind == "literal" {
 			if field := findUnsupportedBindingField(m); field != "" {
-				return nil, fmt.Errorf(
-					"arg_bindings[%d] (%q): %s is set, which this version of the Go SDK "+
-						"cannot bind yet",
-					i,
-					name,
-					field,
-				)
+				return nil, errMappedTaskNotImplemented(i, name, field)
 			}
 		}
 		switch kind {
@@ -221,6 +218,16 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		}
 	}
 	return args, nil
+}
+
+func errMappedTaskNotImplemented(i int, name, what string) error {
+	return fmt.Errorf(
+		"arg_bindings[%d] (%q): %s needs mapped task support, which this version of the Go SDK "+
+			"does not implement; version 1.1.0 will add it",
+		i,
+		name,
+		what,
+	)
 }
 
 // unsupportedBindingFields resolve an argument per map index, which this SDK does not do yet.
