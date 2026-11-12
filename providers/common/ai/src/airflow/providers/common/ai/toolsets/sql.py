@@ -22,6 +22,8 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
+    from sqlalchemy.exc import DBAPIError
+
     from airflow.providers.common.ai.utils.sql_validation import (
         SQLSafetyError,
         collect_table_references,
@@ -40,6 +42,7 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
 from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_COLUMNS,
@@ -55,9 +58,10 @@ from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, valid
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
+    from sqlalchemy.engine.reflection import Inspector
 
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
@@ -103,6 +107,33 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     },
     "required": ["sql"],
 }
+
+
+def _build_connection_error(conn_id: str, error: Exception) -> SQLToolsetConnectionError:
+    return SQLToolsetConnectionError(f"Could not reach the database of connection {conn_id!r}: {error}")
+
+
+def _raise_connection_failures(get_conn: Callable[[], Any], conn_id: str) -> Callable[[], Any]:
+    """Wrap a hook's ``get_conn`` so a failure to connect is told apart from a failing statement."""
+
+    def wrapper() -> Any:
+        try:
+            return get_conn()
+        except Exception as e:
+            raise _build_connection_error(conn_id, e) from e
+
+    return wrapper
+
+
+def _is_lost_connection(error: Exception) -> bool:
+    """
+    Whether SQLAlchemy reports ``error`` as a connection failure rather than a failing statement.
+
+    ``list_tables`` and ``get_schema`` go through the SQLAlchemy inspector, which raises a
+    failure to connect without a statement and marks a connection lost mid-statement as
+    invalidated.
+    """
+    return isinstance(error, DBAPIError) and (error.statement is None or error.connection_invalidated)
 
 
 def _trusted_row_count(cursor: Any, *, fetched: int) -> int | None:
@@ -184,12 +215,14 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
     lazily from the given ``db_conn_id``.
 
-    When a tool fails, the database's error message is returned to the agent as a
-    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
-    the run instead of failing the task. ``pydantic-ai`` bounds this by the tool's
-    ``max_retries``, so an unrecoverable error -- a bad connection or an auth
-    failure -- exhausts the retries and fails the task for Airflow to retry. The
-    toolset does not inspect the error type or message.
+    When the statement fails, the database's error message is returned to the agent as
+    a retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
+    the run, bounded by the tool's ``max_retries``. When the toolset cannot reach the
+    database -- the connection is missing or misconfigured, the host is unreachable,
+    the credentials are rejected, or SQLAlchemy reports the connection lost -- the
+    error is raised instead, failing the attempt for Airflow to retry: no change to
+    the SQL can fix it. Under durable execution a raised call is not recorded, so the
+    retry runs it against the database again rather than replaying the failure.
 
     :param db_conn_id: Airflow connection ID for the database. Templated when the
         toolset is passed to ``AgentOperator`` / ``@task.agent``, so each task
@@ -384,15 +417,29 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
 
     def _get_db_hook(self) -> DbApiHook:
         if self._hook is None:
-            connection = BaseHook.get_connection(self._db_conn_id)
-            hook = connection.get_hook()
+            try:
+                hook = BaseHook.get_connection(self._db_conn_id).get_hook()
+            except Exception as e:
+                raise _build_connection_error(self._db_conn_id, e) from e
             if not isinstance(hook, DbApiHook):
-                raise ValueError(
+                raise SQLToolsetConnectionError(
                     f"Connection {self._db_conn_id!r} does not provide a DbApiHook. "
                     f"Got {type(hook).__name__}."
                 )
+            # DbApiHook.run and every in-tree override connect through get_conn, so this is
+            # where the query tool's connection failures surface.
+            hook.get_conn = _raise_connection_failures(hook.get_conn, self._db_conn_id)  # type: ignore[method-assign]
             self._hook = hook
         return self._hook
+
+    def _get_inspector(self) -> Inspector:
+        hook = self._get_db_hook()
+        # Building the inspector fetches credentials (Databricks), loads the SQLAlchemy dialect
+        # and connects, none of which goes through get_conn.
+        try:
+            return hook.inspector
+        except Exception as e:
+            raise _build_connection_error(self._db_conn_id, e) from e
 
     # ------------------------------------------------------------------
     # AbstractToolset interface
@@ -446,12 +493,15 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             raise ValueError(f"Unknown tool: {name!r}")
         try:
             return await self.run_blocking(self._run_tool, base, tool_args)
+        except SQLToolsetConnectionError:
+            # Handed to the model as a retry, a connection failure makes it give up and
+            # answer without data, or spend its retries on something no SQL can fix.
+            raise
         except Exception as e:
-            # Hand the database's own error back to the agent as a retry so it can
-            # read the message and fix its SQL within the run. pydantic-ai bounds
-            # this by the tool's max_retries, so an unrecoverable error (a bad
-            # connection, an auth failure) exhausts the budget and fails the task
-            # for Airflow to retry, rather than being silently worked around.
+            if _is_lost_connection(e):
+                raise _build_connection_error(self._db_conn_id, e) from e
+            # The statement failed: hand the database's own error back to the agent so it
+            # can fix its SQL within the run, bounded by the tool's max_retries.
             raise ModelRetry(
                 f"The {name} tool failed: {e}\n"
                 f"Use the {self._build_tool_name('list_tables')} and {self._build_tool_name('get_schema')} tools "
@@ -480,7 +530,7 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         return schema, table
 
     def _list_tables(self) -> str:
-        hook = self._get_db_hook()
+        inspector = self._get_inspector()
         tables: list[str] = []
         # Dedupe by (schema, table) so a table reachable both qualified and via the
         # default schema (e.g. "public.users" and "users" with schema="public") is
@@ -496,13 +546,13 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         # Schemas referenced by qualified allowed_tables entries: introspect each
         # and return matching tables fully qualified so they round-trip to get_schema.
         for schema in sorted(self._qualified_schemas):
-            for name in hook.inspector.get_table_names(schema=schema):
+            for name in inspector.get_table_names(schema=schema):
                 add(schema, name, f"{schema}.{name}")
 
         # Default schema: used for allow-all and unqualified allowed_tables entries.
         # Names stay bare to preserve the single-schema behaviour.
         if self._include_default_schema:
-            for name in hook.inspector.get_table_names(schema=self._schema):
+            for name in inspector.get_table_names(schema=self._schema):
                 add(self._schema, name, name)
 
         return dumps_masked(tables)
@@ -511,8 +561,10 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
             return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
-        hook = self._get_db_hook()
-        columns = hook.get_table_schema(table, schema=schema)
+        columns = [
+            {"name": col["name"], "type": str(col["type"])}
+            for col in self._get_inspector().get_columns(table, schema=schema)
+        ]
         return build_schema_result(
             columns,
             max_columns=self._max_columns,
@@ -524,7 +576,12 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     def _dialect_for_validation(self) -> str | None:
         """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
         hook = self._get_db_hook()
-        return resolve_sqlglot_dialect(getattr(hook, "dialect_name", None))
+        # dialect_name builds the hook's URI, which can fetch credentials (Databricks).
+        try:
+            dialect_name = getattr(hook, "dialect_name", None)
+        except Exception as e:
+            raise _build_connection_error(self._db_conn_id, e) from e
+        return resolve_sqlglot_dialect(dialect_name)
 
     def _query(self, sql: str) -> str:
         hook = self._get_db_hook()
