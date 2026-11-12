@@ -719,10 +719,10 @@ def ti_update_state(
         query = query.values(state=(updated_state := TaskInstanceState.FAILED))
         if ti is not None:
             try:
-                with session.begin_nested():
-                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
             except Exception:
                 log.exception("Failed to apply fail_fast while setting the task to failed")
+                session.rollback()
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers

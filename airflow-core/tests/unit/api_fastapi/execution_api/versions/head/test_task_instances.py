@@ -4821,6 +4821,44 @@ class TestTIUpdateState:
         assert session.get(TaskInstance, ti1.id).state == State.FAILED
         assert session.get(TaskInstance, ti2.id).state == State.QUEUED
 
+    def test_ti_update_state_fallback_applies_fail_fast_to_all_remaining_tasks(
+        self, client, session, dag_maker
+    ):
+        """The fallback stops every remaining task when the error did not come from fail_fast."""
+        with dag_maker(dag_id="test_dag_fail_fast_fallback", fail_fast=True, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+            EmptyOperator(task_id="task3")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+        ti3 = dr.get_task_instance(task_id="task3", session=session)
+        for ti in (ti1, ti2):
+            ti.state = State.RUNNING
+            ti.start_date = DEFAULT_START_DATE
+        ti3.state = State.QUEUED
+        session.commit()
+
+        with mock.patch.object(
+            TaskInstance, "register_asset_changes_in_db", side_effect=RuntimeError("boom")
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti1.id}/state",
+                json={
+                    "state": TerminalTIState.SUCCESS,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.get(TaskInstance, ti1.id).state == State.FAILED
+        assert session.get(TaskInstance, ti2.id).state == State.FAILED
+        assert session.get(TaskInstance, ti3.id).state == State.SKIPPED
+
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
     ):
