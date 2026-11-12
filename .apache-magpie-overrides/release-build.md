@@ -70,13 +70,21 @@ None configured.
 
 ## Expected artefact list
 
-Under `https://dist.apache.org/repos/dist/dev/airflow/providers/<YYYY-MM-DD>/`:
+Staged in the wave's folder under `dev/airflow/providers/` on dist.apache.org.
+Step 1 matches each entry below as an `fnmatch` glob, so entries carry no
+placeholders:
 
-- `apache_airflow_providers-<YYYY-MM-DD>-source.tar.gz` — canonical source artefact.
-- `apache_airflow_providers_<provider>-<version>.tar.gz` — sdist per provider.
-- `apache_airflow_providers_<provider>-<version>-py3-none-any.whl` — wheel per provider.
+- `apache_airflow_providers-*-source.tar.gz`, canonical source artefact (required, signed, checksummed).
+- `apache_airflow_providers_*.tar.gz`, convenience sdist, one per provider (required, signed, checksummed).
+- `apache_airflow_providers_*-py3-none-any.whl`, convenience wheel, one per provider (required, signed, checksummed).
 
-Each with a detached `.asc` signature and a `.sha512` checksum.
+Because the source entry is a glob, pass the real unpacked directory to
+`release-management verify-rc args`, e.g.
+`--unpacked-dir apache_airflow_providers-2026-11-10-source`.
+
+The globs only prove that one sdist and one wheel are staged. That every
+provider in the vote has both is the SVN check in
+[release-verify-rc override, Step 1a](release-verify-rc.md#step-1a--svn-check-against-the-vote-required).
 
 ## Digest set
 
