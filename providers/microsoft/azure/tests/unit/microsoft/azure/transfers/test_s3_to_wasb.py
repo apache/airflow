@@ -118,6 +118,35 @@ class TestS3ToAzureBlobStorageOperator:
         s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", verify=None)
         wasb_mock_hook.assert_called_once_with(wasb_conn_id="wasb_default")
 
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    @mock.patch("tempfile.NamedTemporaryFile")
+    def test__execute__prefix_without_replace_skips_existing_destination(
+        self, tempfile_mock, wasb_mock_hook, s3_mock_hook
+    ):
+        s3_mock_hook.return_value.list_keys.return_value = [f"{PREFIX}/a.txt", f"{PREFIX}/b.txt"]
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = [f"{PREFIX}/a.txt"]
+
+        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(b"test file contents")
+        tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix=PREFIX,
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+            replace=False,
+        )
+        uploaded_files = operator.execute(None)
+        assert uploaded_files == ["b.txt"]
+        wasb_mock_hook.return_value.load_file.assert_called_once_with(
+            file_path=TEMPFILE_NAME,
+            container_name=CONTAINER_NAME,
+            blob_name=f"{PREFIX}/b.txt",
+            create_container=False,
+        )
+
     # There are a number of very similar tests that use the same mocking, and for the most part, the same
     # logic. These tests are used to validate the records being returned by the get_files_to_move() method,
     # which heavily drives the successful execution of the operator
