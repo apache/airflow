@@ -32,6 +32,7 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.xcom import reject_reserved_xcom_key
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
@@ -54,7 +55,6 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchi
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
-    LOOP_XCOM_PREFIX,
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
     build_loop_sequence_order,
@@ -392,6 +392,7 @@ def get_mapped_xcom_by_index(
 
 
 def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
+    low = max(low, 0)
     if high <= low:
         return query.limit(0)
     return query.slice(low, high)
@@ -712,8 +713,7 @@ def set_xcom(
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
-    if key.startswith(LOOP_XCOM_PREFIX):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
+    reject_reserved_xcom_key(key)
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
@@ -794,7 +794,10 @@ def set_xcom(
     responses={
         **create_openapi_http_exception_doc(
             [
-                (status.HTTP_400_BAD_REQUEST, "The target is in a loop the caller is not in"),
+                (
+                    status.HTTP_400_BAD_REQUEST,
+                    "The key is reserved, or the target is in a loop the caller is not in",
+                ),
                 (status.HTTP_409_CONFLICT, "Several live task instances match the producer"),
             ]
         ),
@@ -813,6 +816,8 @@ def delete_xcom(
     token=_TriggerAwareTIToken,
 ):
     """Delete a single XCom Value."""
+    reject_reserved_xcom_key(key)
+
     owner = _find_writer_id(
         token,
         dag_id=dag_id,

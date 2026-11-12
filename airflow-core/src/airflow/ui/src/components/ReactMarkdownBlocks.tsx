@@ -159,7 +159,7 @@ const MarkdownMathBlock = ({ style, value }: { readonly style: SyntaxTheme; read
       >
         <Box data-testid="markdown-math-content" maxWidth="100%" minWidth={0} overflowX="auto" p={3}>
           <Box
-            /* Trusting KaTeX to escape user content in the generated HTML */
+            /* oxlint-disable-next-line react/no-danger -- Trusting KaTeX to escape user content in the generated HTML */
             dangerouslySetInnerHTML={{ __html: markup }}
           />
         </Box>
@@ -252,7 +252,7 @@ export const MarkdownMermaid = ({
                 width: "100%",
               },
             }}
-            /* Trusting mermaid's strict-mode sanitizer */
+            /* oxlint-disable-next-line react/no-danger -- Trusting mermaid's strict-mode sanitizer */
             dangerouslySetInnerHTML={{ __html: svg }}
             data-testid="markdown-mermaid-diagram"
           />
