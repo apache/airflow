@@ -128,8 +128,23 @@ class TestS3ToAzureBlobStorageOperator:
         [
             # s3_existing files, wasb_existing_files, returned_files, s3_prefix, wasb_prefix, replace
             (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from above
-            (MOCK_FILES, MOCK_FILES[1:], [MOCK_FILES[0]], PREFIX, PREFIX, False),  # Task 2 from above
-            (MOCK_FILES, MOCK_FILES[1:], MOCK_FILES, PREFIX, PREFIX, True),  # Task 3 from above
+            # The listing returns full blob names, prefixed with blob_prefix
+            (
+                MOCK_FILES,
+                [f"{PREFIX}/{file_name}" for file_name in MOCK_FILES[1:]],
+                [MOCK_FILES[0]],
+                PREFIX,
+                PREFIX,
+                False,
+            ),  # Task 2 from above
+            (
+                MOCK_FILES,
+                [f"{PREFIX}/{file_name}" for file_name in MOCK_FILES[1:]],
+                MOCK_FILES,
+                PREFIX,
+                PREFIX,
+                True,
+            ),  # Task 3 from above
         ],
     )
     def test_get_files_to_move__both_prefix(
@@ -193,7 +208,7 @@ class TestS3ToAzureBlobStorageOperator:
         [
             # wasb_existing_files, returned_files
             ([], ["TEST1.csv"]),  # Task 8 from above
-            (["TEST1.csv"], []),  # Task 9 from above
+            ([f"{PREFIX}/TEST1.csv"], []),  # Task 9 from above
         ],
     )
     def test_get_files_to_move__s3_key_wasb_prefix(self, wasb_mock_hook, wasb_existing_files, returned_files):
@@ -209,6 +224,54 @@ class TestS3ToAzureBlobStorageOperator:
         )
         uploaded_files = operator.get_files_to_move()
         assert sorted(uploaded_files) == sorted(returned_files)
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    @pytest.mark.parametrize(
+        ("wasb_existing_files", "returned_files"),
+        [
+            ([], ["a.txt", "b.txt"]),
+            (["out/a.txt"], ["b.txt"]),
+            # A string prefix also lists blobs such as output/, which are not under out/
+            (["output/a.txt"], ["a.txt", "b.txt"]),
+        ],
+    )
+    def test_get_files_to_move__existing_blobs_under_blob_prefix(
+        self, wasb_mock_hook, s3_mock_hook, wasb_existing_files, returned_files
+    ):
+        s3_mock_hook.return_value.list_keys.return_value = ["pre/a.txt", "pre/b.txt"]
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = wasb_existing_files
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix="pre",
+            container_name=CONTAINER_NAME,
+            blob_prefix="out",
+        )
+
+        assert sorted(operator.get_files_to_move()) == sorted(returned_files)
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    @mock.patch("tempfile.NamedTemporaryFile")
+    def test__execute__existing_blob_under_blob_prefix_is_not_uploaded(
+        self, tempfile_mock, wasb_mock_hook, s3_mock_hook
+    ):
+        s3_mock_hook.return_value.list_keys.return_value = ["pre/a.txt"]
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = ["out/a.txt"]
+        tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix="pre",
+            container_name=CONTAINER_NAME,
+            blob_prefix="out",
+        )
+
+        assert operator.execute(None) == []
+        wasb_mock_hook.return_value.load_file.assert_not_called()
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
