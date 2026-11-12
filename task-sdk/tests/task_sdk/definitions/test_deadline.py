@@ -109,39 +109,55 @@ class TestDeadlineAlert:
 
         assert (base_alert == test_alert) == should_equal
 
-    def test_deadline_alert_hash(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            TEST_CALLBACK_KWARGS,
+            {"recipients": ["alice@example.com", "bob@example.com"]},
+            {"config": {"timeout": 30}},
+        ],
+        ids=["flat", "list", "nested_dict"],
+    )
+    def test_deadline_alert_hash(self, kwargs):
         std_interval = timedelta(hours=1)
         std_callback = TEST_CALLBACK_PATH
-        std_kwargs = TEST_CALLBACK_KWARGS
 
         alert1 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
+            callback=AsyncCallback(std_callback, kwargs=kwargs),
         )
         alert2 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
+            callback=AsyncCallback(std_callback, kwargs=kwargs),
         )
 
         assert hash(alert1) == hash(alert1)
         assert hash(alert1) == hash(alert2)
 
-    def test_deadline_alert_in_set(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            TEST_CALLBACK_KWARGS,
+            {"recipients": ["alice@example.com", "bob@example.com"]},
+            {"config": {"timeout": 30}},
+        ],
+        ids=["flat", "list", "nested_dict"],
+    )
+    def test_deadline_alert_in_set(self, kwargs):
         std_interval = timedelta(hours=1)
         std_callback = TEST_CALLBACK_PATH
-        std_kwargs = TEST_CALLBACK_KWARGS
 
         alert1 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
+            callback=AsyncCallback(std_callback, kwargs=kwargs),
         )
         alert2 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
+            callback=AsyncCallback(std_callback, kwargs=kwargs),
         )
 
         alert_set = {alert1, alert2}
