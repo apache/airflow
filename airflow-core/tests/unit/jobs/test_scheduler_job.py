@@ -7153,6 +7153,87 @@ class TestSchedulerJob:
         )
         assert mock_set_exceeds_max_active_runs.call_count == expected
 
+    @pytest.mark.backend("postgres", "mysql")
+    def test_set_exceeds_max_active_runs_does_not_wait_on_dag_row_locked_elsewhere(
+        self, session: Session, dag_maker
+    ):
+        with dag_maker(dag_id="dag-row-locked-elsewhere", max_active_runs=1, session=session):
+            EmptyOperator(task_id="dummy")
+        dag_id = dag_maker.dag_model.dag_id
+        session.commit()
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+
+        def set_flag():
+            with create_session(scoped=False) as other:
+                dag_model = other.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
+                runner._set_exceeds_max_active_runs(
+                    dag_model=dag_model, active_non_backfill_runs=1, session=other
+                )
+
+        with ThreadPoolExecutor(max_workers=1) as pool, create_session(scoped=False) as locker:
+            # Hold the row the way the Dag processor does while it parses the Dag's file.
+            locker.scalars(
+                select(DagModel).where(DagModel.dag_id == dag_id).with_for_update(key_share=True)
+            ).all()
+            future = pool.submit(set_flag)
+            try:
+                future.result(timeout=10)
+            finally:
+                locker.rollback()
+
+        flag = session.scalar(select(DagModel.exceeds_max_non_backfill).where(DagModel.dag_id == dag_id))
+        assert flag is False
+        assert runner._dags_pending_max_active_runs_refresh == {dag_id}
+
+    @pytest.mark.parametrize(
+        ("active_runs", "expected_flag"),
+        [pytest.param(1, True, id="at-max-active-runs"), pytest.param(0, False, id="below-max-active-runs")],
+    )
+    def test_refresh_pending_exceeds_max_active_runs(self, session, dag_maker, active_runs, expected_flag):
+        with dag_maker(dag_id="pending-refresh", max_active_runs=1, session=session):
+            EmptyOperator(task_id="dummy")
+        dag_model = dag_maker.dag_model
+        dag_model.exceeds_max_non_backfill = not expected_flag
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._dags_pending_max_active_runs_refresh = {dag_model.dag_id, "deleted-dag"}
+
+        with mock.patch.object(
+            DagRun, "active_runs_of_dags", autospec=True, return_value={dag_model.dag_id: active_runs}
+        ):
+            self.job_runner._refresh_pending_exceeds_max_active_runs(session=session)
+
+        assert dag_model.exceeds_max_non_backfill is expected_flag
+        assert self.job_runner._dags_pending_max_active_runs_refresh == set()
+
+    def test_set_exceeds_max_active_runs_unchanged_clears_pending(self, session, dag_maker):
+        with dag_maker(dag_id="unchanged-flag", max_active_runs=1, session=session):
+            EmptyOperator(task_id="dummy")
+        dag_model = dag_maker.dag_model
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._dags_pending_max_active_runs_refresh = {dag_model.dag_id}
+
+        self.job_runner._set_exceeds_max_active_runs(
+            dag_model=dag_model, active_non_backfill_runs=0, session=session
+        )
+
+        assert dag_model.exceeds_max_non_backfill is False
+        assert self.job_runner._dags_pending_max_active_runs_refresh == set()
+
+    @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_dags", autospec=True)
+    @mock.patch.object(SchedulerJobRunner, "_refresh_pending_exceeds_max_active_runs", autospec=True)
+    def test_do_scheduling_refreshes_pending_flags_before_creating_dag_runs(
+        self, mock_refresh, mock_create_dagruns, session
+    ):
+        calls = mock.Mock()
+        calls.attach_mock(mock_refresh, "refresh")
+        calls.attach_mock(mock_create_dagruns, "create")
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        self.job_runner._do_scheduling(session)
+
+        assert [c[0] for c in calls.mock_calls[:2]] == ["refresh", "create"]
+
     def test_create_dag_runs(self, dag_maker):
         """
         Test various invariants of _create_dag_runs.
