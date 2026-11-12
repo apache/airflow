@@ -39,8 +39,8 @@ from pydantic_ai.usage import RunUsage
 from airflow.providers.common.ai.durable.capability import (
     DURABLE_UNIT_TOOLSETS,
     AirflowDurability,
-    chosen_toolset_id,
-    give_durable_ids,
+    _get_chosen_toolset_id,
+    _give_durable_ids,
 )
 from airflow.providers.common.ai.durable.journal import DurableJournal, build_task_storage, journal_scope
 from airflow.providers.common.ai.exceptions import (
@@ -116,7 +116,7 @@ if TYPE_CHECKING:
     from pydantic_ai.usage import UsageLimits
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
-    from airflow.providers.common.ai.durable.capability import GivenIds
+    from airflow.providers.common.ai.durable.capability import _GivenIds
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -648,15 +648,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         pydantic-ai names the durable steps of a ``FunctionToolset``, ``MCPToolset`` or
         ``DynamicToolset`` after the toolset's ``id``, and refuses to run one without it. The
         toolsets ``_build_agent`` hands the agent are given ids here as it gives them
-        (``give_durable_ids``), and a leaf still without one is refused: an ``MCPToolset``, whose
+        (``_give_durable_ids``), and a leaf still without one is refused: an ``MCPToolset``, whose
         server URL or command can carry credentials, or a function without a qualified name.
         Checked here so the Dag fails to load rather than at the first run.
         """
-        given: GivenIds = {}
+        given: _GivenIds = {}
         leaves = [
             leaf
             for toolset in self._running_toolsets()
-            for leaf in iter_toolsets(give_durable_ids(toolset, given))
+            for leaf in iter_toolsets(_give_durable_ids(toolset, given))
             if isinstance(leaf, DURABLE_UNIT_TOOLSETS)
         ]
         # One instance listed twice is one toolset to pydantic-ai; two instances sharing an id
@@ -665,7 +665,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         first_by_id: dict[str, AbstractToolset[Any]] = {}
         duplicates: list[str] = []
         for leaf in leaves:
-            if (toolset_id := chosen_toolset_id(leaf)) is None and isinstance(leaf, DynamicToolset):
+            if (toolset_id := _get_chosen_toolset_id(leaf)) is None and isinstance(leaf, DynamicToolset):
                 raise ValueError(
                     "durable=True names the steps of a toolset built per run after the function that "
                     f"builds it, but {leaf.toolset_func!r} has no __qualname__. Pass it as "
@@ -836,10 +836,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # masked here as well because toolset wrappers a capability adds (get_wrapper_toolset,
         # as ToolLoggingCapability does) run below the capability hooks and would otherwise see
         # the unmasked result. The durable journal masks what it records on its own.
-        given_ids: GivenIds = {}
+        given_ids: _GivenIds = {}
 
         def prepare(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:
-            return ensure_masked(give_durable_ids(toolset, given_ids) if self.durable else toolset)
+            return ensure_masked(_give_durable_ids(toolset, given_ids) if self.durable else toolset)
 
         if self.toolsets:
             toolsets: list[AbstractToolset] = [prepare(ts) for ts in self.toolsets]

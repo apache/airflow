@@ -53,10 +53,10 @@ from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.base import RUNS_KEY
 from airflow.providers.common.ai.durable.capability import (
-    GivenIds,
+    _get_callable_toolset_id,
+    _give_durable_ids,
+    _GivenIds,
     _JournalCodec,
-    get_callable_toolset_id,
-    give_durable_ids,
 )
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
 from airflow.providers.common.ai.exceptions import DurableJournalError
@@ -1115,7 +1115,7 @@ class _ToolsBuilder:
 
 
 class TestToolsetIds:
-    """Toolsets without an ``id`` replay under the ids ``give_durable_ids`` gives them, as in AgentOperator."""
+    """Toolsets without an ``id`` replay under the ids ``_give_durable_ids`` gives them, as in AgentOperator."""
 
     @staticmethod
     def tool_step_names(storage) -> list[str]:
@@ -1146,7 +1146,7 @@ class TestToolsetIds:
             return Agent(
                 FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
                 name="analyst",
-                toolsets=[give_durable_ids(toolset, {})],
+                toolsets=[_give_durable_ids(toolset, {})],
                 capabilities=[AirflowDurability()],
             )
 
@@ -1177,7 +1177,7 @@ class TestToolsetIds:
             agent = Agent(
                 FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
                 name="analyst",
-                toolsets=[give_durable_ids(_query_tools(calls, *tools), {})],
+                toolsets=[_give_durable_ids(_query_tools(calls, *tools), {})],
                 capabilities=[AirflowDurability()],
             )
             with pytest.raises(RuntimeError, match="worker died"):
@@ -1195,7 +1195,7 @@ class TestToolsetIds:
         agent = Agent(
             FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
             name="analyst",
-            toolsets=[give_durable_ids(toolset, {})],
+            toolsets=[_give_durable_ids(toolset, {})],
             capabilities=[AirflowDurability()],
         )
 
@@ -1206,27 +1206,27 @@ class TestToolsetIds:
 
     def test_gives_ids_to_copies_and_one_copy_to_a_toolset_listed_twice(self):
         """
-        ``give_durable_ids`` writes ``FunctionToolset``'s private ``_id``, which only its constructor sets.
+        ``_give_durable_ids`` writes ``FunctionToolset``'s private ``_id``, which only its constructor sets.
 
         This test and the replay tests above fail if pydantic-ai stops reading the id from there.
         """
         shared = FunctionToolset()
-        given: GivenIds = {}
+        given: _GivenIds = {}
 
-        prefixed = give_durable_ids(shared.prefixed("a"), given)
-        plain = give_durable_ids(shared, given)
+        prefixed = _give_durable_ids(shared.prefixed("a"), given)
+        plain = _give_durable_ids(shared, given)
 
         assert isinstance(prefixed, WrapperToolset)
         assert prefixed.wrapped is plain
-        assert plain.id == "<airflow-function_toolset-0>"
+        assert plain.id == "__airflow_function_toolset_0"
         assert shared.id is None
 
     def test_numbers_the_function_toolsets_it_gives_ids_in_order(self):
-        given: GivenIds = {}
+        given: _GivenIds = {}
 
-        ids = [give_durable_ids(FunctionToolset(), given).id for _ in range(2)]
+        ids = [_give_durable_ids(FunctionToolset(), given).id for _ in range(2)]
 
-        assert ids == ["<airflow-function_toolset-0>", "<airflow-function_toolset-1>"]
+        assert ids == ["__airflow_function_toolset_0", "__airflow_function_toolset_1"]
 
     @pytest.mark.parametrize(
         "toolset",
@@ -1237,10 +1237,10 @@ class TestToolsetIds:
         ],
     )
     def test_leaves_a_toolset_it_cannot_or_need_not_give_an_id_as_it_is(self, toolset):
-        assert give_durable_ids(toolset, {}) is toolset
+        assert _give_durable_ids(toolset, {}) is toolset
 
     def test_a_dynamic_toolset_without_an_id_gets_its_functions_name(self):
-        given = give_durable_ids(DynamicToolset(_build_tools, per_run_step=False), {})
+        given = _give_durable_ids(DynamicToolset(_build_tools, per_run_step=False), {})
 
         assert isinstance(given, DynamicToolset)
         assert (given.id, given.per_run_step) == (f"{__name__}._build_tools", False)
@@ -1253,7 +1253,7 @@ class TestGetCallableToolsetId:
 
         build_tools.__module__ = f"unusual_prefix_{'0123456789abcdef' * 2}01234567_orders_dag"
 
-        assert get_callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
+        assert _get_callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
 
     @pytest.mark.parametrize(
         "function",
@@ -1263,7 +1263,7 @@ class TestGetCallableToolsetId:
         ],
     )
     def test_none_for_a_callable_without_a_qualified_name(self, function):
-        assert get_callable_toolset_id(function) is None
+        assert _get_callable_toolset_id(function) is None
 
 
 class Answer(BaseModel):

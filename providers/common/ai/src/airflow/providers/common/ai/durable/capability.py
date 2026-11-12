@@ -105,7 +105,7 @@ else:
 _DAG_MODULE_PREFIX = re.compile(r"^unusual_prefix_[0-9a-f]{40}_")
 
 
-def get_callable_toolset_id(function: object) -> str | None:
+def _get_callable_toolset_id(function: object) -> str | None:
     """
     Return the id of a toolset that ``function`` builds per run: its module and qualified name.
 
@@ -120,7 +120,7 @@ def get_callable_toolset_id(function: object) -> str | None:
     return f"{_DAG_MODULE_PREFIX.sub('', module)}.{qualname}"
 
 
-def chosen_toolset_id(leaf: AbstractToolset[Any]) -> str | None:
+def _get_chosen_toolset_id(leaf: AbstractToolset[Any]) -> str | None:
     """
     Return the id pydantic-ai names a leaf toolset's durable steps after, or ``None`` when it has none.
 
@@ -131,24 +131,24 @@ def chosen_toolset_id(leaf: AbstractToolset[Any]) -> str | None:
     return getattr(leaf, "_explicit_id", leaf.id)
 
 
-# The id ``give_durable_ids`` gives the n-th ``FunctionToolset`` without one. The same agent gets the
-# same ids on every attempt, so its requests to the model match the recorded ones. Angle brackets
-# mark an id the framework chose, as in pydantic-ai's own ``<agent>``; there is no colon, which
-# pydantic-ai rejects in a toolset id because it builds instruction ids from it.
-_ASSIGNED_ID_PREFIX = "<airflow-function_toolset-"
+# The id ``_give_durable_ids`` gives the n-th ``FunctionToolset`` without one. The same agent gets the
+# same ids on every attempt, so its requests to the model match the recorded ones. The dunder prefix
+# keeps it apart from ids people choose. pydantic-ai keeps ids in angle brackets for roles it fills
+# itself (``<agent>``), and rejects a colon in a toolset id because it builds instruction ids from it.
+_ASSIGNED_ID_PREFIX = "__airflow_function_toolset_"
 
 
 def _assigned_toolset_id(number: int) -> str:
-    return f"{_ASSIGNED_ID_PREFIX}{number}>"
+    return f"{_ASSIGNED_ID_PREFIX}{number}"
 
 
-# Each leaf ``give_durable_ids`` copied, keyed by ``id()``, with its copy. The leaf is kept so
+# Each leaf ``_give_durable_ids`` copied, keyed by ``id()``, with its copy. The leaf is kept so
 # that its ``id()`` cannot be reused by another object while the map is in use.
-GivenIds: TypeAlias = "dict[int, tuple[AbstractToolset[Any], AbstractToolset[Any]]]"
+_GivenIds: TypeAlias = "dict[int, tuple[AbstractToolset[Any], AbstractToolset[Any]]]"
 
 
-def give_durable_ids(
-    toolset: AbstractToolset[Any] | ToolsetFunc[Any], given: GivenIds
+def _give_durable_ids(
+    toolset: AbstractToolset[Any] | ToolsetFunc[Any], given: _GivenIds
 ) -> AbstractToolset[Any]:
     """
     Return ``toolset`` with an id on each leaf pydantic-ai runs as durable steps, where one can be given.
@@ -157,12 +157,12 @@ def give_durable_ids(
     it has an id. An id-less ``FunctionToolset`` gets one numbered in the order the toolsets
     are given, which its step names leave out (a function tool's step is named after the
     tool); a function that builds a toolset per run, or an id-less ``DynamicToolset``, gets
-    :func:`get_callable_toolset_id`. A leaf that already has an id, and an ``MCPToolset``, are
+    ``_get_callable_toolset_id``. A leaf that already has an id, and an ``MCPToolset``, are
     left as they are. Leaves are copied, not changed, and ``given`` maps each leaf to its
     copy so a toolset listed twice stays one toolset to pydantic-ai.
     """
     if not isinstance(toolset, AbstractToolset):
-        return DynamicToolset(toolset, id=get_callable_toolset_id(toolset))
+        return DynamicToolset(toolset, id=_get_callable_toolset_id(toolset))
     if not any(_lacks_id(leaf) for leaf in iter_toolsets(toolset)):
         # Rebuilding wrappers via visit_and_replace breaks wrapper subclasses with their own __init__.
         return toolset
@@ -176,7 +176,7 @@ def give_durable_ids(
                 copied = DynamicToolset(
                     leaf.toolset_func,
                     per_run_step=leaf.per_run_step,
-                    id=get_callable_toolset_id(leaf.toolset_func),
+                    id=_get_callable_toolset_id(leaf.toolset_func),
                 )
             else:
                 numbered = sum(isinstance(other, FunctionToolset) for _, other in given.values())
