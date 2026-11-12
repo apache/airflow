@@ -103,6 +103,18 @@ def delete_job(job_name: str):
     client.delete_job(Name=job_name)
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def print_and_delete_job_logs(job_name: str):
+    """Copy the job logs into this task's log, then delete their CloudWatch log group."""
+    # DataBrew names the log group after the job and does not delete it with the job.
+    log_group_name = f"/aws-glue-databrew/jobs-{job_name}"
+    logs_client = boto3.client("logs")
+    for page in logs_client.get_paginator("filter_log_events").paginate(logGroupName=log_group_name):
+        for event in page["events"]:
+            print(event["message"])
+    logs_client.delete_log_group(logGroupName=log_group_name)
+
+
 with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
@@ -165,6 +177,7 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
         delete_dataset(dataset_name),
         delete_bucket,
         delete_output_bucket,
+        print_and_delete_job_logs(job_name),
     )
 
     from tests_common.test_utils.watcher import watcher
