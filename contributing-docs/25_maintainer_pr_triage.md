@@ -107,7 +107,7 @@ alongside `pr-management-triage` is out of scope here.
 ## Stage 1: invoking the `pr-management-triage` skill
 
 The skill is provided by the [`apache/magpie`](https://github.com/apache/magpie) framework,
-installed from its plugin marketplace (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-magpie) for the install commands). Nothing is
+installed from its plugin marketplace (see [Agent-assisted contribution](33_agent_assisted_contribution.md) for the install commands). Nothing is
 committed to this repo, so the install is per-developer and one-off; afterwards Claude Code
 exposes the skill as `magpie-pr-management:pr-management-triage`. Its entry point is
 [`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md); the rest of the directory breaks

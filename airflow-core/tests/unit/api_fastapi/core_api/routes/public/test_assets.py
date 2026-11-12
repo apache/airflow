@@ -50,11 +50,14 @@ from airflow.models.asset import (
 from airflow.models.base import ID_LEN
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset
+from airflow.sdk import Asset, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
@@ -1200,6 +1203,49 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200, response.text
         assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == [None]
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_reports_the_source_task_instance_region(self, test_client, dag_maker, session):
+        """An event emitted inside a task loop carries the region the UI needs to link to its iteration."""
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="produce")
+
+        with dag_maker("loop_producer", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        source = TaskInstance(
+            task=dag_maker.dag.get_task("body.produce"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=2,
+        )
+        session.add(source)
+        session.flush()
+        (asset,) = _create_assets(session, num=1)
+        session.add(
+            AssetEvent(
+                asset_id=asset.id,
+                source_dag_id=run.dag_id,
+                source_run_id=run.run_id,
+                source_task_id="body.produce",
+                source_map_index=-1,
+                source_task_instance_id=source.id,
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200, response.text
+        (event,) = response.json()["asset_events"]
+        assert event["source_task_instance_id"] == str(source.id)
+        assert event["source_region_id"] == str(region.id)
+        assert event["source_region_index"] == 2
+
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
         self.create_assets_events(session=session)
@@ -1230,6 +1276,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1259,6 +1307,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1479,6 +1529,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1508,6 +1560,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -2673,6 +2727,8 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "source_task_instance_id": None,
+            "source_region_id": None,
+            "source_region_index": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2773,6 +2829,8 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "source_task_instance_id": None,
+            "source_region_id": None,
+            "source_region_index": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2825,6 +2883,7 @@ class TestPostAssetEventsTeamResolution(TestAssets):
             extra={"from_rest_api": True},
             source_map_index=-1,
             source_task_instance_id=None,
+            source_task_instance=None,
             timestamp=DEFAULT_DATE,
             source_task_id=None,
             source_dag_id=None,
