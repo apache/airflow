@@ -125,9 +125,12 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
 
         validate_prompt(self.prompt, decorator_name="@task.agent")
 
-        # Rendering a template can read a Variable or a Connection with a blocking call to
-        # the supervisor, which must not happen on the event loop.
-        await asyncio.to_thread(self.render_template_fields, context)
+        # As in execute(): render only the prompt the callable returned, with the arguments of
+        # the call available by name. In a worker thread, since a template can read a Variable
+        # or a Connection with a blocking call to the supervisor, which must not happen on the
+        # event loop.
+        context_merge(context, call_arguments(self.python_callable, self.op_args, self.op_kwargs))
+        self.prompt = await asyncio.to_thread(self.render_template, self.prompt, context)
         return await AgentOperator.aexecute(self, context)
 
 

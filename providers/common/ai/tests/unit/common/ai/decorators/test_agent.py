@@ -320,7 +320,7 @@ class TestAgentDecoratedOperatorAsync:
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    async def test_template_fields_are_rendered_off_the_event_loop(self, mock_hook_cls, make_mock_run_result):
+    async def test_the_prompt_is_rendered_off_the_event_loop(self, mock_hook_cls, make_mock_run_result):
         """Rendering can read a Variable or a Connection with a blocking call to the supervisor."""
         _make_async_mock_agent(mock_hook_cls, make_mock_run_result)
         rendered_on: list[int] = []
@@ -328,13 +328,55 @@ class TestAgentDecoratedOperatorAsync:
         op = _AgentDecoratedOperator(task_id="test", python_callable=_async_prompt, llm_conn_id="my_llm")
         with patch.object(
             _AgentDecoratedOperator,
-            "render_template_fields",
-            side_effect=lambda context: rendered_on.append(threading.get_ident()),
+            "render_template",
+            autospec=True,
+            side_effect=lambda self, content, context: rendered_on.append(threading.get_ident()) or content,
         ):
             await op.aexecute(_make_async_context())
 
         assert rendered_on
         assert rendered_on[0] != threading.get_ident()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.aexecute", autospec=True)
+    async def test_aexecute_renders_only_the_returned_prompt(self, mock_aexecute):
+        """Fields rendered before aexecute() are not rendered again; only the returned value is."""
+
+        async def prompt():
+            return "Summarize {{ topic }}"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=prompt,
+            llm_conn_id="my_llm",
+            system_prompt="{{ note }}",
+            toolsets=[SQLToolset(db_conn_id="{{ note }}")],
+        )
+        context = {"topic": "logs", "note": "{{ other }}", "other": "rendered twice"}
+
+        op.render_template_fields(context)
+        await op.aexecute(context)
+
+        assert op.prompt == "Summarize logs"
+        assert op.system_prompt == "{{ other }}"
+        assert op.toolsets[0].id == "sql-{{ other }}"
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.aexecute", autospec=True)
+    async def test_the_returned_prompt_can_name_a_positional_argument(self, mock_aexecute):
+        async def analyze(question: str, audience: str = "analysts"):
+            return "Answer for {{ audience }}: {{ question }}"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=analyze,
+            op_args=["Who is our top customer?"],
+            op_kwargs={"audience": "sales"},
+            llm_conn_id="my_llm",
+        )
+        await op.aexecute(_make_async_context())
+
+        assert op.prompt == "Answer for sales: Who is our top customer?"
 
     @pytest.mark.parametrize("feature", ["durable", "enable_hitl_review"])
     def test_async_callable_rejects_features_that_block_the_event_loop(self, feature):
