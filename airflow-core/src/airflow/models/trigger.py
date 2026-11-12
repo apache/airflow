@@ -954,14 +954,13 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     def _push_xcoms_if_necessary() -> None:
         """Pushes XComs to the database if they are provided."""
         from airflow.models.xcom import XComModel
-        from airflow.sdk.serde import serialize
 
         if event.xcoms and callback_type != TaskInstanceState.UP_FOR_RETRY:
             for key, value in event.xcoms.items():
                 XComModel.set_for_attempt(
                     task_instance_id=task_instance.id,
                     key=key,
-                    value=serialize(value),
+                    value=value,
                     serialize=False,
                     session=session,
                 )
