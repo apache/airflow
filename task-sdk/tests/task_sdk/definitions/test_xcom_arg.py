@@ -495,6 +495,50 @@ def test_xcom_concat_dict(run_ti, mock_supervisor_comms):
     assert all_results == [("a", 1), ("b", 2), "x", "y"]
 
 
+def test_xcom_concat_dict_after_sequence(run_ti, mock_supervisor_comms):
+    from airflow.sdk.definitions.xcom_arg import _ConcatResult
+
+    all_results = None
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_letters():
+            return ["x", "y"]
+
+        @dag.task
+        def push_dict():
+            return {"a": 1, "b": 2}
+
+        @dag.task
+        def pull_all(value):
+            assert isinstance(value, _ConcatResult)
+            assert value[0] == "x"
+            assert value[1] == "y"
+            assert value[2] == ("a", 1)
+            assert value[3] == ("b", 2)
+            assert value[-1] == ("b", 2)
+            assert value[-3] == "y"
+            nonlocal all_results
+            all_results = list(value)
+
+        pull_all(push_letters().concat(push_dict()))
+
+    def xcom_get(msg):
+        if not isinstance(msg, GetXCom):
+            return mock.DEFAULT
+        if msg.task_id == "push_letters":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=["x", "y"])
+        if msg.task_id == "push_dict":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value={"a": 1, "b": 2})
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = xcom_get
+
+    assert run_ti(dag, "pull_all", -1) == TaskInstanceState.SUCCESS
+    assert all_results == ["x", "y", ("a", 1), ("b", 2)]
+
+
 class TestPlainXComArgResolveMappedGroup:
     """Resolving a task inside a mapped task group from a task outside that group.
 
