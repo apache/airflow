@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, status
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 from sqlalchemy import select
 
 from airflow import __version__ as airflow_version
@@ -53,9 +53,20 @@ worker_router = AirflowRouter(
 )
 
 
-def _version(version_str: str) -> tuple[int, int, int]:
+def _version(version_str: str | int | float | datetime) -> tuple[int, int, int]:
     """Convert a version string into a tuple of integers for comparison."""
-    version = Version(version_str)
+    if not isinstance(version_str, str):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Invalid version {version_str!r}: expected a string, got {type(version_str).__name__}",
+        )
+    try:
+        version = Version(version_str)
+    except InvalidVersion as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Invalid version string '{version_str}': {e}",
+        ) from e
     return version.major, version.minor, version.micro
 
 
@@ -63,14 +74,16 @@ def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> bool:
     """Check if the Edge Worker version matches the central API site."""
     versions_match = True
     if "airflow_version" in sysinfo:
-        airflow_on_worker: str = sysinfo["airflow_version"]  # type: ignore
+        airflow_on_worker = sysinfo["airflow_version"]
         if airflow_on_worker != airflow_version:
             versions_match = False
             minimum_acceptable_core_version_for_workers = conf.get(
                 "edge", "minimum_acceptable_core_version_for_workers", fallback=None
             )
-            if not minimum_acceptable_core_version_for_workers or _version(airflow_on_worker) < _version(
-                minimum_acceptable_core_version_for_workers
+            if (
+                not minimum_acceptable_core_version_for_workers
+                or _version(airflow_on_worker)
+                < Version(minimum_acceptable_core_version_for_workers).release[:3]
             ):
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,
@@ -83,14 +96,16 @@ def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> bool:
         )
 
     if "edge_provider_version" in sysinfo:
-        provider_on_worker: str = sysinfo["edge_provider_version"]  # type: ignore
+        provider_on_worker = sysinfo["edge_provider_version"]
         if provider_on_worker != edge_provider_version:
             versions_match = False
             minimum_acceptable_edge_version_for_workers = conf.get(
                 "edge", "minimum_acceptable_edge_version_for_workers", fallback=None
             )
-            if not minimum_acceptable_edge_version_for_workers or _version(provider_on_worker) < _version(
-                minimum_acceptable_edge_version_for_workers
+            if (
+                not minimum_acceptable_edge_version_for_workers
+                or _version(provider_on_worker)
+                < Version(minimum_acceptable_edge_version_for_workers).release[:3]
             ):
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,

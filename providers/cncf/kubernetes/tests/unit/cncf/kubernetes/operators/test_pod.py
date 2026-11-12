@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import json
+import logging
 import re
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
@@ -1063,7 +1064,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.24.3"
+        image = "private.repo/alpine:3.24.4"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -1080,7 +1081,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.3"
+        assert pod.spec.containers[1].image == "alpine:3.24.4"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -3685,7 +3686,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.3"
+        assert pod.spec.containers[1].image == "alpine:3.24.4"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
@@ -4640,4 +4641,45 @@ def test_read_pod_events(mock_log, mock_pod_manager):
         "Pod Event: %s - %s",
         mock_event_error.reason,
         mock_event_error.message,
+    )
+
+
+def _build_waiting_container_status(name: str, reason: str, message: str = "") -> k8s.V1ContainerStatus:
+    return k8s.V1ContainerStatus(
+        name=name,
+        image="alpine",
+        image_id="1",
+        ready=False,
+        restart_count=0,
+        state=k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting(reason=reason, message=message)),
+    )
+
+
+@patch(
+    "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.pod_manager",
+    spec=PodManager,
+)
+@patch(
+    "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.log",
+    spec=logging.Logger,
+)
+def test_read_pod_container_states_names_the_stuck_init_container(mock_log, mock_pod_manager):
+    mock_pod_manager.read_pod.return_value = k8s.V1Pod(
+        status=k8s.V1PodStatus(
+            phase=PodPhase.PENDING,
+            init_container_statuses=[
+                _build_waiting_container_status("init", "ImagePullBackOff", "Back-off pulling image")
+            ],
+            container_statuses=[_build_waiting_container_status("base", "PodInitializing")],
+        )
+    )
+
+    operator = KubernetesPodOperator(task_id="test-task")
+    operator._read_pod_container_states(k8s.V1Pod())
+
+    mock_log.warning.assert_any_call(
+        "Container '%s': state='WAITING', reason='%s', message='%s'",
+        "init",
+        "ImagePullBackOff",
+        "Back-off pulling image",
     )

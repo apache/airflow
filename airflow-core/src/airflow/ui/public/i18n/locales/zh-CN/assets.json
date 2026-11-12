@@ -49,6 +49,7 @@
   "events": "事件",
   "filters": {
     "groupPlaceholder": "搜索分组",
+    "hasEvents": "有事件",
     "lastEventDateRange": "最近事件日期"
   },
   "group": "分组",

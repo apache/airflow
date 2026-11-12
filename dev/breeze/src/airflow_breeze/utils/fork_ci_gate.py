@@ -52,7 +52,7 @@ LABEL_USE_FORK_CI = "use fork ci"
 LABEL_READY_FOR_REVIEW = "ready for maintainer review"
 LABEL_NEEDS_PROJECT_CI = "needs project ci"
 
-DEFAULT_CLOSE_AFTER_DAYS = 7
+DEFAULT_CLOSE_AFTER_DAYS = 30
 DEFAULT_ENABLED_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 
 # The release-prep / providers branches whose pushes run project CI in apache/airflow: the

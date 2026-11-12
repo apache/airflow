@@ -32,7 +32,7 @@ export DOCKER_BUILDKIT=1
 docker build . -f Dockerfile \
     --pull \
     --platform 'linux/amd64' \
-    --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev}" \
+    --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/apache/airflow/base/python:3.14.10-debian13-dev}" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack,odbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS=" \

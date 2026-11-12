@@ -96,6 +96,10 @@ How it works
   push it; like ``run_id`` and ``usage``, with ``enable_hitl_review`` it is the initial
   run's model, not a human-feedback regeneration's, since ``regenerate_with_feedback``
   doesn't re-push it.
+* **Skills.** An ``AgentSkillsToolset`` publishes the skills it offered the agent, where
+  each came from (a local path, or a repository, path and commit) and the skill tools the
+  agent called for each, under the namespaced key ``__AIRFLOW__COMMON_AI_SKILLS__``. See
+  :ref:`agent-skills-observability`.
 * **Scope.** The ``run_id`` / ``usage`` XComs and the model name come from
   ``AgentOperator`` and ``LLMOperator`` and its subclasses (and their decorator forms).
   Those operators also stamp the ``airflow.*`` identity attributes on their spans, and so
@@ -105,19 +109,20 @@ How it works
 
   **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
   task-instance page showing the resolved model name and the ``usage`` XCom above as a
-  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  readable table, including an estimated cost, and the skills XCom above as the list of
+  skills the agent was offered, with the ones it loaded first. It needs Airflow >= 3.4, since it relies on
   the ``applies_to`` operator scoping core added in that version to show up only for
   ``AgentOperator`` runs and runs of ``LLMOperator`` and its SQL / branch / file-analysis /
   schema-compare subclasses (and their decorator forms) -- the match is on the exact
   operator name, so a subclass of your own does not get the tab automatically. Like the
   span-level cost above, the tab's number is a best-effort ``genai-prices`` estimate, not
-  provider-reported billing. With a custom XCom backend that offloads large values to external storage (e.g. ``common.io`` with
-  ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
-  the real value, since the public XCom endpoint it calls never runs the backend's
-  ``deserialize_value``: the model name badge would show the reference string (e.g. an
-  ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
-  string rather than an object -- the tab treats a non-object ``usage`` as absent and
-  hides the stat boxes instead of rendering ``undefined`` in each one.
+  provider-reported billing. With a custom XCom backend that keeps large values in external
+  storage (e.g. ``common.io`` with ``xcom_objectstorage_threshold`` set low), the tab cannot
+  show those values: the public XCom endpoint it calls returns the reference the backend
+  stored in the database, since the API server never runs the backend's
+  ``deserialize_value``. The tab lists the model name, usage or skills kept that way with
+  their reference (e.g. an ``s3://...`` path) instead of rendering them. A model name that is
+  itself a URI, such as one vLLM serves from ``--model s3://...``, is listed that way too.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

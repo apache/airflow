@@ -20,6 +20,7 @@ package airflow
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"slices"
@@ -350,6 +351,20 @@ func checkTime(field string, t time.Time) error {
 		return fmt.Errorf(
 			"%s is %s in UTC; Airflow takes a time only from year 1 to year 9999",
 			field, t.UTC().Format(time.RFC3339Nano),
+		)
+	}
+	return nil
+}
+
+// checkPriorityWeight returns an error for a weight that the 32-bit priority_weight column of
+// task_instance cannot hold. Python's BaseOperator caps such a weight instead. A nil weight passes,
+// because it means that the field is unset.
+func checkPriorityWeight(weight *int) error {
+	if weight != nil && (*weight < math.MinInt32 || *weight > math.MaxInt32) {
+		return fmt.Errorf(
+			"airflow.TaskSpec.PriorityWeight is %d; Airflow takes a priority weight only "+
+				"from %d to %d",
+			*weight, math.MinInt32, math.MaxInt32,
 		)
 	}
 	return nil

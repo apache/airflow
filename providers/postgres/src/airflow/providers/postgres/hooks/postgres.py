@@ -22,6 +22,7 @@ import threading
 from collections.abc import Callable, Generator, Iterable, Mapping
 from contextlib import closing, contextmanager
 from copy import deepcopy
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, Protocol, TypeAlias, cast, overload
 
 from more_itertools import chunked
@@ -249,7 +250,7 @@ class PostgresHook(DbApiHook):
     def dialect_name(self) -> str:
         return "postgresql"
 
-    @property
+    @cached_property
     def dialect(self) -> Dialect:
         return PostgresDialect(self)
 

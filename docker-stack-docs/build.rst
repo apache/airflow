@@ -316,9 +316,9 @@ Naming conventions for the images:
 +----------------+--------------------------+---------------------------------+--------------------------------------+
 | Image          | Python                   | Standard image                  | Slim image                           |
 +================+==========================+=================================+======================================+
-| Latest default | 3.13                     | apache/airflow:latest           | apache/airflow:slim-latest           |
+| Latest default | 3.14                     | apache/airflow:latest           | apache/airflow:slim-latest           |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
-| Default        | 3.13                     | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
+| Default        | 3.14                     | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
 | Latest         | 3.11,3.12,3.13,3.14      | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
@@ -970,6 +970,18 @@ previous images that can matter when you extend or run the image are:
   is used. Pass a tag without a digest to build on the newest mirrored base instead. The mirror also copies
   the newest Python patch release Docker publishes, and the same upgrade moves the pinned patch level to it,
   so the images follow Docker's releases rather than python.org's.
+* **The OS dependencies come from pinned images too.** A digest pins the base image, but not ``dhi.io``'s apt
+  repository: it moves on - and drops the package versions it replaced - whenever Docker rebuilds its
+  images, so installing the OS dependencies from it can fail for a commit that built fine before. Airflow's
+  CI and release builds therefore start their OS dependencies - the database clients included - from
+  images in which ``install_os_dependencies.sh`` already ran, built daily on the mirrored base images and
+  pinned to a digest by the same upgrade, passed as ``DEV_OS_DEPS_IMAGE`` and ``RUNTIME_OS_DEPS_IMAGE``. The
+  script records what it installed with and does nothing when nothing differs, so a build with other apt
+  dependencies or database clients still installs them. A plain ``docker build`` leaves both at
+  ``BASE_IMAGE`` and installs everything as before.
+  The ``AIRFLOW_OS_DEPS_IMAGE`` environment variable of an image names the image its OS dependencies came
+  from, and ``/usr/share/airflow/os-dependencies.base-image`` the base image they were installed on - which
+  can be an older digest than ``BASE_IMAGE``.
 * **Packages come from Docker's apt repository first.** The image keeps stock Debian's apt sources beside
   ``dhi.io``, and ``/etc/apt/preferences.d/airflow-prefer-dhi`` ranks ``dhi.io`` higher, so apt installs
   Docker's build of a package whenever ``dhi.io`` publishes it and falls back to Debian's otherwise - also
