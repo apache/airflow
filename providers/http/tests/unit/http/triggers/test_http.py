@@ -28,6 +28,7 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.triggers.http import (
@@ -211,7 +212,56 @@ class TestHttpSensorTrigger:
             "data": TEST_DATA,
             "extra_options": TEST_EXTRA_OPTIONS,
             "poke_interval": 5.0,
+            "response_error_codes_allowlist": ("404",),
         }
+
+    def test_serialization_with_custom_allowlist(self):
+        trigger = HttpSensorTrigger(
+            http_conn_id=TEST_CONN_ID,
+            endpoint=TEST_ENDPOINT,
+            method=TEST_METHOD,
+            headers=TEST_HEADERS,
+            data=TEST_DATA,
+            extra_options=TEST_EXTRA_OPTIONS,
+            response_error_codes_allowlist=["404", "503"],
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.http.triggers.http.HttpSensorTrigger"
+        assert kwargs["response_error_codes_allowlist"] == ("404", "503")
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    @mock.patch("asyncio.sleep")
+    async def test_run_retries_on_allowlisted_error(self, mock_sleep, mock_hook):
+        async def fake_success(*args, **kwargs):
+            return None
+
+        mock_hook.return_value.run.side_effect = [
+            AirflowException("404 Not Found"),
+            fake_success(),
+        ]
+        trigger = HttpSensorTrigger(
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=("404",),
+            poke_interval=1.0,
+        )
+        generator = trigger.run()
+        event = await generator.asend(None)
+        assert event == TriggerEvent(True)
+        assert mock_hook.return_value.run.call_count == 2
+        mock_sleep.assert_awaited_once_with(1.0)
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_run_raises_on_non_allowlisted_error(self, mock_hook):
+        mock_hook.return_value.run.side_effect = AirflowException("500 Internal Server Error")
+        trigger = HttpSensorTrigger(
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=("404",),
+        )
+        generator = trigger.run()
+        with pytest.raises(AirflowException, match="500 Internal Server Error"):
+            await generator.asend(None)
 
 
 class TestHttpEventTrigger:
