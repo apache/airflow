@@ -244,18 +244,28 @@ it:
 ``list_keys`` and ``read_key`` and the bucket pinned. The same toolset works in
 ``AirflowTools(...)``.
 
-``.filtered()`` and ``.approval_required()``, which pydantic-ai toolsets offer, do not
-reach the SDK through ``AirflowTools``. They return wrappers that ``AirflowTools`` cannot
-read, and building it fails:
+To offer the model only some of a toolset's tools, wrap the toolset with ``.filtered()``
+before you pass it in. These tools are every ``SQLToolset`` tool except ``query``:
+
+.. code-block:: python
+
+    tools = AirflowTools(SQLToolset(db_conn_id="warehouse").filtered(lambda ctx, tool: tool.name != "query"))
+
+``.prefixed()`` and ``.renamed()`` carry over the same way, nested in any order. The filter
+runs once, when ``AirflowTools`` is built, with a placeholder run context whose ``deps``
+is ``None``, so a filter that reads an attribute of ``ctx.deps`` fails there. Whatever the
+filter decides holds for every run of an agent given these tools, where a Pydantic AI agent
+asks it again before each model turn.
+
+Any other wrapper fails with a ``TypeError`` that names it, such as for
+``.approval_required()``:
 
 .. code-block:: text
 
-    AttributeError: 'FilteredToolset' object has no attribute 'airflow_tools'
+    TypeError: AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the toolset without it and use the framework's own tool approval, such as needs_approval in the OpenAI Agents SDK, whose guide says how it behaves in a task, or run the agent with AgentOperator.
 
-Choose the tools with ``allowed_tables``, ``allowed_methods`` and ``pinned_arguments``
-instead. There is no per-call approval on this path; see
-:ref:`howto/frameworks:openai-agents-limits`. Each toolset's page covers the rest of its
-options: :ref:`howto/toolsets`.
+:ref:`howto/frameworks:openai-agents-approval` says what ``needs_approval`` does in a task.
+Each toolset's page covers the rest of its options: :ref:`howto/toolsets`.
 
 Tools
 -----
@@ -335,7 +345,7 @@ The SDK routes a call by tool name, so two toolsets that define the same name ra
 
 .. code-block:: text
 
-    ValueError: More than one tool is named check_query, get_schema, list_tables, query. Give the toolsets different tool_prefix values, where they take one, so the model can call each of them.
+    ValueError: More than one tool is named check_query, get_schema, list_tables, query. Give the toolsets different tool_prefix values, where they take one, or wrap them with .prefixed(), so the model can call each of them.
 
 .. _howto/frameworks:openai-agents-failures:
 
@@ -360,7 +370,8 @@ that has an ``arr`` column but no ``revenue`` column:
 
 A toolset's tool may fail this way once in a row by default; pass ``max_retries`` to the
 toolset to allow more. The count starts over after a call that succeeds and on every run
-of the agent. A tool still failing after that raises
+of the agent, except that a retry of a durable run counts the failures it replays as well
+(see :ref:`howto/frameworks:openai-agents-durable`). A tool still failing after that raises
 :class:`~airflow.providers.common.ai.tools.ToolCallError` out of ``Runner.run`` and
 ``Runner.run_sync``, so the task fails and Airflow's own retry takes over. Catch it as
 ``ToolCallError``; the traceback names a private subclass of it. For the same query sent
@@ -571,6 +582,9 @@ stands for building the agent as the task example does:
 
     publish(answer("Which customer has the highest ARR?"))
 
+A tool call that needs approval pauses the task until a person answers; see
+:ref:`howto/frameworks:openai-agents-approval`.
+
 What a retry replays
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -581,12 +595,25 @@ starting agent and of the agents in its ``handoffs`` list, and an agent used thr
 ``as_tool``, which replays as one call. Recorded tool results pass through Airflow's
 secret masker before they are saved, and a replayed model call reports no token usage.
 
+A failure the model could correct, which an ``AirflowTools`` tool answers with
+``{"error": ...}``, is recorded and replays like any other result, together with how many of
+the tool's corrections were used when it finished. The replay restores that count, so the
+retry limit spans the task's tries: a model that used one of two corrections before the
+crash has one left on the retry, not two. A run that used the limit up fails on the model's
+answers, so each retry asks the model once more, with the errors it already got in its
+history. The task log notes when a replay changes the count:
+
+.. code-block:: text
+
+    Tool query: an earlier attempt left 1 of its 2 correction(s) used
+
 From the first call that differs, that call and every call after it run live:
 
 - A retry whose prompt, instructions, model settings or tools differ from the failed
   try's runs everything live from the first call that sees the difference.
 - When the run failed because of the model's answers (``MaxTurnsExceeded``,
-  ``ModelBehaviorError``, ``ModelRefusalError``, or an output or tool input guardrail),
+  ``ModelBehaviorError``, ``ModelRefusalError``, an output or tool input guardrail, or an
+  ``AirflowTools`` tool that used up its retry limit),
   replaying those answers would fail it the same way, so the retry asks the model again
   from its last request.
 
@@ -615,6 +642,73 @@ A ``SandboxToolset`` without ``attach_to`` is destroyed when its ``with`` block 
 which a failed try also ends, so the retry starts with a new, empty sandbox that the
 replayed conversation does not describe.
 
+.. _howto/frameworks:openai-agents-approval:
+
+Have a person approve tool calls
+--------------------------------
+
+A refund, a deployment or an email to a customer shouldn't happen only because a model
+asked for it. Set ``needs_approval=True`` on the function tool and run the agent with
+``run_durably_sync``: each call to that tool waits in Required Actions until a person
+approves or rejects it. To have a person review the agent's answer rather than its tool
+calls, use ``AgentOperator(enable_hitl_review=True)``, or add the standard provider's
+``ApprovalOperator`` as the next task.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_approval.py
+    :language: python
+    :start-after: [START example_openai_agents_approval]
+    :end-before: [END example_openai_agents_approval]
+
+When the model asks to call ``issue_refund``, the task stops in the ``awaiting_input``
+state without holding a worker slot, and Required Actions shows a request titled
+``support wants to call issue_refund``. Its body names the agent and the tool, with the
+tool's description, and lists the call's arguments after Airflow's secret masker has
+masked them. The reviewer chooses **Approve** or **Reject**, and can fill in a reason.
+
+The answer resumes the task, which runs from the top again. ``run_durably_sync`` replays
+the calls it recorded before the pause instead of making them again (the calls in "What
+always runs live" above still run live), and then:
+
+- On **Approve**, the tool runs and the agent continues.
+- On **Reject**, the tool does not run, and the model gets the reviewer's reason as the
+  call's result, or the SDK's default rejection message when the reason is empty.
+
+Things to know:
+
+- Pausing needs Airflow 3.4 or later, a standard provider that has
+  :func:`~airflow.providers.standard.operators.hitl.request_input`, and a ``@task`` or
+  ``PythonOperator``. Elsewhere the task fails with ``UnsupportedToolDeferralError``
+  instead, without retrying.
+- Code in the task before ``run_durably_sync`` runs again every time the task resumes. So
+  does an earlier agent run in the same task, since what it recorded is deleted when it
+  finishes: run an agent whose tools need approval in a task of its own.
+- If a step before the paused call returns something different when the task resumes (a
+  tool that always runs live, a prompt built from live data, a Dag changed while the task
+  waited), the run never comes back to the call the reviewer answered. The task then fails
+  with ``DurableJournalError``, without retrying, rather than ask a question the reviewer
+  did not see. Clearing it then asks about the call the run stopped at instead, or, when
+  the run finished without stopping, replays that result.
+- When one answer from the model asks for several calls that need approval, they are asked
+  one at a time, in the order the model made them, and the agent continues once every one
+  is answered.
+- A retry asks again about calls that had not run. A call whose result was recorded ran
+  after it was approved, so the retry approves it without asking.
+- A function tool whose ``needs_approval`` is a function, and a tool of an MCP server in
+  ``mcp_servers`` whose ``require_approval`` applies, are not recorded (see "What always
+  runs live" above). Once approved, such a tool runs again every time the task resumes or
+  retries later in the run, so make it safe to repeat, or use ``needs_approval=True`` on a
+  function tool of your own.
+- The task fails with ``UnsupportedToolDeferralError`` instead of pausing when the run has
+  a ``session``, when the call is made by an agent used through ``as_tool`` or reached
+  through ``handoff()``, or when the approval is for a hosted MCP tool
+  (``HostedMCPTool``). After you remove the approval requirement, clearing the task with
+  its task state kept (``keep_task_state``, or clearing the whole Dag run) replays the turns
+  before that call and asks the model again from there, so a tool call made in that same
+  answer runs again if the model asks for it. A clear that discards the task state starts
+  the agent over.
+- Every pause carries the answers the task has received so far, so keep the approvals one
+  run asks for to a handful.
+
 .. _howto/frameworks:openai-agents-limits:
 
 Sessions, approvals and streaming
@@ -623,10 +717,9 @@ Sessions, approvals and streaming
 These SDK features interact with Airflow in ways the SDK documentation does not cover:
 
 - A ``session`` works, but under ``run_durably`` it makes every retry run live, as
-  above.
-- A tool's ``needs_approval`` is not connected to Airflow's approval UI. The run stops
-  at the first call that needs approval and returns with ``final_output`` set to
-  ``None`` and the pending call in ``result.interruptions``, and nothing in Airflow
-  resumes it. To have a person approve the agent's answer, add the standard
-  provider's ``ApprovalOperator`` as the next task.
+  above, and a run with a ``session`` cannot pause for approval.
+- ``Runner.run`` stops at the first tool call that needs approval and returns with
+  ``final_output`` set to ``None`` and the pending call in ``result.interruptions``, and
+  the task succeeds without an answer unless your code handles them. ``run_durably`` asks
+  a person instead; see :ref:`howto/frameworks:openai-agents-approval`.
 - A streamed run (``Runner.run_streamed``) is not recorded for durable retries.

@@ -59,6 +59,13 @@ from airflow.utils.sqlalchemy import UtcDateTime, build_upsert_stmt
 
 log = logging.getLogger(__name__)
 
+EXTERNAL_CLEAR_TARGET_XCOM_KEY = "_airflow_external_clear_target"
+"""
+Key the API server records a task's reported cross-Dag clear target under, from its success report.
+
+Neither the Execution API's nor the public API's XCom routes accept it.
+"""
+
 if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
