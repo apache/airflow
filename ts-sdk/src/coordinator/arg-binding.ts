@@ -143,8 +143,12 @@ function literalValue(value: unknown): JsonValue {
 /** Refuse a binding this SDK cannot honour, before any of them is resolved. */
 function checkBindable(binding: TaskArgBinding): void {
   const { name } = binding;
-  if (binding.kind === "xcom") return;
+  if (binding.kind === "xcom") {
+    checkUnmapped(binding);
+    return;
+  }
   if (binding.kind === "literal") {
+    checkUnmapped(binding);
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
     return;
   }
@@ -155,6 +159,31 @@ function checkBindable(binding: TaskArgBinding): void {
     `Task argument "${name}" has binding kind ${JSON.stringify(kind)}, which this version ` +
       "of @apache-airflow/ts-sdk cannot bind; upgrade it to match this Airflow release",
   );
+}
+
+/**
+ * Fields that resolve an argument per map index, which this SDK does not do yet.
+ * A literal never carries `map_index` or `element_index`, so one list serves both kinds.
+ */
+const UNSUPPORTED_FIELDS = [
+  "map_index",
+  "element_index",
+  "apply_map",
+  "kwarg",
+  "fallback",
+] as const;
+
+/** Refuse a binding carrying a field that ignoring would bind to the wrong value. */
+function checkUnmapped(binding: XComArgBinding | LiteralArgBinding): void {
+  const fields: Partial<Record<(typeof UNSUPPORTED_FIELDS)[number], unknown>> = binding;
+  for (const field of UNSUPPORTED_FIELDS) {
+    const value = fields[field];
+    if (value == null || value === false) continue;
+    throw new Error(
+      `Task argument "${binding.name}" has ${field} set to ${JSON.stringify(value)}, which this ` +
+        "version of @apache-airflow/ts-sdk cannot bind yet",
+    );
+  }
 }
 
 /** Pull the upstream task's output this argument was called with. */
