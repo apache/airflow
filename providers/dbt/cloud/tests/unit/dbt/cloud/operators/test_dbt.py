@@ -23,7 +23,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 import pytest
 
 from airflow.models import DAG, Connection
-from airflow.providers.common.compat.sdk import TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -1167,19 +1167,38 @@ class TestDbtCloudRunJobOperatorDurable:
         self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
         self._assert_run_xcoms(RUN_ID, DEFAULT_ACCOUNT_JOB_RUN_RESPONSE["data"]["href"])
 
-    @pytest.mark.parametrize(
-        ("stored_run_id", "expected_run_id"),
-        [(None, RUN_ID), (STORED_RUN_ID, STORED_RUN_ID)],
-        ids=["fresh", "reconnect"],
-    )
+    def test_stored_run_lookup_error_fails_without_triggering(self, mock_trigger, mock_wait, requests_mock):
+        self.task_store.get.return_value = STORED_RUN_ID
+        requests_mock.get(STORED_RUN_API_URL, status_code=500, reason="Internal Server Error")
+
+        with pytest.raises(AirflowException, match="^500:"):
+            self._operator().execute(self.context)
+
+        mock_trigger.assert_not_called()
+        self.task_store.set.assert_not_called()
+
     @patch.object(DbtCloudRunJobOperator, "defer", autospec=True)
     @patch.object(
         DbtCloudHook, "get_job_run_status", autospec=True, return_value=DbtCloudJobRunStatus.RUNNING.value
     )
-    def test_deferrable_defers_on_the_durable_run(
-        self, mock_status, mock_defer, mock_trigger, mock_wait, requests_mock, stored_run_id, expected_run_id
+    def test_deferrable_fresh_run_defers_and_persists_run_id(
+        self, mock_status, mock_defer, mock_trigger, mock_wait
     ):
-        self.task_store.get.return_value = stored_run_id
+        self._operator(deferrable=True).execute(self.context)
+
+        mock_trigger.assert_called_once()
+        mock_wait.assert_not_called()
+        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        assert mock_defer.call_args.kwargs["trigger"].run_id == RUN_ID
+
+    @patch.object(DbtCloudRunJobOperator, "defer", autospec=True)
+    @patch.object(
+        DbtCloudHook, "get_job_run_status", autospec=True, return_value=DbtCloudJobRunStatus.RUNNING.value
+    )
+    def test_deferrable_reconnect_defers_on_stored_run(
+        self, mock_status, mock_defer, mock_trigger, mock_wait, requests_mock
+    ):
+        self.task_store.get.return_value = STORED_RUN_ID
         requests_mock.get(
             STORED_RUN_API_URL,
             json={
@@ -1193,11 +1212,10 @@ class TestDbtCloudRunJobOperatorDurable:
 
         self._operator(deferrable=True).execute(self.context)
 
-        assert mock_trigger.called is (stored_run_id is None)
+        mock_trigger.assert_not_called()
         mock_wait.assert_not_called()
-        assert mock_defer.call_args.kwargs["trigger"].run_id == expected_run_id
-        if stored_run_id is None:
-            self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        self.task_store.set.assert_not_called()
+        assert mock_defer.call_args.kwargs["trigger"].run_id == STORED_RUN_ID
 
     def test_durable_false_never_touches_task_state_store(self, mock_trigger, mock_wait):
         assert self._operator(durable=False).execute(self.context) == RUN_ID
