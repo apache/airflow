@@ -80,7 +80,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_asset_alias,
     requires_access_dag,
 )
-from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
+from airflow.api_fastapi.core_api.services.public.assets import load_source_region, serialize_asset_events
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -97,6 +97,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.trigger import Trigger
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -323,7 +324,9 @@ def get_assets(
             *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
             subqueryload(AssetModel.aliases),
-            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            subqueryload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 
@@ -448,7 +451,7 @@ def get_asset_events(
     # The regexp partition-key filter bounds the query runtime automatically (its dependency applies
     # ``apply_regex_query_timeout`` to this request's session), so no explicit wrapping is needed here.
     base_statement = select(AssetEvent)
-    if name_pattern.value or name_prefix_pattern.value:
+    if name_pattern.value is not None or name_prefix_pattern.value is not None:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
     assets_event_select, total_entries = paginated_select(
@@ -476,7 +479,7 @@ def get_asset_events(
     )
 
     assets_event_select = assets_event_select.options(
-        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
+        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset), load_source_region()
     )
     # Materialize here (not lazily during response serialization) so the regexp query runs while the
     # dependency-applied timeout is still active.
@@ -707,7 +710,9 @@ def get_asset(
         .options(
             *eager_load_asset_reference_teams(),
             joinedload(AssetModel.consuming_tasks),
-            joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            joinedload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 

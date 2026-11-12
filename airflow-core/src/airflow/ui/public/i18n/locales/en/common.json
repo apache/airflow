@@ -118,6 +118,7 @@
     "home": "Home",
     "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
+    "reload": "Reload page",
     "title": "Error"
   },
   "errors": {
@@ -196,6 +197,7 @@
     },
     "save": "Save"
   },
+  "moreTabs": "More",
   "nav": {
     "admin": "Admin",
     "assets": "Assets",
@@ -438,6 +440,7 @@
   "switchDag": "Switch $t(dag_one)",
   "switchDagRun": "Switch $t(dagRun_one)",
   "switchMapIndex": "Switch $t(mapIndex)",
+  "switchTask": "Switch $t(task_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

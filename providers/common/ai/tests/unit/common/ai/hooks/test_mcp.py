@@ -44,6 +44,9 @@ class TestMCPHookInit:
         hook = MCPHook(mcp_conn_id="my_mcp")
         assert hook.mcp_conn_id == "my_mcp"
 
+    def test_tool_prefix_defaults_to_empty_string(self):
+        assert MCPHook(mcp_conn_id="my_mcp").tool_prefix == ""
+
     def test_tool_prefix(self):
         hook = MCPHook(mcp_conn_id="my_mcp", tool_prefix="weather")
         assert hook.tool_prefix == "weather"
@@ -98,6 +101,21 @@ class TestMCPHookGetConn:
             "http://localhost:3001/mcp",
             headers={"Authorization": "Bearer my-secret-token"},
         )
+
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
+    def test_empty_tool_prefix_does_not_wrap(self, mock_transport_cls, mock_toolset_cls):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            host="http://localhost:3001/mcp",
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            result = hook.get_conn()
+
+        mock_toolset_cls.return_value.prefixed.assert_not_called()
+        assert result is mock_toolset_cls.return_value
 
     @patch(_MCP_TOOLSET, autospec=True)
     @patch(_HTTP_TRANSPORT, autospec=True)

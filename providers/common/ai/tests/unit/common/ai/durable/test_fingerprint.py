@@ -200,10 +200,11 @@ class TestModelRequestFingerprint:
                 {"parameters_json_schema": {"type": "object", "properties": {"q": {"type": "string"}}}},
                 id="schema",
             ),
+            pytest.param({"metadata": {"scopes": ["read"]}}, id="metadata"),
         ],
     )
     def test_changes_with_tool_content_next_to_the_capability_id(self, tools_param, change):
-        """Only ``capability_id`` is dropped from a tool definition; what the model sees still counts."""
+        """Only ``capability_id`` and the ``airflow`` metadata key are dropped from a tool definition."""
         base = {"name": "t", "parameters_json_schema": {"type": "object"}, "capability_id": "lookup"}
         fp1 = fingerprint_model_request(
             "m", make_messages(), None, ModelRequestParameters(**{tools_param: [ToolDefinition(**base)]})
@@ -216,6 +217,21 @@ class TestModelRequestFingerprint:
         )
 
         assert fp1 != fp2
+
+    @pytest.mark.parametrize("tools_param", ["function_tools", "output_tools"])
+    @pytest.mark.parametrize(
+        "other_metadata", [None, {}, {"scopes": ["read"]}], ids=["no-metadata", "empty", "with-other-keys"]
+    )
+    def test_stable_across_the_replay_opt_out(self, tools_param, other_metadata):
+        """Whether a tool replays is not part of the request, so turning it on or off between attempts keeps the match."""
+
+        def fingerprint(metadata):
+            tool = ToolDefinition(name="t", parameters_json_schema={"type": "object"}, metadata=metadata)
+            return fingerprint_model_request(
+                "m", make_messages(), None, ModelRequestParameters(**{tools_param: [tool]})
+            )
+
+        assert fingerprint({**(other_metadata or {}), "airflow": False}) == fingerprint(other_metadata)
 
     def test_changes_with_revealed_tool_names(self):
         fp1 = fingerprint_model_request(

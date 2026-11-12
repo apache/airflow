@@ -30,17 +30,32 @@ test("a local skill reads as its path, with no link", () => {
   });
 });
 
-for (const [repoUrl, href] of [
-  ["https://github.com/org/skills.git", `https://github.com/org/skills/tree/${commit}/skills/alpha`],
-  ["git@github.com:org/skills.git", `https://github.com/org/skills/tree/${commit}/skills/alpha`],
-  ["ssh://git@gitlab.com/group/sub/skills", `https://gitlab.com/group/sub/skills/-/tree/${commit}/skills/alpha`],
+for (const [repoUrl, location] of [
+  ["https://github.com/org/skills.git", "github.com/org/skills"],
+  ["git@github.com:org/skills.git", "github.com/org/skills"],
+  ["ssh://gitlab.com/group/sub/skills", "gitlab.com/group/sub/skills"],
+  // The web UI is on the HTTPS port, not on the SSH one.
+  ["ssh://gitlab.com:2222/group/sub/skills.git", "gitlab.com/group/sub/skills"],
+  ["https://gitlab.corp.com:8443/team/skills.git/", "gitlab.corp.com:8443/team/skills"],
 ]) {
   test(`a Git skill from ${repoUrl} links the folder at the commit that ran`, () => {
+    const tree = location.includes("gitlab") ? "-/tree" : "tree";
+
     assert.deepEqual(describeSkillSource({ repo_url: repoUrl, path: "skills/alpha", branch: "main", commit }), {
-      location: repoUrl.includes("gitlab") ? "gitlab.com/group/sub/skills" : "github.com/org/skills",
+      location,
       path: "skills/alpha",
       commit: "0123456",
-      href,
+      href: `https://${location}/${tree}/${commit}/skills/alpha`,
+    });
+  });
+}
+
+for (const repoUrl of ["/srv/git/skills.git", "http://github.com/org/skills"]) {
+  test(`a remote the tab cannot read, ${repoUrl}, shows as given with no link`, () => {
+    assert.deepEqual(describeSkillSource({ repo_url: repoUrl, path: "skills/alpha", commit }), {
+      location: repoUrl,
+      path: "skills/alpha",
+      commit: "0123456",
     });
   });
 }

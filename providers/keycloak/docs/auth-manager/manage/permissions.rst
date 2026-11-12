@@ -120,7 +120,7 @@ You must assign the appropriate Keycloak roles (Admin/Op/User/Viewer or SuperAdm
 In multi-team mode, the ``Admin`` role is **team-scoped** (group + role). Only ``SuperAdmin`` grants global
 admin access across all teams.
 Views over records beyond the Dags a caller can read -- audit log entries not tied to a Dag,
-import errors for files with no registered Dag, reparsing such files, and Dag bundles -- are checked against the
+import errors for files with no registered Dag, reparsing such files, and Dag bundles (from Airflow 3.4.1) -- are checked against the
 ``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
 the ``View`` resource, which every team role can read.
 

@@ -505,6 +505,7 @@ def _configure_async_session() -> None:
         connect_args=_get_connect_args("async"),
         engine_args=engine_args,
     )
+    setup_event_handlers(async_engine.sync_engine)
     AsyncSession = async_sessionmaker(
         bind=async_engine,
         class_=SAAsyncSession,

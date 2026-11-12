@@ -62,7 +62,7 @@ How It Works
 1. **Job Submission**: The operator connects via SSH and submits a wrapper script that:
 
    * Creates a unique job directory on the remote host
-   * Starts your command as a detached process (``nohup`` on POSIX, ``Start-Process`` on Windows)
+   * Starts your command as a detached process (``nohup`` on POSIX, ``Win32_Process.Create`` on Windows)
    * Redirects output to a log file
    * Writes exit code to a file when complete
 
@@ -157,6 +157,9 @@ Parameters
   * POSIX: ``/tmp/airflow-ssh-jobs``
   * Windows: ``$env:TEMP\\airflow-ssh-jobs``
 
+  On Windows a leading ``$env:NAME`` is expanded on the remote host; the rest of the path is
+  used literally, so ``$``, quotes and brackets later in the path are part of the directory name.
+
 * ``poll_interval`` (int, optional): How often to check job status in seconds. Default: 5
 * ``log_chunk_size`` (int, optional): Maximum bytes to read from log per poll. Default: 65536
 * ``timeout`` (int, optional): Hard timeout for the entire task in seconds. Default: None (no timeout)
@@ -190,6 +193,20 @@ For Windows, ensure:
 * OpenSSH Server is installed and running
 * PowerShell is available (default on modern Windows)
 * SSH connection allows command execution
+* No Group Policy restricts PowerShell to signed scripts or turns scripts off. Your command runs as
+  a script with ``-ExecutionPolicy Bypass``, which a Group Policy setting overrides; under such a
+  policy the job fails with the policy error in its log.
+
+On Windows the exit code is the one passed to ``exit``, or else that of the last native program the
+command ran, or 0. A cmdlet error that does not stop the command does not fail the task; set
+``$ErrorActionPreference = 'Stop'`` or ``exit 1`` when it should. A negative exit code, which is how
+Windows reports a crashed process, is recorded as its unsigned value (``-1`` becomes ``4294967295``),
+so use that value in ``skip_on_exit_code``.
+
+The command travels through ``cmd.exe``, the default OpenSSH shell, whose command line limit leaves
+room for an inline command of roughly 1,000 characters. Environment values, a long base directory and
+long Dag, task and run ids use the same budget, and a single quote counts twice. For anything longer,
+put it in a script on the host and call that.
 
 Job Directory Structure
 -----------------------
@@ -203,6 +220,8 @@ Each job creates a directory on the remote host with these files:
     ├── exit_code          # Final exit code (0 or non-zero)
     ├── pid                # Process ID (for on_kill)
     └── status             # Optional status file (for user scripts)
+
+On Windows the directory also holds ``cmd.ps1``, your command, and ``job.ps1``, which runs it.
 
 Your command can access these via environment variables:
 
@@ -228,7 +247,7 @@ the initial job submission must succeed. The connection used for submission is r
 (``conn_retry_attempts``); if every attempt fails, the task fails immediately. The trigger also
 reconnects automatically if the monitoring connection drops mid-job.
 
-**Remote Process Management**: Jobs are detached using ``nohup`` (POSIX) or ``Start-Process`` (Windows).
+**Remote Process Management**: Jobs are detached using ``nohup`` (POSIX) or ``Win32_Process.Create`` (Windows).
 If the remote host reboots during job execution, the job will be lost.
 
 **Log Size**: Large log outputs may impact performance. The ``log_chunk_size`` parameter controls

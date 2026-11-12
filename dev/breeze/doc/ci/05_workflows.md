@@ -395,9 +395,11 @@ Before running expensive tests, we validate basic functionality:
 - Breeze development environment tests
 - React UI component tests
 - Code formatting and style checks
-- Dependency upgrade monitoring
 
-These quick checks catch obvious problems early.
+These quick checks catch obvious problems early. The shared distributions tests and the translation
+completeness check run only when the files they depend on changed (see
+[Selective checks](04_selective_checks.md)); the Breeze unit tests, the standalone Airflow test and the
+Windows checkout test run for every change.
 
 #### 3. Image Building
 
@@ -449,7 +451,7 @@ Here's what each workflow group does and when it runs:
 | **Basic Tests**                    | Runs quick validation: Breeze, UI, static checks            | Yes     | Yes     | Yes       |
 | **CI Image Build**                 | Builds Docker images for testing                            | Yes     | Yes     | Yes       |
 | **Additional CI Image Checks**     | Validates CI images meet quality standards                  | Yes     | Yes     | Yes       |
-| **Generate Constraints**           | Creates dependency version lock files                       | Yes     | Yes     | Yes       |
+| **Generate Constraints**           | Creates dependency version lock files                       | Yes (6) | Yes     | Yes (6)   |
 | **CI Image Checks**                | Runs static analysis and builds docs (AMD only)             | Yes     | Yes     | Yes       |
 | **Provider Tests**                 | Tests integration with external services                    | Yes     | Yes     | Yes (1)   |
 | **Unit Tests (Multiple Groups)**   | Runs core functionality tests with different databases      | Yes     | Yes     | Yes (1)   |
@@ -460,6 +462,7 @@ Here's what each workflow group does and when it runs:
 | **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
 | **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
 | **Agent Framework Tests**          | Tests Common AI's adapters for other agent frameworks (4)   | Yes     | Yes     | No        |
+| **Dependency Upgrade Summary**     | Checks how far constraints lag new releases (AMD only)      | Yes (5) | Yes (5) | Yes (5)   |
 | **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
 
 #### AMD-Only Workflows
@@ -535,6 +538,19 @@ Both install the newest framework releases older than the repository's uv `exclu
 release that breaks an adapter fails this job about that long after it ships. The job is not a
 dependency of **Finalize Tests**, so such a release does not stop the image cache from being pushed.
 
+**`(5)` Dependency Upgrade Summary**
+
+The summary runs only when the run upgrades to newer dependencies: on scheduled and manually
+dispatched runs, when a `pyproject.toml` file changes, or on a PR with the
+`upgrade to newer dependencies` label. It needs the CI image, so it never runs without one.
+
+**`(6)` Generate Constraints**
+
+The job runs only when the PROD image is built or when the constraints are resolved against PyPI. It
+resolves against PyPI when dependencies change, when full tests are needed, on canary runs, and on a PR
+with the `upgrade to newer dependencies` label. A run that only builds the PROD image generates just the
+`constraints-source-providers` file that image reads.
+
 ## Runners
 
 Two kinds of GitHub-hosted runner are used, and which one a job gets depends on what
@@ -568,14 +584,16 @@ When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, 
 ### Dependency upgrade diagnostics
 
 Scheduled and manually dispatched AMD canaries on `main` keep the dependency freshness
-summary in `finalize-tests.yml`, but run it with `--no-explain-why`. Tests, constraint
+summary in `dependency-upgrade-summary.yml`, but run it with `--no-explain-why`. It starts
+once the CI images are built, so it runs beside the tests instead of after them. Tests, constraint
 generation and validation, and image publication still run in the canary. Release-branch
 and other run types retain their existing explanation behavior. The summary saves the
 constraints it checked, and the constraints-branch commit they came from, with
 `--save-constraints-to`; a failure to save them only warns and never fails the canary.
 
 After the canary completes, `dependency-upgrade-report.yml` runs the detailed explanations
-independently, from the inputs the canary saved; a canary with failed jobs saves none. It checks out
+independently, from the inputs the canary saved. The summary does not wait for the tests, so a
+canary whose tests failed still saves its inputs and is explained too. The report checks out
 the original source SHA and downloads the original image and saved constraints by artifact
 ID from that run. It never substitutes the latest branch image or constraints: an entry whose
 saved constraints or image are missing or expired is skipped with a warning and listed in the
@@ -665,7 +683,7 @@ Each composite workflow is stored in a separate file under `.github/workflows/`.
 
 #### Basic Validation
 
-- `basic-tests.yml` - Handles Breeze tests, UI validation, static analysis, and upgrade monitoring
+- `basic-tests.yml` - Handles Breeze tests, UI validation, and static analysis
 
 #### Image Management
 
@@ -690,6 +708,10 @@ Each composite workflow is stored in a separate file under `.github/workflows/`.
 - `helm-tests.yml` - Tests Kubernetes deployment via Helm charts
 - `k8s-tests.yml` - Tests direct Kubernetes integration
 - `airflow-distributions-tests.yml` - Validates package distributions
+
+#### Dependency Monitoring
+
+- `dependency-upgrade-summary.yml` - Checks how far the constraints are behind the newest releases
 
 #### Finalization
 
