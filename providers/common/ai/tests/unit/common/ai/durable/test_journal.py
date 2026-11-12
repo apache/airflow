@@ -308,6 +308,27 @@ class TestFailures:
 
         assert summary == "summary of v2"
 
+    @pytest.mark.asyncio
+    async def test_an_entry_a_completed_run_could_not_delete_is_not_trusted(self, memory_storage):
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m", body=lambda: ok("old answer"))
+        await first.run("tool", kind="tool", fingerprint="t", body=lambda: ok("old rows"))
+        first.fail(RuntimeError("the answers failed the checks"), model_at_fault=True)
+
+        retry = DurableJournal(memory_storage).start_run()
+        await retry.run("model", kind="model", fingerprint="m", body=lambda: ok("new answer"))
+        memory_storage.refuse.add(build_step_key(0, 1))
+        await retry.run("tool", kind="tool", fingerprint="t", body=lambda: ok("new rows"))
+        with mock.patch.object(memory_storage, "delete_steps", autospec=True):
+            retry.complete()
+        memory_storage.refuse.clear()
+
+        later = DurableJournal(memory_storage).start_run()
+        answer = await later.run("model", kind="model", fingerprint="m", body=lambda: ok("asked again"))
+        rows = await later.run("tool", kind="tool", fingerprint="t", body=lambda: ok("run again"))
+
+        assert (answer, rows) == ("new answer", "run again")
+
 
 async def run_model_then_failing_tool(
     durable_run: DurableRun, answer: str, *, fingerprinted: bool = True

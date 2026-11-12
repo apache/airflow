@@ -87,10 +87,18 @@ StepKind = Literal["model", "tool", "other"]
 _TOOL_FAILURES_BEFORE_ASKING_MODEL = 2
 
 
+class _ToolCall(TypedDict):
+    """A tool call in the run's entry, told apart from another by its position, name and fingerprint."""
+
+    position: int
+    name: str
+    fingerprint: str | None
+
+
 class _ToolFailure(TypedDict):
     """The tool call that failed a run, in the run's entry, and on how many attempts in a row it did."""
 
-    call: list[int | str | None]  # [position, name, fingerprint]
+    call: _ToolCall
     attempts: int
 
 
@@ -591,17 +599,7 @@ class DurableRun:
         if start is None or self._position <= start:
             # This attempt has not run anything live past the untrusted entries yet.
             return
-        stale = {
-            position: build_step_key(self.key, position)
-            for position in range(start, self._position)
-            if position not in self._saved
-        }
-        if stale:
-            self.journal.storage.delete_steps(stale.values())
-        # Deleting is best-effort; an entry that survived must still not replay.
-        survived = [position for position, key in stale.items() if self.journal.storage.load_step(key)]
-        if survived:
-            log.warning("Durable: could not delete entries this attempt replaced", positions=survived)
+        survived = self._delete_unrecorded(range(start, self._position))
         trusted_until = survived[0] if survived else self._position
         self._diverge_from, self._model_at_fault = trusted_until, False
         # A pause is not a failure, and the task resumes in the same attempt, so the count of
@@ -609,6 +607,44 @@ class DurableRun:
         self._save_meta(
             trusted_until, model_at_fault=False, paused=True, tool_failure=self._tool_failure or None
         )
+
+    def complete(self) -> None:
+        """
+        Note that the run succeeded, for a task that keeps the journal after it.
+
+        An earlier attempt that failed can leave a note saying where a retry stops replaying, such as
+        the model request a retry asks again. Once a run succeeds, a later attempt (a retry after the
+        task's own work after the run failed, say) must replay what this one recorded instead: the
+        note goes, and so does every entry an earlier attempt left at a position this one ran without
+        recording or past where this one ended. Writes nothing when no earlier attempt left a note.
+        """
+        self._load_meta()
+        if self._diverge_from is None and not self._model_at_fault and not self._tool_failure:
+            return
+        start = min(p for p in (self._diverge_from, self._diverged_at, self._position) if p is not None)
+        survived = self._delete_unrecorded(range(start, max(self._high_water, self._position)))
+        if not survived:
+            # Nothing is left past where this run ended.
+            self._high_water = self._position
+        self._save_meta(survived[0] if survived else None, model_at_fault=False)
+
+    def _delete_unrecorded(self, positions: range) -> list[int]:
+        """
+        Delete the entries at ``positions`` that this attempt did not record, and return those still there.
+
+        Deleting is best-effort, so an entry that survived must still not replay.
+        """
+        stale = {
+            position: build_step_key(self.key, position)
+            for position in positions
+            if position not in self._saved
+        }
+        if stale:
+            self.journal.storage.delete_steps(stale.values())
+        survived = [position for position, key in stale.items() if self.journal.storage.load_step(key)]
+        if survived:
+            log.warning("Durable: could not delete entries this attempt replaced", positions=survived)
+        return survived
 
     def _save_meta(
         self,
@@ -639,7 +675,7 @@ class DurableRun:
         """
         if step is None or step.kind != "tool":
             return None
-        call: list[int | str | None] = [step.position, step.name, step.fingerprint]
+        call: _ToolCall = {"position": step.position, "name": step.name, "fingerprint": step.fingerprint}
         attempts = self._tool_failure.get("attempts")
         if self._tool_failure.get("call") != call or not isinstance(attempts, int):
             attempts = 0
