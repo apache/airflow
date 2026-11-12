@@ -32,7 +32,8 @@ from unit.listeners import asset_listener
 
 @pytest.fixture(autouse=True)
 def clean_listener_state():
-    """Clear listener state after each test."""
+    """Clear listener state before and after each test; tests in other modules may leave it populated."""
+    asset_listener.clear()
     yield
     asset_listener.clear()
 
