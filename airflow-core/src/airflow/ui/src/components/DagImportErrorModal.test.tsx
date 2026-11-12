@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
@@ -47,6 +47,19 @@ describe("DagImportErrorModal", () => {
 
     expect(dialog).toHaveTextContent("dags/broken_dag.py");
     expect(within(dialog).getByText(/Traceback \(most recent call last\)/u)).toBeInTheDocument();
+  });
+
+  it("copies the stack trace, not the file name", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    render(<DagImportErrorModal importError={importError} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    const dialog = screen.getByRole("dialog", { name: "importErrors.dagImportError" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /copy/iu }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(importError.stack_trace));
   });
 
   it.each([
