@@ -40,7 +40,7 @@ from openlineage.client.facet_v2 import (
     tags_job,
 )
 from openlineage.client.utils import RedactMixin
-from openlineage.client.uuid import generate_static_uuid
+from openlineage.client.uuid import generate_new_uuid, generate_static_uuid
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow import __version__ as AIRFLOW_VERSION
@@ -54,6 +54,7 @@ from airflow.providers.common.compat.sdk import (
     BaseSensorOperator,
     MappedOperator,
     conf as airflow_conf,
+    timezone,
 )
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -2721,17 +2722,53 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
 
 def is_asset_event_from_asset_watcher(asset_event: ListenerAssetEvent) -> bool:
     """Check whether an asset event was produced by an asset watcher's trigger rather than a task or API."""
-    return asset_event.source_task_id is None and (asset_event.extra or {}).get("from_trigger") is True
+    if hasattr(asset_event, "source_watcher_name"):
+        return asset_event.source_watcher_name is not None
+    # Airflow versions that do not pass the source watcher to listeners. The REST API accepts any extra,
+    # so a ``from_trigger`` flag sent through it must not be taken for a watcher event.
+    extra = asset_event.extra or {}
+    return (
+        asset_event.source_task_id is None
+        and extra.get("from_trigger") is True
+        and "from_rest_api" not in extra
+    )
 
 
 def get_asset_watcher_job_name(asset_event: ListenerAssetEvent) -> str:
     """
     Return the OpenLineage job name for the asset watchers of the asset event's asset.
 
-    ``:`` is not allowed in Dag or task ids, so these names cannot collide with Dag or task job names.
-    Listeners are not told which of the asset's watchers produced the event, so all of them share one job.
+    All watchers of an asset share one job, so the name stays the same on Airflow versions that do not
+    tell listeners which watcher produced the event; the watcher is reported in the run facet instead.
     """
-    return f"asset_watcher:{asset_event.asset.name}"
+    return f"asset_watcher.{asset_event.asset.name}"
+
+
+def get_asset_event_time(asset_event: ListenerAssetEvent) -> datetime.datetime:
+    """Return the time the asset event was stored, or the current time when listeners are not given it."""
+    return getattr(asset_event, "timestamp", None) or timezone.utcnow()
+
+
+def build_asset_watcher_event_ol_run_id(
+    asset_event: ListenerAssetEvent, event_time: datetime.datetime
+) -> str:
+    """
+    Return the OpenLineage run id for an asset event produced by an asset watcher.
+
+    The id is deterministic when listeners are given the asset event's id. The timestamp and asset name are
+    part of the seed because database ids can be reused, e.g. by SQLite after a rollback or after a
+    metadata database reset.
+    """
+    asset_event_id = getattr(asset_event, "id", None)
+    timestamp = getattr(asset_event, "timestamp", None)
+    if asset_event_id is None or timestamp is None:
+        return str(generate_new_uuid(event_time))
+    return str(
+        generate_static_uuid(
+            instant=timestamp,
+            data=f"{conf.namespace()}.asset_event.{asset_event_id}.{asset_event.asset.name}".encode(),
+        )
+    )
 
 
 def _get_json_safe_value_within_size_limit(value: Any) -> Any:
@@ -2750,17 +2787,21 @@ def get_airflow_asset_event_run_facet(
 ) -> dict[str, AirflowAssetEventRunFacet]:
     """Return a run facet describing an asset event and its asset."""
     asset = asset_event.asset
-    # Passed to listeners since Airflow 3.3.
+    # Fields read with getattr are not passed to listeners by every supported Airflow version.
     partition_date = getattr(asset_event, "partition_date", None)
     return {
         "airflowAssetEvent": AirflowAssetEventRunFacet(
             asset={
+                "id": getattr(asset_event, "asset_id", None),
                 "name": asset.name,
                 "uri": asset.uri,
                 "group": asset.group,
                 "extra": _get_json_safe_value_within_size_limit(asset.extra),
             },
             assetEvent={
+                "id": getattr(asset_event, "id", None),
+                "watcherName": getattr(asset_event, "source_watcher_name", None),
+                "triggerClasspath": getattr(asset_event, "source_trigger_classpath", None),
                 "extra": _get_json_safe_value_within_size_limit(asset_event.extra),
                 "partitionKey": asset_event.partition_key,
                 "partitionDate": partition_date.isoformat() if partition_date else None,

@@ -110,6 +110,12 @@ This allows it to be discovered on Airflow start and register
 The ``OpenLineageListener`` is then called by Airflow when certain events happen - when Dags or TaskInstances start, complete or fail.
 For Dags, the listener runs in Airflow Scheduler. For TaskInstances, the listener runs on Airflow Worker.
 
+Since Airflow 3.2, the listener also reports asset events produced by asset watchers in the Airflow Triggerer,
+outside of any task, as a START and COMPLETE event pair of an ``asset_watcher.<asset name>`` job with the asset as output.
+These events are sent from a background thread, so the Triggerer never waits for them, and they are dropped
+rather than delayed when many are waiting to be sent. See :ref:`emission_policy_asset_watchers:openlineage` for the
+emission policy controls that apply to them.
+
 When TaskInstance listener method gets called, the ``OpenLineageListener`` constructs metadata like event's unique ``run_id`` and event time.
 Then, it tries to extract metadata from Airflow Operators as described in :ref:`extraction_precedence:openlineage`.
 

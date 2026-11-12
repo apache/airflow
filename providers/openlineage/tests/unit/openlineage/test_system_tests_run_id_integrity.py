@@ -78,6 +78,10 @@ def _query_event(run_id: str, event_type: str = "START", **kwargs) -> dict:
     return _event(run_id, event_type, job="dag.task.query.1", job_type="QUERY", **kwargs)
 
 
+def _asset_watcher_event(run_id: str, event_type: str = "START") -> dict:
+    return _event(run_id, event_type, job="asset_watcher.orders", job_type="ASSET_WATCHER")
+
+
 def _loop_events(
     run_id: str, loop_index: int, *, region_id="loop", loop_region_id="loop", trajectory=1, **kwargs
 ):
@@ -149,6 +153,12 @@ VALID_SCENARIOS = {
     ],
     "query_start_and_complete": [_query_event("a"), _query_event("a", "COMPLETE")],
     "query_start_and_fail": [_query_event("a"), _query_event("a", "FAIL")],
+    "asset_watcher_runs": [
+        _asset_watcher_event("a"),
+        _asset_watcher_event("a", "COMPLETE"),
+        _asset_watcher_event("b"),
+        _asset_watcher_event("b", "COMPLETE"),
+    ],
     "dag_run_start_only": [_dag_event("a")],
     "dag_run_start_and_complete": [_dag_event("a"), _dag_event("a", "COMPLETE")],
     "dag_run_cleared": [
@@ -228,6 +238,11 @@ INVALID_SCENARIOS = {
     "query_two_terminal_events": (
         [_query_event("a"), _query_event("a", "COMPLETE"), _query_event("a", "FAIL")],
         "one COMPLETE/FAIL",
+    ),
+    "asset_watcher_start_without_terminal": ([_asset_watcher_event("a")], "one COMPLETE/FAIL"),
+    "asset_watcher_two_starts": (
+        [_asset_watcher_event("a"), _asset_watcher_event("a"), _asset_watcher_event("a", "COMPLETE")],
+        "one START (several only if",
     ),
     "dag_run_complete_without_start": ([_dag_event("a", "COMPLETE")], "one START and at most one"),
     "dag_run_two_terminal_events": (

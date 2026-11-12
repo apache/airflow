@@ -351,7 +351,7 @@ def check_run_id_integrity(
        a ``runId``;
     3. the lifecycle is complete, so START and COMPLETE/FAIL of an attempt can't carry different ``runId`` values:
 
-       * task and query: exactly one START, or several when the key of the START events is in
+       * task, query and asset watcher: exactly one START, or several when the key of the START events is in
          ``repeated_start_keys`` (deferral re-emits START on every resume), and exactly one COMPLETE or FAIL;
        * Dag run: one START and at most one COMPLETE or FAIL. The Dag run that contains the checking task is
          still running when the check happens, so its COMPLETE/FAIL is missing, while Dag runs triggered by it
@@ -401,7 +401,7 @@ def check_run_id_integrity(
             run_ids_by_attempt[(job_name, attempt)].add(run_id)
 
         job_type = _get_job_type(members[0][1])
-        if job_type not in ("TASK", "QUERY", "DAG"):
+        if job_type not in ("TASK", "QUERY", "ASSET_WATCHER", "DAG"):
             continue
         event_types = [event.get("eventType") for _, event in members]
         start_keys = {key for key, event in members if event.get("eventType") == "START"}

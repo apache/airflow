@@ -30,6 +30,7 @@ from airflow.providers.openlineage.utils.emission_policy import (
     DatasetFilter,
     EmissionPolicy,
     Rule,
+    resolve_asset_watcher_emission_policy,
     resolve_dag_emission_policy,
     resolve_task_emission_policy,
 )
@@ -2672,3 +2673,89 @@ class TestExcludeDatasetsAuthoring:
             [_exclude_rule({}, ["a"])], operator=MockOperator(), dag_id="dag", task_id="task"
         )
         assert hash(cfg) == hash(EmissionPolicy.defaults())
+
+
+class TestResolveAssetWatcherEmissionPolicy:
+    ASSET_DATASET = Dataset(namespace="file://host", name="/watched/orders.csv")
+
+    @staticmethod
+    def _resolve(rules: list[dict]) -> EmissionPolicy:
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            return resolve_asset_watcher_emission_policy("orders")
+
+    def test_defaults_when_no_rules(self):
+        policy = self._resolve([])
+
+        assert policy.emit is True
+        assert policy.dataset_filter.exclude([self.ASSET_DATASET]) == [self.ASSET_DATASET]
+
+    @pytest.mark.parametrize(
+        ("rules", "expected_emit"),
+        [
+            pytest.param([{"scope": {}, "controls": {"emit": False}}], False, id="global-emit-false"),
+            pytest.param(
+                [{"scope": {}, "controls": {"emit": False}}, {"scope": {}, "controls": {"emit": True}}],
+                True,
+                id="last-global-rule-wins",
+            ),
+            pytest.param(
+                [{"scope": {}, "controls": {"emit_task_events": False}}], True, id="task-events-only"
+            ),
+            pytest.param([{"scope": {}, "controls": {"emit_dag_events": False}}], True, id="dag-events-only"),
+            pytest.param(
+                [{"scope": {"dag_id": "orders"}, "controls": {"emit": False}}], True, id="dag-scoped-rule"
+            ),
+            pytest.param(
+                [{"scope": {"operator": "some.Operator"}, "controls": {"emit": False}}],
+                True,
+                id="operator-scoped-rule",
+            ),
+        ],
+    )
+    def test_only_global_emit_applies(self, rules, expected_emit):
+        assert self._resolve(rules).emit is expected_emit
+
+    @pytest.mark.parametrize(
+        ("rules", "expected_excluded"),
+        [
+            pytest.param(
+                [{"scope": {}, "controls": {"exclude_datasets": ["file://host/watched/.*"]}}],
+                True,
+                id="global-pattern",
+            ),
+            pytest.param(
+                [{"scope": {}, "controls": {"exclude_datasets": ["file://host/other/.*"]}}],
+                False,
+                id="global-pattern-not-matching",
+            ),
+            pytest.param(
+                [{"scope": {"dag_id": "orders"}, "controls": {"exclude_datasets": [".*"]}}],
+                False,
+                id="dag-scoped-pattern",
+            ),
+            pytest.param(
+                [{"scope": {"hook": "some.Hook"}, "controls": {"exclude_datasets": [".*"]}}],
+                False,
+                id="hook-scoped-pattern",
+            ),
+        ],
+    )
+    def test_only_global_exclude_datasets_applies(self, rules, expected_excluded):
+        dataset_filter = self._resolve(rules).dataset_filter
+
+        assert dataset_filter.is_excluded(self.ASSET_DATASET) is expected_excluded
+
+    def test_selective_enable_disables_asset_watcher_events(self):
+        with conf_vars({("openlineage", "emission_policy"): "", ("openlineage", "selective_enable"): "True"}):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="selective_enable"):
+                policy = resolve_asset_watcher_emission_policy("orders")
+
+        assert policy.emit is False
+
+    @mock.patch(
+        "airflow.providers.openlineage.utils.emission_policy._parse_user_rules",
+        autospec=True,
+        side_effect=RuntimeError("boom"),
+    )
+    def test_returns_defaults_when_resolution_fails(self, _):
+        assert resolve_asset_watcher_emission_policy("orders") == EmissionPolicy.defaults()

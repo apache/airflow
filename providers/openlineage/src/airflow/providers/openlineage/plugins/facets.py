@@ -113,8 +113,7 @@ class AirflowAssetEventRunFacet(RunFacet):
 
     Attributes:
         asset: The asset the event was registered for (name, uri, group, extra).
-        assetEvent: The asset event itself (extra with the trigger payload, partition key and date,
-            source aliases).
+        assetEvent: The asset event itself (extra, partition key and date, source aliases).
     """
 
     asset: dict
