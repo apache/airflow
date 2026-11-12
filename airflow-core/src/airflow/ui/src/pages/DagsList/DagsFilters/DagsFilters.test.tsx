@@ -89,7 +89,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     const dagsRequests = urls.filter((url) => url.pathname === "/ui/dags");
 
-    expect(dagsRequests.length).toBeGreaterThan(0);
+    expect(dagsRequests).toHaveLength(1);
     expect(dagsRequests.every((url) => url.searchParams.get("paused") === "false")).toBe(true);
   });
 

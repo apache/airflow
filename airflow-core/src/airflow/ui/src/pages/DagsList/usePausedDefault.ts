@@ -20,8 +20,18 @@ import { useEffect, useState } from "react";
 
 import { useSearchParams } from "react-router-dom";
 
+import {
+  pausedStateToSearchParams,
+  type PausedStateValue,
+} from "src/components/FilterBar/filters/pausedStateParams";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
+
+const HIDE_PAUSED_DEFAULT: PausedStateValue = "not_paused";
+
+const hasPausedFilter = (params: URLSearchParams) =>
+  params.has(SearchParamsKeys.PAUSED) || params.has(SearchParamsKeys.SCHEDULING_STATE);
 
 /**
  * Writes the ``hide_paused_dags_by_default`` default into the URL so it shows up as a
@@ -30,7 +40,7 @@ import { useConfig } from "src/queries/useConfig";
  * Seeds once per page load. Removing the pill is how you ask to see paused Dags, so re-seeding
  * whenever the param goes missing would put it straight back and leave them unreachable.
  *
- * Returns true until the default is in the URL, so callers can query with it from the first render.
+ * Returns the default paused state until it is in the URL, so callers can query with it from the first render.
  * ``hasSeeded`` flips only once the URL carries a filter: flipping it when the write is issued would
  * leave a render with neither the param nor the pending flag, and fire an unfiltered request.
  */
@@ -44,7 +54,7 @@ export const usePausedDefault = () => {
       return;
     }
 
-    if (searchParams.has(SearchParamsKeys.PAUSED) || searchParams.has(SearchParamsKeys.SCHEDULING_STATE)) {
+    if (hasPausedFilter(searchParams)) {
       setHasSeeded(true);
 
       return;
@@ -54,9 +64,17 @@ export const usePausedDefault = () => {
     // deeper effect that commits first, so an object write would clobber it with stale params.
     setSearchParams(
       (prev) => {
+        if (hasPausedFilter(prev)) {
+          return prev;
+        }
+
         const next = new URLSearchParams(prev);
 
-        next.set(SearchParamsKeys.PAUSED, "false");
+        Object.entries(pausedStateToSearchParams(HIDE_PAUSED_DEFAULT)).forEach(([key, value]) => {
+          if (value !== undefined) {
+            next.set(key, value);
+          }
+        });
 
         return next;
       },
@@ -64,10 +82,7 @@ export const usePausedDefault = () => {
     );
   }, [hasSeeded, hidePausedDagsByDefault, searchParams, setSearchParams]);
 
-  return (
-    hidePausedDagsByDefault &&
-    !hasSeeded &&
-    !searchParams.has(SearchParamsKeys.PAUSED) &&
-    !searchParams.has(SearchParamsKeys.SCHEDULING_STATE)
-  );
+  return hidePausedDagsByDefault && !hasSeeded && !hasPausedFilter(searchParams)
+    ? HIDE_PAUSED_DEFAULT
+    : undefined;
 };
