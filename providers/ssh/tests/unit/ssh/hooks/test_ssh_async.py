@@ -23,6 +23,7 @@ from unittest import mock
 
 import asyncssh
 import pytest
+from asyncssh.compression import get_default_compression_algs
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -222,6 +223,14 @@ class TestSSHHookAsync:
         await SSHHookAsync(ssh_conn_id="test_conn")._get_conn()
 
         assert mock_connect.call_args.kwargs["compression_algs"] == compression_algs
+
+    def test_asyncssh_offers_no_compression_first_by_default(self):
+        """
+        ``_get_conn`` passes its own list because asyncssh prefers ``none`` from 2.18, the floor.
+
+        Older versions preferred zlib, so supporting them means handling both defaults in the hook.
+        """
+        assert get_default_compression_algs()[0] == b"none"
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.os.path.isfile", return_value=False)
     @mock.patch("asyncssh.connect", new_callable=mock.AsyncMock)
