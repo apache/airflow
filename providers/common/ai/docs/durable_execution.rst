@@ -468,12 +468,12 @@ The error from pydantic-ai's ``MCPToolset``:
 
     pydantic_ai.exceptions.UserError: Airflow durable config for MCP tool 'get_forecast' has been explicitly set to `False` (durable execution disabled), but MCP tools perform I/O and cannot run outside a durable step. Remove the metadata so the call stays durable.
 
-Any value other than ``True``, ``False`` or ``None`` is refused when the tool is called. The
-attempt fails, as do its retries:
+Any value other than ``True``, ``False`` or ``None`` fails the task before the model is first
+offered the tool, and the task is not retried:
 
 .. code-block:: text
 
-    pydantic_ai.exceptions.UserError: Tool 'today' has invalid 'airflow' metadata: expected True or False, got str.
+    airflow.providers.common.ai.exceptions.DurableToolMetadataError: Tool 'today' has invalid 'airflow' metadata: expected True or False, got str.
 
 Limitations
 -----------

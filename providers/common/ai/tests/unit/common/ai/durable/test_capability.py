@@ -34,7 +34,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
 from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
-from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior, UserError
+from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
@@ -53,6 +53,7 @@ from airflow.providers.common.ai.durable.capability import _JournalCodec
 from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
 from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
+from airflow.providers.common.compat.sdk import AirflowFailException
 
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
@@ -1053,9 +1054,10 @@ class TestToolOptOut:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value", ["false", 0])
     @pytest.mark.parametrize("build_toolset", [_function_toolset, _WarehouseToolset])
-    async def test_an_airflow_metadata_value_that_is_not_a_bool_is_refused(
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_fails_the_task_before_the_model_is_asked(
         self, memory_storage, value, build_toolset
     ):
+        """Every attempt would fail the same way, so the task fails once, without retrying."""
         calls = Calls()
         agent = Agent(
             FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
@@ -1064,9 +1066,24 @@ class TestToolOptOut:
             capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=value)],
         )
 
-        with pytest.raises(UserError, match="Tool 'query' has invalid 'airflow' metadata"):
+        with pytest.raises(AirflowFailException, match="Tool 'query' has invalid 'airflow' metadata"):
             await attempt(memory_storage, agent)
-        assert calls["query"] == 0
+        assert (calls["model"], calls["query"]) == (0, 0)
+
+    @pytest.mark.asyncio
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_is_ignored_outside_a_task(self):
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[_function_toolset(calls, "3 rows")],
+            capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow="false")],
+        )
+
+        result = await agent.run("go")
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == 1
 
 
 class Answer(BaseModel):

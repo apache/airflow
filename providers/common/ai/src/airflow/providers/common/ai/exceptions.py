@@ -76,6 +76,15 @@ class UnsupportedToolDeferralError(AirflowFailException):
     """
 
 
+class DurableToolMetadataError(AirflowFailException):
+    """
+    Raised when a tool's ``airflow`` metadata is not ``True``, ``False`` or ``None``.
+
+    Durable execution checks it when the agent lists its tools, before the first model
+    request. Every attempt would fail the same way, so the task fails without retrying.
+    """
+
+
 class DurableJournalError(AirflowFailException):
     """
     Raised when durable execution cannot record or replay a step.

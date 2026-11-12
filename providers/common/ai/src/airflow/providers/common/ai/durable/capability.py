@@ -46,7 +46,6 @@ from pydantic_ai.exceptions import (
     ModelRetry,
     ToolFailed,
     UnexpectedModelBehavior,
-    UserError,
 )
 from pydantic_ai.messages import ModelResponse, ToolReturn
 from pydantic_ai.tools import AgentDepsT
@@ -58,7 +57,7 @@ from airflow.providers.common.ai.durable.base import TOOL_CONFIG_KEY
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
-from airflow.providers.common.ai.exceptions import DurableJournalError
+from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
@@ -71,7 +70,7 @@ if TYPE_CHECKING:
     from pydantic_ai.durable_exec._operation import DurableOperation, ParamsT, ResultT, WireT
     from pydantic_ai.durable_exec._operation_backend import BoundDurableOperation
     from pydantic_ai.messages import ModelMessage
-    from pydantic_ai.models import Model, ModelRequestParameters
+    from pydantic_ai.models import Model, ModelRequestContext, ModelRequestParameters
     from pydantic_ai.run import AgentRunResult
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import RunContext, ToolDefinition
@@ -112,7 +111,7 @@ def _is_tool_journaled(tool_def: ToolDefinition) -> bool:
         return True
     if isinstance(setting, bool):
         return setting
-    raise UserError(
+    raise DurableToolMetadataError(
         f"Tool {tool_def.name!r} has invalid {TOOL_CONFIG_KEY!r} metadata: expected True or False, "
         f"got {type(setting).__name__}."
     )
@@ -328,6 +327,17 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
 
     def get_durable_operation_backend(self) -> _AirflowOperationBackend:
         return _AirflowOperationBackend(self)
+
+    async def before_model_request(
+        self, ctx: RunContext[AgentDepsT], request_context: ModelRequestContext
+    ) -> ModelRequestContext:
+        # A bad ``airflow`` metadata value fails the task here, before the model is first asked,
+        # rather than when the model calls the tool, which every retry would reach again. The
+        # request's tool definitions carry the metadata other capabilities set on the toolsets.
+        if self.in_durable_context:
+            for tool_def in request_context.model_request_parameters.function_tools:
+                _is_tool_journaled(tool_def)
+        return await super().before_model_request(ctx, request_context)
 
     def get_wrapper_toolset(self, toolset: AbstractToolset[AgentDepsT]) -> AbstractToolset[AgentDepsT] | None:
         """Journal the leaf toolsets pydantic-ai's backend does not, then let the base wrap the rest."""
