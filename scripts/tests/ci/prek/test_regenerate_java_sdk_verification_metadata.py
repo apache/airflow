@@ -274,6 +274,14 @@ class TestValidateRegenerated:
                 ),
                 id="duplicate-component",
             ),
+            pytest.param(
+                get_variant(
+                    "   </components>",
+                    '      <component group="org.example" name="added" version="2.0">'
+                    '<artifact name="added-2.0.jar"/></component>\n   </components>',
+                ),
+                id="added-entry-without-checksum",
+            ),
             pytest.param(get_variant("</components>", "</components"), id="malformed-xml"),
             pytest.param(VALIDATED.replace("<components>", "<components >"), id="no-components-marker"),
         ],
