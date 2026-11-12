@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
-_ALIAS_ASSOCIATION_ATTEMPTS = 3
+_ALIAS_ASSOCIATION_ATTEMPTS = 2
 
 
 class AssetManager(LoggingMixin):
@@ -113,9 +113,7 @@ class AssetManager(LoggingMixin):
         *,
         session: Session,
     ) -> None:
-        # Another task can link the same alias between our read of asset_model.aliases and the
-        # insert. The savepoint keeps that conflict from failing the whole transaction; after a
-        # rollback the aliases are reloaded and only the still-missing links are added.
+        # Tolerate a concurrent writer linking the same alias.
         for attempt in range(1, _ALIAS_ASSOCIATION_ATTEMPTS + 1):
             already_related = {m.name for m in asset_model.aliases}
             missing = [name for name in alias_names if name not in already_related]
@@ -138,7 +136,6 @@ class AssetManager(LoggingMixin):
                     missing,
                     asset_model.uri,
                 )
-                session.expire(asset_model, ["aliases"])
 
     @classmethod
     def _filter_dags_by_team(
