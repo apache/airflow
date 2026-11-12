@@ -760,7 +760,7 @@ class BaseXCom:
         from airflow.sdk.serde import serialize
 
         # return back the value for BaseXCom, custom backends will implement this
-        return serialize(value)  # type: ignore[return-value]
+        return serialize(value)
 
     @staticmethod
     def deserialize_value(result) -> Any:

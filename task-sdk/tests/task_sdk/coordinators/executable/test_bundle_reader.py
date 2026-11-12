@@ -211,7 +211,7 @@ class TestInvalidSources:
             read_bundle_entrypoint_source(bundle)
 
     def test_rejects_a_non_list_sources(self, tmp_path):
-        bundle = write_bundle(tmp_path / "b", "orders", index={"a": 1})  # type: ignore[arg-type]
+        bundle = write_bundle(tmp_path / "b", "orders", index={"a": 1})
 
         with pytest.raises(ValueError, match="sources must be a list"):
             read_bundle_entrypoint_source(bundle)

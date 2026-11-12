@@ -833,7 +833,7 @@ class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
 
     @overload
-    def __call__(  # type: ignore[misc]
+    def __call__(
         self,
         python_callable: Callable[FParams, FReturn],
     ) -> Task[FParams, FReturn]:

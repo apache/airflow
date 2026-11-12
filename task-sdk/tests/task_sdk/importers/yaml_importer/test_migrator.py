@@ -105,7 +105,7 @@ def test_migrator_rejects_converter_for_non_dagdocument_model():
         description = __doc__
         instructions_to_migrate_to_previous_version = ()
 
-        @convert_request_to_next_version_for(Task)  # type: ignore[arg-type]
+        @convert_request_to_next_version_for(Task)
         def _noop(request):
             pass
 
