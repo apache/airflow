@@ -1295,6 +1295,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/opsgenie/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/oracle/src",
     "$MYPY_CONFIG_FILE_DIR/providers/oracle/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/oraclecloud/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/oraclecloud/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/pagerduty/src",
     "$MYPY_CONFIG_FILE_DIR/providers/pagerduty/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/papermill/src",
@@ -1588,6 +1590,7 @@ apache-airflow-providers-openlineage = false
 apache-airflow-providers-opensearch = false
 apache-airflow-providers-opsgenie = false
 apache-airflow-providers-oracle = false
+apache-airflow-providers-oraclecloud = false
 apache-airflow-providers-pagerduty = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-pgvector = false
@@ -1787,6 +1790,7 @@ apache-airflow-providers-openlineage = false
 apache-airflow-providers-opensearch = false
 apache-airflow-providers-opsgenie = false
 apache-airflow-providers-oracle = false
+apache-airflow-providers-oraclecloud = false
 apache-airflow-providers-pagerduty = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-pgvector = false
@@ -1961,6 +1965,7 @@ apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-opensearch = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
 apache-airflow-providers-oracle = { workspace = true }
+apache-airflow-providers-oraclecloud = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
@@ -2108,6 +2113,7 @@ members = [
     "providers/opensearch",
     "providers/opsgenie",
     "providers/oracle",
+    "providers/oraclecloud",
     "providers/pagerduty",
     "providers/papermill",
     "providers/pgvector",
