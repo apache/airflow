@@ -152,8 +152,12 @@ function checkBindable(binding: TaskArgBinding): void {
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
     return;
   }
-  // The `sequence` and `tuple` kinds land here, as does any kind a newer Airflow
-  // adds. Skipping one would silently leave the argument unbound.
+  if (binding.kind === "sequence" || binding.kind === "tuple") {
+    throw mappedTaskNotImplemented(name, `binding kind "${binding.kind}"`);
+  }
+  // Unreachable for the wire union as generated, so `binding` is `never` here.
+  // A newer Airflow can add a kind, and skipping it would silently leave the
+  // argument unbound, so the kind is read back off the value.
   const kind: unknown = (binding as { kind?: unknown }).kind;
   throw new Error(
     `Task argument "${name}" has binding kind ${JSON.stringify(kind)}, which this version ` +
@@ -179,11 +183,15 @@ function checkSupportedFields(binding: XComArgBinding | LiteralArgBinding): void
   for (const field of UNSUPPORTED_FIELDS) {
     const value = fields[field];
     if (value == null || value === false) continue;
-    throw new Error(
-      `Task argument "${binding.name}" has ${field} set to ${JSON.stringify(value)}, which this ` +
-        "version of @apache-airflow/ts-sdk cannot bind yet",
-    );
+    throw mappedTaskNotImplemented(binding.name, field);
   }
+}
+
+function mappedTaskNotImplemented(name: string, what: string): Error {
+  return new Error(
+    `Task argument "${name}": ${what} needs mapped task support, which this version of ` +
+      "@apache-airflow/ts-sdk does not implement; version 1.1.0 will add it",
+  );
 }
 
 /** Pull the upstream task's output this argument was called with. */
