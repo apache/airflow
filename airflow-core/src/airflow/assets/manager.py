@@ -260,7 +260,6 @@ class AssetManager(LoggingMixin):
         :param callback_sink: If specified, registration callbacks are added
             into the list instead of executed inline.
         :param source_asset_watcher: The asset watcher whose trigger emitted the event, if any.
-            Only used to describe the event to listeners.
         """
         from airflow.models.dag import DagModel
 
