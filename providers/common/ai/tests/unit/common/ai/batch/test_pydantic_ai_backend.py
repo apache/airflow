@@ -1022,12 +1022,11 @@ class TestOpenAIBatches:
         hook.aget_primary_model.return_value = _gpt()
         adapter = OpenAIBatchAdapter(hook=hook, model_id=f"{prefix}:gpt-5-mini")
 
-        with structlog.testing.capture_logs() as logs:
+        with mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log:
             asyncio.run(adapter._amodel(f"{prefix}:gpt-5-mini"))
 
         hook.aget_primary_model.assert_awaited_once_with("openai:gpt-5-mini")
-        rewritten = [entry for entry in logs if "openai-chat" in entry["event"]]
-        assert [entry["log_level"] for entry in rewritten] == (["info"] if prefix == "openai-chat" else [])
+        assert log.info.call_count == (1 if prefix == "openai-chat" else 0)
 
     def test_a_per_request_openai_chat_model_is_accepted_and_built_as_a_responses_model(self):
         hook = mock.create_autospec(PydanticAIHook, instance=True)
