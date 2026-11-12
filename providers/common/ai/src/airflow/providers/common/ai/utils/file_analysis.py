@@ -482,15 +482,24 @@ def _render_csv(
         return _RenderResult(text="", estimated_rows=0, content_size_bytes=len(raw_bytes))
     header, rows = reader[0], reader[1:]
     sampled_rows = rows[:sample_rows]
-    payload = ["Header: " + ", ".join(header)]
+    payload = ["Header: " + _join_csv_values(header)]
     if sampled_rows:
         payload.append("Sample rows:")
-        payload += [", ".join(str(value) for value in row) for row in sampled_rows]
+        payload += [_join_csv_values(row) for row in sampled_rows]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
         estimated_rows=len(rows),
         content_size_bytes=len(raw_bytes),
     )
+
+
+def _join_csv_values(values: list[str]) -> str:
+    # Quoted the way CSV quotes them, or a value holding a comma or line break reads as several.
+    quoted = [
+        '"' + value.replace('"', '""') + '"' if any(char in value for char in ',"\r\n') else value
+        for value in values
+    ]
+    return ", ".join(quoted)
 
 
 def sample_columnar_file(

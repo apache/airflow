@@ -134,17 +134,26 @@ TAMPER_WINDOW = timedelta(hours=6)
 # can have done project CI work and are worth listing jobs for.
 SUSPICIOUS_RUN_DURATION = timedelta(minutes=5)
 GATE_MAX_DURATION = timedelta(minutes=5)
-# Paths whose content defines what fork CI runs. A pull request changing them controls its own
-# fork CI result, so a green fork run cannot be trusted for it.
+# Paths that decide the build-info outputs (which jobs run and on which runners): the workflows
+# and actions, the breeze sources whose selective checks compute those outputs, the files that
+# install breeze, and scripts/ci/prek/, which holds the script selective checks runs to generate
+# the gitignored generated/provider_dependencies.json. That script runs with its directory first
+# on sys.path, so any module added there, such as a `yaml.py`, would run too. A pull request
+# changing them controls its own fork CI result and could change where project CI runs. Other CI
+# scripts, Dockerfiles and prek configuration only change what a selected job does, which review
+# of the diff covers like any other change.
 CI_DEFINING_PREFIXES = (
     ".github/",
-    "dev/breeze/",
-    "scripts/ci/",
-    "scripts/docker/",
-    "scripts/in_container/",
-    "Dockerfile",
+    "dev/breeze/src/",
+    "scripts/ci/prek/",
 )
-CI_DEFINING_SUFFIXES = (".pre-commit-config.yaml",)
+CI_DEFINING_FILES = frozenset(
+    {
+        "dev/breeze/pyproject.toml",
+        "dev/breeze/uv.lock",
+        "scripts/ci/install_breeze.sh",
+    }
+)
 PULL_REQUEST_FILES_CAP = 3000
 COMPARE_FILES_CAP = 300
 SLACK_SECTION_LIMIT = 3000
@@ -176,6 +185,16 @@ DEFERRED_RUNS_BEFORE_ALERT = 3
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
 RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+# Reading a fork run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2
+# stream) that the next run gets past, so a pull request whose job statuses failed is only reported
+# when it failed in this many consecutive runs.
+JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = 3
+# Fixed text, so the item is posted to Slack once while the failure persists, whatever the error;
+# the run log has each run's error.
+JOB_STATUSES_FAILED_REASON = (
+    f"reporting job statuses failed in {JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT} runs in a row; "
+    "the run log has the errors"
+)
 # A pull request whose fork run finished this long ago with job statuses still not all posted is
 # reported by itself: deferring is expected to catch up within a few runs, not to leave one behind.
 MIRROR_DELAY_BEFORE_ALERT = timedelta(hours=1)
@@ -325,6 +344,70 @@ def _set_label(plan: Plan, labels: set[str], label: str, *, present: bool) -> No
         plan.remove_labels.append(label)
 
 
+@dataclass(frozen=True)
+class Projection:
+    """
+    What a gated pull request shows in a state; None leaves its draft state or label as it is.
+
+    :param draft: whether the pull request should be a draft.
+    :param ready_for_review: whether it carries `ready for maintainer review`.
+    :param needs_project_ci: whether it carries `needs project ci`.
+    """
+
+    draft: bool | None
+    ready_for_review: bool | None
+    needs_project_ci: bool
+
+
+def compute_projection(state: ForkState, *, author_draft: bool) -> Projection:
+    """
+    Return what a pull request shows in a state.
+
+    :param author_draft: the pull request is a draft that the bot did not make, including one opened
+        as a draft. It is never undrafted and waits for its author, not for a maintainer.
+    """
+    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
+        if author_draft:
+            return Projection(draft=None, ready_for_review=False, needs_project_ci=False)
+        return Projection(
+            draft=False,
+            ready_for_review=state == ForkState.GREEN,
+            needs_project_ci=state == ForkState.GREEN_UNVERIFIED,
+        )
+    if state in (ForkState.RELEASED, ForkState.UNGATED):
+        return Projection(
+            draft=None if author_draft else False, ready_for_review=None, needs_project_ci=False
+        )
+    if state in (ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH):
+        return Projection(draft=True, ready_for_review=False, needs_project_ci=False)
+    # A running or failed pull request keeps its draft state, so a flaky test after a rebase does
+    # not draft an approved one. A closed one is not drafted, since the draft-state job runs after
+    # the close and GitHub refuses to draft a closed pull request.
+    if state in (
+        ForkState.RUNNING,
+        ForkState.FAILED,
+        ForkState.CLOSED,
+        ForkState.GATE_BYPASSED,
+        ForkState.GATE_MODIFIED,
+    ):
+        return Projection(draft=None, ready_for_review=False, needs_project_ci=False)
+    raise ValueError(f"No projection for fork CI state {state.value!r}")
+
+
+def _is_author_draft(pr: PullRequestSnapshot) -> bool:
+    return pr.is_draft and not _is_bot(pr.last_draft_actor)
+
+
+def _enter_state(plan: Plan, pr: PullRequestSnapshot, labels: set[str], state: ForkState) -> None:
+    plan.state = state
+    projection = compute_projection(state, author_draft=_is_author_draft(pr))
+    if projection.draft is not None and projection.draft != pr.is_draft:
+        plan.draft = projection.draft
+    if projection.ready_for_review is not None:
+        _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=projection.ready_for_review)
+    _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=projection.needs_project_ci)
+
+
 def _workflow_file(resource_path: str | None) -> str:
     return (resource_path or "").rsplit("/", 1)[-1]
 
@@ -457,7 +540,7 @@ def changes_ci_definition(files: Sequence[str], *, file_count: int | None = None
     return (
         (len(files) if file_count is None else file_count) >= PULL_REQUEST_FILES_CAP
         or touches(files, CI_DEFINING_PREFIXES)
-        or any(path.endswith(CI_DEFINING_SUFFIXES) for path in files)
+        or any(path in CI_DEFINING_FILES for path in files)
     )
 
 
@@ -565,11 +648,8 @@ def classify(
         marker = None
 
     def release(state: ForkState, comment: Callable[[Marker], str]) -> Plan:
-        plan.state = state
         plan.remove_labels.append(LABEL_FORK_CI_REQUIRED)
-        _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
-        if pr.is_draft and _is_bot(pr.last_draft_actor):
-            plan.draft = False
+        _enter_state(plan, pr, labels, state)
         since = marker.since if marker and marker.state == state.value else now
         _set_marker_comment(plan, pr, comment(Marker(state.value, pr.head_sha, since)))
         _set_status(plan, pr, state.value, f"https://github.com/{repo}/pull/{pr.number}/checks")
@@ -591,12 +671,7 @@ def classify(
     if reason in TAMPER_CHECKED_REASONS:
         bypass_run = find_bypass_run()
         if bypass_run is not None:
-            plan.state = ForkState.GATE_BYPASSED
-            if not pr.is_draft:
-                plan.draft = True
-            if LABEL_READY_FOR_REVIEW in labels:
-                plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState.GATE_BYPASSED)
             _set_status(plan, pr, ForkState.GATE_BYPASSED.value, bypass_run)
             _set_marker_comment(
                 plan,
@@ -623,8 +698,7 @@ def classify(
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
         if reopened is None or reopened <= marker.since:
-            plan.state = ForkState(marker.state)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState(marker.state))
             if plan.state == ForkState.CLOSED:
                 comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo)
             elif plan.state == ForkState.GATE_MODIFIED:
@@ -657,11 +731,7 @@ def classify(
     if gate_checked and not already_checked:
         change = find_gate_change()
         if change is not None:
-            plan.state = ForkState.GATE_MODIFIED
-            if not pr.is_draft:
-                plan.draft = True
-            _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=False)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState.GATE_MODIFIED)
             _set_status(
                 plan, pr, ForkState.GATE_MODIFIED.value, f"https://github.com/{repo}/pull/{pr.number}/files"
             )
@@ -734,8 +804,7 @@ def classify(
         )
 
     if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
-        plan.state = ForkState.CLOSED
-        _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+        _enter_state(plan, pr, labels, ForkState.CLOSED)
         _set_marker_comment(
             plan,
             pr,
@@ -749,22 +818,7 @@ def classify(
         plan.close = True
         return plan
 
-    if state == ForkState.GREEN:
-        if pr.is_draft and _is_bot(pr.last_draft_actor):
-            plan.draft = False
-        ready = not pr.is_draft or plan.draft is False
-        if ready and LABEL_READY_FOR_REVIEW not in labels:
-            plan.add_labels.append(LABEL_READY_FOR_REVIEW)
-    else:
-        # A run in progress needs nothing from the author, and drafting on it would draft every
-        # approved pull request the moment it is rebased; it is drafted only if the run then fails.
-        if not pr.is_draft and state != ForkState.RUNNING:
-            plan.draft = True
-        if LABEL_READY_FOR_REVIEW in labels:
-            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-    # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other draft with a pending fork CI status.
-    _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
+    _enter_state(plan, pr, labels, state)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
     _set_status(plan, pr, state.value, target_url, force=refresh_status)
@@ -786,6 +840,7 @@ def classify(
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
+            author_draft=_is_author_draft(pr),
         ),
     )
     return plan
@@ -809,11 +864,8 @@ query($q: String!, $cursor: String) {
 }
 """
 
-PASS_TWO_QUERY = """
-query($q: String!, $cursor: String) {
-  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
-    pageInfo { hasNextPage endCursor }
-    nodes { ... on PullRequest {
+PASS_TWO_FIELDS = """
+fragment PassTwoFields on PullRequest {
       number id isDraft createdAt authorAssociation baseRefName headRefName headRefOid
       author { login }
       headRepository { nameWithOwner }
@@ -842,10 +894,35 @@ query($q: String!, $cursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes { databaseId body author { login } }
       }
-    } }
+}
+"""
+
+PASS_TWO_QUERY = (
+    """
+query($q: String!, $cursor: String) {
+  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ...PassTwoFields }
   }
 }
 """
+    + PASS_TWO_FIELDS
+)
+
+PULL_REQUESTS_BY_NUMBER_QUERY = (
+    """
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { %(pull_requests)s }
+}
+"""
+    + PASS_TWO_FIELDS
+)
+
+PASS_TWO_CONTEXTS = {
+    "context": STATUS_CONTEXT,
+    "ci_passed": CI_PASSED_CONTEXT,
+    "ci_run_started": CI_RUN_STARTED_CONTEXT,
+}
 
 
 def _labels(node: dict[str, Any]) -> tuple[str, ...]:
@@ -1087,6 +1164,35 @@ def _search(client: GitHubClient, query: str, search_query: str) -> Iterable[dic
         if not result["pageInfo"]["hasNextPage"]:
             return
         cursor = result["pageInfo"]["endCursor"]
+
+
+def fetch_open_pull_requests(
+    client: GitHubClient, numbers: Sequence[int], *, repo: str
+) -> list[dict[str, Any]]:
+    """
+    Return the pass 2 nodes of the pull requests among these that are still open.
+
+    Reads them by number rather than through the search index, which can take minutes to list a
+    pull request under a label added moments before.
+    """
+    owner, name = repo.split("/", 1)
+    nodes: list[dict[str, Any]] = []
+    for start in range(0, len(numbers), PASS_TWO_PAGE_SIZE):
+        batch = numbers[start : start + PASS_TWO_PAGE_SIZE]
+        pull_requests = " ".join(
+            f"pr{index}: pullRequest(number: {number}) {{ state ...PassTwoFields }}"
+            for index, number in enumerate(batch)
+        )
+        result = (
+            client.graphql(
+                PULL_REQUESTS_BY_NUMBER_QUERY % {"pull_requests": pull_requests, **PASS_TWO_CONTEXTS},
+                {"owner": owner, "name": name},
+                allow_partial=True,
+            )["repository"]
+            or {}
+        )
+        nodes.extend(node for node in result.values() if node and node["state"] == "OPEN")
+    return nodes
 
 
 def _is_not_found(error: GitHubError) -> bool:
@@ -1395,11 +1501,7 @@ class JobStatusReporter:
         if self.remaining == 0:
             self._defer(pr, fork)
             return None
-        jobs = self._client.rest_get(
-            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
-            paginate=True,
-            items_key="jobs",
-        )
+        jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -1552,11 +1654,7 @@ class BypassFinder:
 
     def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
         if run.id not in self._jobs:
-            self._jobs[run.id] = self._client.rest_get(
-                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                paginate=True,
-                items_key="jobs",
-            )
+            self._jobs[run.id] = self._client.get_run_jobs(self._repo, run.id)
         return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
@@ -2095,6 +2193,7 @@ def drop_reported(
     record: bool = True,
     deferred_runs: int = 0,
     rate_limited_runs: int = 0,
+    job_status_failure_runs: dict[int, int] | None = None,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
     """
     Leave out the items the previous run already reported, and record this run's items.
@@ -2104,6 +2203,8 @@ def drop_reported(
 
     :param deferred_runs: the consecutive runs that deferred job statuses, recorded for the next run.
     :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
+    :param job_status_failure_runs: per pull request, the consecutive runs whose job statuses failed,
+        recorded for the next run.
     """
     current: dict[str, Any] = {
         "unknown": [list(item) for item in unknown],
@@ -2111,6 +2212,9 @@ def drop_reported(
         "notes": notes,
         "deferred_runs": deferred_runs,
         "rate_limited_runs": rate_limited_runs,
+        "job_status_failure_runs": {
+            str(number): runs for number, runs in (job_status_failure_runs or {}).items()
+        },
     }
     try:
         previous = json.loads(reported_file.read_text())
@@ -2141,6 +2245,24 @@ def read_run_count(reported_file: Path | None, key: str) -> int | None:
     # A record written before the count was kept has none.
     count = previous.get(key, 0)
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
+
+
+def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
+    """Per pull request, the consecutive runs whose job statuses failed, as the previous run recorded."""
+    if reported_file is None:
+        return {}
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        return {}
+    counts = previous.get("job_status_failure_runs") if isinstance(previous, dict) else None
+    if not isinstance(counts, dict):
+        return {}
+    return {
+        int(number): runs
+        for number, runs in counts.items()
+        if number.isdigit() and isinstance(runs, int) and not isinstance(runs, bool)
+    }
 
 
 def log_rate_limits(client: GitHubClient) -> None:
@@ -2196,16 +2318,16 @@ def run_reconcile(
         parse_pull_request(node)
         for node in _search(
             client,
-            PASS_TWO_QUERY
-            % {
-                "page": PASS_TWO_PAGE_SIZE,
-                "context": STATUS_CONTEXT,
-                "ci_passed": CI_PASSED_CONTEXT,
-                "ci_run_started": CI_RUN_STARTED_CONTEXT,
-            },
+            PASS_TWO_QUERY % {"page": PASS_TWO_PAGE_SIZE, **PASS_TWO_CONTEXTS},
             f'repo:{repo} is:pr is:open label:"{LABEL_FORK_CI_REQUIRED}"',
         )
     ]
+    found = {pr.number for pr in prs}
+    unlisted = [number for number in labelled if number not in found]
+    try:
+        prs.extend(parse_pull_request(node) for node in fetch_open_pull_requests(client, unlisted, repo=repo))
+    except GitHubError as e:
+        console_print(f"[warning]Pull requests {unlisted} are left for the next run: {e}[/]")
     observations = fetch_fork_observations(client, prs)
 
     def is_gated_base(base_ref: str) -> bool:
@@ -2238,6 +2360,8 @@ def run_reconcile(
         client, repo=repo, budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes, 0), now=now
     )
 
+    previous_job_status_failure_runs = read_job_status_failure_runs(reported_file)
+    job_status_failure_runs: dict[int, int] = {}
     shared_heads = find_heads_shared_across_bases(prs)
     gate_change_finder = GateChangeFinder(client, repo=repo)
     for listed in prs:
@@ -2257,8 +2381,14 @@ def run_reconcile(
                 try:
                     jobs_reported = job_reporter.report(pr, fork)
                 except Exception as e:
-                    console_print(f"[warning]#{pr.number}: reporting job statuses failed: {e}[/]")
-                    unknown.append((pr.number, f"reporting job statuses failed: {type(e).__name__}: {e}"))
+                    failure_runs = previous_job_status_failure_runs.get(pr.number, 0) + 1
+                    job_status_failure_runs[pr.number] = failure_runs
+                    console_print(
+                        f"[warning]#{pr.number}: reporting job statuses failed ({failure_runs} runs in a "
+                        f"row): {type(e).__name__}: {e}[/]"
+                    )
+                    if failure_runs >= JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT:
+                        unknown.append((pr.number, JOB_STATUSES_FAILED_REASON))
 
             base_config = configs.get(pr.base_ref)
             if base_config is not None:
@@ -2333,6 +2463,7 @@ def run_reconcile(
             record=not client.dry_run,
             deferred_runs=deferred_runs,
             rate_limited_runs=rate_limited_runs,
+            job_status_failure_runs=job_status_failure_runs,
         )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:

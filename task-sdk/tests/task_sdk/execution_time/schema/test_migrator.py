@@ -42,9 +42,10 @@ from cadwyn import (
     VersionBundle,
     VersionChange,
     convert_request_to_next_version_for,
+    generate_versioned_models,
     schema,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from task_sdk.execution_time.schema._mock_version_bundle import (
     MOCK_REGISTRY,
     _LangSdkRequest,
@@ -68,8 +69,10 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     PreviousTIResult,
+    PutVariable,
     StartupDetails,
     TaskState,
+    VariableResult,
 )
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
@@ -125,6 +128,53 @@ def test_loop_selectors_follow_supervisor_version(model, extra, field):
 
     assert field not in migrator.downgrade(message, "2026-06-16").model_dump()
     assert migrator.downgrade(message, "2026-10-30").model_dump()[field] is True
+
+
+def test_put_variable_null_from_older_runtime_is_stored_as_none_string():
+    body = {"type": "PutVariable", "key": "key", "value": None, "description": None}
+
+    upgraded = get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
+
+    assert upgraded["value"] == "None"
+
+
+def test_put_variable_without_value_from_older_runtime_is_rejected():
+    body = {"type": "PutVariable", "key": "key", "description": None}
+
+    with pytest.raises(ValidationError):
+        get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
+
+
+def test_put_variable_null_from_current_runtime_is_rejected():
+    body = {"type": "PutVariable", "key": "key", "value": None, "description": None}
+
+    with pytest.raises(ValidationError):
+        get_schema_version_migrator().upgrade(body, PutVariable, "2027-02-28")
+
+
+def test_put_variable_value_from_older_runtime_is_kept():
+    body = {"type": "PutVariable", "key": "key", "value": "x", "description": None}
+
+    upgraded = get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
+
+    assert upgraded["value"] == "x"
+
+
+@pytest.mark.parametrize(
+    ("model", "extra"),
+    [
+        pytest.param(PutVariable, {"description": None}, id="PutVariable"),
+        pytest.param(VariableResult, {}, id="VariableResult"),
+    ],
+)
+def test_variable_value_is_nullable_only_before_2027_02_28(model, extra):
+    from airflow.sdk.execution_time.schema.versions import bundle
+
+    versioned = generate_versioned_models(bundle)
+
+    assert versioned["2026-10-30"][model](key="key", value=None, **extra).value is None
+    with pytest.raises(ValidationError):
+        versioned["2027-02-28"][model](key="key", value=None, **extra)
 
 
 class _IntroduceQueueCapacity(VersionChange):
@@ -560,22 +610,21 @@ class TestRealBundleArgBindingsDowngrade:
         else:
             assert "execution_timeout" not in context
 
-    def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
-        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
-
-        out = real_migrator.downgrade(startup_details, "2027-02-28")
+    @pytest.mark.parametrize("version", ["2026-10-30", "2027-02-28"])
+    def test_arg_bindings_kept_from_version_that_added_them(self, real_migrator, startup_details, version):
+        out = real_migrator.downgrade(startup_details, version)
         assert out.ti_context.arg_bindings is not None
         literal, xcom, defaulted = (a.root for a in out.ti_context.arg_bindings)
-        assert isinstance(literal, LiteralArgBinding)
+        assert literal.kind == "literal"
         assert literal.value == "uk"
         assert literal.name == "country"
         assert literal.from_default is False
         assert literal.value_schema is None
-        assert isinstance(xcom, XComArgBinding)
+        assert xcom.kind == "xcom"
         assert xcom.task_id == "extract"
         assert xcom.name == "extracted"
         assert xcom.value_schema.root == {"type": "object"}
-        assert isinstance(defaulted, LiteralArgBinding)
+        assert defaulted.kind == "literal"
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import json
 import time
+import uuid
 from collections.abc import Iterator
 from datetime import datetime
 from types import SimpleNamespace
@@ -164,7 +165,9 @@ def result_path(tmp_path):
     return f"file://{tmp_path.as_posix()}"
 
 
-def _context(*, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed: list | None = None):
+def _context(
+    *, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed: list | None = None, loop=None
+):
     ti = SimpleNamespace(
         dag_id=dag_id,
         task_id=task_id,
@@ -172,7 +175,10 @@ def _context(*, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed:
         map_index=map_index,
         xcom_push=lambda **kw: pushed.append(kw) if pushed is not None else None,
     )
-    return {"task_instance": ti, "ti": ti}
+    context = {"task_instance": ti, "ti": ti}
+    if loop is not None:
+        context["loop"] = loop
+    return context
 
 
 def _connection(*, conn_type: str = "pydanticai", extra: dict | None = None) -> Connection:
@@ -539,6 +545,24 @@ class TestEndToEndStructuredBatch:
         assert len(fake_adapter.submit_calls) == 1
         assert second["batch_id"] == first["batch_id"]
         assert second["counts"] == first["counts"]
+
+    def test_loop_iterations_submit_and_land_their_own_batches(self, fake_adapter, result_path):
+        """Each task loop iteration is its own task instance, even when its prompts repeat."""
+        fake_adapter.get_batch_status = "completed"
+        fake_adapter.results = [_success_item(0, "hi")]
+        region_id = uuid.uuid4()
+        with _running(fake_adapter):
+            first = _make_operator(result_path=result_path, deferrable=False).execute(
+                _context(loop=SimpleNamespace(region_id=region_id, index=1))
+            )
+            second = _make_operator(result_path=result_path, deferrable=False).execute(
+                _context(loop=SimpleNamespace(region_id=region_id, index=2))
+            )
+
+        assert len(fake_adapter.submit_calls) == 2
+        assert fake_adapter.cancel_calls == []
+        assert second["batch_id"] != first["batch_id"]
+        assert second["result_uri"] != first["result_uri"]
 
     def test_fail_on_partial_error_raises_after_landing_results_and_a_retry_reattaches(
         self, fake_adapter, result_path

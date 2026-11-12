@@ -21,13 +21,18 @@
 
 from __future__ import annotations
 
+import sys
+
 import argcomplete
+import structlog
 
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import safe_call_command
 
 
 def main():
+    # stdout carries only the command's output (e.g. ``-o json``); structlog prints to stdout by default.
+    structlog.configure(logger_factory=structlog.PrintLoggerFactory(sys.stderr))
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()

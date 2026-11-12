@@ -94,6 +94,25 @@ def test_get_by_run_id_404_exits(capsys):
     assert "not found" in capsys.readouterr().out
 
 
+def test_get_by_run_id_404_prints_run_id_containing_markup(capsys):
+    client = Mock(spec=Client)
+    client.dag_runs.get.side_effect = server_error(404)
+
+    with pytest.raises(SystemExit):
+        _get_dag_run_by_run_id(client, "my_dag[/y]", "run_[/x]")
+
+    output = capsys.readouterr().out
+    assert "run_[/x]" in output
+    assert "my_dag[/y]" in output
+
+
+def test_get_by_logical_date_prints_invalid_value_containing_markup(capsys):
+    with pytest.raises(SystemExit):
+        _get_dag_run_by_logical_date(Mock(spec=Client), "my_dag", "[/x]")
+
+    assert "[/x]" in capsys.readouterr().out
+
+
 def test_get_by_run_id_other_error_propagates():
     client = Mock(spec=Client)
     client.dag_runs.get.side_effect = server_error(500)
@@ -143,6 +162,16 @@ def test_get_by_logical_date_not_found_exits(capsys):
 
     assert exc.value.code == 1
     assert "not found" in capsys.readouterr().out
+
+
+def test_get_by_logical_date_not_found_prints_dag_id_containing_markup(capsys):
+    client = Mock(spec=Client)
+    client.dag_runs.list.return_value = Mock(dag_runs=[])
+
+    with pytest.raises(SystemExit):
+        _get_dag_run_by_logical_date(client, "my_dag[/y]", "2026-01-01T00:00:00Z")
+
+    assert "my_dag[/y]" in capsys.readouterr().out
 
 
 def test_resolve_dag_run_id_skips_api_for_run_id():

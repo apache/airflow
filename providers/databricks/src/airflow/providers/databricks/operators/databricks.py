@@ -23,6 +23,7 @@ import ast
 import copy
 import hashlib
 import json as json_utils
+import re
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
@@ -118,9 +119,16 @@ def fetch_run_status(
             # The stored external id is always a Databricks run id; the mixin types it as JsonValue.
             run_info = hook.get_run(cast("int", run_id))
         except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. The sentinel is neither
-            # active nor succeeded, so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
+            # The sentinel is neither active nor succeeded, so the mixin resubmits fresh instead of
+            # failing the task.
+            if _is_run_missing_error(e):
+                hook.log.warning(
+                    "Databricks has no record of run %s, so a fresh run will be submitted. "
+                    "If the workspace connection changed, the original run may still be going there. "
+                    "Databricks said: %s",
+                    run_id,
+                    e,
+                )
                 return RUN_NOT_FOUND_STATUS
             raise
         state = RunState(**run_info["state"])
@@ -138,6 +146,19 @@ def is_run_active(status: str) -> bool:
 def is_run_succeeded(status: str) -> bool:
     """Whether an encoded status means the run finished successfully."""
     return status == "TERMINATED:SUCCESS"
+
+
+# jobs/runs/get answers 400 INVALID_PARAMETER_VALUE for a run it no longer knows about, never 404.
+# These are the two message forms the Databricks SDK overrides to ResourceDoesNotExist; the code
+# alone also covers malformed input, which must stay an error rather than trigger a resubmit.
+_RUN_MISSING_MESSAGE_PATTERN = re.compile(r"Run .* does not exist|Run: .* in job: .* doesn't exist")
+
+
+def _is_run_missing_error(exc: DatabricksApiError) -> bool:
+    """Whether ``exc`` means Databricks has no record of the run (expired, deleted, or foreign)."""
+    if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
+        return True
+    return exc.error_code == "INVALID_PARAMETER_VALUE" and bool(_RUN_MISSING_MESSAGE_PATTERN.search(str(exc)))
 
 
 # Mapping from Airflow TriggerRule to Databricks RunIf condition.
