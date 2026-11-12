@@ -316,12 +316,16 @@ def get_event_logs(
             has_prev = bool(cursor)
             has_next = has_more
 
+        # Encode before event_log_to_response, which overwrites owner_display_name on the row
+        # with a fallback, so a cursor built afterwards would not match the stored sort value.
+        next_cursor = encode_cursor(page[-1], order_by) if has_next and page else None
+        previous_cursor = (
+            make_backward_cursor(encode_cursor(page[0], order_by)) if has_prev and page else None
+        )
         return EventLogCollectionResponse(
             event_logs=[event_log_to_response(event_log=event_log) for event_log in page],
-            next_cursor=encode_cursor(page[-1], order_by) if has_next and page else None,
-            previous_cursor=(
-                make_backward_cursor(encode_cursor(page[0], order_by)) if has_prev and page else None
-            ),
+            next_cursor=next_cursor,
+            previous_cursor=previous_cursor,
         )
 
     event_logs_select, total_entries = paginated_select(
