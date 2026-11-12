@@ -24,12 +24,13 @@ import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
-import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+import { Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
+import { KeepTaskStateCheckbox } from "src/components/Clear/KeepTaskStateCheckbox";
+import { useKeepTaskState } from "src/components/Clear/useKeepTaskState";
 
-import { useClearKeepTaskStateDefault } from "src/hooks/useUserSettings";
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
 
@@ -43,8 +44,7 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const [note, setNote] = useState<string | null>(null);
-  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
-  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
+  const [keepTaskState, setKeepTaskState] = useKeepTaskState(open);
   const { bulkClear, error, isPending } = useBulkClearDagRuns({
     deselectKeys,
     onSuccessConfirm: onClose,
@@ -52,7 +52,6 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
 
   const handleClose = () => {
     setNote(null);
-    setKeepTaskState(keepTaskStateDefault);
     onClose();
   };
 
@@ -84,14 +83,7 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
             {translate("modal.confirm")}
           </Button>
         }
-        footerOptions={
-          <Checkbox
-            checked={keepTaskState}
-            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
-          >
-            {translate("dags:runAndTaskActions.options.keepTaskState")}
-          </Checkbox>
-        }
+        footerOptions={<KeepTaskStateCheckbox checked={keepTaskState} onChange={setKeepTaskState} />}
         onOpenChange={handleClose}
         open={open}
         size="xl"

@@ -147,8 +147,8 @@ TR = TaskReschedule
 
 log = logging.getLogger(__name__)
 
-# Five bind parameters per key; stays well under the bind parameter limits of every supported DB.
-_TASK_STATE_DISCARD_BATCH_SIZE = 500
+# Five bind parameters per key. SQLite before 3.32 allows at most 999 per statement by default.
+_TASK_STATE_DISCARD_BATCH_SIZE = 150
 
 # Columns describing one attempt's execution; a successor attempt starts with them empty.
 _PER_ATTEMPT_COLUMNS = (

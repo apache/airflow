@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
+import { CLEAR_KEEP_TASK_STATE_KEY } from "src/constants/localStorage";
 import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -54,27 +55,33 @@ beforeEach(() => {
 });
 afterEach(() => {
   clearBody = undefined;
+  localStorage.clear();
 });
 
 describe("BulkClearDagRunsButton", () => {
   it.each([
-    { expected: undefined, tick: false },
-    { expected: true, tick: true },
-  ])("sends keep_task_state=$expected when the box is ticked=$tick", async ({ expected, tick }) => {
-    render(<BulkClearDagRunsButton deselectKeys={vi.fn()} selectedDagRuns={dagRuns} />, {
-      wrapper: Wrapper,
-    });
+    { expected: undefined, stored: false, tick: false },
+    { expected: true, stored: false, tick: true },
+    { expected: true, stored: true, tick: false },
+  ])(
+    "sends keep_task_state=$expected with default=$stored, ticked=$tick",
+    async ({ expected, stored, tick }) => {
+      localStorage.setItem(CLEAR_KEEP_TASK_STATE_KEY, JSON.stringify(stored));
+      render(<BulkClearDagRunsButton deselectKeys={vi.fn()} selectedDagRuns={dagRuns} />, {
+        wrapper: Wrapper,
+      });
 
-    fireEvent.click(screen.getByRole("button", { name: /runAndTaskActions\.clear\.button/iu }));
-    const checkbox = await screen.findByRole("checkbox", { name: /keepTaskState/iu });
+      fireEvent.click(screen.getByRole("button", { name: /runAndTaskActions\.clear\.button/iu }));
+      const checkbox = await screen.findByRole("checkbox", { name: /keepTaskState/iu });
 
-    expect(checkbox).not.toBeChecked();
-    if (tick) {
-      fireEvent.click(checkbox);
-    }
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+      expect((checkbox as HTMLInputElement).checked).toBe(stored);
+      if (tick) {
+        fireEvent.click(checkbox);
+      }
+      fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
 
-    await waitFor(() => expect(clearBody).toBeDefined());
-    expect(clearBody?.keep_task_state).toBe(expected);
-  });
+      await waitFor(() => expect(clearBody).toBeDefined());
+      expect(clearBody?.keep_task_state).toBe(expected);
+    },
+  );
 });

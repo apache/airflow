@@ -583,14 +583,15 @@ class TestDagCommands:
         assert ctx.value is error
         api_client.dag_runs.get.assert_not_called()
 
-    def test_clear_by_run_id(self):
+    @pytest.mark.parametrize(("extra_args", "keep_task_state"), [([], False), (["--keep-task-state"], True)])
+    def test_clear_by_run_id(self, extra_args, keep_task_state):
         api_client = self._api_client_mock()
         api_client.dag_runs.get.return_value = self._dag_run("scheduled__2025-01-01")
         api_client.tasks.clear.return_value = SimpleNamespace(total_entries=2)
 
         result = dag_command.clear(
             self.parser.parse_args(
-                ["dags", "clear", self.dag_id, "--run-id", "scheduled__2025-01-01", "--yes"]
+                ["dags", "clear", self.dag_id, "--run-id", "scheduled__2025-01-01", "--yes", *extra_args]
             ),
             api_client=api_client,
         )
@@ -607,6 +608,7 @@ class TestDagCommands:
                 only_failed=False,
                 only_running=False,
                 reset_dag_runs=True,
+                keep_task_state=keep_task_state,
             ),
         )
 

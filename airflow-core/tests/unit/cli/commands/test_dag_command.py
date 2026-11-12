@@ -36,9 +36,10 @@ import yaml
 from sqlalchemy import func, select
 
 from airflow import settings
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
-from airflow.cli.commands import dag_command
+from airflow.cli.commands import dag_command, task_command
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -53,6 +54,7 @@ from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, Partit
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.state.metastore import MetastoreBackend
 from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
@@ -1523,15 +1525,23 @@ class TestCliDagsClear:
             dag_command.dag_clear(args)
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
-    @pytest.mark.parametrize(("extra_args", "expected"), [([], False), (["--keep-task-state"], True)])
-    @mock.patch("airflow.cli.commands.dag_command._bulk_clear_runs", autospec=True, return_value=1)
-    def test_keep_task_state(self, mock_bulk_clear_runs, parser, extra_args, expected):
-        args = parser.parse_args(
-            ["dags", "clear", self.DAG_ID, "--run-id", "part_2026_03_10", "--yes", *extra_args]
-        )
-        dag_command.dag_clear(args)
+    @pytest.mark.parametrize(
+        ("command", "func"),
+        [
+            (["dags", "clear", DAG_ID, "--run-id", "part_2026_03_10"], dag_command.dag_clear),
+            (["tasks", "clear", DAG_ID], task_command.task_clear),
+        ],
+    )
+    @pytest.mark.parametrize(("extra_args", "kept"), [([], False), (["--keep-task-state"], True)])
+    def test_keep_task_state(self, parser, command, func, extra_args, kept):
+        scope = TaskScope(dag_id=self.DAG_ID, run_id="part_2026_03_10", task_id="t1", map_index=-1)
+        with create_session() as session:
+            MetastoreBackend().set(scope, "job_id", "app_1234", session=session)
 
-        assert mock_bulk_clear_runs.call_args.kwargs["keep_task_state"] is expected
+        func(parser.parse_args([*command, "--yes", *extra_args]))
+
+        with create_session() as session:
+            assert (MetastoreBackend().get(scope, "job_id", session=session) is not None) is kept
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
     def test_rejects_inverted_window(self, parser):

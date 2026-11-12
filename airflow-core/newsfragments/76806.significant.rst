@@ -10,11 +10,16 @@ a checkpoint or returning the result of an external job that already succeeded:
 * backfills that reprocess existing runs, and ``TriggerDagRunOperator(reset_dag_run=True)``
 * ``airflow partitions clear --clear-task-instances`` and the ``clearPartitions`` endpoint with
   ``clear_task_instances``
+* ``dag.test()`` on a logical date that already has a Dag run
 
 To keep task state, pass ``keep_task_state=true`` to the Dag run clear endpoints, tick "keep task
-state" in the Clear Run dialog, or add ``--keep-task-state`` to ``airflow dags clear`` /
-``airflow tasks clear``. Marking tasks, backfill, ``reset_dag_run`` and partition clears have no
-opt-out.
+state" in the Clear Run dialog, or add ``--keep-task-state`` to ``airflow dags clear``,
+``airflow tasks clear`` or ``airflowctl dags clear``. Marking tasks, backfill, ``reset_dag_run``,
+partition clears and ``dag.test()`` have no opt-out.
+
+This also widens the permission surface of clearing a Dag run: it needs only the Dag Run edit
+permission, but now deletes ``task_state_store`` rows that the task state store API guards behind
+the Task Instance delete permission.
 
 * Types of change
 
