@@ -48,8 +48,9 @@ batch can have up to 100,000 results, far too much to push through XCom.
     :end-before: [END howto_operator_llm_batch_basic]
 
 Rows are written one at a time, and Anthropic's results are read as a stream, so landing a batch holds
-only a small buffer of responses in the worker's memory. Gemini's SDK downloads a batch's results in
-one call, so landing a Gemini batch holds every response body of that batch in memory at once. For a
+only a small buffer of responses in the worker's memory. Gemini results are still read through
+pydantic-ai, which downloads a batch's results in one call, so landing a Gemini batch holds every
+response body of that batch in memory at once. For a
 Gemini batch of tens of thousands of long responses, size the worker for it, or split the input across
 mapped task instances with ``.expand()`` so each instance lands one slice.
 

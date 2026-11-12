@@ -102,8 +102,8 @@ Changelog
     outdated batch from an earlier version that was recorded under a different connection cannot be
     cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
   - Anthropic results are streamed, so landing a batch holds only a small buffer of responses in
-    memory. Gemini's SDK downloads a batch's results in one call, so a Gemini batch holds all of its
-    response bodies in memory at once. Rows are still written one at a time. For a large Gemini batch,
+    memory. Gemini results are still read through pydantic-ai, which downloads a batch's results in
+    one call, so a Gemini batch holds all of its response bodies in memory at once. Rows are still written one at a time. For a large Gemini batch,
     size workers for it or split the input across mapped task instances with ``.expand()``.
   - A task that was deferred by an earlier version of this provider and is still waiting when you
     upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
