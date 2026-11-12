@@ -34,6 +34,7 @@ import pandas as pd
 import pytest
 import time_machine
 from openlineage.client import OpenLineageClient
+from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.transport import ConsoleTransport
 from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
@@ -3522,11 +3523,11 @@ class TestExecuteRouting:
 
 
 def _build_listener_asset_event(*, source_task_id=None, extra=None):
-    # Not importable before Airflow 3.2, which introduced the asset event listener hook.
-    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
     from airflow.serialization.definitions.assets import SerializedAsset
 
-    return ListenerAssetEvent(
+    # Without the event id and source watcher fields, so the listener behaves the same whichever core
+    # version is installed; both shapes are covered by the asset event helper tests in test_utils.
+    return SimpleNamespace(
         asset=SerializedAsset(name="orders", uri="s3://bucket/orders", group="asset", extra={}, watchers=[]),
         extra={"from_trigger": True, "payload": {"order_id": 1}} if extra is None else extra,
         source_dag_id=None,
@@ -3556,15 +3557,6 @@ class TestOpenLineageListenerAssetEvents:
         listener.on_asset_event_emitted(
             asset_event=_build_listener_asset_event(source_task_id=source_task_id, extra=extra)
         )
-
-        mock_emitter_cls.return_value.submit.assert_not_called()
-
-    @conf_vars({("openlineage", "selective_enable"): "True"})
-    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
-    def test_skips_asset_watcher_event_when_selective_enable_is_on(self, mock_emitter_cls):
-        listener = OpenLineageListener()
-
-        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
 
         mock_emitter_cls.return_value.submit.assert_not_called()
 
@@ -3608,6 +3600,7 @@ class TestOpenLineageListenerAssetEvents:
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Asset event listener hook requires Airflow 3.2+")
 class TestAssetWatcherEventEmitter:
     EVENT_TIME = datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
+    ASSET_DATASET = OpenLineageDataset(namespace="file://host", name="/orders.csv")
 
     @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
     def test_emits_submitted_events_on_a_daemon_thread(self, mock_emit):
@@ -3682,9 +3675,13 @@ class TestAssetWatcherEventEmitter:
         assert done.wait(timeout=10)
         assert emitter._thread is not dead_thread
 
-    @patch("airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets", autospec=True)
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets",
+        autospec=True,
+        return_value=[OpenLineageDataset(namespace="file://host", name="/orders.csv")],
+    )
     @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
-    def test_emit_sends_asset_watcher_event_pair(self, mock_adapter_cls, mock_get_outputs):
+    def test_emit_sends_asset_watcher_event_pair(self, mock_adapter_cls, _):
         emitter = _AssetWatcherEventEmitter()
         asset_event = _build_listener_asset_event()
 
@@ -3692,10 +3689,49 @@ class TestAssetWatcherEventEmitter:
 
         mock_adapter_cls.return_value.asset_watcher_event.assert_called_once_with(
             run_id=mock.ANY,
-            job_name="asset_watcher:orders",
+            job_name="asset_watcher.orders",
             event_time=self.EVENT_TIME,
             run_facets=get_airflow_asset_event_run_facet(asset_event),
-            outputs=mock_get_outputs.return_value,
+            outputs=[self.ASSET_DATASET],
         )
         run_id = mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["run_id"]
         assert uuid.UUID(run_id).version == 7
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            pytest.param({"scope": {}, "controls": {"emit": False}}, id="emit-disabled"),
+            pytest.param(
+                {"scope": {}, "controls": {"exclude_datasets": ["file://host/orders.csv"]}},
+                id="dataset-excluded",
+            ),
+        ],
+    )
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets",
+        autospec=True,
+        return_value=[OpenLineageDataset(namespace="file://host", name="/orders.csv")],
+    )
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
+    def test_emit_skips_events_by_emission_policy(self, mock_adapter_cls, _, rule):
+        emitter = _AssetWatcherEventEmitter()
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps([rule])}):
+            emitter._emit(_build_listener_asset_event(), self.EVENT_TIME)
+
+        mock_adapter_cls.return_value.asset_watcher_event.assert_not_called()
+
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets",
+        autospec=True,
+        return_value=[],
+    )
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
+    def test_emit_sends_events_of_untranslatable_asset_despite_exclusions(self, mock_adapter_cls, _):
+        emitter = _AssetWatcherEventEmitter()
+        rule = {"scope": {}, "controls": {"exclude_datasets": [".*"]}}
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps([rule])}):
+            emitter._emit(_build_listener_asset_event(), self.EVENT_TIME)
+
+        assert mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["outputs"] == []

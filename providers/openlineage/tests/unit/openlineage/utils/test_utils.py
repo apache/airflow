@@ -24,6 +24,7 @@ import pickle
 import threading
 from decimal import Decimal
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import UUID, uuid4
@@ -31,6 +32,7 @@ from uuid import UUID, uuid4
 import attrs
 import pendulum
 import pytest
+import time_machine
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import parent_run
 from sqlalchemy.orm.exc import DetachedInstanceError
@@ -68,6 +70,7 @@ from airflow.providers.openlineage.utils.utils import (
     _get_task_groups_details,
     _get_tasks_details,
     _truncate_string_to_byte_size,
+    build_asset_watcher_event_ol_run_id,
     build_dag_run_ol_run_id,
     build_task_event_job_facets,
     build_task_event_run_facets,
@@ -79,6 +82,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_airflow_state_run_facet,
     get_asset_event_output_datasets,
+    get_asset_event_time,
     get_asset_watcher_job_name,
     get_dag_documentation,
     get_dag_job_dependency_facet,
@@ -6767,25 +6771,58 @@ def test_get_task_parent_run_facet_explicit_root_ignores_dr_conf_job_type():
     assert _get_job_type_facets(parent_facet.root.job) is None
 
 
-def _build_listener_asset_event(*, source_task_id=None, extra=None, partition_date=None):
-    # Not importable before Airflow 3.2, which introduced the asset event listener hook.
-    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
+@attrs.define
+class _ListenerAssetEventWithoutSourceFields:
+    """The listener asset event as Airflow versions without the event id and source watcher pass it."""
+
+    asset: Any
+    extra: dict
+    source_dag_id: str | None
+    source_task_id: str | None
+    source_run_id: str | None
+    source_map_index: int | None
+    source_aliases: list
+    partition_key: str | None
+    partition_date: datetime.datetime | None = None
+
+
+@attrs.define
+class _ListenerAssetEventWithSourceFields(_ListenerAssetEventWithoutSourceFields):
+    """The listener asset event as Airflow versions with the event id and source watcher pass it."""
+
+    id: int = 42
+    timestamp: datetime.datetime = datetime.datetime(2026, 11, 4, 10, 0, tzinfo=datetime.UTC)
+    asset_id: int = 3
+    source_watcher_name: str | None = None
+    source_trigger_classpath: str | None = None
+
+
+_WATCHER_CLASSPATH = "airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger"
+
+
+def _build_listener_asset_event(
+    *, with_source_fields=False, source_task_id=None, extra=None, partition_date=None, **source_fields
+):
     from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
-    optional_kwargs = {"partition_date": partition_date} if partition_date is not None else {}
-    return ListenerAssetEvent(
-        asset=SerializedAsset(
+    kwargs = {
+        "asset": SerializedAsset(
             name="orders", uri="s3://bucket/orders", group="asset", extra={"owner": "team"}, watchers=[]
         ),
-        extra={"from_trigger": True, "payload": {"order_id": 1}} if extra is None else extra,
-        source_dag_id=None,
-        source_task_id=source_task_id,
-        source_run_id=None,
-        source_map_index=None,
-        source_aliases=[SerializedAssetAlias(name="orders_alias", group="asset")],
-        partition_key="2026-11-04",
-        **optional_kwargs,
-    )
+        "extra": {"from_trigger": True, "payload": {"order_id": 1}} if extra is None else extra,
+        "source_dag_id": None,
+        "source_task_id": source_task_id,
+        "source_run_id": None,
+        "source_map_index": None,
+        "source_aliases": [SerializedAssetAlias(name="orders_alias", group="asset")],
+        "partition_key": "2026-11-04",
+        "partition_date": partition_date,
+    }
+    if not with_source_fields:
+        return _ListenerAssetEventWithoutSourceFields(**kwargs)
+    source_fields.setdefault("source_watcher_name", "orders_queue")
+    source_fields.setdefault("source_trigger_classpath", _WATCHER_CLASSPATH)
+    return _ListenerAssetEventWithSourceFields(**kwargs, **source_fields)
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Asset event listener hook requires Airflow 3.2+")
@@ -6794,17 +6831,71 @@ class TestAssetWatcherEventHelpers:
         ("source_task_id", "extra", "expected"),
         [
             pytest.param(None, {"from_trigger": True, "payload": "p"}, True, id="asset-watcher"),
-            pytest.param(None, {"custom": "value"}, False, id="rest-api"),
+            pytest.param(None, {"custom": "value", "from_rest_api": True}, False, id="rest-api"),
+            pytest.param(
+                None, {"from_trigger": True, "from_rest_api": True}, False, id="rest-api-with-from-trigger"
+            ),
             pytest.param("producer_task", {"from_trigger": True}, False, id="task"),
         ],
     )
-    def test_is_asset_event_from_asset_watcher(self, source_task_id, extra, expected):
+    def test_is_asset_event_from_asset_watcher_without_source_fields(self, source_task_id, extra, expected):
         asset_event = _build_listener_asset_event(source_task_id=source_task_id, extra=extra)
 
         assert is_asset_event_from_asset_watcher(asset_event) is expected
 
+    @pytest.mark.parametrize(
+        ("source_watcher_name", "expected"),
+        [
+            pytest.param("orders_queue", True, id="asset-watcher"),
+            pytest.param(None, False, id="not-asset-watcher-despite-from-trigger"),
+        ],
+    )
+    def test_is_asset_event_from_asset_watcher_with_source_fields(self, source_watcher_name, expected):
+        asset_event = _build_listener_asset_event(
+            with_source_fields=True, source_watcher_name=source_watcher_name
+        )
+
+        assert is_asset_event_from_asset_watcher(asset_event) is expected
+
     def test_get_asset_watcher_job_name(self):
-        assert get_asset_watcher_job_name(_build_listener_asset_event()) == "asset_watcher:orders"
+        assert get_asset_watcher_job_name(_build_listener_asset_event()) == "asset_watcher.orders"
+
+    @time_machine.travel(datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC), tick=False)
+    @pytest.mark.parametrize(
+        ("with_source_fields", "expected"),
+        [
+            pytest.param(True, datetime.datetime(2026, 11, 4, 10, 0, tzinfo=datetime.UTC), id="stored"),
+            pytest.param(False, datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC), id="now"),
+        ],
+    )
+    def test_get_asset_event_time(self, with_source_fields, expected):
+        asset_event = _build_listener_asset_event(with_source_fields=with_source_fields)
+
+        assert get_asset_event_time(asset_event) == expected
+
+    def test_build_asset_watcher_event_ol_run_id_is_deterministic_with_source_fields(self):
+        asset_event = _build_listener_asset_event(with_source_fields=True)
+        later = datetime.datetime(2026, 11, 5, tzinfo=datetime.UTC)
+
+        run_id = build_asset_watcher_event_ol_run_id(asset_event, asset_event.timestamp)
+
+        assert UUID(run_id).version == 7
+        assert run_id == build_asset_watcher_event_ol_run_id(asset_event, later)
+        assert run_id != build_asset_watcher_event_ol_run_id(
+            _build_listener_asset_event(with_source_fields=True, id=43), asset_event.timestamp
+        )
+        assert run_id != build_asset_watcher_event_ol_run_id(
+            _build_listener_asset_event(with_source_fields=True, timestamp=later), asset_event.timestamp
+        )
+
+    def test_build_asset_watcher_event_ol_run_id_is_random_without_source_fields(self):
+        asset_event = _build_listener_asset_event()
+        event_time = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC)
+
+        run_id = build_asset_watcher_event_ol_run_id(asset_event, event_time)
+
+        assert UUID(run_id).version == 7
+        assert run_id != build_asset_watcher_event_ol_run_id(asset_event, event_time)
 
     def test_get_json_safe_value_within_size_limit_handles_unsafe_values(self):
         circular: dict = {}
@@ -6821,22 +6912,48 @@ class TestAssetWatcherEventHelpers:
             f"{_MAX_ASSET_EVENT_VALUE_SIZE}>"
         )
 
-    def test_get_airflow_asset_event_run_facet(self):
-        partition_date = datetime.datetime(2026, 11, 4, tzinfo=datetime.UTC) if AIRFLOW_V_3_3_PLUS else None
-        asset_event = _build_listener_asset_event(partition_date=partition_date)
+    @pytest.mark.parametrize(
+        ("with_source_fields", "expected_source_fields"),
+        [
+            pytest.param(
+                True,
+                {
+                    "assetId": 3,
+                    "id": 42,
+                    "watcherName": "orders_queue",
+                    "triggerClasspath": _WATCHER_CLASSPATH,
+                },
+                id="with-source-fields",
+            ),
+            pytest.param(
+                False,
+                {"assetId": None, "id": None, "watcherName": None, "triggerClasspath": None},
+                id="without-source-fields",
+            ),
+        ],
+    )
+    def test_get_airflow_asset_event_run_facet(self, with_source_fields, expected_source_fields):
+        partition_date = datetime.datetime(2026, 11, 4, tzinfo=datetime.UTC)
+        asset_event = _build_listener_asset_event(
+            with_source_fields=with_source_fields, partition_date=partition_date
+        )
 
         assert get_airflow_asset_event_run_facet(asset_event) == {
             "airflowAssetEvent": AirflowAssetEventRunFacet(
                 asset={
+                    "id": expected_source_fields["assetId"],
                     "name": "orders",
                     "uri": "s3://bucket/orders",
                     "group": "asset",
                     "extra": {"owner": "team"},
                 },
                 assetEvent={
+                    "id": expected_source_fields["id"],
+                    "watcherName": expected_source_fields["watcherName"],
+                    "triggerClasspath": expected_source_fields["triggerClasspath"],
                     "extra": {"from_trigger": True, "payload": {"order_id": 1}},
                     "partitionKey": "2026-11-04",
-                    "partitionDate": partition_date.isoformat() if partition_date else None,
+                    "partitionDate": "2026-11-04T00:00:00+00:00",
                     "sourceAliases": ["orders_alias"],
                 },
             )

@@ -1368,3 +1368,47 @@ def resolve_dag_emission_policy(dag_id: str, dag: object | None = None) -> Emiss
         )
         log.debug("Exception details:", exc_info=True)
         return EmissionPolicy.defaults()
+
+
+def resolve_asset_watcher_emission_policy(asset_name: str) -> EmissionPolicy:
+    """
+    Resolve the emission policy for the events of an asset event produced by an asset watcher.
+
+    These events belong to no Dag, task, operator or hook, so only global rules (empty ``scope``) apply, and of
+    their controls only ``emit`` and ``exclude_datasets``: ``emit_task_events`` and ``emit_dag_events`` target
+    other events. ``selective_enable`` is translated into a global ``emit: false``, as for Dag events, since no
+    asset watcher can opt in with ``enable_lineage``.
+
+    Never raises: any failure is logged and the built-in defaults are returned.
+
+    :param asset_name: The name of the asset the event was produced for, used in log messages.
+    """
+    try:
+        context = f"asset watcher event of asset '{asset_name}'"
+        legacy_rules = [Rule(scope={}, controls={EMIT: False})] if _ol_conf.selective_enable() else []
+        _warn_legacy_with_emission_policy(legacy_rules, scope="dag")
+
+        global_rules = [rule for rule in [*legacy_rules, *_parse_user_rules()] if not rule.scope]
+        emit, emit_rule = _resolve_field_with_source([global_rules], EMIT, EmissionPolicy.defaults().emit)
+        if emit_rule is not None:
+            _audit_log_conf_field(EMIT, emit, context, emit_rule)
+
+        dataset_filter_rules = tuple(
+            rule for rule in global_rules if _get_rule_exclude_patterns(rule) is not None
+        )
+        return replace(
+            EmissionPolicy.defaults(),
+            emit=emit,
+            dataset_filter=DatasetFilter(
+                tiers=(dataset_filter_rules,) if dataset_filter_rules else (), context=context
+            ),
+        )
+    except Exception as err:
+        log.warning(
+            "Failed to resolve OpenLineage emission policy for asset watcher event of asset `%s`; "
+            "emitting with default controls. Error: %s",
+            asset_name,
+            err,
+        )
+        log.debug("Exception details:", exc_info=True)
+        return EmissionPolicy.defaults()

@@ -83,7 +83,9 @@ main) or when a maintainer sets the **`full tests needed`** label on the PR (bot
 
 Some DAGs require a newer Airflow than the compat targets and are dropped for older versions in
 `prepare_dags.py` (`MIN_AIRFLOW_VERSION_FOR_DAG`) — e.g. `example_openlineage_hitl_dag` needs 3.1+
-(its operators import-raise on older Airflow versions), and the task loop DAGs need 3.4+. Add an entry there
+(its operators import-raise on older Airflow versions), `example_openlineage_asset_watcher_dag` needs 3.2+ (the
+first version that tells listeners about asset events), the task loop DAGs need 3.4+, and
+`example_openlineage_asset_watcher_partition_dag` needs 3.5+ (the first version whose watchers can report a partition). Add an entry there
 when a new DAG is version-gated.
 
 ## Layout

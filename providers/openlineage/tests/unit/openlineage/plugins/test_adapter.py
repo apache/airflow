@@ -1892,7 +1892,7 @@ def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outp
 
     adapter.asset_watcher_event(
         run_id="01970000-0000-7000-8000-000000000000",
-        job_name="asset_watcher:orders",
+        job_name="asset_watcher.orders",
         event_time=event_time,
         run_facets=run_facets,
         outputs=outputs,
@@ -1909,7 +1909,7 @@ def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outp
     )
     expected_job = Job(
         namespace=namespace(),
-        name="asset_watcher:orders",
+        name="asset_watcher.orders",
         facets={
             "jobType": job_type_job.JobTypeJobFacet(
                 processingType="BATCH", integration="AIRFLOW", jobType="ASSET_WATCHER"

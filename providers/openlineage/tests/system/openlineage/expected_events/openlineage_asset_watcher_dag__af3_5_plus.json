@@ -1,0 +1,412 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.create_trigger_files",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'trigger_file.write' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.create_trigger_files",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'trigger_file.write' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.emit_task_asset_event"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.emit_task_asset_event"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.create_rest_asset_event",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'create_asset_event' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.create_rest_asset_event",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'create_asset_event' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.wait_for_asset_watcher_events"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_dag.wait_for_asset_watcher_events"
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/orders.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_asset",
+                        "uri": "file://openlineage-asset-watcher/orders.csv",
+                        "group": "asset",
+                        "extra": {
+                            "owner": "openlineage"
+                        }
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher",
+                        "triggerClasspath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": null,
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/orders.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_asset",
+                        "uri": "file://openlineage-asset-watcher/orders.csv",
+                        "group": "asset",
+                        "extra": {
+                            "owner": "openlineage"
+                        }
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher_second",
+                        "triggerClasspath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": null,
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/shared.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_shared_trigger_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_shared_trigger_asset",
+                        "uri": "file://openlineage-asset-watcher/shared.csv",
+                        "group": "asset",
+                        "extra": {}
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher_shared_trigger",
+                        "triggerClasspath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": null,
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/orders.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_asset",
+                        "uri": "file://openlineage-asset-watcher/orders.csv",
+                        "group": "asset",
+                        "extra": {
+                            "owner": "openlineage"
+                        }
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher",
+                        "triggerClasspath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": null,
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/orders.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_asset",
+                        "uri": "file://openlineage-asset-watcher/orders.csv",
+                        "group": "asset",
+                        "extra": {
+                            "owner": "openlineage"
+                        }
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher_second",
+                        "triggerClasspath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": null,
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/shared.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_shared_trigger_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_shared_trigger_asset",
+                        "uri": "file://openlineage-asset-watcher/shared.csv",
+                        "group": "asset",
+                        "extra": {}
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher_shared_trigger",
+                        "triggerClasspath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": null,
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$absent": "the dataset of the asset matches the global exclude_datasets rule of the deployment",
+        "eventType": "START",
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_excluded_asset"
+        }
+    },
+    {
+        "$absent": "the dataset of the asset matches the global exclude_datasets rule of the deployment",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_excluded_asset"
+        }
+    },
+    {
+        "$absent": "the dataset of the asset matches the global exclude_datasets rule of the deployment",
+        "eventType": "FAIL",
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_excluded_asset"
+        }
+    },
+    {
+        "$absent": "asset events of tasks and of the REST API, even claiming to come from a trigger, are not asset watcher events",
+        "eventType": "START",
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_task_asset"
+        }
+    },
+    {
+        "$absent": "asset events of tasks and of the REST API, even claiming to come from a trigger, are not asset watcher events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_task_asset"
+        }
+    },
+    {
+        "$absent": "asset events of tasks and of the REST API, even claiming to come from a trigger, are not asset watcher events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_task_asset"
+        }
+    }
+]

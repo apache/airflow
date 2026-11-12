@@ -358,6 +358,21 @@ In the example above:
     excluded dataset: ``columnLineage`` on the remaining datasets, and the task's ``inlets``,
     ``outlets`` and runtime outlet assets in the ``airflow`` run facet.
 
+.. _emission_policy_asset_watchers:openlineage:
+
+Asset watcher events
+^^^^^^^^^^^^^^^^^^^^
+
+Events for asset events produced by asset watchers in the Triggerer belong to no Dag, task, operator or hook,
+so only global rules (empty ``scope``) apply to them, and only two of their controls:
+
+- ``emit: false`` suppresses them. ``emit_task_events`` and ``emit_dag_events`` do not affect them.
+- ``exclude_datasets`` is matched against the asset's dataset. When it is excluded, no events are emitted for
+  the asset event at all, as they exist to report the asset and their run facet names it. Assets that cannot
+  be translated to an OpenLineage dataset are never excluded.
+
+The legacy ``selective_enable`` option suppresses them too, as no asset watcher can opt in with ``enable_lineage``.
+
 **Audit logging**: whenever a control flag is non-default (suppressed or enabled), an INFO-level log
 is emitted identifying the field, the event context, and the exact rule that caused the change.
 This provides a clear audit trail for operational troubleshooting.

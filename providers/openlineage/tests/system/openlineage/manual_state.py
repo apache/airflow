@@ -287,6 +287,14 @@ def mark_dag_run(dag_id: str, run_id: str, state: str) -> None:
 
 
 @_log_errors
+def create_asset_event(asset_name: str, extra: dict[str, Any]) -> None:
+    """Create an event for the asset of this name through the REST API, as a user of the API would."""
+    assets = _request("GET", "assets", params={"name_pattern": asset_name})["assets"]
+    asset_id = next(asset["id"] for asset in assets if asset["name"] == asset_name)
+    _request("POST", "assets/events", json={"asset_id": asset_id, "extra": extra})
+
+
+@_log_errors
 def change_state(
     dag_id: str,
     run_id: str,

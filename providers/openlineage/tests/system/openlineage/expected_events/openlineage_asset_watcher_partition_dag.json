@@ -1,0 +1,138 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag.create_trigger_file",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'trigger_file.write' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag.create_trigger_file",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'trigger_file.write' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag.wait_for_asset_watcher_events"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag.wait_for_asset_watcher_events"
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/partitioned.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_partition_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_partition_asset",
+                        "uri": "file://openlineage-asset-watcher/partitioned.csv",
+                        "group": "asset",
+                        "extra": {}
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher_partition",
+                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": "2026-11-04",
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "file://openlineage-asset-watcher",
+                "name": "/partitioned.csv"
+            }
+        ],
+        "job": {
+            "name": "asset_watcher.openlineage_asset_watcher_partition_asset",
+            "facets": {
+                "jobType": {
+                    "processingType": "BATCH",
+                    "integration": "AIRFLOW",
+                    "jobType": "ASSET_WATCHER"
+                }
+            }
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowAssetEvent": {
+                    "asset": {
+                        "id": "{{ is_numeric(result) }}",
+                        "name": "openlineage_asset_watcher_partition_asset",
+                        "uri": "file://openlineage-asset-watcher/partitioned.csv",
+                        "group": "asset",
+                        "extra": {}
+                    },
+                    "assetEvent": {
+                        "id": "{{ is_numeric(result) }}",
+                        "watcherName": "openlineage_asset_watcher_partition",
+                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger",
+                        "extra": {
+                            "from_trigger": true,
+                            "payload": true
+                        },
+                        "partitionKey": "2026-11-04",
+                        "partitionDate": null,
+                        "sourceAliases": []
+                    }
+                }
+            }
+        }
+    }
+]

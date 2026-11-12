@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
-from openlineage.client.uuid import generate_new_uuid
 from sqlalchemy.orm import object_session
 
 from airflow import settings
@@ -38,6 +37,7 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.emission_policy import (
+    resolve_asset_watcher_emission_policy,
     resolve_dag_emission_policy,
     resolve_task_emission_policy,
 )
@@ -45,6 +45,7 @@ from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     DagRunInfo,
+    build_asset_watcher_event_ol_run_id,
     get_airflow_asset_event_run_facet,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
@@ -52,6 +53,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
     get_asset_event_output_datasets,
+    get_asset_event_time,
     get_asset_watcher_job_name,
     get_dag_documentation,
     get_dag_parent_run_facet,
@@ -235,14 +237,28 @@ class _AssetWatcherEventEmitter:
                 self.log.warning("OpenLineage failed to emit asset watcher event.", exc_info=True)
 
     def _emit(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
+        asset_name = asset_event.asset.name
+        policy = resolve_asset_watcher_emission_policy(asset_name)
+        if not policy.emit:
+            self.log.debug(
+                "Skipping OpenLineage asset watcher event of asset `%s` by emission policy.", asset_name
+            )
+            return
+        outputs = get_asset_event_output_datasets(asset_event)
+        # The events exist to report the asset, and their facet names it, so they are not sent without it
+        if outputs and not policy.dataset_filter.exclude(outputs):
+            self.log.debug(
+                "Skipping OpenLineage asset watcher event of asset `%s`, its dataset is excluded.", asset_name
+            )
+            return
         if self._adapter is None:
             self._adapter = OpenLineageAdapter()
         self._adapter.asset_watcher_event(
-            run_id=str(generate_new_uuid(event_time)),
+            run_id=build_asset_watcher_event_ol_run_id(asset_event, event_time),
             job_name=get_asset_watcher_job_name(asset_event),
             event_time=event_time,
             run_facets=get_airflow_asset_event_run_facet(asset_event),
-            outputs=get_asset_event_output_datasets(asset_event),
+            outputs=outputs,
         )
 
 
@@ -1383,15 +1399,12 @@ class OpenLineageListener:
         Queue OpenLineage events for an asset event produced by an asset watcher.
 
         Called on the triggerer's main loop, so only the cheap checks run here; building and
-        emitting the events happens on the emitter thread. Asset events produced by tasks are
+        emitting the events, and resolving the emission policy, happens on the emitter thread. Asset events produced by tasks are
         already reported as outputs of the task's own OpenLineage events.
         """
         if not is_asset_event_from_asset_watcher(asset_event):
             return
-        if conf.selective_enable():
-            self.log.debug("Skipping OpenLineage asset watcher event, as selective enable is on.")
-            return
-        if not self._asset_watcher_event_emitter.submit(asset_event, timezone.utcnow()):
+        if not self._asset_watcher_event_emitter.submit(asset_event, get_asset_event_time(asset_event)):
             self.log.warning(
                 "OpenLineage asset watcher event queue is full; skipping event for asset `%s`.",
                 asset_event.asset.name,

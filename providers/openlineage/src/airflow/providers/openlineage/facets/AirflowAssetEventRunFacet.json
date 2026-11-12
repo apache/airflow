@@ -10,12 +10,12 @@
             "type": "object",
             "properties": {
               "asset": {
-                "description": "The Airflow asset the event was registered for: name, uri, group and extra",
+                "description": "The Airflow asset the event was registered for: id, name, uri, group and extra. The id is null on Airflow versions that do not pass it to listeners.",
                 "type": "object",
                 "additionalProperties": true
               },
               "assetEvent": {
-                "description": "The Airflow asset event: extra (holding the trigger payload), partitionKey, partitionDate and sourceAliases",
+                "description": "The Airflow asset event: id, watcherName, triggerClasspath, extra (holding the trigger payload), partitionKey, partitionDate and sourceAliases. id, watcherName and triggerClasspath are null on Airflow versions that do not pass them to listeners.",
                 "type": "object",
                 "additionalProperties": true
               }
