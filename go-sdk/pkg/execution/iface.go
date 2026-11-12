@@ -36,8 +36,8 @@ func ifaceStringPtr(v any) *string {
 	return &s
 }
 
-// ifaceInt converts a numeric value decoded as any into int, returning def when
-// nil or non-numeric.
+// ifaceInt converts a numeric value decoded as any into int, truncating a float,
+// and returns def when the value is nil or non-numeric.
 func ifaceInt(v any, def int) int {
 	if n, ok := ifaceNumber[int](v); ok {
 		return n
