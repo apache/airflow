@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.cursors import (
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     apply_filters_to_select,
+    bounded_total_entries,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -235,9 +236,10 @@ def get_event_logs(
     **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-    When `cursor` is provided, `offset` is ignored and `total_entries` is ``null``, so the listing
-    never counts the table. ``next_cursor`` is ``null`` when there are no more pages;
-    ``previous_cursor`` is ``null`` on the first page.
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many events match).
+    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null`` on
+    the first page.
     """
     query = (
         # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
@@ -322,8 +324,13 @@ def get_event_logs(
         previous_cursor = (
             make_backward_cursor(encode_cursor(page[0], order_by)) if has_prev and page else None
         )
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
         return EventLogCollectionResponse(
             event_logs=[event_log_to_response(event_log=event_log) for event_log in page],
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
             next_cursor=next_cursor,
             previous_cursor=previous_cursor,
         )

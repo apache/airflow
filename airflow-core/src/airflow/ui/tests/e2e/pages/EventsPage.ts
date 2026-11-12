@@ -34,7 +34,7 @@ export class EventsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    // DataTable names the model in the page heading, so this reads "Events" rather than "Audit Log"
+    // DataTable's row count is the page heading, so this reads "950 Events" rather than "Audit Log"
     this.eventsPageTitle = page.getByRole("heading", { name: /events/i });
     this.eventsTable = page.getByTestId("table-list");
     this.eventColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "Event" });

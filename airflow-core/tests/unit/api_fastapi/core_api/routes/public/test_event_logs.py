@@ -859,11 +859,15 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert body["previous_cursor"] is None
         assert body["next_cursor"] is not None
 
-    def test_cursor_pagination_does_not_count_rows(self, test_client):
-        with assert_queries_count(2):
-            response = test_client.get("/eventLogs", params={"cursor": ""})
-        assert response.status_code == 200
-        assert response.json()["total_entries"] is None
+    @pytest.mark.parametrize(("count_limit", "expected_total_entries"), [(2, 2), (10, 4)])
+    def test_cursor_pagination_caps_total_entries(self, test_client, count_limit, expected_total_entries):
+        """The count stops at the cap, so a total equal to total_entries_limit means at least that many."""
+        with mock.patch("airflow.api_fastapi.common.db.common.EXACT_COUNT_LIMIT", count_limit):
+            response = test_client.get("/eventLogs", params={"limit": 1, "cursor": ""})
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert body["total_entries_limit"] == count_limit
 
     def test_cursor_pagination_keeps_filters_on_every_page(self, test_client):
         events = []
