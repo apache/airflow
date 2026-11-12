@@ -113,6 +113,7 @@ def get_role(name: str = Path(..., min_length=1)) -> RoleResponse:
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ]
     ),
     dependencies=[Depends(requires_fab_custom_view("PUT", permissions.RESOURCE_ROLE))],
