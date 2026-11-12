@@ -102,8 +102,13 @@ def delete_endpoint(endpoint_name):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def archive_logs(log_group_name):
-    boto3.client("logs").put_retention_policy(logGroupName=log_group_name, retentionInDays=1)
+def print_and_delete_endpoint_logs(log_group_name: str):
+    """Copy the endpoint logs into this task's log, then delete their CloudWatch log group."""
+    logs_client = boto3.client("logs")
+    for page in logs_client.get_paginator("filter_log_events").paginate(logGroupName=log_group_name):
+        for event in page["events"]:
+            print(event["message"])
+    logs_client.delete_log_group(logGroupName=log_group_name)
 
 
 @task
@@ -299,7 +304,7 @@ with DAG(
         delete_model,
         delete_bucket,
         log_cleanup,
-        archive_logs(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
+        print_and_delete_endpoint_logs(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
     )
 
     from tests_common.test_utils.watcher import watcher
