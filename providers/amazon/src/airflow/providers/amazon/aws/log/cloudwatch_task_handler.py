@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     import structlog.typing
@@ -266,20 +267,49 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return messages, str_logs
 
     def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
-        logs: list[RawLogStream] = []
-        messages = [
-            f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
-        ]
+        # Read every stream the path is a prefix of, as the S3, GCS and WASB readers read every object under
+        # it: a deferred task's triggerer logs to its own stream, ``<task log>.trigger.<triggerer job id>.log``.
+        messages: list[str] = []
         try:
-            gen: RawLogStream = (
-                self._parse_log_event_as_dumped_json(event)
-                for event in self.get_cloudwatch_logs(relative_path, ti)
-            )
-            logs = [gen]
+            names = self._list_log_stream_names(relative_path)
         except Exception as e:
-            messages.append(str(e))
+            if relative_path.endswith("/"):
+                # Read as a stream name, a directory gives a "No log stream found" notice as its one line.
+                raise
+            messages.append(f"Could not list Cloudwatch log streams under {relative_path}: {e}")
+            names = [relative_path]
+        if not names:
+            if relative_path.endswith("/"):
+                # A directory with no stream under it has no logs. Read as a stream name, it would give a
+                # "No log stream found" notice as a log line.
+                return messages, []
+            names = [relative_path]
+        if getattr(ti, "state", None) == TaskInstanceState.DEFERRED and (
+            job := getattr(ti, "triggerer_job", None)
+        ):
+            # FileTaskHandler reads this one live from its triggerer; reading it here too would show each
+            # line twice, as CloudWatch keeps its time only to the millisecond.
+            live = FileTaskHandler.add_triggerer_suffix(relative_path, job_id=job.id).replace(":", "_")
+            names = [name for name in names if name != live]
+        logs: list[RawLogStream] = []
+        for name in names:
+            messages.append(
+                f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {name}"
+            )
+            try:
+                logs.append(
+                    self._parse_log_event_as_dumped_json(event)
+                    for event in self.get_cloudwatch_logs(name, ti)
+                )
+            except Exception as e:
+                messages.append(str(e))
 
         return messages, logs
+
+    def _list_log_stream_names(self, prefix: str) -> list[str]:
+        paginator = self.hook.conn.get_paginator("describe_log_streams")
+        pages = paginator.paginate(logGroupName=self.log_group, logStreamNamePrefix=prefix.replace(":", "_"))
+        return [log_stream["logStreamName"] for page in pages for log_stream in page["logStreams"]]
 
     def get_cloudwatch_logs(
         self, stream_name: str, task_instance: RuntimeTI | None
@@ -425,8 +455,6 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self, task_instance, try_number, metadata=None
     ) -> tuple[LogSourceInfo, LogMessages]:
         stream_name = self._render_filename(task_instance, try_number)
-        messages, logs = self.io.read(stream_name, task_instance)
-
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.io.log_group} log_stream: {stream_name}"
         ]

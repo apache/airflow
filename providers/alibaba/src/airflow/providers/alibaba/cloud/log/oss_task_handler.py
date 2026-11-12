@@ -113,13 +113,26 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
             )
 
     def read(self, relative_path, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages | None]:
-        logs: list[str] = []
-        messages = [relative_path]
+        # Read every object the path is a prefix of, as the S3 reader does: a deferred task's triggerer
+        # stores its log beside the task log, as ``<task log>.trigger.<triggerer job id>.log``.
+        messages: list[str] = []
+        try:
+            paths = self.oss_list(relative_path)
+        except Exception as e:
+            messages.append(f"Could not list OSS objects under {relative_path}: {e}")
+            paths = [relative_path] if self.oss_log_exists(relative_path) else []
+        if not paths:
+            return [*messages, relative_path], None
+        return [*messages, *paths], [self.oss_read(path, return_error=True) for path in paths]
 
-        if self.oss_log_exists(relative_path):
-            logs.append(self.oss_read(relative_path, return_error=True))
-            return messages, logs
-        return messages, None
+    def oss_list(self, remote_log_prefix) -> list[str]:
+        """
+        Return the locations in remote storage that start with remote_log_prefix, sorted.
+
+        :param remote_log_prefix: the start of the locations, relative to the base folder
+        """
+        keys = self.hook.list_keys(self.bucket_name, f"{self.base_folder}/{remote_log_prefix}")
+        return sorted(key.removeprefix(f"{self.base_folder}/") for key in keys)
 
     def oss_log_exists(self, remote_log_location):
         """

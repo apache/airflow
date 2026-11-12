@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
+from hdfs import HdfsError
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO, HdfsTaskHandler
@@ -173,11 +174,13 @@ class TestHdfsTaskHandler:
     )
     def test_hdfs_read(self, mock_hook):
         expected_file_path = os.path.join(self.hdfs_task_handler.io.remote_base, "1.log")
-        mock_hook.return_value.check_for_path.return_value = True
+        mock_hook.return_value.get_conn.return_value.list.return_value = ["1.log"]
         mock_hook.return_value.read_file.return_value = b"mock_content"
         dummy_ti = "dummy_ti"
         messages, logs = self.hdfs_task_handler.io.read("1.log", dummy_ti)
-        mock_hook.return_value.check_for_path.assert_called_once_with(expected_file_path)
+        mock_hook.return_value.get_conn.return_value.list.assert_called_once_with(
+            self.hdfs_task_handler.io.remote_base
+        )
         mock_hook.return_value.read_file.assert_called_once_with(expected_file_path)
         assert messages == []
         assert logs == ["mock_content"]
@@ -186,13 +189,40 @@ class TestHdfsTaskHandler:
         "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO.hook", new_callable=PropertyMock
     )
     def test_hdfs_read_not_exists(self, mock_hook):
-        expected_file_path = os.path.join(self.hdfs_task_handler.io.remote_base, "1.log")
-        mock_hook.return_value.check_for_path.return_value = False
+        mock_hook.return_value.get_conn.return_value.list.return_value = ["10.log"]
         dummy_ti = "dummy_ti"
         messages, logs = self.hdfs_task_handler.io.read("1.log", dummy_ti)
-        mock_hook.return_value.check_for_path.assert_called_once_with(expected_file_path)
+        mock_hook.return_value.read_file.assert_not_called()
         assert messages == [f"No logs found on hdfs for ti={dummy_ti}"]
         assert logs == []
+
+    @mock.patch(
+        "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO.hook", new_callable=PropertyMock
+    )
+    def test_hdfs_read_includes_the_trigger_logs_stored_beside_the_task_log(self, mock_hook):
+        stored = {"1.log": b"task", "1.log.trigger.4.log": b"trigger on job 4", "10.log": b"another try"}
+        mock_hook.return_value.get_conn.return_value.list.return_value = list(reversed(stored))
+        mock_hook.return_value.read_file.side_effect = lambda path: stored[os.path.basename(path)]
+
+        messages, logs = self.hdfs_task_handler.io.read("1.log", "dummy_ti")
+
+        assert messages == []
+        assert logs == ["task", "trigger on job 4"]
+
+    @pytest.mark.parametrize(("exists", "expected"), [(True, ["task"]), (False, [])])
+    @mock.patch(
+        "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO.hook", new_callable=PropertyMock
+    )
+    def test_hdfs_read_when_the_directory_cannot_be_listed(self, mock_hook, exists, expected):
+        expected_file_path = os.path.join(self.hdfs_task_handler.io.remote_base, "1.log")
+        mock_hook.return_value.get_conn.return_value.list.side_effect = HdfsError("File does not exist")
+        mock_hook.return_value.check_for_path.return_value = exists
+        mock_hook.return_value.read_file.return_value = b"task"
+
+        _, logs = self.hdfs_task_handler.io.read("1.log", "dummy_ti")
+
+        mock_hook.return_value.check_for_path.assert_called_once_with(expected_file_path)
+        assert logs == expected
 
     @mock.patch("shutil.rmtree")
     def test_upload_absolute_path(self, mock_rmtree, ti):

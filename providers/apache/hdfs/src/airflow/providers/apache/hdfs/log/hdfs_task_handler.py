@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import attrs
+from hdfs import HdfsError
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 from airflow.providers.common.compat.sdk import conf
@@ -96,9 +97,19 @@ class HdfsRemoteLogIO(LoggingMixin):  # noqa: D101
         logs = []
         messages = []
         file_path = os.path.join(self.remote_base, relative_path)
-        if self.hook.check_for_path(file_path):
-            logs.append(self.hook.read_file(file_path).decode("utf-8"))
+        # Read every file the path is a prefix of, as the S3 reader does: a deferred task's triggerer
+        # stores its log beside the task log, as ``<task log>.trigger.<triggerer job id>.log``.
+        directory, name = os.path.split(file_path)
+        try:
+            names = self.hook.get_conn().list(directory)
+        except HdfsError:
+            # The directory does not exist, or cannot be listed.
+            paths = [file_path] if self.hook.check_for_path(file_path) else []
         else:
+            paths = [os.path.join(directory, n) for n in sorted(names) if n.startswith(name)]
+        for path in paths:
+            logs.append(self.hook.read_file(path).decode("utf-8"))
+        if not paths:
             messages.append(f"No logs found on hdfs for ti={ti}")
         return messages, logs
 

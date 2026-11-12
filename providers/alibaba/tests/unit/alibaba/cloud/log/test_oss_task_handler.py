@@ -310,3 +310,48 @@ class TestOSSTaskHandler:
         self.oss_task_handler._read(self.ti, self.ti.try_number)
 
         mock_log_exists.assert_called_once()
+
+
+class TestOSSRemoteLogIORead:
+    STORED = {
+        "airflow/logs/dag/1.log": "task\n",
+        "airflow/logs/dag/1.log.trigger.4.log": "trigger on job 4\n",
+        "airflow/logs/dag/1.log.trigger.7.log": "trigger on job 7\n",
+        "airflow/logs/dag/10.log": "another try\n",
+    }
+
+    def _read(self, tmp_path, stored, list_error=None):
+        io = OSSRemoteLogIO(
+            base_log_folder=tmp_path,
+            remote_base=f"oss://{MOCK_BUCKET_NAME}/airflow/logs",
+            delete_local_copy=False,
+        )
+        hook = mock.MagicMock()
+        hook.key_exist.side_effect = lambda bucket, key: key in stored
+        hook.list_keys.side_effect = list_error or (
+            lambda bucket, prefix: [k for k in reversed(stored) if k.startswith(prefix)]
+        )
+        hook.read_key.side_effect = lambda bucket, key: stored[key]
+        with mock.patch(
+            OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock
+        ) as p:
+            p.return_value = hook
+            return io.read("dag/1.log", None)
+
+    def test_read_includes_the_trigger_logs_stored_beside_the_task_log(self, tmp_path):
+        messages, logs = self._read(tmp_path, self.STORED)
+
+        assert messages == ["dag/1.log", "dag/1.log.trigger.4.log", "dag/1.log.trigger.7.log"]
+        assert logs == ["task\n", "trigger on job 4\n", "trigger on job 7\n"]
+
+    def test_read_reads_the_task_log_when_listing_fails(self, tmp_path):
+        messages, logs = self._read(tmp_path, self.STORED, list_error=RuntimeError("AccessDenied"))
+
+        assert messages == ["Could not list OSS objects under dag/1.log: AccessDenied", "dag/1.log"]
+        assert logs == ["task\n"]
+
+    @pytest.mark.parametrize("list_error", [None, RuntimeError("AccessDenied")])
+    def test_read_of_nothing_stored(self, tmp_path, list_error):
+        _, logs = self._read(tmp_path, {}, list_error=list_error)
+
+        assert logs is None
