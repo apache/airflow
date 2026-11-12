@@ -92,8 +92,8 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
     "run_translation_check": (("ui", "breeze ui check-translation-completeness", "host"),),
 }
 
-# Gated CI jobs that need a cluster, a prod image, an e2e stack or released Airflow versions; classified
-# only, never printed.
+# Gated CI jobs that need a cluster, a prod image, an e2e stack, released Airflow versions or Airflow built
+# from release branches; classified only, never printed.
 NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
     {
         "run_kubernetes_tests",
@@ -119,6 +119,7 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
         "run_image_build_time_check",
         "run_docs_publish",
         "run_providers_compatibility_tests",
+        "run_providers_branch_tip_compatibility_tests",
     }
 )
 
