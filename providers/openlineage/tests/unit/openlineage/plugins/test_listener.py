@@ -24,6 +24,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future, ProcessPoolExecutor
 from contextlib import suppress
+from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -3735,3 +3736,69 @@ class TestAssetWatcherEventEmitter:
             emitter._emit(_build_listener_asset_event(), self.EVENT_TIME)
 
         assert mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["outputs"] == []
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
+class TestManualStateChangeEmissionPolicy:
+    @pytest.mark.parametrize(
+        ("hook", "kwargs", "expected_manual"),
+        [
+            pytest.param("on_task_instance_success", {"previous_state": None}, True, id="success"),
+            pytest.param("on_task_instance_skipped", {"previous_state": None}, True, id="skipped"),
+            pytest.param(
+                "on_task_instance_failed", {"previous_state": None, "error": None}, True, id="failed-from-api"
+            ),
+            pytest.param(
+                "on_task_instance_failed",
+                {"previous_state": State.RUNNING, "error": None},
+                False,
+                id="failed-from-scheduler",
+            ),
+        ],
+    )
+    @patch.object(OpenLineageListener, "_on_task_instance_manual_state_change", autospec=True)
+    def test_hooks_flag_manual_state_changes(self, mock_manual, hook, kwargs, expected_manual):
+        listener = OpenLineageListener()
+        ti = MagicMock(spec=TaskInstance)
+
+        getattr(listener, hook)(task_instance=ti, **kwargs)
+
+        assert mock_manual.call_args.kwargs["is_manual"] is expected_manual
+
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy",
+        autospec=True,
+        return_value=replace(EmissionPolicy.defaults(), emit=False),
+    )
+    def test_manual_state_change_without_task_applies_emission_policy(self, mock_resolve):
+        listener = OpenLineageListener()
+        ti = MagicMock(spec=TaskInstance, task=None, dag_id="my_dag", task_id="my_task")
+
+        with patch.object(listener, "submit_callable", autospec=True) as mock_submit:
+            listener._on_task_instance_manual_state_change(ti, ti.dag_run, State.SUCCESS, is_manual=True)
+
+        mock_resolve.assert_called_once_with(
+            operator=None, dag_id="my_dag", task_id="my_task", manual_state_change=True
+        )
+        mock_submit.assert_not_called()
+
+    @pytest.mark.parametrize("hook", ["on_dag_run_success", "on_dag_run_failed"])
+    @pytest.mark.parametrize(
+        ("msg", "expected_manual"),
+        [
+            pytest.param("Dag Run's state was manually set to `success`.", True, id="manual"),
+            pytest.param("success", False, id="scheduler"),
+        ],
+    )
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.resolve_dag_emission_policy",
+        autospec=True,
+        return_value=replace(EmissionPolicy.defaults(), emit=False),
+    )
+    def test_dag_run_hooks_flag_manual_state_changes(self, mock_resolve, hook, msg, expected_manual):
+        listener = OpenLineageListener()
+        dag_run = MagicMock(spec=DagRun, dag_id="my_dag")
+
+        getattr(listener, hook)(dag_run, msg)
+
+        mock_resolve.assert_called_once_with("my_dag", dag=dag_run.dag, manual_state_change=expected_manual)

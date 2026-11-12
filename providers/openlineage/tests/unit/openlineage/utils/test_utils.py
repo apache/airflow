@@ -105,6 +105,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_user_provided_run_facets,
     is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
+    is_dag_run_state_set_manually,
     is_valid_uuid,
     translate_airflow_asset,
 )
@@ -6978,3 +6979,17 @@ class TestAssetWatcherEventHelpers:
     )
     def test_get_asset_event_output_datasets_skips_untranslatable_asset(self, _):
         assert get_asset_event_output_datasets(_build_listener_asset_event()) == []
+
+
+@pytest.mark.parametrize(
+    ("msg", "expected"),
+    [
+        pytest.param("Dag Run's state was manually set to `success`.", True, id="manual-success"),
+        pytest.param("Dag Run's state was manually set to `failed`.", True, id="manual-failed"),
+        pytest.param("success", False, id="scheduler-success"),
+        pytest.param("task_failure", False, id="scheduler-failure"),
+        pytest.param(None, False, id="no-message"),
+    ],
+)
+def test_is_dag_run_state_set_manually(msg, expected):
+    assert is_dag_run_state_set_manually(msg) is expected

@@ -65,6 +65,7 @@ LONG_RUNNING_DAG_IDS = (
     # Change, clear and wait for child Dag runs one step after another
     "openlineage_task_loop_state_dag",
     "openlineage_manual_state_dag",
+    "openlineage_policy_manual_state_dag",
     "openlineage_clear_dag",
     "openlineage_task_outcomes_dag",
 )

@@ -1689,6 +1689,16 @@ def get_airflow_state_run_facet(
         return {}
 
 
+def is_dag_run_state_set_manually(msg: str | None) -> bool:
+    """
+    Return whether a Dag run listener call reports a state set manually through the UI or API.
+
+    The listener hooks carry no explicit flag for it, so this relies on the message the API server passes,
+    which is the only caller that sets a Dag run state by hand.
+    """
+    return msg is not None and msg.startswith("Dag Run's state was manually set to")
+
+
 def is_dag_run_asset_triggered(
     dag_run: DagRun,
 ):

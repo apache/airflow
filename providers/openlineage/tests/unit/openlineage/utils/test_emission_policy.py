@@ -26,6 +26,7 @@ from openlineage.client.event_v2 import Dataset
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.openlineage.utils.emission_policy import (
     DatasetFilter,
     EmissionPolicy,
@@ -2710,6 +2711,21 @@ class TestResolveAssetWatcherEmissionPolicy:
                 True,
                 id="operator-scoped-rule",
             ),
+            pytest.param(
+                [{"scope": {}, "controls": {"emit_asset_watcher_events": False}}],
+                False,
+                id="global-emit-asset-watcher-events-false",
+            ),
+            pytest.param(
+                [{"scope": {}, "controls": {"emit": False, "emit_asset_watcher_events": True}}],
+                True,
+                id="emit-asset-watcher-events-beats-emit",
+            ),
+            pytest.param(
+                [{"scope": {"dag_id": "orders"}, "controls": {"emit_asset_watcher_events": False}}],
+                True,
+                id="scoped-emit-asset-watcher-events-rejected",
+            ),
         ],
     )
     def test_only_global_emit_applies(self, rules, expected_emit):
@@ -2759,3 +2775,188 @@ class TestResolveAssetWatcherEmissionPolicy:
     )
     def test_returns_defaults_when_resolution_fails(self, _):
         assert resolve_asset_watcher_emission_policy("orders") == EmissionPolicy.defaults()
+
+
+class TestEmitAssetWatcherEventsControl:
+    def test_does_not_affect_task_and_dag_events(self):
+        rules = [{"scope": {}, "controls": {"emit_asset_watcher_events": False}}]
+
+        assert _resolve_task_controls(rules, MockOperator(), "my_dag", "my_task").emit is True
+        assert _resolve_dag_controls(rules, "my_dag").emit is True
+
+
+class TestManualStateChangeEmission:
+    @staticmethod
+    def _resolve_task(rules: list[dict], *, manual: bool, operator=None, dag_id="my_dag", task_id="my_task"):
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            return resolve_task_emission_policy(operator, dag_id, task_id, manual_state_change=manual)
+
+    @staticmethod
+    def _resolve_dag(rules: list[dict], *, manual: bool, dag=None, dag_id="my_dag"):
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            return resolve_dag_emission_policy(dag_id, dag, manual_state_change=manual)
+
+    @pytest.mark.parametrize(
+        ("rules", "manual", "expected_emit"),
+        [
+            pytest.param(
+                [{"scope": {}, "controls": {"emit_manual_state_change_events": False}}],
+                True,
+                False,
+                id="global-disables-manual",
+            ),
+            pytest.param(
+                [{"scope": {}, "controls": {"emit_manual_state_change_events": False}}],
+                False,
+                True,
+                id="global-keeps-non-manual",
+            ),
+            pytest.param(
+                [{"scope": {"dag_id": "my_dag"}, "controls": {"emit_manual_state_change_events": False}}],
+                True,
+                False,
+                id="dag-scoped",
+            ),
+            pytest.param(
+                [{"scope": {"dag_id": "other_dag"}, "controls": {"emit_manual_state_change_events": False}}],
+                True,
+                True,
+                id="dag-scoped-not-matching",
+            ),
+            pytest.param(
+                [
+                    {
+                        "scope": {"dag_id": "my_dag", "task_id": "my_task"},
+                        "controls": {"emit_manual_state_change_events": False},
+                    }
+                ],
+                True,
+                False,
+                id="task-scoped",
+            ),
+            pytest.param(
+                [
+                    {"scope": {"dag_id": "my_dag"}, "controls": {"emit_manual_state_change_events": False}},
+                    {
+                        "scope": {"dag_id": "my_dag", "task_id": "my_task"},
+                        "controls": {"emit_manual_state_change_events": True},
+                    },
+                ],
+                True,
+                True,
+                id="task-scoped-beats-dag-scoped",
+            ),
+            pytest.param(
+                [
+                    {"scope": {}, "controls": {"emit_task_events": False}},
+                    {"scope": {}, "controls": {"emit_manual_state_change_events": True}},
+                ],
+                True,
+                False,
+                id="cannot-re-enable-disabled-task-events",
+            ),
+            pytest.param(
+                [
+                    {
+                        "scope": {"operator": "some.Operator"},
+                        "controls": {"emit_manual_state_change_events": False},
+                    }
+                ],
+                True,
+                True,
+                id="operator-scoped-rejected",
+            ),
+        ],
+    )
+    def test_task_events(self, rules, manual, expected_emit):
+        assert self._resolve_task(rules, manual=manual, operator=MockOperator()).emit is expected_emit
+
+    @pytest.mark.parametrize(
+        ("rules", "manual", "expected_emit"),
+        [
+            pytest.param(
+                [{"scope": {}, "controls": {"emit_manual_state_change_events": False}}],
+                True,
+                False,
+                id="global-disables-manual",
+            ),
+            pytest.param(
+                [{"scope": {}, "controls": {"emit_manual_state_change_events": False}}],
+                False,
+                True,
+                id="global-keeps-non-manual",
+            ),
+            pytest.param(
+                [{"scope": {"dag_id": "my_dag"}, "controls": {"emit_manual_state_change_events": False}}],
+                True,
+                False,
+                id="dag-scoped",
+            ),
+            pytest.param(
+                [
+                    {"scope": {}, "controls": {"emit_dag_events": False}},
+                    {"scope": {"dag_id": "my_dag"}, "controls": {"emit_manual_state_change_events": True}},
+                ],
+                True,
+                False,
+                id="cannot-re-enable-disabled-dag-events",
+            ),
+        ],
+    )
+    def test_dag_events(self, rules, manual, expected_emit):
+        assert self._resolve_dag(rules, manual=manual).emit is expected_emit
+
+    def test_authoring_cannot_re_enable_manual_task_events(self):
+        _, task = _make_dag_and_task(dag_id="my_dag", task_id="my_task")
+        extend_global_openlineage_emission_policy(task, emit=True)
+        rules = [{"scope": {}, "controls": {"emit_manual_state_change_events": False}}]
+
+        assert self._resolve_task(rules, manual=True, operator=task).emit is False
+
+    def test_authoring_cannot_re_enable_manual_dag_events(self):
+        dag, _ = _make_dag_and_task(dag_id="my_dag", task_id="my_task")
+        extend_global_openlineage_emission_policy(dag, emit=True)
+        rules = [{"scope": {}, "controls": {"emit_manual_state_change_events": False}}]
+
+        assert self._resolve_dag(rules, manual=True, dag=dag).emit is False
+
+
+class TestTaskEmissionPolicyWithoutOperator:
+    @staticmethod
+    def _resolve(rules: list[dict]) -> EmissionPolicy:
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            return resolve_task_emission_policy(None, "my_dag", "my_task")
+
+    @pytest.mark.parametrize(
+        ("rules", "expected_emit"),
+        [
+            pytest.param([{"scope": {}, "controls": {"emit": False}}], False, id="global"),
+            pytest.param([{"scope": {"dag_id": "my_dag"}, "controls": {"emit": False}}], False, id="dag"),
+            pytest.param(
+                [{"scope": {"dag_id": "my_dag", "task_id": "my_task"}, "controls": {"emit": False}}],
+                False,
+                id="task",
+            ),
+            pytest.param(
+                [{"scope": {"operator": ".*"}, "match_mode": "regex", "controls": {"emit": False}}],
+                True,
+                id="operator-rules-skipped",
+            ),
+        ],
+    )
+    def test_rules_not_needing_the_operator_apply(self, rules, expected_emit):
+        assert self._resolve(rules).emit is expected_emit
+
+    @conf_vars(
+        {
+            ("openlineage", "emission_policy"): "",
+            ("openlineage", "selective_enable"): "True",
+            ("openlineage", "disabled_for_operators"): "some.Operator",
+        }
+    )
+    def test_legacy_options_skipped(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            policy = resolve_task_emission_policy(None, "my_dag", "my_task")
+
+        assert policy.emit is True

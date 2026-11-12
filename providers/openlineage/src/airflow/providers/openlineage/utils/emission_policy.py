@@ -62,6 +62,13 @@ Control flag keys (all optional inside ``controls``; the dict must be non-empty)
   ``emit`` for task event decisions.  Default: ``true``.
 - ``emit_dag_events`` — disable dag-run-level events only; takes precedence over
   ``emit`` for dag event decisions.  Default: ``true``.
+- ``emit_asset_watcher_events`` — disable the events of asset events produced by asset
+  watchers in the triggerer; takes precedence over ``emit`` for those events.  Only valid
+  in a global rule (empty ``scope``).  Default: ``true``.
+- ``emit_manual_state_change_events`` — disable the task and dag-run events of states set
+  manually through the UI or API.  It can only turn emission off: such an event is sent
+  only if both this control and the regular task / dag resolution allow it.  Not valid with
+  an ``operator`` scope.  Default: ``true``.
 - ``extract_operator_metadata`` — whether to run operator-specific extractor-based metadata
   collection.  When ``true``, the extractor manager calls the operator's OpenLineage extractor
   (if registered), which may produce dataset inputs/outputs, job facets, run facets, and
@@ -183,6 +190,8 @@ ControlValue = bool | list[str]
 EMIT = "emit"
 EMIT_TASK_EVENTS = "emit_task_events"
 EMIT_DAG_EVENTS = "emit_dag_events"
+EMIT_ASSET_WATCHER_EVENTS = "emit_asset_watcher_events"
+EMIT_MANUAL_STATE_CHANGE_EVENTS = "emit_manual_state_change_events"
 EXTRACT_OPERATOR_METADATA = "extract_operator_metadata"
 INCLUDE_SOURCE_CODE = "include_source_code"
 HOOK_LINEAGE = "hook_lineage"
@@ -215,6 +224,8 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
         EMIT,
         EMIT_TASK_EVENTS,
         EMIT_DAG_EVENTS,
+        EMIT_ASSET_WATCHER_EVENTS,
+        EMIT_MANUAL_STATE_CHANGE_EVENTS,
         EXTRACT_OPERATOR_METADATA,
         INCLUDE_SOURCE_CODE,
         HOOK_LINEAGE,
@@ -655,6 +666,22 @@ def _parse_rule(rule: object) -> Rule | None:
             rule,
         )
         return None
+    if scope and EMIT_ASSET_WATCHER_EVENTS in controls:
+        log.warning(
+            "OpenLineage emission_policy rule sets 'emit_asset_watcher_events' with a non-empty scope, but asset "
+            "watcher events belong to no Dag, task, operator or hook, so only global rules apply to them; "
+            "ignoring: %r",
+            rule,
+        )
+        return None
+    if has_op and EMIT_MANUAL_STATE_CHANGE_EVENTS in controls:
+        log.warning(
+            "OpenLineage emission_policy rule has scope 'operator' with controls 'emit_manual_state_change_events', "
+            "but the operator of a manually changed task instance is not known where the change is reported; "
+            "ignoring: %r",
+            rule,
+        )
+        return None
     if SCOPE_HOOK in scope:
         unsupported = set(controls) - _HOOK_SCOPE_CONTROL_KEYS
         if unsupported:
@@ -730,7 +757,7 @@ def _parse_user_rules() -> tuple[Rule, ...]:
 
 def _classify_task_rules(
     rules: Sequence[Rule],
-    fqcn: str,
+    fqcn: str | None,
     dag_id: str,
     task_id: str,
     *,
@@ -742,6 +769,8 @@ def _classify_task_rules(
     Only rules whose scope has a ``hook`` key (``hook_scoped=True``) or has none
     (``hook_scoped=False``) are considered; the ``hook`` key itself is left for
     :class:`DatasetFilter` to match per dataset.
+
+    Operator-scoped rules are skipped when *fqcn* is ``None`` (operator not known).
 
     Returns ``(task_rules, dag_rules, operator_rules, global_rules)``.
     """
@@ -765,7 +794,7 @@ def _classify_task_rules(
             if _matches(scope[SCOPE_DAG_ID], dag_id, match_mode):
                 dag_rules.append(rule)
         elif rule.has_op:
-            if _matches(scope[SCOPE_OPERATOR], fqcn, match_mode):
+            if fqcn is not None and _matches(scope[SCOPE_OPERATOR], fqcn, match_mode):
                 operator_rules.append(rule)
         else:
             global_rules.append(rule)
@@ -857,11 +886,15 @@ def _resolve_emit_with_source(
     """
     Resolve the effective ``emit`` decision for the given *scope*.
 
-    ``scope`` must be ``"task"`` or ``"dag"``.  Within each rule, the
-    scope-specific key (``emit_task_events`` / ``emit_dag_events``) takes
-    precedence over the generic ``emit`` shorthand.
+    ``scope`` must be ``"task"``, ``"dag"`` or ``"asset_watcher"``.  Within each rule, the
+    scope-specific key (``emit_task_events`` / ``emit_dag_events`` / ``emit_asset_watcher_events``)
+    takes precedence over the generic ``emit`` shorthand.
     """
-    specific_key = EMIT_TASK_EVENTS if scope == "task" else EMIT_DAG_EVENTS
+    specific_key = {
+        "task": EMIT_TASK_EVENTS,
+        "dag": EMIT_DAG_EVENTS,
+        "asset_watcher": EMIT_ASSET_WATCHER_EVENTS,
+    }[scope]
 
     def _extract(rule: Rule) -> bool | None:
         value = rule.controls.get(specific_key, rule.controls.get(EMIT))
@@ -1160,7 +1193,7 @@ def _extend_policy_with_dag_authoring(
 
 def _resolve_task_policy_from_conf_only(
     rules: Sequence[Rule],
-    fqcn: str,
+    fqcn: str | None,
     dag_id: str,
     task_id: str,
 ) -> tuple[EmissionPolicy, frozenset[str]]:
@@ -1264,10 +1297,30 @@ def _resolve_dag_policy_from_conf_only(
     )
 
 
+def _apply_manual_state_change_gate(
+    config: EmissionPolicy, tiers: Sequence[Sequence[Rule]], context: str
+) -> EmissionPolicy:
+    """
+    Disable emission when ``emit_manual_state_change_events`` resolves to ``false`` over *tiers*.
+
+    The control only ever turns emission off: an event is emitted only if both the regular
+    resolution and this control allow it. It is applied after authoring overrides, which cannot set it.
+    """
+    if not config.emit:
+        return config
+    emit, rule = _resolve_field_with_source(list(tiers), EMIT_MANUAL_STATE_CHANGE_EVENTS, True)
+    if rule is None:
+        return config
+    _audit_log_conf_field(EMIT_MANUAL_STATE_CHANGE_EVENTS, emit, context, rule)
+    return config if emit else replace(config, emit=False)
+
+
 def resolve_task_emission_policy(
-    operator: AnyOperator,
+    operator: AnyOperator | None,
     dag_id: str,
     task_id: str,
+    *,
+    manual_state_change: bool = False,
 ) -> EmissionPolicy:
     """
     Resolve the emission policy for a task-level event.
@@ -1285,23 +1338,37 @@ def resolve_task_emission_policy(
     built-in defaults are returned, so a bad config degrades to "emit with defaults" rather
     than crashing the listener's task-notification path.
 
-    :param operator: The Airflow operator/task object.
+    When the *operator* is not known (a task instance state changed through the API server, which
+    has no task objects), only the rules scoped by ``dag_id`` / ``task_id`` and the global rules apply:
+    operator-scoped rules, legacy options and authoring overrides all need the task, so they are skipped.
+
+    :param operator: The Airflow operator/task object, or ``None`` when it is not available.
     :param dag_id: The DAG ID for this task instance.
     :param task_id: The task ID for this task instance.
+    :param manual_state_change: Whether the event reports a state set manually through the UI or API,
+        which ``emit_manual_state_change_events`` can additionally suppress.
     """
     try:
         context = f"task '{task_id}' in dag '{dag_id}'"
         user_rules = _parse_user_rules()
 
-        legacy_rules = _synthesize_legacy_task_rules(operator, dag_id, task_id)
+        legacy_rules = (
+            _synthesize_legacy_task_rules(operator, dag_id, task_id) if operator is not None else []
+        )
         _warn_legacy_with_emission_policy(legacy_rules, scope="task")
 
         all_rules = list(legacy_rules) + list(user_rules)
         from airflow.providers.openlineage.utils.utils import get_fully_qualified_class_name
 
-        fqcn = get_fully_qualified_class_name(operator)
+        fqcn = get_fully_qualified_class_name(operator) if operator is not None else None
         config, locked_fields = _resolve_task_policy_from_conf_only(all_rules, fqcn, dag_id, task_id)
-        return _extend_policy_with_task_authoring(config, locked_fields, operator, context)
+        if operator is not None:
+            config = _extend_policy_with_task_authoring(config, locked_fields, operator, context)
+        if manual_state_change:
+            config = _apply_manual_state_change_gate(
+                config, _classify_task_rules(all_rules, fqcn, dag_id, task_id), context
+            )
+        return config
     except Exception as err:
         # This runs in the scheduler/listener hot path and must never raise — any failure
         # (a misconfigured ``emission_policy``, or even a deprecation warning promoted to an
@@ -1318,7 +1385,9 @@ def resolve_task_emission_policy(
         return EmissionPolicy.defaults()
 
 
-def resolve_dag_emission_policy(dag_id: str, dag: object | None = None) -> EmissionPolicy:
+def resolve_dag_emission_policy(
+    dag_id: str, dag: object | None = None, *, manual_state_change: bool = False
+) -> EmissionPolicy:
     """
     Resolve the emission policy for a DAG-level event.
 
@@ -1341,6 +1410,8 @@ def resolve_dag_emission_policy(dag_id: str, dag: object | None = None) -> Emiss
 
     :param dag_id: The DAG ID for the dag run event.
     :param dag: Optional DAG object used for the ``selective_enable`` check / translation.
+    :param manual_state_change: Whether the event reports a state set manually through the UI or API,
+        which ``emit_manual_state_change_events`` can additionally suppress.
     """
     try:
         context = f"dag event '{dag_id}'"
@@ -1354,6 +1425,8 @@ def resolve_dag_emission_policy(dag_id: str, dag: object | None = None) -> Emiss
 
         if dag is not None:
             config = _extend_policy_with_dag_authoring(config, locked_fields, dag, context)
+        if manual_state_change:
+            config = _apply_manual_state_change_gate(config, _classify_dag_rules(all_rules, dag_id), context)
         return config
     except Exception as err:
         # This runs in the scheduler/listener hot path and must never raise — any failure
@@ -1375,8 +1448,8 @@ def resolve_asset_watcher_emission_policy(asset_name: str) -> EmissionPolicy:
     Resolve the emission policy for the events of an asset event produced by an asset watcher.
 
     These events belong to no Dag, task, operator or hook, so only global rules (empty ``scope``) apply, and of
-    their controls only ``emit`` and ``exclude_datasets``: ``emit_task_events`` and ``emit_dag_events`` target
-    other events. ``selective_enable`` is translated into a global ``emit: false``, as for Dag events, since no
+    their controls only ``emit_asset_watcher_events`` (which beats ``emit`` within a rule), ``emit`` and
+    ``exclude_datasets``: ``emit_task_events`` and ``emit_dag_events`` target other events. ``selective_enable`` is translated into a global ``emit: false``, as for Dag events, since no
     asset watcher can opt in with ``enable_lineage``.
 
     Never raises: any failure is logged and the built-in defaults are returned.
@@ -1389,7 +1462,9 @@ def resolve_asset_watcher_emission_policy(asset_name: str) -> EmissionPolicy:
         _warn_legacy_with_emission_policy(legacy_rules, scope="dag")
 
         global_rules = [rule for rule in [*legacy_rules, *_parse_user_rules()] if not rule.scope]
-        emit, emit_rule = _resolve_field_with_source([global_rules], EMIT, EmissionPolicy.defaults().emit)
+        emit, emit_rule = _resolve_emit_with_source(
+            [global_rules], "asset_watcher", EmissionPolicy.defaults().emit
+        )
         if emit_rule is not None:
             _audit_log_conf_field(EMIT, emit, context, emit_rule)
 
