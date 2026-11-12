@@ -259,7 +259,10 @@ A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
 approval or deferred tools with ``durable=True``, so there such a call fails the task
 with ``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
 any other exception runs again on retry; once it has failed the run on two attempts in a
-row, the next retry asks the model again, as described above.
+row, the next retry asks the model again, as described above. ``SQLToolset`` uses that
+split: a statement the database rejects is a ``ModelRetry`` and replays, while failing to
+reach the database raises, so the retry queries it again rather than handing the model the
+old failure.
 
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool

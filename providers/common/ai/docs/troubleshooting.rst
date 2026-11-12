@@ -49,6 +49,17 @@ Model and connection errors
     version suffixes, for example), use the matching vendor connection type instead of
     the generic one.
 
+``Could not reach the database of connection '...'``
+    A ``SQLToolset`` tool could not reach the database the connection points at: the
+    connection is not defined, the host is unreachable, the credentials were rejected,
+    the driver or SQLAlchemy dialect failed to load or connect, or the connection was
+    lost while listing tables or reading a schema.
+    The attempt fails with ``SQLToolsetConnectionError`` instead of handing the error to
+    the model, and Airflow's retry runs the call again. The driver's own message follows
+    the colon. A connection that
+    is not defined, or a SQLAlchemy dialect that is not installed, fails every retry the
+    same way: define the connection or install the package. See :doc:`toolsets/sql`.
+
 An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pydantic_ai_harness``
     The provider is installed without the extra for that vendor, or without ``code-mode``
     for ``pydantic_ai_harness``. Install it, quoting the
