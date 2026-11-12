@@ -77,6 +77,9 @@ Value mapping
        the branch name.
    * - ``subPath`` — subdirectory with DAGs
      - ``subdir``
+   * - ``link`` — symlink directory name
+     - No equivalent. Update Dag code that depends on the Git-Sync link path
+       to use paths relative to the bundle instead.
    * - ``period`` — sync interval as a Go duration string (for example ``"5s"``)
      - ``refresh_interval`` — sync interval in seconds (integer, for example
        ``300``)

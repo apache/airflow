@@ -12140,6 +12140,12 @@
                             "type": "integer",
                             "default": 1
                         },
+                        "link": {
+                            "description": "Name of the directory where git-sync will create the symlink to the checked out repository. This allows customization of the Dag folder path.",
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*$",
+                            "default": "repo"
+                        },
                         "maxFailures": {
                             "description": "The number of consecutive failures allowed before aborting.",
                             "type": "integer",
