@@ -309,7 +309,7 @@ class TestFailures:
         assert summary == "summary of v2"
 
 
-async def model_then_failing_tool(
+async def run_model_then_failing_tool(
     durable_run: DurableRun, answer: str, *, fingerprinted: bool = True
 ) -> tuple[str, ValueError]:
     """
@@ -328,15 +328,15 @@ async def model_then_failing_tool(
     return chosen, error
 
 
-async def attempt_failing_in_tool(storage, answer: str, *, fingerprinted: bool = True) -> str:
+async def run_attempt_failing_in_tool(storage, answer: str, *, fingerprinted: bool = True) -> str:
     """Run one attempt that fails in the tool call the model chose, and return the model's choice."""
-    chosen, _ = await model_then_failing_tool(
+    chosen, _ = await run_model_then_failing_tool(
         DurableJournal(storage).start_run(), answer, fingerprinted=fingerprinted
     )
     return chosen
 
 
-def asked_model_again(log: mock.MagicMock) -> list[int]:
+def collect_ask_model_again_attempts(log: mock.MagicMock) -> list[int]:
     """The ``attempts`` of each warning that a retry asks the model again."""
     return [
         warning.kwargs["attempts"]
@@ -354,20 +354,20 @@ class TestRepeatedToolFailures:
         """Each call the model chooses is retried once as it was, then the model is asked for another."""
         with mock.patch.object(journal_module, "log", spec=["debug", "warning"]) as log:
             chosen = [
-                await attempt_failing_in_tool(memory_storage, f"call {n}", fingerprinted=fingerprinted)
+                await run_attempt_failing_in_tool(memory_storage, f"call {n}", fingerprinted=fingerprinted)
                 for n in range(1, 6)
             ]
 
         assert chosen == ["call 1", "call 1", "call 3", "call 3", "call 5"]
-        assert asked_model_again(log) == [2, 2]
+        assert collect_ask_model_again_attempts(log) == [2, 2]
 
     @pytest.mark.asyncio
     async def test_an_attempt_that_fails_before_the_tool_starts_the_count_over(self, memory_storage):
-        await attempt_failing_in_tool(memory_storage, "call 1")
+        await run_attempt_failing_in_tool(memory_storage, "call 1")
         killed = DurableJournal(memory_storage).start_run()
         await killed.run("model", kind="model", fingerprint="m", body=lambda: ok("replayed, never asked"))
         killed.fail(TimeoutError("killed"))
-        chosen = [await attempt_failing_in_tool(memory_storage, f"call {n}") for n in range(3, 6)]
+        chosen = [await run_attempt_failing_in_tool(memory_storage, f"call {n}") for n in range(3, 6)]
 
         assert chosen == ["call 1", "call 1", "call 5"]
 
@@ -387,7 +387,7 @@ class TestRepeatedToolFailures:
             inner_choice: list[str] = []
 
             async def run_agent():
-                chosen, error = await model_then_failing_tool(journal.start_run(), f"inner {answer}")
+                chosen, error = await run_model_then_failing_tool(journal.start_run(), f"inner {answer}")
                 inner_choice.append(chosen)
                 raise error
 
@@ -446,11 +446,13 @@ class TestRepeatedToolFailures:
 
         async def attempt(answer: str) -> str:
             journal = DurableJournal(memory_storage)
-            _, primary_error = await model_then_failing_tool(journal.start_run(), f"primary {answer}")
+            _, primary_error = await run_model_then_failing_tool(journal.start_run(), f"primary {answer}")
             try:
                 raise primary_error
             except ValueError:
-                fallback_choice, _ = await model_then_failing_tool(journal.start_run(), f"fallback {answer}")
+                fallback_choice, _ = await run_model_then_failing_tool(
+                    journal.start_run(), f"fallback {answer}"
+                )
             return fallback_choice
 
         choices = [await attempt(str(n)) for n in range(1, 4)]
@@ -469,7 +471,7 @@ class TestRepeatedToolFailures:
                     )
                 durable_run.fail(error)
 
-        assert asked_model_again(log) == []
+        assert collect_ask_model_again_attempts(log) == []
 
     @pytest.mark.asyncio
     async def test_a_model_request_that_fails_twice_does_not_rerun_the_requests_before_it(
@@ -678,12 +680,12 @@ class TestPause:
 
     @pytest.mark.asyncio
     async def test_a_pause_before_the_failed_tool_call_runs_again_leaves_its_count(self, memory_storage):
-        await attempt_failing_in_tool(memory_storage, "call 1")
+        await run_attempt_failing_in_tool(memory_storage, "call 1")
         paused = DurableJournal(memory_storage).start_run()
         await paused.run("model", kind="model", fingerprint="m", body=lambda: ok("replayed, never asked"))
         paused.pause()
 
-        chosen = [await attempt_failing_in_tool(memory_storage, f"call {n}") for n in range(3, 5)]
+        chosen = [await run_attempt_failing_in_tool(memory_storage, f"call {n}") for n in range(3, 5)]
 
         assert chosen == ["call 1", "call 4"]
 

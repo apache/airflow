@@ -82,8 +82,8 @@ log = get_task_logger()
 StepKind = Literal["model", "tool", "other"]
 """What a step is, for the end-of-run summary and for adapters that treat model steps specially."""
 
-# Attempts in a row a tool call may fail before a retry asks the model again instead of replaying
-# its choice: the first retry runs the same call again, in case the failure was transient.
+# Attempts in a row a tool call may fail before a retry asks the model again; the first retry runs
+# the same call again, in case the failure was transient.
 _TOOL_FAILURES_BEFORE_ASKING_MODEL = 2
 
 
@@ -128,8 +128,8 @@ class JournalStep:
     payload: Any = None
     # Whether this step's replay is in ``stats.replayed``; see :meth:`DurableRun.reserve`.
     _replay_counted: bool = field(default=False, init=False, repr=False)
-    # The position of the last model step claimed before this one: the request that chose a tool call.
-    _model_position: int | None = field(default=None, init=False, repr=False)
+    # The position of the model request that chose this step: the last model step claimed before it.
+    _choosing_model_position: int | None = field(default=None, init=False, repr=False)
     # Agent runs started while this step executes; they are numbered under it.
     nested_runs: int = field(default=0, repr=False)
 
@@ -395,7 +395,7 @@ class DurableRun:
         position = self._position
         self._position += 1
         step = JournalStep(self, position, name, kind, fingerprint, replayable=replayable)
-        step._model_position = self._last_model_position
+        step._choosing_model_position = self._last_model_position
         if kind == "model":
             self._last_model_position = position
         self._load_meta()
@@ -489,33 +489,15 @@ class DurableRun:
         case its failure was transient, and the next asks the model again from the request that
         chose the call, rather than replay that choice into the same failure.
         """
-        failed_at = self._position
-        failed_steps: list[JournalStep] = []
-        causes: list[BaseException] = []
-        cause: BaseException | None = error
-        while cause is not None:
-            causes.append(cause)
-            for raised, position, step in self._raised:
-                if raised is cause:
-                    failed_steps.append(step)
-                    failed_at = min(failed_at, position)
-            cause = cause.__cause__ or cause.__context__
+        failed_steps, causes, failed_at = self._find_failed_steps(error)
         self._load_meta()
         # An attempt that was still replaying an earlier one when it failed, and recorded
         # nothing from the failure on, leaves that earlier attempt's steps as they were.
         diverge_from = failed_at if self.diverged or self._last_saved >= failed_at else self._diverge_from
         failed_step = min(failed_steps, key=lambda step: step.position, default=None)
-        failures = self.journal._run_failures
-        # An agent run started inside a step that raised failed with the error first and took it
-        # as its own: its tool call failed, or its model is asked again. This run's model did not
-        # choose what failed. Only runs numbered under those steps count (a tool can raise through
-        # an operation step it started); another run whose error is merely in this one's context,
-        # such as a fallback agent started in an ``except``, does not.
-        inside = tuple(f"{self.key}.{step.position}." for step in failed_steps)
-        failed_inside = any(
-            seen is cause and key.startswith(inside) for seen, key in failures for cause in causes
-        )
-        tool_failure = None if failed_inside else self._count_tool_failure(failed_step)
+        # If so, this run's model did not choose what failed, and this run does not count it.
+        owned_by_nested_run = self._is_failure_owned_by_nested_run(failed_steps, causes)
+        tool_failure = None if owned_by_nested_run else self._next_tool_failure(failed_step)
         # The model request a retry asks again, if the failure is the model's.
         ask_model_from: int | None = None
         if failed_step is None:
@@ -526,9 +508,9 @@ class DurableRun:
         elif (
             tool_failure is not None
             and tool_failure["attempts"] >= _TOOL_FAILURES_BEFORE_ASKING_MODEL
-            and failed_step._model_position is not None
+            and failed_step._choosing_model_position is not None
         ):
-            ask_model_from = failed_step._model_position
+            ask_model_from = failed_step._choosing_model_position
             log.warning(
                 "Durable: the same tool call failed on consecutive attempts; a retry asks the model "
                 "again from the request that chose it",
@@ -539,8 +521,8 @@ class DurableRun:
             # The count starts over with the model's next answer, even one whose call cannot be
             # told from this one (no fingerprint), so that call too is retried once as it is.
             tool_failure = None
-        if failed_inside or tool_failure is not None or ask_model_from is not None:
-            failures.append((error, self.key))
+        if owned_by_nested_run or tool_failure is not None or ask_model_from is not None:
+            self.journal._run_failures.append((error, self.key))
         rerun_model = False
         if ask_model_from is not None and (diverge_from is None or ask_model_from <= diverge_from):
             diverge_from, rerun_model = ask_model_from, True
@@ -554,6 +536,45 @@ class DurableRun:
             # recorded nothing over it (the step there raised, say), so a retry must not replay it.
             diverge_from, rerun_model = previous, self._model_at_fault
         self._save_meta(diverge_from, model_at_fault=rerun_model, tool_failure=tool_failure)
+
+    def _find_failed_steps(self, error: BaseException) -> tuple[list[JournalStep], list[BaseException], int]:
+        """
+        Find the steps of this attempt that raised ``error`` or one of its causes.
+
+        :return: those steps; ``error`` and its causes; and the position the run had reached when
+            the earliest of those steps raised, or the current position if none did.
+        """
+        failed_at = self._position
+        failed_steps: list[JournalStep] = []
+        causes: list[BaseException] = []
+        cause: BaseException | None = error
+        while cause is not None:
+            causes.append(cause)
+            for raised, position, step in self._raised:
+                if raised is cause:
+                    failed_steps.append(step)
+                    failed_at = min(failed_at, position)
+            cause = cause.__cause__ or cause.__context__
+        return failed_steps, causes, failed_at
+
+    def _is_failure_owned_by_nested_run(
+        self, failed_steps: list[JournalStep], causes: list[BaseException]
+    ) -> bool:
+        """
+        Whether an agent run started inside one of ``failed_steps`` took one of ``causes`` as its own.
+
+        Such a run failed with the error first, and counted its tool call's failure or asked its
+        model again. Only runs numbered under those steps count (a tool can raise through an
+        operation step it started).
+        """
+        # A run that only has the error in its context, such as a fallback agent started in an
+        # ``except``, does not own it.
+        inside = tuple(f"{self.key}.{step.position}." for step in failed_steps)
+        return any(
+            seen is cause and key.startswith(inside)
+            for seen, key in self.journal._run_failures
+            for cause in causes
+        )
 
     def pause(self) -> None:
         """
@@ -606,7 +627,7 @@ class DurableRun:
         }
         self.journal.storage.save_step(build_run_meta_key(self.key), meta)
 
-    def _count_tool_failure(self, step: JournalStep | None) -> _ToolFailure | None:
+    def _next_tool_failure(self, step: JournalStep | None) -> _ToolFailure | None:
         """
         Describe the tool call ``step`` for the run's entry, with how many attempts in a row it failed.
 
