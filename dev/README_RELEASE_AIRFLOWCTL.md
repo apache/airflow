@@ -1273,13 +1273,17 @@ end-to-end against a live API server in a single non-interactive `breeze shell` 
 
 ```shell
 # install the RC from PyPI (published with the rcN suffix)
-CTL_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
-    "bash dev/verify_airflow_ctl_rc.sh"
+breeze shell --load-example-dags --backend sqlite \
+    "CTL_VERSION=${VERSION_RC} bash dev/verify_airflow_ctl_rc.sh"
 
-# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
-CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl \
-    breeze shell --load-example-dags --backend sqlite "bash dev/verify_airflow_ctl_rc.sh"
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /dist)
+breeze shell --load-example-dags --backend sqlite \
+    "CTL_WHEEL=/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl bash dev/verify_airflow_ctl_rc.sh"
 ```
+
+Set `CTL_VERSION` or `CTL_WHEEL` inside the quoted command: `breeze shell` forwards only a fixed
+list of environment variables into the container, so a `CTL_VERSION=...` prefix on the host never
+reaches the script.
 
 The script prints `AIRFLOW_CTL_RC_VERIFY: OK` on success.
 
