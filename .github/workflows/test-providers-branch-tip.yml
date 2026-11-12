@@ -213,6 +213,28 @@ jobs:
       - name: Check amount of disk space available
         run: df -H
         shell: bash
+      # A branch tip can have the version number of a released Airflow, so only git_version tells which
+      # one is installed. The tests below install Airflow the same way and hide their output when they
+      # pass. Airflow is not imported, because that needs a database.
+      - name: "Check that Airflow installed from the wheels was built from ${{ matrix.target.sha }}"
+        env:
+          AIRFLOW_CONSTRAINTS_REFERENCE: "${{ matrix.target.airflow-constraints-reference }}"
+          SHA: ${{ matrix.target.sha }}
+        run: |
+          breeze shell --quiet --backend none \
+            --use-distributions-from-dist \
+            --distribution-format wheel \
+            --use-airflow-version wheel \
+            --airflow-constraints-reference "${AIRFLOW_CONSTRAINTS_REFERENCE}" \
+            --install-airflow-with-constraints \
+            --providers-skip-constraints \
+            'python -c "import importlib.metadata as m, importlib.util as u, pathlib as p; print(\"Installed apache-airflow-core\", m.version(\"apache-airflow-core\"), \"git_version:\", (p.Path(u.find_spec(\"airflow\").origin).parent / \"git_version\").read_text())"' \
+            | tee "${RUNNER_TEMP}/installed-airflow.txt"
+          if ! grep -q "^Installed apache-airflow-core .* git_version: \.release:${SHA}" \
+              "${RUNNER_TEMP}/installed-airflow.txt"; then
+            echo "::error::Expected Airflow installed from the wheels to be built from ${SHA}"
+            exit 1
+          fi
       - name: >
           Run provider unit tests on ${{ matrix.target.branch }} ( ${{ matrix.target.sha }} ):Python
           ${{ matrix.target.python-version }}:${{ matrix.test-types.description }}
