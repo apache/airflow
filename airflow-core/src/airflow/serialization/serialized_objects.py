@@ -1033,6 +1033,17 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             )
             del serialized_op["partial_kwargs"]["python_callable"]
 
+        if op.is_stub:
+            # This is the only point where python_callable is still the real function (it does
+            # not survive serialization), so the signature-derived metadata must be captured
+            # here. Imported locally for the same reason as in ``_serialize_node``: it pulls in
+            # pydantic's JSON-schema machinery, which only lang-SDK workloads ever need.
+            from airflow.sdk.bases.decorator import DecoratedMappedOperator
+            from airflow.serialization.stub_arg_bindings import build_mapped_arg_bindings
+
+            if isinstance(op, DecoratedMappedOperator) and (arg_bindings := build_mapped_arg_bindings(op)):
+                serialized_op["_arg_bindings"] = arg_bindings
+
         serialized_op["_is_mapped"] = True
         return serialized_op
 

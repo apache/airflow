@@ -1188,6 +1188,46 @@ class TestPopenActivitySubprocessClearXComs:
             "loc": ANY,
         } in captured_logs
 
+    @patch.object(Client, "_request_with_retry", Client._request_without_retry)
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    def test_fails_the_try_without_starting_the_task_when_the_runtime_cannot_read_its_arguments(
+        self, mock_send_msg, make_ti_context_dict, time_machine
+    ):
+        time_machine.move_to(datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC), tick=False)
+        ti = _make_ti()
+        ti_context = {
+            **make_ti_context_dict(),
+            "arg_bindings": [{"name": "totals", "kind": "sequence", "task_id": "transform"}],
+        }
+        reports: list[tuple[str, str]] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/run"):
+                return httpx2.Response(200, json=ti_context)
+            report = json.loads(request.content)
+            reports.append((report["state"], report["retry_reason"]))
+            return httpx2.Response(204)
+
+        proc = _PopenActivitySubprocess.start(
+            what=ti,
+            dag_rel_path="bundle",
+            bundle_info=FAKE_BUNDLE,
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            command=[sys.executable, "-c", _RUNTIME_AWAITING_STARTUP],
+            subprocess_schema_version="2026-10-30",
+            subprocess_logs_to_stdout=False,
+        )
+
+        assert proc.wait() == -signal.SIGKILL
+        mock_send_msg.assert_not_called()
+        assert reports == [
+            (
+                "failed",
+                "The task's arguments need a runtime at supervisor schema version 2027-02-28 or later, "
+                "but it is at 2026-10-30; upgrade its SDK",
+            )
+        ]
+
 
 _RUNTIME_SPAWNING_A_CHILD = """
 import socket

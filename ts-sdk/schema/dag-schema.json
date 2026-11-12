@@ -147,11 +147,14 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
+        "kind": { "type": "string", "enum": [ "xcom", "literal", "sequence", "param" ] },
         "value_schema": { "type": "object" },
         "task_id": { "type": "string" },
         "value": {},
-        "from_default": { "type": "boolean" }
+        "from_default": { "type": "boolean" },
+        "default": {},
+        "group_arg": { "type": "object" },
+        "expand_keys": { "type": "array", "items": { "type": "string" } }
       },
       "required": [ "name", "kind" ]
     },
@@ -358,6 +361,7 @@
         "_is_mapped": { "const": true, "$comment": "only present when True", "default": false },
         "_is_sensor": { "const": true, "$comment": "only present when True", "default": false },
         "partial_kwargs": { "type": "object" },
+        "expand_input": { "type": "object" },
         "_disallow_kwargs_override": { "type": "boolean"},
         "_expand_input_attr": { "type": "string" },
         "map_index_template": { "type": "string" },

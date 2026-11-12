@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any, cast
 import attrs
 
 if TYPE_CHECKING:
-    from cadwyn import VersionBundle
+    from cadwyn import VersionBundle, VersionChange
     from cadwyn.schema_generation import SchemaGenerator
     from pydantic import BaseModel
 
@@ -116,6 +116,11 @@ class SchemaVersionMigrator:
         if v not in self._version_values:
             raise ValueError(f"Version {v!r} not found in supervisor schema bundle")
         return v
+
+    def has_change(self, version: str, change: type[VersionChange]) -> bool:
+        """Whether a runtime at supervisor schema *version* already has *change*."""
+        version = self.resolve_version(version)
+        return any(change in v.changes and version >= v.value for v in self._bundle.versions)
 
     def downgrade(
         self,

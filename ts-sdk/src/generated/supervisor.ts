@@ -22,17 +22,27 @@
 //
 // Re-run with: pnpm run generate:supervisor
 
+/**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "ArgPart".
+ */
+export type ArgPart = XComRef | LiteralValue;
+export type Kind = "xcom";
+export type TaskId = string;
+export type MapIndex = number | null;
+export type ElementIndex = number | null;
+export type Kind1 = "literal";
+/**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "JsonValue".
+ */
+export type JsonValue = {} | unknown[] | string | number | boolean | null;
 export type Name = string;
 export type Id = number;
 export type Timestamp = string;
 export type Extra = {
   [k: string]: JsonValue | null;
 } | null;
-/**
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "JsonValue".
- */
-export type JsonValue = {} | unknown[] | string | number | boolean | null;
 export type Name1 = string;
 export type Uri = string;
 export type Group = string;
@@ -184,12 +194,12 @@ export type PartitionDate = string | null;
 export type Note = string | null;
 export type TeamName = string | null;
 export type Id2 = string;
-export type TaskId = string;
+export type TaskId1 = string;
 export type DagId3 = string;
 export type RunId3 = string;
 export type TryNumber = number;
 export type DagVersionId = string;
-export type MapIndex = number;
+export type MapIndex1 = number;
 export type RegionId = string;
 export type RegionIndex = number;
 export type Hostname = string | null;
@@ -263,13 +273,30 @@ export type ArgBindings = TaskArgBinding[] | null;
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "TaskArgBinding".
  */
-export type TaskArgBinding = XComArgBinding | LiteralArgBinding;
+export type TaskArgBinding =
+  XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding;
+export type Kind2 = "xcom";
+export type TaskId2 = string;
+export type MapIndex2 = number | null;
+export type ElementIndex1 = number | null;
 export type Name8 = string;
-export type Kind = "xcom";
-export type TaskId1 = string;
+export type ApplyMap = boolean;
+export type Kwarg = string | null;
+export type Kind3 = "literal";
 export type Name9 = string;
-export type Kind1 = "literal";
+export type ApplyMap1 = boolean;
+export type Kwarg1 = string | null;
 export type FromDefault = boolean;
+export type Name10 = string;
+export type ApplyMap2 = boolean;
+export type Kwarg2 = string | null;
+export type Kind4 = "sequence";
+export type TaskId3 = string;
+export type Name11 = string;
+export type ApplyMap3 = boolean;
+export type Kwarg3 = string | null;
+export type Kind5 = "tuple";
+export type Parts = ArgPart[];
 /**
  * The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.
  */
@@ -343,7 +370,7 @@ export type NextKwargs2 = {
 } | null;
 export type RenderedMapIndex1 = string | null;
 export type Type20 = "DeferTask";
-export type Name10 = string;
+export type Name12 = string;
 export type Key1 = string;
 export type Type21 = "DeleteAssetStateStoreByName";
 export type Uri5 = string;
@@ -357,8 +384,8 @@ export type Type24 = "DeleteVariable";
 export type Key5 = string;
 export type DagId6 = string;
 export type RunId5 = string;
-export type TaskId2 = string;
-export type MapIndex1 = number | null;
+export type TaskId4 = string;
+export type MapIndex3 = number | null;
 export type Type25 = "DeleteXCom";
 /**
  * Error types used in the API client.
@@ -396,14 +423,14 @@ export type ErrorType1 =
   | "GENERIC_ERROR"
   | "API_SERVER_ERROR";
 export type DagId7 = string;
-export type TaskId3 = string;
+export type TaskId5 = string;
 export type LogicalDate3 = string;
 export type RecursionDepth = number;
-export type Name11 = string;
+export type Name13 = string;
 export type Type27 = "GetAssetByName";
 export type Uri6 = string;
 export type Type28 = "GetAssetByUri";
-export type Name12 = string | null;
+export type Name14 = string | null;
 export type Uri7 = string | null;
 export type After = string | null;
 export type Before = string | null;
@@ -426,7 +453,7 @@ export type Extra8 = {
   [k: string]: string;
 } | null;
 export type Type30 = "GetAssetEventByAssetAlias";
-export type Name13 = string;
+export type Name15 = string;
 export type Key6 = string;
 export type Type31 = "GetAssetStateStoreByName";
 export type Uri8 = string;
@@ -458,12 +485,12 @@ export type LogicalDate4 = string;
 export type State3 = string | null;
 export type Type41 = "GetPreviousDagRun";
 export type DagId13 = string;
-export type TaskId4 = string;
+export type TaskId6 = string;
 export type LogicalDate5 = string | null;
-export type MapIndex2 = number;
+export type MapIndex4 = number;
 export type Type42 = "GetPreviousTI";
 export type DagId14 = string;
-export type MapIndex3 = number | null;
+export type MapIndex5 = number | null;
 export type TaskIds = string[] | null;
 export type TaskGroupId = string | null;
 export type LogicalDates1 = string[] | null;
@@ -480,7 +507,7 @@ export type TiId6 = string;
 export type Key8 = string;
 export type Type46 = "GetTaskStateStore";
 export type DagId16 = string;
-export type MapIndex4 = number | null;
+export type MapIndex6 = number | null;
 export type TaskIds1 = string[] | null;
 export type TaskGroupId1 = string | null;
 export type LogicalDates2 = string[] | null;
@@ -496,28 +523,28 @@ export type PreviousIteration = boolean;
 export type Key10 = string;
 export type DagId17 = string;
 export type RunId9 = string;
-export type TaskId5 = string;
-export type MapIndex5 = number | null;
+export type TaskId7 = string;
+export type MapIndex7 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
 export type PreviousIteration1 = boolean;
 export type Key11 = string;
 export type DagId18 = string;
 export type RunId10 = string;
-export type TaskId6 = string;
+export type TaskId8 = string;
 export type Type51 = "GetXComCount";
 export type PreviousIteration2 = boolean;
 export type Key12 = string;
 export type DagId19 = string;
 export type RunId11 = string;
-export type TaskId7 = string;
+export type TaskId9 = string;
 export type Offset1 = number;
 export type Type52 = "GetXComSequenceItem";
 export type PreviousIteration3 = boolean;
 export type Key13 = string;
 export type DagId20 = string;
 export type RunId12 = string;
-export type TaskId8 = string;
+export type TaskId10 = string;
 export type Start = number | null;
 export type Stop = number | null;
 export type Step = number | null;
@@ -548,7 +575,7 @@ export type InactiveAssets = AssetProfile[] | null;
 export type Type56 = "InactiveAssetsResult";
 export type Stop1 = boolean;
 export type Reason = string | null;
-export type Name14 = string | null;
+export type Name16 = string | null;
 export type Type57 = "MaskSecret";
 export type Ok = boolean;
 export type Type58 = "OKResponse";
@@ -558,7 +585,7 @@ export type StartDate4 = string | null;
 export type EndDate3 = string | null;
 export type Type59 = "PrevSuccessfulDagRunResult";
 export type Type60 = "PreviousDagRunResult";
-export type TaskId9 = string;
+export type TaskId11 = string;
 export type DagId21 = string;
 export type RunId13 = string;
 export type LogicalDate6 = string | null;
@@ -566,7 +593,7 @@ export type StartDate5 = string | null;
 export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
-export type MapIndex6 = number | null;
+export type MapIndex8 = number | null;
 export type RegionId2 = string | null;
 export type RegionIndex1 = number | null;
 export type Duration = number | null;
@@ -588,7 +615,7 @@ export type RetryReason = string | null;
 export type Type65 = "RetryTask";
 export type Type66 = "SentFDs";
 export type Fds = number[];
-export type Name15 = string;
+export type Name17 = string;
 export type Key15 = string;
 export type Type67 = "SetAssetStateStoreByName";
 export type Uri9 = string;
@@ -606,8 +633,8 @@ export type Type72 = "SetTaskStateStore";
 export type Key18 = string;
 export type DagId22 = string;
 export type RunId14 = string;
-export type TaskId10 = string;
-export type MapIndex7 = number | null;
+export type TaskId12 = string;
+export type MapIndex9 = number | null;
 export type DagResult1 = boolean;
 export type MappedLength = number | null;
 export type Type73 = "SetXCom";
@@ -682,6 +709,28 @@ export type Root = JsonValue[];
 export type Type92 = "XComSequenceSliceResult";
 
 export interface SupervisorWireSchema {}
+/**
+ * One upstream value, read by the supervisor.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "XComRef".
+ */
+export interface XComRef {
+  kind: Kind;
+  task_id: TaskId;
+  map_index?: MapIndex;
+  element_index?: ElementIndex;
+}
+/**
+ * One inline value.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "LiteralValue".
+ */
+export interface LiteralValue {
+  kind: Kind1;
+  value?: JsonValue | null;
+}
 /**
  * Schema for AssetAliasModel used in AssetEventDagRunReference.
  *
@@ -1014,12 +1063,12 @@ export interface Extra6 {
  */
 export interface TaskInstance {
   id: Id2;
-  task_id: TaskId;
+  task_id: TaskId1;
   dag_id: DagId3;
   run_id: RunId3;
   try_number: TryNumber;
   dag_version_id: DagVersionId;
-  map_index?: MapIndex;
+  map_index?: MapIndex1;
   region_id?: RegionId;
   region_index?: RegionIndex;
   hostname?: Hostname;
@@ -1114,16 +1163,21 @@ export interface VariableResponse {
   value: Value;
 }
 /**
- * One positional stub-task argument pulled from an upstream task's XCom.
+ * An argument read from an upstream task.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "XComArgBinding".
  */
 export interface XComArgBinding {
+  kind: Kind2;
+  task_id: TaskId2;
+  map_index?: MapIndex2;
+  element_index?: ElementIndex1;
   name: Name8;
   value_schema?: ArgValueSchema | null;
-  kind: Kind;
-  task_id: TaskId1;
+  apply_map?: ApplyMap;
+  kwarg?: Kwarg;
+  fallback?: ArgPart | null;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1133,17 +1187,50 @@ export interface ArgValueSchema {
   [k: string]: JsonValue;
 }
 /**
- * One positional stub-task argument carrying an inline literal from the Dag file.
+ * An argument carrying an inline value from the Dag file.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "LiteralArgBinding".
  */
 export interface LiteralArgBinding {
+  kind: Kind3;
+  value?: JsonValue | null;
   name: Name9;
   value_schema?: ArgValueSchema | null;
-  kind: Kind1;
-  value?: JsonValue | null;
+  apply_map?: ApplyMap1;
+  kwarg?: Kwarg1;
+  fallback?: ArgPart | null;
   from_default?: FromDefault;
+}
+/**
+ * A mapped task's whole output, read as a lazy sequence.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "XComSequenceArgBinding".
+ */
+export interface XComSequenceArgBinding {
+  name: Name10;
+  value_schema?: ArgValueSchema | null;
+  apply_map?: ApplyMap2;
+  kwarg?: Kwarg2;
+  fallback?: ArgPart | null;
+  kind: Kind4;
+  task_id: TaskId3;
+}
+/**
+ * One ``zip()`` element: several values gathered into a single argument.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TupleArgBinding".
+ */
+export interface TupleArgBinding {
+  name: Name11;
+  value_schema?: ArgValueSchema | null;
+  apply_map?: ApplyMap3;
+  kwarg?: Kwarg3;
+  fallback?: ArgPart | null;
+  kind: Kind5;
+  parts: Parts;
 }
 /**
  * Email notification request for task failures/retries.
@@ -1279,7 +1366,7 @@ export interface DeferTask {
  * via the `definition` "DeleteAssetStateStoreByName".
  */
 export interface DeleteAssetStateStoreByName {
-  name: Name10;
+  name: Name12;
   key: Key1;
   type?: Type21;
 }
@@ -1317,8 +1404,8 @@ export interface DeleteXCom {
   key: Key5;
   dag_id: DagId6;
   run_id: RunId5;
-  task_id: TaskId2;
-  map_index?: MapIndex1;
+  task_id: TaskId4;
+  map_index?: MapIndex3;
   type?: Type25;
 }
 /**
@@ -1338,7 +1425,7 @@ export interface ErrorResponse {
  */
 export interface ExternalClearTargetPayload {
   dag_id: DagId7;
-  task_id: TaskId3;
+  task_id: TaskId5;
   logical_date: LogicalDate3;
   recursion_depth: RecursionDepth;
 }
@@ -1347,7 +1434,7 @@ export interface ExternalClearTargetPayload {
  * via the `definition` "GetAssetByName".
  */
 export interface GetAssetByName {
-  name: Name11;
+  name: Name13;
   type?: Type27;
 }
 /**
@@ -1363,7 +1450,7 @@ export interface GetAssetByUri {
  * via the `definition` "GetAssetEventByAsset".
  */
 export interface GetAssetEventByAsset {
-  name: Name12;
+  name: Name14;
   uri: Uri7;
   after?: After;
   before?: Before;
@@ -1394,7 +1481,7 @@ export interface GetAssetEventByAssetAlias {
  * via the `definition` "GetAssetStateStoreByName".
  */
 export interface GetAssetStateStoreByName {
-  name: Name13;
+  name: Name15;
   key: Key6;
   type?: Type31;
 }
@@ -1496,9 +1583,9 @@ export interface GetPreviousDagRun {
  */
 export interface GetPreviousTI {
   dag_id: DagId13;
-  task_id: TaskId4;
+  task_id: TaskId6;
   logical_date?: LogicalDate5;
-  map_index?: MapIndex2;
+  map_index?: MapIndex4;
   state?: TaskInstanceState | null;
   type?: Type42;
 }
@@ -1508,7 +1595,7 @@ export interface GetPreviousTI {
  */
 export interface GetTICount {
   dag_id: DagId14;
-  map_index?: MapIndex3;
+  map_index?: MapIndex5;
   task_ids?: TaskIds;
   task_group_id?: TaskGroupId;
   logical_dates?: LogicalDates1;
@@ -1549,7 +1636,7 @@ export interface GetTaskStateStore {
  */
 export interface GetTaskStates {
   dag_id: DagId16;
-  map_index?: MapIndex4;
+  map_index?: MapIndex6;
   task_ids?: TaskIds1;
   task_group_id?: TaskGroupId1;
   logical_dates?: LogicalDates2;
@@ -1583,8 +1670,8 @@ export interface GetXCom {
   key: Key10;
   dag_id: DagId17;
   run_id: RunId9;
-  task_id: TaskId5;
-  map_index?: MapIndex5;
+  task_id: TaskId7;
+  map_index?: MapIndex7;
   include_prior_dates?: IncludePriorDates;
   type?: Type50;
 }
@@ -1599,7 +1686,7 @@ export interface GetXComCount {
   key: Key11;
   dag_id: DagId18;
   run_id: RunId10;
-  task_id: TaskId6;
+  task_id: TaskId8;
   type?: Type51;
 }
 /**
@@ -1611,7 +1698,7 @@ export interface GetXComSequenceItem {
   key: Key12;
   dag_id: DagId19;
   run_id: RunId11;
-  task_id: TaskId7;
+  task_id: TaskId9;
   offset: Offset1;
   type?: Type52;
 }
@@ -1624,7 +1711,7 @@ export interface GetXComSequenceSlice {
   key: Key13;
   dag_id: DagId20;
   run_id: RunId12;
-  task_id: TaskId8;
+  task_id: TaskId10;
   start: Start;
   stop: Stop;
   step: Step;
@@ -1690,7 +1777,7 @@ export interface LoopDecisionPayload {
  */
 export interface MaskSecret {
   value: JsonValue;
-  name?: Name14;
+  name?: Name16;
   type?: Type57;
 }
 /**
@@ -1729,7 +1816,7 @@ export interface PreviousDagRunResult {
  * via the `definition` "PreviousTIResponse".
  */
 export interface PreviousTIResponse {
-  task_id: TaskId9;
+  task_id: TaskId11;
   dag_id: DagId21;
   run_id: RunId13;
   logical_date?: LogicalDate6;
@@ -1737,7 +1824,7 @@ export interface PreviousTIResponse {
   end_date?: EndDate4;
   state?: State4;
   try_number: TryNumber2;
-  map_index?: MapIndex6;
+  map_index?: MapIndex8;
   region_id?: RegionId2;
   region_index?: RegionIndex1;
   duration?: Duration;
@@ -1808,7 +1895,7 @@ export interface SentFDs {
  * via the `definition` "SetAssetStateStoreByName".
  */
 export interface SetAssetStateStoreByName {
-  name: Name15;
+  name: Name17;
   key: Key15;
   value: JsonValue;
   type?: Type67;
@@ -1876,8 +1963,8 @@ export interface SetXCom {
   value: JsonValue;
   dag_id: DagId22;
   run_id: RunId14;
-  task_id: TaskId10;
-  map_index?: MapIndex7;
+  task_id: TaskId12;
+  map_index?: MapIndex9;
   dag_result?: DagResult1;
   mapped_length?: MappedLength;
   type?: Type73;
