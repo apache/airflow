@@ -1649,9 +1649,10 @@ def _create_global_lock_postgresql(
             )
         else:
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-        # No bound parameter: under psycopg3 a parameterized statement keeps its snapshot while
-        # the connection sits idle in transaction, and CREATE INDEX CONCURRENTLY run by a
-        # migration in this process would wait on it forever.
+        # The last statement run on this connection before the yield must have no bound parameter:
+        # under psycopg3 a parameterized statement keeps its snapshot while the connection sits idle
+        # in transaction, and CREATE INDEX CONCURRENTLY run by a migration in this process would
+        # wait on it forever.
         conn.execute(text(f"SELECT pg_advisory_lock({int(lock.value)})"))
 
         yield
@@ -1686,7 +1687,7 @@ def create_global_lock(
     - GET_LOCK is session-level, not transaction-level
     - DDL operations cause implicit commits that would break transaction wrappers
 
-    For PostgreSQL, uses transactional advisory locks as before.
+    For PostgreSQL, uses a session-level advisory lock, held while the connection stays in a transaction.
     """
     dialect_name = get_dialect_name(session)
 
