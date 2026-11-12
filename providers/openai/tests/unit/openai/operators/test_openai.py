@@ -157,17 +157,12 @@ def test_openai_response_operator_execute_xcom_push(do_xcom_push, expected_push_
     # slipping through assert_any_call, which only checks presence, not exhaustiveness.
     assert context["ti"].xcom_push.call_count == expected_push_count
     if do_xcom_push:
+        # Expected value is derived from the SDK model so the test does not pin optional fields that
+        # newer openai releases add to the usage details (e.g. ``cache_write_tokens_details``).
         context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
         context["ti"].xcom_push.assert_any_call(
             key="usage",
-            value={
-                "input_tokens": 5,
-                "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
-                "output_tokens": 7,
-                "output_tokens_details": {"reasoning_tokens": 2},
-                "total_tokens": 12,
-                "try_number": 1,
-            },
+            value={**usage.model_dump(mode="json"), "try_number": 1},
         )
 
 
@@ -200,14 +195,7 @@ def test_openai_response_operator_execute_records_try_number():
 
     context["ti"].xcom_push.assert_any_call(
         key="usage",
-        value={
-            "input_tokens": 5,
-            "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
-            "output_tokens": 7,
-            "output_tokens_details": {"reasoning_tokens": 2},
-            "total_tokens": 12,
-            "try_number": 3,
-        },
+        value={**usage.model_dump(mode="json"), "try_number": 3},
     )
 
 

@@ -79,6 +79,8 @@ export type AssetEventResponse = {
     source_run_id?: string | null;
     source_map_index: number;
     source_task_instance_id?: string | null;
+    source_region_id?: string | null;
+    source_region_index?: number | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -797,6 +799,10 @@ export type ClearTaskInstancesBody = {
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
+    /**
+     * Also clear the tasks in other Dags that the cleared tasks recorded as external clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. If not specified, follows ``include_downstream``.
+     */
+    include_dependent_dags?: boolean | null;
     include_future?: boolean;
     include_past?: boolean;
     /**
@@ -5632,7 +5638,7 @@ export type GetXcomEntriesData = {
     dagId: string;
     dagRunId: string;
     /**
-     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
      */
     excludeInternalKeys?: boolean;
     limit?: number;
@@ -6019,7 +6025,15 @@ export type GetGridRunsResponse = Array<GridRunsResponse>;
 
 export type GetGridTiSummariesStreamData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runIds?: Array<(string)> | null;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGridTiSummariesStreamResponse = string;

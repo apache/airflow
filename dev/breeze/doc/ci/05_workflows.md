@@ -396,7 +396,10 @@ Before running expensive tests, we validate basic functionality:
 - React UI component tests
 - Code formatting and style checks
 
-These quick checks catch obvious problems early.
+These quick checks catch obvious problems early. The shared distributions tests and the translation
+completeness check run only when the files they depend on changed (see
+[Selective checks](04_selective_checks.md)); the Breeze unit tests, the standalone Airflow test and the
+Windows checkout test run for every change.
 
 #### 3. Image Building
 
@@ -448,7 +451,7 @@ Here's what each workflow group does and when it runs:
 | **Basic Tests**                    | Runs quick validation: Breeze, UI, static checks            | Yes     | Yes     | Yes       |
 | **CI Image Build**                 | Builds Docker images for testing                            | Yes     | Yes     | Yes       |
 | **Additional CI Image Checks**     | Validates CI images meet quality standards                  | Yes     | Yes     | Yes       |
-| **Generate Constraints**           | Creates dependency version lock files                       | Yes     | Yes     | Yes       |
+| **Generate Constraints**           | Creates dependency version lock files                       | Yes (6) | Yes     | Yes (6)   |
 | **CI Image Checks**                | Runs static analysis and builds docs (AMD only)             | Yes     | Yes     | Yes       |
 | **Provider Tests**                 | Tests integration with external services                    | Yes     | Yes     | Yes (1)   |
 | **Unit Tests (Multiple Groups)**   | Runs core functionality tests with different databases      | Yes     | Yes     | Yes (1)   |
@@ -540,6 +543,13 @@ dependency of **Finalize Tests**, so such a release does not stop the image cach
 The summary runs only when the run upgrades to newer dependencies: on scheduled and manually
 dispatched runs, when a `pyproject.toml` file changes, or on a PR with the
 `upgrade to newer dependencies` label. It needs the CI image, so it never runs without one.
+
+**`(6)` Generate Constraints**
+
+The job runs only when the PROD image is built or when the constraints are resolved against PyPI. It
+resolves against PyPI when dependencies change, when full tests are needed, on canary runs, and on a PR
+with the `upgrade to newer dependencies` label. A run that only builds the PROD image generates just the
+`constraints-source-providers` file that image reads.
 
 ## Runners
 

@@ -43,14 +43,15 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagrun import lock_dag_runs
 from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import clear_loop_task_instances, clear_task_instances, uuid7
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XComModelV2
-from airflow.sdk import BaseOperator, TaskGroup, task, task_group
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, XComModelV2
+from airflow.sdk import BaseOperator, ExternalClearTarget, TaskGroup, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
@@ -5552,6 +5553,170 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         response_tis = response.json()["task_instances"]
         assert sorted((ti["task_id"], ti["map_index"]) for ti in response_tis) == expected
+
+
+class TestPostClearTaskInstancesDependentDags(TestTaskInstanceEndpoint):
+    LOGICAL_DATE = datetime(2026, 10, 1)
+
+    @staticmethod
+    def _record(ti, target, session):
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id,
+            key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+            value=target.serialize(),
+            session=session,
+        )
+
+    @pytest.fixture
+    def linked_runs(self, dag_maker, session):
+        """A parent run whose ``mark`` recorded a target in a child run: ``wait >> load``."""
+        with dag_maker("child", serialized=True):
+            MockOperator(task_id="wait") >> MockOperator(task_id="load")
+        child_run = dag_maker.create_dagrun(logical_date=self.LOGICAL_DATE, state=DagRunState.SUCCESS)
+        with dag_maker("parent", serialized=True):
+            MockOperator(task_id="mark")
+        parent_run = dag_maker.create_dagrun(logical_date=self.LOGICAL_DATE, state=DagRunState.SUCCESS)
+        for ti in [
+            *child_run.get_task_instances(session=session),
+            *parent_run.get_task_instances(session=session),
+        ]:
+            ti.state = TaskInstanceState.SUCCESS
+        target = ExternalClearTarget(dag_id="child", task_id="wait", logical_date=self.LOGICAL_DATE)
+        self._record(parent_run.get_task_instance("mark", session=session), target, session)
+        session.commit()
+        return parent_run, child_run
+
+    def _clear(self, test_client, parent_run, **body):
+        return test_client.post(
+            "/dags/parent/clearTaskInstances",
+            json={"dag_run_id": parent_run.run_id, "task_ids": ["mark"], "only_failed": False, **body},
+        )
+
+    @pytest.mark.parametrize(
+        ("body", "includes_child"),
+        [
+            pytest.param({"include_downstream": True}, True, id="follows-downstream"),
+            pytest.param({"include_downstream": False}, False, id="follows-no-downstream"),
+            pytest.param({"include_downstream": True, "include_dependent_dags": False}, False, id="opt-out"),
+            pytest.param({"include_downstream": False, "include_dependent_dags": True}, True, id="opt-in"),
+        ],
+    )
+    def test_dry_run_lists_dependent_dag_tasks_per_include_dependent_dags(
+        self, test_client, linked_runs, body, includes_child
+    ):
+        parent_run, _ = linked_runs
+
+        response = self._clear(test_client, parent_run, dry_run=True, **body)
+
+        assert response.status_code == 200, response.text
+        listed = {(ti["dag_id"], ti["task_id"]) for ti in response.json()["task_instances"]}
+        expected = {("parent", "mark")}
+        if includes_child:
+            expected |= {("child", "wait"), ("child", "load")}
+        assert listed == expected
+
+    def test_clear_resets_dependent_dag_tasks(self, test_client, linked_runs, session):
+        parent_run, child_run = linked_runs
+
+        response = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+
+        assert response.status_code == 200, response.text
+        assert {ti["dag_id"] for ti in response.json()["task_instances"]} == {"parent", "child"}
+        session.expire_all()
+        child_states = {ti.task_id: ti.state for ti in child_run.get_task_instances(session=session)}
+        assert child_states == {"wait": None, "load": None}
+
+    def test_second_clear_before_the_marker_reruns_still_clears_dependent_dag_tasks(
+        self, test_client, linked_runs, session
+    ):
+        parent_run, child_run = linked_runs
+        first = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+        assert first.status_code == 200, first.text
+        session.expire_all()
+        # The child reruns, but the cleared marker has not run again, so its new attempt reported nothing.
+        for ti in child_run.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        second = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+
+        assert second.status_code == 200, second.text
+        assert {ti["dag_id"] for ti in second.json()["task_instances"]} == {"parent", "child"}
+
+    def test_marker_that_reran_without_reporting_a_target_clears_only_its_own_dag(
+        self, test_client, linked_runs, session
+    ):
+        parent_run, child_run = linked_runs
+        first = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+        assert first.status_code == 200, first.text
+        session.expire_all()
+        # The marker reran and succeeded, but this time reported no target.
+        for ti in [
+            *child_run.get_task_instances(session=session),
+            *parent_run.get_task_instances(session=session),
+        ]:
+            ti.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        second = self._clear(test_client, parent_run, dry_run=True, include_downstream=True)
+
+        assert second.status_code == 200, second.text
+        assert {ti["dag_id"] for ti in second.json()["task_instances"]} == {"parent"}
+
+    def test_locks_source_and_dependent_runs_in_one_batch(self, test_client, linked_runs):
+        parent_run, child_run = linked_runs
+
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.task_instances.lock_dag_runs",
+            autospec=True,
+            side_effect=lock_dag_runs,
+        ) as route_lock:
+            response = self._clear(test_client, parent_run, dry_run=False, include_downstream=True)
+
+        assert response.status_code == 200, response.text
+        first_batch = set(route_lock.call_args_list[0].args[1])
+        assert first_batch == {("parent", parent_run.run_id), ("child", child_run.run_id)}
+
+    def test_leaves_out_dags_the_caller_cannot_clear(self, test_client, linked_runs):
+        parent_run, _ = linked_runs
+
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+            autospec=True,
+            side_effect=lambda _self, *, method, user, access_entity=None, details=None: (
+                details is None or details.id != "child"
+            ),
+        ):
+            response = self._clear(test_client, parent_run, dry_run=True, include_downstream=True)
+
+        assert response.status_code == 200, response.text
+        assert {ti["dag_id"] for ti in response.json()["task_instances"]} == {"parent"}
+
+    def test_rejects_targets_deeper_than_the_recursion_depth(
+        self, test_client, linked_runs, dag_maker, session
+    ):
+        parent_run, child_run = linked_runs
+        with dag_maker("grandchild", serialized=True):
+            MockOperator(task_id="wait")
+        dag_maker.create_dagrun(logical_date=self.LOGICAL_DATE)
+        self._record(
+            child_run.get_task_instance("load", session=session),
+            ExternalClearTarget(dag_id="grandchild", task_id="wait", logical_date=self.LOGICAL_DATE),
+            session,
+        )
+        self._record(
+            parent_run.get_task_instance("mark", session=session),
+            ExternalClearTarget(
+                dag_id="child", task_id="wait", logical_date=self.LOGICAL_DATE, recursion_depth=1
+            ),
+            session,
+        )
+        session.commit()
+
+        response = self._clear(test_client, parent_run, dry_run=True, include_downstream=True)
+
+        assert response.status_code == 400
+        assert "more than 1 levels" in response.json()["detail"]
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
