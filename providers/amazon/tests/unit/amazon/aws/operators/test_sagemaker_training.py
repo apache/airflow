@@ -185,13 +185,18 @@ class TestSageMakerTrainingOperator:
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     @mock.patch.object(SageMakerHook, "configure_s3_resources")
+    @mock.patch.object(SageMakerHook, "stop_training_job")
     def test_durable_reconnects_to_a_running_job(
-        self, mock_configure_s3, _, mock_training, mock_desc, mock_poll
+        self, mock_stop, mock_configure_s3, _, mock_training, mock_desc, mock_poll
     ):
         mock_desc.return_value = {"TrainingJobStatus": "InProgress"}
+        self.sagemaker.cancel_on_kill = True
         store = self._task_state_store("previously_running_job")
 
         result = self.sagemaker.execute({"task_state_store": store})
+        self.sagemaker.on_kill()
+
+        mock_stop.assert_called_once_with("previously_running_job")
 
         mock_training.assert_not_called()
         mock_configure_s3.assert_not_called()
