@@ -31,7 +31,7 @@ from decimal import Decimal
 from enum import Enum
 from types import ModuleType, SimpleNamespace
 from typing import Any, NamedTuple, NewType
-from unittest.mock import ANY, AsyncMock, MagicMock, Mock, PropertyMock, call, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, PropertyMock, call, patch
 from uuid import UUID
 
 import pytest
@@ -4528,28 +4528,37 @@ class TestAgentOperatorAsync:
         with pytest.raises(ValueError, match="not supported with an async callable"):
             await op.aexecute(_make_async_context())
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TaskAwaitingInput needs Airflow >= 3.3")
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     async def test_run_waiting_on_a_tool_approval_pauses_through_the_synchronous_path(
         self, mock_hook_cls, make_mock_run_result
     ):
-        class Paused(Exception):
-            pass
+        """A pause is not a failed attempt: the task waits for input and reports nothing."""
+        from airflow.sdk.exceptions import TaskAwaitingInput
 
         _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result(DeferredToolRequests()))
-        context = _make_async_context()
+        awaiting_input = TaskAwaitingInput(method_name="resume_after_tool_approval")
+
+        def pause(self, context, result, *, attempt_usage):
+            raise awaiting_input
 
         op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
-        with patch.object(
-            AgentOperator,
-            "_pause_for_tool_approval",
-            side_effect=_refused_on_the_event_loop(Mock(side_effect=Paused)),
-        ) as pause:
-            with pytest.raises(Paused):
-                await op.aexecute(context)
+        with (
+            patch.object(
+                AgentOperator,
+                "_pause_for_tool_approval",
+                autospec=True,
+                side_effect=_refused_on_the_event_loop(pause),
+            ) as mock_pause,
+            patch.object(AgentOperator, "_report_failed_run", autospec=True) as mock_report,
+        ):
+            with pytest.raises(TaskAwaitingInput) as raised:
+                await op.aexecute(_make_async_context())
 
-        pause.assert_called_once()
-        assert _pushed_xcoms(context["task_instance"]) == {}
+        assert raised.value is awaiting_input
+        mock_pause.assert_called_once()
+        mock_report.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
