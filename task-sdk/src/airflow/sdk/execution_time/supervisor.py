@@ -647,7 +647,7 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
-def _task_process_uses_exec() -> bool:
+def task_process_uses_exec() -> bool:
     """
     Whether the task process should ``exec`` a fresh interpreter after the fork.
 
@@ -1193,27 +1193,11 @@ class WatchedSubprocess:
                 with self._request_scope(request):
                     self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
                 # Generic exception handling so a transient network error (httpx2.ConnectError /
                 # httpx2.TimeoutException) or any other exception
@@ -1711,7 +1695,7 @@ class ActivitySubprocess(WatchedSubprocess):
         # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _task_process_uses_exec()
+        use_exec = target is _subprocess_main and task_process_uses_exec()
         if target is _subprocess_main and not use_exec:
             _import_task_runner_before_fork()
         proc: Self = super().start(
@@ -1888,6 +1872,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
                     loop_decision=msg.loop_decision,
+                    external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
