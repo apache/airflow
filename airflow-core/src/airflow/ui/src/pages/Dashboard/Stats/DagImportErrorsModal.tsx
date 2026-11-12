@@ -186,7 +186,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   fileToken={importError.file_token}
                   onReparsed={() => setPollAfterReparse(true)}
                 />
-                <ClipboardRoot value={importError.filename}>
+                <ClipboardRoot value={importError.stack_trace}>
                   <ClipboardIconButton variant="outline" />
                 </ClipboardRoot>
               </Box>

@@ -28,6 +28,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
+import structlog
 
 pytest.importorskip("agents")
 
@@ -65,9 +66,16 @@ from airflow.providers.common.ai.durable.openai_agents import (
     _get_durable_tool,
     run_durably_sync,
 )
+from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
+from airflow.providers.standard.operators.hitl import request_input
+from airflow.sdk import DAG, BaseOperator, task
+from airflow.sdk.execution_time.comms import AwaitInputTask, CreateHITLDetailPayload, SetXCom
+from airflow.sdk.execution_time.task_runner import run
+from airflow.sdk.serde import deserialize, serialize
+from airflow.utils.state import TaskInstanceState
 
 from unit.common.ai.durable.memory_storage import MemoryStorage
 
@@ -91,8 +99,14 @@ class _ScriptedModel(Model):
         usage: int = 7,
         argument: str = "key",
         fail_first_request: bool = False,
+        call_id_prefix: str = "call",
+        fresh_call_ids: bool = False,
+        value_prefix: str = "k",
     ) -> None:
         self.lookups = lookups
+        self.value_prefix = value_prefix
+        self.call_id_prefix = call_id_prefix
+        self.fresh_call_ids = fresh_call_ids
         self.argument = argument
         self.fail_first_request = fail_first_request
         self.fail_on_answer = fail_on_answer
@@ -116,9 +130,11 @@ class _ScriptedModel(Model):
             output = [
                 ResponseFunctionToolCall(
                     id=f"fc-{len(outputs)}",
-                    call_id=f"call-{len(outputs)}",
+                    # A real model gives every call it makes a new id.
+                    call_id=f"{self.call_id_prefix}-{len(outputs)}"
+                    + (f"-r{self.calls}" if self.fresh_call_ids else ""),
                     name="lookup",
-                    arguments=json.dumps({self.argument: f"k{len(outputs)}"}),
+                    arguments=json.dumps({self.argument: f"{self.value_prefix}{len(outputs)}"}),
                     type="function_call",
                 )
             ]
@@ -621,6 +637,14 @@ class TestRunDurably:
             return "paid"
 
         assert _get_durable_tool(pay, DurableJournal(MemoryStorage()).start_run()) is pay
+
+    def test_a_tool_that_always_needs_approval_is_recorded(self):
+        @function_tool(needs_approval=True)
+        def pay(amount: int = 1000) -> str:
+            """Pay an amount."""
+            return "paid"
+
+        assert _get_durable_tool(pay, DurableJournal(MemoryStorage()).start_run()) is not pay
 
     @pytest.mark.parametrize(
         ("option", "value"),
@@ -1306,22 +1330,464 @@ class TestDurableExceptions:
         assert durable_run.position == 0
         assert storage.steps() == []
 
-    def test_a_tool_that_needs_approval_is_not_invoked_or_recorded(self):
+    @pytest.mark.parametrize(
+        "needs_approval",
+        [True, lambda context, arguments, call_id: True],
+        ids=["always", "by-rule"],
+    )
+    def test_without_request_input_a_run_that_stops_for_approval_fails_naming_the_tool(self, needs_approval):
         calls = []
 
-        @function_tool(needs_approval=True)
+        @function_tool(needs_approval=needs_approval)
         def lookup(key: str) -> str:
             """Look a key up."""
             calls.append(key)
             return f"{key}=42"
 
-        journal = DurableJournal(MemoryStorage(), clean_up_after_run=True)
-        with journal_scope(journal):
-            result = run_durably_sync(
+        with (
+            mock.patch(
+                "airflow.providers.common.ai.durable.openai_agents._get_request_input",
+                autospec=True,
+                return_value=None,
+            ),
+            journal_scope(DurableJournal(MemoryStorage(), clean_up_after_run=True)),
+            pytest.raises(
+                UnsupportedToolDeferralError,
+                match=r"approval to call lookup \(analyst\).*needs Airflow 3\.4\+ and a standard provider",
+            ),
+        ):
+            run_durably_sync(
                 Agent(name="analyst", model=_ScriptedModel(), tools=[lookup]), "go", run_config=NO_TRACING
             )
 
-        assert len(result.interruptions) == 1
         assert calls == []
-        assert journal.stats.recorded == {"model": 1}
-        assert _get_durable_tool(lookup, journal.start_run()) is not lookup
+
+    def test_outside_a_task_a_run_that_stops_for_approval_fails_naming_the_tool(self):
+        """A journal set in a unit test has no task to pause, so the run fails as it does without request_input()."""
+        calls: list[str] = []
+
+        with (
+            journal_scope(DurableJournal(MemoryStorage(), clean_up_after_run=True)),
+            pytest.raises(
+                UnsupportedToolDeferralError,
+                match=r"approval to call lookup \(analyst\).*there is no running task to pause",
+            ),
+        ):
+            run_durably_sync(
+                Agent(name="analyst", model=_ScriptedModel(), tools=[_lookup_tool(calls)]),
+                "go",
+                run_config=NO_TRACING,
+            )
+
+        assert calls == []
+
+    def test_a_clear_after_an_agent_tool_stopped_for_approval_asks_again_from_that_turn(self):
+        """Earlier turns replay; the agent tool's answer, given while its own run waited, does not."""
+        storage, calls = MemoryStorage(), []
+
+        def attempt(needs_approval: Any, call_id_prefix: str) -> DurableJournal:
+            @function_tool(needs_approval=needs_approval)
+            def lookup(key: str) -> str:
+                """Look a key up."""
+                calls.append(key)
+                return f"{key}=42"
+
+            specialist = Agent(name="specialist", model="inner", tools=[lookup])
+            # The model asked again answers with new call ids, as a real one does. Reusing them
+            # would resume the SDK's in-process record of the first try's nested run instead.
+            lead = Agent(
+                name="lead",
+                model=_ScriptedModel(lookups=2, argument="input", call_id_prefix=call_id_prefix),
+                tools=[specialist.as_tool("lookup", "Ask the specialist.")],
+            )
+            config = RunConfig(tracing_disabled=True, model_provider=_Provider(_ScriptedModel()))
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(lead, "go", run_config=config)
+            return journal
+
+        # The specialist answers the first time it is asked, and waits for approval the second time.
+        with pytest.raises(UnsupportedToolDeferralError, match=r"lookup \(specialist\).*through as_tool\(\)"):
+            attempt(lambda context, arguments, call_id: bool(calls), call_id_prefix="first")
+        journal = attempt(False, call_id_prefix="second")
+
+        # The first turn and the specialist's first answer replay; the second turn runs again.
+        assert journal.stats.replayed == {"model": 1, "tool": 1}
+        assert calls == ["k0", "k0"]
+
+
+def _answer(option: str, reason: str = "") -> dict[str, Any]:
+    """The answer event the Core API puts in the paused task's next_kwargs."""
+    return {
+        "chosen_options": [option],
+        "params_input": {"reason": reason},
+        "responded_at": datetime.datetime(2026, 11, 5, tzinfo=datetime.UTC),
+        "responded_by_user": {"id": "1", "name": "reviewer"},
+        "timedout": False,
+    }
+
+
+def _sent(mock_supervisor_comms, msg_type: type) -> list[Any]:
+    messages = (
+        call.kwargs.get("msg", call.args[0] if call.args else None)
+        for call in mock_supervisor_comms.send.call_args_list
+    )
+    return [msg for msg in messages if isinstance(msg, msg_type)]
+
+
+class _Reviewer:
+    """
+    Runs a task through the task runner and answers each Required Actions request it parks on.
+
+    A resumed run is handed the parked kwargs plus the answer, as the Core API response
+    handler hands them back, so ``PythonOperator.resume_with_input`` runs for real.
+    """
+
+    def __init__(self, create_runtime_ti, mock_supervisor_comms) -> None:
+        self.create_runtime_ti = create_runtime_ti
+        self.comms = mock_supervisor_comms
+        self.decide: Any = lambda request: _answer("Approve")
+        self.keys: list[str] = []
+
+    @property
+    def requests(self) -> list[CreateHITLDetailPayload]:
+        return _sent(self.comms, CreateHITLDetailPayload)
+
+    def run(self, op) -> tuple[Any, BaseException | None]:
+        ti = self.create_runtime_ti(task=op)
+        state, msg, error = _run_ti(ti)
+        while isinstance(msg, AwaitInputTask):
+            parked = deserialize(msg.next_kwargs)
+            assert isinstance(parked, dict)
+            self.keys.append(parked["key"])
+            resumed = self.create_runtime_ti(task=op, ti_id=ti.id)
+            resumed._ti_context_from_server.next_method = msg.next_method
+            resumed._ti_context_from_server.next_kwargs = serialize(
+                {**parked, "event": self.decide(self.requests[-1])}
+            )
+            state, msg, error = _run_ti(resumed)
+        return state, error
+
+    def returned(self) -> list[Any]:
+        return [msg.value for msg in _sent(self.comms, SetXCom) if msg.key == "return_value"]
+
+
+def _run_ti(ti) -> tuple[Any, Any, BaseException | None]:
+    return run(ti, context=ti.get_template_context(), log=structlog.get_logger())
+
+
+@pytest.fixture
+def reviewer(create_runtime_ti, mock_supervisor_comms):
+    return _Reviewer(create_runtime_ti, mock_supervisor_comms)
+
+
+def _lookup_tool(calls: list[str], needs_approval: Any = True) -> Any:
+    @function_tool(needs_approval=needs_approval)
+    def lookup(key: str) -> str:
+        """Look a key up."""
+        calls.append(key)
+        return f"{key}=42"
+
+    return lookup
+
+
+def _agent_task(storage: MemoryStorage, agent: Any, journals: list[DurableJournal], **kwargs: Any):
+    """
+    A ``@task`` that runs an agent durably; each run, first or resumed, gets a fresh journal over ``storage``.
+
+    ``agent`` is the agent, or a function of the run's number that returns the agent that run uses.
+    """
+    with DAG(dag_id="agent_with_approvals"):
+
+        @task
+        def handle_ticket() -> str:
+            run_agent = agent(len(journals)) if callable(agent) else agent
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            journals.append(journal)
+            with journal_scope(journal):
+                return run_durably_sync(run_agent, "go", run_config=NO_TRACING, **kwargs).final_output
+
+        return handle_ticket().operator
+
+
+class TestToolApproval:
+    @pytest.mark.parametrize(
+        "needs_approval",
+        [True, lambda context, arguments, call_id: True],
+        ids=["always", "by-rule"],
+    )
+    def test_an_approved_call_runs_once_and_no_model_call_is_made_twice(self, reviewer, needs_approval):
+        storage, calls, journals, model = MemoryStorage(), [], [], _ScriptedModel()
+        agent = Agent(name="analyst", model=model, tools=[_lookup_tool(calls, needs_approval)])
+
+        state, error = reviewer.run(_agent_task(storage, agent, journals))
+
+        assert (state, error) == (TaskInstanceState.SUCCESS, None)
+        assert reviewer.returned() == ["answer: k0=42"]
+        assert calls == ["k0"]
+        # The request that asked for the call replayed on resume; only the one that answers is new.
+        assert model.calls == 2
+        assert journals[-1].stats.replayed == {"model": 1}
+        [request] = reviewer.requests
+        assert request.subject == "analyst wants to call lookup"
+        assert request.options == ["Approve", "Reject"]
+        assert "**Tool:** lookup — Look a key up." in request.body
+        assert '"key": "k0"' in request.body
+        assert reviewer.keys[0].split(":")[1] == "call-0"
+        assert storage.steps() == []
+
+    @pytest.mark.parametrize(
+        ("reason", "told_to_model"),
+        [
+            ("Refunds over 40 need a manager.", "Refunds over 40 need a manager."),
+            ("   ", "Tool execution was not approved."),
+        ],
+        ids=["with-reason", "blank-reason"],
+    )
+    def test_a_rejected_call_tells_the_model_the_reviewers_reason(self, reviewer, reason, told_to_model):
+        storage, calls, journals, model = MemoryStorage(), [], [], _ScriptedModel()
+        reviewer.decide = lambda request: _answer("Reject", reason)
+        agent = Agent(name="analyst", model=model, tools=[_lookup_tool(calls)])
+
+        state, _ = reviewer.run(_agent_task(storage, agent, journals))
+
+        assert state == TaskInstanceState.SUCCESS
+        assert calls == []
+        assert reviewer.returned() == [f"answer: {told_to_model}"]
+        assert model.calls == 2
+
+    def test_a_later_approval_replays_the_calls_before_it(self, reviewer):
+        storage, calls, journals, model = MemoryStorage(), [], [], _ScriptedModel(lookups=2)
+        agent = Agent(name="analyst", model=model, tools=[_lookup_tool(calls)])
+
+        state, _ = reviewer.run(_agent_task(storage, agent, journals))
+
+        assert state == TaskInstanceState.SUCCESS
+        assert reviewer.returned() == ["answer: k1=42"]
+        assert len(reviewer.requests) == 2
+        # Across three runs of the task, every model call and every tool call happened once.
+        assert model.calls == 3
+        assert calls == ["k0", "k1"]
+        assert journals[-1].stats.replayed == {"model": 2, "tool": 1}
+
+    def test_two_calls_in_one_answer_are_asked_one_at_a_time(self, reviewer):
+        storage, calls, journals, model = MemoryStorage(), [], [], _ParallelModel()
+        reviewer.decide = lambda request: (
+            _answer("Approve") if '"key": "a"' in request.body else _answer("Reject", "Not b.")
+        )
+        agent = Agent(name="analyst", model=model, tools=[_lookup_tool(calls)])
+
+        state, _ = reviewer.run(_agent_task(storage, agent, journals))
+
+        assert state == TaskInstanceState.SUCCESS
+        assert [key.split(":")[1] for key in reviewer.keys] == ["call-a", "call-b"]
+        assert calls == ["a"]
+        assert reviewer.returned() == ["answer: ['Not b.', 'a=42']"]
+        assert model.calls == 2
+
+    def test_a_tool_of_an_agent_handed_off_to_pauses_the_same_way(self, reviewer):
+        storage, calls, journals = MemoryStorage(), [], []
+        # The transfer's own result is the first function output the specialist sees.
+        specialist = Agent(name="specialist", model=_ScriptedModel(lookups=2), tools=[_lookup_tool(calls)])
+        lead = Agent(name="lead", model=_TransferModel(), handoffs=[specialist])
+
+        state, _ = reviewer.run(_agent_task(storage, lead, journals))
+
+        assert state == TaskInstanceState.SUCCESS
+        assert reviewer.returned() == ["answer: k1=42"]
+        assert [request.subject for request in reviewer.requests] == ["specialist wants to call lookup"]
+        assert calls == ["k1"]
+
+    def test_a_retry_approves_without_asking_a_call_that_already_ran(self, reviewer):
+        storage, calls, journals = MemoryStorage(), [], []
+        lookup = _lookup_tool(calls)
+        failing = Agent(name="analyst", model=_ScriptedModel(fail_on_answer=True), tools=[lookup])
+        state, error = reviewer.run(_agent_task(storage, failing, journals))
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, RuntimeError)
+        assert len(reviewer.requests) == 1
+
+        retry_model = _ScriptedModel()
+        retry = Agent(name="analyst", model=retry_model, tools=[lookup])
+        state, _ = reviewer.run(_agent_task(storage, retry, journals))
+
+        assert state == TaskInstanceState.SUCCESS
+        assert reviewer.returned() == ["answer: k0=42"]
+        assert len(reviewer.requests) == 1
+        assert calls == ["k0"]
+        assert retry_model.calls == 1
+
+    def test_a_run_with_a_session_fails_instead_of_pausing(self, reviewer):
+        agent = Agent(name="analyst", model=_ScriptedModel(), tools=[_lookup_tool([])])
+
+        state, error = reviewer.run(
+            _agent_task(MemoryStorage(), agent, [], session=SQLiteSession("approval"))
+        )
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, UnsupportedToolDeferralError)
+        assert "a run with a session" in str(error)
+        assert reviewer.requests == []
+
+    @pytest.mark.parametrize("fresh_call_ids", [True, False], ids=["fresh-ids", "reused-ids"])
+    @pytest.mark.parametrize(
+        "decisions",
+        [("Approve",), ("Approve", "Approve"), ("Reject", "Approve")],
+        ids=["one-approval", "two-approvals", "reject-then-approve"],
+    )
+    def test_a_retry_after_the_model_failed_pauses_and_resumes_on_its_own_answers(
+        self, reviewer, fresh_call_ids, decisions
+    ):
+        """A failed try's entries must neither replay into the retry nor make its resumes ask the model again."""
+        storage, calls, journals = MemoryStorage(), [], []
+        model = _ScriptedModel(lookups=len(decisions), fresh_call_ids=fresh_call_ids)
+        # The first try runs out of turns after its first answer, which fails it because of the model.
+        unapproved = Agent(name="analyst", model=model, tools=[_lookup_tool(calls, needs_approval=False)])
+        state, error = reviewer.run(_agent_task(storage, unapproved, journals, max_turns=1))
+        assert (state, type(error)) == (TaskInstanceState.FAILED, MaxTurnsExceeded)
+        assert calls == ["k0"]
+
+        reviewer.decide = lambda request: _answer(decisions[len(reviewer.requests) - 1], "No.")
+        approved = Agent(name="analyst", model=model, tools=[_lookup_tool(calls)])
+        state, error = reviewer.run(_agent_task(storage, approved, journals))
+
+        assert (state, error) == (TaskInstanceState.SUCCESS, None)
+        assert len(reviewer.requests) == len(decisions)
+        # The retry ran each approved call once, its answer to the first try's call included.
+        assert calls == ["k0"] + [f"k{i}" for i, decision in enumerate(decisions) if decision == "Approve"]
+        # The retry asked the model once per call and once for the answer; every resume replayed.
+        assert model.calls == 1 + len(decisions) + 1
+        replayed_tools = sum(decision == "Approve" for decision in decisions[:-1])
+        assert journals[-1].stats.replayed == (
+            {"model": len(decisions), "tool": replayed_tools} if replayed_tools else {"model": len(decisions)}
+        )
+
+    def test_a_resume_that_does_not_come_back_to_the_answered_call_fails(self, reviewer):
+        """An answer must not apply to a call the reviewer never saw, even one reusing its id."""
+        storage, calls, journals = MemoryStorage(), [], []
+
+        def agent_for_run(run: int) -> Agent[Any]:
+            # From the resume on, the request differs, so the model is asked again and answers
+            # with a call that reuses the paused call's id but not its arguments.
+            return Agent(
+                name="analyst",
+                model=_ScriptedModel(argument="key" if run == 0 else "order"),
+                instructions=None if run == 0 else "Changed while the task waited.",
+                tools=[_lookup_tool(calls)],
+            )
+
+        state, error = reviewer.run(_agent_task(storage, agent_for_run, journals))
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, DurableJournalError)
+        assert len(reviewer.requests) == 1
+        assert calls == []
+
+    def test_a_resume_that_finishes_without_the_answered_call_fails(self, reviewer):
+        """Finishing would leave the answer unread and the journal deleted, and a retry would start over."""
+        storage, calls, journals = MemoryStorage(), [], []
+
+        def agent_for_run(run: int) -> Agent[Any]:
+            # From the resume on, the request differs and the model asks for a lookup that needs
+            # no approval, so the run finishes without asking about the call that was answered.
+            return Agent(
+                name="analyst",
+                model=_ScriptedModel(value_prefix="k" if run == 0 else "x"),
+                instructions=None if run == 0 else "Changed while the task waited.",
+                tools=[
+                    _lookup_tool(calls, lambda context, arguments, call_id: arguments["key"].startswith("k"))
+                ],
+            )
+
+        state, error = reviewer.run(_agent_task(storage, agent_for_run, journals))
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, DurableJournalError)
+        assert len(reviewer.requests) == 1
+        assert calls == ["x0"]
+        # Kept for a clear, which replays the finished run instead of starting it over.
+        assert storage.steps() != []
+
+    def test_an_error_asking_for_approval_fails_the_task_with_that_error(self, reviewer):
+        """Only an answer the run did not come back to fails it for good; any other error is retried."""
+        calls: list[str] = []
+        failing = mock.create_autospec(
+            request_input, side_effect=RuntimeError("the API server dropped the connection")
+        )
+        agent = Agent(name="analyst", model=_ScriptedModel(), tools=[_lookup_tool(calls)])
+
+        with mock.patch(
+            "airflow.providers.common.ai.durable.openai_agents._get_request_input",
+            autospec=True,
+            return_value=failing,
+        ):
+            state, error = reviewer.run(_agent_task(MemoryStorage(), agent, []))
+
+        assert state == TaskInstanceState.FAILED
+        assert type(error) is RuntimeError
+        assert str(error) == "the API server dropped the connection"
+        assert calls == []
+
+    def test_a_task_that_runs_another_agent_first_resumes_past_it(self, reviewer):
+        """The answer belongs to the second agent's run, so the first one finishing does not claim it."""
+        storage, calls = MemoryStorage(), []
+        researcher = Agent(name="researcher", model=_ScriptedModel(), tools=[_lookup_tool(calls, False)])
+        analyst = Agent(name="analyst", model=_ScriptedModel(value_prefix="x"), tools=[_lookup_tool(calls)])
+        with DAG(dag_id="two_agents"):
+
+            @task
+            def research_then_analyse() -> str:
+                with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                    run_durably_sync(researcher, "go", run_config=NO_TRACING)
+                    return run_durably_sync(analyst, "go", run_config=NO_TRACING).final_output
+
+            op = research_then_analyse().operator
+
+        state, error = reviewer.run(op)
+
+        assert (state, error) == (TaskInstanceState.SUCCESS, None)
+        assert len(reviewer.requests) == 1
+        # The first agent's record is deleted when it finishes, so it runs again on the resume.
+        assert calls == ["k0", "k0", "x0"]
+
+    def test_an_operator_that_cannot_resume_fails_instead_of_pausing(self, reviewer):
+        class _TicketOperator(BaseOperator):
+            def execute(self, context):
+                agent = Agent(name="analyst", model=_ScriptedModel(), tools=[_lookup_tool([])])
+                with journal_scope(DurableJournal(MemoryStorage(), clean_up_after_run=True)):
+                    return run_durably_sync(agent, "go", run_config=NO_TRACING).final_output
+
+        with DAG(dag_id="agent_in_an_operator"):
+            op = _TicketOperator(task_id="handle_ticket")
+
+        state, error = reviewer.run(op)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, UnsupportedToolDeferralError)
+        assert "_TicketOperator" in str(error)
+        assert reviewer.requests == []
+
+    def test_a_tool_of_an_agent_reached_through_handoff_fails_instead_of_pausing(self, reviewer):
+        specialist = Agent(name="specialist", model=_ScriptedModel(lookups=2), tools=[_lookup_tool([])])
+        lead = Agent(name="lead", model=_TransferModel(), handoffs=[handoff(specialist)])
+
+        state, error = reviewer.run(_agent_task(MemoryStorage(), lead, []))
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, UnsupportedToolDeferralError)
+        assert "reached through handoff()" in str(error)
+        assert reviewer.requests == []
+
+    @pytest.mark.enable_redact
+    def test_a_secret_in_the_arguments_is_masked_for_the_reviewer(self, reviewer, registered_secret):
+        calls: list[str] = []
+        model = _ScriptedModel(value_prefix=registered_secret)
+        agent = Agent(name="analyst", model=model, tools=[_lookup_tool(calls)])
+
+        state, _ = reviewer.run(_agent_task(MemoryStorage(), agent, []))
+
+        assert state == TaskInstanceState.SUCCESS
+        [request] = reviewer.requests
+        assert registered_secret not in request.body
+        assert "***" in request.body
+        assert len(calls) == 1

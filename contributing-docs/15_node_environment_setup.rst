@@ -72,10 +72,11 @@ Follow the `nvm docs <https://github.com/nvm-sh/nvm>`__ to manage your node vers
     # Check formatting without writing changes
     pnpm format:check
 
-    # Check JS/TS code in .ts, .tsx, .html files and report any errors/warnings
+    # Lint .js, .ts, .tsx files with oxlint, then ESLint for the type-aware rules oxlint cannot run yet,
+    # then type-check
     pnpm lint
 
-    # Check JS/TS code in .ts, .tsx, .html files and report any errors/warnings and fix them if possible
+    # Same, applying autofixes where possible
     pnpm lint:fix
 
     # Run tests for all .test.ts, test.tsx files
