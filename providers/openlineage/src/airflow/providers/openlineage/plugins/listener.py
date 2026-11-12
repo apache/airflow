@@ -67,6 +67,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_user_provided_run_facets,
     is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
+    is_dag_run_state_set_manually,
     print_warning,
 )
 from airflow.settings import configure_orm
@@ -472,6 +473,7 @@ class OpenLineageListener:
                     ti=task_instance,
                     dagrun=task_instance.dag_run,
                     ti_state=TaskInstanceState.SUCCESS,
+                    is_manual=True,
                 )
                 return
 
@@ -638,6 +640,8 @@ class OpenLineageListener:
                     dagrun=task_instance.dag_run,
                     ti_state=TaskInstanceState.FAILED,
                     error=error,
+                    # The API server reports manual changes without a previous state; the scheduler passes it.
+                    is_manual=previous_state is None,
                 )
                 return
 
@@ -803,6 +807,7 @@ class OpenLineageListener:
                     ti=task_instance,
                     dagrun=task_instance.dag_run,
                     ti_state=TaskInstanceState.SKIPPED,
+                    is_manual=True,
                 )
                 return
 
@@ -942,6 +947,7 @@ class OpenLineageListener:
         dagrun: DagRun,
         ti_state: TaskInstanceState,
         error: None | str | BaseException = None,
+        is_manual: bool = False,
     ) -> None:
         """
         Emit an OL event from the scheduler when a TI transitions externally.
@@ -953,26 +959,29 @@ class OpenLineageListener:
         per worker, so the child never shares a pooled Postgres SSL connection with
         the scheduler, and bursts of external-state-change events no longer produce a
         fork-per-event.
+
+        ``is_manual`` marks a state set through the UI or API (reported on the API server, without
+        the task), which ``emit_manual_state_change_events`` can suppress.
         """
         self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
         end_date = timezone.utcnow()
 
-        include_full_task_info = False
-        task = getattr(ti, "task")  # on scheduler, we should have access to task
-        if task:
-            controls = resolve_task_emission_policy(
-                operator=task,
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
+        # The scheduler has the task; the API server, where manual changes are reported, does not.
+        task = getattr(ti, "task", None)
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            manual_state_change=is_manual,
+        )
+        if not controls.emit:
+            self.log.info(
+                "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
+                ti.task_id,
+                ti.dag_id,
             )
-            if not controls.emit:
-                self.log.info(
-                    "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
-                    ti.task_id,
-                    ti.dag_id,
-                )
-                return
-            include_full_task_info = controls.include_full_task_info
+            return
+        include_full_task_info = bool(task) and controls.include_full_task_info
 
         try:
             if not self.executor:
@@ -1281,7 +1290,9 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str) -> None:
         try:
-            controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            controls = resolve_dag_emission_policy(
+                dag_run.dag_id, dag=dag_run.dag, manual_state_change=is_dag_run_state_set_manually(msg)
+            )
             if not controls.emit:
                 self.log.info(
                     "Skipping OpenLineage dag event emission for DAG `%s`.",
@@ -1333,7 +1344,9 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str) -> None:
         try:
-            controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            controls = resolve_dag_emission_policy(
+                dag_run.dag_id, dag=dag_run.dag, manual_state_change=is_dag_run_state_set_manually(msg)
+            )
             if not controls.emit:
                 self.log.info(
                     "Skipping OpenLineage dag event emission for DAG `%s`.",

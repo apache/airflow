@@ -338,6 +338,7 @@ def check_run_id_integrity(
     repeated_start_keys: Collection[str] = (),
     corrected_terminal_keys: Collection[str] = (),
     unstarted_terminal_keys: Collection[str] = (),
+    unfinished_start_keys: Collection[str] = (),
 ) -> list[str]:
     """
     Check that ``run.runId`` identifies exactly one attempt of exactly one job, and return the problems found.
@@ -359,7 +360,9 @@ def check_run_id_integrity(
        * one more COMPLETE or FAIL is allowed when one of them has its key in ``corrected_terminal_keys``: a user
          marking a finished task or Dag run with another state emits a second one for the same run;
        * no START is needed when the key of its COMPLETE or FAIL is in ``unstarted_terminal_keys``: a task that
-         fails before it runs, e.g. on rendering its templates, or that a user marks before it started.
+         fails before it runs, e.g. on rendering its templates, or that a user marks before it started;
+       * no COMPLETE or FAIL is needed when the key of its START is in ``unfinished_start_keys``: a task whose
+         terminal event the emission policy suppresses, while its START is emitted.
 
     Across groups:
 
@@ -411,7 +414,8 @@ def check_run_id_integrity(
         repeated_starts_allowed = job_type != "DAG" and bool(start_keys & set(repeated_start_keys))
         too_many_starts = starts > 1 and not repeated_starts_allowed
         max_terminals = 2 if terminal_keys & set(corrected_terminal_keys) else 1
-        too_many_terminals = len(terminals) > max_terminals or (job_type != "DAG" and not terminals)
+        terminal_required = job_type != "DAG" and not start_keys & set(unfinished_start_keys)
+        too_many_terminals = len(terminals) > max_terminals or (terminal_required and not terminals)
         missing_start = starts < 1 and not terminal_keys & set(unstarted_terminal_keys)
         if missing_start or too_many_starts or too_many_terminals:
             expected = (
@@ -522,6 +526,9 @@ class OpenLineageTestOperator(BaseOperator):
     :param unstarted_terminal_keys: keys of COMPLETE/FAIL events of runs that have no START, as the task never ran:
         it failed before it started or a user marked it before it started. The ``check_run_id_integrity`` check
         then doesn't require a START for their runs.
+    :param unfinished_start_keys: keys of START events of runs whose COMPLETE/FAIL is intentionally not emitted,
+        e.g. suppressed by the emission policy. The ``check_run_id_integrity`` check then doesn't require a
+        COMPLETE/FAIL for their runs.
     :param check_run_ids: if True (default), additionally check the collected events with
         ``check_run_id_integrity``: START and COMPLETE/FAIL of one attempt share a ``runId``, while another
         try, map index or loop iteration gets its own. Set to False only for a Dag whose expected events
@@ -556,6 +563,7 @@ class OpenLineageTestOperator(BaseOperator):
         check_run_ids: bool = True,
         corrected_terminal_keys: Collection[str] = (),
         unstarted_terminal_keys: Collection[str] = (),
+        unfinished_start_keys: Collection[str] = (),
         **kwargs,
     ):
         # Never from the Dag's default_args: a retry would hide the mismatch the first try failed on, as that try
@@ -571,6 +579,7 @@ class OpenLineageTestOperator(BaseOperator):
         self.check_run_ids = check_run_ids
         self.corrected_terminal_keys = corrected_terminal_keys
         self.unstarted_terminal_keys = unstarted_terminal_keys
+        self.unfinished_start_keys = unfinished_start_keys
         self.event_sort_fn = event_sort_fn
         if event_templates is None and file_path is None:
             raise ValueError("Either event_templates or file_path must be provided")
@@ -632,6 +641,7 @@ class OpenLineageTestOperator(BaseOperator):
                     repeated_start_keys={key for key in events_by_key if self._expects_repeated_events(key)},
                     corrected_terminal_keys=self.corrected_terminal_keys,
                     unstarted_terminal_keys=self.unstarted_terminal_keys,
+                    unfinished_start_keys=self.unfinished_start_keys,
                 ):
                     for problem in problems:
                         log_validation_error("%s", problem)
