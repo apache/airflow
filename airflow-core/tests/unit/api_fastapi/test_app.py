@@ -462,3 +462,50 @@ class TestInitializeApiServerStats:
         with mock.patch.object(app_module, "_initialize_api_server_stats") as mock_init:
             with client():
                 mock_init.assert_called_once()
+
+    def test_listeners_notified_during_lifespan(self, client):
+        """Listener on_starting and before_stopping hooks must be called during API server lifespan."""
+        with mock.patch("airflow.listeners.listener.get_listener_manager") as mock_get_lm:
+            mock_lm = mock.MagicMock()
+            mock_impl_start = mock.MagicMock()
+            mock_impl_stop = mock.MagicMock()
+            mock_lm.hook.on_starting.get_hookimpls.return_value = [mock_impl_start]
+            mock_lm.hook.before_stopping.get_hookimpls.return_value = [mock_impl_stop]
+            mock_get_lm.return_value = mock_lm
+            with client(apps="core") as c:
+                mock_impl_start.function.assert_called_once_with(component=c.app)
+                mock_impl_stop.function.assert_not_called()
+            mock_impl_stop.function.assert_called_once_with(component=c.app)
+
+    def test_listener_hook_exceptions_do_not_crash_lifespan(self, client):
+        """Exceptions in listener on_starting and before_stopping hooks must not crash lifespan."""
+        with mock.patch("airflow.listeners.listener.get_listener_manager") as mock_get_lm:
+            mock_lm = mock.MagicMock()
+            mock_impl_start = mock.MagicMock()
+            mock_impl_start.function.side_effect = RuntimeError("startup error")
+            mock_impl_stop = mock.MagicMock()
+            mock_impl_stop.function.side_effect = RuntimeError("shutdown error")
+            mock_lm.hook.on_starting.get_hookimpls.return_value = [mock_impl_start]
+            mock_lm.hook.before_stopping.get_hookimpls.return_value = [mock_impl_stop]
+            mock_get_lm.return_value = mock_lm
+            with client(apps="core") as c:
+                mock_impl_start.function.assert_called_once_with(component=c.app)
+            mock_impl_stop.function.assert_called_once_with(component=c.app)
+
+    def test_throwing_listener_does_not_block_subsequent_listeners(self, client):
+        """A throwing listener plugin must not prevent subsequent listeners from running."""
+        with mock.patch("airflow.listeners.listener.get_listener_manager") as mock_get_lm:
+            mock_lm = mock.MagicMock()
+            throwing_impl = mock.MagicMock()
+            throwing_impl.function.side_effect = AttributeError(
+                "'FastAPI' object has no attribute 'job_type'"
+            )
+            healthy_impl = mock.MagicMock()
+            mock_lm.hook.on_starting.get_hookimpls.return_value = [throwing_impl, healthy_impl]
+            mock_lm.hook.before_stopping.get_hookimpls.return_value = [throwing_impl, healthy_impl]
+            mock_get_lm.return_value = mock_lm
+            with client(apps="core") as c:
+                throwing_impl.function.assert_called_once_with(component=c.app)
+                healthy_impl.function.assert_called_once_with(component=c.app)
+            assert throwing_impl.function.call_count == 2
+            assert healthy_impl.function.call_count == 2
