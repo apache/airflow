@@ -63,6 +63,9 @@ HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
 
 CONN_ID = "kubernetes-test-id"
 ASYNC_CONFIG_PATH = "/files/path/to/config/file"
+MUTUALLY_EXCLUSIVE_CONFIG_ERROR = (
+    "config_file/kube_config_path, kube_config, in_cluster, and config_dict are mutually exclusive"
+)
 POD_NAME = "test-pod"
 NAMESPACE = "test-namespace"
 JOB_NAME = "test-job"
@@ -1049,7 +1052,7 @@ class TestKubernetesHookIncorrectConfiguration:
         kubernetes_hook = KubernetesHook()
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri),
-            pytest.raises(AirflowException, match="Invalid connection configuration"),
+            pytest.raises(AirflowException, match=MUTUALLY_EXCLUSIVE_CONFIG_ERROR),
         ):
             kubernetes_hook.get_conn()
 
@@ -1299,7 +1302,7 @@ class TestAsyncKubernetesHook:
             cluster_context=None,
             **competing_kwargs,
         )
-        with pytest.raises(AirflowException, match="mutually exclusive"):
+        with pytest.raises(AirflowException, match=MUTUALLY_EXCLUSIVE_CONFIG_ERROR):
             await hook._load_config()
 
     @pytest.mark.parametrize(

@@ -263,8 +263,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
-                "kube_config, in_cluster, config_dict are mutually exclusive. "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
+                "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
 
@@ -944,7 +944,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
                 "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
