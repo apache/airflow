@@ -55,7 +55,7 @@ except ImportError:
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
-NETWORK = os.environ.get("GOOGLE_PROVIDER_NETWORK") if not IS_COMPOSER else "default"
+NETWORK = (os.environ.get("GOOGLE_PROVIDER_NETWORK") or "default") if not IS_COMPOSER else "default"
 DAG_ID = "managed_kafka_topic_operations"
 LOCATION = "us-central1"
 
