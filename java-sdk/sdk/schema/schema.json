@@ -1,8 +1,27 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-10-30",
+  "api_version": "2027-02-28",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
+    "ArgPart": {
+      "discriminator": {
+        "mapping": {
+          "literal": "#/$defs/LiteralValue",
+          "xcom": "#/$defs/XComRef"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/XComRef"
+        },
+        {
+          "$ref": "#/$defs/LiteralValue"
+        }
+      ],
+      "title": "ArgPart",
+      "type": "object"
+    },
     "AssetAliasReferenceAssetEventDagRun": {
       "additionalProperties": false,
       "description": "Schema for AssetAliasModel used in AssetEventDagRunReference.",
@@ -1905,6 +1924,40 @@
       "title": "ErrorType",
       "type": "string"
     },
+    "ExternalClearTargetPayload": {
+      "additionalProperties": false,
+      "description": "A task in another Dag that clearing the reporting task also clears, as resolved when it ran.",
+      "properties": {
+        "dag_id": {
+          "minLength": 1,
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "format": "date-time",
+          "title": "Logical Date",
+          "type": "string"
+        },
+        "recursion_depth": {
+          "exclusiveMinimum": 0,
+          "title": "Recursion Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_id",
+        "logical_date",
+        "recursion_depth"
+      ],
+      "title": "ExternalClearTargetPayload",
+      "type": "object"
+    },
     "GetAssetByName": {
       "properties": {
         "name": {
@@ -3156,6 +3209,78 @@
       "title": "HITLDetailRequestResult",
       "type": "object"
     },
+    "HITLDetailResponseResult": {
+      "description": "Response to GetHITLDetailResponse request.",
+      "properties": {
+        "response_received": {
+          "title": "Response Received",
+          "type": "boolean"
+        },
+        "responded_by_user": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HITLUser"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "chosen_options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chosen Options"
+        },
+        "params_input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params Input"
+        },
+        "type": {
+          "const": "HITLDetailResponseResult",
+          "default": "HITLDetailResponseResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "response_received",
+        "responded_at",
+        "chosen_options"
+      ],
+      "title": "HITLDetailResponseResult",
+      "type": "object"
+    },
     "HITLUser": {
       "description": "Schema for a Human-in-the-loop users.",
       "properties": {
@@ -3240,6 +3365,32 @@
         "data"
       ],
       "title": "LazyDeserializedDAG",
+      "type": "object"
+    },
+    "LiteralValue": {
+      "description": "One inline value.",
+      "properties": {
+        "kind": {
+          "const": "literal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "LiteralValue",
       "type": "object"
     },
     "LoopDecisionPayload": {
@@ -3567,15 +3718,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "description": {
           "anyOf": [
@@ -4109,6 +4253,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "external_clear_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalClearTargetPayload"
             },
             {
               "type": "null"
@@ -4659,15 +4814,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -4685,15 +4833,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "type": {
           "const": "VariableResult",
@@ -4726,6 +4867,50 @@
         "len"
       ],
       "title": "XComCountResponse",
+      "type": "object"
+    },
+    "XComRef": {
+      "description": "One upstream value, read by the supervisor.",
+      "properties": {
+        "kind": {
+          "const": "xcom",
+          "title": "Kind",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "element_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Element Index"
+        }
+      },
+      "required": [
+        "kind",
+        "task_id"
+      ],
+      "title": "XComRef",
       "type": "object"
     },
     "XComResult": {
@@ -4807,23 +4992,8 @@
       "type": "object"
     },
     "LiteralArgBinding": {
-      "description": "One positional stub-task argument carrying an inline literal from the Dag file.",
+      "description": "An argument carrying an inline value from the Dag file.",
       "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "value_schema": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ArgValueSchema"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "kind": {
           "const": "literal",
           "title": "Kind",
@@ -4840,6 +5010,49 @@
           ],
           "default": null
         },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "apply_map": {
+          "default": false,
+          "title": "Apply Map",
+          "type": "boolean"
+        },
+        "kwarg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kwarg"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgPart"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "from_default": {
           "default": false,
           "title": "From Default",
@@ -4847,8 +5060,8 @@
         }
       },
       "required": [
-        "name",
-        "kind"
+        "kind",
+        "name"
       ],
       "title": "LiteralArgBinding",
       "type": "object"
@@ -4857,6 +5070,8 @@
       "discriminator": {
         "mapping": {
           "literal": "#/$defs/LiteralArgBinding",
+          "sequence": "#/$defs/XComSequenceArgBinding",
+          "tuple": "#/$defs/TupleArgBinding",
           "xcom": "#/$defs/XComArgBinding"
         },
         "propertyName": "kind"
@@ -4867,12 +5082,18 @@
         },
         {
           "$ref": "#/$defs/LiteralArgBinding"
+        },
+        {
+          "$ref": "#/$defs/XComSequenceArgBinding"
+        },
+        {
+          "$ref": "#/$defs/TupleArgBinding"
         }
       ],
       "title": "TaskArgBinding"
     },
-    "XComArgBinding": {
-      "description": "One positional stub-task argument pulled from an upstream task's XCom.",
+    "TupleArgBinding": {
+      "description": "One ``zip()`` element: several values gathered into a single argument.",
       "properties": {
         "name": {
           "title": "Name",
@@ -4889,8 +5110,191 @@
           ],
           "default": null
         },
+        "apply_map": {
+          "default": false,
+          "title": "Apply Map",
+          "type": "boolean"
+        },
+        "kwarg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kwarg"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgPart"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "tuple",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/ArgPart"
+          },
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "parts"
+      ],
+      "title": "TupleArgBinding",
+      "type": "object"
+    },
+    "XComArgBinding": {
+      "description": "An argument read from an upstream task.",
+      "properties": {
         "kind": {
           "const": "xcom",
+          "title": "Kind",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "element_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Element Index"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "apply_map": {
+          "default": false,
+          "title": "Apply Map",
+          "type": "boolean"
+        },
+        "kwarg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kwarg"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgPart"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "task_id",
+        "name"
+      ],
+      "title": "XComArgBinding",
+      "type": "object"
+    },
+    "XComSequenceArgBinding": {
+      "description": "A mapped task's whole output, read as a lazy sequence.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "apply_map": {
+          "default": false,
+          "title": "Apply Map",
+          "type": "boolean"
+        },
+        "kwarg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kwarg"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgPart"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "sequence",
           "title": "Kind",
           "type": "string"
         },
@@ -4904,7 +5308,7 @@
         "kind",
         "task_id"
       ],
-      "title": "XComArgBinding",
+      "title": "XComSequenceArgBinding",
       "type": "object"
     },
     "AssetEventDagRunReference": {
@@ -5398,6 +5802,19 @@
           ],
           "default": null,
           "title": "Arg Bindings"
+        },
+        "execution_timeout": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.",
+          "title": "Execution Timeout"
         },
         "multi_team": {
           "default": false,
