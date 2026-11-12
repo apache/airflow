@@ -75,6 +75,7 @@ from airflow.providers.common.ai.operators.agent import (
     _TOOL_APPROVAL_TRANSCRIPT_KEY,
     AgentOperator,
     HITLReviewLink,
+    _axcom_push,
 )
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
@@ -4234,6 +4235,12 @@ def _make_async_context(task_state_store=None):
     return context
 
 
+def _pushed_xcoms(ti) -> dict[str, Any]:
+    """The XComs ``aexecute`` pushed, in order: through ``axcom_push`` on Airflow 3.3+, ``xcom_push`` on 3.2."""
+    calls = ti.axcom_push.await_args_list if AIRFLOW_V_3_3_PLUS else ti.xcom_push.call_args_list
+    return {c.kwargs["key"]: c.kwargs["value"] for c in calls}
+
+
 def _make_async_mock_agent(mock_hook_cls, **run):
     """Wire a mock agent whose ``run`` is awaitable into the hook's async path, and return it."""
     mock_agent = MagicMock(spec=["run", "instrument"])
@@ -4296,8 +4303,12 @@ class TestAgentOperatorAsync:
             result = await op.aexecute(context)
 
         assert result == "the answer"
-        pushed = [c.kwargs["key"] for c in context["task_instance"].axcom_push.await_args_list]
-        assert pushed == ["run_id", "usage", MODEL_NAME_XCOM_KEY, "message_history"]
+        assert list(_pushed_xcoms(context["task_instance"])) == [
+            "run_id",
+            "usage",
+            MODEL_NAME_XCOM_KEY,
+            "message_history",
+        ]
         assert ("delete", _TOOL_APPROVAL_TRANSCRIPT_KEY) in store.ops
         assert ("set", USAGE_BUDGET_KEY) in store.ops
         assert store.ops[-1] == ("delete", USAGE_BUDGET_KEY)
@@ -4350,7 +4361,7 @@ class TestAgentOperatorAsync:
                 await op.aexecute(context)
 
         pause.assert_called_once()
-        context["task_instance"].axcom_push.assert_not_awaited()
+        assert _pushed_xcoms(context["task_instance"]) == {}
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -4371,6 +4382,23 @@ class TestAgentOperatorAsync:
 
         assert {c.kwargs["key"] for c in ti.xcom_push.call_args_list} == {"run_id", "usage"}
         ti.axcom_push.assert_not_awaited()
+
+    @pytest.mark.parametrize("has_axcom_push", [True, False], ids=["airflow-3.3", "airflow-3.2"])
+    @pytest.mark.asyncio
+    async def test_xcoms_are_pushed_without_blocking_the_event_loop(self, has_axcom_push):
+        """Airflow 3.2 runs async tasks but has no ``axcom_push``: there ``xcom_push`` runs in a worker thread."""
+        ti = _make_async_context()["task_instance"]
+        ti.xcom_push.side_effect = _refused_on_the_event_loop(lambda **kwargs: None)
+
+        with patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", has_axcom_push):
+            await _axcom_push(ti, key="run_id", value="ti-1")
+
+        if has_axcom_push:
+            ti.axcom_push.assert_awaited_once_with(key="run_id", value="ti-1")
+            ti.xcom_push.assert_not_called()
+        else:
+            ti.xcom_push.assert_called_once_with(key="run_id", value="ti-1")
+            ti.axcom_push.assert_not_awaited()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
     @pytest.mark.asyncio
@@ -4455,9 +4483,7 @@ class TestAgentOperatorAsync:
         op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", **kwargs)
         await op.aexecute(context)
 
-        pushes = {
-            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].axcom_push.await_args_list
-        }
+        pushes = _pushed_xcoms(context["task_instance"])
         assert ("message_history" in pushes) is emits
         if emits:
             assert len(ModelMessagesTypeAdapter.validate_json(pushes["message_history"])) == 2
