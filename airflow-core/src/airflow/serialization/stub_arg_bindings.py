@@ -58,8 +58,14 @@ from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
 from airflow.sdk.definitions.xcom_arg import ConcatXComArg, MapXComArg, PlainXComArg, ZipXComArg
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
     from airflow.sdk.bases.decorator import DecoratedMappedOperator, DecoratedOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.expandinput import (  # noqa: SDK001
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
 
 
 class _BindingEntryBase(TypedDict):
@@ -244,7 +250,7 @@ def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
         )
 
 
-def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
+def _validate_xcom_value(value: Any, task_id: str, name: str) -> TypeIs[XComArg]:
     """Validate an XComArg argument, returning True when *value* is one."""
     if not isinstance(value, XComArg):
         return False
@@ -258,7 +264,7 @@ def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
     return True
 
 
-def _validate_whole_xcom_value(value: Any, op: AbstractOperator, name: str) -> bool:
+def _validate_whole_xcom_value(value: Any, op: AbstractOperator, name: str) -> TypeIs[PlainXComArg]:
     """Validate an argument bound whole rather than expanded over, returning True when it is an XComArg."""
     if not _validate_xcom_value(value, op.task_id, name):
         return False
@@ -284,7 +290,9 @@ def _validate_group_relative(op: AbstractOperator, producer: AbstractOperator, n
         )
 
 
-def _validate_xcom_mapping(value: Any, op: AbstractOperator, name: str) -> bool:
+def _validate_xcom_mapping(
+    value: XComArg | Mapping[str, Any], op: AbstractOperator, name: str
+) -> TypeIs[XComArg]:
     """Validate an ``expand_kwargs()`` item read from an upstream output, returning True when *value* is one."""
     if not _validate_whole_xcom_value(value, op, name):
         return False
@@ -301,7 +309,7 @@ def _validate_whole_value(value: Any, op: AbstractOperator, name: str) -> None:
         _ensure_json_literal(value, op.task_id, name)
 
 
-def _validate_expand_value(value: Any, task_id: str, name: str) -> None:
+def _validate_expand_value(value: OperatorExpandArgument, task_id: str, name: str) -> None:
     """Validate one expand argument, whose upstream output may be wrapped in map(), zip() or concat()."""
     if _validate_xcom_value(value, task_id, name):
         _validate_expand_shape(value, task_id, name)
@@ -318,32 +326,32 @@ def _validate_expand_shape(
     value: XComArg, task_id: str, name: str, *, outermost: bool = True, in_zip: bool = False
 ) -> None:
     match value:
-        case MapXComArg(arg=arg):
+        case MapXComArg():
             if not outermost:
                 raise ValueError(
                     f"@task.stub task {task_id!r} parameter {name!r} expands over a map() inside a "
                     "zip() or concat(); call map() last, on the zip() or concat() result"
                 )
-            _validate_expand_shape(arg, task_id, name, outermost=False, in_zip=in_zip)
-        case ZipXComArg(args=args, fillvalue=fillvalue):
+            _validate_expand_shape(value.arg, task_id, name, outermost=False, in_zip=in_zip)
+        case ZipXComArg():
             if in_zip:
                 raise ValueError(
                     f"@task.stub task {task_id!r} parameter {name!r} expands over a zip() inside a zip(); "
                     "zip every argument in one call instead"
                 )
-            if is_arg_set(fillvalue):
-                _ensure_json_literal(fillvalue, task_id, name)
-            for arg in args:
+            if is_arg_set(value.fillvalue):
+                _ensure_json_literal(value.fillvalue, task_id, name)
+            for arg in value.args:
                 _validate_expand_shape(arg, task_id, name, outermost=False, in_zip=True)
-        case ConcatXComArg(args=args):
-            for arg in args:
+        case ConcatXComArg():
+            for arg in value.args:
                 _validate_expand_shape(arg, task_id, name, outermost=False, in_zip=in_zip)
 
 
 def _validate_expand_kwargs(
-    value: Any,
+    value: OperatorExpandKwargsArgument,
     op: AbstractOperator,
-    parameters: Mapping[str, Any],
+    parameters: Mapping[str, Parameter],
     partial_kwargs: Mapping[str, Any],
     *,
     strict: bool,

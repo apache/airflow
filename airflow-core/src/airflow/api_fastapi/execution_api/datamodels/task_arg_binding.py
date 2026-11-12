@@ -62,7 +62,6 @@ class LiteralValue(BaseModel):
     """One inline value."""
 
     kind: Literal["literal"]
-    """No default, for the same generated-client reason as ``XComRef.kind``."""
 
     value: JsonValue | None = None
 
