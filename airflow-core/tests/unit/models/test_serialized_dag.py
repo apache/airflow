@@ -972,7 +972,7 @@ class TestSerializedDagModel:
         (so the dynamic-update UPDATE path is taken), but the SDM row has been deleted
         between prefetch and execution, so the UPDATE affects 0 rows.
         """
-        with dag_maker(dag_id="test_rowcount_zero", serialized=True, session=session) as dag:
+        with dag_maker(dag_id="test_rowcount_zero", session=session) as dag:
             EmptyOperator(task_id="task1")
 
         lazy_dag = LazyDeserializedDAG.from_dag(dag)
@@ -1030,7 +1030,7 @@ class TestSerializedDagModel:
         v1 has a serialized row, v2 is a bare DagVersion (no serialized row), and
         the incoming Dag hash differs from v1's. The v2 dag should be serialized successfully
         """
-        with dag_maker(dag_id="test_v2_bare_changed_hash", serialized=True, session=session) as dag:
+        with dag_maker(dag_id="test_v2_bare_changed_hash", session=session) as dag:
             EmptyOperator(task_id="task1")
 
         lazy_dag = LazyDeserializedDAG.from_dag(dag)
@@ -1086,7 +1086,7 @@ class TestSerializedDagModel:
         v1 has a serialized row, v2 is a bare DagVersion (no serialized row), and
         the incoming Dag hash matches v1's. The v2 dag should be serialized successfully
         """
-        with dag_maker(dag_id="test_v2_bare_unchanged_hash", serialized=True, session=session) as dag:
+        with dag_maker(dag_id="test_v2_bare_unchanged_hash", session=session) as dag:
             EmptyOperator(task_id="task1")
 
         lazy_dag = LazyDeserializedDAG.from_dag(dag)
