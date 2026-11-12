@@ -1946,6 +1946,8 @@ class TestWatchedSubprocess:
             if reported is not None:
                 comms.send(reported)
 
+        # This ignores SIGCHLD for the whole pytest process, not only for the supervised process, so it
+        # must be restored in ``finally``. Otherwise later tests lose their child exit statuses too.
         previous_handler = signal.signal(signal.SIGCHLD, signal.SIG_IGN)
         try:
             proc = ActivitySubprocess.start(
