@@ -1678,6 +1678,9 @@ class ActivitySubprocess(WatchedSubprocess):
     _should_retry: bool = attrs.field(default=False, init=False)
     """Whether the task should retry or not as decided by the API server."""
 
+    _ti_context: TIRunContext | None = attrs.field(default=None, init=False)
+    """The run context received from the API server at task start; reused when uploading remote logs."""
+
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
@@ -1748,6 +1751,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
+            self._ti_context = ti_context
             self._last_successful_heartbeat = time.monotonic()
         except Exception as e:
             # On any error kill that subprocess!
@@ -1942,7 +1946,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
         try:
             with _remote_logging_conn(self.client):
-                upload_to_remote(self.process_log, self.ti)
+                upload_to_remote(self.process_log, self.ti, ti_context=self._ti_context)
         except Exception:
             self.process_log.exception("Failed to upload remote logs", ti_id=self.id, pid=self.pid)
 

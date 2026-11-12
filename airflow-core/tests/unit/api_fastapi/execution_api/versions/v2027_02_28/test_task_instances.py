@@ -22,7 +22,7 @@ from datetime import timedelta
 import pytest
 
 from airflow.sdk import task
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -39,7 +39,7 @@ RUN_PATCH_BODY = {
 
 @pytest.fixture
 def old_ver_client(client):
-    """Execution API version immediately before ``execution_timeout`` was added."""
+    """Execution API version immediately before ``execution_timeout`` and ``log_id_template`` were added."""
     client.headers["Airflow-API-Version"] = "2026-10-30"
     return client
 
@@ -82,3 +82,36 @@ class TestExecutionTimeoutBackwardCompat:
         response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert response.json()["execution_timeout"] == 90.0
+
+
+class TestLogIdTemplateFieldBackwardCompat:
+    @pytest.fixture(autouse=True)
+    def _freeze_time(self, time_machine):
+        time_machine.move_to(RUN_PATCH_BODY["start_date"], tick=False)
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.fixture
+    def queued_ti(self, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_log_id_template_compat",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+        )
+        session.commit()
+        return ti
+
+    def test_old_version_strips_log_id_template(self, old_ver_client, queued_ti):
+        response = old_ver_client.patch(f"/execution/task-instances/{queued_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert "log_id_template" not in response.json()
+
+    def test_head_version_includes_log_id_template(self, client, queued_ti):
+        response = client.patch(f"/execution/task-instances/{queued_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["log_id_template"] == "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
