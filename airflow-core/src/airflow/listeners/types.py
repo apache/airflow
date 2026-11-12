@@ -35,8 +35,8 @@ class AssetEvent:
     """
     Asset event representation for asset listener hooks.
 
-    ``id`` and ``timestamp`` are those of the persisted asset event. The ``source_watcher_*`` and
-    ``source_trigger_*`` fields are only set when the event was emitted by an asset watcher.
+    ``id``, ``timestamp`` and ``asset_id`` are those of the persisted asset event. The
+    ``source_watcher_name`` and ``source_trigger_classpath`` are only set when the event was emitted by an asset watcher.
     """
 
     asset: SerializedAsset
@@ -48,8 +48,9 @@ class AssetEvent:
     source_aliases: list[SerializedAssetAlias]
     partition_key: str | None
     partition_date: datetime | None = None
-    id: int | None = None
-    timestamp: datetime | None = None
+    # Keyword-only so required fields can follow the defaulted ones without reordering the class.
+    id: int = attrs.field(kw_only=True)
+    timestamp: datetime = attrs.field(kw_only=True)
+    asset_id: int = attrs.field(kw_only=True)
     source_watcher_name: str | None = None
-    source_trigger_id: int | None = None
     source_trigger_classpath: str | None = None

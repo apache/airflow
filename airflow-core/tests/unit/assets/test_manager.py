@@ -364,8 +364,8 @@ class TestAssetManager:
         emitted = asset_listener.emitted[0]
         assert emitted.id == asset_event.id
         assert emitted.timestamp == asset_event.timestamp
+        assert emitted.asset_id == asm.id
         assert emitted.source_watcher_name is None
-        assert emitted.source_trigger_id is None
         assert emitted.source_trigger_classpath is None
 
     def test_register_asset_change_passes_source_asset_watcher_to_listener(self, session, listener_manager):
@@ -387,7 +387,6 @@ class TestAssetManager:
         assert len(asset_listener.emitted) == 1
         emitted = asset_listener.emitted[0]
         assert emitted.source_watcher_name == "my_watcher"
-        assert emitted.source_trigger_id == trigger.id
         assert emitted.source_trigger_classpath == "airflow.triggers.testing.SuccessTrigger"
 
     def test_register_asset_change_defers_notifications_to_callback_sink(

@@ -85,5 +85,6 @@ def test_asset_listener_on_asset_event_emitted(asset, ti, listener_manager, sess
             partition_key=None,
             id=asset_event.id,
             timestamp=asset_event.timestamp,
+            asset_id=asset_event.asset_id,
         )
     ]

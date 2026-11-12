@@ -565,10 +565,7 @@ def test_submit_event_passes_watcher_info_to_asset_listener(session, listener_ma
     ]
     assert len(trigger_selects) == 1
     for asset_event in emitted:
-        assert asset_event.source_trigger_id == trigger_id
         assert asset_event.source_trigger_classpath == "airflow.triggers.testing.SuccessTrigger"
-        assert asset_event.id is not None
-        assert asset_event.timestamp is not None
 
 
 @pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])

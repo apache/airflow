@@ -370,10 +370,10 @@ class AssetManager(LoggingMixin):
             partition_date=partition_date,
             id=asset_event.id,
             timestamp=asset_event.timestamp,
+            asset_id=asset_model.id,
         )
         if source_asset_watcher is not None:
             listener_asset_event.source_watcher_name = source_asset_watcher.name
-            listener_asset_event.source_trigger_id = source_asset_watcher.trigger_id
             listener_asset_event.source_trigger_classpath = source_asset_watcher.trigger.classpath
         if callback_sink is None:
             cls.notify_asset_changed(asset=asset)
