@@ -61,7 +61,10 @@ API Key (Password field)
     ``GOOGLE_APPLICATION_CREDENTIALS``).
 
 Host (optional)
-    Base URL for the provider's API. Only needed for custom endpoints:
+    Base URL for the provider's API. Only needed for custom endpoints. For ``ollama:``
+    models it can instead come from the ``OLLAMA_BASE_URL`` environment variable;
+    ``openai:`` models, including the Ollama example below that uses
+    ``openai:llama3``, read ``OPENAI_BASE_URL`` instead:
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
@@ -90,6 +93,10 @@ Default Model Provider
     An unknown provider raises ``ValueError`` when the model is resolved.
     ``@task.llm_batch`` applies it the same way, and sends ``openai-chat`` models
     to its OpenAI adapter.
+
+    The form suggests common providers as you type. The suggestions are not a full
+    list: any provider the installed pydantic-ai recognizes is accepted, including
+    ones a newer pydantic-ai adds.
 
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is

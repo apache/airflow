@@ -46,6 +46,7 @@ const { useDeadlinesServiceGetCallbackLogs, useDeadlinesServiceGetDeadlines } =
   await import("openapi/queries");
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", { value: 800 });
 });

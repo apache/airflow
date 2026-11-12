@@ -22,6 +22,7 @@
     },
     "favoriteState": "收藏状态",
     "favoriteStatePlaceholder": "选择收藏状态...",
+    "hasImportErrors": "存在导入错误",
     "noTimetableTypesFound": "找不到时间表类型",
     "paused": {
       "active": "已启用",
@@ -32,9 +33,24 @@
     "pausedState": "暂停状态",
     "requiresHitlAction": "需要人工响应",
     "runIdPatternFilter": "搜索 Dag 执行",
+    "runState": "执行状态",
+    "runStatePlaceholder": "选择执行状态...",
     "timetableType": "时间表类型"
   },
+  "folders": {
+    "all": "所有 Dags",
+    "empty": "没有文件夹",
+    "hide": "隐藏文件夹",
+    "show": "显示文件夹",
+    "title": "文件夹"
+  },
   "ownerLink": "拥有者 {{owner}} 的地址",
+  "recentTaskStateCounts": {
+    "description": "显示所有执行中 Dag 执行的任务状态；若没有执行中的执行，则显示最近一次执行的任务状态。您可以在用户设置中关闭此功能。",
+    "label": "最近任务",
+    "loading": "正在加载最近任务状态计数",
+    "tooltip": "{{state}}：{{formattedCount}}，点击以筛选任务"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任务。",
@@ -74,6 +90,7 @@
         "failed": "按下 shift+f 标记为失败",
         "success": "按下 shift+s 标记为成功"
       },
+      "skippedInfo": "将任务实例标记为已跳过，表示该任务是有意不执行的。下游任务仍会根据其触发规则进行评估：在默认的 \"all_success\" 规则下，下游任务也会被跳过。只有尚未开始执行的任务实例才能被跳过，且仅影响此任务实例。",
       "title": "标记 {{type}} 为 {{state}}"
     },
     "options": {
@@ -81,13 +98,15 @@
       "existingTasks": "清除现有任务",
       "future": "未来",
       "keepTaskState": "保留任务存储并继续执行",
+      "laterIterations": "后续迭代",
       "onlyFailed": "只清除失败任务",
       "past": "过去",
       "preventRunningTasks": "防止重复执行执行中的任务",
       "queueNew": "加入新任务到队列",
       "runOnLatestVersion": "执行最新套件包版本",
       "runOnLatestVersionForced": "始终使用最新版本，因为没有可回退的早期版本",
-      "upstream": "上游"
+      "upstream": "上游",
+      "wholeExpansion": "整个映射展开"
     }
   },
   "runStateCounts": {
@@ -108,8 +127,10 @@
   "search": {
     "advanced": "高级搜索",
     "clear": "清除搜索",
+    "dagRuns": "搜索 $t(common:dagRun_other)",
     "dags": "搜索 Dags",
     "hotkey": "+K",
+    "mapIndexes": "搜索$t(common:mapIndex)",
     "tasks": "搜索任务"
   },
   "sort": {

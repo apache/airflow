@@ -60,12 +60,43 @@ Prerequisites
 * The ``apache-airflow-task-sdk`` package, installed with Airflow, provides
   :class:`~airflow.sdk.coordinators.node.NodeCoordinator`, which runs the TypeScript code. No other Python
   package is needed.
-* In your TypeScript project, install the SDK, and ``esbuild`` to build the bundle:
+* A TypeScript project with the SDK installed (see :ref:`typescript-sdk/create-project`).
 
-  .. code-block:: bash
+.. _typescript-sdk/create-project:
 
-      npm install @apache-airflow/ts-sdk
-      npm install --save-dev esbuild
+Create a project
+----------------
+
+There is no project template, so start from an empty npm project. The SDK is ESM-only and the Dag file uses
+top-level ``await``, so the project has to be an ES module. Install the SDK, ``esbuild`` to build the bundle,
+and TypeScript to type check the Dag:
+
+.. code-block:: bash
+
+    mkdir my-dags && cd my-dags
+    npm init -y
+    npm pkg set type=module
+    npm install @apache-airflow/ts-sdk
+    npm install --save-dev esbuild typescript @types/node
+
+Add a ``tsconfig.json`` that resolves modules the way Node.js does:
+
+.. code-block:: json
+
+    {
+      "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "noEmit": true,
+        "types": ["node"]
+      },
+      "include": ["src"]
+    }
+
+``airflow-ts-pack`` builds the bundle without type checking it, so a Dag with a type error still builds. Run
+``npx tsc`` before building to catch mistakes such as a misspelled task input.
 
 .. _typescript-sdk/quick-start:
 
@@ -92,10 +123,11 @@ Declare a Dag in ``src/main.ts``:
 
     await new Bundle(dag).serve();
 
-Build it into a single file:
+Type check it, then build it into a single file:
 
 .. code-block:: bash
 
+    npx tsc
     npx airflow-ts-pack src/main.ts --outdir dist
 
 Make sure ``dist/bundle.min.mjs`` is in a Dag bundle, for example the default ``dags-folder`` bundle, which
@@ -520,9 +552,10 @@ Two functions give it what it needs while it runs:
      - Returns
    * - ``getContext()``
      - The task's context (a ``TaskContext``): ``dagId``, ``taskId`` (including any task group prefix),
-       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an ``AbortSignal``
-       that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
-       accepts one, so the task can stop cleanly.
+       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), ``conf`` (the Dag run's
+       conf, ``{}`` when the run has none), and ``signal``, an ``AbortSignal`` that fires when Airflow stops the task.
+       Pass ``signal`` to ``fetch()``, timers, or any other API that accepts one, so the task can stop cleanly.
+       ``getContext<T>()`` types ``conf`` as ``T``, as ``getXCom<T>`` does for an XCom value.
    * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 

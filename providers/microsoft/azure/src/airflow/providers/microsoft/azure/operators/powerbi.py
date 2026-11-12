@@ -119,8 +119,13 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         request_body: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         if "deferrable" in kwargs or deferrable is not True:
             self.log.warning("The PowerBIDatasetRefreshOperator now always uses deferrable execution.")

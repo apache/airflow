@@ -121,6 +121,19 @@ Dag Import Error Events
 
 Dag import error events occur when Dag processor finds an import error in the Dag code and updates the metadata database table.
 
+``filename`` is the absolute path of the file on the Dag processor. When the Dag processor publishes its
+results through the Execution API, these events fire on the API server, which does not have the processor's
+bundles, so ``filename`` is the path relative to the bundle root instead. Both hooks also receive
+``bundle_name`` and ``relative_fileloc`` to identify the source consistently in either mode. Existing
+listeners that accept only ``filename`` and ``stacktrace`` continue to work; new listeners can accept
+the bundle identity arguments without relying on the form of ``filename``.
+
+``bundle_name`` and ``relative_fileloc`` were added in Airflow 3.5.0. Earlier versions raise
+``PluginValidationError`` while loading a listener whose hook accepts them, and then load no plugin
+listeners at all. Giving them default values does not help: pluggy never passes an argument that has
+a default, so the listener would never receive them. A listener that must also load on earlier versions
+should accept only ``filename`` and ``stacktrace``.
+
 
 |experimental|
 

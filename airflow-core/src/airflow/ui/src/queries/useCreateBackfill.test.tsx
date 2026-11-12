@@ -33,12 +33,8 @@ vi.mock("openapi/queries", async (importOriginal) => {
   return { ...actual, useBackfillServiceCreateBackfill: vi.fn() };
 });
 
-const {
-  useBackfillServiceCreateBackfill,
-  UseDagServiceGetDagDetailsKeyFn,
-  UseDagServiceGetDagKeyFn,
-  useDagServiceGetDagsUiKey,
-} = await import("openapi/queries");
+const { useBackfillServiceCreateBackfill, UseDagServiceGetDagDetailsKeyFn, UseDagServiceGetDagKeyFn } =
+  await import("openapi/queries");
 
 const DAG_ID = "paused_dag";
 const mutate = vi.fn();
@@ -79,7 +75,8 @@ describe("useCreateBackfill", () => {
     renderHook(() => useCreateBackfill({ onSuccessConfirm: vi.fn() }), { wrapper: Wrapper });
 
     const onSuccess = vi.mocked(useBackfillServiceCreateBackfill).mock.calls.at(-1)?.[0]?.onSuccess as
-      ((backfill: BackfillResponse, variables: CreateBackfillData) => Promise<void>) | undefined;
+      | ((backfill: BackfillResponse, variables: CreateBackfillData) => Promise<void>)
+      | undefined;
 
     expect(onSuccess).toBeTypeOf("function");
     await onSuccess?.({ dag_id: DAG_ID } as BackfillResponse, buildRequest(drainDag));
@@ -87,7 +84,6 @@ describe("useCreateBackfill", () => {
     for (const queryKey of [
       UseDagServiceGetDagKeyFn({ dagId: DAG_ID }, [{ dagId: DAG_ID }]),
       UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }, [{ dagId: DAG_ID }]),
-      [useDagServiceGetDagsUiKey],
     ]) {
       if (drainDag) {
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey });

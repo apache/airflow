@@ -22,8 +22,7 @@
 import typescript from "@typescript-eslint/eslint-plugin";
 import typescriptParser from "@typescript-eslint/parser";
 
-import { ERROR, OFF, WARN } from "./levels.js";
-import { off } from "./off.js";
+import { ERROR, WARN } from "./levels.js";
 
 /**
  * ESLint TypeScript namespace.
@@ -394,21 +393,6 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
     [`${typescriptNamespace}/dot-notation`]: ERROR,
 
     /**
-     * Rely on inference instead of making return type explicit.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const foo = (): string => "bar";
-     *
-     * // ✅ Correct
-     * const foo = () => "bar";
-     * ```
-     * @see [@typescript-eslint/explicit-function-return-type](https://typescript-eslint.io/rules/explicit-function-return-type/)
-     */
-    [`${typescriptNamespace}/explicit-function-return-type`]: OFF,
-
-    /**
      * When working with classes, let's be explicit about accessibility.
      *
      * @example
@@ -434,30 +418,6 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
         },
       },
     ],
-
-    /**
-     * Rely on inference for boundary types as well.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const foo = (): string => "bar";
-     *
-     * // ✅ Correct
-     * const foo = () => "bar";
-     * ```
-     * @see [@typescript-eslint/explicit-module-boundary-types](https://typescript-eslint.io/rules/explicit-module-boundary-types/)
-     */
-    [`${typescriptNamespace}/explicit-module-boundary-types`]: OFF,
-
-    /**
-     * We allow declaring variables without values in favor of `no-useless-assignment`
-     *
-     * @see [@typescript-eslint/init-declarations](https://typescript-eslint.io/rules/init-declarations/)
-     * @see [init-declarations](https://eslint.org/docs/latest/rules/init-declarations)
-     * @see [no-useless-assignment](https://eslint.org/docs/latest/rules/no-useless-assignment)
-     */
-    [`${typescriptNamespace}/init-declarations`]: OFF,
 
     /**
      * Max amount of parameters set to 3. More than that is too much.
@@ -764,13 +724,6 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
     [`${typescriptNamespace}/no-import-type-side-effects`]: ERROR,
 
     /**
-     * We want to rely on inference.
-     *
-     * @see [@typescript-eslint/no-inferrable-types](https://typescript-eslint.io/rules/no-inferrable-types/)
-     */
-    [`${typescriptNamespace}/no-inferrable-types`]: OFF,
-
-    /**
      * Avoid using `this` outside a class.
      *
      * @example
@@ -998,6 +951,39 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
             message: "Use a modern dependency instead.",
           },
         ],
+      },
+    ],
+
+    /**
+     * Do not type components with `FC` (or `FunctionComponent`, `VFC`).
+     * Annotate the props parameter instead, and use `ComponentType` for a
+     * component held in a value.
+     *
+     * @example
+     * ```typescript
+     * // ❌ Incorrect
+     * const Foo: React.FC<FooProps> = ({ bar }) => <div>{bar}</div>;
+     *
+     * // ✅ Correct
+     * const Foo = ({ bar }: FooProps) => <div>{bar}</div>;
+     * ```
+     * @see [@typescript-eslint/no-restricted-types](https://typescript-eslint.io/rules/no-restricted-types/)
+     */
+    [`${typescriptNamespace}/no-restricted-types`]: [
+      ERROR,
+      {
+        types: {
+          FC: "Do not type components with `FC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`, or use `ComponentType` for a component value.",
+          FunctionComponent:
+            "Do not type components with `FunctionComponent`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`, or use `ComponentType` for a component value.",
+          "React.FC":
+            "Do not type components with `React.FC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`, or use `ComponentType` for a component value.",
+          "React.FunctionComponent":
+            "Do not type components with `React.FunctionComponent`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`, or use `ComponentType` for a component value.",
+          "React.VFC":
+            "Do not type components with `React.VFC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`, or use `ComponentType` for a component value.",
+          VFC: "Do not type components with `VFC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`, or use `ComponentType` for a component value.",
+        },
       },
     ],
 
@@ -1825,73 +1811,5 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
      * @see [@typescript-eslint/use-unknown-in-catch-callback-variable](https://typescript-eslint.io/rules/use-unknown-in-catch-callback-variable/)
      */
     [`${typescriptNamespace}/use-unknown-in-catch-callback-variable`]: ERROR,
-
-    // Rules covered by `@typescript-eslint` or by the language itself.
-    ...off(
-      "camelcase",
-      "class-methods-use-this",
-      "consistent-return",
-      "constructor-super",
-      "default-param-last",
-      "dot-notation",
-      "getter-return",
-      "id-match",
-      "init-declarations",
-      "max-params",
-      "new-cap",
-      "no-array-constructor",
-      "no-async-promise-executor",
-      "no-case-declarations",
-      "no-class-assign",
-      "no-cond-assign",
-      "no-const-assign",
-      "no-constant-binary-expression",
-      "no-constant-condition",
-      "no-delete-var",
-      "no-dupe-args",
-      "no-dupe-class-members",
-      "no-dupe-else-if",
-      "no-dupe-keys",
-      "no-extra-boolean-cast",
-      "no-fallthrough",
-      "no-func-assign",
-      "no-global-assign",
-      "no-implicit-globals",
-      "no-implied-eval",
-      "no-invalid-this",
-      "no-loop-func",
-      "no-nonoctal-decimal-escape",
-      "no-obj-calls",
-      "no-octal-escape",
-      "no-promise-executor-return",
-      "no-redeclare",
-      "no-restricted-imports",
-      "no-setter-return",
-      "no-shadow",
-      "no-this-before-super",
-      "no-throw-literal",
-      "no-undef-init",
-      "no-undef",
-      "no-undefined",
-      "no-underscore-dangle",
-      "no-unreachable",
-      "no-unsafe-negation",
-      "no-unsafe-optional-chaining",
-      "no-unused-expressions",
-      "no-unused-labels",
-      "no-unused-private-class-members",
-      "no-unused-vars",
-      "no-use-before-define",
-      "no-useless-backreference",
-      "no-useless-constructor",
-      "no-with",
-      "prefer-destructuring",
-      "require-await",
-      "use-isnan",
-      "valid-typeof",
-      `${typescriptNamespace}/no-dupe-class-members`,
-      `${typescriptNamespace}/no-redeclare`,
-      `${typescriptNamespace}/no-unused-vars`,
-    ),
   },
 });

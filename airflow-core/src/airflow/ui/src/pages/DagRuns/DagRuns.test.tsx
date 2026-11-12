@@ -18,9 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dag_runs"]));
 
 // Stand in for the Monaco-backed JSON viewer so the test can assert the collapse
 // state without loading the editor.
