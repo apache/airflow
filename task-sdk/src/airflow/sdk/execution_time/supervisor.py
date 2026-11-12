@@ -1888,6 +1888,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
                     loop_decision=msg.loop_decision,
+                    external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(

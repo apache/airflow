@@ -665,13 +665,13 @@ _WRITE_STATEMENTS = {
     "alter": "ALTER TABLE t ADD COLUMN c INT",
     "copy": "COPY t FROM '/tmp/x'",
     "grant": "GRANT SELECT ON t TO u",
-    "cte_delete": "WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d",
-    "cte_insert": "WITH d AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM d",
+    # No RETURNING in the CTE writes: sqlglot 30.27 refuses it for Snowflake, so the statement would
+    # stop at the parser and never reach the deep scan these cases exist to exercise.
+    "cte_delete": "WITH d AS (DELETE FROM t) SELECT * FROM d",
+    "cte_insert": "WITH d AS (INSERT INTO t VALUES (1)) SELECT * FROM d",
     # THEN DELETE is required: with THEN UPDATE the nested Update is still rejected once Merge
     # leaves the deny-list, which hides the gap.
-    "cte_merge": (
-        "WITH d AS (MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE RETURNING *) SELECT * FROM d"
-    ),
+    "cte_merge": "WITH d AS (MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE) SELECT * FROM d",
     "select_into": "SELECT * INTO n FROM t",
 }
 
