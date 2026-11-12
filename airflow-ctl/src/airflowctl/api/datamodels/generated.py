@@ -481,6 +481,18 @@ class PartitionKey(RootModel[str]):
     root: Annotated[str, Field(max_length=250, pattern="\\S", title="Partition Key")]
 
 
+class ConsumerDagId(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Limit immediate queueing to this eligible consumer Dag. The event remains in asset history and listeners are still notified. Omit to queue all eligible consumers.",
+            max_length=250,
+            pattern="\\S",
+            title="Consumer Dag Id",
+        ),
+    ]
+
+
 class CreateAssetEventsBody(BaseModel):
     """
     Create asset events request.
@@ -491,6 +503,13 @@ class CreateAssetEventsBody(BaseModel):
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
     partition_key: Annotated[PartitionKey | None, Field(title="Partition Key")] = None
+    consumer_dag_id: Annotated[
+        ConsumerDagId | None,
+        Field(
+            description="Limit immediate queueing to this eligible consumer Dag. The event remains in asset history and listeners are still notified. Omit to queue all eligible consumers.",
+            title="Consumer Dag Id",
+        ),
+    ] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     access_control: AssetEventAccessControl | None = None
 

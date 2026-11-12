@@ -33,6 +33,8 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagDetails,
 )
 from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -56,8 +58,10 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset, task_group
+from airflow.sdk import Asset, IdentityMapper, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
@@ -68,15 +72,18 @@ from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
+    clear_db_pakl,
     clear_db_runs,
     clear_db_teams,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
+from tests_common.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2020, 6, 11, 18, 0, 0)
 
@@ -2868,6 +2875,312 @@ class TestPostAssetEvents(TestAssets):
             elif asset["id"] == asset2.id:
                 assert asset["last_asset_event"]["id"] is None
                 assert asset["last_asset_event"]["timestamp"] is None
+
+
+@pytest.mark.need_serialized_dag
+class TestPostAssetEventsForConsumer(TestAssets):
+    TARGET = "scoped-event-consumer"
+    SIBLING = "scoped-event-sibling"
+    KEY = "2026-11-12"
+
+    @pytest.fixture(autouse=True)
+    def clear_partition_queues(self, setup, dag_maker):
+        clear_db_pakl()
+        clear_db_apdr()
+        yield
+        clear_db_pakl()
+        clear_db_apdr()
+
+    @staticmethod
+    def _sync_consumer(dag_maker, session, dag_id, condition):
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=PartitionedAssetTimetable(
+                assets=condition, default_partition_mapper=IdentityMapper(), batch_asset_events=True
+            ),
+            is_paused_upon_creation=False,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+        session.expire_all()
+
+    def _publish(self, test_client, session, asset, *, consumer_dag_id=None):
+        asset_id = session.scalar(
+            select(AssetModel.id).where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+        )
+        payload = {"asset_id": asset_id, "partition_key": self.KEY}
+        if consumer_dag_id is not None:
+            payload["consumer_dag_id"] = consumer_dag_id
+        response = test_client.post("/assets/events", json=payload)
+        assert response.status_code == 200, response.text
+        assert "consumer_dag_id" not in response.json()
+        session.expire_all()
+        return response.json()["id"]
+
+    @staticmethod
+    def _tick(session):
+        runner = SchedulerJobRunner(
+            job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+        )
+        created = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        session.commit()
+        session.expire_all()
+        return created
+
+    @staticmethod
+    def _runs(session, dag_id):
+        return session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+
+    @staticmethod
+    def _event_fields(session, event_id):
+        event = session.get(AssetEvent, event_id)
+        return {column.name: getattr(event, column.name) for column in AssetEvent.__table__.columns}
+
+    def _complete_sibling(self, test_client, session, dag_maker, asset_a, asset_b):
+        self._sync_consumer(dag_maker, session, self.TARGET, asset_a)
+        self._sync_consumer(dag_maker, session, self.SIBLING, asset_b)
+        original_b_id = self._publish(test_client, session, asset_b)
+        assert self._tick(session) == {self.SIBLING}
+        [sibling_run] = self._runs(session, self.SIBLING)
+        assert {event.id for event in sibling_run.consumed_asset_events} == {original_b_id}
+        sibling_run.state = DagRunState.SUCCESS
+        sibling_run_id = sibling_run.id
+        session.commit()
+        return original_b_id, sibling_run_id
+
+    def _assert_sibling_unchanged(self, session, run_id, event_id):
+        [sibling_run] = self._runs(session, self.SIBLING)
+        assert sibling_run.id == run_id
+        assert sibling_run.state == DagRunState.SUCCESS
+        assert {event.id for event in sibling_run.consumed_asset_events} == {event_id}
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AssetPartitionDagRun)
+                .where(
+                    AssetPartitionDagRun.target_dag_id == self.SIBLING,
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                )
+            )
+            == 0
+        )
+
+    def test_targeted_event_repairs_new_dependency_without_retriggering_sibling(
+        self, test_client, session, dag_maker
+    ):
+        asset_a = Asset(name="scoped-event-a")
+        asset_b = Asset(name="scoped-event-b")
+        original_b_id, sibling_run_id = self._complete_sibling(
+            test_client, session, dag_maker, asset_a, asset_b
+        )
+        original_b_fields = self._event_fields(session, original_b_id)
+        self._sync_consumer(dag_maker, session, self.TARGET, asset_a & asset_b)
+        a_id = self._publish(test_client, session, asset_a)
+        assert self._tick(session) == set()
+        assert self._runs(session, self.TARGET) == []
+
+        replacement_b_id = self._publish(test_client, session, asset_b, consumer_dag_id=self.TARGET)
+
+        assert replacement_b_id != original_b_id
+        assert self._tick(session) == {self.TARGET}
+        [target_run] = self._runs(session, self.TARGET)
+        assert {event.id for event in target_run.consumed_asset_events} == {a_id, replacement_b_id}
+        self._assert_sibling_unchanged(session, sibling_run_id, original_b_id)
+        assert self._event_fields(session, original_b_id) == original_b_fields
+
+    def test_targeted_events_rebuild_cleared_stale_candidate_without_retriggering_sibling(
+        self, test_client, session, dag_maker
+    ):
+        asset_a = Asset(name="scoped-event-a")
+        asset_b = Asset(name="scoped-event-b")
+        original_b_id, sibling_run_id = self._complete_sibling(
+            test_client, session, dag_maker, asset_a, asset_b
+        )
+        original_a_id = self._publish(test_client, session, asset_a)
+        original_fields = {
+            event_id: self._event_fields(session, event_id) for event_id in (original_a_id, original_b_id)
+        }
+        stale_apdr = session.scalars(
+            select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == self.TARGET)
+        ).one()
+        stale_apdr_id = stale_apdr.id
+        old_fingerprint = stale_apdr.rollup_fingerprint
+        self._sync_consumer(dag_maker, session, self.TARGET, asset_a & asset_b)
+        current_dag = SerializedDagModel.get_dag(self.TARGET, session=session)
+        current_fingerprint = compute_rollup_fingerprint(current_dag.timetable)
+        assert old_fingerprint != current_fingerprint
+
+        response = test_client.delete(
+            f"/dags/{self.TARGET}/assets/queuedEvents", params={"partition_key": self.KEY}
+        )
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        assert (
+            session.scalar(
+                select(AssetPartitionDagRun.id).where(AssetPartitionDagRun.target_dag_id == self.TARGET)
+            )
+            is None
+        )
+        assert (
+            session.scalar(
+                select(PartitionedAssetKeyLog.id).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == stale_apdr_id
+                )
+            )
+            is None
+        )
+        self._assert_sibling_unchanged(session, sibling_run_id, original_b_id)
+
+        replacement_a_id = self._publish(test_client, session, asset_a, consumer_dag_id=self.TARGET)
+        replacement_b_id = self._publish(test_client, session, asset_b, consumer_dag_id=self.TARGET)
+        assert {replacement_a_id, replacement_b_id}.isdisjoint(original_fields)
+        assert self._tick(session) == {self.TARGET}
+        [target_run] = self._runs(session, self.TARGET)
+        assert {event.id for event in target_run.consumed_asset_events} == {
+            replacement_a_id,
+            replacement_b_id,
+        }
+        assert (
+            session.scalars(
+                select(AssetPartitionDagRun.rollup_fingerprint).where(
+                    AssetPartitionDagRun.target_dag_id == self.TARGET
+                )
+            ).one()
+            == current_fingerprint
+        )
+        self._assert_sibling_unchanged(session, sibling_run_id, original_b_id)
+        assert {
+            event_id: self._event_fields(session, event_id) for event_id in original_fields
+        } == original_fields
+
+    @pytest.mark.parametrize("consumer_field", [{}, {"consumer_dag_id": None}], ids=["omitted", "null"])
+    def test_no_consumer_scope_still_queues_all_consumers(self, test_client, session, consumer_field):
+        (asset,) = self.create_assets(num=1, session=session)
+        _ensure_dags(session, self.TARGET, self.SIBLING)
+        asset.scheduled_dags = [
+            DagScheduleAssetReference(dag_id=dag_id) for dag_id in (self.TARGET, self.SIBLING)
+        ]
+        for dag_id in (self.TARGET, self.SIBLING):
+            session.get(DagModel, dag_id).is_paused = False
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, **consumer_field})
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert set(session.scalars(select(AssetDagRunQueue.target_dag_id))) == {self.TARGET, self.SIBLING}
+        assert set(session.scalars(select(AssetDagRunQueue.asset_event_id))) == {response.json()["id"]}
+
+    @pytest.mark.parametrize(
+        ("target_state", "expected_status"),
+        [("unknown", 404), ("not_consuming", 400), ("paused", 400), ("draining", 400)],
+    )
+    def test_rejects_invalid_target_without_publishing(
+        self, test_client, session, target_state, expected_status
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        if target_state != "unknown":
+            _ensure_dags(session, self.TARGET)
+            target = session.get(DagModel, self.TARGET)
+            target.is_paused = target_state == "paused"
+            target.is_draining = target_state == "draining"
+            if target_state != "not_consuming":
+                asset.scheduled_dags = [DagScheduleAssetReference(dag_id=self.TARGET)]
+            session.commit()
+
+        response = test_client.post(
+            "/assets/events", json={"asset_id": asset.id, "consumer_dag_id": self.TARGET}
+        )
+
+        assert response.status_code == expected_status
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+        assert session.scalar(select(func.count()).select_from(PartitionedAssetKeyLog)) == 0
+
+    @pytest.mark.parametrize("consumer_dag_id", ["", "   ", "a" * (ID_LEN + 1), 123])
+    def test_consumer_scope_validation(self, test_client, session, consumer_dag_id):
+        (asset,) = self.create_assets(num=1, session=session)
+
+        response = test_client.post(
+            "/assets/events", json={"asset_id": asset.id, "consumer_dag_id": consumer_dag_id}
+        )
+
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+
+    @pytest.mark.parametrize(("partitioned", "partition_key"), [(True, None), (False, "partition-key")])
+    def test_consumer_scope_rejects_partition_mode_mismatch(
+        self, test_client, session, partitioned, partition_key
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        _ensure_dags(session, self.TARGET)
+        target = session.get(DagModel, self.TARGET)
+        target.is_paused = False
+        target.timetable_partitioned = partitioned
+        asset.scheduled_dags = [DagScheduleAssetReference(dag_id=self.TARGET)]
+        session.commit()
+
+        response = test_client.post(
+            "/assets/events",
+            json={"asset_id": asset.id, "consumer_dag_id": self.TARGET, "partition_key": partition_key},
+        )
+
+        assert response.status_code == 400
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+
+    @mock.patch.object(DagModel, "get_team_name", autospec=True, return_value="consumer-team")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+        autospec=True,
+        return_value=False,
+    )
+    def test_consumer_scope_requires_run_permission_for_target_team(
+        self, mock_authorized_dag, mock_get_team_name, test_client, session
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        _ensure_dags(session, self.TARGET)
+
+        response = test_client.post(
+            "/assets/events", json={"asset_id": asset.id, "consumer_dag_id": self.TARGET}
+        )
+
+        assert response.status_code == 403
+        mock_authorized_dag.assert_called_once_with(
+            mock.ANY,
+            method="POST",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id=self.TARGET, team_name="consumer-team"),
+            user=mock.ANY,
+        )
+        mock_get_team_name.assert_called_once_with(self.TARGET, session=mock.ANY)
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+        return_value=False,
+    )
+    def test_consumer_scope_still_requires_asset_permission(
+        self, mock_authorized_asset, test_client, session
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        _ensure_dags(session, self.TARGET)
+
+        response = test_client.post(
+            "/assets/events", json={"asset_id": asset.id, "consumer_dag_id": self.TARGET}
+        )
+
+        assert response.status_code == 403
+        mock_authorized_asset.assert_called_once_with(
+            mock.ANY,
+            method="POST",
+            details=AssetDetails(id=str(asset.id), name=asset.name, uri=asset.uri),
+            user=mock.ANY,
+        )
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
 
 
 class TestPostAssetEventsTeamResolution(TestAssets):
