@@ -448,7 +448,7 @@ Any later iterations retained after a selective clear remain unchanged.
 
 The gate's task instance exposes its decision as ``ti.loop_decision``, a ``LoopDecision``, once the gate
 has evaluated it. With ``until``, ``stop`` is ``True`` when ``until`` ended the loop, even at its last
-iteration. When ``stop`` is ``False`` at the last iteration (``loop.index == loop.max_iterations - 1``),
+iteration. When ``stop`` is ``False`` at the last iteration (``loop.index == loop.max_iterations``),
 the loop reached ``max_iterations`` without meeting ``until`` and the gate fails. A gate that fails before
 deciding, for example because ``until`` raised, or that was marked successful by hand, has no decision.
 

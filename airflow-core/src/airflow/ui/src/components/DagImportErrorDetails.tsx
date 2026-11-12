@@ -51,7 +51,7 @@ export const DagImportErrorDetails = ({ importError }: { readonly importError: I
       <HStack alignItems="center" flexWrap="wrap" gap={2} mb={2}>
         <PiFilePy />
         {importError.filename}
-        <ClipboardRoot value={importError.filename}>
+        <ClipboardRoot value={importError.stack_trace}>
           <ClipboardIconButton variant="outline" />
         </ClipboardRoot>
         <IconButton

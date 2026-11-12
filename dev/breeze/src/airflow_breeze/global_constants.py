@@ -81,7 +81,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
-    "3.13"  # "highest complete" python version (where all providers are included)
+    "3.14"  # "highest complete" python version (where all providers are included)
 )
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
@@ -915,7 +915,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.11",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git huggingface keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {
