@@ -161,6 +161,26 @@ internal class TaskArgsTest {
   }
 
   @Test
+  @DisplayName("Should fail on a binding field this SDK cannot bind yet")
+  fun shouldRejectUnsupportedBindingField() {
+    val cases =
+      listOf(
+        "apply_map" to mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "apply_map" to true),
+        "apply_map" to mapOf("kind" to "literal", "name" to "x", "value" to 1L, "apply_map" to true),
+        "kwarg" to mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "kwarg" to "x"),
+        "fallback" to
+          mapOf("kind" to "literal", "name" to "x", "value" to 1L, "fallback" to mapOf("kind" to "literal")),
+      )
+    for ((field, binding) in cases) {
+      val error = assertThrows(IllegalStateException::class.java) { argsWith(listOf(binding)) }
+      assertEquals(
+        "Argument 'x' has $field set, which this version of the Java SDK cannot bind yet",
+        error.message,
+      )
+    }
+  }
+
+  @Test
   @DisplayName("Should fail on duplicate binding names")
   fun shouldRejectDuplicateBindingNames() {
     assertThrows(IllegalStateException::class.java) {
