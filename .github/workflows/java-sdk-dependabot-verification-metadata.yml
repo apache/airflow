@@ -21,19 +21,20 @@
 # trusted checksum, so `./gradlew build` fails in java-sdk-release-verify.yml and
 # the prek hook fails Static checks.
 #
-# This runs automatically on Dependabot PRs touching java-sdk/ (the example builds
-# are excluded: the metadata does not cover them), and a committer can still
-# dispatch it by hand from the Actions tab (or `gh workflow run`) with a PR number.
-# It runs the same script as the `regenerate-java-sdk-verification-metadata` prek
-# hook, so the file matches what Static checks expects, and pushes the result to
+# This is manual on purpose: the metadata is checksum-only (no PGP verification), so
+# a new entry records whatever the repository served at that moment and only a human
+# checking the new coordinates and hashes makes it trustworthy. A committer dispatches
+# it from the Actions tab (or `gh workflow run`) with a PR number, as that deliberate
+# step. It runs the same script as the `regenerate-java-sdk-verification-metadata`
+# prek hook, so the file matches what Static checks expects, and pushes the result to
 # the PR branch as a follow-up commit.
 #
 # The work is split so no job holds both a write token and dependency code:
 # `regenerate` runs Gradle (dependency code, verification off) with a read-only
 # token and hands only the file onward. `publish` has the write token and
-# validates that file, using the script and baseline from the PR's base (same header
-# as there, only generated checksum entries, no changed hash for a coordinate that
-# is kept) before committing it. If validation fails,
+# validates that file, using the script and baseline from the dispatched ref (same
+# header as there, only generated checksum entries, no changed hash for a coordinate
+# that is kept) before committing it. If validation fails,
 # a human regenerates the file with the prek hook and reviews why.
 #
 # The bot's push uses GITHUB_TOKEN, so CI for that commit waits for approval. That
@@ -44,12 +45,6 @@
 name: Java SDK refresh verification metadata
 
 on:  # yamllint disable-line rule:truthy
-  pull_request:
-    types: [opened, reopened, synchronize]
-    paths:
-      - "java-sdk/**"
-      - "!java-sdk/example/**"
-      - "!java-sdk/scala_spark_example/**"
   workflow_dispatch:
     inputs:
       pr_number:
@@ -61,17 +56,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: java-sdk-refresh-verification-metadata-${{ github.event.pull_request.number || inputs.pr_number }}
+  group: java-sdk-refresh-verification-metadata-${{ inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
   resolve:
     name: Resolve PR head
-    # The run for the bot's own commit normally finds no diff and pushes nothing;
-    # any further commit needs approval again.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -80,12 +70,12 @@ jobs:
       head_ref: ${{ steps.pr.outputs.head_ref }}
       head_sha: ${{ steps.pr.outputs.head_sha }}
     steps:
-      # Dependabot pushes to apache/airflow itself, never a fork.
+      # The bot pushes to the PR branch, so it must be in this repository, not a fork.
       - name: Resolve PR head
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           set -euo pipefail
           # A URL selector would make gh read a PR from another repo, where isCrossRepository means nothing.
@@ -142,8 +132,8 @@ jobs:
     name: Commit verification-metadata.xml
     needs: [resolve, regenerate]
     runs-on: ubuntu-latest
-    # Runs no PR code: the validator and its baseline come from the PR's base (the
-    # dispatched ref on a manual run). head_ref/head_sha come from `resolve` only.
+    # Runs no PR code: the validator and its baseline come from the dispatched ref.
+    # head_ref/head_sha come from `resolve` only.
     permissions:
       contents: write
     steps:
@@ -154,12 +144,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       # The PR head's script could predate `--validate`, which it would ignore and run
-      # Gradle. The merge commit is no baseline either: it includes earlier bot commits,
+      # Gradle. The PR head is no baseline either: it includes earlier bot commits,
       # so an entry removed by one could return with another hash as if it were new.
       - name: Checkout the validator and its baseline
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.sha }}
           path: trusted
           fetch-depth: 1
           persist-credentials: false
@@ -198,9 +188,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "$metadata"
-          # This marker keeps Dependabot rebasing the PR (it otherwise stops once other
-          # commits exist); rebasing drops the commit and this workflow runs again.
-          git commit -m "Refresh Gradle dependency verification metadata for java-sdk [skip dependabot]"
+          git commit -m "Refresh Gradle dependency verification metadata for java-sdk"
           # Non-force: if the branch moved since `resolve`, the push is rejected
           # instead of overwriting the newer commits.
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
