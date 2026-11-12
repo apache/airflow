@@ -517,16 +517,29 @@ class TestPowerBIDatasetRefreshOperator:
         signature = inspect.signature(getattr(init, "__wrapped__", init))
         assert "durable" in signature.parameters
 
-    @pytest.mark.parametrize("durable", [False, True])
-    def test_default_args_durable_reaches_operator(self, durable):
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable is only honoured on Airflow 3.3+")
+    def test_default_args_durable_reaches_operator(self):
         with DAG(
             dag_id="test_powerbi_durable_default_args",
             schedule=None,
             start_date=DEFAULT_DATE,
-            default_args={"durable": durable},
+            default_args={"durable": False},
         ):
             operator = PowerBIDatasetRefreshOperator(**CONFIG)
-        assert operator.durable is durable
+        assert operator.durable is False
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_3_PLUS, reason="The compat ResumableJobMixin is only used below Airflow 3.3"
+    )
+    def test_default_args_durable_reaches_compat_mixin_below_3_3(self):
+        with pytest.warns(UserWarning, match="`durable` has no effect on Airflow versions below 3.3"):
+            with DAG(
+                dag_id="test_powerbi_durable_default_args_below_3_3",
+                schedule=None,
+                start_date=DEFAULT_DATE,
+                default_args={"durable": True},
+            ):
+                PowerBIDatasetRefreshOperator(**CONFIG)
 
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
     def test_execute_not_durable_defers_to_the_trigger_that_starts_the_refresh(
