@@ -173,6 +173,7 @@ class FileGroupForCi(Enum):
     GO_SDK_E2E_FILES = auto()
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
+    PROVIDERS_BRANCH_TIP_COMPAT_FILES = auto()
     TS_SDK_E2E_FILES = auto()
     YAML_DAG_E2E_FILES = auto()
     LANG_SDK_XCOM_E2E_FILES = auto()
@@ -350,6 +351,11 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
             r"^airflow-e2e-tests/docker/openlineage-compat-db\.yml$",
+        ],
+        FileGroupForCi.PROVIDERS_BRANCH_TIP_COMPAT_FILES: [
+            # run_providers_branch_tip_compatibility_tests ignores full_tests_needed, which a change to this
+            # workflow also sets.
+            r"^\.github/workflows/test-providers-branch-tip\.yml$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
             # API documentation entry points and Markdown do not affect runtime e2e tests.
@@ -2742,6 +2748,40 @@ class SelectiveChecks:
             )
             return False
         return True
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_providers_branch_tip_compatibility_tests(self) -> bool:
+        """Whether to run the provider tests from main against the tips of the release branches.
+
+        A release branch tip moves independently of the pull request, so a pull request can neither cause
+        nor fix a failure there. The tests run on canary runs, with the full tests needed label, and when
+        their own workflow changes; full_tests_needed alone does not run them. Release branches keep
+        outdated copies of the providers, so only main runs them.
+        """
+        if self._default_branch != "main":
+            return False
+        if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
+            return True
+        return bool(
+            self._matching_files(FileGroupForCi.PROVIDERS_BRANCH_TIP_COMPAT_FILES, CI_FILE_GROUP_MATCHES)
+        )
+
+    @cached_property
+    def providers_branch_tip_compatibility_tests_latest_release(self) -> str:
+        """The latest Airflow release in the compatibility matrix, as a JSON object.
+
+        The CI job tests the ``vX-Y-test`` branches whose ``X.Y`` is at least the ``X.Y`` of this release:
+        its own branch, which makes the next patch release, and the branch of a minor or major release in
+        preparation. Older release branches drop out when the release managers add a new release to the
+        matrix. The job uses the Python version and the removed providers of this release.
+        """
+        released = json.loads(self.providers_compatibility_tests_matrix)
+        if not released:
+            return "{}"
+        return json.dumps(
+            max(released, key=lambda check: tuple(int(part) for part in check["airflow-version"].split(".")))
+        )
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:

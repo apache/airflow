@@ -385,6 +385,10 @@ jobs:
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       run-providers-compatibility-tests: >-
         ${{ steps.selective-checks.outputs.run-providers-compatibility-tests }}
+      run-providers-branch-tip-compatibility-tests: >-
+        ${{ steps.selective-checks.outputs.run-providers-branch-tip-compatibility-tests }}
+      providers-branch-tip-compatibility-tests-latest-release: >-
+        ${{ steps.selective-checks.outputs.providers-branch-tip-compatibility-tests-latest-release }}
       source-head-repo: ${{ steps.source-run-info.outputs.head-repo }}
       source-head-ref: ${{ steps.source-run-info.outputs.head-ref }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
@@ -730,6 +734,27 @@ jobs:
       run-providers-compatibility-tests: >-
         ${{ needs.build-info.outputs.run-providers-compatibility-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      providers-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+
+  providers-branch-tip:
+    name: "Provider branch tip compatibility tests"
+    uses: ./.github/workflows/test-providers-branch-tip.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    if: >
+      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.run-unit-tests == 'true' &&
+      needs.build-info.outputs.run-providers-branch-tip-compatibility-tests == 'true'
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      # yamllint disable rule:line-length
+      latest-release: >
+        ${{ needs.build-info.outputs.providers-branch-tip-compatibility-tests-latest-release }}
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1655,6 +1680,7 @@ jobs:
       - migration-round-trip
       - mypy-providers
       - providers
+      - providers-branch-tip
       - tests-agent-frameworks
       - tests-airflow-ctl
       - tests-go-sdk
@@ -1724,6 +1750,7 @@ jobs:
       - migration-round-trip
       - mypy-providers
       - providers
+      - providers-branch-tip
       - tests-agent-frameworks
       - tests-airflow-ctl
       - tests-go-sdk
