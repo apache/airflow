@@ -89,6 +89,7 @@ log = structlog.get_logger(__name__)
 _DAGRUN_REFERENCE_REQUIRED_COLUMNS = {
     SerializedReferenceModels.DagRunLogicalDateDeadline: "logical_date",
     SerializedReferenceModels.DagRunQueuedAtDeadline: "queued_at",
+    SerializedReferenceModels.DagRunStartDateDeadline: "start_date",
 }
 
 
@@ -755,14 +756,17 @@ class SerializedDAG:
         self,
         orm_dagrun: DagRun,
         session: Session,
+        *,
+        run_started: bool = False,
     ) -> None:
         """
-        Process deadline alerts for a newly created DagRun.
+        Create deadline records for the current DagRun lifecycle stage.
 
-        Creates Deadline records for any DeadlineAlerts that reference DAGRUN.
-
-        :param orm_dagrun: The newly created DagRun
-        :param session: Database session
+        :param orm_dagrun: DagRun whose deadline alerts should be evaluated.
+        :param session: Database session.
+        :param run_started: Process only start-date references when True.
+            Otherwise process creation references, including start-date
+            references if the DagRun is already running.
         """
         # Import here to avoid circular dependency
         from airflow.models.serialized_dag import SerializedDagModel
@@ -799,6 +803,7 @@ class SerializedDAG:
         dagrun_id = orm_dagrun.id
         dagrun_dag_id = orm_dagrun.dag_id
         bundle_name = orm_dagrun.dag_model.bundle_name
+        evaluate_start_references = run_started or orm_dagrun.state == DagRunState.RUNNING
         stored_alerts = [
             (alert.id, alert.name, alert.reference, alert.interval, alert.callback_def)
             for alert in deadline_alert_records
@@ -816,6 +821,23 @@ class SerializedDAG:
                         DeadlineAlertFields.CALLBACK: alert_callback_def,
                     }
                 )
+
+                is_start_reference = isinstance(
+                    deserialized_deadline_alert.reference,
+                    SerializedReferenceModels.TYPES.DAGRUN_STARTED,
+                )
+
+                is_start_reference = isinstance(
+                    deserialized_deadline_alert.reference,
+                    SerializedReferenceModels.TYPES.DAGRUN_STARTED,
+                )
+
+                if is_start_reference:
+                    if not evaluate_start_references:
+                        continue
+                elif run_started:
+                    continue
+
                 interval = resolve_deadline_alert_interval(deserialized_deadline_alert, session=session)
 
                 if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):

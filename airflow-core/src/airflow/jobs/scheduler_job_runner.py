@@ -3256,6 +3256,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _update_state(dag: SerializedDAG, dag_run: DagRun):
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
+            if dag.deadline:
+                dag._process_dagrun_deadline_alerts(
+                    dag_run,
+                    session,
+                    run_started=True,
+                )
             if (
                 dag.timetable.periodic
                 and dag_run.run_type != DagRunType.MANUAL

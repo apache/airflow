@@ -62,6 +62,7 @@ from airflow.models.dag import (
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
@@ -2593,35 +2594,56 @@ my_postgres_conn:
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
-        ("reference_type", "reference_column"),
+        ("reference_type", "reference_column", "state"),
         [
-            pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, "logical_date", id="logical_date"),
-            pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, "queued_at", id="queued_at"),
-            pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
+            pytest.param(
+                DeadlineReference.DAGRUN_LOGICAL_DATE,
+                "logical_date",
+                DagRunState.QUEUED,
+                id="logical_date",
+            ),
+            pytest.param(
+                DeadlineReference.DAGRUN_QUEUED_AT,
+                "queued_at",
+                DagRunState.QUEUED,
+                id="queued_at",
+            ),
+            pytest.param(
+                DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
+                "NONE",
+                DagRunState.QUEUED,
+                id="fixed_deadline",
+            ),
+            pytest.param(
+                DeadlineReference.DAGRUN_START_DATE,
+                "start_date",
+                DagRunState.RUNNING,
+                id="start_date",
+            ),
         ],
     )
-    def test_dagrun_deadline(self, reference_type, reference_column, testing_dag_bundle, session):
-        interval = datetime.timedelta(hours=1)
+    def test_dagrun_deadline(self, reference_type, reference_column, state, testing_dag_bundle, session):
+        interval = timedelta(hours=1)
         dag = DAG(
             dag_id="test_deadline",
-            schedule=datetime.timedelta(days=1),
+            schedule=timedelta(days=1),
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         )
-
-        # Sync the DAG to the database to create DeadlineAlert records
         scheduler_dag = sync_dag_to_db(dag, session=session)
 
         dr = scheduler_dag.create_dagrun(
             run_id="test_dagrun_deadline",
             run_type=DagRunType.SCHEDULED,
-            state=State.QUEUED,
+            state=state,
             logical_date=TEST_DATE,
             run_after=TEST_DATE,
+            start_date=TEST_DATE if state == DagRunState.RUNNING else None,
             triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
         session.flush()
         dr = session.merge(dr)
@@ -2709,6 +2731,64 @@ my_postgres_conn:
         deadline_times.sort()
         expected_times.sort()
         assert deadline_times == expected_times
+
+    @pytest.mark.need_serialized_dag
+    def test_start_date_deadline_created_only_when_run_starts(self, testing_dag_bundle, session):
+        interval = timedelta(minutes=30)
+        dag = DAG(
+            dag_id="test_start_date_deadline",
+            schedule=None,
+            deadline=[
+                DeadlineAlert(
+                    reference=reference,
+                    interval=interval,
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for reference in (
+                    DeadlineReference.DAGRUN_QUEUED_AT,
+                    DeadlineReference.DAGRUN_START_DATE,
+                )
+            ],
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_start_date_deadline",
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
+        )
+        session.flush()
+
+        deadline_query = select(Deadline).where(Deadline.dagrun_id == dr.id)
+        queued_deadline = session.scalars(deadline_query).one()
+
+        assert dr.start_date is None
+        assert queued_deadline.deadline_time == dr.queued_at + interval
+
+        queued_deadline_id = queued_deadline.id
+        started_at = dr.queued_at + timedelta(minutes=10)
+        dr.state = DagRunState.RUNNING
+        dr.start_date = started_at
+
+        scheduler_dag._process_dagrun_deadline_alerts(
+            dr,
+            session,
+            run_started=True,
+        )
+        session.flush()
+
+        deadlines = session.scalars(deadline_query).all()
+
+        assert len(deadlines) == 2
+        assert {deadline.deadline_time for deadline in deadlines} == {
+            dr.queued_at + interval,
+            started_at + interval,
+        }
+        assert queued_deadline_id in {deadline.id for deadline in deadlines}
 
 
 class TestDagModel:

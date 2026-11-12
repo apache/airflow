@@ -102,7 +102,11 @@ class DagRunLogicalDateDeadline(BaseDeadlineReference):
 class DagRunQueuedAtDeadline(BaseDeadlineReference):
     """A deadline that returns when a DagRun was queued."""
 
-    evaluation_timing: str = DAGRUN_QUEUED_TIMING
+    evaluation_timing = DAGRUN_QUEUED_TIMING
+
+
+class DagRunStartDateDeadline(BaseDeadlineReference):
+    """A deadline reference based on when the DagRun started."""
 
 
 @dataclass
@@ -277,12 +281,13 @@ class DeadlineReference:
 
         # Deadlines that should be created when the DagRun is queued.
         DAGRUN_QUEUED: DeadlineReferenceTypes = (DagRunQueuedAtDeadline,)
-
+        DAGRUN_STARTED: DeadlineReferenceTypes = (DagRunStartDateDeadline,)
         # All DagRun-related deadline types.
-        DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
+        DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED + DAGRUN_STARTED
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = DagRunLogicalDateDeadline()
     DAGRUN_QUEUED_AT: DeadlineReferenceType = DagRunQueuedAtDeadline()
+    DAGRUN_START_DATE: DeadlineReferenceType = DagRunStartDateDeadline()
 
     @classmethod
     def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
@@ -356,19 +361,18 @@ class DeadlineReference:
 
         # Add to appropriate deadline_reference_type classification
         if deadline_reference_type is cls.TYPES.DAGRUN_CREATED:
-            cls.TYPES.DAGRUN_CREATED = cls.TYPES.DAGRUN_CREATED + (reference_class,)
             reference_class.evaluation_timing = DAGRUN_CREATED_TIMING
+            cls.TYPES.DAGRUN_CREATED += (reference_class,)
         elif deadline_reference_type is cls.TYPES.DAGRUN_QUEUED:
-            cls.TYPES.DAGRUN_QUEUED = cls.TYPES.DAGRUN_QUEUED + (reference_class,)
             reference_class.evaluation_timing = DAGRUN_QUEUED_TIMING
+            cls.TYPES.DAGRUN_QUEUED += (reference_class,)
         else:
             raise ValueError(
                 f"Invalid deadline reference type {deadline_reference_type}; "
                 "must be a valid DeadlineReference.TYPES option."
             )
 
-        # Refresh the combined DAGRUN tuple
-        cls.TYPES.DAGRUN = cls.TYPES.DAGRUN_CREATED + cls.TYPES.DAGRUN_QUEUED
+        cls.TYPES.DAGRUN = cls.TYPES.DAGRUN_CREATED + cls.TYPES.DAGRUN_QUEUED + cls.TYPES.DAGRUN_STARTED
 
         return reference_class
 

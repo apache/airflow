@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+EVALUATION_TIMING_FIELD = "evaluation_timing"
+
 
 class DeadlineAlertFields:
     """
@@ -172,6 +174,12 @@ class SerializedReferenceModels:
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at
+
+    class DagRunStartDateDeadline(SerializedBaseDeadlineReference):
+        """A deadline that returns when a DagRun started."""
+
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
+            return dagrun.start_date
 
     @dataclass
     class AverageRuntimeDeadline(SerializedBaseDeadlineReference):
@@ -321,6 +329,9 @@ class SerializedReferenceModels:
         # Deadlines that should be created when the DagRun is queued.
         DAGRUN_QUEUED: tuple = ()
 
+        # Deadlines that should be created when the DagRun starts running.
+        DAGRUN_STARTED: tuple = ()
+
         # All DagRun-related deadline types.
         DAGRUN: tuple = ()
 
@@ -331,9 +342,11 @@ SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
     SerializedReferenceModels.AverageRuntimeDeadline,
 )
 SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.DagRunQueuedAtDeadline,)
+SerializedReferenceModels.TYPES.DAGRUN_STARTED = (SerializedReferenceModels.DagRunStartDateDeadline,)
 SerializedReferenceModels.TYPES.DAGRUN = (
     *SerializedReferenceModels.TYPES.DAGRUN_CREATED,
     *SerializedReferenceModels.TYPES.DAGRUN_QUEUED,
+    *SerializedReferenceModels.TYPES.DAGRUN_STARTED,
     SerializedReferenceModels.SerializedCustomReference,
 )
 

@@ -42,6 +42,7 @@ from airflow.sdk.definitions.deadline import (
     BaseDeadlineReference,
     DagRunLogicalDateDeadline,
     DagRunQueuedAtDeadline,
+    DagRunStartDateDeadline,
     DeadlineReference,
     FixedDatetimeDeadline,
     deadline_reference,
@@ -504,14 +505,29 @@ class TestCalculatedDeadlineReferences:
             ),
             pytest.param(SerializedReferenceModels.DagRunQueuedAtDeadline(), "queued_at", id="queued_at"),
             pytest.param(
+                SerializedReferenceModels.DagRunStartDateDeadline(),
+                "start_date",
+                id="start_date",
+            ),
+            pytest.param(
                 ReferenceModels.DagRunLogicalDateDeadline(), "logical_date", id="legacy_logical_date"
             ),
             pytest.param(ReferenceModels.DagRunQueuedAtDeadline(), "queued_at", id="legacy_queued_at"),
+            pytest.param(
+                ReferenceModels.DagRunStartDateDeadline(),
+                "start_date",
+                id="legacy_start_date",
+            ),
         ],
     )
     def test_dagrun_references_use_supplied_dagrun(self, reference, attribute, session):
         """DagRun references use the in-memory DagRun instead of querying it again."""
-        dagrun = SimpleNamespace(dag_id=DAG_ID, logical_date=DEFAULT_DATE, queued_at=DEFAULT_DATE)
+        dagrun = SimpleNamespace(
+            dag_id=DAG_ID,
+            logical_date=DEFAULT_DATE,
+            queued_at=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+        )
         interval = timedelta(hours=1)
 
         assert getattr(dagrun, attribute) == DEFAULT_DATE
@@ -728,6 +744,31 @@ class TestCalculatedDeadlineReferences:
         )
         assert result is None
 
+    @pytest.mark.parametrize(
+        "reference",
+        [
+            pytest.param(
+                SerializedReferenceModels.DagRunStartDateDeadline(),
+                id="serialized",
+            ),
+            pytest.param(
+                ReferenceModels.DagRunStartDateDeadline(),
+                id="legacy",
+            ),
+        ],
+    )
+    def test_start_date_reference_without_start_date(self, reference, session):
+        dagrun = SimpleNamespace(dag_id=DAG_ID, start_date=None)
+
+        assert (
+            reference.evaluate_with(
+                session=session,
+                interval=timedelta(minutes=30),
+                dagrun=dagrun,
+            )
+            is None
+        )
+
 
 class TestDeadlineReference:
     """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""
@@ -743,6 +784,9 @@ class TestDeadlineReference:
 
         queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
         assert isinstance(queued_reference, DagRunQueuedAtDeadline)
+
+        start_date_reference = DeadlineReference.DAGRUN_START_DATE
+        assert isinstance(start_date_reference, DagRunStartDateDeadline)
 
         average_runtime_reference = DeadlineReference.AVERAGE_RUNTIME()
         assert isinstance(average_runtime_reference, AverageRuntimeDeadline)
