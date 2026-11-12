@@ -22,21 +22,12 @@ import { useTranslation } from "react-i18next";
 import { formatNumber } from "src/utils";
 
 type Props = {
-  readonly count: number | null;
+  readonly count: number;
 };
 
-/**
- * An import-error count, flagged red only when there is something to flag.
- *
- * Null is not zero: it means the caller may not read import errors, so it renders as unknown
- * rather than as a clean bill of health.
- */
+/** An import-error count, flagged red only when there is something to flag. */
 export const ImportErrorCount = ({ count }: Props) => {
   const { i18n } = useTranslation();
-
-  if (count === null) {
-    return <Text color="fg.muted">-</Text>;
-  }
 
   return count === 0 ? (
     <Text color="fg.muted">0</Text>

@@ -550,7 +550,7 @@ ARG_DB_DRY_RUN = Arg(
 )
 ARG_DB_SKIP_ARCHIVE = Arg(
     ("--skip-archive",),
-    help="Don't preserve purged records in an archive table.",
+    help="Delete purged records directly without creating an archive table.",
     action="store_true",
 )
 ARG_DB_EXPORT_FORMAT = Arg(
@@ -767,7 +767,7 @@ ARG_API_SERVER_WORKERS = Arg(
 )
 ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
-    default=120,
+    default=conf.get("api", "worker_timeout"),
     type=int,
     help="The timeout for waiting on API server workers",
 )
@@ -846,9 +846,13 @@ ARG_NUM_RUNS = Arg(
 
 ARG_ONLY_IDLE = Arg(
     ("-i", "--only-idle"),
-    default=conf.getboolean("scheduler", "only_idle", fallback=False),
-    help="Only count runs after the scheduler becomes idle.",
-    action="store_true",
+    default=None,
+    # Square brackets would be eaten as Rich markup by the help formatter, so name the option dotted.
+    help=(
+        "Only count runs after the scheduler becomes idle. Requires --num-runs to be a positive number. "
+        "Defaults to the scheduler.only_idle config option; pass --no-only-idle to override it."
+    ),
+    action=argparse.BooleanOptionalAction,
 )
 
 ARG_WITHOUT_MINGLE = Arg(
@@ -1036,6 +1040,16 @@ ARG_UPDATE_CONFIG_FIX = Arg(
 ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
     ("--all-recommendations",),
     help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
+    action="store_true",
+)
+
+ARG_UPDATE_CONFIG_SHOW_SENSITIVE = Arg(
+    ("--show-sensitive",),
+    help=(
+        "Show real values of sensitive options (passwords, keys, tokens, etc.) in the dry-run "
+        "preview instead of masking them as '< hidden >'. Has no effect together with --fix, "
+        "which always writes real values to airflow.cfg."
+    ),
     action="store_true",
 )
 
@@ -2087,6 +2101,7 @@ CONFIG_COMMANDS = (
             ARG_VERBOSE,
             ARG_UPDATE_CONFIG_FIX,
             ARG_UPDATE_ALL_RECOMMENDATIONS,
+            ARG_UPDATE_CONFIG_SHOW_SENSITIVE,
         ),
     ),
 )

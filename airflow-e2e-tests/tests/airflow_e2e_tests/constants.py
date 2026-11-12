@@ -127,6 +127,17 @@ NODE_IMAGE = os.environ.get("NODE_IMAGE", "node:22-slim")
 # Writable HOME for the containerized pnpm build; gitignored, caches persist.
 TS_SDK_BUILD_HOME_PATH = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
 
+# YAML Dag E2E test paths
+YAML_DAGS_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "yaml-dags"
+YAML_DAG_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "yaml-dag.yml"
+# Must match "params.bucket" in yaml-dags/yaml_s3_roundtrip.yaml.
+YAML_DAG_BUCKET = "airflow-yaml-dag"
+
+# The lang_sdk_xcom_object_storage mode builds the Java, Go and TypeScript example bundles above.
+LANG_SDK_XCOM_OBJECT_STORAGE_COMPOSE_PATH = (
+    AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "lang-sdk-xcom-object-storage.yml"
+)
+
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)
 # provider rather than the published one from PyPI.

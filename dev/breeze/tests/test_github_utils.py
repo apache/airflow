@@ -22,8 +22,11 @@ from unittest import mock
 import pytest
 
 from airflow_breeze.utils.github import (
+    download_constraints_file,
+    download_file_from_github,
     env_without_github_tokens,
     format_github_token_scope_guidance,
+    get_branch_commit,
     retrieve_github_token,
     run_gh_command,
 )
@@ -182,3 +185,81 @@ def test_run_gh_command_skips_subprocess_in_dry_run(mock_run):
 
     assert result.returncode == 0
     mock_run.assert_not_called()
+
+
+@mock.patch("requests.get")
+def test_get_branch_commit_returns_the_commit_sha(mock_get, monkeypatch):
+    monkeypatch.delenv("CONSTRAINTS_GITHUB_REPOSITORY", raising=False)
+    mock_get.return_value = mock.Mock(status_code=200, text="c" * 40 + "\n")
+
+    assert get_branch_commit("constraints-main", github_token="token") == "c" * 40
+    assert (
+        mock_get.call_args.args[0] == "https://api.github.com/repos/apache/airflow/commits/constraints-main"
+    )
+    assert mock_get.call_args.kwargs["headers"]["Authorization"] == "Bearer token"
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        mock.Mock(status_code=403, text="", headers={}, **{"json.return_value": {"message": "rate limit"}}),
+        mock.Mock(status_code=200, text="<html>not a sha</html>", headers={}),
+    ],
+)
+@mock.patch("requests.get")
+def test_get_branch_commit_returns_none_instead_of_exiting(mock_get, response):
+    mock_get.return_value = response
+
+    assert get_branch_commit("constraints-main") is None
+
+
+@mock.patch("requests.get")
+def test_get_branch_commit_returns_none_when_github_is_unreachable(mock_get):
+    import requests
+
+    mock_get.side_effect = requests.ConnectionError("unreachable")
+
+    assert get_branch_commit("constraints-main") is None
+
+
+@pytest.mark.parametrize(
+    ("constraints_github_repository", "expected_repository"),
+    [(None, "apache/airflow"), ("", "apache/airflow"), ("my-org/airflow", "my-org/airflow")],
+)
+@mock.patch("requests.get")
+def test_constraints_are_read_from_constraints_github_repository(
+    mock_get, constraints_github_repository, expected_repository, monkeypatch, tmp_path
+):
+    if constraints_github_repository is None:
+        monkeypatch.delenv("CONSTRAINTS_GITHUB_REPOSITORY", raising=False)
+    else:
+        monkeypatch.setenv("CONSTRAINTS_GITHUB_REPOSITORY", constraints_github_repository)
+    mock_get.return_value = mock.Mock(status_code=200, text="c" * 40, content=b"pkg-a==1.0.0\n")
+
+    assert get_branch_commit("constraints-main") == "c" * 40
+    assert download_constraints_file(
+        constraints_reference="c" * 40,
+        python_version="3.14",
+        github_token=None,
+        airflow_constraints_mode="constraints",
+        output_file=tmp_path / "constraints.txt",
+    )
+    assert [call.args[0] for call in mock_get.call_args_list] == [
+        f"https://api.github.com/repos/{expected_repository}/commits/constraints-main",
+        f"https://api.github.com/repos/{expected_repository}/contents/constraints-3.14.txt?ref={'c' * 40}",
+    ]
+
+
+@mock.patch("requests.get")
+def test_other_files_are_still_downloaded_from_apache_airflow(mock_get, monkeypatch, tmp_path):
+    monkeypatch.setenv("CONSTRAINTS_GITHUB_REPOSITORY", "my-org/airflow")
+    mock_get.return_value = mock.Mock(status_code=200, content=b"{}")
+
+    assert download_file_from_github(
+        reference="3.1.0",
+        path="airflow-core/src/airflow/ui/package.json",
+        output_file=tmp_path / "package.json",
+    )
+    assert mock_get.call_args.args[0] == (
+        "https://api.github.com/repos/apache/airflow/contents/airflow-core/src/airflow/ui/package.json?ref=3.1.0"
+    )

@@ -308,6 +308,16 @@
           "type": "string",
           "format": "date-time"
         },
+        "start_date": {
+          "description": "Absent from the worker's events of a task resumed from deferral before Airflow 3.2.2, whose start date there is the resume time.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_date": {
+          "description": "Set once the task instance finished: on the COMPLETE and FAIL events.",
+          "type": "string",
+          "format": "date-time"
+        },
         "log_url": {
           "type": "string",
           "format": "uri"

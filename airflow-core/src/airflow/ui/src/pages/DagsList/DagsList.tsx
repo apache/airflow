@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Box, Flex, HStack, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiSidebar } from "react-icons/fi";
+import { LuFolderInput, LuFolderOutput } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -60,6 +60,7 @@ import { DagsFilters } from "./DagsFilters";
 import { createColumns, getRowKey } from "./DagsListColumns";
 import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
 import { SortSelect } from "./SortSelect";
+import { MAX_RECENT_RUNS } from "./recentRunsLayout";
 
 const {
   DAG_BUNDLE,
@@ -67,6 +68,7 @@ const {
   DAG_RUN_STATE,
   DAG_RUN_STATE_WITHIN_HOURS,
   FAVORITE,
+  HAS_IMPORT_ERRORS,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
   NEEDS_REVIEW,
@@ -135,6 +137,19 @@ const BulkActionBar = ({
   );
 };
 
+// While the folder drawer is open, the toggle reaches back across the gap to the drawer and shares
+// its background, so the drawer reads as opening out of the button.
+const OPEN_FOLDER_TOGGLE_PROPS = {
+  bg: "bg.muted",
+  borderEndRadius: "full",
+  borderStartRadius: 0,
+  flexShrink: 0,
+  marginStart: -4,
+  paddingStart: 4,
+  variant: "ghost",
+  width: "52px",
+} as const;
+
 export const DagsList = () => {
   const { t: translate } = useTranslation();
 
@@ -142,15 +157,14 @@ export const DagsList = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
-  const dagRunsLimit = display === "card" ? 14 : 1;
+  const dagRunsLimit = display === "card" ? MAX_RECENT_RUNS : 1;
 
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  // Derived through the pill's own mapping so the query can never filter on more than the pill
-  // shows. A legacy ``scheduling_state=active`` has no choice to represent it, and would
-  // otherwise narrow the list with nothing on screen saying why.
+  // Derived through the pill's own mapping so the query can never filter on more than the pill shows.
   const { paused, schedulingState } = pausedStateToQuery(pausedStateFromSearchParams(searchParams));
   const showFavorites = searchParams.get(FAVORITE);
+  const importErrors = searchParams.get(HAS_IMPORT_ERRORS);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
@@ -218,12 +232,19 @@ export const DagsList = () => {
   };
 
   let isFavorite = undefined;
+  let hasImportErrors = undefined;
   let pendingHitl = undefined;
 
   if (showFavorites === "true") {
     isFavorite = true;
   } else if (showFavorites === "false") {
     isFavorite = false;
+  }
+
+  if (importErrors === "true") {
+    hasImportErrors = true;
+  } else if (importErrors === "false") {
+    hasImportErrors = false;
   }
 
   if (pendingReviews === "true") {
@@ -239,6 +260,8 @@ export const DagsList = () => {
     dagRunsLimit,
     dagRunState,
     dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
+    excludeStale: hasImportErrors !== true,
+    hasImportErrors,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
@@ -310,7 +333,16 @@ export const DagsList = () => {
         {/* Only show the folder sidebar when there is something to navigate; deployments with all
             Dags at the bundle root would otherwise get an empty panel. */}
         {showFolderTree ? (
-          <Box flexShrink={0} overflowY="auto" position="sticky" top={0} width="280px">
+          <Box
+            bg="bg.muted"
+            borderRadius="md"
+            flexShrink={0}
+            overflowY="auto"
+            p={3}
+            position="sticky"
+            top={0}
+            width="280px"
+          >
             <DagFolderTree
               folders={folders}
               isLoading={foldersLoading}
@@ -344,7 +376,27 @@ export const DagsList = () => {
                         onChange={handleSearchChange}
                         placeholder={translate("dags:search.dags")}
                       />
-                      <DagsFilters />
+                      <HStack alignItems="flex-start" gap={1} w="100%">
+                        {hasFolderTree ? (
+                          <Tooltip
+                            content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                            openDelay={200}
+                            portalled
+                          >
+                            <IconButton
+                              aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                              aria-pressed={showFolders}
+                              onClick={() => setShowFolders(!showFolders)}
+                              {...(showFolders
+                                ? OPEN_FOLDER_TOGGLE_PROPS
+                                : { borderRadius: "full", variant: "outline" })}
+                            >
+                              {showFolders ? <LuFolderOutput /> : <LuFolderInput />}
+                            </IconButton>
+                          </Tooltip>
+                        ) : undefined}
+                        <DagsFilters />
+                      </HStack>
                     </VStack>
                   }
                   headingExtra={<DagImportErrors iconOnly />}
@@ -354,28 +406,8 @@ export const DagsList = () => {
                   onDisplayToggleChange={handleDisplayToggleChange}
                   onStateChange={setTableURLState}
                   presentationActions={
-                    hasFolderTree || display === "card" ? (
-                      <>
-                        {hasFolderTree ? (
-                          <Tooltip
-                            content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                            openDelay={200}
-                            portalled
-                          >
-                            <IconButton
-                              aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                              onClick={() => setShowFolders(!showFolders)}
-                              size="sm"
-                              variant={showFolders ? "solid" : "outline"}
-                            >
-                              <FiSidebar />
-                            </IconButton>
-                          </Tooltip>
-                        ) : undefined}
-                        {display === "card" ? (
-                          <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
-                        ) : undefined}
-                      </>
+                    display === "card" ? (
+                      <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
                     ) : undefined
                   }
                   showDisplayToggle

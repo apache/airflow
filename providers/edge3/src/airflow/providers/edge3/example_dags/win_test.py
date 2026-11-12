@@ -311,7 +311,7 @@ with DAG(
         def connection():
             try:
                 conn = BaseHook.get_connection("integration_test")
-                print(f"Got connection {conn}")
+                print(f"Got connection {conn.conn_id}")
             except AirflowNotFoundException:
                 print("Connection 'integration_test' not found... but also OK.")
 

@@ -43,7 +43,9 @@ type Props = {
   readonly loopMaxIterations?: number | null;
   readonly runId?: string | null;
   readonly taskInstance?:
-    LightGridTaskInstanceSummaryWithWhen | TaskInstanceHistoryResponse | TaskInstanceResponse;
+    | LightGridTaskInstanceSummaryWithWhen
+    | TaskInstanceHistoryResponse
+    | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
@@ -149,6 +151,13 @@ const TaskInstanceTooltip = ({
                       : renderDuration(taskInstance.duration)}
                   </Text>
                 </>
+              ) : undefined}
+              {"retry_at" in taskInstance &&
+              taskInstance.state === "up_for_retry" &&
+              Boolean(taskInstance.retry_at) ? (
+                <Text>
+                  {translate("taskInstance.retryAt")}: <Time datetime={taskInstance.retry_at} />
+                </Text>
               ) : undefined}
               {"min_start_date" in taskInstance && taskInstance.min_start_date !== null ? (
                 <>

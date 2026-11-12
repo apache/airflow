@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -26,14 +27,18 @@ from airflow_breeze.utils.fork_ci_messages import (
     _STATUS_DESCRIPTIONS,
     BEHIND_WARNING_COMMITS,
     CI_CHANGE_MARKER,
+    CI_MODIFICATION_MARKER,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
+    GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
     MAX_LISTED_CI_FILES,
     Marker,
     ci_change_approval_comment,
+    ci_modification_note_comment,
+    gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
     nudge_comment,
@@ -42,6 +47,8 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
     state_comment,
     tamper_close_comment,
+    ungated_comment,
+    workflow_disabled_comment,
 )
 
 MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15, 10, 0, tzinfo=UTC))
@@ -53,6 +60,7 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
         pytest.param(MARKER, id="without-behind"),
         pytest.param(replace(MARKER, behind=12), id="behind"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+        pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
 )
 def test_marker_round_trip(marker):
@@ -80,6 +88,23 @@ def test_state_comment_warns_about_a_branch_far_behind(state, behind, warned):
     )
 
     assert ("commits behind `v3-1-test`" in text) is warned
+
+
+@pytest.mark.parametrize(
+    ("state", "author_draft", "asks_to_mark_ready"),
+    [
+        pytest.param("green", True, True, id="green-author-draft"),
+        pytest.param("green_unverified", True, True, id="unverified-author-draft"),
+        pytest.param("green", False, False, id="green-ready"),
+        pytest.param("failed", True, False, id="failed-author-draft"),
+    ],
+)
+def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author_draft, asks_to_mark_ready):
+    text = state_comment(
+        Marker(state, "a", MARKER.since), fork="u/airflow", run_url=None, author_draft=author_draft
+    )
+
+    assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
 
 
 def test_parse_marker_absent():
@@ -114,6 +139,11 @@ def test_parse_marker_malformed(body):
         pytest.param(nudge_comment(fork="u/airflow"), id="nudge"),
         pytest.param(inactivity_close_comment(days=7, fork="u/airflow"), id="inactivity"),
         pytest.param(tamper_close_comment(run_url="https://x"), id="tamper"),
+        pytest.param(
+            workflow_disabled_comment(fork="u/airflow", workflow_state="disabled_manually"), id="disabled"
+        ),
+        pytest.param(gate_modified_close_comment(change="it changes `x`"), id="gate-modified"),
+        pytest.param(ungated_comment(MARKER, base_ref="v2-10-test"), id="ungated"),
     ],
 )
 def test_every_comment_ends_with_footer(text):
@@ -125,9 +155,11 @@ def test_every_comment_ends_with_footer(text):
     [
         pytest.param(state_comment(Marker("setup_required", "a", MARKER.since), fork="u/fork", run_url=None)),
         pytest.param(inactivity_close_comment(days=7, fork="u/fork")),
+        pytest.param(workflow_disabled_comment(fork="u/fork", workflow_state="disabled_manually")),
     ],
 )
 def test_setup_texts_give_the_exact_command(text):
+    assert "gh repo sync u/fork --branch main" in text
     assert "gh workflow enable ci-amd.yml -R u/fork" in text
 
 
@@ -148,16 +180,31 @@ def test_job_status_context(name, expected):
     assert job_status_context(name) == f"{JOB_STATUS_CONTEXT_PREFIX}{expected}"
 
 
-def test_ci_change_approval_comment_lists_the_files():
+@pytest.mark.parametrize(
+    ("build_comment", "marker"),
+    [
+        pytest.param(ci_change_approval_comment, CI_CHANGE_MARKER, id="approval"),
+        pytest.param(ci_modification_note_comment, CI_MODIFICATION_MARKER, id="note"),
+    ],
+)
+def test_ci_file_comments_list_the_files(build_comment, marker):
+    if build_comment is ci_modification_note_comment:
+        build_comment = functools.partial(build_comment, gated=False)
     paths = [f".github/workflows/w{i}.yml" for i in range(MAX_LISTED_CI_FILES + 2)]
-    comment = ci_change_approval_comment(
-        ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths]
-    )
+    comment = build_comment(ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths])
 
-    assert comment.startswith(CI_CHANGE_MARKER)
+    assert comment.startswith(marker)
     assert comment.endswith(FOOTER)
     assert "- `dev/breeze/?evil?.py`" in comment
     assert "- `.github/a??@someone.yml`" in comment
     assert "\n@someone" not in comment
     assert "- and 4 more" in comment
     assert f"`{paths[-1]}`" not in comment
+
+
+@pytest.mark.parametrize("gated", [True, False])
+def test_ci_modification_note_mentions_fork_execution_only_when_gated(gated):
+    comment = ci_modification_note_comment(ci_files=["Dockerfile.ci"], gated=gated)
+
+    assert (GATED_NOTE_SENTENCE in comment) is gated
+    assert comment.endswith(FOOTER)

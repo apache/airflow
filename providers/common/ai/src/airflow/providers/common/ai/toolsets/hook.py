@@ -39,6 +39,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.tool_prefix import validate_tool_prefix
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 
 if TYPE_CHECKING:
@@ -156,10 +157,7 @@ class HookToolset(AirflowToolset):
         pinned_arguments: dict[str, Any] | None = None,
         max_retries: int | None = None,
     ) -> None:
-        if tool_prefix and not tool_prefix.isidentifier():
-            # The prefixed names are rendered as Python function signatures under
-            # code mode, so a name that is not an identifier breaks there.
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        validate_tool_prefix(tool_prefix)
         if tool_name_prefix is not None:
             if tool_prefix and f"{tool_prefix}_" != tool_name_prefix:
                 raise ValueError(
@@ -502,7 +500,7 @@ def _extract_description(method: Callable[..., Any]) -> str:
 
 
 # Matches Sphinx-style `:param name:` and Google-style `name:` under an ``Args:`` block.
-_SPHINX_PARAM_RE = re.compile(r":param\s+(\w+):\s*(.+?)(?=\n\s*:|$)", re.DOTALL)
+_SPHINX_PARAM_RE = re.compile(r"^(\s*):param\s+(\w+):(.*)$")
 _GOOGLE_ARGS_RE = re.compile(r"^\s{2,}(\w+)\s*(?:\(.+?\))?:\s*(.+)", re.MULTILINE)
 
 
@@ -510,12 +508,22 @@ def _parse_param_docs(docstring: str) -> dict[str, str]:
     """Parse parameter descriptions from Sphinx or Google-style docstrings."""
     params: dict[str, str] = {}
 
-    # Try Sphinx style first.
-    for match in _SPHINX_PARAM_RE.finditer(docstring):
-        name = match.group(1)
-        desc = " ".join(match.group(2).split())
-        params[name] = desc
+    # Try Sphinx style first. As in a reStructuredText field list, a description runs on
+    # through the lines indented deeper than its ``:param`` line, so neither a continuation
+    # line starting with a role such as ``:class:`` nor an example block after the last
+    # parameter changes where it ends.
+    name: str | None = None
+    indent = 0
+    for line in docstring.splitlines():
+        if match := _SPHINX_PARAM_RE.match(line):
+            name, indent = match.group(2), len(match.group(1))
+            params[name] = match.group(3)
+        elif name and (not line.strip() or len(line) - len(line.lstrip()) > indent):
+            params[name] += " " + line
+        else:
+            name = None
 
+    params = {param: desc for param, text in params.items() if (desc := " ".join(text.split()))}
     if params:
         return params
 

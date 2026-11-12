@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Read and format Airflow task logs for display in pytest output on failure.
+Print the OpenLineage validation errors of Airflow task logs in pytest output on failure.
 
 Task logs are structlog JSON-lines written by the deployed Airflow stack; they land on the host via
-the ``./logs:/opt/airflow/logs`` bind mount in ``docker-compose.yaml``. Rather than requiring someone
-to unzip the CI log artifact and open a specific ``attempt=N.log`` file, the warning/error highlights
-are printed straight into the failing test's captured output.
+the ``./logs:/opt/airflow/logs`` bind mount in ``docker-compose.yaml``. Full logs are too long for the CI
+output, so only the lines tagged with ``VALIDATION_ERROR_TAG`` are printed: ``OpenLineageTestOperator``
+tags every reason its event validation failed, as do the other helpers of the system test Dags. The full
+logs stay in the CI log artifact.
 """
 
 from __future__ import annotations
@@ -34,31 +35,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rich.console import Console
 
-LOG_LEVELS_OF_INTEREST = frozenset({"warning", "error", "critical"})
-MAX_HIGHLIGHT_LINES = 100
+# Prefix of the log lines describing OpenLineage validation errors, keep in sync with VALIDATION_ERROR_TAG in
+# providers/openlineage/tests/system/openlineage/operator.py
+VALIDATION_ERROR_TAG = "[OL_VALIDATION_ERROR]"
+MAX_ERROR_LINES = 100
 
 _ATTEMPT_NUMBER_PATTERN = re.compile(r"attempt=(\d+)\.log$")
 
 
-def format_log_line(record: dict) -> str:
-    """Render one parsed structlog record as a compact, human-readable line."""
-    level = str(record.get("level", "info")).upper()
-    event = record.get("event", "")
-    lines = [f"[{level}] {event}"]
-    for exc in record.get("error_detail") or []:
-        exc_type = exc.get("exc_type", "Exception")
-        exc_value = exc.get("exc_value", "")
-        lines.append(f"    {exc_type}: {exc_value}")
-        frames = exc.get("frames") or []
-        if frames:
-            frame = frames[-1]
-            lines.append(f"    at {Path(frame['filename']).name}:{frame['lineno']} in {frame['name']}")
-    return "\n".join(lines)
-
-
-def filter_log_highlights(raw_lines: Iterable[str], max_lines: int = MAX_HIGHLIGHT_LINES) -> list[str]:
-    """Parse structlog JSON lines and keep only warning/error/critical ones, formatted for display."""
-    highlights = []
+def extract_validation_errors(raw_lines: Iterable[str], max_lines: int = MAX_ERROR_LINES) -> list[str]:
+    """Parse structlog JSON lines and return the tagged validation errors, without the tag."""
+    errors = []
     for raw_line in raw_lines:
         stripped_line = raw_line.strip()
         if not stripped_line:
@@ -68,14 +55,13 @@ def filter_log_highlights(raw_lines: Iterable[str], max_lines: int = MAX_HIGHLIG
         except json.JSONDecodeError:
             # Task logs aren't guaranteed to be 100% JSON (e.g. stray print output) — skip those lines.
             continue
-        if record.get("level") in LOG_LEVELS_OF_INTEREST:
-            highlights.append(format_log_line(record))
-    if not highlights:
-        return ["(no warning/error lines in this task's log)"]
-    if len(highlights) > max_lines:
-        dropped = len(highlights) - max_lines
-        highlights = highlights[:max_lines] + [f"... ({dropped} more lines suppressed)"]
-    return highlights
+        for line in str(record.get("event", "")).splitlines():
+            if VALIDATION_ERROR_TAG in line:
+                errors.append(line.split(VALIDATION_ERROR_TAG, 1)[1].strip())
+    if len(errors) > max_lines:
+        dropped = len(errors) - max_lines
+        errors = errors[:max_lines] + [f"... ({dropped} more lines suppressed)"]
+    return errors
 
 
 def _attempt_number(path: Path) -> int:
@@ -95,7 +81,7 @@ def find_log_paths(logs_folder: Path, dag_id: str, run_id: str, task_id: str) ->
 
 
 def print_task_log(console: Console, logs_folder: Path, dag_id: str, run_id: str, task_id: str) -> None:
-    """Print the warning/error highlights of a task's log(s), or a note if none are found."""
+    """Print the OpenLineage validation errors of a task's log(s), or a note if there are none."""
     console.print(f"[bold cyan]--- {dag_id} / {task_id} / START---[/]")
     log_paths = find_log_paths(logs_folder, dag_id, run_id, task_id)
     if not log_paths:
@@ -106,6 +92,7 @@ def print_task_log(console: Console, logs_folder: Path, dag_id: str, run_id: str
     for log_path in log_paths:
         if len(log_paths) > 1:
             console.print(f"[cyan]{log_path.relative_to(logs_folder)}[/]")
-        for line in filter_log_highlights(log_path.read_text().splitlines()):
-            console.print(line)
+        errors = extract_validation_errors(log_path.read_text().splitlines())
+        for line in errors or ["(no OpenLineage validation errors in this task's log)"]:
+            console.print(line, markup=False, highlight=False)
     console.print(f"[bold cyan]--- {dag_id} / {task_id} / END---[/]")
