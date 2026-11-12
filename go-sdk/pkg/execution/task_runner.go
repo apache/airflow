@@ -117,34 +117,16 @@ func RunTask(
 	}
 
 	timeoutSeconds, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
-	if err != nil {
-		logger.Error("Invalid execution_timeout",
-			"dag_id", details.TI.DagID,
-			"task_id", details.TI.TaskID,
-			"error", err,
-		)
-		return failTask(details.TIContext.ShouldRetry, err)
+	if err == nil && timeoutSeconds != nil {
+		err = client.setExecutionTimeout(ctx, *timeoutSeconds)
 	}
-	// Same rules as the Python task runner: zero means no timeout, negative has already elapsed.
-	switch {
-	case timeoutSeconds == nil || *timeoutSeconds == 0:
-	case *timeoutSeconds < 0:
-		err := fmt.Errorf("execution_timeout of %g seconds has already elapsed", *timeoutSeconds)
-		logger.Error("Task timed out",
+	if err != nil {
+		logger.Error("Unable to apply execution_timeout",
 			"dag_id", details.TI.DagID,
 			"task_id", details.TI.TaskID,
 			"error", err,
 		)
 		return failTask(details.TIContext.ShouldRetry, err)
-	default:
-		if err := client.setExecutionTimeout(ctx, *timeoutSeconds); err != nil {
-			logger.Error("Unable to send execution_timeout to the supervisor",
-				"dag_id", details.TI.DagID,
-				"task_id", details.TI.TaskID,
-				"error", err,
-			)
-			return failTask(details.TIContext.ShouldRetry, err)
-		}
 	}
 
 	// The runtime runs a TriggerDagRun task itself. It has no Go function to bind arguments to.
