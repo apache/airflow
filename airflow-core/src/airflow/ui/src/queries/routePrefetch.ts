@@ -29,6 +29,7 @@ import {
 } from "openapi/queries/prefetch";
 
 import { DEFAULT_TASK_INSTANCE_TAB_KEY } from "src/constants/localStorage";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { DEFAULT_TASK_INSTANCE_TAB_PATHS, type DefaultTaskInstanceTab } from "src/constants/tab";
 
 // Route loaders run in parallel with the root loader (the UI config), so these requests start while the app
@@ -37,7 +38,19 @@ import { DEFAULT_TASK_INSTANCE_TAB_PATHS, type DefaultTaskInstanceTab } from "sr
 // their requests and never fail, so they do not delay or break rendering; a page whose query ends up with a
 // different key only sends its own request, as it does without the loaders.
 
-const hasSearch = (request: Request) => new URL(request.url).search !== "";
+// The only URL parameters that change the task instance or log query keys. Others, such as the Logs tab's
+// log level and source filters, leave the keys unchanged.
+const ATTEMPT_SEARCH_PARAMS = [
+  SearchParamsKeys.TRY_NUMBER,
+  SearchParamsKeys.REGION_ID,
+  SearchParamsKeys.REGION_INDEX,
+] as const;
+
+const hasAttemptSearchParams = (request: Request) => {
+  const { searchParams } = new URL(request.url);
+
+  return ATTEMPT_SEARCH_PARAMS.some((key) => searchParams.has(key));
+};
 
 export const createDagLoader =
   (queryClient: QueryClient) =>
@@ -57,6 +70,8 @@ export const createRunLoader =
     const { dagId = "", runId = "" } = params;
 
     void prefetchUseDagServiceGetDag(queryClient, { dagId });
+    // The breadcrumb's query, which every run and task page renders.
+    void prefetchUseDagServiceGetDagDetails(queryClient, { dagId });
     void prefetchUseDagRunServiceGetDagRun(queryClient, { dagId, dagRunId: runId });
 
     return null;
@@ -89,7 +104,11 @@ export const createTaskLogsLoader =
     const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = params;
     const parsedMapIndex = Number(mapIndex);
 
-    if (hasSearch(request) || Number.isNaN(parsedMapIndex) || (isDefaultTab && !defaultTabIsLogs())) {
+    if (
+      hasAttemptSearchParams(request) ||
+      Number.isNaN(parsedMapIndex) ||
+      (isDefaultTab && !defaultTabIsLogs())
+    ) {
       return null;
     }
 

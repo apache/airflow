@@ -83,11 +83,12 @@ describe("route prefetch loaders", () => {
     });
   });
 
-  it("caches the Dag and the run for run and task pages", async () => {
+  it("caches the Dag, its details and the run for run and task pages", async () => {
     createRunLoader(queryClient)(args({ dagId: "my_dag", runId: "run_1" }));
 
     await vi.waitFor(() => {
       expect(queryClient.getQueryData(UseDagServiceGetDagKeyFn({ dagId: "my_dag" }))).toBeDefined();
+      expect(queryClient.getQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: "my_dag" }))).toBeDefined();
       expect(
         queryClient.getQueryData(UseDagRunServiceGetDagRunKeyFn({ dagId: "my_dag", dagRunId: "run_1" })),
       ).toBeDefined();
@@ -144,6 +145,14 @@ describe("route prefetch loaders", () => {
     createTaskLogsLoader(queryClient, { isDefaultTab: false })(args(taskParams, url));
 
     expect(TaskInstanceService.getMappedTaskInstance).not.toHaveBeenCalled();
+  });
+
+  it("prefetches the log when the URL only carries the Logs tab's filters", async () => {
+    createTaskLogsLoader(queryClient, { isDefaultTab: false })(
+      args(taskParams, `${BASE}?log_level=error&log_source=task`),
+    );
+
+    await vi.waitFor(() => expect(TaskInstanceService.getLog).toHaveBeenCalled());
   });
 
   it.each([
