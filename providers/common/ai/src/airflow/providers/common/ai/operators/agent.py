@@ -1415,14 +1415,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         usage_limits = coerce_usage_limits(self.usage_limits)
         self._decide_durable(context)
 
-        # A try that paused and then ended some other way (marked failed while waiting, a failed
-        # request) leaves its transcript behind; a fresh run never reads it. ``.get``: a context
-        # built by hand in a unit test has no task state store, and nothing to clean up.
-        if (
-            not self._durable
-            and self._supports_tool_approval()
-            and (store := context.get("task_state_store")) is not None
-        ):
+        # A try that paused without durable execution and then ended some other way (marked failed
+        # while waiting, a failed request) leaves its transcript behind; a fresh run never reads it.
+        # A durable run too: a try from before the upgrade that turned the default on may have left
+        # one. ``.get``: a context built by hand in a unit test has no task state store.
+        if self._supports_tool_approval() and (store := context.get("task_state_store")) is not None:
             self._delete_approval_state(store, _TOOL_APPROVAL_TRANSCRIPT_KEY)
 
         ti = context["task_instance"]
