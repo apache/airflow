@@ -44,6 +44,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetWatcher,
 )
 from airflow.serialization.definitions.deadline import (
+    EVALUATION_TIMING_FIELD,
     DeadlineAlertFields,
     SerializedDeadlineAlert,
     SerializedReferenceModels,
@@ -192,7 +193,11 @@ def decode_deadline_reference(reference_data: dict):
     else:
         reference_class = SerializedReferenceModels.SerializedCustomReference
 
-    return reference_class.deserialize_reference(reference_data)
+    reference = reference_class.deserialize_reference(reference_data)
+    if EVALUATION_TIMING_FIELD in reference_data:
+        reference.evaluation_timing = reference_data[EVALUATION_TIMING_FIELD]
+
+    return reference
 
 
 _TIMEDELTA_CLASSNAME = "datetime.timedelta"
