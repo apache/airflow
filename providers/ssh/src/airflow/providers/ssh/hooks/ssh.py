@@ -732,8 +732,7 @@ class SSHHookAsync(BaseHook):
             "port": _get_value(self.port, conn.port, SSH_PORT),
             "username": _get_value(self.username, conn.login),
             "password": _get_value(self.password, conn.password),
-            # An explicit list offers zlib first, as paramiko does for SSHHook, on every asyncssh
-            # version: 2.18 moved "none" ahead of zlib in its defaults.
+            # asyncssh offers "none" first by default; offer zlib first, as paramiko does for SSHHook.
             "compression_algs": ["zlib@openssh.com", "zlib", "none"] if self.compress else ["none"],
         }
         if self.key_file:
