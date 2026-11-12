@@ -38,6 +38,7 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.dag_version import DagVersion
+from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.trigger import RecordedFailure, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -886,6 +887,47 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     for k, v in {"return_value": "xcomret", "a": "b", "c": "d"}.items():
         expected_xcoms[k] = json.dumps(v)
     assert actual_xcoms == expected_xcoms
+
+
+def test_submit_event_task_end_pushes_xcoms_in_the_caller_transaction(session, create_task_instance):
+    """A session-less xcom_push commits the scoped settings.Session via create_session() once per key."""
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    session.commit()
+    ti_id, dag_id, task_id, run_id = (
+        task_instance.id,
+        task_instance.dag_id,
+        task_instance.task_id,
+        task_instance.run_id,
+    )
+    count_callback_requests = select(func.count()).select_from(DbCallbackRequest)
+    callback_requests_before = session.scalar(count_callback_requests)
+
+    commit_count = 0
+
+    def count_commit(committed_session):
+        nonlocal commit_count
+        commit_count += 1
+
+    event.listen(session.__class__, "after_commit", count_commit)
+    try:
+        Trigger.submit_event(
+            trigger.id, TaskSuccessEvent(xcoms={"return_value": "x", "other": "y"}), session=session
+        )
+    finally:
+        event.remove(session.__class__, "after_commit", count_commit)
+    session.rollback()
+
+    assert commit_count == 0
+    assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti_id)) == State.DEFERRED
+    assert (
+        session.scalars(XComModel.get_many(dag_ids=[dag_id], task_ids=[task_id], run_id=run_id)).all() == []
+    )
+    assert session.scalar(count_callback_requests) == callback_requests_before
 
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
