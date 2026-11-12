@@ -67,8 +67,13 @@ class TestPostgresDialect:
     def test_get_primary_keys(self):
         assert PostgresDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
+    _TO_REGCLASS_SCHEMA = (
+        "coalesce(%s, (select n.nspname from pg_class c join pg_namespace n on "
+        "n.oid = c.relnamespace where c.oid = to_regclass(quote_ident(%s))))"
+    )
+
     @pytest.mark.parametrize("method", ["get_column_names", "get_primary_keys"])
-    def test_unqualified_table_resolves_current_schema(self, method):
+    def test_unqualified_table_resolves_schema_via_to_regclass(self, method):
         hook = MagicMock(placeholder="?", spec=DbApiHook)
         hook.get_records.return_value = []
         hook.escape_word_format = '"{}"'
@@ -76,8 +81,27 @@ class TestPostgresDialect:
         getattr(PostgresDialect(hook), method)("actors")
 
         kwargs = hook.get_records.call_args.kwargs
-        assert "coalesce(%s, current_schema())" in kwargs["sql"]
-        assert kwargs["parameters"] == (None, "actors")
+        assert self._TO_REGCLASS_SCHEMA in kwargs["sql"]
+        assert "current_schema()" not in kwargs["sql"]
+        assert kwargs["parameters"] == (None, "actors", "actors")
+
+    def test_unqualified_table_in_public_when_user_schema_is_first_on_search_path(self):
+        """Table lives in public but current_schema() would be the login role schema."""
+        hook = MagicMock(placeholder="?", spec=DbApiHook)
+        hook.escape_word_format = '"{}"'
+
+        def get_records(sql, parameters=None, **kwargs):
+            assert parameters == (None, "orders", "orders")
+            assert "to_regclass" in sql
+            assert "current_schema()" not in sql
+            if "kcu." in sql:
+                return [("id",)]
+            return [("id", None, "NO", None, "ALWAYS", "YES")]
+
+        hook.get_records.side_effect = get_records
+        dialect = PostgresDialect(hook)
+        assert dialect.get_primary_keys("orders") == ["id"]
+        assert dialect.get_column_names("orders") == ["id"]
 
     def test_generate_replace_sql(self):
         values = [

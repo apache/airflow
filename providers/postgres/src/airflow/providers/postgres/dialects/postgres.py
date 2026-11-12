@@ -51,11 +51,11 @@ class PostgresDialect(Dialect):
                             and kcu.constraint_schema = tco.constraint_schema
                             and kcu.constraint_name = tco.constraint_name
             where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = coalesce(%s, current_schema())
+            and kcu.table_schema = coalesce(%s, (select n.nspname from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.oid = to_regclass(quote_ident(%s))))
             and kcu.table_name = %s
             order by kcu.ordinal_position
         """
-        pk_columns = [row[0] for row in self.get_records(query, (schema, table))]
+        pk_columns = [row[0] for row in self.get_records(query, (schema, table, table))]
         return pk_columns or None
 
     @staticmethod
@@ -85,14 +85,14 @@ class PostgresDialect(Dialect):
                     is_generated,
                     is_identity
             from information_schema.columns
-            where table_schema = coalesce(%s, current_schema())
+            where table_schema = coalesce(%s, (select n.nspname from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.oid = to_regclass(quote_ident(%s))))
                 and table_name = %s
             order by ordinal_position
         """
         column_names = []
         for row in map(
             self._to_row,
-            self.get_records(query, (schema, table)),
+            self.get_records(query, (schema, table, table)),
         ):
             if predicate(row):
                 column_names.append(row["name"])
