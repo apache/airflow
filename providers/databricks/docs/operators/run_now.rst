@@ -143,11 +143,30 @@ when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is 
 run id won't be there for the next retry, and the operator will trigger a fresh run instead of
 reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose run
-already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
-and returns immediately without triggering a new run. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task deletes the stored run id by default (Airflow 3.4+), and so does clearing its whole
+Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next attempt then
+reads the stored run id back. What the next attempt does depends on the state of the Databricks run
+at that point:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Run state
+     - Default clear
+     - Clear that keeps task state
+   * - Still running
+     - Triggers a new job run. The first one keeps running.
+     - Reconnects to the running run.
+   * - Succeeded
+     - Triggers a new job run.
+     - Returns right away without triggering another one.
+   * - Failed or canceled
+     - Triggers a new job run.
+     - Triggers a new job run.
+
+Keep task state when a run is still running and nothing about the code or inputs changed, so you
+don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing.
 
 This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
 polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to

@@ -702,10 +702,9 @@ Things to know:
   a ``session``, when the call is made by an agent used through ``as_tool`` or reached
   through ``handoff()``, or when the approval is for a hosted MCP tool
   (``HostedMCPTool``). After you remove the approval requirement, clearing the task with
-  its task state kept (``keep_task_state``, or clearing the whole Dag run) replays the turns
-  before that call and asks the model again from there, so a tool call made in that same
-  answer runs again if the model asks for it. A clear that discards the task state starts
-  the agent over.
+  its task state kept replays the turns before that call and asks the model again from
+  there, so a tool call made in that same answer runs again if the model asks for it. A
+  default clear discards the task state and starts the agent over.
 - Every pause carries the answers the task has received so far, so keep the approvals one
   run asks for to a handful.
 
