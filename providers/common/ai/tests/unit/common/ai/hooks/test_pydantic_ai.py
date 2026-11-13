@@ -67,7 +67,11 @@ _GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
 
 def get_chain_members(model: FallbackModel) -> list[Model]:
     """Return the models of a chain with the member-stamping wrapper taken off."""
-    return [member.wrapped for member in model.models]
+    members = []
+    for member in model.models:
+        assert isinstance(member, MemberStampingModel)
+        members.append(member.wrapped)
+    return members
 
 
 def build_backend(*, model_name: str, base_url: str | None) -> ModelReadinessBackend:

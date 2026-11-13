@@ -61,7 +61,13 @@ from airflow.providers.common.ai.durable.capability import (
     _GivenIds,
     _JournalCodec,
 )
-from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
+from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
+from airflow.providers.common.ai.durable.journal import (
+    DurableJournal,
+    DurableRun,
+    Unrecordable,
+    journal_scope,
+)
 from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.exceptions import DurableJournalError, SQLToolsetConnectionError
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -1934,12 +1940,6 @@ class TestReplayUsage:
         assert usage.requests == 3
 
 
-_DIVERGED_EVENT = (
-    "Durable: the run took a different path from the previous attempt; "
-    "this step and every step after it run again"
-)
-
-
 class TestFallbackChainEdits:
     """Editing a fallback chain between attempts keeps the steps a surviving member answered."""
 
@@ -2001,21 +2001,26 @@ class TestFallbackChainEdits:
     )
     @pytest.mark.asyncio
     async def test_a_step_replays_only_while_its_answering_member_is_in_the_chain(
-        self, memory_storage, caplog, members, up, output, replayed, calls_by_member
+        self, memory_storage, members, up, output, replayed, calls_by_member
     ):
         calls = Calls()
         first = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
         await attempt(memory_storage, self.build_agent(first))
 
         journal = DurableJournal(memory_storage)
-        with journal_scope(journal):
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
             result = await self.build_agent(self.build_chain(calls, members, up=up)).run("go")
 
         assert result.output == output
         assert journal.stats.replayed["model"] == replayed
         assert {name: calls[name] for name in calls_by_member} == calls_by_member
         reason = "the model that answered this step, function:b, is no longer in the fallback chain"
-        assert ({"event": _DIVERGED_EVENT, "reason": reason} in caplog) is (replayed == 0)
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == (
+            [reason] if replayed == 0 else []
+        )
 
     @pytest.mark.parametrize(
         ("second_attempt", "replayed", "calls_by_member"),
@@ -2046,7 +2051,7 @@ class TestFallbackChainEdits:
         assert {name: calls[name] for name in calls_by_member} == calls_by_member
 
     @pytest.mark.asyncio
-    async def test_a_stamped_chain_rejects_a_response_without_a_stamp(self, memory_storage, caplog):
+    async def test_a_stamped_chain_rejects_a_response_without_a_stamp(self, memory_storage):
         calls = Calls()
         chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
         await attempt(memory_storage, self.build_agent(chain))
@@ -2055,14 +2060,17 @@ class TestFallbackChainEdits:
                 entry["payload"]["metadata"] = None
 
         journal = DurableJournal(memory_storage)
-        with journal_scope(journal):
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
             chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
             await self.build_agent(chain).run("go")
 
         assert journal.stats.replayed["model"] == 0
         assert calls["b"] == 2
         reason = "the recorded response does not say which fallback chain member answered it"
-        assert {"event": _DIVERGED_EVENT, "reason": reason} in caplog
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == [reason]
 
     @pytest.mark.asyncio
     async def test_a_streamed_step_replays_while_its_answering_member_is_in_the_chain(self, memory_storage):
@@ -2140,7 +2148,14 @@ class TestFallbackChainEdits:
         assert [message for message in history if isinstance(message, ModelResponse)] == []
 
     @pytest.mark.asyncio
-    async def test_a_model_without_a_chain_keeps_its_fingerprint(self, memory_storage):
+    @mock.patch(
+        "airflow.providers.common.ai.durable.capability.fingerprint_model_request",
+        autospec=True,
+        side_effect=fingerprint_model_request,
+    )
+    async def test_a_model_without_a_chain_keeps_its_fingerprint(
+        self, mock_fingerprint_model_request, memory_storage
+    ):
         agent = Agent(
             FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("hi")]), model_name="solo"),
             name="solo",
@@ -2149,5 +2164,4 @@ class TestFallbackChainEdits:
 
         await attempt(memory_storage, agent)
 
-        [entry] = [entry for entry in memory_storage.steps() if entry["kind"] == "model"]
-        assert entry["fingerprint"] == ("d28a781b26a3c6af5e77d6b2d7f8bd6e41454aa28404beb9b1699c6f6d9d6258")
+        assert [call.args[0] for call in mock_fingerprint_model_request.call_args_list] == ["function:solo"]
