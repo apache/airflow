@@ -943,3 +943,143 @@ def test_plan_for_a_periodic_dag_lists_skipped_runs_too(dag_maker, session):
         ("2026-02-02", "already exists", []),
         ("2026-02-03", "run", []),
     ]
+
+
+# ---------------------------------------------------------------------------------------------
+# Cases from the review of the proof of concept.
+# ---------------------------------------------------------------------------------------------
+def test_nested_and_condition_is_accepted(dag_maker, session):
+    third = Asset(uri="s3://lake/third", name="third")
+    _identity_consumer(dag_maker, session, assets=ORDERS & (REFUNDS & third))
+    for asset_name in ("orders", "refunds", "third"):
+        _produced(session, "2026-02-01", asset_name=asset_name)
+
+    _identity_backfill()
+
+    [run] = _identity_runs(session)
+    assert sorted(e.asset.name for e in run.consumed_asset_events) == ["orders", "refunds", "third"]
+
+
+def test_a_reference_by_name_in_the_condition_is_refused(dag_maker, session):
+    schedule = PartitionedAssetTimetable(assets=ORDERS & Asset.ref(name="refunds"))
+    _consumer(dag_maker, session, schedule=schedule, dag_id="orders_report")
+    with pytest.raises(ConsumerBackfillNotSupported, match="reference by name or URI"):
+        _identity_backfill()
+
+
+def test_identity_range_applies_to_the_date_of_the_newest_evidence(dag_maker, session):
+    """A key that is used again: its newest event is outside the range, so the key is not selected."""
+    _identity_consumer(dag_maker, session)
+    session.add_all(
+        DagRun(
+            dag_id="monthly_orders",
+            run_id=run_id,
+            run_type="scheduled",
+            state=DagRunState.SUCCESS,
+            partition_key="01",
+            partition_date=timezone.parse(date),
+        )
+        for run_id, date in (("feb", "2026-02-01T00:00:00"), ("mar", "2026-03-01T00:00:00"))
+    )
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "orders"))
+    session.add(
+        AssetEvent(asset_id=asset_id, partition_key="01", source_dag_id="monthly_orders", source_run_id="feb")
+    )
+    session.commit()
+    session.add(
+        AssetEvent(asset_id=asset_id, partition_key="01", source_dag_id="monthly_orders", source_run_id="mar")
+    )
+    session.commit()
+    from airflow.models.backfill import NoBackfillRunsToCreate
+
+    with pytest.raises(NoBackfillRunsToCreate):
+        _identity_backfill(from_date="2026-02-01", to_date="2026-02-28")
+    assert _identity_runs(session) == []
+
+    _identity_backfill(from_date="2026-03-01", to_date="2026-03-31")
+    [run] = _identity_runs(session)
+    assert (run.partition_key, run.partition_date) == ("01", timezone.parse("2026-03-01T00:00:00"))
+    assert [e.source_run_id for e in run.consumed_asset_events] == ["mar"]
+
+
+def test_identity_event_for_another_key_than_its_run_gives_no_date(dag_maker, session):
+    """Live scheduling carries a date only when the key of the event is the key of its run."""
+    _identity_consumer(dag_maker, session)
+    _produced(session, "2026-02-02")
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "orders"))
+    # The run of 2026-02-02 also emitted an event for the key of the day before.
+    session.add(
+        AssetEvent(
+            asset_id=asset_id,
+            partition_key="2026-02-01",
+            source_dag_id="daily_orders",
+            source_run_id="scheduled__2026-02-02_orders",
+        )
+    )
+    session.commit()
+
+    backfill = _backfill_keys(["2026-02-01", "2026-02-02"], dag_id="orders_report")
+
+    assert _results(session, backfill) == [
+        ("2026-02-02", None, True),
+        ("2026-02-01", "no single partition date", False),
+    ]
+
+
+def test_identity_two_keys_with_one_date_are_refused_in_the_plan_and_in_the_backfill(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("east", "west"):
+        session.add(
+            DagRun(
+                dag_id=f"producer_{key}",
+                run_id="scheduled__2026-02-01",
+                run_type="scheduled",
+                state=DagRunState.SUCCESS,
+                partition_key=key,
+                partition_date=timezone.parse("2026-02-01T01:00:00"),
+            )
+        )
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "orders"))
+        session.add(
+            AssetEvent(
+                asset_id=asset_id,
+                partition_key=key,
+                source_dag_id=f"producer_{key}",
+                source_run_id="scheduled__2026-02-01",
+            )
+        )
+    session.commit()
+
+    with pytest.raises(InvalidBackfillPartitionKeys, match="same partition date"):
+        _plan(session, dag_id="orders_report", to_date="2026-02-28T23:59:59")
+    with pytest.raises(InvalidBackfillPartitionKeys, match="same partition date"):
+        _identity_backfill()
+    assert session.scalars(select(Backfill)).all() == []
+
+    # One key at a time works.
+    backfill = _backfill_keys(["east"], dag_id="orders_report")
+    assert _results(session, backfill) == [("east", None, True)]
+
+
+def test_evidence_is_looked_up_once_for_each_key_in_one_request(dag_maker, session):
+    from unittest import mock
+
+    from airflow.models import backfill as backfill_module
+
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02"):
+        _produced(session, key)
+
+    real = backfill_module.select
+    lookups = []
+
+    def counting_select(*entities):
+        if entities and entities[0] is AssetEvent:
+            lookups.append(entities)
+        return real(*entities)
+
+    with mock.patch.object(backfill_module, "select", counting_select):
+        _backfill_keys(["2026-02-01", "2026-02-02"], dag_id="orders_report")
+
+    assert len(lookups) == 2
+    assert len(_identity_runs(session)) == 2

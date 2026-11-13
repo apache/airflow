@@ -23,7 +23,9 @@ Internal classes for management of dag backfills.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -497,6 +499,27 @@ def _consumer_info_list(dag: SerializedDAG, infos: Iterable[DagRunInfo]) -> list
     return dagrun_info_list
 
 
+_EVIDENCE_OF_THIS_REQUEST: ContextVar[
+    dict[tuple[str, str], tuple[list[Any], list[tuple[str, str]]]] | None
+] = ContextVar("consumer_backfill_evidence", default=None)
+
+
+@contextmanager
+def _one_evidence_lookup() -> Iterator[None]:
+    """
+    Look up the evidence of each partition once inside the block, and reuse it.
+
+    A request reads the evidence of a key more than once: for the date of the key, for the
+    plan, and when the run is created. An event that arrives in between must not give the
+    run other events than the ones its date was taken from.
+    """
+    token = _EVIDENCE_OF_THIS_REQUEST.set({})
+    try:
+        yield
+    finally:
+        _EVIDENCE_OF_THIS_REQUEST.reset(token)
+
+
 def _consumer_evidence(
     dag: SerializedDAG, partition_key: str, session: Session
 ) -> tuple[list[Any], list[tuple[str, str]]]:
@@ -508,6 +531,9 @@ def _consumer_evidence(
     from airflow.models.asset import AssetEvent, AssetModel
     from airflow.partition_mappers.base import is_rollup
 
+    cache = _EVIDENCE_OF_THIS_REQUEST.get()
+    if cache is not None and (dag.dag_id, partition_key) in cache:
+        return cache[dag.dag_id, partition_key]
     timetable: Any = dag.timetable
     events: list[Any] = []
     missing: list[tuple[str, str]] = []
@@ -534,6 +560,8 @@ def _consumer_evidence(
                 missing.append((unique_key.name, input_key))
             else:
                 events.append(event)
+    if cache is not None:
+        cache[dag.dag_id, partition_key] = (events, missing)
     return events, missing
 
 
@@ -541,9 +569,12 @@ def _evidence_partition_date(events: list[Any], session: Session) -> datetime | 
     """
     Return the partition date that the evidence gives a key with no date of its own.
 
-    It is the partition date of the run that wrote each event, which live scheduling carries
-    onto the consumer. There is no date when an event has no such run, when a run has no
-    partition date, or when the events disagree.
+    It is the partition date of the run that wrote each event, when the key of the event is the
+    key of that run. Live scheduling carries a date onto the consumer under the same condition:
+    the date of a run refers to the key of that run, not to another key that a task emitted.
+
+    There is no date when an event has no such run, when the run has another key or no partition
+    date, or when the events disagree.
     """
     from airflow.models.dagrun import DagRun
 
@@ -551,11 +582,13 @@ def _evidence_partition_date(events: list[Any], session: Session) -> datetime | 
     for event in events:
         partition_date = None
         if event.source_dag_id and event.source_run_id:
-            partition_date = session.scalar(
-                select(DagRun.partition_date).where(
+            source_run = session.execute(
+                select(DagRun.partition_key, DagRun.partition_date).where(
                     DagRun.dag_id == event.source_dag_id, DagRun.run_id == event.source_run_id
                 )
-            )
+            ).one_or_none()
+            if source_run is not None and source_run.partition_key == event.partition_key:
+                partition_date = source_run.partition_date
         dates.add(partition_date)
     return dates.pop() if len(dates) == 1 else None
 
@@ -635,8 +668,24 @@ def _consumer_infos_from_events(
         partition_date = _evidence_partition_date(events, session)
         if partition_date is None:
             undated.append(key)
+        elif from_date is not None and to_date is not None and not from_date <= partition_date <= to_date:
+            # The key was found through an older event in the range, but its evidence is the
+            # newest event, and that one gives a date outside the range. The range applies to
+            # the date that the run would get, so the key is not selected.
+            continue
         else:
             dated.append((partition_date, key))
+    keys_by_date: dict[datetime, list[str]] = {}
+    for partition_date, key in dated:
+        keys_by_date.setdefault(partition_date, []).append(key)
+    for partition_date, same_date in keys_by_date.items():
+        if len(same_date) > 1:
+            # An existing run is found by its partition date, so two keys with one date
+            # cannot be told apart.
+            raise InvalidBackfillPartitionKeys(
+                f"The partition keys {sorted(same_date)} of Dag {dag.dag_id} have the same partition "
+                f"date {partition_date.isoformat()}. Request them one at a time with partition_keys."
+            )
     infos = []
     for partition_date, key in sorted(dated):
         run_after = timezone.coerce_datetime(partition_date)
@@ -695,7 +744,7 @@ class BackfillPlanEntry(NamedTuple):
     missing_inputs: list[tuple[str, str]]
 
 
-def _plan_backfill(
+def _plan_backfill_inner(
     *,
     dag_id: str,
     from_date: datetime | None,
@@ -759,6 +808,12 @@ def _plan_backfill(
                 continue
         plan.append(BackfillPlanEntry(info, BACKFILL_PLAN_RESULT_RUN, []))
     return plan
+
+
+def _plan_backfill(**kwargs: Any) -> list[BackfillPlanEntry]:
+    """List every Dag run that a backfill request selects, with what the backfill would do for it."""
+    with _one_evidence_lookup():
+        return _plan_backfill_inner(**kwargs)
 
 
 def _do_dry_run(
@@ -1107,7 +1162,7 @@ def _create_backfill(
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
-    with create_session() as session:
+    with _one_evidence_lookup(), create_session() as session:
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")

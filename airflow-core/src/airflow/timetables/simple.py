@@ -423,10 +423,16 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         from airflow.partition_mappers.wait_policy import WaitForAll
         from airflow.partition_mappers.window import Window
 
-        condition = self.asset_condition
-        members = condition.objects if isinstance(condition, SerializedAssetAll) else [condition]
-        if not all(isinstance(member, SerializedAsset) for member in members):
-            return "the asset condition must be one asset, or assets joined with &"
+        def only_assets_joined_with_and(condition: SerializedAssetBase) -> bool:
+            if isinstance(condition, SerializedAssetAll):
+                return all(only_assets_joined_with_and(member) for member in condition.objects)
+            return isinstance(condition, SerializedAsset)
+
+        if not only_assets_joined_with_and(self.asset_condition):
+            return (
+                "the asset condition must be one asset, or assets joined with &; "
+                "an alias, a reference by name or URI, and | are not supported"
+            )
         if self.backfill_selects_keys_from_events():
             return None
         for mapper in self._backfill_mappers():
