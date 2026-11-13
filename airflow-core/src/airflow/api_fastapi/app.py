@@ -147,9 +147,8 @@ def create_app(apps: str = "all") -> FastAPI:
         "``*_pattern`` is a case-insensitive substring match (SQL ``ILIKE '%term%'``) where ``%`` matches "
         "any sequence and ``_`` matches any single character (e.g. ``%customer_%``) — convenient, but it "
         "cannot use B-tree indexes, so it is slow on large tables. ``*_prefix_pattern`` matches the start "
-        "of the value, is case-sensitive and index-friendly (prefer it at scale); there ``%`` and ``_`` "
-        "are literal and trailing non-alphanumeric characters are stripped so the range scan stays "
-        "index-compatible under locale-aware collations "
+        "of the value and is case-sensitive; there ``%`` and ``_`` are literal and trailing "
+        "non-alphanumeric characters are stripped "
         "(e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches ``s3``). In both, "
         "``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything. Regular expressions are not "
         "supported by these parameters; regex-capable endpoints expose a separate parameter.",

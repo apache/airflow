@@ -42,70 +42,41 @@ if TYPE_CHECKING:
 
 class _PrefixPatternParam(BaseParam[str], ABC):
     """
-    Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), Unicode prefix range.
+    Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), exact prefix check.
 
     .. note::
-        Trailing non-alphanumeric characters in a search term are stripped before the range
-        is computed. A range scan with a punctuation-terminated upper bound is unsafe under
-        PostgreSQL's default locale-aware collation (``en_US.utf8`` sorts punctuation in a
-        way that breaks the range), and additionally stopping the range at an alphanumeric
-        character keeps the upper bound alphanumeric too, so the predicate stays usable by
-        default btree indexes. A user who asks for prefix ``"test_"`` gets matches starting
-        with ``"test"`` — a small over-match trade-off made explicit in the public
-        ``*_prefix_pattern`` query-param description.
+        Trailing non-alphanumeric characters in a search term are stripped to
+        preserve existing prefix-search behaviour. A user who asks for prefix
+        ``test_`` gets matches starting with ``test`` — a small over-match
+        trade-off made explicit in the public ``*_prefix_pattern`` query-param
+        description.
     """
 
     pipe_as_or: bool = True
 
     @staticmethod
-    def _prefix_range_upper(term: str) -> str | None:
-        """
-        Compute the exclusive upper bound for a prefix range scan.
-
-        Returns ``None`` if the term has no alphanumeric characters. Trailing non-alphanumeric
-        characters are dropped before bumping the last character so the resulting upper bound
-        is itself alphanumeric and behaves predictably under locale-aware collations. If
-        incrementing would land outside the alphanumeric range (e.g. ``'z' → '{'``), we drop
-        that character and retry.
-        """
-        while term and not term[-1].isalnum():
-            term = term[:-1]
-        if not term:
-            return None
-        last = ord(term[-1])
-        if last >= 0x10FFFF:
-            return _PrefixPatternParam._prefix_range_upper(term[:-1])
-        bumped = chr(last + 1)
-        if not bumped.isalnum():
-            return _PrefixPatternParam._prefix_range_upper(term[:-1])
-        return term[:-1] + bumped
-
-    @staticmethod
-    def _prefix_lower_bound(term: str) -> str:
-        """Return the matching lower bound: strip trailing non-alphanumeric chars to pair with the upper."""
+    def _strip_prefix_term(term: str) -> str:
+        """Strip trailing non-alphanumeric characters from a prefix search term."""
         while term and not term[-1].isalnum():
             term = term[:-1]
         return term
 
     @staticmethod
-    def _build_prefix_range_clauses(
-        column: ColumnElement | InstrumentedAttribute, lower: str, upper: str | None
+    def _build_prefix_clauses(
+        column: ColumnElement | InstrumentedAttribute, term: str
     ) -> list[ColumnElement[bool]]:
         """
-        Return the predicates matching values that start with ``lower`` on ``column``.
+        Return the predicates matching values that start with ``term`` on ``column``.
 
-        The bounds keep a B-tree index usable but are wider than the prefix: bumping the last
-        character out of the alphanumeric range derives the upper bound from a shorter prefix
-        (``"a9"`` yields ``< "b"``, ``"z"`` yields none at all). The substring equality narrows
-        that back. It is an equality and not ``LIKE 'lower%'`` so it resolves under the same
-        collation as the bounds — ``LIKE`` is case-insensitive on SQLite and MySQL ``_ci``
-        columns, and would keep leaking case variants.
+        The check is a ``substr`` equality, so it does not depend on how the collation
+        orders strings — no range bounds are used. A ``column >= term`` bound would miss
+        valid matches under collations where a contraction sorts before its first letter:
+        Welsh ``ng`` sorts before ``n`` (ICU ``cy-x-icu``) and Igbo ``ch`` sorts before
+        ``c`` (``ig-x-icu``). The earlier upper bound had the mirror problem: Czech ``ch``
+        sorts after ``h`` (``cs-CZ-x-icu``), so prefix ``c`` missed ``chata`` (#74724).
+        ``LIKE 'term%'`` is avoided because it is case-insensitive on SQLite.
         """
-        clauses: list[ColumnElement[bool]] = [column >= lower]
-        if upper is not None:
-            clauses.append(column < upper)
-        clauses.append(func.substr(column, 1, len(lower)) == lower)
-        return clauses
+        return [func.substr(column, 1, len(term)) == term]
 
     @abstractmethod
     def _prefix_clause(self, term: str):
@@ -198,10 +169,9 @@ class _SearchParam(BaseParam[str]):
 
 class _PrefixSearchParam(_PrefixPatternParam):
     """
-    Prefix search on a column using range comparison (case-sensitive, index-friendly).
+    Prefix search on a column using a collation-safe ``substr`` equality (case-sensitive).
 
-    Unlike :class:`_SearchParam`, wildcard characters are treated as literals and the query
-    plan can use the column's default B-tree index for the range scan. Trailing
+    Unlike :class:`_SearchParam`, wildcard characters are treated as literals. Trailing
     non-alphanumeric characters in ``term`` are stripped first (see
     :class:`_PrefixPatternParam` for why).
     """
@@ -212,11 +182,10 @@ class _PrefixSearchParam(_PrefixPatternParam):
         self.pipe_as_or = pipe_as_or
 
     def _prefix_clause(self, term: str):
-        lower = self._prefix_lower_bound(term)
-        if not lower:
+        stripped = self._strip_prefix_term(term)
+        if not stripped:
             return self.attribute.is_not(None)
-        upper = self._prefix_range_upper(term)
-        return and_(*self._build_prefix_range_clauses(self.attribute, lower, upper))
+        return and_(*self._build_prefix_clauses(self.attribute, stripped))
 
     @classmethod
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
@@ -225,26 +194,26 @@ class _PrefixSearchParam(_PrefixPatternParam):
 
 class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
     """
-    Prefix filter equivalent to :attr:`TaskInstance.task_display_name`, rewritten for composite-index use.
+    Prefix filter equivalent to :attr:`TaskInstance.task_display_name`.
 
-    The hybrid expression ``coalesce(_task_display_property_value, task_id)`` cannot use those indexes;
-    this implementation applies an equivalent ``OR`` of simpler range predicates instead. Trailing
-    non-alphanumeric characters in ``term`` are stripped first (see :class:`_PrefixPatternParam`).
+    The hybrid expression ``coalesce(_task_display_property_value, task_id)`` is expressed as
+    an equivalent ``OR`` of simple prefix predicates: ``task_id`` when the override is NULL,
+    otherwise the override. Trailing non-alphanumeric characters in ``term`` are stripped
+    first (see :class:`_PrefixPatternParam`).
     """
 
     def _prefix_clause(self, term: str):
-        lower = self._prefix_lower_bound(term)
-        if not lower:
+        stripped = self._strip_prefix_term(term)
+        if not stripped:
             return sql_true()
-        upper = self._prefix_range_upper(term)
         return or_(
             and_(
                 TaskInstance._task_display_property_value.is_(None),
-                *self._build_prefix_range_clauses(TaskInstance.task_id, lower, upper),
+                *self._build_prefix_clauses(TaskInstance.task_id, stripped),
             ),
             and_(
                 TaskInstance._task_display_property_value.is_not(None),
-                *self._build_prefix_range_clauses(TaskInstance._task_display_property_value, lower, upper),
+                *self._build_prefix_clauses(TaskInstance._task_display_property_value, stripped),
             ),
         )
 
@@ -255,9 +224,9 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
             default=None,
             description=(
                 "Case-sensitive prefix match on task display name (`_task_display_property_value` else "
-                "`task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases "
-                "combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes "
-                'apply. See "Filtering with pattern parameters".'
+                "`task_id`). On large databases combine with `dag_id_prefix_pattern` (or a specific Dag "
+                "in the path) to narrow the rows scanned. "
+                'See "Filtering with pattern parameters".'
             ),
         ),
     ) -> Self:
@@ -366,11 +335,12 @@ def prefix_search_param_factory(
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
 
-    Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
-    B-tree index range scan, while substring matching requires a full table scan.
+    Prefix matching compares the start of the value with an exact ``substr`` equality. It adds no
+    range bounds, because they are unsafe under collations with contractions (#74724), so it does
+    not use an index range scan.
     """
     DESCRIPTION = (
-        "Case-sensitive, index-friendly prefix match. "
+        "Case-sensitive prefix match. "
         f"{_build_pipe_clause(pipe_as_or)}"
         'See "Filtering with pattern parameters".'
     )

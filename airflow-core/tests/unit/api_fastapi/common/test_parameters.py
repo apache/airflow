@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy import Column, MetaData, String, Table, create_engine, select, text
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -42,7 +42,6 @@ from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
 from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
-    _PrefixPatternParam,
     _TaskDisplayNamePrefixPatternParam,
     regex_param_factory,
 )
@@ -368,7 +367,22 @@ class TestNonSearchFilterEscaping:
 
 
 class TestPrefixSearchParam:
-    """Prefix search using range comparison (``attribute >= lower AND < upper``)."""
+    """Prefix search: collation-safe substr equality, no range bounds."""
+
+    def test_no_range_bounds_for_collation_safety(self):
+        """Neither ``col >= lower`` nor ``col < upper`` must appear.
+
+        Range bounds are unsafe under collations with contractions (Czech ``ch``,
+        Welsh ``ng``, Igbo ``ch``): the lower bound ``>=`` excludes valid matches
+        when a contraction sorts before its first character, and the upper bound
+        ``<`` excludes them when it sorts after the next letter (#74724).
+        The ``substr`` equality is collation-independent.
+        """
+        param = _PrefixSearchParam(DagModel.dag_id).set_value("c")
+        sql = _compile(param.to_orm(select(DagModel)))
+        assert "dag_id >= " not in sql
+        assert "dag_id < " not in sql
+        assert "substr(dag.dag_id, 1, 1) = 'c'" in sql
 
     def test_to_orm_single_value(self):
         param = _PrefixSearchParam(DagModel.dag_id).set_value("example_bash")
@@ -376,41 +390,18 @@ class TestPrefixSearchParam:
         statement = param.to_orm(statement)
 
         sql = _compile(statement)
-        assert "dag_id >= 'example_bash'" in sql
-        assert "dag_id < 'example_basi'" in sql
-
-    def test_prefix_range_upper_boundary(self):
-        """Prefix range bumps the last alphanumeric character."""
-        assert _PrefixPatternParam._prefix_range_upper("xy") == "xz"
-        assert _PrefixPatternParam._prefix_range_upper("test_dag") == "test_dah"
-        assert _PrefixPatternParam._prefix_range_upper("") is None
-
-    def test_prefix_range_upper_strips_trailing_punctuation(self):
-        """Trailing non-alphanumeric characters are dropped before bumping."""
-        assert _PrefixPatternParam._prefix_range_upper("test_") == "tesu"
-        assert _PrefixPatternParam._prefix_range_upper("s3://") == "s4"
-        assert _PrefixPatternParam._prefix_range_upper("bbc!!") == "bbd"
-        # All-punctuation → no usable range
-        assert _PrefixPatternParam._prefix_range_upper("///") is None
-
-    def test_prefix_range_upper_cascades_past_non_alnum_bump(self):
-        """If bumping would produce a non-alphanumeric char, strip and retry."""
-        # 'z' → '{' (non-alphanumeric), so fall back to incrementing the previous char.
-        assert _PrefixPatternParam._prefix_range_upper("abz") == "ac"
-        # 'Z' → '[' (non-alphanumeric), so fall back.
-        assert _PrefixPatternParam._prefix_range_upper("abZ") == "ac"
-        # '9' → ':' (non-alphanumeric), so fall back.
-        assert _PrefixPatternParam._prefix_range_upper("a9") == "b"
+        assert "substr(dag.dag_id, 1, 12) = 'example_bash'" in sql
+        assert "dag_id >= " not in sql
 
     def test_to_orm_strips_trailing_underscore_prefix(self):
-        """``'test_'`` is treated as the prefix ``'test'`` so the range is locale-safe."""
+        """``'test_'`` is stripped to ``'test'`` as the effective prefix."""
         param = _PrefixSearchParam(DagModel.dag_id).set_value("test_")
         statement = select(DagModel)
         statement = param.to_orm(statement)
 
         sql = _compile(statement)
-        assert "dag_id >= 'test'" in sql
-        assert "dag_id < 'tesu'" in sql
+        assert "substr(dag.dag_id, 1, 4) = 'test'" in sql
+        assert "dag_id >= " not in sql
 
     def test_to_orm_empty_value_matches_all(self):
         """An empty value matches all non-null rows (used via the ``~`` alias)."""
@@ -473,18 +464,16 @@ class TestPrefixSearchParam:
         sql = _compile(statement)
         # Use " or " (with spaces) to avoid false positives from column-name substrings like "owners".
         assert " or " not in sql
-        # Range scan uses the full composite-key value as the lower bound.
+        # The full composite-key value appears in the substr equality.
         assert "2026-01-01|us" in sql
 
-    def test_to_orm_narrows_the_range_with_a_leading_substring(self):
-        """The index-friendly bounds are wider than the prefix, so an equality pins the prefix down."""
+    def test_to_orm_substr_equality_pins_exact_prefix(self):
+        """The substr equality pins the exact prefix with no range bounds."""
         param = _PrefixSearchParam(DagModel.dag_id).set_value("dag_9")
         statement = param.to_orm(select(DagModel))
 
         sql = _compile(statement)
-        # '9' bumps to ':' (non-alphanumeric), so the upper bound comes from the shorter 'dag'.
-        assert "dag_id >= 'dag_9'" in sql
-        assert "dag_id < 'dah'" in sql
+        assert "dag_id >= " not in sql
         assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
 
     def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
@@ -502,8 +491,8 @@ class TestPrefixSearchParamOnARealEngine:
     """
     Run the predicate against SQLite so the rows it lets through are checked, not just the SQL.
 
-    Every term below computes an upper bound wider than the term itself, so the bounds alone
-    would also return the rows that are missing from each ``expected`` list.
+    The expected rows are determined by Python's ``str.startswith`` semantics. The predicate
+    uses exact ``substr`` equality because collation-dependent range bounds are unsafe.
     """
 
     NAMES = [
@@ -520,6 +509,12 @@ class TestPrefixSearchParamOnARealEngine:
         "z1",
         "zz",
         "{a",
+        "chata",
+        "cesta",
+        "ch1",
+        "ng1",
+        "nginx",
+        "nop",
     ]
 
     @pytest.fixture
@@ -550,14 +545,94 @@ class TestPrefixSearchParamOnARealEngine:
             ("z", ["z1", "zz"]),
             # Documented trade-off, unchanged: a trailing '_' is stripped, so 'dag_' means 'dag'.
             ("dag_", ["dagZ1", "dag_9", "dag_99", "dag_abc", "dagz9"]),
+            # Contraction digraph cases (Czech 'ch', Welsh 'ng')
+            ("c", ["cesta", "ch1", "chata"]),
+            ("ch", ["ch1", "chata"]),
+            ("n", ["ng1", "nginx", "nop"]),
+            ("ng", ["ng1", "nginx"]),
         ],
     )
     def test_only_values_with_the_prefix_come_back(self, select_names, term, expected):
         assert select_names(term) == expected
 
 
+@pytest.mark.db_test
+@pytest.mark.backend("postgres")
+class TestPrefixSearchContractionCollationsPostgres:
+    """
+    Verify prefix search under ICU collations with contractions on PostgreSQL.
+
+    Contraction collations reorder multi-character sequences:
+    - Czech (``cs-CZ-x-icu``): digraph ``ch`` sorts after ``h`` (between ``h`` and ``i``).
+    - Welsh (``cy-x-icu``): digraph ``ng`` sorts after ``g`` (before ``n``).
+    - Igbo (``ig-x-icu``): digraph ``ch`` sorts before ``c``.
+
+    Under these collations, range bounds (``>=`` or ``<``) miss valid matches:
+    - Upper bound: in Czech, ``chata < 'd'`` is False, so prefix ``c`` misses ``chata``.
+    - Lower bound: in Welsh, ``'ng1' >= 'n'`` is False, so prefix ``n`` misses ``ng1``.
+    - Lower bound: in Igbo, ``'ch1' >= 'c'`` is False, so prefix ``c`` misses ``ch1``.
+
+    The exact ``substr(col, 1, len) = prefix`` check is collation-independent and
+    returns exactly the rows matching Python's ``str.startswith``.
+    """
+
+    ROWS = [
+        "chata",
+        "cesta",
+        "ch1",
+        "ng1",
+        "nginx",
+        "nop",
+        "Chata",
+        "Cesta",
+        "NG1",
+        "Nginx",
+        "Nop",
+    ]
+
+    COLLATIONS = ["cs-CZ-x-icu", "cy-x-icu", "ig-x-icu"]
+    PREFIXES = ["c", "ch", "n", "ng"]
+
+    @pytest.mark.parametrize("collation", COLLATIONS)
+    @pytest.mark.parametrize("prefix", PREFIXES)
+    def test_prefix_search_matches_python_startswith_on_icu_collations(self, session, collation, prefix):
+        coll_exists = session.execute(
+            text("SELECT 1 FROM pg_collation WHERE collname = :name"),
+            {"name": collation},
+        ).scalar()
+        if not coll_exists:
+            pytest.skip(f"Collation {collation!r} is not installed in this PostgreSQL database")
+
+        clean_coll_name = collation.replace("-", "_")
+        table_name = f"test_prefix_icu_{clean_coll_name}_{prefix}"
+        table = Table(
+            table_name,
+            MetaData(),
+            Column("name", String(64, collation=collation), primary_key=True),
+        )
+        connection = session.connection()
+        table.drop(connection, checkfirst=True)
+        table.create(connection)
+
+        try:
+            session.execute(table.insert(), [{"name": r} for r in self.ROWS])
+            session.flush()
+
+            expected = sorted(r for r in self.ROWS if r.startswith(prefix))
+
+            param = _PrefixSearchParam(table.c.name).set_value(prefix)
+            stmt = param.to_orm(select(table.c.name))
+            actual = sorted(session.scalars(stmt).all())
+
+            assert actual == expected, (
+                f"Prefix {prefix!r} with collation {collation!r} returned {actual}, expected {expected}"
+            )
+        finally:
+            table.drop(connection, checkfirst=True)
+
+
 class TestTaskDisplayNamePrefixPatternParam:
-    """Prefix filter splits on NULL override so ``task_id`` can use indexes."""
+    """Prefix filter splits on the NULL override between ``task_id`` and the display-name override."""
 
     def test_to_orm_uses_task_id_when_override_null(self):
         param = _TaskDisplayNamePrefixPatternParam().set_value("test_task_hello")
@@ -566,8 +641,10 @@ class TestTaskDisplayNamePrefixPatternParam:
 
         sql = _compile(statement)
         assert "task_display_name is null" in sql
-        assert "task_id >=" in sql
-        assert "task_id <" in sql
+        assert "task_id >= " not in sql
+        assert "task_id < " not in sql
+        assert "task_display_name >= " not in sql
+        assert "task_display_name < " not in sql
         assert "task_display_name is not null" in sql
 
     def test_to_orm_narrows_both_branches_with_a_leading_substring(self):

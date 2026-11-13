@@ -13,10 +13,10 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.namePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.namePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.uri Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      * @param data.uriPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.uriPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.uriPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.dagIds
      * @param data.onlyActive
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
@@ -55,7 +55,7 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.namePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.namePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
      * @returns AssetAliasCollectionResponse Successful Response
      * @throws ApiError
@@ -120,7 +120,7 @@ export class AssetService {
      * @param data.partitionKey
      * @param data.partitionKeyRegexpPattern Filter results by matching this regular expression against the field value.
      * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.namePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.namePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.extra Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
      * @param data.timestampGte
      * @param data.timestampGt
@@ -422,12 +422,12 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.namePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.namePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.uri Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      * @param data.uriPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.uriPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.uriPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.groupPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.groupPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.dagIds
      * @param data.hasEvents Filter assets that have events
      * @param data.onlyActive
@@ -914,7 +914,7 @@ export class ConnectionService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, team_name, connection_id`
      * @param data.connectionIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `connection_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.connectionIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.connectionIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns ConnectionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1212,13 +1212,13 @@ export class DagRunService {
      * @param data.tagsMatchMode
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.triggeringUserNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.triggeringUserNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.triggeringUserNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.partitionKeyPattern Case-insensitive substring match (SQL `ILIKE`). Here `|` is matched literally, not as OR. Slower than `partition_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.partitionKeyPrefixPattern Case-sensitive, index-friendly prefix match. Here `|` is matched literally, not as OR. See "Filtering with pattern parameters".
+     * @param data.partitionKeyPrefixPattern Case-sensitive prefix match. Here `|` is matched literally, not as OR. See "Filtering with pattern parameters".
      * @param data.consumingAssetPattern Case-insensitive substring match against the consuming asset name or URI. Unlike the wildcard `*_pattern` parameters, `%` and `_` are matched literally, `|` is not an OR separator, and `~` does not match everything.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
@@ -1940,9 +1940,9 @@ export class DagService {
      * @param data.tagsMatchMode
      * @param data.owners
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.excludeStale
      * @param data.paused
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
@@ -2026,7 +2026,7 @@ export class DagService {
      * @param data.tagsMatchMode
      * @param data.owners
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.excludeStale
      * @param data.paused
      * @returns DAGCollectionResponse Successful Response
@@ -2248,7 +2248,7 @@ export class DagService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      * @param data.tagNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `tag_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.tagNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.tagNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns DAGTagCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2284,9 +2284,9 @@ export class DagService {
      * @param data.teams
      * @param data.dagIds
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.excludeStale
      * @param data.paused
      * @param data.schedulingState
@@ -2352,7 +2352,7 @@ export class DagService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.timetableTypePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.timetableTypePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns DagTimetableTypeCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2522,12 +2522,12 @@ export class EventLogService {
      * @param data.ownerPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.ownerDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.eventPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `event_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.ownerPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.ownerDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.eventPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
+     * @param data.taskIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
+     * @param data.ownerPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
+     * @param data.ownerDisplayNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
+     * @param data.eventPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.teams
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
@@ -2816,19 +2816,19 @@ export class TaskInstanceService {
      * @param data.state
      * @param data.pool
      * @param data.poolNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `pool_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.poolNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.poolNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.queue
      * @param data.queueNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `queue_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.queueNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.queueNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
      * @param data.operatorNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `operator_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.operatorNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.operatorNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndex
      * @param data.renderedMapIndexPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.renderedMapIndexPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.renderedMapIndexPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
@@ -3188,29 +3188,29 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `task_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.taskDisplayNamePrefixPattern Case-sensitive prefix match on task display name (`_task_display_property_value` else `task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes apply. See "Filtering with pattern parameters".
+     * @param data.taskDisplayNamePrefixPattern Case-sensitive prefix match on task display name (`_task_display_property_value` else `task_id`). On large databases combine with `dag_id_prefix_pattern` (or a specific Dag in the path) to narrow the rows scanned. See "Filtering with pattern parameters".
      * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.state
      * @param data.pool
      * @param data.poolNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `pool_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.poolNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.poolNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.queue
      * @param data.queueNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `queue_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.queueNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.queueNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.executor
      * @param data.versionNumber
      * @param data.teams
      * @param data.tryNumber
      * @param data.operator
      * @param data.operatorNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `operator_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.operatorNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.operatorNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndex
      * @param data.renderedMapIndexPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.renderedMapIndexPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.renderedMapIndexPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
@@ -3844,10 +3844,10 @@ export class TaskInstanceService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.taskId
      * @param data.taskIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `task_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.taskIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndex
      * @param data.state
      * @param data.teams
@@ -3939,7 +3939,7 @@ export class ImportErrorService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      * @param data.filenamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `filename_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.filenamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.filenamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.filename Exact filename match. Returns only the import error for this specific file path.
      * @param data.bundleName Exact bundle name match. Returns only import errors from this specific bundle.
      * @returns ImportErrorCollectionResponse Successful Response
@@ -4162,7 +4162,7 @@ export class PoolService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool, name`
      * @param data.poolNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `pool_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.poolNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.poolNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns PoolCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -4813,13 +4813,13 @@ export class XcomService {
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.xcomKeyPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.xcomKeyPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.taskIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `task_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.taskIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndexFilter
      * @param data.logicalDateGte
      * @param data.logicalDateGt
@@ -5142,7 +5142,7 @@ export class VariableService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted, team_name`
      * @param data.variableKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `variable_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.variableKeyPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.variableKeyPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns VariableCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -5784,9 +5784,9 @@ export class GridService {
      * @param data.runType
      * @param data.state
      * @param data.triggeringUser Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user` on large tables — see "Filtering with pattern parameters".
-     * @param data.triggeringUserPrefix Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.triggeringUserPrefix Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -5839,9 +5839,9 @@ export class GridService {
      * @param data.runType
      * @param data.state
      * @param data.triggeringUser Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user` on large tables — see "Filtering with pattern parameters".
-     * @param data.triggeringUserPrefix Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.triggeringUserPrefix Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive prefix match. See "Filtering with pattern parameters".
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */

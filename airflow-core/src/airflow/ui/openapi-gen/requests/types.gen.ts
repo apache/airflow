@@ -3816,7 +3816,7 @@ export type GetAssetsData = {
      */
     namePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -3834,7 +3834,7 @@ export type GetAssetsData = {
      */
     uriPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     uriPrefixPattern?: string | null;
 };
@@ -3848,7 +3848,7 @@ export type GetAssetAliasesData = {
      */
     namePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -3878,7 +3878,7 @@ export type GetAssetEventsData = {
      */
     namePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -3986,7 +3986,7 @@ export type GetAssetsUiData = {
      */
     groupPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     groupPrefixPattern?: string | null;
     /**
@@ -4003,7 +4003,7 @@ export type GetAssetsUiData = {
      */
     namePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     namePrefixPattern?: string | null;
     offset?: number;
@@ -4021,7 +4021,7 @@ export type GetAssetsUiData = {
      */
     uriPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     uriPrefixPattern?: string | null;
 };
@@ -4170,7 +4170,7 @@ export type GetConnectionsData = {
      */
     connectionIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     connectionIdPrefixPattern?: string | null;
     limit?: number;
@@ -4252,7 +4252,7 @@ export type GetDagRunsData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagVersion?: Array<(number)>;
@@ -4287,7 +4287,7 @@ export type GetDagRunsData = {
      */
     partitionKeyPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. Here `|` is matched literally, not as OR. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. Here `|` is matched literally, not as OR. See "Filtering with pattern parameters".
      */
     partitionKeyPrefixPattern?: string | null;
     runAfterGt?: string | null;
@@ -4299,7 +4299,7 @@ export type GetDagRunsData = {
      */
     runIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
@@ -4316,7 +4316,7 @@ export type GetDagRunsData = {
      */
     triggeringUserNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     triggeringUserNamePrefixPattern?: string | null;
     updatedAtGt?: string | null;
@@ -4506,7 +4506,7 @@ export type GetDagsData = {
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     /**
@@ -4514,7 +4514,7 @@ export type GetDagsData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagRunEndDateGt?: string | null;
@@ -4562,7 +4562,7 @@ export type PatchDagsData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     excludeStale?: boolean;
@@ -4634,7 +4634,7 @@ export type GetDagTagsData = {
      */
     tagNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     tagNamePrefixPattern?: string | null;
 };
@@ -4653,7 +4653,7 @@ export type GetDagsUiData = {
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     /**
@@ -4661,7 +4661,7 @@ export type GetDagsUiData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagIds?: Array<(string)> | null;
@@ -4711,7 +4711,7 @@ export type GetDagTimetableTypesUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     timetableTypePrefixPattern?: string | null;
 };
@@ -4753,7 +4753,7 @@ export type GetEventLogsData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     event?: string | null;
@@ -4762,7 +4762,7 @@ export type GetEventLogsData = {
      */
     eventPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     eventPrefixPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
@@ -4780,7 +4780,7 @@ export type GetEventLogsData = {
      */
     ownerDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     ownerDisplayNamePrefixPattern?: string | null;
     /**
@@ -4788,7 +4788,7 @@ export type GetEventLogsData = {
      */
     ownerPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     ownerPrefixPattern?: string | null;
     regionId?: string | null;
@@ -4799,7 +4799,7 @@ export type GetEventLogsData = {
      */
     runIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     taskId?: string | null;
@@ -4808,7 +4808,7 @@ export type GetEventLogsData = {
      */
     taskIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
     taskInstanceId?: string | null;
@@ -4889,7 +4889,7 @@ export type GetMappedTaskInstancesData = {
      */
     operatorNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     operatorNamePrefixPattern?: string | null;
     /**
@@ -4902,7 +4902,7 @@ export type GetMappedTaskInstancesData = {
      */
     poolNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     poolNamePrefixPattern?: string | null;
     queue?: Array<(string)>;
@@ -4911,7 +4911,7 @@ export type GetMappedTaskInstancesData = {
      */
     queueNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
     regionId?: string | null;
@@ -4921,7 +4921,7 @@ export type GetMappedTaskInstancesData = {
      */
     renderedMapIndexPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
@@ -5023,7 +5023,7 @@ export type GetTaskInstancesData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagRunId: string;
@@ -5057,7 +5057,7 @@ export type GetTaskInstancesData = {
      */
     operatorNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     operatorNamePrefixPattern?: string | null;
     /**
@@ -5070,7 +5070,7 @@ export type GetTaskInstancesData = {
      */
     poolNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     poolNamePrefixPattern?: string | null;
     queue?: Array<(string)>;
@@ -5079,7 +5079,7 @@ export type GetTaskInstancesData = {
      */
     queueNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
     regionId?: string | null;
@@ -5089,7 +5089,7 @@ export type GetTaskInstancesData = {
      */
     renderedMapIndexPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
@@ -5101,7 +5101,7 @@ export type GetTaskInstancesData = {
      */
     runIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     startDateGt?: string | null;
@@ -5114,7 +5114,7 @@ export type GetTaskInstancesData = {
      */
     taskDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive prefix match on task display name (`_task_display_property_value` else `task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes apply. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match on task display name (`_task_display_property_value` else `task_id`). On large databases combine with `dag_id_prefix_pattern` (or a specific Dag in the path) to narrow the rows scanned. See "Filtering with pattern parameters".
      */
     taskDisplayNamePrefixPattern?: string | null;
     /**
@@ -5306,7 +5306,7 @@ export type GetHitlDetailsData = {
      */
     dagIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagIdPrefixPattern?: string | null;
     dagRunId: string;
@@ -5333,7 +5333,7 @@ export type GetHitlDetailsData = {
      */
     taskIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
     teams?: Array<(string)>;
@@ -5361,7 +5361,7 @@ export type GetImportErrorsData = {
      */
     filenamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     filenamePrefixPattern?: string | null;
     limit?: number;
@@ -5441,7 +5441,7 @@ export type GetPoolsData = {
      */
     poolNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     poolNamePrefixPattern?: string | null;
 };
@@ -5626,7 +5626,7 @@ export type GetXcomEntriesData = {
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
@@ -5658,7 +5658,7 @@ export type GetXcomEntriesData = {
      */
     runIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     taskId: string;
@@ -5667,7 +5667,7 @@ export type GetXcomEntriesData = {
      */
     taskIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
     teams?: Array<(string)>;
@@ -5677,7 +5677,7 @@ export type GetXcomEntriesData = {
      */
     xcomKeyPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     xcomKeyPrefixPattern?: string | null;
 };
@@ -5781,7 +5781,7 @@ export type GetVariablesData = {
      */
     variableKeyPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     variableKeyPrefixPattern?: string | null;
 };
@@ -5966,7 +5966,7 @@ export type GetDagStructureData = {
      */
     runIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
@@ -5976,7 +5976,7 @@ export type GetDagStructureData = {
      */
     triggeringUser?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     triggeringUserPrefix?: string | null;
 };
@@ -6000,7 +6000,7 @@ export type GetGridRunsData = {
      */
     runIdPattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
@@ -6010,7 +6010,7 @@ export type GetGridRunsData = {
      */
     triggeringUser?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. See "Filtering with pattern parameters".
      */
     triggeringUserPrefix?: string | null;
 };
