@@ -30,8 +30,8 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, 
 from airflow._shared.secrets_backend.base import accepts_kwarg, call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
+from airflow.crypto import get_fernet
 from airflow.models.base import ID_LEN, Base
-from airflow.models.crypto import get_fernet
 from airflow.process_context import should_use_task_sdk_api_path
 
 # AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
