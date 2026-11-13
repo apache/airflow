@@ -23,6 +23,10 @@ from typing import Any, cast
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, multithread
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AsyncClientSecretCredential,
+    DefaultAzureCredential as AsyncDefaultAzureCredential,
+)
 from azure.storage.filedatalake import (
     DataLakeDirectoryClient,
     DataLakeFileClient,
@@ -31,15 +35,19 @@ from azure.storage.filedatalake import (
     FileSystemClient,
     FileSystemProperties,
 )
+from azure.storage.filedatalake.aio import DataLakeServiceClient as AsyncDataLakeServiceClient
 
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
     get_field,
     get_sync_default_azure_credential,
 )
 
 Credentials = ClientSecretCredential | DefaultAzureCredential
+AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
 
 class AzureDataLakeHook(BaseHook):
@@ -382,6 +390,51 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             **extra,
         )
 
+    async def get_async_conn(self) -> AsyncDataLakeServiceClient:
+        """
+        Return an async DataLakeServiceClient, built from the connection as :meth:`get_conn` builds its client.
+
+        The connection is read with the async accessors, so the event loop is not blocked. Unlike
+        :meth:`get_conn`, the client is not cached: an async client belongs to the event loop it
+        was created on, so close it (``async with``) when done, and close its credential if it has
+        a ``close`` method (an Active Directory or default credential).
+        """
+        conn = await get_async_connection(self.conn_id)
+        extra = dict(await get_async_extra_dejson(conn) or {})
+
+        connection_string = self._get_field(extra, "connection_string")
+        if connection_string:
+            # connection_string auth takes priority
+            return AsyncDataLakeServiceClient.from_connection_string(connection_string, **extra)
+
+        credential: AsyncCredentials | str
+        tenant = self._get_field(extra, "tenant_id")
+        if tenant:
+            # use Active Directory auth
+            credential = AsyncClientSecretCredential(
+                tenant_id=tenant,
+                client_id=cast("str", conn.login),
+                client_secret=cast("str", conn.password),
+                proxies=extra.get("proxies", {}),
+            )
+        elif conn.password:
+            credential = conn.password
+        else:
+            credential = get_async_default_azure_credential(
+                managed_identity_client_id=self._get_field(extra, "managed_identity_client_id"),
+                workload_identity_tenant_id=self._get_field(extra, "workload_identity_tenant_id"),
+            )
+
+        account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
+
+        self.log.info("account_url: %s", account_url)
+
+        return AsyncDataLakeServiceClient(
+            account_url=account_url,
+            credential=credential,  # type: ignore[arg-type]
+            **extra,
+        )
+
     def create_file_system(self, file_system_name: str) -> None:
         """
         Create a new file system under the specified account.
@@ -483,6 +536,54 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         file_client = self.create_file(file_system_name, file_name)
         with open(file_path, "rb") as data:
             file_client.upload_data(data, overwrite=overwrite, **kwargs)
+
+    def load_bytes(
+        self,
+        file_system_name: FileSystemProperties | str,
+        file_name: str,
+        data: bytes,
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Write bytes to a file in the file system, as :meth:`upload_file` does with a local file.
+
+        :param file_system_name: Name of the file system or instance of FileSystemProperties.
+        :param file_name: Name of the file to be created, directories included.
+        :param data: The bytes to write.
+        :param overwrite: Boolean flag to overwrite an existing file or not.
+        """
+        file_client = self.get_file_system(file_system_name).get_file_client(file_name)
+        file_client.upload_data(data, overwrite=overwrite, **kwargs)
+
+    async def aload_bytes(
+        self,
+        file_system_name: FileSystemProperties | str,
+        file_name: str,
+        data: bytes,
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Write bytes to a file in the file system without blocking the event loop.
+
+        The async counterpart of :meth:`load_bytes`, on the client of :meth:`get_async_conn`.
+
+        :param file_system_name: Name of the file system or instance of FileSystemProperties.
+        :param file_name: Name of the file to be created, directories included.
+        :param data: The bytes to write.
+        :param overwrite: Boolean flag to overwrite an existing file or not.
+        """
+        client = await self.get_async_conn()
+        try:
+            async with client:
+                file_client = client.get_file_system_client(file_system_name).get_file_client(file_name)
+                await file_client.upload_data(data, overwrite=overwrite, **kwargs)
+        finally:
+            # An account key is a string; a token credential holds a session of its own.
+            close = getattr(client.credential, "close", None)
+            if close is not None:
+                await close()
 
     def upload_file_to_directory(
         self,
