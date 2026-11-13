@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.triggers.dataflow import (
 
 TEST_TASK_ID = "task_id"
 TEST_JOB_ID = "test_job_id"
+TEST_JOB_NAME = "test-job-name"
 TEST_PROJECT_ID = "test_project"
 TEST_LOCATION = "us-central1"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
@@ -105,6 +106,96 @@ class TestDataflowJobStatusSensor:
         mock_get_job.assert_called_once_with(
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
+
+    @pytest.mark.parametrize(
+        ("current_status", "sensor_return"),
+        [
+            (DataflowJobStatus.JOB_STATE_DONE, True),
+            (DataflowJobStatus.JOB_STATE_RUNNING, False),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook", autospec=True)
+    def test_poke_with_job_name(self, mock_hook, current_status, sensor_return):
+        mock_get_latest_job = mock_hook.return_value.get_latest_job_by_name
+        mock_get_latest_job.return_value = {"id": TEST_JOB_ID, "currentState": current_status}
+        task = DataflowJobStatusSensor(
+            task_id=TEST_TASK_ID,
+            job_name=TEST_JOB_NAME,
+            expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+        )
+
+        assert task.poke(mock.MagicMock()) == sensor_return
+        mock_get_latest_job.assert_called_once_with(
+            job_name=TEST_JOB_NAME, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+        mock_hook.return_value.get_job.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook", autospec=True)
+    def test_poke_with_job_name_waits_when_no_job_found(self, mock_hook):
+        mock_hook.return_value.get_latest_job_by_name.return_value = None
+        task = DataflowJobStatusSensor(
+            task_id=TEST_TASK_ID,
+            job_name=TEST_JOB_NAME,
+            expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+        )
+
+        assert task.poke(mock.MagicMock()) is False
+
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook", autospec=True)
+    def test_poke_with_job_name_raise_exception(self, mock_hook):
+        mock_hook.return_value.get_latest_job_by_name.return_value = {
+            "id": TEST_JOB_ID,
+            "currentState": DataflowJobStatus.JOB_STATE_FAILED,
+        }
+        task = DataflowJobStatusSensor(
+            task_id=TEST_TASK_ID,
+            job_name=TEST_JOB_NAME,
+            expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
+            f"{DataflowJobStatus.JOB_STATE_FAILED}",
+        ):
+            task.poke(mock.MagicMock())
+
+    @pytest.mark.parametrize(
+        "job_kwargs",
+        [{}, {"job_id": TEST_JOB_ID, "job_name": TEST_JOB_NAME}],
+        ids=["neither", "both"],
+    )
+    def test_init_requires_exactly_one_of_job_id_and_job_name(self, job_kwargs):
+        with pytest.raises(ValueError, match="Exactly one of job_id or job_name should be provided"):
+            DataflowJobStatusSensor(
+                task_id=TEST_TASK_ID,
+                expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
+                **job_kwargs,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor.poke")
+    def test_execute_with_job_name_passes_it_to_trigger(self, mock_poke):
+        mock_poke.return_value = False
+        task = DataflowJobStatusSensor(
+            task_id=TEST_TASK_ID,
+            job_name=TEST_JOB_NAME,
+            expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context=None)
+
+        assert exc.value.trigger.job_name == TEST_JOB_NAME
+        assert exc.value.trigger.job_id is None
 
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor.poke")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook")

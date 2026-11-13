@@ -460,6 +460,21 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
             self.log.info("Google Cloud DataFlow job not available yet..")
         return self._job_id
 
+    def fetch_latest_job_by_name(self, job_name: str) -> dict | None:
+        """
+        Return the latest created job with the given name, in any state.
+
+        Dataflow API does not support getting a job by name, so all jobs in the location are listed
+        and filtered here.
+
+        :param job_name: Name of the job. It is converted to lowercase because Dataflow job names
+            are always lowercase.
+        :return: The job, or None if no job has this name.
+        """
+        job_name = job_name.lower()
+        jobs = [job for job in self._fetch_all_jobs() if job.get("name") == job_name]
+        return max(jobs, key=lambda job: job.get("createTime", ""), default=None)
+
     def _fetch_all_jobs(self, jobs_filter: str | None = None) -> list[dict]:
         list_kwargs: dict[str, Any] = {
             "projectId": self._project_number,
@@ -1165,6 +1180,31 @@ class DataflowHook(GoogleBaseHook):
         return jobs_controller.fetch_job_id()
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_latest_job_by_name(
+        self, job_name: str, project_id: str = PROVIDE_PROJECT_ID, location: str = DEFAULT_DATAFLOW_LOCATION
+    ) -> dict | None:
+        """
+        Get the latest created job with the given name, in any state.
+
+        Job names are not unique in Dataflow, so if more than one job has this name, the newest one
+        is returned.
+
+        :param job_name: Name of the job.
+        :param project_id: Optional, the Google Cloud project ID in which the job was started.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        :return: The job, or None if no job has this name.
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+            num_retries=self.num_retries,
+        )
+        return jobs_controller.fetch_latest_job_by_name(job_name)
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
         self,
         job_id: str,
@@ -1539,6 +1579,30 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         )
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
         return page_result
+
+    async def get_latest_job_by_name(
+        self,
+        job_name: str,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+    ) -> Job | None:
+        """
+        Get the latest created job with the given name, in any state.
+
+        Job names are not unique in Dataflow, so if more than one job has this name, the newest one
+        is returned.
+
+        :param job_name: Name of the job. It is converted to lowercase because Dataflow job names
+            are always lowercase.
+        :param project_id: Optional. The Google Cloud project ID in which the job was started.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: Optional. The location of the Dataflow job (for example europe-west1).
+        :return: The job, or None if no job has this name.
+        """
+        job_name = job_name.lower()
+        jobs = await self.list_jobs(project_id=project_id, location=location)
+        matching_jobs = [job async for job in jobs if job.name == job_name]
+        return max(matching_jobs, key=lambda job: job.create_time, default=None)
 
     async def list_job_messages(
         self,

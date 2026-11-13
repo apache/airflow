@@ -410,6 +410,12 @@ This operator can be run in deferrable mode by passing ``deferrable=True`` as a 
     :start-after: [START howto_sensor_wait_for_job_status_deferrable]
     :end-before: [END howto_sensor_wait_for_job_status_deferrable]
 
+If the job is started outside Airflow and its ID is not known, you can pass ``job_name`` instead of
+``job_id``. Job names are not unique in Dataflow, so the sensor checks the latest created job with that
+name. If no job with that name exists yet, the sensor keeps waiting. If the same job name is used for every
+run, add something unique like the date to the name, for example ``my-job-{{ ds_nodash }}``. Otherwise the
+sensor can pick up the previous run before the new run starts.
+
 :class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMetricsSensor`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_native_python_async.py

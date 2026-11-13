@@ -221,7 +221,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
     """
     Trigger that monitors if a Dataflow job has reached any of the expected statuses.
 
-    :param job_id: Required. ID of the job.
+    :param job_id: ID of the job. Required if ``job_name`` is not given.
     :param expected_statuses: The expected state(s) of the operation.
         See: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     :param project_id: Required. The Google Cloud project ID in which the job was started.
@@ -237,20 +237,24 @@ class DataflowJobStatusTrigger(BaseTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param job_name: Optional. Name of the job, used when ``job_id`` is not given. The latest created
+        job with this name is checked. If no job with this name exists yet, the trigger keeps waiting.
     """
 
     def __init__(
         self,
-        job_id: str,
+        job_id: str | None,
         expected_statuses: set[str],
         project_id: str | None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
+        job_name: str | None = None,
     ):
         super().__init__()
         self.job_id = job_id
+        self.job_name = job_name
         self.expected_statuses = expected_statuses
         self.project_id = project_id
         self.location = location
@@ -264,6 +268,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
             "airflow.providers.google.cloud.triggers.dataflow.DataflowJobStatusTrigger",
             {
                 "job_id": self.job_id,
+                "job_name": self.job_name,
                 "expected_statuses": self.expected_statuses,
                 "project_id": self.project_id,
                 "location": self.location,
@@ -287,16 +292,34 @@ class DataflowJobStatusTrigger(BaseTrigger):
         """
         try:
             while True:
-                job_status = await self.async_hook.get_job_status(
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location,
-                )
+                if self.job_id:
+                    job_id = self.job_id
+                    job_status = await self.async_hook.get_job_status(
+                        job_id=self.job_id,
+                        project_id=self.project_id,
+                        location=self.location,
+                    )
+                else:
+                    job = await self.async_hook.get_latest_job_by_name(
+                        job_name=self.job_name,
+                        project_id=self.project_id,
+                        location=self.location,
+                    )
+                    if job is None:
+                        self.log.info(
+                            "No job found with name %s yet. Sleeping for %s seconds.",
+                            self.job_name,
+                            self.poll_sleep,
+                        )
+                        await asyncio.sleep(self.poll_sleep)
+                        continue
+                    job_id = job.id
+                    job_status = job.current_state
                 if job_status.name in self.expected_statuses:
                     yield TriggerEvent(
                         {
                             "status": "success",
-                            "message": f"Job with id '{self.job_id}' has reached an expected state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' has reached an expected state: {job_status.name}",
                         }
                     )
                     return
@@ -304,7 +327,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Job with id '{self.job_id}' is already in terminal state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' is already in terminal state: {job_status.name}",
                         }
                     )
                     return

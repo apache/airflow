@@ -49,7 +49,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowJobStatusSensor`
 
-    :param job_id: ID of the job to be checked.
+    :param job_id: ID of the job to check. Exactly one of ``job_id`` or ``job_name`` should be given.
+    :param job_name: Name of the job to check. Use it when the job ID is not known, for example when
+        the job is started outside Airflow. Job names are not unique in Dataflow, so the latest created
+        job with this name is checked. If no job with this name exists yet, the sensor keeps waiting.
     :param expected_statuses: The expected state(s) of the operation.
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
@@ -72,13 +75,15 @@ class DataflowJobStatusSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = (
         "job_id",
+        "job_name",
         "gcp_conn_id",
     )
 
     def __init__(
         self,
         *,
-        job_id: str,
+        job_id: str | None = None,
+        job_name: str | None = None,
         expected_statuses: set[str] | str,
         project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
@@ -89,7 +94,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if (job_id is None) == (job_name is None):
+            raise ValueError("Exactly one of job_id or job_name should be provided.")
         self.job_id = job_id
+        self.job_name = job_name
         self.expected_statuses = (
             {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
         )
@@ -103,23 +111,34 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         self.log.info(
             "Waiting for job %s to be in one of the states: %s.",
-            self.job_id,
+            self.job_id or self.job_name,
             ", ".join(self.expected_statuses),
         )
 
-        job = self.hook.get_job(
-            job_id=self.job_id,
-            project_id=self.project_id,
-            location=self.location,
-        )
+        if self.job_id:
+            job = self.hook.get_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
+        else:
+            job = self.hook.get_latest_job_by_name(
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            if job is None:
+                self.log.info("No job found with name %s yet.", self.job_name)
+                return False
 
+        job_id = job["id"]
         job_status = job["currentState"]
-        self.log.debug("Current job status for job %s: %s.", self.job_id, job_status)
+        self.log.debug("Current job status for job %s: %s.", job_id, job_status)
 
         if job_status in self.expected_statuses:
             return True
         if job_status in DataflowJobStatus.TERMINAL_STATES:
-            message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+            message = f"Job with id '{job_id}' is already in terminal state: {job_status}"
             raise AirflowException(message)
 
         return False
@@ -133,6 +152,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
                 timeout=self.execution_timeout,
                 trigger=DataflowJobStatusTrigger(
                     job_id=self.job_id,
+                    job_name=self.job_name,
                     expected_statuses=self.expected_statuses,
                     project_id=self.project_id,
                     location=self.location,
