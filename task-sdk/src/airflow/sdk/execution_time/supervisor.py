@@ -881,6 +881,7 @@ class WatchedSubprocess:
 
     _exit_code: int | None = attrs.field(default=None, init=False)
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
+    _exit_status_lost: bool = attrs.field(default=False, init=False)
     _open_sockets: weakref.WeakKeyDictionary[socket, str] = attrs.field(
         factory=weakref.WeakKeyDictionary, init=False
     )
@@ -1480,6 +1481,19 @@ class WatchedSubprocess:
                 raise
         else:
             self._process_exit_monotonic = time.monotonic()
+
+            if self._exit_code is None:
+                # psutil returns None for a process that has exited when its exit status was already
+                # collected elsewhere, e.g. because SIGCHLD is ignored in this process and the kernel reaped
+                # it. Every later wait returns None too, so record the exit now instead of treating the
+                # process as alive forever.
+                self._exit_code = -1
+                self._exit_status_lost = True
+                self.process_log.warning(
+                    "Process exited, but its exit status was collected elsewhere (is SIGCHLD ignored?)",
+                    pid=self.pid,
+                )
+                return self._exit_code
 
             if expect_signal is not None and self._exit_code == -expect_signal:
                 # Bypass logging, the caller expected us to exit with this
@@ -2105,7 +2119,8 @@ class ActivitySubprocess(WatchedSubprocess):
         sending a TaskState message, as long as the process exits with 0.
 
         A nonzero exit code can override the worker outcome here. Deliver reports
-        using the message state, not this inferred state.
+        using the message state, not this inferred state. If the exit status was
+        lost, the state the subprocess sent is used, and the task failed without one.
 
         Not valid before the process has finished.
         """
@@ -2113,6 +2128,8 @@ class ActivitySubprocess(WatchedSubprocess):
             return self._terminal_state
         if self._exit_code == 0:
             return self._terminal_state or TaskInstanceState.SUCCESS
+        if self._exit_status_lost and self._terminal_state is not None:
+            return self._terminal_state
 
         # Any non zero exit code indicates a failure
         # If retries are configured, mark as UP_FOR_RETRY
