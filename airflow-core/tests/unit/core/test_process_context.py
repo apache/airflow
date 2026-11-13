@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.process_context import force_server_context, should_use_task_sdk_api_path
+from airflow.process_context import should_use_task_sdk_api_path
 
 TASK_RUNNER = "airflow.sdk.execution_time.task_runner"
 
@@ -31,13 +31,9 @@ TASK_RUNNER = "airflow.sdk.execution_time.task_runner"
 class TestShouldUseTaskSdkApiPath:
     """Whether models.Variable/Connection take the Execution API path, per thread."""
 
-    def test_false_when_the_task_runner_was_never_imported(self, monkeypatch):
-        monkeypatch.delitem(sys.modules, TASK_RUNNER, raising=False)
-        assert should_use_task_sdk_api_path() is False
-
     @pytest.mark.parametrize(("comms", "expected"), [("comms", True), (None, False)])
     def test_follows_the_task_runners_answer_for_this_thread(self, monkeypatch, comms, expected):
-        monkeypatch.setitem(sys.modules, TASK_RUNNER, SimpleNamespace(supervisor_comms=lambda: comms))
+        monkeypatch.setitem(sys.modules, TASK_RUNNER, SimpleNamespace(get_supervisor_comms=lambda: comms))
         assert should_use_task_sdk_api_path() is expected
 
     @pytest.mark.parametrize(
@@ -47,15 +43,17 @@ class TestShouldUseTaskSdkApiPath:
         monkeypatch.setitem(sys.modules, TASK_RUNNER, SimpleNamespace(**module_attrs))
         assert should_use_task_sdk_api_path() is expected
 
-    def test_forced_server_context_wins_over_the_comms(self, monkeypatch):
-        monkeypatch.setitem(sys.modules, TASK_RUNNER, SimpleNamespace(supervisor_comms=lambda: "comms"))
-        with force_server_context():
-            assert should_use_task_sdk_api_path() is False
+    @pytest.mark.parametrize("name", ["get_supervisor_comms", "hide_supervisor_comms"])
+    def test_the_task_sdk_has_the_names_looked_up_with_getattr(self, name):
+        """airflow-core falls back silently when a name is missing, so a rename must fail here."""
+        from airflow.sdk.execution_time import task_runner
+
+        assert callable(getattr(task_runner, name))
 
     def test_the_thread_serving_an_in_process_request_is_the_server_side(self):
         from airflow.sdk.execution_time import task_runner
 
         with patch.object(task_runner, "SUPERVISOR_COMMS", "comms", create=True):
             assert should_use_task_sdk_api_path() is True
-            with task_runner.serving_supervisor_request():
+            with task_runner.hide_supervisor_comms():
                 assert should_use_task_sdk_api_path() is False

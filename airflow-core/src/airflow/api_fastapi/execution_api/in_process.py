@@ -98,11 +98,8 @@ class _RequestScopedServerContextApp:
     """
     Wrap an ASGI app so in-process requests behave like server-side API handling.
 
-    The flags are set in the request's context, which the event loop task and the worker threads of
-    sync routes inherit, so the task's other threads keep their comms meanwhile:
-    ``force_server_context`` for airflow-core (``models.Variable``, ``models.Connection``), and the
-    Task SDK's ``serving_supervisor_request`` for its own readers (mask forwarding, the secrets
-    backend choice).
+    ``force_server_context`` covers airflow-core's readers and the Task SDK's ``hide_supervisor_comms``
+    its own; the event loop task and the worker threads of sync routes inherit both.
     """
 
     def __init__(self, app: FastAPI) -> None:
@@ -110,9 +107,9 @@ class _RequestScopedServerContextApp:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
-        # No task runs in this process, or a Task SDK from before the flag: nothing to hide from.
-        serving_supervisor_request = getattr(task_runner, "serving_supervisor_request", nullcontext)
-        with force_server_context(), serving_supervisor_request():
+        # No task runs in this process, or a Task SDK from before the flag: nothing to hide.
+        hide_supervisor_comms = getattr(task_runner, "hide_supervisor_comms", nullcontext)
+        with force_server_context(), hide_supervisor_comms():
             await self.app(scope, receive, send)
 
 

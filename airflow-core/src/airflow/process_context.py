@@ -52,10 +52,8 @@ def should_use_task_sdk_api_path() -> bool:
     task_runner_module = sys.modules.get("airflow.sdk.execution_time.task_runner")
     if task_runner_module is None:
         return False
-    # ``supervisor_comms()`` answers per thread: ``None`` in the code serving a request of the
-    # in-process supervisor (``dag.test()``), while the task's other threads keep their comms.
-    supervisor_comms = getattr(task_runner_module, "supervisor_comms", None)
-    if supervisor_comms is None:
-        # A Task SDK from before the per-thread answer.
+    get_supervisor_comms = getattr(task_runner_module, "get_supervisor_comms", None)
+    if get_supervisor_comms is None:
+        # A Task SDK from before ``get_supervisor_comms()``.
         return bool(getattr(task_runner_module, "SUPERVISOR_COMMS", None))
-    return supervisor_comms() is not None
+    return get_supervisor_comms() is not None
