@@ -132,9 +132,10 @@ class AthenaHook(AwsBaseHook):
         params = {
             "QueryString": query,
             "QueryExecutionContext": query_context,
-            "ResultConfiguration": result_configuration,
             "WorkGroup": workgroup,
         }
+        if result_configuration:
+            params["ResultConfiguration"] = result_configuration
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
         if self.log_query:

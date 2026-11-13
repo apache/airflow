@@ -116,6 +116,20 @@ class TestAthenaHook:
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         assert result == MOCK_DATA["query_execution_id"]
 
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_run_query_omits_empty_result_configuration(self, mock_conn):
+        mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
+        self.athena.run_query(
+            query=MOCK_DATA["query"],
+            query_context=mock_query_context,
+            result_configuration={},
+        )
+        mock_conn.return_value.start_query_execution.assert_called_with(
+            QueryString=MOCK_DATA["query"],
+            QueryExecutionContext=mock_query_context,
+            WorkGroup=MOCK_DATA["workgroup"],
+        )
+
     @mock.patch.object(AthenaHook, "log")
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_query_log_query(self, mock_conn, log):
