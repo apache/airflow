@@ -27,6 +27,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/apache/airflow/go-sdk/internal/fieldname"
 )
 
 // UnmarshalConf reads [DagRun.Conf] into target, which must be a non-nil
@@ -187,7 +189,7 @@ func matchConfFields(obj map[string]any, target reflect.Type) (map[string]any, e
 		if !ok {
 			// A key that folds to a field claims that field only when no other
 			// key names it exactly.
-			folded, found := fields.byFold[foldConfName(key)]
+			folded, found := fields.byFold[fieldname.Fold(key)]
 			if !found {
 				continue
 			}
@@ -312,7 +314,7 @@ func collectConfFields(structType reflect.Type, fields *confFields) []reflect.Ty
 			typ:    f.Type,
 		}
 		fields.byName[name] = field
-		folded := foldConfName(name)
+		folded := fieldname.Fold(name)
 		if clash, dup := fields.byFold[folded]; dup {
 			fields.err = fmt.Errorf(
 				"sdk.DagRun.UnmarshalConf: fields %s and %s differ only in case or underscores, so the SDK "+
@@ -359,10 +361,6 @@ func confStructType(t reflect.Type) reflect.Type {
 		return nil
 	}
 	return t
-}
-
-func foldConfName(name string) string {
-	return strings.ToLower(strings.ReplaceAll(name, "_", ""))
 }
 
 func confTypeName(t reflect.Type) string {

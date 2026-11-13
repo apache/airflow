@@ -40,6 +40,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/apache/airflow/go-sdk/internal/fieldname"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -260,7 +261,7 @@ func (p *Plan) resolveLoneStructParam(
 			continue
 		}
 		byName[a.ArgName()] = i
-		key := foldArgName(a.ArgName())
+		key := fieldname.Fold(a.ArgName())
 		if _, dup := byFolded[key]; dup {
 			ambiguous[key] = true
 			continue
@@ -278,7 +279,7 @@ func (p *Plan) resolveLoneStructParam(
 	for _, sf := range plan.fields {
 		idx, ok := byName[sf.argName]
 		if !ok && !sf.tagged {
-			key := foldArgName(sf.argName)
+			key := fieldname.Fold(sf.argName)
 			if !ambiguous[key] {
 				idx, ok = byFolded[key]
 			}
@@ -685,7 +686,7 @@ func collectStructFields(
 			)
 		}
 		claimed[sf.argName] = f.Name
-		key := foldArgName(sf.argName)
+		key := fieldname.Fold(sf.argName)
 		if existing, ok := folded[key]; ok {
 			return fmt.Errorf(
 				"task function %s: parameter %d: struct fields %s and %s bind arg names that "+
@@ -698,10 +699,6 @@ func collectStructFields(
 		*fields = append(*fields, sf)
 	}
 	return nil
-}
-
-func foldArgName(name string) string {
-	return strings.ToLower(strings.ReplaceAll(name, "_", ""))
 }
 
 type schemaShape struct {
