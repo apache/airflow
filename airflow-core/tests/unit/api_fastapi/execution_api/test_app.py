@@ -600,16 +600,16 @@ def test_in_process_execution_api_serves_requests_as_the_server_side():
 
     def task_thread():
         route_entered.wait(5)
-        seen["task thread"] = task_runner.supervisor_comms()
+        seen["task thread"] = task_runner.get_supervisor_comms()
         task_thread_read.set()
 
     async def probe_async():
-        seen["async route"] = task_runner.supervisor_comms()
+        seen["async route"] = task_runner.get_supervisor_comms()
 
     def probe_sync():
         route_entered.set()
         task_thread_read.wait(5)
-        seen["sync route"] = task_runner.supervisor_comms()
+        seen["sync route"] = task_runner.get_supervisor_comms()
 
     api = InProcessExecutionAPI()
     api.app.add_api_route("/probe-async", probe_async, methods=["GET"])
@@ -622,6 +622,6 @@ def test_in_process_execution_api_serves_requests_as_the_server_side():
             assert client.get("/probe-async").status_code == 200
             assert client.get("/probe-sync").status_code == 200
         thread.join(5)
-        seen["after"] = task_runner.supervisor_comms()
+        seen["after"] = task_runner.get_supervisor_comms()
 
     assert seen == {"async route": None, "sync route": None, "task thread": comms, "after": comms}
