@@ -206,9 +206,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
 
         This method follows the async/await pattern to allow to run the cleanup
         in triggerer main event loop. Exceptions raised by the cleanup method
-        are ignored, so if you would like to be able to debug them and be notified
-        that cleanup method failed, you should wrap your code with try/except block
-        and handle it appropriately (in async-compatible way).
+        are logged as a warning with the traceback and not re-raised.
         """
 
     async def on_kill(self) -> None:
