@@ -6183,15 +6183,22 @@ def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec,
 @pytest.mark.parametrize(
     ("task_uses_exec", "target", "expected_calls"),
     [
-        pytest.param(False, supervisor._subprocess_main, ["import task runner", "fork"], id="bare-fork"),
+        pytest.param(
+            False, supervisor._subprocess_main, ["import task runner", "freeze gc", "fork"], id="bare-fork"
+        ),
         pytest.param(True, supervisor._subprocess_main, ["fork"], id="exec"),
         pytest.param(False, lambda: None, ["fork"], id="test-target"),
     ],
 )
-def test_activity_start_imports_task_runner_before_bare_fork(
+def test_activity_start_prepares_supervisor_before_bare_fork(
     monkeypatch, mocker, task_uses_exec, target, expected_calls
 ):
-    """A forked task process inherits the task runner from the supervisor; a spawned one imports its own."""
+    """
+    A forked task process inherits the task runner and a frozen GC from the supervisor.
+
+    A spawned task process shares no pages with the supervisor, so it imports its own task runner
+    and the supervisor's GC stays as it is.
+    """
     calls = []
 
     def fork(*args, **kwargs):
@@ -6205,6 +6212,7 @@ def test_activity_start_imports_task_runner_before_bare_fork(
         autospec=True,
         side_effect=lambda: calls.append("import task runner"),
     )
+    mocker.patch.object(supervisor.gc, "freeze", side_effect=lambda: calls.append("freeze gc"))
     mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, side_effect=fork)
 
     ActivitySubprocess.start(
@@ -6225,6 +6233,28 @@ def test_activity_start_imports_task_runner_before_bare_fork(
     )
 
     assert calls == expected_calls
+
+
+@pytest.mark.parametrize("gc_frozen", [True, False])
+def test_wait_unfreezes_gc_after_task_process_exits(mocker, gc_frozen):
+    """A worker that supervises many tasks in one process collects the frozen objects again after each task."""
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    proc._gc_frozen = gc_frozen
+    mocker.patch.object(ActivitySubprocess, "_monitor_subprocess")
+    mocker.patch.object(ActivitySubprocess, "update_task_state_if_needed")
+    mocker.patch.object(ActivitySubprocess, "_upload_logs")
+    unfreeze = mocker.patch.object(supervisor.gc, "unfreeze")
+
+    proc.wait()
+
+    assert unfreeze.call_count == (1 if gc_frozen else 0)
 
 
 def test_import_task_runner_before_fork_leaves_import_errors_to_the_child(monkeypatch):

@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import functools
+import gc
 import io
 import logging
 import math
@@ -1651,6 +1652,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _wait_completed: bool = attrs.field(default=False, init=False)
+    _gc_frozen: bool = attrs.field(default=False, init=False)
     # Retain the full report until delivery succeeds, including reports deferred until process exit.
     _pending_terminal_state_msg: (
         TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
@@ -1696,8 +1698,14 @@ class ActivitySubprocess(WatchedSubprocess):
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and task_process_uses_exec()
-        if target is _subprocess_main and not use_exec:
+        gc_frozen = target is _subprocess_main and not use_exec
+        if gc_frozen:
             _import_task_runner_before_fork()
+            # A GC pass in either process writes to the headers of the objects the task process
+            # inherits, which splits the pages both processes share copy-on-write. ``wait()``
+            # unfreezes once the task process exits, so a worker that supervises many tasks in one
+            # process collects these objects again between tasks.
+            gc.freeze()
         proc: Self = super().start(
             id=what.id,
             client=client,
@@ -1707,6 +1715,7 @@ class ActivitySubprocess(WatchedSubprocess):
             new_process_group=True,
             **kwargs,
         )
+        proc._gc_frozen = gc_frozen
         # Tell the task process what it needs to do!
         proc._on_child_started(
             ti=what,
@@ -1789,6 +1798,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self._monitor_subprocess()
         finally:
             self.selector.close()
+            if self._gc_frozen:
+                gc.unfreeze()
+                self._gc_frozen = False
 
         # self._monitor_subprocess() will set the exit code when the process has finished
         # If it hasn't, assume it's failed
