@@ -70,7 +70,9 @@ class SerializedReferenceModels:
     :meta private:
     """
 
+    # <block same-as="task-sdk/src/airflow/sdk/definitions/deadline.py:reference-type-field">
     REFERENCE_TYPE_FIELD = "reference_type"
+    # </block>
 
     @classmethod
     def is_builtin_reference(cls, ref_name: str) -> bool:

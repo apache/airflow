@@ -40,14 +40,16 @@
     // Fallback: empty objects — badges show raw type name, icons fall back to first letter
   }
 
-  // Kept in sync by hand with normalize() in provider-filters.js and
+  // Kept in sync with normalize() in provider-filters.js and
   // src/_data/providerKeywordMatch.js (this file and provider-filters.js are
   // browser IIFEs; providerKeywordMatch runs at build time under CommonJS),
   // so none of the three can share an implementation. If they drift,
   // 'mistral-ai' stops matching "Mistral AI".
+  // <block same-as="registry/src/_data/providerKeywordMatch.js:normalize">
   function normalize(text) {
     return text.toLowerCase().replace(/[-_\s]+/g, ' ');
   }
+  // </block>
 
   function escapeHtml(str) {
     const div = document.createElement('div');
