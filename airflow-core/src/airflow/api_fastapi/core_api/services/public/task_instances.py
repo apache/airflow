@@ -200,18 +200,20 @@ def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInsta
 
 def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI]:
     """
-    Re-load TIs with ``rendered_task_instance_fields`` eagerly loaded.
+    Re-load TIs with ``rendered_task_instance_fields`` and ``task_instance_note`` eagerly loaded.
 
-    ``set_task_instance_state`` / ``set_task_group_state`` return TIs without this relationship
+    ``set_task_instance_state`` / ``set_task_group_state`` return TIs without these relationships
     loaded; we re-query so they can be serialized without lazy loads.
-    ``populate_existing=True`` ensures the joinedload updates TIs already in the identity map.
+    ``populate_existing=True`` ensures the joinedload updates TIs already in the identity map,
+    so pending changes (e.g. a new note) are flushed first or they would be overwritten.
     """
     if not tis:
         return tis
+    session.flush()
     reloaded = list(
         session.scalars(
             select(TI)
-            .options(joinedload(TI.rendered_task_instance_fields))
+            .options(joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note))
             .where(TI.id.in_([ti.id for ti in tis]))
             .execution_options(populate_existing=True, include_all_attempts=True)
         ).all()

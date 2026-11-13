@@ -59,7 +59,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
@@ -9760,6 +9760,17 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
             f"Adding one task should add at most a few queries for per-TI state updates, "
             f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
         )
+
+    def test_dry_run_loads_notes_in_one_query(self, test_client, session):
+        """Notes should be loaded together, not one query per task instance."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_2 has 4 tasks
+        with capture_orm_selects("task_instance_note") as note_queries:
+            response = test_client.patch(f"{self.BASE_URL}/section_2/dry_run", json={"new_state": "success"})
+        assert response.status_code == 200
+
+        assert len(note_queries) <= 1, f"Expected 1 note query, got {len(note_queries)}"
 
     def test_dry_run_does_not_update_ti_states_in_db(self, test_client, session):
         """Test that dry run does not actually modify task instance states in the database."""
