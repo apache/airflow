@@ -33,7 +33,7 @@ def run_command(cmd: str, log_prefix: str = ""):
     os.system(cmd)
 
 
-async def run_command_async(cmd: str, log_prefix: str = ""):
+async def run_command_async(cmd: str, log_prefix: str = "") -> int:
     print(f'{log_prefix}Executing the command: "{cmd}"...')
     process = await asyncio.create_subprocess_shell(
         cmd,
@@ -46,6 +46,7 @@ async def run_command_async(cmd: str, log_prefix: str = ""):
         print(f"{log_prefix}Stdout:\n{stdout.decode().strip()}")
     if stderr:
         print(f"{log_prefix}Stderr:\n{stderr.decode().strip()}")
+    return process.returncode
 
 
 def get_resources_file(
