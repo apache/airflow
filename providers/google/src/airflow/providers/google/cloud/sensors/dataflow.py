@@ -115,6 +115,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
             ", ".join(self.expected_statuses),
         )
 
+        job: dict | None
         if self.job_id:
             job = self.hook.get_job(
                 job_id=self.job_id,

@@ -72,6 +72,8 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
     from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
     from google.protobuf.timestamp_pb2 import Timestamp
@@ -1602,7 +1604,8 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         job_name = job_name.lower()
         jobs = await self.list_jobs(project_id=project_id, location=location)
         matching_jobs = [job async for job in jobs if job.name == job_name]
-        return max(matching_jobs, key=lambda job: job.create_time, default=None)
+        # create_time is typed as protobuf Timestamp, but proto-plus returns it as a datetime.
+        return max(matching_jobs, key=lambda job: cast("datetime", job.create_time), default=None)
 
     async def list_job_messages(
         self,
