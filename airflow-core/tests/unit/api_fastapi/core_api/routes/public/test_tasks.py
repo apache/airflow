@@ -120,6 +120,7 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "is_durable": False,
             "doc_md": None,
         }
         response = test_client.get(
@@ -140,6 +141,7 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "is_mapped": True,
+            "is_durable": False,
             "operator_name": "EmptyOperator",
             "owner": "airflow",
             "params": {},
@@ -205,6 +207,7 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "is_durable": False,
             "doc_md": None,
         }
         downstream_dict = {
@@ -271,6 +274,7 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "is_durable": False,
             "doc_md": None,
         }
         response = test_client.get(
@@ -377,6 +381,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "is_durable": False,
                     "doc_md": None,
                 },
                 {
@@ -409,6 +414,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "is_durable": False,
                     "doc_md": None,
                 },
             ],
@@ -433,6 +439,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "is_mapped": True,
+                    "is_durable": False,
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
@@ -484,6 +491,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "is_durable": False,
                     "doc_md": None,
                 },
             ],
@@ -539,6 +547,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "is_durable": False,
                     "doc_md": None,
                 }
                 for (task_id, downstream_task_id) in downstream_dict.items()

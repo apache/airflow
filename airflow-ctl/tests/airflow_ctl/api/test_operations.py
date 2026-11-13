@@ -2761,6 +2761,7 @@ class TestTasksOperations:
         params=None,
         class_ref=None,
         is_mapped=False,
+        is_durable=False,
         extra_links=[],
     )
     task_collection_response = TaskCollectionResponse(

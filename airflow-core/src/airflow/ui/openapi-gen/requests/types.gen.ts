@@ -2601,6 +2601,7 @@ export type TaskResponse = {
     [key: string]: unknown;
 } | null;
     is_mapped: boolean | null;
+    is_durable: boolean;
     /**
      * Extract and return extra_links.
      */
