@@ -1,0 +1,7 @@
+``createUserJob`` is now disabled by default and creates no default user.
+
+Earlier versions ran the job on every install and provisioned a FAB ``admin`` account with the password ``admin``. Those credentials were identical on every installation, so anything able to reach the API server could sign in with the Admin role.
+
+The chart now ships no default ``createUserJob.defaultUser.username`` or ``password``, and enabling the job without setting both fails the render rather than creating an account with well-known credentials.
+
+If you relied on the default account, either create the user yourself with ``airflow users create`` after installing, or set ``createUserJob.enabled: true`` together with a username and password of your own. See :doc:`production-guide` for both.

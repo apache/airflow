@@ -401,7 +401,7 @@ class TestSCCActivation:
                 "redis": {"enabled": True},
                 "triggerer": {"enabled": True},
                 "migrateDatabaseJob": {"enabled": True},
-                "createUserJob": {"enabled": True},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}},
                 "cleanup": {"enabled": True},
                 "databaseCleanup": {"enabled": True},
                 "dagProcessor": {"enabled": True},
