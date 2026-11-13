@@ -416,6 +416,10 @@ class PodManager(LoggingMixin):
         self._callbacks = callbacks or []
         self.stop_watching_events = False
         self.container_log_times: dict[tuple[str, str, str], DateTime] = {}
+        # Newest timestamp read from each container's log, and how many lines carried it. A resumed
+        # read can only start a whole number of seconds back, so it repeats lines up to this point.
+        # Timestamps are parsed to the microsecond and lines can share one, hence the count.
+        self._container_log_positions: dict[tuple[str, str, str], tuple[DateTime, int]] = {}
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -585,11 +589,30 @@ class PodManager(LoggingMixin):
                 )
                 message_to_log = None
                 message_timestamp = None
+                log_key = (pod.metadata.namespace, pod.metadata.name, container_name)
+                resume_timestamp, replayed_at_resume = self._container_log_positions.get(log_key, (None, 0))
+                replaying = resume_timestamp is not None
                 try:
                     for raw_line in logs:
                         line = raw_line.decode("utf-8", errors="backslashreplace")
                         line_timestamp, message = parse_log_line(line)
+                        if replaying:
+                            # Skip what an earlier read already returned, along with the
+                            # untimestamped continuations of those lines.
+                            if line_timestamp is None or line_timestamp < resume_timestamp:
+                                continue
+                            if line_timestamp == resume_timestamp and replayed_at_resume > 0:
+                                replayed_at_resume -= 1
+                                continue
+                            replaying = False
                         if line_timestamp:  # detect new log line
+                            position_timestamp, lines_at_position = self._container_log_positions.get(
+                                log_key, (None, 0)
+                            )
+                            self._container_log_positions[log_key] = (
+                                line_timestamp,
+                                lines_at_position + 1 if line_timestamp == position_timestamp else 1,
+                            )
                             if not message:
                                 # Empty container write: advance the resume
                                 # marker but do not emit a noisy ``[base] ``
@@ -680,7 +703,7 @@ class PodManager(LoggingMixin):
             # a timeout is a normal thing and we ignore it and resume following logs
             if not isinstance(exc, TimeoutError):
                 self.log.warning(
-                    "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
+                    "Pod %s log read interrupted but container %s still running; resuming.",
                     pod.metadata.name,
                     container_name,
                 )

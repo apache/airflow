@@ -1001,6 +1001,62 @@ class TestPodManager:
         assert key in self.pod_manager.container_log_times
         assert self.pod_manager.container_log_times[key] == cast("DateTime", pendulum.parse(timestamp_string))
 
+    @pytest.mark.parametrize(
+        ("first_read", "second_read", "expected_messages"),
+        [
+            pytest.param(
+                ["2020-10-08T14:16:17.1Z a", "2020-10-08T14:16:18.2Z b", "2020-10-08T14:16:18.3Z c"],
+                ["2020-10-08T14:16:18.2Z b", "2020-10-08T14:16:18.3Z c", "2020-10-08T14:16:19.1Z d"],
+                ["a", "b", "c", "d"],
+                id="replayed_last_second",
+            ),
+            pytest.param(
+                ["2020-10-08T14:16:18.2Z Traceback:", "  line 1"],
+                ["2020-10-08T14:16:18.2Z Traceback:", "  line 1", "2020-10-08T14:16:19.1Z done"],
+                ["Traceback:\n  line 1\n", "done"],
+                id="replayed_continuation_lines",
+            ),
+            pytest.param(
+                ["2020-10-08T14:16:18.2Z a", "2020-10-08T14:16:18.2Z b"],
+                [
+                    "2020-10-08T14:16:18.2Z a",
+                    "2020-10-08T14:16:18.2Z b",
+                    "2020-10-08T14:16:18.2Z c",
+                    "2020-10-08T14:16:19.1Z d",
+                ],
+                ["a", "b", "c", "d"],
+                id="unread_line_sharing_last_timestamp",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_fetch_container_logs_does_not_relog_lines_after_interrupted_read(
+        self,
+        mock_read_pod_logs,
+        mock_container_is_running,
+        mock_sleep,
+        first_read,
+        second_read,
+        expected_messages,
+    ):
+        """An interrupted follow resumes a whole second back; lines already logged are not logged again."""
+        mock_read_pod_logs.side_effect = [
+            [bytes(f"{line}\n", "utf-8") for line in first_read],
+            [bytes(f"{line}\n", "utf-8") for line in second_read],
+        ]
+        # The first read ends while the container still reports running, so the stream is resumed.
+        mock_container_is_running.side_effect = [True, False]
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        with mock.patch.object(self.pod_manager, "_log_message") as mock_log_message:
+            self.pod_manager.fetch_container_logs(mock_pod, "base", follow=True)
+
+        assert [call.args[0] for call in mock_log_message.call_args_list] == expected_messages
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
     def test_fetch_requested_container_logs_uses_since_time(
