@@ -51,6 +51,7 @@ export type AssetCollectionResponse = {
  */
 export type AssetDeadlineAlertResponse = {
     id: string;
+    dag_id?: string | null;
     name?: string | null;
     cron?: string | null;
     interval?: {
@@ -61,12 +62,14 @@ export type AssetDeadlineAlertResponse = {
 };
 
 /**
- * Scheduled or missed Asset Deadline instance serializer for responses.
+ * Scheduled, late, or resolved Asset Deadline instance serializer for responses.
  */
 export type AssetDeadlineInstanceResponse = {
     id: string;
     deadline_time: string;
     missed: boolean;
+    resolved_at?: string | null;
+    is_late?: boolean;
     partition_key?: string | null;
     deadline_alert_id?: string | null;
     created_at: string;

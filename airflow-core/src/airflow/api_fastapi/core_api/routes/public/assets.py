@@ -950,13 +950,15 @@ def get_asset_deadlines(
     """Get configured deadline rules and scheduled/missed deadline instances for an asset."""
     from airflow.models.deadline import Deadline
     from airflow.models.deadline_alert import DeadlineAlert
+    from airflow.models.serialized_dag import SerializedDagModel
 
     asset = session.scalar(select(AssetModel.id).where(AssetModel.id == asset_id))
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with id: `{asset_id}` was not found")
 
-    alerts = session.scalars(
-        select(DeadlineAlert)
+    alert_rows = session.execute(
+        select(DeadlineAlert, SerializedDagModel.dag_id)
+        .outerjoin(SerializedDagModel, DeadlineAlert.serialized_dag_id == SerializedDagModel.id)
         .where(DeadlineAlert.asset_id == asset_id)
         .order_by(DeadlineAlert.is_producer.desc(), DeadlineAlert.created_at.asc())
     ).all()
@@ -965,6 +967,17 @@ def get_asset_deadlines(
     ).all()
 
     return AssetDeadlinesResponse(
-        alerts=[AssetDeadlineAlertResponse.model_validate(a, from_attributes=True) for a in alerts],
+        alerts=[
+            AssetDeadlineAlertResponse(
+                id=a.id,
+                dag_id=dag_id,
+                name=a.name,
+                cron=a.cron,
+                interval=a.interval,
+                is_producer=a.is_producer,
+                created_at=a.created_at,
+            )
+            for a, dag_id in alert_rows
+        ],
         deadlines=[AssetDeadlineInstanceResponse.model_validate(d, from_attributes=True) for d in deadlines],
     )

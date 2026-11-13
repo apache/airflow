@@ -42,6 +42,7 @@ const lazyRoute =
   };
 
 const loadAsset = lazyRoute(() => import("src/pages/Asset"), "Asset");
+const loadAssetDeadlines = lazyRoute(() => import("src/pages/Asset/AssetDeadlines"), "AssetDeadlines");
 const loadAssetEvents = lazyRoute(() => import("src/pages/Asset/AssetEvents"), "AssetEvents");
 const loadAssetStateStore = lazyRoute(() => import("src/pages/Asset/AssetStateStore"), "AssetStateStore");
 const loadAssetsList = lazyRoute(() => import("src/pages/AssetsList"), "AssetsList");
@@ -205,6 +206,7 @@ export const routerConfig = [
         children: [
           { index: true, lazy: loadAssetEvents },
           { lazy: loadAssetStateStore, path: "asset-state-store" },
+          { lazy: loadAssetDeadlines, path: "deadlines" },
           pluginRoute,
         ],
         lazy: loadAsset,

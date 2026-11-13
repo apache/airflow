@@ -304,6 +304,7 @@ class AssetDeadlineAlertResponse(BaseModel):
     """Configured AssetDeadline rule serializer for responses."""
 
     id: UUID
+    dag_id: str | None = None
     name: str | None = None
     cron: str | None = None
     interval: dict | None = None

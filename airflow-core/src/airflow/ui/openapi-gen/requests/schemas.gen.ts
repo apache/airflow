@@ -150,6 +150,17 @@ export const $AssetDeadlineAlertResponse = {
             format: 'uuid',
             title: 'Id'
         },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
         name: {
             anyOf: [
                 {
@@ -217,6 +228,23 @@ export const $AssetDeadlineInstanceResponse = {
             type: 'boolean',
             title: 'Missed'
         },
+        resolved_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Resolved At'
+        },
+        is_late: {
+            type: 'boolean',
+            title: 'Is Late',
+            default: false
+        },
         partition_key: {
             anyOf: [
                 {
@@ -249,7 +277,7 @@ export const $AssetDeadlineInstanceResponse = {
     type: 'object',
     required: ['id', 'deadline_time', 'missed', 'created_at'],
     title: 'AssetDeadlineInstanceResponse',
-    description: 'Scheduled or missed Asset Deadline instance serializer for responses.'
+    description: 'Scheduled, late, or resolved Asset Deadline instance serializer for responses.'
 } as const;
 
 export const $AssetDeadlinesResponse = {
