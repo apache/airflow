@@ -1481,9 +1481,15 @@ class AssetModelOperation(NamedTuple):
             trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())
 
             asset_model = assets[name_uri]
-            trigger_hash_from_asset_model: set[int] = {
-                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
-            }
+            trigger_hash_from_asset_model: set[int] = set()
+            for watcher in asset_model.watchers:
+                trigger_hash = BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                trigger_hash_from_asset_model.add(trigger_hash)
+                # Names are otherwise only written when a reference is created, so a watcher renamed
+                # in the Dag file (or a wrong name stored by an older version) would never be corrected.
+                watcher_name = watcher_names[name_uri].get(trigger_hash)
+                if watcher_name is not None and watcher.name != watcher_name:
+                    watcher.name = watcher_name
 
             # Optimization: no diff between the DB and DAG definitions, no update needed
             if trigger_hash_from_asset == trigger_hash_from_asset_model:
