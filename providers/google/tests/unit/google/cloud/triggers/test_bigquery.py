@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from types import SimpleNamespace
 from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -42,8 +43,9 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 TEST_CONN_ID = "bq_default"
 TEST_JOB_ID = "1234"
@@ -163,6 +165,26 @@ def value_check_trigger():
 
 
 class TestBigQueryInsertJobTrigger:
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_3_PLUS,
+        reason="The task state is read through the task SDK on Airflow 3.0 to 3.2 only",
+    )
+    @pytest.mark.parametrize(
+        ("map_index", "state_key"), [(-1, "test_task"), (3, "test_task_3")], ids=["unmapped", "mapped"]
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states", autospec=True)
+    async def test_get_task_state_uses_map_index_key(
+        self, mock_get_task_states, insert_job_trigger, map_index, state_key
+    ):
+        """The execution API keys a mapped task instance as ``<task_id>_<map_index>``."""
+        insert_job_trigger.task_instance = SimpleNamespace(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=map_index
+        )
+        mock_get_task_states.return_value = {"test_run": {state_key: TaskInstanceState.DEFERRED}}
+
+        assert await insert_job_trigger.get_task_state() == TaskInstanceState.DEFERRED
+
     def test_serialization(self, insert_job_trigger):
         """
         Asserts that the BigQueryInsertJobTrigger correctly serializes its arguments and classpath.

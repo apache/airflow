@@ -21,7 +21,9 @@ import json
 import warnings
 from unittest import mock
 
+import asyncssh
 import pytest
+from asyncssh.compression import get_default_compression_algs
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -30,6 +32,11 @@ from airflow.providers.ssh.hooks.ssh import SSHHookAsync
 
 def _connection(extra: dict, host: str = "test.host") -> Connection:
     return Connection(conn_id="test_conn", conn_type="ssh", host=host, extra=json.dumps(extra))
+
+
+def _parse_extra_dict(hook: SSHHookAsync, extra: dict, host: str = "test.host") -> None:
+    """Parse *extra* as ``_get_conn`` does: the connection plus its extra, read beforehand."""
+    hook._parse_extras(_connection(extra, host=host), extra)
 
 
 class TestSSHHookAsync:
@@ -62,28 +69,22 @@ class TestSSHHookAsync:
     def test_parse_extras_key_file(self):
         """Test parsing key_file from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"key_file": "/path/to/key"}
-        mock_conn.host = "test.host"
 
-        hook._parse_extras(mock_conn)
+        _parse_extra_dict(hook, {"key_file": "/path/to/key"})
         assert hook.key_file == "/path/to/key"
 
     def test_parse_extras_no_host_key_check(self):
         """Test parsing no_host_key_check from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"no_host_key_check": "true"}
-        mock_conn.host = "test.host"
 
-        hook._parse_extras(mock_conn)
+        _parse_extra_dict(hook, {"no_host_key_check": "true"})
         assert hook.known_hosts == "none"
 
     def test_parse_extras_no_host_key_check_defaults_to_false(self):
         """A connection that omits ``no_host_key_check`` keeps host key verification enabled."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
 
-        hook._parse_extras(_connection({}))
+        _parse_extra_dict(hook, {})
         assert hook.known_hosts != "none"
 
     def test_parse_extras_honours_deprecated_alias(self):
@@ -91,7 +92,7 @@ class TestSSHHookAsync:
         hook = SSHHookAsync(ssh_conn_id="test_conn")
 
         with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
-            hook._parse_extras(_connection({"ignore_hostkey_verification": True}))
+            _parse_extra_dict(hook, {"ignore_hostkey_verification": True})
         assert hook.known_hosts == "none"
 
     def test_parse_extras_canonical_key_wins_over_alias(self):
@@ -100,65 +101,50 @@ class TestSSHHookAsync:
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-            hook._parse_extras(_connection({"no_host_key_check": False, "ignore_hostkey_verification": True}))
+            _parse_extra_dict(hook, {"no_host_key_check": False, "ignore_hostkey_verification": True})
         assert hook.known_hosts != "none"
 
     def test_parse_extras_host_key_uses_host_override(self):
         """The known_hosts entry names the host actually connected to, not the connection's host."""
         hook = SSHHookAsync(ssh_conn_id="test_conn", host="override.example")
 
-        hook._parse_extras(_connection({"host_key": "ssh-ed25519 AAAAC3..."}, host="connection.example"))
+        _parse_extra_dict(hook, {"host_key": "ssh-ed25519 AAAAC3..."}, host="connection.example")
         assert hook.known_hosts == b"override.example ssh-ed25519 AAAAC3..."
 
     def test_parse_extras_bare_host_key_is_rsa(self):
         """A bare base64 host key is RSA, as on the sync hook, and asyncssh needs the type."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
 
-        hook._parse_extras(_connection({"host_key": "AAAAB3NzaC1yc2E"}))
+        _parse_extra_dict(hook, {"host_key": "AAAAB3NzaC1yc2E"})
         assert hook.known_hosts == b"test.host ssh-rsa AAAAB3NzaC1yc2E"
 
     def test_parse_extras_host_key(self):
         """Test parsing host_key from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"host_key": " ssh-rsa AAAAB3... user@host ", "no_host_key_check": "false"}
-        mock_conn.host = "test.host"
 
-        hook._parse_extras(mock_conn)
+        _parse_extra_dict(hook, {"host_key": " ssh-rsa AAAAB3... user@host ", "no_host_key_check": "false"})
         assert hook.known_hosts == b"test.host ssh-rsa AAAAB3..."
 
     def test_parse_extras_dss_host_key_raises(self):
         """Test that ssh-dss host_key is rejected."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"host_key": "ssh-dss\tAAAAB3...", "no_host_key_check": "false"}
-        mock_conn.host = "test.host"
 
         with pytest.raises(ValueError, match="DSA/DSS host keys"):
-            hook._parse_extras(mock_conn)
+            _parse_extra_dict(hook, {"host_key": "ssh-dss\tAAAAB3...", "no_host_key_check": "false"})
 
     def test_parse_extras_host_key_with_no_check_raises(self):
         """Test that host_key with no_host_key_check raises error."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {
-            "host_key": "ssh-rsa AAAAB3...",
-            "no_host_key_check": "true",
-        }
-        mock_conn.host = "test.host"
 
         with pytest.raises(ValueError, match="Host key check was skipped"):
-            hook._parse_extras(mock_conn)
+            _parse_extra_dict(hook, {"host_key": "ssh-rsa AAAAB3...", "no_host_key_check": "true"})
 
     def test_parse_extras_private_key(self):
         """Test parsing private_key from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
         test_key = "test-private-key-content"
-        mock_conn.extra_dejson = {"private_key": test_key}
-        mock_conn.host = "test.host"
 
-        hook._parse_extras(mock_conn)
+        _parse_extra_dict(hook, {"private_key": test_key})
         assert hook.private_key == test_key
 
     @pytest.mark.asyncio
@@ -171,19 +157,15 @@ class TestSSHHookAsync:
             username="testuser",
         )
 
-        mock_conn_obj = mock.MagicMock()
-        mock_conn_obj.extra_dejson = {"no_host_key_check": "true"}
-        mock_conn_obj.host = None
-        mock_conn_obj.port = None
-        mock_conn_obj.login = None
-        mock_conn_obj.password = None
-        mock_conn_obj.extra = "{}"
+        mock_conn_obj = Connection(
+            conn_id="test_conn", conn_type="ssh", extra=json.dumps({"no_host_key_check": "true"})
+        )
 
-        mock_ssh_client = mock.AsyncMock()
+        mock_ssh_client = mock.AsyncMock(spec=asyncssh.SSHClientConnection)
 
         with mock.patch(
             "airflow.providers.ssh.hooks.ssh.get_async_connection",
-            new_callable=mock.AsyncMock,
+            autospec=True,
             return_value=mock_conn_obj,
         ):
             with mock.patch("asyncssh.connect", new_callable=mock.AsyncMock) as mock_connect:
@@ -196,6 +178,59 @@ class TestSSHHookAsync:
                 assert call_kwargs["port"] == 22
                 assert call_kwargs["username"] == "testuser"
                 assert result == mock_ssh_client
+
+    @mock.patch.object(Connection, "extra_dejson", new_callable=mock.PropertyMock, side_effect=AssertionError)
+    @mock.patch(
+        "airflow.providers.ssh.hooks.ssh.get_async_extra_dejson",
+        autospec=True,
+        return_value={"no_host_key_check": "true"},
+    )
+    # asyncssh.connect is wrapped by @async_context_manager, so autospec would not be awaitable.
+    @mock.patch("asyncssh.connect", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.get_async_connection", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_conn_reads_extra_asynchronously(
+        self, mock_get_connection, mock_connect, mock_get_extra, mock_extra_dejson
+    ):
+        """``extra_dejson`` masks synchronously, so the async hook reads the extra through common.compat."""
+        # The connection's own extra is empty: only the asynchronously read extra can disable the check.
+        mock_get_connection.return_value = _connection({})
+
+        await SSHHookAsync(ssh_conn_id="test_conn")._get_conn()
+
+        mock_get_extra.assert_awaited_once_with(mock_get_connection.return_value)
+        mock_extra_dejson.assert_not_called()
+        assert mock_connect.call_args.kwargs["known_hosts"] is None
+
+    @pytest.mark.parametrize(
+        ("extra", "compression_algs"),
+        [
+            pytest.param({}, ["zlib@openssh.com", "zlib", "none"], id="default"),
+            pytest.param({"compress": "true"}, ["zlib@openssh.com", "zlib", "none"], id="true"),
+            pytest.param({"compress": "false"}, ["none"], id="false-string"),
+            pytest.param({"compress": False}, ["none"], id="false-bool"),
+        ],
+    )
+    @mock.patch("asyncssh.connect", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.get_async_connection", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_conn_compresses_like_sync_hook(
+        self, mock_get_connection, mock_connect, extra, compression_algs
+    ):
+        """zlib is offered unless the ``compress`` extra is false, as ``SSHHook`` does."""
+        mock_get_connection.return_value = _connection({"no_host_key_check": "true", **extra})
+
+        await SSHHookAsync(ssh_conn_id="test_conn")._get_conn()
+
+        assert mock_connect.call_args.kwargs["compression_algs"] == compression_algs
+
+    def test_asyncssh_offers_no_compression_first_by_default(self):
+        """
+        ``_get_conn`` passes its own list because asyncssh prefers ``none`` from 2.18, the floor.
+
+        Older versions preferred zlib, so supporting them means handling both defaults in the hook.
+        """
+        assert get_default_compression_algs()[0] == b"none"
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.os.path.isfile", return_value=False)
     @mock.patch("asyncssh.connect", new_callable=mock.AsyncMock)
