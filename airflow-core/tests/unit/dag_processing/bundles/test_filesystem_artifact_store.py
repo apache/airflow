@@ -39,6 +39,7 @@ from airflow.dag_processing.bundles import (
 from airflow.dag_processing.bundles._filesystem import read_json_file
 from airflow.dag_processing.bundles.artifact_store import (
     ArtifactStore,
+    ArtifactStoreBusyError,
     BundleManifestNotFoundError,
     BundleManifestRefDurabilityError,
     PublishedSnapshot,
@@ -359,6 +360,27 @@ class TestFilesystemSnapshots:
         assert not orphan_snapshot.exists()
         assert not orphan_ref.exists()
         assert not orphan_state.exists()
+
+    def test_publication_guard_that_must_not_wait_reports_a_held_lock(self, tmp_path):
+        # A guard that waited would time out after a second instead of reporting the held lock.
+        store = FilesystemArtifactStore(
+            bundle_name=BUNDLE_NAME,
+            published_root=_create_published_root(tmp_path / "published"),
+            lock_timeout=1,
+        )
+        lock_path = _get_lock_path(store)
+        lock_path.parent.mkdir()
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o664)
+        try:
+            flock(fd, LOCK_EX | LOCK_NB)
+            with pytest.raises(ArtifactStoreBusyError, match="held by another publisher"):
+                with store.publication_guard(wait=False):
+                    pass
+        finally:
+            os.close(fd)
+
+        with store.publication_guard(wait=False):
+            pass
 
     @mock.patch.object(store_module, "remove_orphaned_temp_snapshots", autospec=True)
     @mock.patch.object(store_module, "flock", autospec=True)

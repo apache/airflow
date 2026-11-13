@@ -43,6 +43,7 @@ from airflow.dag_processing.bundles._filesystem import (
     remove_orphaned_temp_snapshots,
 )
 from airflow.dag_processing.bundles.artifact_store import (
+    ArtifactStoreBusyError,
     ArtifactStoreConflictError,
     BundleManifestNotFoundError,
     BundleManifestRefDurabilityError,
@@ -147,6 +148,8 @@ class _AutoPublishCandidateState:
     source_type: str
     source_identity: str
     source_signature: str
+    #: Wall-clock seconds (``time.time()``), not ``time.monotonic()``: publishers on other hosts,
+    #: and restarted ones, measure the stability period from this shared timestamp.
     first_observed_at: float
 
 
@@ -269,21 +272,27 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         )
 
     @property
-    def auto_publish_state_path(self) -> str:
-        return self._store.state_locator
+    def has_publish_source(self) -> bool:
+        """
+        Whether this bundle publishes a source automatically on each unpinned refresh.
 
-    @property
-    def _has_publish_source(self) -> bool:
-        """Whether this bundle has a source for automatic publication; adapters that have one override it."""
+        An adapter that has such a source overrides this, ``publish_source_description`` and
+        ``prepare_publish_source``.
+        """
         return False
 
     @property
-    def _publish_source_description(self) -> str:
-        """Safe source description for logs and errors."""
+    def publish_source_description(self) -> str:
+        """Description of the automatic-publication source for logs and errors, without secrets."""
         return "<none>"
 
-    def _prepare_publish_source(self) -> PreparedPublishSource:
-        """Materialize and observe the source for automatic publication."""
+    def prepare_publish_source(self) -> PreparedPublishSource:
+        """
+        Materialize and observe the source for automatic publication.
+
+        The result must set ``source_type`` and ``source_identity``, which tell the sources of
+        different publishers apart.
+        """
         raise NotImplementedError(f"{type(self).__name__} has no source for automatic publication")
 
     @abstractmethod
@@ -323,7 +332,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         self._validated_version_paths.clear()
         with _reraise_oserror_as_manifest_error():
             manifest_ref = self._read_current_manifest_ref_or_none()
-            if self._has_publish_source:
+            if self.has_publish_source:
                 manifest_ref = self._maybe_publish_from_source(manifest_ref)
             if manifest_ref is None:
                 # Raise the established missing-reference error.
@@ -367,6 +376,36 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         """Publish a stable source change without disrupting an existing release."""
         try:
             return self._publish_from_source_if_ready(current_ref)
+        except ArtifactStoreBusyError as e:
+            fallback_ref = current_ref or self._read_current_manifest_ref_or_none()
+            if fallback_ref is None:
+                raise _AutoPublishNotReadyError(
+                    f"Another publisher holds the publication lock of bundle '{self.name}'; "
+                    "no release is available yet",
+                    retry_after=0,
+                ) from e
+            log.info(
+                "Another publisher holds the publication lock; keeping the current release until "
+                "the next refresh. bundle=%s",
+                self.name,
+            )
+            return fallback_ref
+        except ArtifactStoreConflictError as e:
+            # A store without a lock lost the release-reference race after this publisher read
+            # the reference inside the guard. Follow the winning release; if this source still
+            # differs, a later refresh observes and publishes it.
+            fallback_ref = self._read_current_manifest_ref_or_none() or current_ref
+            if fallback_ref is None:
+                raise _AutoPublishNotReadyError(
+                    f"Another publisher updated the release reference of bundle '{self.name}' "
+                    "concurrently; no release is available yet",
+                    retry_after=0,
+                ) from e
+            log.info(
+                "Another publisher updated the release concurrently; following its release. bundle=%s",
+                self.name,
+            )
+            return fallback_ref
         except _AutoPublishNotReadyError:
             # Another publisher may have released the source since current_ref was read.
             latest_ref = self._read_current_manifest_ref_or_none()
@@ -379,13 +418,13 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 raise _AutoPublishNotReadyError(
                     f"Bundle source for '{self.name}' changed while its first release was being "
                     "published; no release is available yet",
-                    retry_after=self.source_stability_seconds,
+                    retry_after=0,
                 ) from e
             log.debug(
                 "Bundle source changed while publishing it automatically; keeping the current release. "
                 "bundle=%s source=%s",
                 self.name,
-                self._publish_source_description,
+                self.publish_source_description,
             )
             return fallback_ref
         except BundleManifestRefDurabilityError:
@@ -409,7 +448,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "Automatic publication of the bundle source failed; keeping the current release. "
                 "bundle=%s source=%s",
                 self.name,
-                self._publish_source_description,
+                self.publish_source_description,
                 exc_info=True,
             )
             return fallback_ref
@@ -417,7 +456,12 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
     def _publish_from_source_if_ready(
         self, current_ref: BundleManifestRef | None
     ) -> BundleManifestRef | None:
-        prepared = self._prepare_publish_source()
+        prepared = self.prepare_publish_source()
+        if not prepared.source_type or not prepared.source_identity:
+            raise BundleManifestError(
+                f"Bundle '{self.name}' prepared an automatic-publication source without a "
+                "source_type and source_identity, which tell the sources of different publishers apart"
+            )
         self._validate_publish_source_paths(prepared.root)
         snapshot = prepared.source_snapshot
         source_is_confirmed = _get_source_key(prepared) == self._confirmed_source_key
@@ -447,13 +491,13 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "bundle=%s source=%s",
                 self.source_stability_seconds,
                 self.name,
-                self._publish_source_description,
+                self.publish_source_description,
             )
             return current_ref
 
         if not snapshot.files and not self.allow_empty_source:
             raise BundleManifestError(
-                f"Refusing to auto-publish empty source tree {self._publish_source_description} for bundle "
+                f"Refusing to auto-publish empty source tree {self.publish_source_description} for bundle "
                 f"'{self.name}'; set allow_empty_source=True if removing every Dag is intended"
             )
 
@@ -474,7 +518,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
 
         self._validate_publish_source_paths(prepared.root)
         self._store.prepare_publish_areas()
-        with self.acquire_publication_lock():
+        with self.acquire_publication_lock(wait=False):
             self._validate_publish_source_paths(prepared.root)
             if not self._is_auto_publish_candidate_still_ready_locked(prepared):
                 raise BundleManifestSourceChangedError(
@@ -488,11 +532,20 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             ):
                 self._record_confirmed_source(prepared, manifest_result.version)
                 return latest_ref
-            result = _publish_manifest_result(
-                bundle=self,
-                manifest_result=manifest_result,
-                prepared_source=prepared,
-            )
+            try:
+                result = _publish_manifest_result(
+                    bundle=self,
+                    manifest_result=manifest_result,
+                    prepared_source=prepared,
+                )
+            except ArtifactStoreConflictError as e:
+                if self._read_current_manifest_ref_or_none() == latest_ref:
+                    raise BundleManifestError(
+                        f"The artifact store reported that another publisher replaced release reference "
+                        f"{self._store.ref_locator}, but it is unchanged; the store's compare-and-swap "
+                        "is faulty"
+                    ) from e
+                raise
 
         self._record_confirmed_source(prepared, result.version)
         log.info(
@@ -519,46 +572,49 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         self._confirmed_source_version = version
 
     def _get_auto_publish_candidate_readiness(self, prepared: PreparedPublishSource) -> tuple[bool, float]:
-        """Return shared source readiness and the bounded time until another check."""
-        with self.acquire_publication_lock():
-            state = self._synchronize_auto_publish_candidate_locked(prepared)
-            now = time.time()
-            if self._has_auto_publish_candidate_stabilized(state, now=now):
-                return True, 0.0
-            elapsed = now - state.first_observed_at
-            if elapsed < 0:
-                return False, self.source_stability_seconds
-            return False, max(0.0, self.source_stability_seconds - elapsed)
+        """
+        Return shared source readiness and the bounded time until another check.
+
+        The shared candidate is read outside the publication guard, which is entered only to
+        replace it, and never waited for: a refresh must not stall while another publisher
+        holds the lock to publish a snapshot. Publication re-checks the candidate in the guard.
+        """
+        state = self._read_auto_publish_candidate_state_or_none()
+        if state is None or not _is_candidate_for_source(state, prepared):
+            with self.acquire_publication_lock(wait=False):
+                state = self._synchronize_auto_publish_candidate_locked(prepared)
+        now = time.time()
+        if self._has_auto_publish_candidate_stabilized(state, now=now):
+            return True, 0.0
+        elapsed = now - state.first_observed_at
+        if elapsed < 0:
+            return False, self.source_stability_seconds
+        return False, max(0.0, self.source_stability_seconds - elapsed)
 
     def _ensure_auto_publish_candidate_matches(self, prepared: PreparedPublishSource) -> None:
         """Reset a stale shared candidate before taking the confirmed-source fast path."""
         state = self._read_auto_publish_candidate_state_or_none()
         if state is not None and _is_candidate_for_source(state, prepared):
             return
-        with self.acquire_publication_lock():
+        with self.acquire_publication_lock(wait=False):
             self._synchronize_auto_publish_candidate_locked(prepared)
 
     def _synchronize_auto_publish_candidate_locked(
         self, prepared: PreparedPublishSource
     ) -> _AutoPublishCandidateState:
         """
-        Reconcile shared state with a source observation while holding the publication lock.
+        Reconcile shared state with a source observation inside the publication guard.
 
-        A replica can wait between its metadata walk and lock acquisition. Re-read the source
+        A replica can wait between its metadata walk and entering the guard. Re-read the source
         before replacing a different candidate so that an old observation cannot overwrite a
         newer signature another replica recorded.
         """
-        state = self._read_auto_publish_candidate_state_or_none()
-        if state is not None and _is_candidate_for_source(state, prepared):
-            return state
+        observed = self._read_auto_publish_candidate_state_or_none()
+        if observed is not None and _is_candidate_for_source(observed, prepared):
+            return observed
 
-        if state is not None and (
-            state.source_type != prepared.source_type or state.source_identity != prepared.source_identity
-        ):
-            raise BundleManifestError(
-                f"Automatic publishers for bundle '{self.name}' do not use the same "
-                f"{prepared.source_type} source"
-            )
+        if observed is not None and not _is_same_source(observed, prepared):
+            raise self._build_other_source_error(prepared)
 
         self.confirm_publish_source(prepared)
         state = _AutoPublishCandidateState(
@@ -567,8 +623,36 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             source_signature=prepared.source_snapshot.signature,
             first_observed_at=time.time(),
         )
-        self._write_auto_publish_candidate_state(state)
+        try:
+            self._write_auto_publish_candidate_state(state)
+        except ArtifactStoreConflictError:
+            # A store without a lock lost the race to a replica that wrote after this guard's
+            # read. Callers measure the stability period against the returned candidate, so
+            # adopt the winner only if it recorded the same observation, keeping its earlier
+            # timestamp; any other winner means the candidate changed.
+            winner = self._read_auto_publish_candidate_state_or_none()
+            if winner == observed:
+                raise BundleManifestError(
+                    "The artifact store reported that another publisher replaced automatic-publication "
+                    f"state {self._store.state_locator}, but it is unchanged; the store's "
+                    "compare-and-swap is faulty"
+                ) from None
+            if winner is not None and _is_candidate_for_source(winner, prepared):
+                return winner
+            if winner is not None and not _is_same_source(winner, prepared):
+                raise self._build_other_source_error(prepared) from None
+            raise BundleManifestSourceChangedError(
+                "Bundle source stability candidate changed before automatic publication"
+            ) from None
         return state
+
+    def _build_other_source_error(self, prepared: PreparedPublishSource) -> BundleManifestError:
+        return BundleManifestError(
+            f"Automatic publishers for bundle '{self.name}' do not use the same {prepared.source_type} "
+            f"source: {self._store.state_locator} records another one. Configure every publisher of "
+            "the bundle with the same source; if all of them now use this one, delete "
+            f"{self._store.state_locator} so that automatic publication starts again."
+        )
 
     def _is_auto_publish_candidate_still_ready_locked(self, prepared: PreparedPublishSource) -> bool:
         """Check readiness again without replacing another publisher's candidate."""
@@ -602,7 +686,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "Automatic-publish state is malformed; restarting the source stability period. "
                 "bundle=%s path=%s",
                 self.name,
-                self.auto_publish_state_path,
+                self._store.state_locator,
                 exc_info=True,
             )
             return None
@@ -613,7 +697,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "Automatic-publish state has an invalid schema version; restarting the source "
                 "stability period. bundle=%s path=%s",
                 self.name,
-                self.auto_publish_state_path,
+                self._store.state_locator,
             )
             return None
         if schema_version < AUTO_PUBLISH_STATE_SCHEMA_VERSION:
@@ -621,14 +705,14 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "Automatic-publish state uses an older schema version; restarting the source "
                 "stability period. bundle=%s path=%s schema_version=%s",
                 self.name,
-                self.auto_publish_state_path,
+                self._store.state_locator,
                 schema_version,
             )
             return None
         if schema_version != AUTO_PUBLISH_STATE_SCHEMA_VERSION:
             # A newer publisher owns this state; replacing it would downgrade its schema.
             raise BundleManifestError(
-                f"Automatic-publish state {self.auto_publish_state_path} has unsupported "
+                f"Automatic-publish state {self._store.state_locator} has unsupported "
                 f"schema_version {schema_version!r}"
             )
         if payload.get("bundle_name") != self.name:
@@ -636,7 +720,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "Automatic-publish state has the wrong bundle name; restarting the source "
                 "stability period. bundle=%s path=%s",
                 self.name,
-                self.auto_publish_state_path,
+                self._store.state_locator,
             )
             return None
         source_type = payload.get("source_type")
@@ -656,7 +740,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "Automatic-publish state has invalid candidate data; restarting the source "
                 "stability period. bundle=%s path=%s",
                 self.name,
-                self.auto_publish_state_path,
+                self._store.state_locator,
             )
             return None
         return _AutoPublishCandidateState(
@@ -779,14 +863,15 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         fsync_directory(marker_path.parent)
         self._validated_version_paths.add(cache_key)
 
-    def acquire_publication_lock(self):
+    def acquire_publication_lock(self, *, wait: bool = True):
         """
         Return the artifact store's publication guard.
 
         The guard either serializes publishers with a lock or scopes compare-and-swap
-        baselines without mutual exclusion.
+        baselines without mutual exclusion. With ``wait`` false, a lock held by another
+        publisher raises ``ArtifactStoreBusyError`` instead of being waited for.
         """
-        return self._store.publication_guard()
+        return self._store.publication_guard(wait=wait)
 
     def _materialize_cached_version(
         self,
@@ -1398,6 +1483,10 @@ def _is_finite_non_negative_number(value: object) -> TypeGuard[int | float]:
 
 def _get_source_key(prepared: PreparedPublishSource) -> tuple[str, str, str]:
     return (prepared.source_type, prepared.source_identity, prepared.source_snapshot.signature)
+
+
+def _is_same_source(state: _AutoPublishCandidateState, prepared: PreparedPublishSource) -> bool:
+    return (state.source_type, state.source_identity) == (prepared.source_type, prepared.source_identity)
 
 
 def _is_candidate_for_source(state: _AutoPublishCandidateState, prepared: PreparedPublishSource) -> bool:

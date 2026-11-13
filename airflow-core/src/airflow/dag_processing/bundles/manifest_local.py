@@ -56,6 +56,10 @@ class ManifestLocalDagBundle(ManifestDagBundleBase):
         super().__init__(**kwargs)
         self.source_path = Path(source_path) if source_path else None
         if self.source_path is not None:
+            if not self.source_path.is_absolute():
+                # The path is the identity publishers share; relative to the working directory, it
+                # would change whenever a publisher starts from another directory.
+                raise TypeError(f"source_path must be an absolute path, got {source_path!r}")
             try:
                 _validate_publish_source_path(
                     source_path=self.source_path, store=self._store, versions_dir=self.versions_dir
@@ -66,14 +70,14 @@ class ManifestLocalDagBundle(ManifestDagBundleBase):
                 raise TypeError(str(e)) from e
 
     @property
-    def _has_publish_source(self) -> bool:
+    def has_publish_source(self) -> bool:
         return self.source_path is not None
 
     @property
-    def _publish_source_description(self) -> str:
+    def publish_source_description(self) -> str:
         return str(self.source_path) if self.source_path is not None else "<none>"
 
-    def _prepare_publish_source(self) -> PreparedPublishSource:
+    def prepare_publish_source(self) -> PreparedPublishSource:
         if self.source_path is None:
             raise BundleManifestError("Automatic local publication requires source_path")
         return _prepare_local_source(self.source_path)

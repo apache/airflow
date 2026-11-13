@@ -1460,7 +1460,7 @@ class TestDagFileProcessorManager:
             assert session.get(DagPriorityParsingRequest, pending_request.id) is pending_request
             assert session.get(DagPriorityParsingRequest, ready_request.id) is None
             assert not bundle.is_initialized
-            assert not Path(bundle.manifest_ref_path).exists()
+            assert not (tmp_path / "published" / "refs" / bundle.name / "latest.json").exists()
 
             bundle.initialize()
 
@@ -5992,7 +5992,7 @@ class TestDagFileProcessorManager:
         autospec=True,
         return_value=BundleState(last_refreshed=None, version=None),
     )
-    @mock.patch("airflow.dag_processing.manager.time.monotonic")
+    @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
     def test_refresh_dag_bundles_retries_not_ready_bundle_after_its_hint(
         self,
         mock_monotonic,
