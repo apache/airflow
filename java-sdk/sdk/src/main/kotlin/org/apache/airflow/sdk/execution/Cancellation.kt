@@ -64,12 +64,7 @@ internal class Cancellation : AutoCloseable {
     }
   }
 
-  /**
-   * Catches the first stop signal for [task] until [close] is called. The SDK calls this method just before it starts the task.
-   *
-   * @throws CannotCatchStopSignalsException if the SDK can catch neither stop signal. If the task ran anyway, it would never
-   *   see a stop request, and it could start work, such as a job in an external system, that its onKill could not stop.
-   */
+  /** Catches the first stop signal for [task] until [close], or throws [CannotCatchStopSignalsException]. */
   fun hold(
     task: StoppableTask,
     context: Context,
@@ -80,8 +75,7 @@ internal class Cancellation : AutoCloseable {
       Thread.currentThread().contextClassLoader = classLoader
       task.onKill(context)
     }
-    // A signal can reach onKill before trapStopSignals returns. If onKill then checks for a stop request,
-    // that check reads held, so set held before calling trapStopSignals.
+    // Set first: a signal can run onKill, which may check for a stop request, before trapStopSignals returns.
     held = true
     trap = trapStopSignals(::takeSignal)
       ?: throw CannotCatchStopSignalsException(
@@ -91,10 +85,8 @@ internal class Cancellation : AutoCloseable {
   }
 
   /**
-   * Records that the task has returned, so a later signal does not call [StoppableTask.onKill]. If a
-   * signal has already started that call, waits for it to finish, because the JVM exits soon after the
-   * SDK reports the task's result. The wait has no limit of its own, since the supervisor's SIGKILL ends
-   * a call that hangs.
+   * Stops later signals from calling onKill and waits for a call that already started.
+   * The wait has no timeout because the supervisor's SIGKILL ends a call that hangs.
    */
   fun finish() {
     hook = null
@@ -114,9 +106,7 @@ internal class Cancellation : AutoCloseable {
     }
     return try {
       logger.warning("Asking the task to stop", mapOf("signal" to signal))
-      // Record the stop request before the hook reads the task's fields. If a task stores what the hook
-      // needs and then checks for the request, the task sees the request, the hook sees the stored field,
-      // or both.
+      // Record first: a task that stores state and then checks sees the request, onKill sees the state, or both.
       requested.countDown()
       hook?.invoke()
       true
@@ -137,19 +127,12 @@ internal class CannotCatchStopSignalsException(
   message: String,
 ) : IllegalStateException(message)
 
-// The thread that handles a stop signal uses this logger. If that thread waited for room in LogSender while nothing
-// reads the logs, the task would never see the stop request. A second signal could not reach the JVM either.
+// The stop-signal thread never waits for room: unread logs could block the stop request and a second signal.
 private val logger = Logger(Cancellation::class, waitsForRoom = false)
 
 /**
- * Opens a trap that passes SIGINT and SIGTERM to [onSignal] instead of the JVM. The trap stays open
- * until the caller closes the returned handle. If the SDK can catch neither signal, for example because
- * the JVM runs with -Xrs, no trap opens and this function returns null.
- *
- * When [onSignal] returns false or throws, the JVM gets its own handler back and receives the
- * signal again, so the JVM handles the signal as it would have without the trap. Only one trap can
- * be open at a time, because closing a trap puts back the handlers that were installed when that
- * trap opened.
+ * Passes SIGINT and SIGTERM to [onSignal] until the handle is closed, or returns null if neither can be caught.
+ * If [onSignal] returns false or throws, the JVM handles the signal. Only one trap can be open at a time.
  */
 internal fun trapStopSignals(onSignal: (signal: String) -> Boolean): AutoCloseable? {
   val restores = listOf("INT", "TERM").mapNotNull { trapSignal(it, onSignal) }

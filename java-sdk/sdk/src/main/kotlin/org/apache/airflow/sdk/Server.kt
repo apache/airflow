@@ -49,33 +49,19 @@ import java.time.Duration
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
 
-// The shutdown hook stops waiting for the queued log lines once none has gone out for this long. When the lines did
-// go out, the hook also waits at most this long for the socket to close. The supervisor can stop reading the logs
-// for several seconds, for example while it waits for a slow request to the API server. The hook should not lose the
-// last lines during such a pause. Tests set a shorter timeout.
-internal var logFlushTimeout: Duration = Duration.ofSeconds(30)
-
 /**
- * Writes the queued log lines, and waits until the socket has sent them and closed. Closing the socket starts
- * sending what is left in its buffer, so without the wait, the JVM can exit before the last lines reach the
- * supervisor. The JVM cannot exit until this shutdown hook returns. So the hook stops waiting for the queued lines
- * once none has gone out for [logFlushTimeout]. When the lines did go out, the hook then waits at most that long for
- * the socket to close.
- *
- * @param close Closes the socket.
- * @param closed Completes when the socket has closed.
+ * Writes the queued log lines before the JVM exits, then waits up to [timeout] for the socket to close.
+ * If no line goes out for [timeout], gives up on the lines and skips that wait.
  */
 internal fun sendQueuedLogs(
   close: () -> Unit,
   closed: Job,
+  timeout: Duration,
 ) {
-  val written = LogSender.detachAndFlush(logFlushTimeout)
+  val written = LogSender.detachAndFlush(timeout)
   close()
-  // If detachAndFlush gave up, nothing read the logs, or something read them far too slowly, and detachAndFlush has
-  // cancelled the channel of the log socket. Waiting for the socket to close would then only delay the JVM's exit.
-  // While nothing reads the socket, ktor keeps trying to write the socket's buffer without a pause, so cancelling the
-  // channel does not end a wait for the socket to close.
-  if (written) runBlocking { withTimeoutOrNull(logFlushTimeout.toMillis()) { closed.join() } }
+  // Skip the wait after giving up: Ktor retries the write while nothing reads, so the socket never closes.
+  if (written) runBlocking { withTimeoutOrNull(timeout.toMillis()) { closed.join() } }
 }
 
 private class Args(
@@ -210,10 +196,14 @@ internal class SourceDescriber(
 }
 
 /** Serves task-execution requests over the coordinator's [comm] and [logs] sockets. */
-class CoordinatorServer(
+class CoordinatorServer internal constructor(
   private val comm: InetSocketAddress,
   private val logs: InetSocketAddress,
+  private val logFlushTimeout: Duration,
 ) : Server() {
+  // Long enough to outlast a pause in the supervisor's log reads, such as a slow request to the API server.
+  constructor(comm: InetSocketAddress, logs: InetSocketAddress) : this(comm, logs, Duration.ofSeconds(30))
+
   private val logger = Logger(CoordinatorServer::class)
 
   override suspend fun serveAsync(bundle: Bundle) {
@@ -243,12 +233,12 @@ class CoordinatorServer(
           aSocket(selector).tcp().connect(logs).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
-            Runtime.getRuntime().addShutdownHook(Thread({ sendQueuedLogs(socket::close, socket.socketContext) }, "Airflow log flush"))
+            val hook = Thread({ sendQueuedLogs(socket::close, socket.socketContext, logFlushTimeout) }, "Airflow log flush")
+            Runtime.getRuntime().addShutdownHook(hook)
             try {
               deferral.await()
             } finally {
-              // The socket closes when the enclosing use block ends, even when serving fails, so write the
-              // queued lines while the socket is still open.
+              // The use block closes the socket even when serving fails, so flush while it is still open.
               LogSender.detachAndFlush()
             }
           }
@@ -275,14 +265,11 @@ class CoordinatorServer(
     startup: StartupDetails,
     coordinator: CoordinatorComm,
   ) {
-    // For a StoppableTask, the signal trap stays open until the SDK reports the task's result. If the
-    // first signal arrives during the report, it therefore cannot stop the JVM before the result is sent.
+    // Keep the signal trap open until the result is sent, so a first signal cannot stop the JVM before then.
     Cancellation().use { cancellation ->
       val result = runTask(bundle, startup, coordinator, cancellation)
       cancellation.finish()
-      // The task or its onKill can leave this thread interrupted. runBlocking in serve would then throw
-      // InterruptedException, and the JVM would exit with code 1 before the supervisor acknowledges the
-      // task's result.
+      // A leftover interrupt on this thread makes runBlocking in serve throw before the result is acknowledged.
       if (Thread.interrupted()) {
         logger.info("Cleared the interrupt flag that the task left on its thread, so the SDK can report the result")
       }

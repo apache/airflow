@@ -333,24 +333,26 @@ class VariableTask : Task {
  */
 object QueuedLogsProbe {
   @JvmStatic
-  fun main(args: Array<String>) {
+  fun main(args: Array<String>) = serve(Server.create(args))
+
+  fun serve(server: Server) {
     Log.globalThreshold = Level.DEBUG
     Log.namedThresholds = emptyMap()
     repeat(QUEUED_LINES) { LogSender.messages.add(LogMessage(QUEUED_EVENT, emptyMap(), "probe", Level.INFO)) }
-    Server.create(args).serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", VariableTask::class.java)))))
+    server.serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", VariableTask::class.java)))))
   }
 }
 
 /**
- * [ServerTest.exitsOnSigtermWhileNothingReadsTheLogs] starts a JVM with this object as its main class. The main method
- * of this object first sets [logFlushTimeout], which limits how long the SDK's shutdown hook waits, to 2 seconds. Then
- * the method does what [QueuedLogsProbe] does.
+ * Main class of the JVM that [ServerTest.exitsOnSigtermWhileNothingReadsTheLogs] starts. It does what [QueuedLogsProbe]
+ * does, with a log flush timeout of 2 seconds.
  */
 object UnreadLogsProbe {
   @JvmStatic
   fun main(args: Array<String>) {
-    logFlushTimeout = Duration.ofSeconds(2)
-    QueuedLogsProbe.main(args)
+    fun address(flag: String) =
+      args[args.indexOf(flag) + 1].let { InetSocketAddress(it.substringBeforeLast(':'), it.substringAfterLast(':').toInt()) }
+    QueuedLogsProbe.serve(CoordinatorServer(address("--comm"), address("--logs"), Duration.ofSeconds(2)))
   }
 }
 
@@ -564,31 +566,23 @@ class ServerTest {
   @DisplayName("Should wait at most the log flush timeout for the log socket to close")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun stopsWaitingForLogSocketToClose() {
-    val saved = logFlushTimeout
-    logFlushTimeout = Duration.ofSeconds(1)
-    try {
-      LogSender.reset()
-      var closeCalled = false
-      val started = System.nanoTime()
-      // The job never completes. Closing a socket that nothing reads also never completes, because the socket cannot
-      // send the rest of its buffer.
-      sendQueuedLogs({ closeCalled = true }, Job())
-      val elapsed = Duration.ofNanos(System.nanoTime() - started)
+    LogSender.reset()
+    var closeCalled = false
+    val started = System.nanoTime()
+    // The job never completes. Closing a socket that nothing reads also never completes, because the socket cannot
+    // send the rest of its buffer.
+    sendQueuedLogs({ closeCalled = true }, Job(), Duration.ofSeconds(1))
+    val elapsed = Duration.ofNanos(System.nanoTime() - started)
 
-      Assertions.assertTrue(closeCalled, "the hook should close the socket")
-      Assertions.assertTrue(elapsed >= Duration.ofSeconds(1) && elapsed < Duration.ofSeconds(5)) { "the hook took $elapsed" }
-    } finally {
-      logFlushTimeout = saved
-    }
+    Assertions.assertTrue(closeCalled, "the hook should close the socket")
+    Assertions.assertTrue(elapsed >= Duration.ofSeconds(1) && elapsed < Duration.ofSeconds(5)) { "the hook took $elapsed" }
   }
 
   @Test
   @DisplayName("Should not wait for the log socket to close once the shutdown hook has stopped waiting for the queued lines")
   @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   fun skipsSocketWaitAfterGivingUpOnQueuedLines() {
-    val saved = logFlushTimeout
     val savedErrors = LogSender.errors
-    logFlushTimeout = Duration.ofSeconds(2)
     LogSender.errors = PrintStream(OutputStream.nullOutputStream())
     val channel = ByteChannel(autoFlush = true)
     try {
@@ -598,7 +592,7 @@ class ServerTest {
       LogSender.send(LogMessage("x".repeat(2 * 1024 * 1024), emptyMap(), "test", Level.INFO))
       var closeCalled = false
       val started = System.nanoTime()
-      sendQueuedLogs({ closeCalled = true }, Job())
+      sendQueuedLogs({ closeCalled = true }, Job(), Duration.ofSeconds(2))
       val elapsed = Duration.ofNanos(System.nanoTime() - started)
 
       Assertions.assertTrue(closeCalled, "the hook should still close the socket")
@@ -608,7 +602,6 @@ class ServerTest {
       channel.cancel(null)
       LogSender.flush(Duration.ofSeconds(10))
       LogSender.errors = savedErrors
-      logFlushTimeout = saved
     }
   }
 
