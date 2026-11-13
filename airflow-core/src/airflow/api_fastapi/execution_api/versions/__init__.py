@@ -66,10 +66,14 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddTaskInstanceRegionCoordinates,
     AddTerminalStateRetryReasonField,
     IdentifyArchivedTaskStateUpdates,
+    ReturnNotFoundForMissingDagRun,
 )
 from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
+    AddCallbackStateEndpoint,
     AddDagProcessorJobEndpoints,
     AddExecutionTimeoutToTIRunContext,
+    AddExternalClearTargetField,
+    MakeVariableValueNonNullable,
 )
 from airflow.api_fastapi.execution_api.versions.v2027_02_28_xcom_params import AddRegionToXComFilterParams
 
@@ -79,6 +83,9 @@ bundle = VersionBundle(
         "2027-02-28",
         AddDagProcessorJobEndpoints,
         AddExecutionTimeoutToTIRunContext,
+        AddExternalClearTargetField,
+        MakeVariableValueNonNullable,
+        AddCallbackStateEndpoint,
         AddRegionToXComFilterParams,
     ),
     Version(
@@ -96,6 +103,7 @@ bundle = VersionBundle(
         AddTaskInstanceRegionCoordinates,
         IdentifyArchivedTaskStateUpdates,
         AddFirstTaskRescheduleStartDateField,
+        ReturnNotFoundForMissingDagRun,
     ),
     Version(
         "2026-06-30",

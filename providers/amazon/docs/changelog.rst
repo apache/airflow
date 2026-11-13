@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+.. note::
+
+    ``SageMakerTrainingOperator`` supports durable execution and ``durable`` defaults to ``True``.
+    A retry now reconnects to the training job the previous try submitted instead of submitting a
+    new one, so a worker crash no longer leaves a duplicate job running and billing. This applies
+    to the synchronous path only; a deferrable run is unchanged. Pass ``durable=False`` to keep
+    submitting a new job on every try. Reconnecting needs Airflow 3.3 or later; below that the
+    operator behaves as with ``durable=False``.
+
 9.40.0
 ......
 
@@ -41,7 +50,9 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add stop_training_job_on_kill to SageMakerTrainingOperator to stop the job when the task is killed (#76033)``
+* ``Add cancel_on_kill to SageMakerTrainingOperator and SageMakerProcessingOperator to stop the job when the task is killed (#76033, #76413)``
+* ``Add environment_variables to MWAA Serverless create/update workflow operators (#76496)``
+* ``Stream remote task logs from S3 instead of reading whole objects (#73517)``
 * ``Let the ECS executor start tasks in parallel (#75907)``
 * ``Page SqlToS3Operator like GenericTransfer (#75730)``
 * ``Let the EKS executor run per team and next to KubernetesExecutor (#75449)``
@@ -59,10 +70,13 @@ Bug Fixes
 * ``Skip S3 keys that map to the local sync directory (#74322)``
 * ``Fix SageMaker credential failures being reported as timeouts (#74867)``
 * ``Treat in-progress Bedrock batch inference jobs as scheduled (#75264)``
+* ``Stop deferred AWS tasks failing on a botocore Config object (#74843)``
+* ``Stop AWS Glue job run when a deferred task is cleared (#73702)``
 
 Misc
 ~~~~
 
+* ``Warn when AwsDuckDBHook ignores the AWS connection's credentials (#76639)``
 * ``Log the AWS identity used by AwsDuckDBHook (#75997)``
 * ``Raise boto3 and botocore minimum to 1.43.4 (#75270, #76278)``
 * ``Report AwsEksExecutor as the caller in its AWS user agent (#75698)``
@@ -74,11 +88,13 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Add a connection page for the DuckDB on AWS connection (#76634)``
 * ``Fix env var names in AWS ECS and Lambda executor setup docs (#76155)``
 * ``Document virtual-hosted-style S3 addressing for AWS connections (#75135)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-11-03 (#76490)``
    * ``Enable DMS task logging in example_dms system test (#76336)``
    * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
    * ``Remove unused S3 bundle test upload helper (#75888)``

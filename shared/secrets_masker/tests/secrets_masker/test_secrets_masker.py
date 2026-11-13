@@ -905,6 +905,35 @@ class TestShouldHideValueForKey:
         assert expected_result == masker.should_hide_value_for_key(key)
 
     @pytest.mark.parametrize(
+        ("key", "expected_result"),
+        [
+            ("app_key", True),
+            ("certificate", True),
+            ("credential", True),
+            ("keytab", True),
+            ("kube_config", True),
+            ("KUBE_CONFIG", True),
+            ("oauth", True),
+            ("routing_key", True),
+            ("thumbprint", True),
+            ("write_key", True),
+            ("extra__kubernetes__kube_config", True),
+            ("kubeConfig", True),
+            ("routingKey", True),
+            ("kube_config_path", False),
+            ("kubeConfigPath", False),
+            ("extra__kubernetes__kube_config_path", False),
+            ("credential_config_file", False),
+            ("certificate_path", False),
+            ("service_principal_oauth", False),
+        ],
+    )
+    def test_hiding_whole_field_names(self, key, expected_result):
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+        assert expected_result == masker.should_hide_value_for_key(key)
+
+    @pytest.mark.parametrize(
         ("sensitive_variable_fields", "key", "expected_result"),
         [
             ("key", "TRELLO_KEY", True),
@@ -1236,6 +1265,57 @@ class TestEdgeCases:
         assert redacted.count("***") == 3
         assert redacted.startswith("Contains ")
         assert " and " in redacted
+
+    def test_multiline_secret_masked_when_split_into_adjacent_literals(self):
+        secret = "-----BEGIN KEY-----\nabcDEF123\nxyz789\n-----END KEY-----"
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        formatted = textwrap.dedent(
+            r"""
+            {'name': 'MULTI',
+             'value': '-----BEGIN KEY-----\n'
+                      'abcDEF123\n'
+                      'xyz789\n'
+                      '-----END KEY-----'}
+            """
+        )
+        expected = textwrap.dedent(
+            r"""
+            {'name': 'MULTI',
+             'value': '***\n'
+                      '***\n'
+                      '***\n'
+                      '***'}
+            """
+        )
+
+        assert secrets_masker.redact(formatted) == expected
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"])
+    def test_multiline_secret_registers_stripped_lines(self, newline):
+        secret = newline.join(["  first-line-1  ", "", "second-line-2"])
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        assert {r"first\-line\-1", r"second\-line\-2"} <= secrets_masker.patterns
+        assert secrets_masker.redact(f"x {secret} y") == "x *** y"
+
+        single_line_masker = SecretsMasker()
+        configure_secrets_masker_for_test(single_line_masker)
+        single_line_masker.add_mask("  error  ")
+        assert single_line_masker.patterns == {r"\ \ error\ \ "}
+
+    @pytest.mark.parametrize(("newline", "escaped"), [("\n", r"\n"), ("\r\n", r"\r\n")])
+    def test_secret_with_trailing_newline_registers_stripped_value(self, newline, escaped):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(f"token-value{newline}")
+
+        assert r"token\-value" in secrets_masker.patterns
+        assert secrets_masker.redact(f"{{'v': 'token-value{escaped}'}}") == f"{{'v': '***{escaped}'}}"
 
 
 class TestDirectMethodCalls:

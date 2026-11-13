@@ -1900,10 +1900,45 @@
         "DAGRUN_ALREADY_EXISTS",
         "PERMISSION_DENIED",
         "GENERIC_ERROR",
-        "API_SERVER_ERROR"
+        "API_SERVER_ERROR",
+        "XCOM_BACKEND_ERROR"
       ],
       "title": "ErrorType",
       "type": "string"
+    },
+    "ExternalClearTargetPayload": {
+      "additionalProperties": false,
+      "description": "A task in another Dag that clearing the reporting task also clears, as resolved when it ran.",
+      "properties": {
+        "dag_id": {
+          "minLength": 1,
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "format": "date-time",
+          "title": "Logical Date",
+          "type": "string"
+        },
+        "recursion_depth": {
+          "exclusiveMinimum": 0,
+          "title": "Recursion Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_id",
+        "logical_date",
+        "recursion_depth"
+      ],
+      "title": "ExternalClearTargetPayload",
+      "type": "object"
     },
     "GetAssetByName": {
       "properties": {
@@ -3181,6 +3216,78 @@
       "title": "HITLDetailRequestResult",
       "type": "object"
     },
+    "HITLDetailResponseResult": {
+      "description": "Response to GetHITLDetailResponse request.",
+      "properties": {
+        "response_received": {
+          "title": "Response Received",
+          "type": "boolean"
+        },
+        "responded_by_user": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HITLUser"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "chosen_options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chosen Options"
+        },
+        "params_input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params Input"
+        },
+        "type": {
+          "const": "HITLDetailResponseResult",
+          "default": "HITLDetailResponseResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "response_received",
+        "responded_at",
+        "chosen_options"
+      ],
+      "title": "HITLDetailResponseResult",
+      "type": "object"
+    },
     "HITLUser": {
       "description": "Schema for a Human-in-the-loop users.",
       "properties": {
@@ -3592,15 +3699,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "description": {
           "anyOf": [
@@ -4134,6 +4234,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "external_clear_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalClearTargetPayload"
             },
             {
               "type": "null"
@@ -4684,15 +4795,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         }
       },
       "required": [
@@ -4710,15 +4814,8 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Value"
+          "title": "Value",
+          "type": "string"
         },
         "type": {
           "const": "VariableResult",

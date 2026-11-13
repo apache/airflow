@@ -387,6 +387,10 @@ later, when you rebase the PR with the latest main before merging it.
 export RELEASE_DATE=$(date "+%Y-%m-%d")
 ```
 
+Once the release-prep PR is merged, this date names the wave: the `providers/${RELEASE_DATE}` tag,
+the SVN folder, the source tarball and the vote email all use it. Every later step must use the same
+value, even when you run it on a later day.
+
 The RELEASE_DATE can also optionally have `_01`, `_02` suffixes appended to it to indicate that the release
 is the first, second or third release candidate for the provider that day. It's unlikely to happen that
 we have several release candidates for the same provider in a single day, but this makes it possible to
@@ -538,7 +542,13 @@ In the 2026-10-14 wave, `openai` imported `get_async_extra_dejson` but still pin
 Make sure to set labels: `allow provider dependency bump` and `skip common compat check` to the PR,
 so that the PR is not blocked by selective checks.
 
-You can do it for example this way:
+CI reads the labels from the event that started the run, and adding a label does not start a new
+run. `gh pr create --label` adds the labels a moment after the PR is opened, so the first run sees
+none of them (`PR_LABELS: []` in the job log) and selective checks fail, for example with
+`common_compat_changed_without_next_version`. Re-running the failed jobs replays the same event and
+fails the same way. Open the PR as a draft and mark it ready once the labels are set. The
+`ready_for_review` event starts a run that sees them. `gh` does not accept `--draft` together
+with `--web`, so pick "Create draft pull request" in the browser:
 
 ```shell script
 gh pr create \
@@ -547,7 +557,11 @@ gh pr create \
   --label "skip common compat check" \
   --body "Prepare providers release ${RELEASE_DATE}" \
   --web
+# After creating the draft in the browser and checking that both labels are set:
+gh pr ready
 ```
+
+If CI already ran without the labels, close and reopen the PR to start a run that sees them.
 
 ## Apply incremental changes and merge the PR
 
@@ -739,7 +753,8 @@ key you want to use.
 * Cleanup dist folder:
 
 ```shell script
-export RELEASE_DATE=$(date "+%Y-%m-%d%n")
+# The wave's release preparation date from the release-prep PR, not today's date.
+export RELEASE_DATE=<YYYY-MM-DD>
 export AIRFLOW_REPO_ROOT=$(pwd -P)
 # The merge commit of the release-prep PR. Tag and build exactly this commit, never "whatever HEAD is".
 export WAVE_SHA=<sha>
@@ -1288,7 +1303,7 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/${RELEASE_DATE}
 The test procedure for PMC members is described in
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDERS.md#verify-the-release-candidate-by-pmc-members
 
-The test procedure for and Contributors who would like to test this RC is described in:
+The test procedure for Contributors who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDERS.md#verify-the-release-candidate-by-contributors
 
 
@@ -1341,7 +1356,7 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 Set expected release tag (the same as announced in the vote email):
 
 ```shell script
-export RELEASE_DATE=2025-11-03
+export RELEASE_DATE=<YYYY-MM-DD>
 ````
 
 Go to the directory where you have airflow checked out and set AIRFLOW_REPO_ROOT variable
@@ -1432,7 +1447,8 @@ cd "$AIRFLOW_REPO_ROOT"
 2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
-git fetch upstream --tags
+# --force also updates local tags that were moved upstream, such as a re-cut wave tag
+git fetch upstream --tags --force
 git checkout providers/${RELEASE_DATE}
 ```
 
@@ -1787,7 +1803,7 @@ that the Airflow works as you expected.
 # Publish release
 
 ```shell script
-export RELEASE_DATE=2025-11-14
+export RELEASE_DATE=<YYYY-MM-DD>
 export RELEASE_MANAGER_NAME="RELEASE_MANAGER_NAME"
 echo "prepare release date is ${RELEASE_DATE}"
 ```
@@ -2315,7 +2331,7 @@ Announcement is done from official Apache-Airflow accounts.
 
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+* Bluesky: https://bsky.app/profile/airflow.apache.org
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

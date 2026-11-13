@@ -58,6 +58,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to skip provider tests (true/false)"
         required: true
         type: string
+      run-providers-compatibility-tests:
+        description: "Whether to run the provider tests against released Airflow versions (true/false)"
+        required: true
+        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
         required: true
@@ -194,7 +198,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.compat.python-version }}"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "true"
-    if: inputs.skip-providers-tests != 'true'
+    if: inputs.skip-providers-tests != 'true' && inputs.run-providers-compatibility-tests == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash

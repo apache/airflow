@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
-from airflow.sdk.bases.xcom import XComIterable, _own_coordinate
+from airflow.sdk.bases.xcom import XComIterable, build_own_coordinate
 from airflow.sdk.definitions._internal.fingerprint import InputFingerprint
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
@@ -1285,7 +1285,7 @@ class IterationRun:
             return None, skipped
         ti = self.context["ti"]
         # Where the items were pushed: inside a loop, every reader then reads this pass's items.
-        own = _own_coordinate(ti)
+        own = build_own_coordinate(ti)
         result = XComIterable(
             task_id=self._operator.task_id,
             dag_id=self._operator.dag_id,

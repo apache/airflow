@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+    The provider no longer installs ``litellm``. It now depends on ``google-cloud-aiplatform`` and the
+    dependencies of its ``evaluation`` extra except ``litellm``, which the extra caps below the fix for
+    a critical advisory. If your tasks call ``vertexai.Client().evals`` with a model that LiteLLM
+    serves, install ``litellm`` yourself; without it those calls raise ``ImportError``.
+
 22.9.0
 ......
 
@@ -34,6 +40,10 @@ Changelog
     Subclasses of ``CloudLoggingRemoteLogIO`` that override ``prepare_log_filter`` must accept a
     ``log_path`` keyword argument (``log_path: str | None = None``), because ``read`` now passes it.
     With the old ``(self, ti_labels)`` signature every task log read fails with ``TypeError``.
+
+.. warning::
+    ``BigQueryGetDataOperator`` no longer accepts ``project_id``. Use ``table_project_id`` instead.
+    Dags that still pass ``project_id`` fail at parse time with ``TypeError``.
 
 .. note::
     ``BigQueryStreamingBufferEmptySensor`` now requires ``empty_confirmations`` consecutive empty

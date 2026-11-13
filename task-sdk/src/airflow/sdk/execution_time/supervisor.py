@@ -36,6 +36,7 @@ import weakref
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, nullcontext, suppress
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -105,6 +106,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -155,6 +157,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_prev_successful_dag_run,
     handle_get_previous_dag_run,
     handle_get_previous_ti,
@@ -644,7 +647,7 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
-def _task_process_uses_exec() -> bool:
+def task_process_uses_exec() -> bool:
     """
     Whether the task process should ``exec`` a fresh interpreter after the fork.
 
@@ -827,6 +830,7 @@ class WatchedSubprocess:
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetHITLDetailResponse, handle_get_hitl_detail_response),
             _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
             _register_client_handler(GetPreviousTI, handle_get_previous_ti),
             _register_client_handler(GetTaskStates, handle_get_task_states),
@@ -1189,27 +1193,11 @@ class WatchedSubprocess:
                 with self._request_scope(request):
                     self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
                 # Generic exception handling so a transient network error (httpx2.ConnectError /
                 # httpx2.TimeoutException) or any other exception
@@ -1707,7 +1695,7 @@ class ActivitySubprocess(WatchedSubprocess):
         # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _task_process_uses_exec()
+        use_exec = target is _subprocess_main and task_process_uses_exec()
         if target is _subprocess_main and not use_exec:
             _import_task_runner_before_fork()
         proc: Self = super().start(
@@ -1884,6 +1872,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
                     loop_decision=msg.loop_decision,
+                    external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
@@ -2431,6 +2420,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetConnection,
             GetDRCount,
             GetDagRunState,
+            GetHITLDetailResponse,
             GetPrevSuccessfulDagRun,
             GetPreviousDagRun,
             GetPreviousTI,
@@ -2524,26 +2514,44 @@ def in_process_api_server():
     return api
 
 
+_IN_PROCESS_RESPONSE_SINK: ContextVar[deque[BaseModel | None] | None] = ContextVar(
+    "in_process_response_sink", default=None
+)
+"""Where :meth:`InProcessTestSupervisor.send_msg` must deliver the response it is about to send.
+
+Only :meth:`InProcessSupervisorComms.send` sets it, and it gets a fresh sink per call, so a response
+can never reach a caller other than the one that is waiting for it. When no sink is set, the request
+came over the socket from a child process (read by the thread started in
+``_setup_subprocess_socket``) and is answered on the socket instead.
+
+Whether a sink is set depends on the call, not the thread, so the sink must not be replaced with a
+thread-identity check: handling a child's ``GetVariable``/``GetConnection`` on the socket thread calls
+``mask_secret``, which re-enters :meth:`InProcessSupervisorComms.send` on that same thread. The nested
+``MaskSecret`` response lands in the nested sink, which is reset before the outer response is written
+to the socket.
+"""
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
-    """In-process communication handler that uses deques instead of sockets."""
+    """In-process communication handler that returns each response directly to its caller."""
 
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
-    messages: deque[BaseModel | None] = attrs.field(factory=deque)
 
-    def _get_response(self) -> BaseModel | None:
-        """Get a message from the supervisor. Blocks until a message is available."""
-        return self.messages.popleft()
-
-    def send(self, msg: BaseModel):
-        """Send a request to the supervisor."""
+    def send(self, msg: BaseModel) -> BaseModel | None:
+        """Send a request to the supervisor and return its response."""
         self.log.debug("Sending request", msg=msg)
 
-        with set_supervisor_comms(None):
-            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        responses: deque[BaseModel | None] = deque()
+        token = _IN_PROCESS_RESPONSE_SINK.set(responses)
+        try:
+            with set_supervisor_comms(None):
+                self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        finally:
+            _IN_PROCESS_RESPONSE_SINK.reset(token)
 
-        return self._get_response()
+        return responses.popleft() if responses else None
 
     async def asend(self, msg: BaseModel):
         """
@@ -2728,8 +2736,15 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def send_msg(
         self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
-        """Override to use in-process comms."""
-        self.comms.messages.append(msg)
+        """Deliver the response in-process, or over the socket when the request came from there."""
+        sink = _IN_PROCESS_RESPONSE_SINK.get()
+        if sink is None:
+            # A real child process (a virtualenv operator's, say) sent this request over the socket
+            # set up by `_setup_subprocess_socket`. It is blocked reading a response frame, so
+            # anything queued in-process would never reach it.
+            super().send_msg(msg, request_id, error=error, **dump_opts)
+            return
+        sink.append(msg)
 
     @classmethod
     def run_trigger_in_process(cls, *, trigger, ti):
