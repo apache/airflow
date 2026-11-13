@@ -39,7 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import Delete, delete, event as sa_event, false, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -5117,7 +5117,9 @@ class TestSchedulerJob:
             "stuck in queued reschedule",
             "stuck in queued reschedule",
             "stuck in queued tries exceeded",
+            "failed",
             "stuck in queued tries exceeded",
+            "failed",
         ]
 
         mock_executors[
@@ -5219,7 +5221,9 @@ class TestSchedulerJob:
             "stuck in queued reschedule",
             "stuck in queued reschedule",
             "stuck in queued tries exceeded",
+            "failed",
             "stuck in queued tries exceeded",
+            "failed",
         ]
 
         mock_executors[
@@ -11839,6 +11843,198 @@ class TestSchedulerJob:
         assert session.get(TaskInstance, ti_id).state == State.FAILED
         request = mock_executors[0].send_callback.call_args[0][0]
         assert request.ti.map_index == 1
+
+    @pytest.mark.parametrize(
+        ("retries", "expected_state", "expected_email_type"),
+        [
+            pytest.param(0, TaskInstanceState.FAILED, "failure", id="no_retries_left"),
+            pytest.param(1, TaskInstanceState.UP_FOR_RETRY, "retry", id="retries_left"),
+        ],
+    )
+    def test_stuck_in_queued_tries_exceeded_honours_retries(
+        self, dag_maker, session, mock_executors, retries, expected_state, expected_email_type
+    ):
+        """A task failed for being stuck in queued must retry like any other failure."""
+        with dag_maker(dag_id="stuck_retries", serialized=True):
+            upstream = EmptyOperator(
+                task_id="upstream",
+                retries=retries,
+                email="test@example.com",
+                email_on_failure=True,
+                email_on_retry=True,
+                on_failure_callback=TestSchedulerJob.mock_failure_callback,
+            )
+            upstream >> EmptyOperator(task_id="downstream")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("upstream", session=session)
+        failed_id, failed_try_number = ti.id, ti.try_number
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 0
+        executor = mock_executors[0]
+        executor.get_task_key.side_effect = lambda ti: TaskInstanceUuid(ti.id)
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        ti = dr.get_task_instance("upstream", session=session)
+        assert ti.state == expected_state
+
+        sent = [call.args[0] for call in executor.send_callback.call_args_list]
+        callback, email = sent
+        assert isinstance(callback, TaskCallbackRequest)
+        assert callback.task_callback_type == expected_state
+        assert isinstance(email, EmailRequest)
+        assert email.email_type == expected_email_type
+        for request in sent:
+            assert request.ti.id == failed_id
+            assert request.ti.try_number == failed_try_number
+        executor.fail.assert_called_once_with(TaskInstanceUuid(failed_id))
+
+        if retries:
+            # The retry is a new attempt; downstream must still be waiting for it.
+            assert ti.id != failed_id
+            assert ti.try_number == failed_try_number + 1
+            assert ti.retry_at is not None
+            dr.task_instance_scheduling_decisions(session=session)
+            assert dr.get_task_instance("downstream", session=session).state is None
+
+    def test_stuck_in_queued_tries_exceeded_retries_without_callbacks(
+        self, dag_maker, session, mock_executors
+    ):
+        """Retries do not depend on the task having a callback."""
+        with dag_maker(dag_id="stuck_no_callbacks", serialized=True):
+            EmptyOperator(task_id="op", retries=1)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("op", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 0
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        assert dr.get_task_instance("op", session=session).state == TaskInstanceState.UP_FOR_RETRY
+        mock_executors[0].send_callback.assert_not_called()
+        mock_executors[0].fail.assert_called_once()
+
+    def test_stuck_in_queued_tries_exceeded_retries_when_dag_not_loadable(
+        self, dag_maker, session, mock_executors
+    ):
+        """Retries still apply when the DAG can't be loaded; only the callback is lost."""
+        with dag_maker(dag_id="stuck_dag_not_loadable", serialized=True):
+            EmptyOperator(task_id="op", retries=1, on_failure_callback=TestSchedulerJob.mock_failure_callback)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("op", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 0
+        with (
+            _loader_mock(mock_executors),
+            mock.patch.object(
+                scheduler.scheduler_dag_bag,
+                "get_dag_for_run",
+                autospec=True,
+                side_effect=RuntimeError("gone"),
+            ),
+        ):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        assert dr.get_task_instance("op", session=session).state == TaskInstanceState.UP_FOR_RETRY
+        mock_executors[0].send_callback.assert_not_called()
+        mock_executors[0].fail.assert_called_once()
+
+    @pytest.mark.parametrize("dag_run_locked", [False, True], ids=["dag_run_free", "dag_run_locked"])
+    def test_stuck_in_queued_locks_dag_run_before_regional_ti(
+        self, dag_maker, session, mock_executors, dag_run_locked
+    ):
+        """A mapped TI locks its DagRun before its own row, and is skipped while the DagRun is held."""
+        with dag_maker(dag_id="stuck_regional", serialized=True):
+            BashOperator.partial(task_id="mapped", bash_command="true").expand(env=[{"a": "1"}])
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = next(t for t in dr.task_instances if t.region_index == 0)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 2
+        locked_models = []
+
+        def _lock(query, *, of, **kwargs):
+            locked_models.append(of)
+            if dag_run_locked and of is DagRun:
+                # Simulate SKIP LOCKED skipping a DagRun held by another transaction, e.g. a clear.
+                return query.where(false())
+            return with_row_locks(query, of=of, **kwargs)
+
+        with (
+            _loader_mock(mock_executors),
+            mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=_lock),
+        ):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        state = session.get(TaskInstance, ti.id).state
+        if dag_run_locked:
+            assert locked_models == [DagRun]
+            assert state == TaskInstanceState.QUEUED
+            mock_executors[0].revoke_task.assert_not_called()
+        else:
+            assert locked_models == [DagRun, TaskInstance]
+            assert state == TaskInstanceState.SCHEDULED
+
+    @pytest.mark.parametrize("num_stuck_queued_retries", [0, 2], ids=["would_fail", "would_requeue"])
+    def test_stuck_in_queued_skips_task_started_after_scan(
+        self, dag_maker, session, mock_executors, num_stuck_queued_retries
+    ):
+        """A worker can start the attempt between the scan and handling it; leave that attempt alone."""
+        with dag_maker(dag_id="stuck_started_after_scan", serialized=True):
+            EmptyOperator(task_id="op", retries=1)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("op", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = num_stuck_queued_retries
+        stale_tis = list(scheduler._get_tis_stuck_in_queued(session))
+        assert [t.id for t in stale_tis] == [ti.id]
+        # The worker starts the attempt after the scan; the scheduler still holds the queued copy.
+        session.execute(
+            update(TaskInstance).where(TaskInstance.id == ti.id).values(state=TaskInstanceState.RUNNING)
+        )
+        session.commit()
+
+        with (
+            _loader_mock(mock_executors),
+            mock.patch.object(scheduler, "_get_tis_stuck_in_queued", autospec=True, return_value=stale_tis),
+        ):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        current = dr.get_task_instance("op", session=session)
+        assert current.id == ti.id
+        assert current.state == TaskInstanceState.RUNNING
+        mock_executors[0].revoke_task.assert_not_called()
+        mock_executors[0].fail.assert_not_called()
+        assert not session.scalars(select(Log).where(Log.dag_id == dr.dag_id, Log.event.like("stuck%"))).all()
 
     def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling task failures."""

@@ -111,7 +111,7 @@ from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, regional_expression
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, is_regional, regional_expression
 from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -247,6 +247,73 @@ def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logge
         ti,
         latest_version.id,
     )
+    return True
+
+
+def _send_task_failure_requests(
+    ti: TaskInstance,
+    *,
+    task: Operator | None,
+    executor: BaseExecutor,
+    msg: str,
+    needs_callback: bool,
+    coordinates: TaskCoordinateResolver,
+    session: Session,
+    log: Logger,
+    map_index: int | None = None,
+) -> bool:
+    """
+    Send the retry/failure callback and email requests for a task the scheduler is failing.
+
+    Call this before ``ti.handle_failure()``, which archives the attempt when it allocates a retry.
+    Returns False if the requests were needed but ``dag_version_id`` could not be resolved.
+    """
+    send_email = task is not None and bool(task.email) and (task.email_on_failure or task.email_on_retry)
+    if not (needs_callback or send_email):
+        return True
+    if send_email:
+        log.info("Sending email request for task %s to DAG Processor", ti)
+    bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
+    if not _ensure_ti_has_dag_version_id(ti, session, log):
+        return False
+
+    retrying = ti.is_eligible_to_retry()
+    if map_index is None:
+        map_index = coordinates.public_map_index(ti)
+    runtime_ti = task_instance_to_runtime(ti, model=TIDataModel, map_index=map_index)
+    context_from_server = TIRunContext(
+        dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+        max_tries=ti.max_tries,
+        variables=[],
+        connections=[],
+        xcom_keys_to_clear=[],
+    )
+    if needs_callback:
+        executor.send_callback(
+            TaskCallbackRequest(
+                filepath=ti.dag_model.relative_fileloc or "",
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
+                ti=runtime_ti,
+                msg=msg,
+                task_callback_type=TaskInstanceState.UP_FOR_RETRY if retrying else TaskInstanceState.FAILED,
+                context_from_server=context_from_server,
+            )
+        )
+    if send_email:
+        executor.send_callback(
+            EmailRequest(
+                filepath=ti.dag_model.relative_fileloc or "",
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
+                ti=runtime_ti,
+                msg=msg,
+                email_type="retry" if retrying else "failure",
+                context_from_server=context_from_server,
+            )
+        )
     return True
 
 
@@ -1817,69 +1884,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(state, session=session)
                     continue
                 ti.task = task
-                if task.has_on_retry_callback or task.has_on_failure_callback:
+                needs_callback = task.has_on_retry_callback or task.has_on_failure_callback
+                if needs_callback:
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
-                    _bundle_name, _bundle_version, _version_data = _resolve_ti_callback_bundle_info(ti)
-                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
-                        continue
-                    request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=_bundle_name,
-                        bundle_version=_bundle_version,
-                        version_data=_version_data,
-                        ti=task_instance_to_runtime(
-                            ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                        ),
-                        msg=msg,
-                        task_callback_type=(
-                            TaskInstanceState.UP_FOR_RETRY
-                            if ti.is_eligible_to_retry()
-                            else TaskInstanceState.FAILED
-                        ),
-                        context_from_server=TIRunContext(
-                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(request)
-
-                # Send email notification request to DAG processor via DB
-                if task.email and (task.email_on_failure or task.email_on_retry):
-                    cls.logger().info(
-                        "Sending email request for task %s to DAG Processor",
-                        ti,
-                    )
-                    _email_bundle_name, _email_bundle_version, _email_version_data = (
-                        _resolve_ti_callback_bundle_info(ti)
-                    )
-                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
-                        continue
-                    email_request = EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=_email_bundle_name,
-                        bundle_version=_email_bundle_version,
-                        version_data=_email_version_data,
-                        ti=task_instance_to_runtime(
-                            ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                        ),
-                        msg=msg,
-                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
-                        context_from_server=TIRunContext(
-                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(email_request)
+                if not _send_task_failure_requests(
+                    ti,
+                    task=task,
+                    executor=executor,
+                    msg=msg,
+                    needs_callback=needs_callback,
+                    coordinates=coordinates,
+                    session=session,
+                    log=cls.logger(),
+                ):
+                    continue
 
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
@@ -3554,6 +3574,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
+                    # The scan takes no lock; skip TIs a worker started since, and hold the row locks
+                    # through the commit below. Regional TIs lock their DagRun first (#74349).
+                    if is_regional(ti.region_id, ti.region_index) and (
+                        session.scalar(
+                            with_row_locks(
+                                select(DagRun.id).where(
+                                    DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id
+                                ),
+                                of=DagRun,
+                                session=session,
+                                skip_locked=True,
+                            )
+                        )
+                        is None
+                    ):
+                        self.log.info("Dag run of %s is locked; skipping stuck-in-queued check", ti)
+                        continue
+                    still_queued = session.scalar(
+                        with_row_locks(
+                            select(TI.id).where(TI.id == ti.id, TI.state == TaskInstanceState.QUEUED),
+                            of=TI,
+                            session=session,
+                            skip_locked=True,
+                        )
+                    )
+                    if still_queued is None:
+                        self.log.info(
+                            "Task instance %s is no longer queued or is locked; skipping stuck-in-queued check",
+                            ti,
+                        )
+                        session.commit()  # release the DagRun lock taken above, if any
+                        continue
                     executor.revoke_task(ti=ti)
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
@@ -3601,6 +3653,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti,
             )
             msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
+            if inspect(ti).detached:
+                ti = session.merge(ti)
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
@@ -3617,38 +3671,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "The DAG or task could not be found. If a failure callback exists, it will not be run.",
                     exc_info=True,
                 )
-            else:
-                if task.has_on_failure_callback:
-                    if inspect(ti).detached:
-                        ti = session.merge(ti)
-                    _stuck_bundle_name, _stuck_bundle_version, _stuck_version_data = (
-                        _resolve_ti_callback_bundle_info(ti)
-                    )
-                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-                    # Note: we cannot use `continue` here because this method is not
-                    # inside a loop.  If backfilling fails we simply skip the callback.
-                    if _ensure_ti_has_dag_version_id(ti, session, self.log):
-                        request = TaskCallbackRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
-                            bundle_name=_stuck_bundle_name,
-                            bundle_version=_stuck_bundle_version,
-                            version_data=_stuck_version_data,
-                            ti=task_instance_to_runtime(
-                                ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                            ),
-                            msg=msg,
-                            context_from_server=TIRunContext(
-                                dag_run=ti.dag_run,
-                                max_tries=ti.max_tries,
-                                variables=[],
-                                connections=[],
-                                xcom_keys_to_clear=[],
-                            ),
-                        )
-                        executor.send_callback(request)
-            finally:
-                ti.set_state(TaskInstanceState.FAILED, session=session)
-                executor.fail(executor.get_task_key(ti))
+                task = None
+            # handle_failure() reads retries and fail_fast from ti.task.
+            ti.task = task
+            needs_callback = task is not None and (task.has_on_failure_callback or task.has_on_retry_callback)
+            # Unlike process_executor_events, a missing dag_version_id only drops the requests here; the TI
+            # is still failed so it doesn't sit in queued.
+            _send_task_failure_requests(
+                ti,
+                task=task,
+                executor=executor,
+                msg=msg,
+                needs_callback=needs_callback,
+                coordinates=coordinates,
+                session=session,
+                log=self.log,
+            )
+            failed_key = executor.get_task_key(ti)
+            ti.handle_failure(error=msg, session=session)
+            executor.fail(failed_key)
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         filter_for_tis = TI.filter_for_tis([ti])
@@ -4200,11 +4241,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
                 ti,
             )
-            task_callback_type = (
-                TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
-            )
-
-            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
             # Missing callback metadata must not prevent a cleared attempt from being released.
             has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
             if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
@@ -4222,43 +4258,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else:
                     callback_map_index = coordinates.public_map_index(ti)
             if callback_map_index is not None:
-                context_from_server = TIRunContext(
-                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                    max_tries=ti.max_tries,
-                    variables=[],
-                    connections=[],
-                    xcom_keys_to_clear=[],
-                )
-                request = TaskCallbackRequest(
-                    filepath=ti.dag_model.relative_fileloc or "",
-                    bundle_name=bundle_name,
-                    bundle_version=bundle_version,
-                    version_data=version_data,
-                    ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
+                # process_executor_events can't reach this TI once handle_failure() below moves it out of
+                # RUNNING, so the email request is sent from here too.
+                _send_task_failure_requests(
+                    ti,
+                    task=task,
+                    executor=self.executor,
                     msg=msg,
-                    task_callback_type=task_callback_type,
-                    context_from_server=context_from_server,
+                    map_index=callback_map_index,
+                    needs_callback=True,
+                    coordinates=coordinates,
+                    session=session,
+                    log=self.log,
                 )
-                self.executor.send_callback(request)
-
-                # This purge path leaves the executor's own "task finished but TI still looked queued"
-                # handling in process_executor_events unreachable for this TI once handle_failure() below
-                # moves it out of RUNNING, so the email notification has to be sent from here directly.
-                if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
-                    self.executor.send_callback(
-                        EmailRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
-                            bundle_name=bundle_name,
-                            bundle_version=bundle_version,
-                            version_data=version_data,
-                            ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
-                            msg=msg,
-                            email_type=(
-                                "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
-                            ),
-                            context_from_server=context_from_server,
-                        )
-                    )
 
             failed_id, failed_coordinates = ti.id, ti.key
             if ti.state == TaskInstanceState.RESTARTING:
