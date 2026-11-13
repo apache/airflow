@@ -87,7 +87,8 @@ Airflow supports two mutually exclusive signing modes:
    Validation can use either:
 
    - A JWKS (JSON Web Key Set) endpoint configured via ``[api_auth] trusted_jwks_url``
-     (local file or remote HTTP/HTTPS URL, polled periodically for updates).
+     (local file or remote HTTP/HTTPS URL, reloaded periodically and when a token is signed with
+     a key that is not in the key set).
    - The public key derived from the configured private key (automatic fallback when
      ``trusted_jwks_url`` is not set).
 
@@ -616,6 +617,15 @@ All JWT-related configuration parameters:
    * - ``[api_auth] trusted_jwks_url``
      - None
      - JWKS endpoint URL or local file path for token validation. Mutually exclusive with ``jwt_secret``.
+   * - ``[api_auth] trusted_jwks_refresh_interval``
+     - 3600 (1h)
+     - Seconds after which the ``trusted_jwks_url`` key set is reloaded.
+   * - ``[api_auth] trusted_jwks_refresh_retry_interval``
+     - 10
+     - Minimum seconds between two key set reloads, including reloads for an unknown key ID.
+   * - ``[api_auth] trusted_jwks_default_algorithm``
+     - None
+     - Signing algorithm assigned to ``trusted_jwks_url`` keys published without ``alg``.
    * - ``[execution_api] jwt_expiration_time``
      - 600 (10 min)
      - Execution API ``execution``-scoped token lifetime in seconds.

@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import threading
 import time
 import uuid
 from base64 import urlsafe_b64encode
 from collections.abc import Callable, Sequence
+from concurrent.futures import Future
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, overload
 
@@ -99,9 +102,31 @@ def _guess_best_algorithm(key: AllowedPrivateKeys):
     raise ValueError(f"Unknown key object {type(key)}")
 
 
+def _validate_known_algorithm(instance: Any, attribute: attrs.Attribute, value: str | None) -> None:
+    if value is None:
+        return
+    if value.lower() == "none":
+        raise ValueError("JWKS default algorithm must not be 'none'")
+    try:
+        jwt.get_algorithm_by_name(value)
+    except NotImplementedError:
+        raise ValueError(f"Unknown JWKS default algorithm {value!r}") from None
+
+
 @attrs.define(repr=False)
 class JWKS:
-    """A class to fetch and sync a set of JSON Web Keys."""
+    """
+    A class to fetch and sync a set of JSON Web Keys.
+
+    The keyset, from a local file or a remote URL, is reloaded every ``refresh_interval_secs``. A token
+    signed with a key the keyset does not hold triggers an immediate reload, so a signing-key rotation
+    at the issuer is picked up without a restart. Reloads happen at most once per
+    ``refresh_retry_interval_secs``, so tokens with made-up key IDs cannot flood the issuer. A reload
+    that fails or yields no usable keys keeps the keyset loaded before.
+
+    ``default_algorithm`` is set on keys published without an ``alg``; PyJWT would otherwise assume a
+    key-type default (RS256 for RSA keys) and reject tokens signed with another algorithm.
+    """
 
     url: str
     fetched_at: float = 0
@@ -113,13 +138,17 @@ class JWKS:
     refresh_jwks: bool = True
     refresh_interval_secs: int = 3600
     refresh_retry_interval_secs: int = 10
+    default_algorithm: str | None = attrs.field(default=None, validator=_validate_known_algorithm)
+    _load_guard: threading.Lock = attrs.field(factory=threading.Lock, init=False)
+    _load_in_flight: Future[bool] | None = attrs.field(default=None, init=False)
+    _load_task: asyncio.Task[None] | None = attrs.field(default=None, init=False)
 
     def __repr__(self) -> str:
         return f"JWKS(url={self.url}, fetched_at={self.fetched_at})"
 
     @classmethod
     def from_private_key(cls, *keys: AllowedPrivateKeys | tuple[AllowedPrivateKeys, str]):
-        obj = cls(url=os.devnull)
+        obj = cls(url=os.devnull, refresh_jwks=False)
         keyset = [
             # Each `key` is either the key directly or `(key, "my-kid")`
             key_to_jwk_dict(*key) if isinstance(key, tuple) else key_to_jwk_dict(key)
@@ -129,18 +158,75 @@ class JWKS:
         return obj
 
     async def fetch_jwks(self) -> None:
-        if not self._should_fetch_jwks():
+        await self._load_if_needed(self._should_fetch_jwks)
+
+    async def _load_if_needed(self, needs_load: Callable[[], bool]) -> None:
+        """
+        Join the load in flight, or start one if ``needs_load`` holds.
+
+        A single load is shared by every event loop and thread, since ``validated_claims()`` runs
+        ``avalidated_claims()`` through ``async_to_sync`` on loops other than the API server's. The load
+        runs as its own task, so cancelling the request that started it does not cut it short. A load
+        cut short anyway, because its event loop shut down, is retried by the requests waiting on it.
+        """
+        load, started_here = self._join_or_start_load(needs_load)
+
+        if load is None:
             return
-        if self.url.startswith("http"):
-            data = await self._fetch_remote_jwks()
-        else:
-            data = self._fetch_local_jwks()
+
+        if not started_here:
+            if not await asyncio.wrap_future(load):
+                await self._load_if_needed(needs_load)
+            return
+
+        loading = asyncio.create_task(self._load_jwks())
+        # The event loop keeps only a weak reference to a task; this keeps the load alive.
+        self._load_task = loading
+        loading.add_done_callback(lambda _: self._finish_load(load, completed=not loading.cancelled()))
+        await asyncio.shield(loading)
+
+    def _join_or_start_load(self, needs_load: Callable[[], bool]) -> tuple[Future[bool] | None, bool]:
+        with self._load_guard:
+            if self._load_in_flight is not None:
+                return self._load_in_flight, False
+            if not needs_load():
+                return None, False
+            load: Future[bool] = Future()
+            # A running future cannot be cancelled, so a cancelled waiter cannot cancel the load for others.
+            load.set_running_or_notify_cancel()
+            self._load_in_flight = load
+            return load, True
+
+    def _finish_load(self, load: Future[bool], completed: bool) -> None:
+        with self._load_guard:
+            self._load_in_flight = None
+            self._load_task = None
+        load.set_result(completed)
+
+    async def _load_jwks(self) -> None:
+        data = await self._read_jwks()
+
+        self.last_fetch_attempt_at = int(time.monotonic())
 
         if not data:
             return
 
-        self._jwks = jwt.PyJWKSet.from_dict(data)
-        log.debug("Fetched JWKS", url=self.url, keys=len(self._jwks.keys))
+        keyset = self._parse_jwks(data)
+
+        if keyset is None:
+            return
+
+        self._jwks = keyset
+        self.fetched_at = int(time.monotonic())
+        log.debug("Fetched JWKS", url=self.url, keys=len(keyset.keys))
+
+    async def _read_jwks(self) -> dict[str, Any] | None:
+        if self._is_remote():
+            return await self._fetch_remote_jwks()
+        return self._fetch_local_jwks()
+
+    def _is_remote(self) -> bool:
+        return self.url.startswith("http")
 
     async def _fetch_remote_jwks(self) -> dict[str, Any] | None:
         try:
@@ -149,12 +235,8 @@ class JWKS:
                 url=self.url,
                 last_fetched_secs_ago=int(time.monotonic() - self.fetched_at) if self.fetched_at else None,
             )
-            if TYPE_CHECKING:
-                assert self.url
-            self.last_fetch_attempt_at = int(time.monotonic())
             response = await self.client.get(self.url)
             response.raise_for_status()
-            self.fetched_at = int(time.monotonic())
             await response.aread()
             await response.aclose()
             return response.json()
@@ -165,49 +247,81 @@ class JWKS:
     def _fetch_local_jwks(self) -> dict[str, Any] | None:
         try:
             with open(self.url) as jwks_file:
-                content = json.load(jwks_file)
-            self.fetched_at = int(time.monotonic())
-            return content
+                return json.load(jwks_file)
         except Exception:
             log.exception("Failed to read local JWKS", url=self.url)
             return None
+
+    def _parse_jwks(self, data: Any) -> jwt.PyJWKSet | None:
+        if not isinstance(data, dict):
+            log.error("JWKS is not a JSON object, keeping the current keyset", url=self.url)
+            return None
+        try:
+            return jwt.PyJWKSet.from_dict(self._with_default_algorithm(data))
+        except jwt.PyJWKSetError:
+            log.exception("JWKS holds no usable keys, keeping the current keyset", url=self.url)
+            return None
+
+    def _with_default_algorithm(self, data: dict[str, Any]) -> dict[str, Any]:
+        if not self.default_algorithm:
+            return data
+        keys = [self._with_algorithm(key, self.default_algorithm) for key in data.get("keys", [])]
+        return {**data, "keys": keys}
+
+    @staticmethod
+    def _with_algorithm(key: Any, algorithm: str) -> Any:
+        if not isinstance(key, dict) or key.get("alg"):
+            return key
+        return {**key, "alg": algorithm}
 
     def _should_fetch_jwks(self) -> bool:
         """
         Check if we need to fetch the JWKS based on the last fetch time and the refresh interval.
 
-        If the JWKS URL is local, we only fetch it once. For remote JWKS URLs we fetch it based
-        on the refresh interval if refreshing has been enabled with a minimum interval between
-        attempts. The fetcher functions set the fetched_at timestamp to the current monotonic time
-        when the JWKS is fetched.
+        The JWKS, local or remote, is fetched when it is not loaded yet. Once loaded, it is fetched again
+        when refreshing is enabled, the last successful fetch was more than ``refresh_interval_secs`` ago
+        and the last attempt more than ``refresh_retry_interval_secs`` ago.
         """
-        if not self.url.startswith("http"):
-            # Fetch local JWKS only if not already loaded
-            # This could be improved in future by looking at mtime of file.
-            return not self._jwks
-        # For remote fetches we check if the JWKS is not loaded (fetched_at = 0) or if the last fetch was more than
-        # refresh_interval_secs ago and the last fetch attempt was more than refresh_retry_interval_secs ago
-        now = time.monotonic()
-        return self.refresh_jwks and (
-            not self._jwks
-            or (
-                self.fetched_at == 0
-                or (
-                    now - self.fetched_at > self.refresh_interval_secs
-                    and now - self.last_fetch_attempt_at > self.refresh_retry_interval_secs
-                )
-            )
-        )
+        if not self._jwks:
+            return True
+        if not self.refresh_jwks:
+            return False
+        return self._refresh_interval_elapsed() and self._retry_interval_elapsed()
+
+    def _refresh_interval_elapsed(self) -> bool:
+        return time.monotonic() - self.fetched_at > self.refresh_interval_secs
+
+    def _retry_interval_elapsed(self) -> bool:
+        return time.monotonic() - self.last_fetch_attempt_at > self.refresh_retry_interval_secs
+
+    def _find_key(self, kid: str) -> jwt.PyJWK | None:
+        if not self._jwks:
+            return None
+        try:
+            return self._jwks[kid]
+        except KeyError:
+            return None
+
+    async def _reload_for_unknown_kid(self, kid: str) -> None:
+        if not self.refresh_jwks:
+            return
+        log.debug("Key ID not in JWKS, reloading if the retry interval has elapsed", kid=kid, url=self.url)
+        await self._load_if_needed(self._retry_interval_elapsed)
 
     async def get_key(self, kid: str) -> jwt.PyJWK:
-        """Fetch the JWKS and find the matching key for the token."""
+        """Fetch the JWKS and find the matching key for the token, reloading it for an unknown key ID."""
         await self.fetch_jwks()
 
-        if self._jwks:
-            return self._jwks[kid]
+        key = self._find_key(kid)
 
-        # It didn't load!
-        raise KeyError(f"Key ID {kid} not found in keyset")
+        if key is None:
+            await self._reload_for_unknown_kid(kid)
+            key = self._find_key(kid)
+
+        if key is None:
+            raise KeyError(f"Key ID {kid} not found in keyset")
+
+        return key
 
     def status(self):
         # https://svcs.hynek.me/en/stable/core-concepts.html#health-checks
@@ -605,7 +719,12 @@ def get_sig_validation_args(make_secret_key_if_needed: bool = True) -> dict[str,
     url = conf.get("api_auth", "trusted_jwks_url", fallback=sentinel)
 
     if url and url is not sentinel:
-        jwks = JWKS(url=url)
+        jwks = JWKS(
+            url=url,
+            refresh_interval_secs=conf.getint("api_auth", "trusted_jwks_refresh_interval"),
+            refresh_retry_interval_secs=conf.getint("api_auth", "trusted_jwks_refresh_retry_interval"),
+            default_algorithm=conf.get("api_auth", "trusted_jwks_default_algorithm", fallback=None) or None,
+        )
         return {"jwks": jwks}
 
     key = _load_key_from_configured_file()
