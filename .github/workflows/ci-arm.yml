@@ -1209,6 +1209,29 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
           govulncheck ./...
+      # The Go SDK source release ships go-sdk alone, and its tests must pass there. Running them
+      # from a copy outside the repository fails on any test that reads a file outside go-sdk.
+      - name: Run Go tests outside the Airflow repository
+        run: |
+          cp -a go-sdk "${RUNNER_TEMP}/go-sdk"
+          cd "${RUNNER_TEMP}/go-sdk"
+          gotestsum --format github-actions ./...
+      # The steps above use the pinned Go, but users build with newer ones. A new Go can change
+      # standard library behaviour that a test depends on, such as the text of an encoding/json
+      # error in Go 1.27. These steps come last because setup-go puts the new Go first on PATH.
+      # They do not fail the job, so that a new Go release does not break CI on its own.
+      - name: Setup the latest stable Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version: stable
+          # The pinned Go's setup already restores and saves the module cache.
+          cache: false
+      - name: Run Go tests on the latest stable Go
+        continue-on-error: true
+        working-directory: ./go-sdk
+        run: |
+          go version
+          gotestsum --format github-actions ./...
 
   tests-ts-sdk:
     name: "TypeScript SDK tests"
