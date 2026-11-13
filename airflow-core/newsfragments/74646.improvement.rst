@@ -1,0 +1,1 @@
+``SerializedDAG.partial_subset`` no longer walks every task and TaskGroup for each one it prunes, which speeds up the structure view, the grid view and the CLI on large Dags.
