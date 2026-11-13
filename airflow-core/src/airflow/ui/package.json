@@ -109,6 +109,7 @@
     "openapi-merge-cli": "^2.0.3",
     "oxfmt": "0.77.0",
     "oxlint": "1.92.0",
+    "oxlint-tsgolint": "7.0.2006",
     "ts-morph": "^27.0.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
