@@ -582,11 +582,13 @@ class KubernetesPodOperator(BaseOperator):
             elif isinstance(content, k8s.V1ResourceRequirements):
                 template_fields = ("limits", "requests")
             elif isinstance(content, k8s.V1Volume):
-                template_fields = ("name", "persistent_volume_claim", "config_map")
+                template_fields = ("name", "persistent_volume_claim", "config_map", "host_path")
             elif isinstance(content, k8s.V1VolumeMount):
-                template_fields = ("name", "sub_path")
+                template_fields = ("name", "mount_path", "sub_path")
             elif isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
                 template_fields = ("claim_name",)
+            elif isinstance(content, k8s.V1HostPathVolumeSource):
+                template_fields = ("path",)
             elif isinstance(content, k8s.V1ConfigMapVolumeSource):
                 template_fields = ("name",)
             elif isinstance(content, k8s.V1EnvFromSource):
