@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 
 if TYPE_CHECKING:
@@ -66,7 +66,7 @@ class TelegramOperator(BaseOperator):
         self.text = text
 
         if telegram_conn_id is None:
-            raise AirflowException("No valid Telegram connection id supplied.")
+            raise ValueError("No valid Telegram connection id supplied.")
 
         self.telegram_conn_id = telegram_conn_id
 
@@ -122,7 +122,7 @@ class TelegramFileOperator(BaseOperator):
         self.file = file
 
         if telegram_conn_id is None:
-            raise AirflowException("No valid Telegram connection id supplied.")
+            raise ValueError("No valid Telegram connection id supplied.")
 
         self.telegram_conn_id = telegram_conn_id
 

@@ -388,8 +388,6 @@ providers/standard/tests/unit/standard/operators/test_python.py::1
 providers/standard/tests/unit/standard/sensors/test_external_task.py::1
 providers/tableau/src/airflow/providers/tableau/hooks/tableau.py::1
 providers/tableau/src/airflow/providers/tableau/operators/tableau.py::3
-providers/telegram/src/airflow/providers/telegram/hooks/telegram.py::6
-providers/telegram/src/airflow/providers/telegram/operators/telegram.py::2
 providers/teradata/src/airflow/providers/teradata/hooks/bteq.py::10
 providers/teradata/src/airflow/providers/teradata/hooks/ttu.py::1
 providers/teradata/src/airflow/providers/teradata/operators/teradata_compute_cluster.py::9
