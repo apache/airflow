@@ -21,19 +21,46 @@ import type { LoaderFunctionArgs } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  UseAssetServiceGetAssetEventsKeyFn,
   UseDagRunServiceGetDagRunKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   UseDagServiceGetDagKeyFn,
+  UseDagServiceGetDagsUiKeyFn,
   UseDagServiceGetLatestRunInfoKeyFn,
+  UseDashboardServiceDagStatsKeyFn,
+  UseDashboardServiceHistoricalMetricsKeyFn,
+  UseGridServiceGetGridRunsKeyFn,
   UseTaskInstanceServiceGetLogKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
 } from "openapi/queries";
-import { DagRunService, DagService, TaskInstanceService } from "openapi/requests/services.gen";
+import {
+  AssetService,
+  DagRunService,
+  DagService,
+  DashboardService,
+  GridService,
+  ImportErrorService,
+  MonitorService,
+  PluginService,
+  PoolService,
+  TaskInstanceService,
+} from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { DEFAULT_TASK_INSTANCE_TAB_KEY } from "src/constants/localStorage";
+import {
+  dagRunsLimitKey,
+  DEFAULT_DAG_VIEW_KEY,
+  DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_TASK_INSTANCE_TAB_KEY,
+} from "src/constants/localStorage";
 
-import { createDagLoader, createRunLoader, createTaskLogsLoader } from "./routePrefetch";
+import {
+  createDagLoader,
+  createDashboardLoader,
+  createRunLoader,
+  createTaskLogsLoader,
+  getDashboardRange,
+} from "./routePrefetch";
 
 const BASE = "http://localhost/dags/my_dag/runs/run_1/tasks/my_task";
 
@@ -53,6 +80,10 @@ const taskInstance = (overrides: Partial<TaskInstanceResponse> = {}) =>
 
 const taskParams = { dagId: "my_dag", runId: "run_1", taskId: "my_task" };
 
+// The Grid's first page as Grid and DetailsLayout request it with no filter in the URL.
+const gridKey = (limit: number) =>
+  UseGridServiceGetGridRunsKeyFn({ dagId: "my_dag", limit, offset: 0, orderBy: ["-run_after"] });
+
 describe("route prefetch loaders", () => {
   let queryClient: QueryClient;
 
@@ -64,6 +95,7 @@ describe("route prefetch loaders", () => {
     vi.spyOn(DagRunService, "getDagRun").mockResolvedValue({ dag_run_id: "run_1" } as never);
     vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue(taskInstance());
     vi.spyOn(TaskInstanceService, "getLog").mockResolvedValue({ content: [] } as never);
+    vi.spyOn(GridService, "getGridRuns").mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -208,5 +240,124 @@ describe("route prefetch loaders", () => {
       ).toBe("error"),
     );
     expect(TaskInstanceService.getLog).not.toHaveBeenCalled();
+  });
+
+  it("prefetches the Grid's first page with the default limit plus one", async () => {
+    createDagLoader(queryClient)(args({ dagId: "my_dag" }, "http://localhost/dags/my_dag"));
+
+    await vi.waitFor(() => expect(queryClient.getQueryData(gridKey(11))).toBeDefined());
+  });
+
+  it("uses the URL's limit, else the Dag's stored limit, for the Grid's first page", async () => {
+    globalThis.localStorage.setItem(dagRunsLimitKey("my_dag"), JSON.stringify(25));
+    createRunLoader(queryClient)(
+      args({ dagId: "my_dag", runId: "run_1" }, "http://localhost/dags/my_dag/runs/run_1"),
+    );
+    await vi.waitFor(() => expect(queryClient.getQueryData(gridKey(26))).toBeDefined());
+
+    createRunLoader(queryClient)(
+      args({ dagId: "my_dag", runId: "run_1" }, "http://localhost/dags/my_dag/runs/run_1?limit=5"),
+    );
+    await vi.waitFor(() => expect(queryClient.getQueryData(gridKey(6))).toBeDefined());
+  });
+
+  it.each([
+    ["the URL filters the runs", "http://localhost/dags/my_dag?state=failed", "grid"],
+    ["the Gantt view is shown", "http://localhost/dags/my_dag", "gantt"],
+    ["the graph view shows no Grid on the Dag page", "http://localhost/dags/my_dag", "graph"],
+  ])("leaves the Grid's runs to the page when %s", (_, url, dagView) => {
+    globalThis.localStorage.setItem(DEFAULT_DAG_VIEW_KEY, JSON.stringify(dagView));
+
+    createDagLoader(queryClient)(args({ dagId: "my_dag" }, url));
+
+    expect(GridService.getGridRuns).not.toHaveBeenCalled();
+  });
+
+  it("prefetches the Grid's first page on run pages in the graph view, which DetailsLayout requests", async () => {
+    globalThis.localStorage.setItem(DEFAULT_DAG_VIEW_KEY, JSON.stringify("graph"));
+
+    createRunLoader(queryClient)(
+      args({ dagId: "my_dag", runId: "run_1" }, "http://localhost/dags/my_dag/runs/run_1"),
+    );
+
+    await vi.waitFor(() => expect(queryClient.getQueryData(gridKey(11))).toBeDefined());
+  });
+});
+
+describe("Dashboard route prefetch", () => {
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.spyOn(DashboardService, "historicalMetrics").mockResolvedValue({} as never);
+    vi.spyOn(DashboardService, "dagStats").mockResolvedValue({} as never);
+    vi.spyOn(AssetService, "getAssetEvents").mockResolvedValue({ asset_events: [], total_entries: 0 });
+    vi.spyOn(MonitorService, "getHealth").mockResolvedValue({} as never);
+    vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+    vi.spyOn(ImportErrorService, "getImportErrors").mockResolvedValue({
+      import_errors: [],
+      total_entries: 0,
+    });
+    vi.spyOn(PluginService, "importErrors").mockResolvedValue({ import_errors: [], total_entries: 0 });
+    vi.spyOn(PluginService, "getPlugins").mockResolvedValue({ plugins: [], total_entries: 0 });
+    vi.spyOn(PoolService, "getPools").mockResolvedValue({ pools: [], total_entries: 0 });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    globalThis.localStorage.clear();
+  });
+
+  it("caches the Dashboard's queries, with its history range shared with the Dashboard", async () => {
+    expect(createDashboardLoader(queryClient, { isLandingPage: false })()).toBeNull();
+
+    // The Dashboard mounts right after and starts from the same range, so its keys match.
+    const { endDate, startDate } = getDashboardRange();
+
+    await vi.waitFor(() => {
+      expect(
+        queryClient.getQueryData(UseDashboardServiceHistoricalMetricsKeyFn({ startDate })),
+      ).toBeDefined();
+      expect(
+        queryClient.getQueryData(
+          UseAssetServiceGetAssetEventsKeyFn({
+            limit: 6,
+            orderBy: ["-timestamp"],
+            timestampGte: startDate,
+            timestampLte: endDate,
+          }),
+        ),
+      ).toBeDefined();
+      expect(queryClient.getQueryData(UseDashboardServiceDagStatsKeyFn())).toBeDefined();
+      expect(
+        queryClient.getQueryData(UseDagServiceGetDagsUiKeyFn({ isFavorite: true, limit: 10 })),
+      ).toBeDefined();
+    });
+    expect(PoolService.getPools).toHaveBeenCalled();
+    expect(PluginService.getPlugins).toHaveBeenCalled();
+  });
+
+  it("creates a new range once the last one is more than a few seconds old", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2099-01-01T10:00:00Z"));
+    const first = getDashboardRange();
+
+    vi.setSystemTime(new Date("2099-01-01T10:00:05Z"));
+    expect(getDashboardRange()).toEqual(first);
+
+    vi.setSystemTime(new Date("2099-01-01T10:00:30Z"));
+    expect(getDashboardRange().endDate).toBe("2099-01-01T10:00:30.000Z");
+    expect(getDashboardRange().startDate).toBe("2098-12-31T10:00:30.000Z");
+  });
+
+  it("skips the app root when the user's landing page is the Dags list, but not /home", () => {
+    globalThis.localStorage.setItem(DEFAULT_LANDING_PAGE_KEY, JSON.stringify("dags"));
+
+    createDashboardLoader(queryClient, { isLandingPage: true })();
+    expect(DashboardService.historicalMetrics).not.toHaveBeenCalled();
+
+    createDashboardLoader(queryClient, { isLandingPage: false })();
+    expect(DashboardService.historicalMetrics).toHaveBeenCalledTimes(1);
   });
 });

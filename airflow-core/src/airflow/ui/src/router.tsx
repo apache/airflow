@@ -29,7 +29,12 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { ErrorPage } from "src/pages/Error";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
-import { createDagLoader, createRunLoader, createTaskLogsLoader } from "src/queries/routePrefetch";
+import {
+  createDagLoader,
+  createDashboardLoader,
+  createRunLoader,
+  createTaskLogsLoader,
+} from "src/queries/routePrefetch";
 import { loadRouteModule } from "src/utils/routeModule";
 
 import { client } from "./queryClient";
@@ -178,9 +183,11 @@ export const routerConfig = [
       {
         index: true,
         lazy: loadLandingPage,
+        loader: createDashboardLoader(client, { isLandingPage: true }),
       },
       {
         lazy: loadDashboard,
+        loader: createDashboardLoader(client, { isLandingPage: false }),
         path: "home",
       },
       {
