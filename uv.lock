@@ -4045,6 +4045,7 @@ source = { editable = "providers/apache/iceberg" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "pyarrow" },
     { name = "pyiceberg" },
 ]
 
@@ -4064,6 +4065,9 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
+    { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
+    { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
     { name = "pyiceberg", specifier = ">=0.8.0" },
 ]
 
