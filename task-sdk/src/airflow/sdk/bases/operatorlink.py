@@ -55,12 +55,34 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """
         return f"_link_{self.__class__.__name__}"
 
-    @abstractmethod
+    @property
+    def static_url(self) -> str | None:
+        """
+        Constant URL for this link, when it does not depend on the task run.
+
+        Links that override this property don't need an XCom entry: the URL is
+        carried through DAG serialization and rendered directly by the API
+        server, even for task instances that never pushed it via ``get_link()``.
+
+        Defaults to ``None``, meaning the link is resolved dynamically through
+        :meth:`get_link` and stored in XComs as before. Set it (instead of
+        overriding :meth:`get_link`) for links whose URL is always the same.
+        """
+        return None
+
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Link to external system.
+
+        Subclasses whose URL does not depend on the task run may override
+        :attr:`static_url` instead of this method and skip the XCom round-trip.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """
+        if self.static_url is not None:
+            return self.static_url
+        raise NotImplementedError(
+            f"Operator link {type(self).__name__} must override get_link() or static_url to provide a URL"
+        )

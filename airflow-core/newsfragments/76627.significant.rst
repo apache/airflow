@@ -1,0 +1,1 @@
+Operator extra links can now declare a constant ``static_url`` instead of implementing ``get_link()``; such links are carried in the serialized Dag and rendered without any XCom entry, including for failed or still-running task instances.

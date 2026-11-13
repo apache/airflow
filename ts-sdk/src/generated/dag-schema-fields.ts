@@ -212,4 +212,4 @@ export const TASK_SCHEMA_FIELDS = {
 /** The `__version` the serializer stamps into a serialized Dag. The schema
  *  constrains it only to a positive integer, so it is pinned here and guarded
  *  by a test in airflow-core. */
-export const SERIALIZATION_VERSION = 3;
+export const SERIALIZATION_VERSION = 4;

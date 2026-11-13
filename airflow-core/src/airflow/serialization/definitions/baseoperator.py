@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 import methodtools
 
 from airflow.serialization.definitions.node import DAGNode
-from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.operatorlink import StaticOperatorLink, XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
@@ -114,7 +114,7 @@ class SerializedBaseOperator(DAGNode):
     has_on_success_callback: bool = False
     has_on_skipped_callback: bool = False
 
-    operator_extra_links: Collection[XComOperatorLink] = []
+    operator_extra_links: Collection[XComOperatorLink | StaticOperatorLink] = []
     on_failure_fail_dagrun: bool = False
 
     outlets: Sequence = []
@@ -260,7 +260,7 @@ class SerializedBaseOperator(DAGNode):
         return [self]
 
     @functools.cached_property
-    def operator_extra_link_dict(self) -> dict[str, XComOperatorLink]:
+    def operator_extra_link_dict(self) -> dict[str, XComOperatorLink | StaticOperatorLink]:
         """All extra links for the operator."""
         return {link.name: link for link in self.operator_extra_links}
 
