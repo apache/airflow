@@ -419,6 +419,53 @@ class TestRdsCopyDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
         mock_await_status.assert_not_called()
 
+    @pytest.mark.parametrize("copy_option_group", [True, False])
+    @patch.object(RdsHook, "conn")
+    def test_copy_db_instance_snapshot_copy_option_group(self, mock_conn, copy_option_group):
+        mock_conn.copy_db_snapshot.return_value = {}
+        operator = RdsCopyDbSnapshotOperator(
+            task_id=f"test_instance_copy_option_group_{copy_option_group}",
+            db_type="instance",
+            source_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            target_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT_COPY,
+            copy_option_group=copy_option_group,
+            wait_for_completion=False,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        operator.execute(None)
+
+        mock_conn.copy_db_snapshot.assert_called_once()
+        assert mock_conn.copy_db_snapshot.call_args.kwargs["CopyOptionGroup"] is copy_option_group
+
+    @patch.object(RdsHook, "conn")
+    def test_copy_db_instance_snapshot_copy_option_group_not_set(self, mock_conn):
+        mock_conn.copy_db_snapshot.return_value = {}
+        operator = RdsCopyDbSnapshotOperator(
+            task_id="test_instance_copy_option_group_not_set",
+            db_type="instance",
+            source_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            target_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT_COPY,
+            wait_for_completion=False,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        operator.execute(None)
+
+        assert "CopyOptionGroup" not in mock_conn.copy_db_snapshot.call_args.kwargs
+
+    def test_copy_option_group_not_supported_for_cluster(self):
+        with pytest.raises(ValueError, match="copy_option_group is only supported"):
+            RdsCopyDbSnapshotOperator(
+                task_id="test_cluster_copy_option_group",
+                db_type="cluster",
+                source_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+                target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
+                copy_option_group=True,
+                aws_conn_id=AWS_CONN,
+                dag=self.dag,
+            )
+
     def test_template_fields(self):
         operator = RdsCopyDbSnapshotOperator(
             task_id="test_cluster_no_wait",
