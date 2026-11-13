@@ -86,19 +86,11 @@ class _InMemoryArtifactStore(ArtifactStore):
         self._ref_baseline: int | None = None
 
     @property
-    def root(self) -> str:
-        return f"memory://{self.bundle_name}"
+    def ref_locator(self) -> str:
+        return f"memory://{self.bundle_name}/latest.json"
 
-    @property
-    def ref_path(self) -> str:
-        return f"{self.root}/latest.json"
-
-    @property
-    def snapshots_root(self) -> str:
-        return f"{self.root}/versions"
-
-    def snapshot_path(self, version: str) -> str:
-        return f"{self.snapshots_root}/{version}"
+    def snapshot_locator(self, version: str) -> str:
+        return f"memory://{self.bundle_name}/versions/{version}"
 
     def read_ref(self) -> dict[str, Any]:
         # Set even when there is no reference, so the next write requires it to stay absent.
@@ -111,7 +103,7 @@ class _InMemoryArtifactStore(ArtifactStore):
         content = serialize_bundle_version_manifest(payload)
         baseline = self._bucket.ref_generation if self._ref_baseline is None else self._ref_baseline
         if self._bucket.ref_generation != baseline and self._bucket.ref != content:
-            raise ArtifactStoreConflictError(f"Another publisher updated {self.ref_path}")
+            raise ArtifactStoreConflictError(f"Another publisher updated {self.ref_locator}")
         self._bucket.ref = content
         self._bucket.ref_generation += 1
 
@@ -199,7 +191,7 @@ class TestStoreWithoutPublishedRoot:
     def test_create_artifact_store_runs_after_base_initialization(self):
         bundle = _MemoryManifestDagBundle(name=BUNDLE_NAME, bucket=_VersionedBucket())
 
-        assert bundle.published_root == f"memory://{BUNDLE_NAME}"
+        assert bundle._store.bundle_name == BUNDLE_NAME
 
     def test_publishes_and_serves_a_release_with_object_version_ids(self, tmp_path):
         bucket = _VersionedBucket()
@@ -300,5 +292,7 @@ class TestFilesystemStoreRepublish:
 
         assert second.created_snapshot is False
         assert second.ref_payload == first.ref_payload
-        committed = json.loads((Path(first.version_path) / MANIFEST_FILE_NAME).read_text())
+        committed = json.loads(
+            (published_root / "versions" / BUNDLE_NAME / first.version / MANIFEST_FILE_NAME).read_text()
+        )
         assert [file_info["version_id"] for file_info in committed["files"]] == ["object-version-1"]

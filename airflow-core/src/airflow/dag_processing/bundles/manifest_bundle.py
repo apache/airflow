@@ -112,13 +112,18 @@ class BundleManifestRef:
 
 @dataclass(frozen=True)
 class BundlePublishResult:
-    """Result of publishing an immutable manifest bundle snapshot."""
+    """
+    Result of publishing an immutable manifest bundle snapshot.
+
+    ``snapshot_locator`` and ``ref_locator`` are the store's opaque identifiers of the snapshot
+    and the release reference.
+    """
 
     bundle_name: str
     version: str
     ref_payload: dict[str, Any]
-    version_path: str
-    manifest_ref_path: str
+    snapshot_locator: str
+    ref_locator: str
     manifest_sha256: str
     file_count: int
     total_size: int
@@ -222,19 +227,6 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             published_root=published_root_path,
             lock_timeout=publication_lock_timeout,
         )
-
-    # Opaque artifact store locators, for messages and publish results.
-    @property
-    def published_root(self) -> str:
-        return self._store.root
-
-    @property
-    def manifest_ref_path(self) -> str:
-        return self._store.ref_path
-
-    @property
-    def published_versions_dir(self) -> str:
-        return self._store.snapshots_root
 
     @abstractmethod
     def confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
@@ -566,7 +558,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             raise BundleManifestNotFoundError(
                 f"{e}. Publish the bundle or restore the release reference before using it."
             ) from e
-        return self._build_manifest_ref_from_payload(payload, source=str(self.manifest_ref_path))
+        return self._build_manifest_ref_from_payload(payload, source=self._store.ref_locator)
 
     def _build_manifest_ref_from_payload(self, payload: dict[str, Any], source: str) -> BundleManifestRef:
         schema_version = payload.get("schema_version")
@@ -950,8 +942,8 @@ def _publish_manifest_result(
         bundle_name=bundle.name,
         version=version,
         ref_payload=ref_payload,
-        version_path=bundle._store.snapshot_path(version),
-        manifest_ref_path=bundle.manifest_ref_path,
+        snapshot_locator=bundle._store.snapshot_locator(version),
+        ref_locator=bundle._store.ref_locator,
         manifest_sha256=manifest_ref.manifest_sha256,
         file_count=ref_payload["file_count"],
         total_size=ref_payload["total_size"],
