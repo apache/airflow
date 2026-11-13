@@ -29,6 +29,7 @@ import uuid
 import warnings
 from collections.abc import Callable, Generator, Sequence
 from copy import deepcopy
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import (
@@ -72,8 +73,6 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
     from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
     from google.protobuf.timestamp_pb2 import Timestamp
@@ -466,24 +465,29 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
         """
         Return the latest created job with the given name, in any state.
 
-        Dataflow API does not support getting a job by name, so all jobs in the location are listed
-        and filtered here.
+        Dataflow API does not support getting a single job by name, so the jobs in the location
+        are listed with the name passed to the list request.
 
         :param job_name: Name of the job. It is converted to lowercase because Dataflow job names
             are always lowercase.
         :return: The job, or None if no job has this name.
         """
         job_name = job_name.lower()
-        jobs = [job for job in self._fetch_all_jobs() if job.get("name") == job_name]
-        return max(jobs, key=lambda job: job.get("createTime", ""), default=None)
+        return max(
+            (job for job in self._fetch_all_jobs(name=job_name) if job.get("name") == job_name),
+            key=lambda job: datetime.fromisoformat(job["createTime"]),
+            default=None,
+        )
 
-    def _fetch_all_jobs(self, jobs_filter: str | None = None) -> list[dict]:
+    def _fetch_all_jobs(self, jobs_filter: str | None = None, name: str | None = None) -> list[dict]:
         list_kwargs: dict[str, Any] = {
             "projectId": self._project_number,
             "location": self._job_location,
         }
         if jobs_filter is not None:
             list_kwargs["filter"] = jobs_filter
+        if name is not None:
+            list_kwargs["name"] = name
         request = self._dataflow.projects().locations().jobs().list(**list_kwargs)
         all_jobs: list[dict] = []
         while request is not None:
@@ -1553,6 +1557,7 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         location: str | None = DEFAULT_DATAFLOW_LOCATION,
         page_size: int | None = None,
         page_token: str | None = None,
+        name: str | None = None,
     ) -> ListJobsAsyncPager:
         """
         List jobs.
@@ -1567,6 +1572,7 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         :param page_size: Optional. If there are many jobs, limit response to at most this many.
         :param page_token: Optional. Set this to the 'next_page_token' field of a previous response to request
             additional results in a long list.
+        :param name: Optional. If given, only the jobs with this name are returned.
         """
         project_id = project_id or (await self.get_project_id())
         client = await self.initialize_client(JobsV1Beta3AsyncClient)
@@ -1577,6 +1583,7 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
                 "filter": jobs_filter,
                 "page_size": page_size,
                 "page_token": page_token,
+                "name": name,
             }
         )
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
@@ -1602,10 +1609,17 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         :return: The job, or None if no job has this name.
         """
         job_name = job_name.lower()
-        jobs = await self.list_jobs(project_id=project_id, location=location)
-        matching_jobs = [job async for job in jobs if job.name == job_name]
-        # create_time is typed as protobuf Timestamp, but proto-plus returns it as a datetime.
-        return max(matching_jobs, key=lambda job: cast("datetime", job.create_time), default=None)
+        jobs = await self.list_jobs(project_id=project_id, location=location, name=job_name)
+        latest_job: Job | None = None
+        async for job in jobs:
+            if job.name != job_name:
+                continue
+            # create_time is typed as protobuf Timestamp, but proto-plus returns it as a datetime.
+            if latest_job is None or cast("datetime", job.create_time) > cast(
+                "datetime", latest_job.create_time
+            ):
+                latest_job = job
+        return latest_job
 
     async def list_job_messages(
         self,

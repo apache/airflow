@@ -1528,6 +1528,24 @@ class TestDataflowJob:
                 None,
                 id="no_job_with_name",
             ),
+            pytest.param(
+                [
+                    {
+                        "id": "job-older-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                        "createTime": "2026-06-25T16:00:00Z",
+                    },
+                    {
+                        "id": "job-newer-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T16:00:00.100Z",
+                    },
+                ],
+                "job-newer-id",
+                id="create_time_with_and_without_fraction",
+            ),
         ],
     )
     def test_fetch_latest_job_by_name(self, jobs, expected_job_id):
@@ -1542,7 +1560,9 @@ class TestDataflowJob:
 
         job = jobs_controller.fetch_latest_job_by_name("Test-Job")
 
-        mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION)
+        mock_jobs.list.assert_called_once_with(
+            projectId=TEST_PROJECT, location=TEST_LOCATION, name="test-job"
+        )
         assert (job["id"] if job else None) == expected_job_id
 
     def test_fetch_job_id_without_job_name_returns_existing_job_id(self):
@@ -1939,6 +1959,19 @@ class TestAsyncDataflowHook:
         initialize_client_mock.assert_called_once()
         client.list_jobs.assert_called_once_with(request=request)
 
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_jobs_with_name(self, initialize_client_mock, hook):
+        client = initialize_client_mock.return_value
+
+        await hook.list_jobs(project_id=TEST_PROJECT_ID, location=TEST_LOCATION, name="test-job")
+
+        client.list_jobs.assert_called_once_with(
+            request=ListJobsRequest(
+                {"project_id": TEST_PROJECT_ID, "location": TEST_LOCATION, "name": "test-job"}
+            )
+        )
+
     @pytest.mark.parametrize(
         ("jobs", "expected_job_id"),
         [
@@ -1971,7 +2004,9 @@ class TestAsyncDataflowHook:
             job_name="Test-Job", project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
 
-        mock_list_jobs.assert_awaited_once_with(hook, project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
+        mock_list_jobs.assert_awaited_once_with(
+            hook, project_id=TEST_PROJECT_ID, location=TEST_LOCATION, name="test-job"
+        )
         assert (job.id if job else None) == expected_job_id
 
     @pytest.mark.asyncio
