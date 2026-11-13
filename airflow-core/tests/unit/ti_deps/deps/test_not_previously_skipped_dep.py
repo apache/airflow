@@ -152,6 +152,44 @@ def test_parent_skip_branch(session, dag_maker):
     assert tis["op2"].state == State.SKIPPED
 
 
+def test_parent_skip_branch_waits_for_past_depends_when_the_task_asks(session, dag_maker):
+    """
+    A BranchPythonOperator does not follow op2, which waits for its past depends before being skipped.
+    NotPreviouslySkippedDep is not met and leaves op2 unchanged until the past depends are met.
+    """
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        "test_parent_skip_branch_waits_for_past_depends_dag",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3")
+        op2 = EmptyOperator(task_id="op2", depends_on_past=True, wait_for_past_depends_before_skipping=True)
+        op3 = EmptyOperator(task_id="op3")
+        op1 >> [op2, op3]
+
+    dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {ti.task_id: ti for ti in dagrun.task_instances}
+    run_task_instance(tis["op1"], op1)
+
+    dep = NotPreviouslySkippedDep()
+    (status,) = dep.get_dep_statuses(tis["op2"], DepContext(), session=session)
+    assert "past depends are not met" in status.reason
+    assert tis["op2"].state == State.NONE
+
+    XComModel.set(
+        key=PAST_DEPENDS_MET,
+        value=True,
+        dag_id=dagrun.dag_id,
+        task_id="op2",
+        run_id=dagrun.run_id,
+        session=session,
+    )
+    assert not dep.is_met(tis["op2"], session=session)
+    assert tis["op2"].state == State.SKIPPED
+
+
 def test_parent_not_executed(session, dag_maker):
     """
     A simple DAG with a BranchPythonOperator that does not follow op2. Parent task is not yet

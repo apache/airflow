@@ -365,9 +365,9 @@ class TriggerRuleDep(BaseTIDep):
                         new_state = TaskInstanceState.REMOVED
 
             if new_state is not None:
-                if (
-                    new_state == TaskInstanceState.SKIPPED
-                    and dep_context.wait_for_past_depends_before_skipping
+                if new_state == TaskInstanceState.SKIPPED and (
+                    dep_context.wait_for_past_depends_before_skipping
+                    or task.wait_for_past_depends_before_skipping
                 ):
                     if not is_past_depends_met(ti, session=session):
                         yield (
@@ -537,9 +537,9 @@ class TriggerRuleDep(BaseTIDep):
                         # if at least one setup ran, we'll let it run
                         new_state = TaskInstanceState.UPSTREAM_FAILED
             if new_state is not None:
-                if (
-                    new_state == TaskInstanceState.SKIPPED
-                    and dep_context.wait_for_past_depends_before_skipping
+                if new_state == TaskInstanceState.SKIPPED and (
+                    dep_context.wait_for_past_depends_before_skipping
+                    or task.wait_for_past_depends_before_skipping
                 ):
                     if not is_past_depends_met(ti, session=session):
                         yield self._failing_status(

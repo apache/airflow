@@ -55,6 +55,24 @@ class SkipMixin(LoggingMixin):
         if tasks and map_index == -1:
             raise DownstreamTasksSkipped(tasks=tasks)
 
+    def _tasks_to_skip_now(self, tasks: Sequence[Operator]) -> list[Operator]:
+        """
+        Drop the direct downstream tasks that wait for their past depends before being skipped.
+
+        They stay in the XCom decision, so the scheduler skips them once the previous run's task
+        instance has succeeded or been skipped (``NotPreviouslySkippedDep``).
+        """
+        direct_downstream_ids: set[str] = getattr(self, "downstream_task_ids", set())
+        return [
+            t
+            for t in tasks
+            if not (
+                t.task_id in direct_downstream_ids
+                and t.depends_on_past
+                and t.wait_for_past_depends_before_skipping
+            )
+        ]
+
     def skip(
         self,
         ti: RuntimeTaskInstanceProtocol,
@@ -79,7 +97,7 @@ class SkipMixin(LoggingMixin):
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
             )
 
-        self._set_state_to_skipped(task_ids_list, ti.map_index)
+        self._set_state_to_skipped([t.task_id for t in self._tasks_to_skip_now(task_list)], ti.map_index)
 
     def skip_all_except(
         self,
@@ -156,7 +174,9 @@ class SkipMixin(LoggingMixin):
                 branch_task_id_set.update(dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False))
 
             skip_tasks = [
-                (t.task_id, ti.map_index) for t in downstream_tasks if t.task_id not in branch_task_id_set
+                (t.task_id, ti.map_index)
+                for t in self._tasks_to_skip_now(downstream_tasks)
+                if t.task_id not in branch_task_id_set
             ]
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
