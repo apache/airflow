@@ -512,15 +512,16 @@ other reference:
         ...
 
 The ``DeadlineReference.<ClassName>`` shorthand hands you an instance constructed with no arguments,
-so a parameterized reference gets one carrying its defaults.  You may optionally import the class and
-instantiate it yourself, for example if you want to pass values:
+so a parameterized reference gets one carrying its defaults.  You can also import the class and
+instantiate it yourself.  This works for any custom reference, and it is the only way to pass values
+to a parameterized one:
 
 .. code-block:: python
 
     from datetime import timedelta
     from airflow.sdk import AsyncCallback, DAG, DeadlineAlert
 
-    from my_deadline_references import MyQueuedReference
+    from deadline_references import MyQueuedReference
 
     with DAG(
         dag_id="custom_reference_imported_directly",
@@ -535,11 +536,12 @@ instantiate it yourself, for example if you want to pass values:
 
 .. note::
 
-    The shorthand is keyed on the class name alone, so two custom references with the same class name
-    in different modules cannot both have it.  When that happens, neither one gets it and a warning
-    naming both classes is logged; import the class directly as above instead.  Both references
-    remain fully usable, and the scheduler still resolves either of them: only the shorthand is
-    withheld.
+    The shorthand only goes by class name, so if two custom references in different modules share a
+    class name, neither of them gets it and a warning naming both classes is logged.  Any Dag that
+    uses the shorthand for that name will fail to import with an error such as
+    ``AttributeError: type object 'DeadlineReference' has no attribute 'MyQueuedReference'``.  To fix
+    it, import the class you want directly, as shown above.  Both references still work and the
+    scheduler can resolve either one; only the shorthand is unavailable.
 
 Multiple Deadline Alerts
 ^^^^^^^^^^^^^^^^^^^^^^^^
