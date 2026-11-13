@@ -120,7 +120,6 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     DependentClear,
     ExternalClearDepthExceeded,
-    _discard_task_state_store,
     _get_task_group_task_ids,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -1330,6 +1329,7 @@ def post_clear_task_instances(
                         run_on_latest_version=resolved_run_on_latest,
                         prevent_running_task=body.prevent_running_task,
                         whole_task_keys=whole_task_keys,
+                        keep_task_state=body.keep_task_state,
                     )
                 task_instances = cleared
             else:
@@ -1340,6 +1340,7 @@ def post_clear_task_instances(
                     run_on_latest_version=resolved_run_on_latest,
                     prevent_running_task=body.prevent_running_task,
                     whole_task_keys=whole_task_keys,
+                    keep_task_state=body.keep_task_state,
                 )
             if dependent_clears:
                 task_instances = [
@@ -1357,13 +1358,6 @@ def post_clear_task_instances(
             if not loop_aware:
                 raise
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
-
-        # After the clear has succeeded, so a failed clear cannot take the task state with it.
-        # This is the only clear path that discards task state today; Dag-run clear and
-        # mark-as-failed/success (which clear downstream tasks) still keep it unconditionally.
-        # It is tracked through https://github.com/apache/airflow/issues/72929
-        if not body.keep_task_state:
-            _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
         if body.note is not None:
             _patch_task_instance_note(

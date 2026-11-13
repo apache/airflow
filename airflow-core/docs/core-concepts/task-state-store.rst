@@ -306,9 +306,8 @@ To wipe state across all map indices of a task, use the :doc:`Core API </adminis
 Automatic cleanup (``clear_on_success``)
 ----------------------------------------
 
-Task state store entries are also removed when a task instance is cleared through the REST API, the
-UI, or ``airflowctl``: clearing discards them by default so the next attempt starts over, unless
-``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
+Task state store entries are also removed when a task instance or a Dag run is cleared: clearing
+discards them by default so the next attempt starts over, unless ``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
 
 When ``[state_store] clear_on_success = True``, all task state store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 

@@ -28,6 +28,7 @@ from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
+from airflow._shared.state import TaskScope
 from airflow.api_fastapi.core_api.datamodels.task_instances import PatchTaskInstanceBody
 from airflow.api_fastapi.core_api.services.public.dag_run import perform_clear_dag_run
 from airflow.api_fastapi.core_api.services.public.task_instances import _patch_selected_task_state
@@ -39,6 +40,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import (
     LoopClearScope,
     TaskInstance,
@@ -57,6 +59,7 @@ from airflow.sdk import task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.state.metastore import MetastoreBackend
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -590,6 +593,56 @@ class TestClearTasks:
         assert (ti1.state, ti1.try_number, ti1.working_set) == (TaskInstanceState.SUCCESS, 1, None)
         assert (successors["0"].state, successors["0"].try_number, successors["0"].max_tries) == (None, 2, 1)
         assert (successors["1"].state, successors["1"].try_number, successors["1"].max_tries) == (None, 2, 3)
+
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_task_instances_task_state(self, dag_maker, session, keep_task_state):
+        with dag_maker("test_clear_task_instances_task_state", session=session):
+            EmptyOperator(task_id="cleared")
+            EmptyOperator(task_id="untouched")
+        dr = dag_maker.create_dagrun(state=State.FAILED)
+        for ti in dr.task_instances:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.flush()
+
+        clear_task_instances(
+            [dr.get_task_instance("cleared", session=session)],
+            session=session,
+            keep_task_state=keep_task_state,
+        )
+
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == dr.run_id)
+        ).all()
+        assert sorted(remaining) == (["cleared", "untouched"] if keep_task_state else ["untouched"])
+
+    @mock.patch("airflow.models.taskinstance._TASK_STATE_DISCARD_BATCH_SIZE", 1)
+    def test_clear_task_instances_discards_task_state_in_batches(self, dag_maker, session):
+        with dag_maker("test_clear_task_instances_discards_in_batches", session=session):
+            for task_id in ("a", "b", "untouched"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun(state=State.FAILED)
+        for ti in dr.task_instances:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.flush()
+
+        clear_task_instances(
+            [dr.get_task_instance(task_id, session=session) for task_id in ("a", "b")], session=session
+        )
+
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == dr.run_id)
+        ).all()
+        assert remaining == ["untouched"]
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
         with dag_maker(

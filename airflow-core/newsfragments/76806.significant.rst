@@ -1,0 +1,33 @@
+Clearing a Dag run now discards task state store entries by default
+
+Airflow 3.4.0 made clearing a task instance discard its ``task_state_store`` entries. Every other
+way of clearing a task now does the same, so the next attempt starts over instead of resuming from
+a checkpoint or returning the result of an external job that already succeeded:
+
+* clearing a Dag run, single or bulk (REST API and UI "Clear Run" dialog)
+* ``airflow dags clear`` and ``airflow tasks clear``
+* downstream tasks cleared when a task is marked as failed or success
+* backfills that reprocess existing runs, and ``TriggerDagRunOperator(reset_dag_run=True)``
+* ``airflow partitions clear --clear-task-instances`` and the ``clearPartitions`` endpoint with
+  ``clear_task_instances``
+* ``dag.test()`` on a logical date that already has a Dag run
+
+To keep task state, pass ``keep_task_state=true`` to the Dag run clear endpoints, tick "keep task
+state" in the Clear Run dialog, or add ``--keep-task-state`` to ``airflow dags clear``,
+``airflow tasks clear`` or ``airflowctl dags clear``. Marking tasks, backfill, ``reset_dag_run``,
+partition clears and ``dag.test()`` have no opt-out.
+
+This also widens the permission surface of clearing a Dag run: it needs only the Dag Run edit
+permission, but now deletes ``task_state_store`` rows that the task state store API guards behind
+the Task Instance delete permission.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [x] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
