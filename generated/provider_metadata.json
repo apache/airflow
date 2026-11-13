@@ -837,6 +837,10 @@
         "9.39.0": {
             "associated_airflow_version": "3.4.0",
             "date_released": "2026-10-24T19:09:15Z"
+        },
+        "9.40.0": {
+            "associated_airflow_version": "3.4.0",
+            "date_released": "2026-11-12T17:24:26Z"
         }
     },
     "anthropic": {

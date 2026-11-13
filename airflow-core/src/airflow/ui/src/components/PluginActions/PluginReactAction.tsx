@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type FC, useRef, useState } from "react";
+import { type ComponentType, useRef, useState } from "react";
 
 import type { PluginReactActionResponse } from "openapi/requests/types.gen";
 
@@ -55,7 +55,7 @@ export const PluginReactAction = ({
   readonly pluginProps: PluginProps;
 }) => {
   const [open, setOpen] = useState(false);
-  const [pluginComponent, setPluginComponent] = useState<FC<PluginActionProps>>();
+  const [pluginComponent, setPluginComponent] = useState<ComponentType<PluginActionProps>>();
   const [isLoading, setIsLoading] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -68,7 +68,7 @@ export const PluginReactAction = ({
       const { default: loaded } = await loadPlugin(action);
 
       // Wrapped in a setter: a bare component would be called as a lazy initializer.
-      setPluginComponent(() => loaded as FC<PluginActionProps>);
+      setPluginComponent(() => loaded as ComponentType<PluginActionProps>);
       setIsLoading(false);
     }
 

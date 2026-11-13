@@ -602,7 +602,7 @@ XCom type mapping
 -----------------
 
 XComs are stored as JSON, so a value read with ``GetXCom`` arrives as the matching Go type. The same mapping
-applies to the values in ``actx.DagRun().Conf``:
+applies to a value read with ``TaskStateStore().Get`` and to the values in ``actx.DagRun().Conf``:
 
 .. list-table::
    :header-rows: 1
@@ -613,7 +613,7 @@ applies to the values in ``actx.DagRun().Conf``:
      - Go type
    * - ``int``
      - number (integer)
-     - an integer type (see note)
+     - ``int64`` (see note)
    * - ``float``
      - number (decimal)
      - ``float64``
@@ -635,11 +635,10 @@ applies to the values in ``actx.DagRun().Conf``:
 
 .. note::
 
-  An integer arrives as a Go integer type whose width depends on the value. In ``actx.DagRun().Conf``, it
-  arrives as ``int64`` instead, or as ``uint64`` when it is above ``math.MaxInt64``, including in nested maps
-  and arrays. Type-switch over the integer types you expect, or round-trip the value through ``json.Marshal``
-  and ``json.Unmarshal`` into a typed Go value. A task input from ``airflow.Inputs`` or a TaskFlow argument is
-  already decoded into its parameter type.
+  An integer arrives as ``int64``, or as ``uint64`` when it is above ``math.MaxInt64``. This also applies to
+  values in nested maps and arrays. To get a typed Go value, round-trip the value through ``json.Marshal`` and
+  ``json.Unmarshal``. A task input from ``airflow.Inputs`` or a TaskFlow argument is already decoded into its
+  parameter type.
 
 .. _go-sdk/build:
 

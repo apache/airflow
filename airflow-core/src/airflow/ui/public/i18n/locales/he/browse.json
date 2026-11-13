@@ -28,6 +28,7 @@
         "lastParsed": "נותח לאחרונה",
         "parseDuration": "משך הניתוח"
       },
+      "importErrorForbidden": "אין לך הרשאה לקרוא את שגיאת הייבוא הזו.",
       "importErrorGone": "שגיאת ייבוא זו אינה מתועדת עוד. כנראה שהיא תוקנה והניתוח מחדש זיהה זאת.",
       "neverParsed": "אף פעם",
       "parsedFile_one": "קובץ שנותח",
@@ -73,6 +74,7 @@
     "columns": {
       "dag": "Dag",
       "key": "מפתח",
+      "timestamp": "חותמת זמן",
       "value": "ערך"
     },
     "delete": {

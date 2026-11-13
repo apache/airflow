@@ -1553,6 +1553,7 @@ option_e2e_test_mode = click.option(
             "openlineage",
             "ts_sdk",
             "yaml_dag",
+            "lang_sdk_xcom_object_storage",
         ],
         case_sensitive=False,
     ),

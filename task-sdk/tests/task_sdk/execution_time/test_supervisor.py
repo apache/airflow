@@ -69,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    ExternalClearTargetPayload,
     HITLUser,
     LoopDecisionPayload,
     PreviousTIResponse,
@@ -2787,6 +2788,12 @@ REQUEST_TEST_CASES = [
             end_date=timezone.parse("2024-10-31T12:00:00Z"),
             rendered_map_index="test success task",
             loop_decision=LoopDecisionPayload(stop=True, reason="converged"),
+            external_clear_target=ExternalClearTargetPayload(
+                dag_id="child",
+                task_id="wait",
+                logical_date=timezone.parse("2024-10-31T00:00:00Z"),
+                recursion_depth=2,
+            ),
         ),
         client_mock=ClientMock(
             method_path="task_instances.succeed",
@@ -2797,6 +2804,12 @@ REQUEST_TEST_CASES = [
                 "when": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test success task",
                 "loop_decision": LoopDecisionPayload(stop=True, reason="converged"),
+                "external_clear_target": ExternalClearTargetPayload(
+                    dag_id="child",
+                    task_id="wait",
+                    logical_date=timezone.parse("2024-10-31T00:00:00Z"),
+                    recursion_depth=2,
+                ),
             },
         ),
         test_id="succeed_task",
@@ -4696,6 +4709,48 @@ class TestHandleRequest:
         generator.send(req2)
 
     @pytest.mark.parametrize(
+        "invalid_body",
+        [
+            pytest.param({"type": "NonExistentMessageType"}, id="unknown_message_type"),
+            pytest.param({"type": "GetVariable"}, id="missing_required_field"),
+        ],
+    )
+    def test_handle_requests_decoding_error_sends_error_response(
+        self, watched_subprocess, mocker, invalid_body
+    ):
+        """Test that invalid request frames produce an error response rather than dropping the frame."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=invalid_body)
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes_ = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes_)
+
+        assert frame.id == req_frame.id
+        assert frame.error is not None
+        assert frame.error["error"] == "GENERIC_ERROR"
+        assert "Unable to decode message" in frame.error["detail"]["message"]
+
+        comms = CommsDecoder(socket=None)
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            comms._from_frame(frame)
+
+        assert exc_info.value.error.error == ErrorType.GENERIC_ERROR
+        assert exc_info.value.error.detail["exception_type"] is not None
+
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(return_value=None)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_valid = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_valid)
+        watched_subprocess.client.task_instances.succeed.assert_called_once()
+
+    @pytest.mark.parametrize(
         ("msg", "api_method", "expected_state"),
         [
             pytest.param(
@@ -6141,7 +6196,7 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
 )
 def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec, target, expected_use_exec):
     """ActivitySubprocess.start passes the task-process decision as use_exec, real entry point only."""
-    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: task_uses_exec)
     base_start = mocker.patch(
         "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
     )
@@ -6185,7 +6240,7 @@ def test_activity_start_imports_task_runner_before_bare_fork(
         calls.append("fork")
         return MagicMock(spec=ActivitySubprocess)
 
-    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: task_uses_exec)
     mocker.patch.object(
         supervisor,
         "_import_task_runner_before_fork",
@@ -6237,7 +6292,7 @@ class TestTaskProcessUsesExec:
     def test_task_process_uses_exec(self, monkeypatch, platform, config_value, expected):
         monkeypatch.setattr(supervisor.sys, "platform", platform)
         with conf_vars({("core", "execute_tasks_new_python_interpreter"): config_value}):
-            assert supervisor._task_process_uses_exec() is expected
+            assert supervisor.task_process_uses_exec() is expected
 
 
 class TestResolveChildTarget:
@@ -6401,7 +6456,7 @@ def test_fork_exec_bootstrap_runs_an_importable_target_end_to_end(
     monkeypatch.setenv(
         "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
     )
-    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: True)
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: True)
     # ActivitySubprocess.start only execs its own entry point; let the probe be that entry point.
     monkeypatch.setattr(supervisor, "_subprocess_main", exec_probe_target.exec_probe_main)
     time_machine.move_to(timezone.datetime(2024, 11, 7, 12, 34, 56, 78901), tick=False)
