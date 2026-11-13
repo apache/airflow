@@ -623,6 +623,56 @@ def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
     assert events == ["enter", "tick", "exit"]
 
 
+def _patch_run_once_database_work(mocker):
+    for name in (
+        "load_triggers",
+        "handle_events",
+        "handle_recovered_triggers",
+        "handle_failed_triggers",
+        "clean_unused",
+        "heartbeat",
+        "emit_metrics",
+    ):
+        mocker.patch.object(TriggerRunnerSupervisor, name, autospec=True)
+
+
+def test_run_once_keeps_servicing_runner_activity_for_a_second(jobless_supervisor, mocker):
+    """Log lines and requests from the runner don't each start another pass of database work."""
+    _patch_run_once_database_work(mocker)
+    clock = [100.0]
+    mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", side_effect=lambda: clock[0])
+
+    def service_log_line(self, max_wait_time):
+        clock[0] += 0.3
+
+    service = mocker.patch.object(
+        TriggerRunnerSupervisor, "_service_subprocess", autospec=True, side_effect=service_log_line
+    )
+
+    jobless_supervisor.run_once()
+
+    assert [c.args[1] for c in service.call_args_list] == pytest.approx([1.0, 0.7, 0.4, 0.1])
+    TriggerRunnerSupervisor.load_triggers.assert_called_once()
+    TriggerRunnerSupervisor.clean_unused.assert_called_once()
+
+
+def test_run_once_handles_runner_events_without_waiting_out_the_second(jobless_supervisor, mocker):
+    """Events from the runner are dispatched as soon as they arrive."""
+    _patch_run_once_database_work(mocker)
+    entry = TriggerEventEntry(trigger_id=1, event=TriggerEvent(True), persist_seq=None)
+    service = mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "_service_subprocess",
+        autospec=True,
+        side_effect=lambda self, _: self.events.append(entry),
+    )
+
+    jobless_supervisor.run_once()
+
+    service.assert_called_once()
+    TriggerRunnerSupervisor.handle_events.assert_called_once()
+
+
 @pytest.fixture
 def jobless_supervisor(mocker):
     """Build a TriggerRunnerSupervisor with ``job=None`` for testing the optional-job path."""
