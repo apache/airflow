@@ -908,7 +908,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
-        Trigger.submit_event(trigger_id=trigger_id, event=event)
+        callbacks: list[Callable[[], None]] = []
+        with create_session() as session:
+            Trigger.submit_event(trigger_id=trigger_id, event=event, session=session, callback_sink=callbacks)
+        # Listeners run after commit so they do not hold row locks, and do not see
+        # asset events that are rolled back.
+        for callback in callbacks:
+            callback()
 
     def clean_unused(self) -> None:
         """Remove triggers that are no longer needed, retrying database errors in a new transaction."""

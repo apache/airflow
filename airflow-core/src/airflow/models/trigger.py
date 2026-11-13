@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import singledispatch
 from traceback import format_exception
@@ -371,12 +371,22 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
+    def submit_event(
+        cls,
+        trigger_id,
+        event: TriggerEvent,
+        *,
+        session: Session = NEW_SESSION,
+        callback_sink: list[Callable[[], None]] | None = None,
+    ) -> None:
         """
         Fire an event.
 
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
+
+        :param callback_sink: If specified, asset listener callbacks are added into the
+            list instead of executed inline, so the caller can run them after commit.
         """
         # Resume deferred tasks
         for task_instance in session.scalars(
@@ -401,6 +411,7 @@ class Trigger(Base):
                 extra={"from_trigger": True, "payload": event.payload},
                 partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
                 session=session,
+                callback_sink=callback_sink,
             )
         if trigger.callback:
             trigger.callback.handle_event(event, session)
