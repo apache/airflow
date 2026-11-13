@@ -43,7 +43,7 @@ Create a database snapshot
 ==========================
 
 To create a snapshot of an Amazon RDS database instance or cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSCreateDBSnapshotOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsCreateDbSnapshotOperator`.
 The source database instance must be in the ``available`` or ``storage-optimization`` state.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_snapshot.py
@@ -58,7 +58,7 @@ Copy a database snapshot
 ========================
 
 To copy a snapshot of an Amazon RDS database instance or cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSCopyDBSnapshotOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsCopyDbSnapshotOperator`.
 The source database snapshot must be in the ``available`` state.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_snapshot.py
@@ -73,7 +73,7 @@ Delete a database snapshot
 ==========================
 
 To delete a snapshot of an Amazon RDS database instance or cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDBSnapshotOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsDeleteDbSnapshotOperator`.
 The database snapshot must be in the ``available`` state to be deleted.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_snapshot.py
@@ -88,7 +88,7 @@ Export an Amazon RDS snapshot to Amazon S3
 ==========================================
 
 To export an Amazon RDS snapshot to Amazon S3 you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSStartExportTaskOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStartExportTaskOperator`.
 The provided IAM role must have access to the S3 bucket.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_export.py
@@ -103,7 +103,7 @@ Cancel an Amazon RDS export task
 ================================
 
 To cancel an Amazon RDS export task to S3 you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSCancelExportTaskOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsCancelExportTaskOperator`.
 Any data that has already been written to the S3 bucket isn't removed.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_export.py
@@ -118,7 +118,7 @@ Subscribe to an Amazon RDS event notification
 =============================================
 
 To create an Amazon RDS event subscription you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSCreateEventSubscriptionOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsCreateEventSubscriptionOperator`.
 This action requires an Amazon SNS topic Amazon Resource Name (ARN).
 Amazon RDS event notification is only available for not encrypted SNS topics.
 If you specify an encrypted SNS topic, event notifications are not sent for the topic.
@@ -135,7 +135,7 @@ Unsubscribe to an Amazon RDS event notification
 ===============================================
 
 To delete an Amazon RDS event subscription you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteEventSubscriptionOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsDeleteEventSubscriptionOperator`.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_event.py
     :language: python
@@ -164,7 +164,7 @@ Delete a database instance
 ==========================
 
 To delete a AWS DB instance you can use
-:class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDbInstanceOperator`.
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsDeleteDbInstanceOperator`.
 You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_rds_instance.py
