@@ -195,8 +195,7 @@ internal data class LogMessage(
  * This is a thin wrapper around [LogSender] that our own code can
  * use instead of needing to go through a "real" logging provider.
  *
- * A logger made with [waitsForRoom] set to false never waits for room in [LogSender]. The SDK uses such a
- * logger on a thread that must keep going while nothing reads the logs.
+ * With [waitsForRoom] set to false, this logger never waits for room in [LogSender].
  */
 internal class Logger(
   val name: String,
@@ -234,51 +233,31 @@ internal class Logger(
   }
 }
 
-// Several threads log: the task's own thread, the thread that handles a stop signal, and the thread
-// that reads replies from the supervisor. The lock keeps send from adding a message to messages after
-// configure has passed the messages in that queue to the sender thread. The lock also keeps a new message
-// from being written before the messages that were queued earlier.
+// This object's lock keeps send, configure and detachAndFlush from losing or reordering lines.
 internal object LogSender {
-  /** The number of characters that the queued lines can hold before a caller has to wait for room. */
   internal const val PENDING_CHARS = 8 * 1024 * 1024
 
   private var writer: ByteWriteChannel? = null
 
-  // This field holds the channel that configure got last. Unlike writer, this field keeps the channel after
-  // detachAndFlush, so a later detachAndFlush call can still cancel the channel while an earlier call is stuck.
+  // Kept after detachAndFlush clears writer, so a later call can cancel the channel an earlier one is stuck on.
   private var configured: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
-  // Only the sender thread writes to the channel, so a caller never waits in runBlocking. While
-  // runBlocking waits, it also runs other coroutines that are ready on the calling thread. On the thread
-  // that Server.serve blocks, one of those coroutines runs the task. If a caller waited in runBlocking on
-  // that thread, the task would run while the caller holds this object's lock. The task would then hang if
-  // it waited for another thread that logs, such as the thread that reads replies from the supervisor.
+  // Only the sender thread writes, so a caller's runBlocking cannot run the task under this object's lock.
   private val pending = LinkedBlockingQueue<() -> Unit>()
 
-  // A queued line holds one permit for each of its characters until the sender thread has written the line.
-  // The semaphore is fair, so that short lines cannot keep taking the room that a long line waits for.
+  // One permit per queued character. Fair, so short lines cannot keep taking room a long line waits for.
   private val room = Semaphore(PENDING_CHARS, true)
 
-  // The sender thread reports a failed write on the stderr of the process. The supervisor puts that stderr in the
-  // task log. Reporting on System.err would not be safe. A logging bridge can lead System.err back into LogSender,
-  // and a caller can hold the lock of System.err while it waits for room.
+  // Not System.err, which a logging bridge can route back here and whose lock a waiting caller can hold.
   @Volatile
   internal var errors = PrintStream(FileOutputStream(FileDescriptor.err), true)
 
-  // This field holds the channel of the last write that failed. Every later write to that channel fails the same way,
-  // so the sender thread reports only the first failed write to each channel. Only the sender thread uses this field.
   private var failedChannel: ByteWriteChannel? = null
 
-  // This list holds the reports of failed writes that the sender thread has not printed yet. A report can block while
-  // nothing reads the stderr of the process. If the sender thread printed a report as soon as it failed to write a
-  // line, the lines queued after that line would keep their room while the report blocks. So the sender thread prints
-  // the reports only when it has no line left to write, or when it runs the task that flush queued. Only the sender
-  // thread uses this list.
+  // Printing a report when a line fails could stall the lines already queued, so wait for an empty queue or a flush.
   private val reports = ArrayList<String>()
 
-  // This field holds the time when the sender thread last finished with a line, whether it wrote the line or failed
-  // to write it. flush counts its idle timeout from this time.
   @Volatile
   private var finishedAt = System.nanoTime()
 
@@ -304,8 +283,7 @@ internal object LogSender {
     configured = channel
     if (!channel.isClosedForWrite) {
       while (messages.isNotEmpty()) {
-        // Waiting for room would save no memory here, because the earlier messages are already in memory.
-        // Waiting would also block the thread that serves the task.
+        // Don't wait for room: these messages are already in memory, and waiting would block the serving thread.
         queueLine(channel, buildLine(messages.removeFirst()), chars = 0)
       }
     }
@@ -316,7 +294,6 @@ internal object LogSender {
     waitForRoom: Boolean = true,
   ) {
     synchronized(this) {
-      // A message that stays in messages takes no room, so it does not wait for room.
       if (!isQueuing()) {
         messages.addLast(message)
         return
@@ -324,15 +301,9 @@ internal object LogSender {
     }
     // Build the line now, so that it shows the arguments as they were when the caller logged them.
     val line = buildLine(message)
-    // Only the sender thread gives back the room of a queued line, so the sender thread does not wait for room
-    // when it logs, for example through a logging bridge. A line longer than the limit waits until the sender
-    // thread has written every other queued line.
+    // Only the sender thread gives back room, so it never waits. A line over the limit asks for all the room.
     val chars = if (waitForRoom && Thread.currentThread() !== sender) minOf(line.length, PENDING_CHARS) else 0
-    // Wait for room before taking the lock. Otherwise, if the sender thread logged while a caller held the lock
-    // and waited for room, each of the two threads would wait for the other. Skip the semaphore when the line
-    // needs no room. A fair semaphore makes even a request for zero permits wait while other threads wait for
-    // room. Code that restores a thread's interrupt status often logs next, so keep waiting if the calling
-    // thread is interrupted. acquireUninterruptibly also keeps the calling thread's interrupt status.
+    // Wait before locking, or a logging sender thread can deadlock. A fair semaphore makes acquire(0) wait too.
     if (chars > 0) room.acquireUninterruptibly(chars)
     synchronized(this) {
       val channel = writer
@@ -347,10 +318,8 @@ internal object LogSender {
   }
 
   /**
-   * Waits until the sender thread has finished with the lines queued so far and has printed the reports of failed
-   * writes, and returns true. If [idleTimeout] is not null, this function stops waiting once the sender thread has
-   * not finished with a line for that long, and then returns false. This function keeps waiting if the calling
-   * thread is interrupted.
+   * Waits for the queued lines and their failure reports, and returns true.
+   * Returns false instead once no line finishes for [idleTimeout].
    */
   fun flush(idleTimeout: Duration? = null): Boolean {
     val written = CompletableFuture<Unit>()
@@ -367,8 +336,7 @@ internal object LogSender {
     }
     val started = System.nanoTime()
     while (!written.isDone) {
-      // If the sender thread last finished with a line before this call, the idle time counts from the start of this
-      // call. So flush gives up no earlier than idleTimeout after this call starts.
+      // Count idle time from this call if the last line finished before it.
       val last = finishedAt.let { if (it - started > 0) it else started }
       val left = idleTimeout.toNanos() - (System.nanoTime() - last)
       if (left <= 0) return false
@@ -378,11 +346,8 @@ internal object LogSender {
   }
 
   /**
-   * Stops queuing lines for the channel and waits as [flush] does. This function returns true once the sender thread
-   * has finished with the queued lines. If [flush] stops waiting because of [idleTimeout], this function cancels the
-   * channel and returns false. A message that is logged after this function stops queuing goes to [messages]. A
-   * message that is still waiting for room at that point also goes to [messages], once it gets room. Once the queued
-   * lines are written, closing the channel cannot cut off a line that the sender thread is still writing.
+   * Stops queuing lines for the configured channel and waits as [flush] does.
+   * If that wait gives up, cancels the channel and returns false.
    */
   fun detachAndFlush(idleTimeout: Duration? = null): Boolean {
     val channel =
@@ -391,12 +356,9 @@ internal object LogSender {
         configured
       }
     if (flush(idleTimeout)) return true
-    // If the channel were not cancelled, the line that the sender thread cannot write would keep its room, and so
-    // would every line after it. A caller that waits for room, such as another shutdown hook that logs, would then
-    // wait forever.
+    // Otherwise the stuck line and every line behind it keep their room, and callers waiting for room hang.
     channel?.cancel(IOException("Stopped waiting after no log line was written for ${idleTimeout?.toMillis()} ms"))
-    // The remaining lines now fail at once. Give the sender thread a moment to report why, because the JVM can exit
-    // as soon as this function returns.
+    // Queued lines now fail at once. Give the sender thread a moment to report why before the JVM can exit.
     flush(Duration.ofSeconds(1))
     return false
   }
