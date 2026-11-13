@@ -22,6 +22,7 @@ import json
 import os
 import shutil
 import stat
+import time
 from contextlib import nullcontext
 from io import BytesIO, StringIO
 from types import SimpleNamespace
@@ -46,6 +47,23 @@ def generate_host_key(pkey: paramiko.PKey):
         key_fh.seek(0)
         key_obj = paramiko.RSAKey(file_obj=key_fh)
     return key_obj.get_base64()
+
+
+@pytest.fixture(params=["UTC", "America/New_York"])
+def process_timezone(request, monkeypatch):
+    if not hasattr(time, "tzset"):
+        pytest.skip("time.tzset is not available")
+    old_tz = os.environ.get("TZ")
+    monkeypatch.setenv("TZ", request.param)
+    time.tzset()
+    try:
+        yield request.param
+    finally:
+        if old_tz is None:
+            monkeypatch.delenv("TZ", raising=False)
+        else:
+            monkeypatch.setenv("TZ", old_tz)
+        time.tzset()
 
 
 TMP_DIR_FOR_TESTS = "tests_sftp_hook_dir"
@@ -353,6 +371,19 @@ class TestSFTPHook:
             path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS)
         )
         assert len(output) == 14
+
+    def test_get_mod_time_returns_utc_string(self, process_timezone):
+        mtime = 1704110400  # 2024-01-01 12:00:00 UTC
+        with patch.object(SFTPHook, "get_managed_conn") as managed_conn:
+            attrs = paramiko.SFTPAttributes()
+            attrs.st_mtime = mtime
+            client = MagicMock(spec=SFTPClient)
+            client.stat.return_value = attrs
+            managed_conn.return_value.__enter__.return_value = client
+
+            output = self.hook.get_mod_time(path="/path/to/file")
+
+        assert output == "20240101120000"
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_default(self, get_connection):
@@ -1403,11 +1434,74 @@ class TestSFTPHookAsync:
         hook, sftp_client_mock = sftp_hook_mocked
 
         mtime = 1667302566  # This is a valid Unix timestamp
-        expected = datetime.datetime.fromtimestamp(mtime).strftime("%Y%m%d%H%M%S")
+        expected = datetime.datetime.fromtimestamp(mtime, tz=datetime.UTC).strftime("%Y%m%d%H%M%S")
         sftp_client_mock.__aenter__.return_value.stat.return_value = Mock(spec=SFTPAttrs, mtime=mtime)
 
         mod_time = await hook.get_mod_time("/path/exists/file")
         assert mod_time == expected
+
+    @pytest.mark.asyncio
+    async def test_get_mod_time_returns_utc_string_under_process_tz(self, sftp_hook_mocked, process_timezone):
+        hook, sftp_client_mock = sftp_hook_mocked
+        mtime = 1704110400  # 2024-01-01 12:00:00 UTC
+        sftp_client_mock.__aenter__.return_value.stat.return_value = Mock(spec=SFTPAttrs, mtime=mtime)
+
+        mod_time = await hook.get_mod_time("/path/exists/file")
+        assert mod_time == "20240101120000"
+
+    @pytest.mark.parametrize(
+        ("mod_time_input", "expected"),
+        [
+            (1704110400, datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)),
+            (1704110400.0, datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)),
+            ("20240101120000", datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)),
+        ],
+    )
+    def test_mod_time_to_utc(self, mod_time_input, expected):
+        assert SFTPHookAsync._mod_time_to_utc(mod_time_input) == expected
+
+    @pytest.mark.parametrize(
+        ("mod_time_input", "expected"),
+        [
+            (1704110400, datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)),
+            ("20240101120000", datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)),
+        ],
+    )
+    def test_mod_time_to_utc_under_process_tz(self, mod_time_input, expected, process_timezone):
+        assert SFTPHookAsync._mod_time_to_utc(mod_time_input) == expected
+
+    @pytest.mark.asyncio
+    async def test_sense_path(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client_mock.__aenter__.return_value.stat.return_value = Mock(spec=SFTPAttrs, mtime=1704110400)
+
+        assert await hook.sense_path(
+            "/path/file",
+            newer_than=datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.UTC),
+        )
+        assert await hook.sense_path(
+            "/path/file",
+            newer_than=datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.UTC),
+        )
+        assert not await hook.sense_path(
+            "/path/file",
+            newer_than=datetime.datetime(2024, 1, 1, 14, 0, tzinfo=datetime.UTC),
+        )
+
+    @pytest.mark.asyncio
+    async def test_sense_files_by_pattern(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client_mock.__aenter__.return_value.readdir.return_value = [
+            Mock(spec=SFTPName, filename="file.txt", attrs=Mock(spec=SFTPAttrs, mtime=1704110400)),
+            Mock(spec=SFTPName, filename="other.pdf", attrs=Mock(spec=SFTPAttrs, mtime=1704110400)),
+        ]
+
+        files = await hook.sense_files_by_pattern(
+            path="/path",
+            fnmatch_pattern="*.txt",
+            newer_than=datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.UTC),
+        )
+        assert files == ["file.txt"]
 
     @pytest.mark.asyncio
     async def test_get_mod_time_exception(self, sftp_hook_mocked):
