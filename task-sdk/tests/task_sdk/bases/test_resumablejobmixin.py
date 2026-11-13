@@ -22,12 +22,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog.testing
+import time_machine
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from airflow.sdk import ResumableJobMixin
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.resumablejobmixin import DURABLE_RECORD_KEY
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -134,6 +136,80 @@ class TestFirstSubmission:
     def test_returns_job_result(self):
         op = ConcreteResumableOperator(task_id="test_task")
         result = op.execute_resumable(make_context(FakeTaskState()))
+
+        assert result == "result-of-job-001"
+
+
+class TestDurableRecord:
+    def test_reconnect_records_the_full_job_time_once_the_job_finishes(self):
+        task_state = FakeTaskState()
+        ti = FakeTI()
+        ti.try_number = 1
+        with time_machine.travel("2026-11-10 10:00:00+00:00", tick=False):
+            ConcreteResumableOperator(task_id="t").execute_resumable(
+                {"task_state_store": task_state, "ti": ti}
+            )
+
+        op = ConcreteResumableOperator(task_id="t")
+        op._status_map = {"job-001": "RUNNING"}
+        ti.try_number = 2
+        saved_while_running: list = []
+        with time_machine.travel("2026-11-10 10:01:00+00:00", tick=False) as traveller:
+
+            def poll(external_id, context):
+                running = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
+                saved_while_running.append((running["status"], running["saved_seconds"]))
+                traveller.move_to("2026-11-10 10:20:00+00:00")
+
+            op.poll_until_complete = poll
+            op.execute_resumable({"task_state_store": task_state, "ti": ti})
+
+        assert saved_while_running == [("running", None)]
+        assert task_state.get(DURABLE_RECORD_KEY)["tries"] == [
+            {
+                "try_number": 1,
+                "decision": "submitted",
+                "external_id": "job-001",
+                "status": None,
+                "saved_seconds": None,
+            },
+            {
+                "try_number": 2,
+                "decision": "reconnected",
+                "external_id": "job-001",
+                "status": "success",
+                "saved_seconds": 1200.0,
+            },
+        ]
+
+    def test_resubmit_after_failed_job_records_the_failed_job(self):
+        op = ConcreteResumableOperator(task_id="t")
+        op._status_map = {"job-000": "FAILED"}
+        task_state = FakeTaskState({"test_job_id": "job-000"})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert task_state.get(DURABLE_RECORD_KEY)["tries"][-1] == {
+            "try_number": None,
+            "decision": "resubmitted",
+            "external_id": "job-001",
+            "status": None,
+            "saved_seconds": None,
+            "previous_external_id": "job-000",
+        }
+
+    def test_record_failure_does_not_fail_the_task(self):
+        task_state = FakeTaskState()
+        original_set = task_state.set
+
+        def set_failing_for_record(key, value):
+            if key == DURABLE_RECORD_KEY:
+                raise RuntimeError("store down")
+            original_set(key, value)
+
+        task_state.set = set_failing_for_record
+
+        result = ConcreteResumableOperator(task_id="t").execute_resumable(make_context(task_state))
 
         assert result == "result-of-job-001"
 

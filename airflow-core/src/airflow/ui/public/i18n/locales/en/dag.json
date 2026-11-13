@@ -108,6 +108,23 @@
     "allSources": "All Sources",
     "critical": "CRITICAL",
     "debug": "DEBUG",
+    "durable": {
+      "detail": {
+        "already_succeeded": "The job had already finished, so no new run was needed.",
+        "reconnected": "Avoided running a second copy of a ~{{duration}} job.",
+        "reconnectedRunning": "Waiting on the running job instead of starting it again."
+      },
+      "job": {
+        "id": "Job ID: {{id}}",
+        "label": "Job",
+        "runTime": "Run time: {{duration}}",
+        "submittedAt": "Submitted:"
+      },
+      "title": {
+        "already_succeeded": "Used result of already finished job",
+        "reconnected": "Reconnected to existing job"
+      }
+    },
     "error": "ERROR",
     "info": "INFO",
     "noTryNumber": "No try number",
