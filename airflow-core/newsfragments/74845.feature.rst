@@ -1,0 +1,1 @@
+Add the ``on_success_succeed_dagrun`` option to teardown tasks to control whether they can mark a DagRun successful after another task fails.

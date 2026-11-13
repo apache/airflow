@@ -983,6 +983,7 @@ class TestStringifiedDAGs:
                 "is_setup": False,
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
+                "on_success_succeed_dagrun": False,
             }
             serialized_partial_kwargs = {
                 **default_partial_kwargs,
@@ -1670,6 +1671,7 @@ class TestStringifiedDAGs:
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
             "on_failure_fail_dagrun": False,
+            "on_success_succeed_dagrun": False,
             "outlets": [],
             "owner": "airflow",
             "params": {},
@@ -2014,7 +2016,7 @@ class TestStringifiedDAGs:
     def test_teardown_task_on_failure_fail_dagrun_serialization(self, dag_maker):
         with dag_maker() as dag:
 
-            @teardown(on_failure_fail_dagrun=True)
+            @teardown(on_failure_fail_dagrun=True, on_success_succeed_dagrun=False)
             def mytask():
                 print(1)
 
@@ -2029,6 +2031,7 @@ class TestStringifiedDAGs:
         task = serialized_dag.task_group.children["mytask"]
         assert task.is_teardown is True
         assert task.on_failure_fail_dagrun is True
+        assert task.on_success_succeed_dagrun is False
 
     @pytest.mark.db_test
     def test_basic_mapped_dag(self, dag_maker):
@@ -2044,7 +2047,7 @@ class TestStringifiedDAGs:
     def test_teardown_mapped_serialization(self, dag_maker):
         with dag_maker() as dag:
 
-            @teardown(on_failure_fail_dagrun=True)
+            @teardown(on_failure_fail_dagrun=True, on_success_succeed_dagrun=False)
             def mytask(val=None):
                 print(1)
 
@@ -2053,6 +2056,7 @@ class TestStringifiedDAGs:
         task = dag.task_group.children["mytask"]
         assert task.partial_kwargs["is_teardown"] is True
         assert task.partial_kwargs["on_failure_fail_dagrun"] is True
+        assert task.on_success_succeed_dagrun is False
 
         dag_dict = DagSerialization.to_dict(dag)
         DagSerialization.validate_schema(dag_dict)
@@ -2063,6 +2067,7 @@ class TestStringifiedDAGs:
         task = serialized_dag.task_group.children["mytask"]
         assert task.partial_kwargs["is_teardown"] is True
         assert task.partial_kwargs["on_failure_fail_dagrun"] is True
+        assert task.on_success_succeed_dagrun is False
 
     def test_serialize_mapped_outlets(self):
         with DAG(dag_id="d", schedule=None, start_date=datetime.now()):

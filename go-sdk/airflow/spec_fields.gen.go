@@ -54,6 +54,7 @@ var taskSpecFields = map[string]schemaField{
 	"MaxActiveTisPerDag":               {key: "max_active_tis_per_dag"},
 	"MaxActiveTisPerDagrun":            {key: "max_active_tis_per_dagrun"},
 	"MaxRetryDelay":                    {key: "max_retry_delay"},
+	"OnSuccessSucceedDagrun":           {key: "on_success_succeed_dagrun", schemaDefault: false},
 	"Owner":                            {key: "owner", schemaDefault: "airflow"},
 	"Pool":                             {key: "pool", schemaDefault: "default_pool"},
 	"PoolSlots":                        {key: "pool_slots", schemaDefault: 1},
