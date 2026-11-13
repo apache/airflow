@@ -424,10 +424,21 @@ repeatedly with the ``airflow dags stability`` command::
 
     airflow dags stability [DAG_FOLDER]
 
-The command compares the same hashes Airflow uses to create Dag versions and prints a unified diff for
-each unstable Dag. Use ``--dag-id`` to select one Dag, ``--num-parses`` to run more than the default two
-parsing passes, and ``--fail-fast`` to stop after the first failing pass. Import errors, serialization
-errors, inconsistent Dag discovery, and an empty selection also cause the command to exit unsuccessfully.
+The command compares the same hashes Airflow uses to create Dag versions. For each unstable Dag, it
+prints one unified diff between the first parse and the first later parse with a different hash,
+including both parse numbers. Changes to ``fileloc`` and ``bundle_name`` are excluded from both the
+hash comparison and the diff, matching Airflow's versioning behavior.
+
+Use ``--dag-id`` to select one Dag, ``--num-parses`` to run more than the default two parsing passes,
+and ``--fail-fast`` to stop after the first failing pass. Missing paths, import errors, serialization
+errors, inconsistent Dag discovery, and an empty selection cause the command to exit with status ``1``.
+Import errors anywhere in the selected folder fail the check even when ``--dag-id`` is specified.
+
+This command executes Dag files locally and does not require database initialization. Run it with the
+dependencies and configuration used to parse your Dags. It complements static checks by comparing
+actual serialized output, but a successful check only establishes stability for the observed parses.
+The passes run in the same process, so cached values in imported helper modules and changes that occur
+only across process restarts or over longer periods may not be detected.
 
 .. _faq:duplicate-dag-id-warning:
 

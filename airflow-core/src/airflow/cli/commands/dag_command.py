@@ -29,10 +29,12 @@ import operator
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, or_, select
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
@@ -90,10 +92,9 @@ def _normalize_serialized_dag_for_stability_check(serialized_dag: dict[str, Any]
     return normalized
 
 
-def _serialize_dag_for_stability_check(dag: DAG) -> tuple[str, dict[str, Any]]:
+def _serialize_dag_for_stability_check(dag: BaggedDAG) -> tuple[str, dict[str, Any]]:
     serialized_dag = DagSerialization.to_dict(dag)
-    normalized_dag = _normalize_serialized_dag_for_stability_check(serialized_dag)
-    return SerializedDagModel.hash(normalized_dag), normalized_dag
+    return SerializedDagModel.hash(serialized_dag), serialized_dag
 
 
 def _format_stability_diff(
@@ -102,6 +103,8 @@ def _format_stability_diff(
     second_serialized_dag: dict[str, Any],
     second_parse_number: int,
 ) -> str:
+    first_serialized_dag = _normalize_serialized_dag_for_stability_check(first_serialized_dag)
+    second_serialized_dag = _normalize_serialized_dag_for_stability_check(second_serialized_dag)
     before = json.dumps(first_serialized_dag, indent=2, sort_keys=True).splitlines()
     after = json.dumps(second_serialized_dag, indent=2, sort_keys=True).splitlines()
     diff = difflib.unified_diff(
@@ -118,18 +121,23 @@ def _parse_dags_for_stability_check(dag_folder: str | None) -> DagBag:
     return DagBag(dag_folder=dag_folder, load_op_links=False)
 
 
-@cli_utils.action_cli
-@providers_configuration_loaded
 def _get_stability_error_summary(error: str) -> str:
     lines = [line.strip() for line in error.splitlines() if line.strip()]
     return lines[-1] if lines else "Unknown error"
 
 
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def dag_stability_check(args) -> None:
-    source = repr(args.dag_folder) if args.dag_folder else "the configured Dags folder"
+    dag_folder = Path(args.dag_folder or settings.DAGS_FOLDER).expanduser()
+    if not dag_folder.exists():
+        print(f"Dag stability check failed: Dag path {str(dag_folder)!r} does not exist.")
+        raise SystemExit(1)
+
     selection = f" for Dag {args.dag_id!r}" if args.dag_id else ""
     print(
-        f"Checking serialized Dag stability{selection} in {source} across {args.num_parses} parsing passes."
+        f"Checking serialized Dag stability{selection} in {str(dag_folder)!r} "
+        f"across {args.num_parses} parsing passes."
     )
 
     baseline_hashes: dict[str, str] = {}
@@ -141,7 +149,7 @@ def dag_stability_check(args) -> None:
 
     for parse_number in range(1, args.num_parses + 1):
         log.info("Running Dag stability parsing pass %d of %d", parse_number, args.num_parses)
-        dagbag = _parse_dags_for_stability_check(args.dag_folder)
+        dagbag = _parse_dags_for_stability_check(str(dag_folder))
         if dagbag.import_errors:
             import_errors_by_parse[parse_number] = dagbag.import_errors
 
@@ -150,8 +158,6 @@ def dag_stability_check(args) -> None:
             dags = {args.dag_id: dagbag.dags[args.dag_id]} if args.dag_id in dagbag.dags else {}
         dag_ids_by_parse.append(set(dags))
 
-        current_hashes: dict[str, str] = {}
-        current_serialized_dags: dict[str, dict[str, Any]] = {}
         errors_before_serialization = len(serialization_errors)
         for dag_id, dag in sorted(dags.items()):
             try:
@@ -162,21 +168,12 @@ def dag_stability_check(args) -> None:
                     (parse_number, dag_id, f"{type(exception).__name__}: {exception}")
                 )
                 continue
-            current_hashes[dag_id] = dag_hash
-            current_serialized_dags[dag_id] = serialized_dag
-
-        if parse_number == 1:
-            baseline_hashes = current_hashes
-            baseline_serialized_dags = current_serialized_dags
-        else:
-            comparable_dag_ids = (baseline_hashes.keys() & current_hashes.keys()) - unstable_dags.keys()
-            for dag_id in comparable_dag_ids:
-                if baseline_hashes[dag_id] != current_hashes[dag_id]:
-                    unstable_dags[dag_id] = (
-                        parse_number,
-                        current_hashes[dag_id],
-                        current_serialized_dags[dag_id],
-                    )
+            if parse_number == 1:
+                baseline_hashes[dag_id] = dag_hash
+                baseline_serialized_dags[dag_id] = serialized_dag
+            elif dag_id in baseline_hashes and dag_id not in unstable_dags:
+                if baseline_hashes[dag_id] != dag_hash:
+                    unstable_dags[dag_id] = (parse_number, dag_hash, serialized_dag)
 
         has_discovery_failure = parse_number > 1 and dag_ids_by_parse[0] != dag_ids_by_parse[-1]
         has_new_serialization_error = len(serialization_errors) > errors_before_serialization
