@@ -142,6 +142,14 @@ class TooManyBackfillPartitions(InvalidBackfillDateRange):
     """
 
 
+class InvalidBackfillPartitionKeys(InvalidBackfillDateRange):
+    """
+    Raised when the partition keys of a backfill request are not valid.
+
+    :meta private:
+    """
+
+
 class InvalidBackfillConf(AirflowException):
     """
     Raised when the provided ``dag_run_conf`` fails validation against the DAG's params.
@@ -416,6 +424,46 @@ def _check_backfillable(dag: SerializedDAG, dag_id: str) -> None:
         )
 
 
+def _consumer_infos_for_keys(dag: SerializedDAG, partition_keys: list[str]) -> list[DagRunInfo]:
+    """Resolve explicit partition keys of a Dag scheduled on partitioned assets."""
+    from airflow.timetables.simple import PartitionedAssetTimetable
+
+    timetable = dag.timetable
+    if not isinstance(timetable, PartitionedAssetTimetable):
+        raise InvalidBackfillPartitionKeys(
+            f"partition_keys is only accepted for a Dag scheduled on partitioned assets, not for {dag.dag_id}"
+        )
+    if not partition_keys:
+        raise InvalidBackfillPartitionKeys("partition_keys must not be empty")
+    try:
+        return _consumer_info_list(dag, timetable.partition_dagrun_infos_for_keys(partition_keys))
+    except ValueError as e:
+        raise InvalidBackfillPartitionKeys(str(e)) from e
+
+
+def _resolve_bounds(
+    dag: SerializedDAG,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    partition_keys: list[str] | None,
+) -> tuple[datetime, datetime]:
+    """
+    Return the date bounds of a backfill request.
+
+    A request has a date range or partition keys. For partition keys, the bounds are the
+    earliest and the latest partition date of the keys.
+    """
+    if partition_keys is not None:
+        if from_date is not None or to_date is not None:
+            raise InvalidBackfillPartitionKeys("Give a date range or partition_keys, not both.")
+        infos = _consumer_infos_for_keys(dag, partition_keys)
+        dates = [info.partition_date for info in infos if info.partition_date is not None]
+        return min(dates), max(dates)
+    if from_date is None or to_date is None:
+        raise InvalidBackfillDateRange("from_date and to_date are required when partition_keys is not given.")
+    return from_date, to_date
+
+
 def _consumer_info_list(dag: SerializedDAG, infos: Iterable[DagRunInfo]) -> list[DagRunInfo]:
     """List the partitions of a Dag scheduled on partitioned assets, up to the configured limit."""
     from airflow.configuration import conf
@@ -507,12 +555,13 @@ def _link_consumer_evidence(dag: SerializedDAG, dr: DagRun, evidence: list[Any],
 def _do_dry_run(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
     dag_run_conf: dict | None = None,
+    partition_keys: list[str] | None = None,
 ) -> Iterable[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -525,6 +574,7 @@ def _do_dry_run(
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
+    from_date, to_date = _resolve_bounds(dag, from_date, to_date, partition_keys)
     _validate_backfill_params(
         dag,
         reverse,
@@ -538,6 +588,7 @@ def _do_dry_run(
         from_date=from_date,
         to_date=to_date,
         reverse=reverse,
+        partition_keys=partition_keys,
     )
 
     is_consumer = _is_asset_consumer(dag)
@@ -763,7 +814,11 @@ def _get_info_list(
     to_date: datetime,
     reverse: bool,
     dag: SerializedDAG,
+    partition_keys: list[str] | None = None,
 ) -> list[DagRunInfo]:
+    if partition_keys is not None:
+        dagrun_info_list = _consumer_infos_for_keys(dag, partition_keys)
+        return list(reversed(dagrun_info_list)) if reverse else dagrun_info_list
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
     if not dag.timetable.partitioned:
         now = timezone.utcnow()
@@ -830,8 +885,8 @@ def _handle_clear_run(
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
@@ -839,6 +894,7 @@ def _create_backfill(
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
     drain_dag: bool = False,
+    partition_keys: list[str] | None = None,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -873,6 +929,7 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
+        from_date, to_date = _resolve_bounds(dag, from_date, to_date, partition_keys)
         _validate_backfill_params(
             dag,
             reverse,
@@ -887,6 +944,7 @@ def _create_backfill(
             to_date=to_date,
             reverse=reverse,
             dag=dag,
+            partition_keys=partition_keys,
         )
         if not dagrun_info_list:
             raise NoBackfillRunsToCreate(

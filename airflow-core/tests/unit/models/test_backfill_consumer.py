@@ -32,6 +32,7 @@ from airflow.models.backfill import (
     BackfillDagRun,
     ConsumerBackfillNotSupported,
     DagNonPeriodicScheduleException,
+    InvalidBackfillPartitionKeys,
     ReprocessBehavior,
     TooManyBackfillPartitions,
     _create_backfill,
@@ -431,3 +432,95 @@ def test_two_assets_joined_with_and_need_evidence_in_both(dag_maker, session):
     assert _results(session, backfill) == [(W06, None, True), (W07, "missing input", False)]
     [run] = _runs(session)
     assert len(run.consumed_asset_events) == 14
+
+
+def _backfill_keys(keys, dag_id="weekly_report", **kwargs):
+    return _create_backfill(
+        dag_id=dag_id,
+        from_date=None,
+        to_date=None,
+        max_active_runs=2,
+        reverse=kwargs.pop("reverse", False),
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        partition_keys=keys,
+        **kwargs,
+    )
+
+
+def test_explicit_keys_create_runs_and_the_bounds_are_the_key_dates(dag_maker, session):
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-01-26", "2026-03-08", skip=("2026-02-18",))
+
+    backfill = _backfill_keys([W09, W06, W08])
+
+    # The runs are ordered by partition date, whatever the order of the request.
+    assert _results(session, backfill) == [
+        (W06, None, True),
+        (W08, "missing input", False),
+        (W09, None, True),
+    ]
+    assert [r.partition_key for r in _runs(session)] == [W06, W09]
+    stored = session.get(Backfill, backfill.id)
+    assert (stored.from_date, stored.to_date) == (timezone.parse("2026-02-02"), timezone.parse("2026-02-23"))
+
+
+def test_explicit_keys_dry_run(dag_maker, session):
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-02-02", "2026-02-08")
+
+    infos = list(
+        _do_dry_run(
+            dag_id="weekly_report",
+            from_date=None,
+            to_date=None,
+            reverse=False,
+            reprocess_behavior=ReprocessBehavior.NONE,
+            session=session,
+            partition_keys=[W07, W06],
+        )
+    )
+
+    assert [i.partition_key for i in infos] == [W06]
+
+
+@pytest.mark.parametrize(
+    ("keys", "reason"),
+    [
+        pytest.param(["2026-02-23 (W99)"], "canonical", id="wrong-week-number"),
+        pytest.param(["2026-02-24 (W09)"], "canonical", id="not-a-monday"),
+        pytest.param(["week six"], "not a partition key", id="malformed"),
+        pytest.param([W06, W06], "more than once", id="duplicate"),
+        pytest.param([], "empty", id="empty"),
+    ],
+)
+def test_explicit_keys_that_are_not_valid_are_refused(dag_maker, session, keys, reason):
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-01-26", "2026-03-08")
+    with pytest.raises(InvalidBackfillPartitionKeys, match=reason):
+        _backfill_keys(keys)
+    assert session.scalars(select(Backfill)).all() == []
+    assert _runs(session) == []
+
+
+def test_a_request_has_a_date_range_or_keys_not_both(dag_maker, session):
+    _consumer(dag_maker, session)
+    with pytest.raises(InvalidBackfillPartitionKeys, match="not both"):
+        _backfill(partition_keys=[W06])
+
+
+def test_explicit_keys_are_refused_for_a_periodic_dag(dag_maker, session):
+    with dag_maker(dag_id="daily", schedule="@daily", session=session):
+        EmptyOperator(task_id="t")
+    session.commit()
+    with pytest.raises(InvalidBackfillPartitionKeys, match="only accepted"):
+        _backfill_keys(["2026-02-02"], dag_id="daily")
+
+
+@conf_vars({("scheduler", "max_consumer_backfill_partitions"): "2"})
+def test_explicit_keys_over_the_limit_create_nothing(dag_maker, session):
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-01-26", "2026-03-08")
+    with pytest.raises(TooManyBackfillPartitions):
+        _backfill_keys([W06, W07, W08])
+    assert session.scalars(select(Backfill)).all() == []

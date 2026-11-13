@@ -337,17 +337,27 @@ def _iter_rollup_periods(mapper: Any, earliest: datetime, latest: datetime) -> I
         if partition_date >= earliest:
             if grain.normalize(grain.decode_downstream(key)) != current:
                 raise ValueError(f"the key format does not keep the period start of {key!r}")
-            inputs = mapper.to_upstream(key)
-            if not inputs:
-                raise ValueError(f"the key {key!r} has no inputs")
-            for input_key in inputs:
-                mapped = mapper.to_downstream(input_key)
-                if mapped != key:
-                    raise ValueError(
-                        f"the input {input_key!r} of {key!r} maps to {mapped!r}, not to that key"
-                    )
+            _check_rollup_key(mapper, key)
             yield key, partition_date
         current = grain.normalize(current + step)
+
+
+def _check_rollup_key(mapper: Any, key: str) -> None:
+    """Raise unless *key* is the canonical key of one period and each of its inputs maps back to it."""
+    grain = mapper.upstream_mapper
+    try:
+        canonical = grain.format(grain.normalize(grain.decode_downstream(key)))
+    except ValueError as e:
+        raise ValueError(f"{key!r} is not a partition key of this Dag: {e}") from e
+    if canonical != key:
+        raise ValueError(f"{key!r} is not a canonical key; the key of that period is {canonical!r}")
+    inputs = mapper.to_upstream(key)
+    if not inputs:
+        raise ValueError(f"the key {key!r} has no inputs")
+    for input_key in inputs:
+        mapped = mapper.to_downstream(input_key)
+        if mapped != key:
+            raise ValueError(f"the input {input_key!r} of {key!r} maps to {mapped!r}, not to that key")
 
 
 @attrs.define(eq=False, repr=False, kw_only=True, slots=False)
@@ -445,6 +455,39 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             yield DagRunInfo(
                 run_after=run_after, data_interval=None, partition_date=run_after, partition_key=key
             )
+
+    def partition_dagrun_infos_for_keys(self, partition_keys: Collection[str]) -> list[DagRunInfo]:
+        """
+        Return one DagRunInfo for each of *partition_keys*, ordered by partition date.
+
+        Every key must be the canonical key of one period, and the input assets must give it
+        the same date.
+
+        :raises ValueError: when the timetable cannot be backfilled, or a key is not valid.
+        """
+        if reason := self.backfill_unsupported_reason():
+            raise ValueError(reason)
+        if len(set(partition_keys)) != len(partition_keys):
+            raise ValueError("a partition key is listed more than once")
+        resolved: list[tuple[datetime, str]] = []
+        for key in partition_keys:
+            dates = set()
+            for mapper in self._backfill_mappers():
+                _check_rollup_key(mapper, key)
+                dates.add(mapper.to_partition_date(key))
+            partition_date = dates.pop() if len(dates) == 1 else None
+            if partition_date is None:
+                raise ValueError(f"the input assets do not give {key!r} one date")
+            resolved.append((partition_date, key))
+        infos = []
+        for partition_date, key in sorted(resolved):
+            run_after = timezone.coerce_datetime(partition_date)
+            infos.append(
+                DagRunInfo(
+                    run_after=run_after, data_interval=None, partition_date=run_after, partition_key=key
+                )
+            )
+        return infos
 
     def generate_run_id(
         self,
