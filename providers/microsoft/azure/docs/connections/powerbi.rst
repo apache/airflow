@@ -24,7 +24,7 @@ Microsoft Power BI Connection
 
 The Microsoft Power BI connection type enables the Power BI Integrations.
 
-The :class:`~airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook` and :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetOperator` requires a connection of type ``powerbi`` to authenticate with the Power BI.
+The :class:`~airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook` and :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetRefreshOperator` require a connection of type ``powerbi`` to authenticate with the Power BI.
 
 Authenticating to Power BI
 -------------------------------
