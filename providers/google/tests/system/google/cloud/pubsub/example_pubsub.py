@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPublishMessageOperator,
     PubSubPullOperator,
 )
-from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
+from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor, PubSubSubscriptionDeliveredSensor
 from airflow.providers.standard.operators.bash import BashOperator
 
 try:
@@ -123,6 +123,16 @@ with DAG(
         messages=[MESSAGE_TWO, MESSAGE_TWO],
     )
 
+    # [START howto_sensor_gcp_pubsub_subscription_delivered]
+    wait_for_messages_delivered = PubSubSubscriptionDeliveredSensor(
+        task_id="wait_for_messages_delivered",
+        project_id=PROJECT_ID,
+        subscription=subscription,
+        published_before="{{ data_interval_end }}",
+        deferrable=True,
+    )
+    # [END howto_sensor_gcp_pubsub_subscription_delivered]
+
     # [START howto_operator_gcp_pubsub_unsubscribe]
     unsubscribe_task = PubSubDeleteSubscriptionOperator(
         task_id="unsubscribe_task",
@@ -145,6 +155,7 @@ with DAG(
         >> pull_messages_result
         >> publish_task2
         >> pull_messages_operator
+        >> wait_for_messages_delivered
         >> unsubscribe_task
         >> delete_topic
     )

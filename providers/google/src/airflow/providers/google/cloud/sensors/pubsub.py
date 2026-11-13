@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from google.cloud import pubsub_v1
@@ -30,7 +30,10 @@ from google.cloud.pubsub_v1.types import ReceivedMessage
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
-from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.providers.google.cloud.triggers.pubsub import (
+    PubsubPullTrigger,
+    PubSubSubscriptionDeliveredTrigger,
+)
 from airflow.providers.google.common.consts import PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE
 
 if TYPE_CHECKING:
@@ -233,3 +236,98 @@ class PubSubPullSensor(BaseSensorOperator):
         messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
         return messages_json
+
+
+class PubSubSubscriptionDeliveredSensor(BaseSensorOperator):
+    """
+    Wait until every message published to a subscription before a point in time is acknowledged.
+
+    Use it before batch processing a time window, to make sure the streaming pipeline that reads the
+    subscription (for example a BigQuery subscription or a Dataflow job) has caught up. The sensor
+    only reads the ``oldest_unacked_message_age`` metric from Cloud Monitoring; it does not pull or
+    acknowledge messages. The metric is reported with a delay of a few minutes.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:PubSubSubscriptionDeliveredSensor`
+
+    :param project_id: The Google Cloud project of the subscription.
+    :param subscription: The subscription name, without the ``projects/.../subscriptions/`` prefix.
+    :param published_before: Messages published before this time must be acknowledged, for example
+        ``{{ data_interval_end }}``. A datetime or an ISO 8601 string; without a timezone, UTC is used.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run the sensor in deferrable mode.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "subscription",
+        "published_before",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        subscription: str,
+        published_before: datetime | str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.subscription = subscription
+        self.published_before = published_before
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+    def _get_published_before(self) -> datetime:
+        published_before = self.published_before
+        if isinstance(published_before, str):
+            published_before = datetime.fromisoformat(published_before)
+        if published_before.tzinfo is None:
+            published_before = published_before.replace(tzinfo=UTC)
+        return published_before
+
+    def poke(self, context: Context) -> bool:
+        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        return hook.are_messages_delivered(
+            subscription=self.subscription,
+            published_before=self._get_published_before(),
+            project_id=self.project_id,
+        )
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context)
+            return
+        if self.poke(context=context):
+            return
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=PubSubSubscriptionDeliveredTrigger(
+                project_id=self.project_id,
+                subscription=self.subscription,
+                published_before=self._get_published_before().isoformat(),
+                gcp_conn_id=self.gcp_conn_id,
+                poll_interval=self.poke_interval,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+        return event["message"]

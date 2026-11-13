@@ -30,11 +30,13 @@ from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryStreamingBufferEmptySensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
+    BigQueryTablePartitionReadySensor,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
+    BigQueryTablePartitionReadyTrigger,
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -578,3 +580,63 @@ class TestBigQueryStreamingBufferEmptySensor:
     def test_execute_complete_raises_value_error_when_event_is_none(self):
         with pytest.raises(ValueError, match="No event received in trigger callback"):
             _make_streaming_sensor(deferrable=True).execute_complete(context={}, event=None)
+
+
+def _make_ready_sensor(**overrides):
+    kwargs = {
+        "task_id": "task-id",
+        "project_id": TEST_PROJECT_ID,
+        "dataset_id": TEST_DATASET_ID,
+        "table_id": TEST_TABLE_ID,
+        "partition_id": TEST_PARTITION_ID,
+        "gcp_conn_id": TEST_GCP_CONN_ID,
+        "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+    }
+    kwargs.update(overrides)
+    return BigQueryTablePartitionReadySensor(**kwargs)
+
+
+class TestBigQueryTablePartitionReadySensor:
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke(self, mock_hook):
+        mock_hook.return_value.is_partition_ready.return_value = True
+        sensor = _make_ready_sensor(settle_period=timedelta(minutes=5))
+
+        assert sensor.poke(mock.MagicMock()) is True
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.is_partition_ready.assert_called_once_with(
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            partition_id=TEST_PARTITION_ID,
+            project_id=TEST_PROJECT_ID,
+            settle_period_seconds=300.0,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_defers_when_not_ready(self, mock_hook):
+        mock_hook.return_value.is_partition_ready.return_value = False
+        sensor = _make_ready_sensor(deferrable=True, poke_interval=120)
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(mock.MagicMock())
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, BigQueryTablePartitionReadyTrigger)
+        assert trigger.partition_id == TEST_PARTITION_ID
+        assert trigger.settle_period_seconds == 600.0
+        assert trigger.poll_interval == 120
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionReadySensor.defer")
+    def test_execute_does_not_defer_when_ready(self, mock_defer, mock_hook):
+        mock_hook.return_value.is_partition_ready.return_value = True
+
+        _make_ready_sensor(deferrable=True).execute(mock.MagicMock())
+
+        mock_defer.assert_not_called()
+
+    def test_execute_complete_success(self):
+        assert _make_ready_sensor().execute_complete({}, {"status": "success", "message": "ok"}) == "ok"

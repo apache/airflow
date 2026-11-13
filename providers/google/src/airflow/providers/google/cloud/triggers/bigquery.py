@@ -1015,3 +1015,69 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
             raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} does not exist")
 
         return response.get("streamingBuffer") is None
+
+
+class BigQueryTablePartitionReadyTrigger(BaseTrigger):
+    """
+    Wait until a BigQuery partition has rows and no new rows arrived for the settle period.
+
+    Used by :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionReadySensor`
+    in deferrable mode. See the sensor for the parameters.
+    """
+
+    def __init__(
+        self,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        partition_id: str,
+        settle_period_seconds: float,
+        gcp_conn_id: str,
+        poll_interval: float,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.partition_id = partition_id
+        self.settle_period_seconds = settle_period_seconds
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionReadyTrigger",
+            {
+                "project_id": self.project_id,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "partition_id": self.partition_id,
+                "settle_period_seconds": self.settle_period_seconds,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        while True:
+            is_ready = await hook.is_partition_ready(
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                partition_id=self.partition_id,
+                project_id=self.project_id,
+                settle_period_seconds=self.settle_period_seconds,
+            )
+            if is_ready:
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "message": f"Partition {self.partition_id} of {self.table_id} is ready",
+                    }
+                )
+                return
+            self.log.info("Partition is not ready yet, checking again in %s seconds", self.poll_interval)
+            await asyncio.sleep(self.poll_interval)

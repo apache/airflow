@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import warnings
 from collections.abc import AsyncIterator, Sequence
+from datetime import datetime
 from functools import cached_property
 from typing import Any
 
@@ -30,7 +31,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.providers.google.common.consts import PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger
@@ -146,3 +147,66 @@ class PubsubPullTrigger(BaseEventTrigger):
             impersonation_chain=self.impersonation_chain,
             project_id=self.project_id,
         )
+
+
+class PubSubSubscriptionDeliveredTrigger(BaseTrigger):
+    """
+    Wait until every message published to a subscription before a point in time is acknowledged.
+
+    Used by :class:`~airflow.providers.google.cloud.sensors.pubsub.PubSubSubscriptionDeliveredSensor`
+    in deferrable mode. See the sensor for the parameters; ``published_before`` is an ISO 8601 string here.
+    """
+
+    def __init__(
+        self,
+        project_id: str,
+        subscription: str,
+        published_before: str,
+        gcp_conn_id: str,
+        poll_interval: float,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.subscription = subscription
+        self.published_before = published_before
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.pubsub.PubSubSubscriptionDeliveredTrigger",
+            {
+                "project_id": self.project_id,
+                "subscription": self.subscription,
+                "published_before": self.published_before,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = PubSubAsyncHook(
+            project_id=self.project_id,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        published_before = datetime.fromisoformat(self.published_before)
+        while True:
+            is_delivered = await hook.are_messages_delivered(
+                subscription=self.subscription,
+                published_before=published_before,
+                project_id=self.project_id,
+            )
+            if is_delivered:
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "message": f"Messages published before {self.published_before} are delivered",
+                    }
+                )
+                return
+            self.log.info("Messages are not delivered yet, checking again in %s seconds", self.poll_interval)
+            await asyncio.sleep(self.poll_interval)

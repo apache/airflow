@@ -596,6 +596,29 @@ Also you can use deferrable mode in this operator if you would like to free up t
     :start-after: [START howto_sensor_bigquery_table_partition_async]
     :end-before: [END howto_sensor_bigquery_table_partition_async]
 
+.. _howto/sensor:BigQueryTablePartitionReadySensor:
+
+Check that a streamed Table Partition is ready
+""""""""""""""""""""""""""""""""""""""""""""""
+
+A partition filled by streaming exists as soon as its first row arrives, so
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor` may let
+downstream tasks read it while rows are still coming in. To wait until the rows stop coming, use
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionReadySensor`. It passes when
+the partition has rows and nothing new was written to it for ``settle_period``.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bigquery_table_partition_ready]
+    :end-before: [END howto_sensor_bigquery_table_partition_ready]
+
+``partition_id`` uses the BigQuery partition format: ``{{ ds_nodash }}`` for daily partitions,
+``{{ data_interval_start.strftime('%Y%m%d%H') }}`` for hourly ones. Each check runs a small query on
+``INFORMATION_SCHEMA.PARTITIONS``, so do not set a very short ``poke_interval``. Rows that arrive later than
+``settle_period`` are not waited for. If the table is fed from PubSub, run
+:ref:`PubSubSubscriptionDeliveredSensor <howto/sensor:PubSubSubscriptionDeliveredSensor>` first.
+
 Check that the BigQuery Table Streaming Buffer is empty
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
