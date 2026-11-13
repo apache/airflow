@@ -21,8 +21,8 @@ name: Apache HBase
 description: |
     `Apache HBase <https://hbase.apache.org/>`__
 
-state: ready
-lifecycle: production
+state: not-ready
+lifecycle: incubation
 source-date-epoch: 1768557443
 # note that those versions are maintained by release manager - do not update them manually
 versions:
