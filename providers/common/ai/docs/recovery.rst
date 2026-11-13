@@ -131,11 +131,26 @@ then sends its first live request through the chain from the top. The run contin
 the first connection that answers, whether or not that is the one that answered before.
 
 A recorded model step replays only if the retry's request has the same fingerprint, and
-for a chain the model in the fingerprint is the whole chain, whichever connection
-answered. Adding, removing or reordering a connection in ``fallback_conn_ids``, or
-changing the ``model`` of a connection in it, between attempts therefore makes the retry
-run every step live, tools included. Changing a connection's credentials or host does
-not. "How a retry replays" in :doc:`durable_execution` gives the full matching rules.
+for a chain the fingerprint names the chain as a whole, not its connections. Each
+recorded response also notes which model of the chain answered it, and the step replays
+only if that model is still in the chain. Adding, removing or reordering other
+connections in ``fallback_conn_ids`` between attempts therefore keeps the steps that a
+remaining model answered. A step answered by a model that was removed from the chain, or
+whose ``model`` changed, runs live along with every step after it, tools included, and
+the task log names the reason. The check compares models, not connections: two chain
+members that resolve to the same model cannot be told apart.
+A ``FallbackModel`` built outside the hook, whose members do not record which one
+answered, keeps the earlier rule: its steps replay while the chain is unchanged and run
+live once it is edited.
+
+Changing a connection's credentials or host does not invalidate a recorded step. Nor
+does changing settings on a chain connection, such as ``temperature``: a chain never
+compared those, so a step answered under the old settings still replays.
+
+Upgrading to this behaviour changes the fingerprint of every model step recorded
+through a chain, so the first retry after the upgrade of a task whose journal was
+written by an earlier version runs live. "How a retry replays" in :doc:`durable_execution`
+gives the full matching rules.
 
 What is not covered
 -------------------

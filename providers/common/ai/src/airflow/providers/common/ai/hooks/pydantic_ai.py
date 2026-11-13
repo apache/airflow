@@ -34,6 +34,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.hooks.ollama import OllamaBackend
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
@@ -400,7 +401,12 @@ class PydanticAIHook(BaseHook):
         # deliberately excluded), and pyproject has no upper bound on pydantic-ai-slim, so
         # an upstream default change would otherwise move that documented behaviour silently.
         self._model = (
-            FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
+            FallbackModel(
+                *(MemberStampingModel(member) for member in (model, *fallback_models)),
+                fallback_on=(ModelAPIError,),
+            )
+            if fallback_models
+            else model
         )
         return self._model
 
