@@ -1687,6 +1687,7 @@ class TestKeycloakAuthManager:
         assert result == (expected if authorized else set())
         mock_is_authorized.assert_called_once()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_dag", autospec=True, return_value=True)
     def test_filter_with_team_level_authorization_asks_for_a_listed_dag_of_the_team(
         self, mock_is_authorized, auth_manager_multi_team, user

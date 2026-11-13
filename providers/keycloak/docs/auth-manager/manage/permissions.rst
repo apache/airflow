@@ -134,7 +134,7 @@ pages that list them slow: the Dag list sends one request per Dag and, from Airf
 
 The permissions created by the CLI are granted by role and group only, and no policy reads the id of the
 resource. Keycloak then gives the same answer for every Dag of a team. When that holds for your realm, enable
-:ref:`team_level_authorization <config:keycloak_auth_manager__team_level_authorization>`:
+``team_level_authorization`` in the ``[keycloak_auth_manager]`` section:
 
 .. code-block:: ini
 
