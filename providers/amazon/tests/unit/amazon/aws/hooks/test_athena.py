@@ -246,6 +246,16 @@ class TestAthenaHook:
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
         assert result == "s3://test_bucket/test.csv"
 
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_output_location_managed_query_results(self, mock_conn):
+        mock_conn.return_value.get_query_execution.return_value = {
+            "QueryExecution": {
+                "QueryExecutionId": MOCK_DATA["query_execution_id"],
+                "ManagedQueryResultsConfiguration": {"Enabled": True},
+            }
+        }
+        assert self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"]) is None
+
     @pytest.mark.parametrize(
         "query_execution_id", [pytest.param("", id="empty-string"), pytest.param(None, id="none")]
     )

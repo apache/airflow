@@ -57,7 +57,8 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         To run the query, you must specify the query results location using one of the ways:
         either for individual queries using either this setting (client-side),
         or in the workgroup, using WorkGroupConfiguration.
-        If none of them is set, Athena issues an error that no output location is provided
+        If none of them is set, Athena issues an error that no output location is provided.
+        Leave it unset for a workgroup with managed query results.
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :param workgroup: Athena workgroup in which query will be run. (templated)
     :param query_execution_context: Context in which query need to be run
