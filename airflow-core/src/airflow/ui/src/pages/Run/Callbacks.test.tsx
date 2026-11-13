@@ -46,6 +46,7 @@ const { useDeadlinesServiceGetCallbackLogs, useDeadlinesServiceGetDeadlines } =
   await import("openapi/queries");
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", { value: 800 });
 });
@@ -132,7 +133,10 @@ describe("Callbacks", () => {
     });
     await waitFor(() => expect(screen.getByText(/Deadline miss callback started/u)).toBeInTheDocument());
 
-    fireEvent.click(firstLogsButton as HTMLElement);
+    // Look the button up again: the rows re-render once the translation bundles have loaded.
+    const [expandedLogsButton] = screen.getAllByRole("button", { name: i18n.t("dag:tabs.logs") });
+
+    fireEvent.click(expandedLogsButton as HTMLElement);
 
     expect(screen.queryByTestId("table-sub-row")).not.toBeInTheDocument();
   });

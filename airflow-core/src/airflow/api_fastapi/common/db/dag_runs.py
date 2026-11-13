@@ -126,3 +126,12 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
 
     for dr in runs_needing_versions:
         dr._prefetched_dag_version_ids = versions_per_run.get((dr.dag_id, dr.run_id), {})
+
+
+def is_filtered_existing_run(dag_id: str, run_id: str, *, has_filter: bool, session: Session) -> bool:
+    """Return whether an active filter can produce an empty result for this run."""
+    return (
+        has_filter
+        and session.scalar(select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        is not None
+    )

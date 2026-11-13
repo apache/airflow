@@ -27,6 +27,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
@@ -56,7 +57,7 @@ from task_sdk.execution_time import exec_probe_target
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
-from airflow.sdk import DAG, BaseOperator, timezone
+from airflow.sdk import DAG, BaseOperator, task_group, timezone
 from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
@@ -68,11 +69,16 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    ExternalClearTargetPayload,
+    HITLUser,
     LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
+    VariableResponse,
 )
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
@@ -126,6 +132,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     HITLDetailRequestResult,
+    HITLDetailResponseResult,
     InactiveAssetsResult,
     MaskSecret,
     OKResponse,
@@ -187,6 +194,7 @@ from airflow.sdk.execution_time.supervisor import (
 from airflow.sdk.execution_time.task_runner import run
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -1706,16 +1714,9 @@ class TestWatchedSubprocess:
         mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
-        proc = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
-            id=TI_ID,
-            pid=12345,
-            stdin=mocker.Mock(),
-            process=mocker.Mock(),
-            client=mocker.Mock(),
-        )
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
 
-        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
 
         monotonic.return_value += 34
         proc._handle_execution_timeout_if_needed()
@@ -1726,12 +1727,58 @@ class TestWatchedSubprocess:
         mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
         proc.process_log.error.assert_called_once_with(
             "Task did not stop before execution_timeout elapsed; terminating process",
-            timeout_seconds=30,
+            timeout_seconds=30.0,
             grace_period_seconds=5.0,
         )
 
         proc._handle_execution_timeout_if_needed()
         mock_kill.assert_called_once()
+
+    @staticmethod
+    def _start_activity_subprocess(mocker, *, execution_timeout):
+        client = mocker.Mock()
+        client.task_instances.start.return_value = TIRunContext.model_construct(
+            should_retry=False, execution_timeout=execution_timeout
+        )
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=client,
+        )
+        mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc._on_child_started(
+            ti=TaskInstance(
+                id=TI_ID, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            sentry_integration="",
+        )
+        return proc
+
+    def test_python_task_does_not_arm_execution_timeout_at_startup(self, mocker):
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
+
+        monotonic.return_value += 3600
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+    def test_set_execution_timeout_uses_task_process_value(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=3600.0)
+
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
+
+        monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
 
     @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),
@@ -1744,15 +1791,8 @@ class TestWatchedSubprocess:
         mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
-        proc = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
-            id=TI_ID,
-            pid=12345,
-            stdin=mocker.Mock(),
-            process=mocker.Mock(),
-            client=mocker.Mock(),
-        )
-        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
         proc._terminal_state = terminal_state
         proc._exit_code = exit_code
 
@@ -2748,6 +2788,12 @@ REQUEST_TEST_CASES = [
             end_date=timezone.parse("2024-10-31T12:00:00Z"),
             rendered_map_index="test success task",
             loop_decision=LoopDecisionPayload(stop=True, reason="converged"),
+            external_clear_target=ExternalClearTargetPayload(
+                dag_id="child",
+                task_id="wait",
+                logical_date=timezone.parse("2024-10-31T00:00:00Z"),
+                recursion_depth=2,
+            ),
         ),
         client_mock=ClientMock(
             method_path="task_instances.succeed",
@@ -2758,6 +2804,12 @@ REQUEST_TEST_CASES = [
                 "when": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test success task",
                 "loop_decision": LoopDecisionPayload(stop=True, reason="converged"),
+                "external_clear_target": ExternalClearTargetPayload(
+                    dag_id="child",
+                    task_id="wait",
+                    logical_date=timezone.parse("2024-10-31T00:00:00Z"),
+                    recursion_depth=2,
+                ),
             },
         ),
         test_id="succeed_task",
@@ -3784,6 +3836,29 @@ REQUEST_TEST_CASES = [
         test_id="create_hitl_detail_payload",
     ),
     RequestTestCase(
+        message=GetHITLDetailResponse(ti_id=TI_ID),
+        expected_body={
+            "response_received": True,
+            "responded_by_user": {"id": "alice", "name": "Alice"},
+            "responded_at": timezone.parse("2024-10-31T12:00:00Z"),
+            "chosen_options": ["Approve"],
+            "params_input": {"reason": "ship it"},
+            "type": "HITLDetailResponseResult",
+        },
+        client_mock=ClientMock(
+            method_path="hitl.get_detail_response",
+            kwargs={"ti_id": TI_ID},
+            response=HITLDetailResponseResult(
+                response_received=True,
+                responded_by_user=HITLUser(id="alice", name="Alice"),
+                responded_at=timezone.parse("2024-10-31T12:00:00Z"),
+                chosen_options=["Approve"],
+                params_input={"reason": "ship it"},
+            ),
+        ),
+        test_id="get_hitl_detail_response",
+    ),
+    RequestTestCase(
         message=MaskSecret(value=["iter1", "iter2", {"key": "value"}], name="test_secret"),
         mask_secret_args=(["iter1", "iter2", {"key": "value"}], "test_secret"),
         test_id="mask_secret_list",
@@ -4368,16 +4443,11 @@ class TestHandleRequest:
             )
 
     @patch.object(ActivitySubprocess, "send_msg", autospec=True)
-    @pytest.mark.parametrize(
-        "message",
-        [
-            GetHITLDetailResponse(ti_id=TI_ID),
-            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]),
-        ],
-    )
-    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess, message):
+    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess):
         process, _ = watched_subprocess
-        process._handle_request(message, structlog.get_logger(), req_id=42)
+        process._handle_request(
+            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]), structlog.get_logger(), req_id=42
+        )
 
         send_msg.assert_called_once_with(
             process,
@@ -4501,7 +4571,7 @@ class TestHandleRequest:
             assert decoder.validate_python(frame.body) == client_mock.response
 
     def test_registered_message_types(self):
-        expected = set(get_args(get_args(ToSupervisor)[0])) - {GetHITLDetailResponse, UpdateHITLDetail}
+        expected = set(get_args(get_args(ToSupervisor)[0])) - {UpdateHITLDetail}
         assert set(ActivitySubprocess._request_handlers) == expected
         assert {type(case.message) for case in REQUEST_TEST_CASES} == expected
 
@@ -4901,6 +4971,32 @@ class TestSetSupervisorComms:
 
 
 class TestInProcessTestSupervisor:
+    def test_rejects_loop_dag_with_legacy_xcom_backend(self, mocker, monkeypatch):
+        @task_group
+        def body():
+            BaseOperator(task_id="work")
+
+        with DAG(dag_id="loop_dag") as dag:
+            create_loop(body, max_iterations=2)
+        task = dag.task_dict["body.work"]
+        ti = TaskInstance(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            dag_id="loop_dag",
+            task_id=task.task_id,
+            run_id="test_run",
+            try_number=1,
+            queue="default",
+        )
+        client = mocker.Mock(spec=sdk_client.Client)
+        client.task_instances = mocker.create_autospec(sdk_client.TaskInstanceOperations, instance=True)
+        monkeypatch.setattr(task_runner, "XCom", SerializeValueOnlyXCom)
+
+        with pytest.raises(TypeError, match="uses a loop"):
+            InProcessTestSupervisor.start(what=ti, task=task, client=client)
+
+        client.task_instances.start.assert_not_called()
+
     @pytest.mark.parametrize("callback_error", [None, RuntimeError])
     def test_retry_callback_finishes_before_retry_report(self, make_ti_context, mocker, callback_error):
         client = mocker.Mock(spec=sdk_client.Client)
@@ -5016,6 +5112,170 @@ class TestInProcessTestSupervisor:
         # Ensure we got back what we expect
         assert isinstance(response, VariableResult)
         assert response.value == "value"
+
+    @pytest.fixture
+    def socket_supervisor(self, mocker, socket_pair):
+        """An in-process supervisor wired to a socket, as ``_setup_subprocess_socket`` leaves it."""
+        read_end, write_end = socket_pair
+
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.stdin = write_end
+        supervisor.client.variables.get.return_value = VariableResult(key="test_key", value="test_value")
+
+        return supervisor, read_end
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    @pytest.mark.parametrize("req_id", [0, 42], ids=["first_request", "later_request"])
+    def test_socket_request_is_answered_over_the_socket(
+        self, mock_mask_secret, socket_supervisor, mocker, req_id
+    ):
+        """A virtualenv operator under ``dag.test()`` runs in a real child process that reconnects to
+        the supervisor over ``__AIRFLOW_SUPERVISOR_FD``, so its requests can only be answered with a
+        response frame on that socket. ``req_id=0`` is deliberate: the child's ``CommsDecoder``
+        numbers its requests from 0, so the id cannot tell the two paths apart.
+        """
+        supervisor, read_end = socket_supervisor
+
+        generator = supervisor.handle_requests(log=mocker.Mock())
+        next(generator)
+        generator.send(_RequestFrame(id=req_id, body=GetVariable(key="test_key").model_dump()))
+
+        read_end.settimeout(1)
+        frame_len = int.from_bytes(read_end.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_end.recv(frame_len))
+
+        assert frame.id == req_id
+        assert frame.body == {"key": "test_key", "value": "test_value", "type": "VariableResult"}
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    def test_in_process_request_is_not_written_to_the_socket(self, mock_mask_secret, socket_supervisor):
+        """The task running in this process reads its response from the queue, not the socket."""
+        supervisor, read_end = socket_supervisor
+
+        response = supervisor.comms.send(GetVariable(key="test_key"))
+
+        assert response == VariableResult(key="test_key", value="test_value")
+        read_end.settimeout(0.1)
+        with pytest.raises(TimeoutError):
+            read_end.recv(1)
+
+    def test_concurrent_in_process_requests_get_their_own_response(self, mocker):
+        """In-process requests in flight at the same time must not be answered with each other's response.
+
+        Both requests go through ``comms.send`` from different threads, with the first one still
+        being handled when the second arrives, so each must read its response from its own sink.
+        """
+        first_queued = threading.Event()
+        second_answered = threading.Event()
+
+        class ConcurrentSupervisor(InProcessTestSupervisor):
+            def _handle_request(self, msg, log, req_id):
+                self.send_msg(VariableResult(key=msg.key, value=msg.key), req_id)
+                if msg.key == "first":
+                    first_queued.set()
+                    second_answered.wait(10)
+
+        supervisor = ConcurrentSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+
+        answers: dict[str, Any] = {}
+
+        def ask(key):
+            answers[key] = supervisor.comms.send(GetVariable(key=key))
+
+        first = threading.Thread(target=ask, args=("first",), daemon=True)
+        first.start()
+        assert first_queued.wait(10)
+
+        ask("second")
+        second_answered.set()
+        first.join(10)
+        assert not first.is_alive(), "first in-process request never got its response"
+
+        assert answers == {
+            "first": VariableResult(key="first", value="first"),
+            "second": VariableResult(key="second", value="second"),
+        }
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    def test_child_process_gets_a_response_through_the_real_socket(self, mock_mask_secret, mocker):
+        """The same round trip, driven through the socket machinery a real child process uses."""
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.client.variables.get.return_value = VariableResult(key="test_key", value="test_value")
+
+        received: list[Any] = []
+        with supervisor._setup_subprocess_socket() as child_sock:
+            comms = CommsDecoder(socket=child_sock)
+            # `CommsDecoder._read_frame` forces the socket back to blocking mode, so a lost response
+            # hangs forever -- read it from a thread we can give up on to get a failure instead.
+            reader = threading.Thread(
+                target=lambda: received.append(comms.send(GetVariable(key="test_key"))), daemon=True
+            )
+            reader.start()
+            reader.join(10)
+
+            assert not reader.is_alive(), "supervisor never answered the request sent on its socket"
+
+        assert received == [VariableResult(key="test_key", value="test_value")]
+
+    @patch("airflow.sdk.log._secrets_masker")
+    def test_child_request_masking_secret_on_socket_thread_gets_only_its_response(
+        self, mock_secrets_masker, mocker
+    ):
+        """Handling a child's ``GetVariable`` on the socket thread calls ``mask_secret``, which
+        re-enters ``comms.send`` on that same thread with a sink set; the nested ``MaskSecret`` reply
+        must stay in that sink and only the ``VariableResult`` may reach the child's socket.
+        """
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.client.variables.get.return_value = VariableResponse(key="test_key", value="test_value")
+        comms_send = mocker.spy(InProcessSupervisorComms, "send")
+
+        received: list[Any] = []
+        with (
+            set_supervisor_comms(supervisor.comms),
+            supervisor._setup_subprocess_socket() as child_sock,
+        ):
+            comms = CommsDecoder(socket=child_sock)
+            reader = threading.Thread(
+                target=lambda: received.append(comms.send(GetVariable(key="test_key"))), daemon=True
+            )
+            reader.start()
+            reader.join(10)
+
+            assert not reader.is_alive(), "supervisor never answered the request sent on its socket"
+            child_sock.settimeout(0.1)
+            with pytest.raises(TimeoutError):
+                child_sock.recv(1)
+
+        assert received == [VariableResult(key="test_key", value="test_value")]
+        comms_send.assert_called_once_with(supervisor.comms, MaskSecret(value="test_value", name="test_key"))
 
     def test_inprocess_failure_callback_receives_exception(
         self,
@@ -5521,6 +5781,30 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
 
 
 @pytest.mark.parametrize(
+    "bad_timestamp",
+    [
+        pytest.param(1697190085, id="epoch-number"),
+        pytest.param("2026-10-13T17:41", id="no-seconds"),
+        # msgspec raises a plain DecodeError (not a ValidationError) for the newline, so this case
+        # fails if the except clause only catches ValidationError.
+        pytest.param("2026-10-13\n17:41:25", id="newline"),
+    ],
+)
+def test_process_log_messages_keeps_line_with_invalid_timestamp(bad_timestamp, caplog, time_machine):
+    time_machine.move_to(timezone.datetime(2026, 10, 15, 8, 0), tick=False)
+
+    gen = process_log_messages_from_subprocess(loggers=(structlog.get_logger(),))
+    next(gen)
+
+    gen.send(
+        msgspec.json.encode({"level": "info", "event": "Batch done", "timestamp": bad_timestamp}) + b"\n"
+    )
+
+    assert caplog.messages == ["Batch done"]
+    assert {"timestamp": "2026-10-15T08:00:00Z", "invalid_timestamp": bad_timestamp} in caplog
+
+
+@pytest.mark.parametrize(
     "error_message",
     ["write to closed file", "I/O operation on closed file"],
 )
@@ -5870,7 +6154,7 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
 )
 def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec, target, expected_use_exec):
     """ActivitySubprocess.start passes the task-process decision as use_exec, real entry point only."""
-    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: task_uses_exec)
     base_start = mocker.patch(
         "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
     )
@@ -5914,7 +6198,7 @@ def test_activity_start_imports_task_runner_before_bare_fork(
         calls.append("fork")
         return MagicMock(spec=ActivitySubprocess)
 
-    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: task_uses_exec)
     mocker.patch.object(
         supervisor,
         "_import_task_runner_before_fork",
@@ -5966,7 +6250,7 @@ class TestTaskProcessUsesExec:
     def test_task_process_uses_exec(self, monkeypatch, platform, config_value, expected):
         monkeypatch.setattr(supervisor.sys, "platform", platform)
         with conf_vars({("core", "execute_tasks_new_python_interpreter"): config_value}):
-            assert supervisor._task_process_uses_exec() is expected
+            assert supervisor.task_process_uses_exec() is expected
 
 
 class TestResolveChildTarget:
@@ -6130,7 +6414,7 @@ def test_fork_exec_bootstrap_runs_an_importable_target_end_to_end(
     monkeypatch.setenv(
         "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
     )
-    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: True)
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: True)
     # ActivitySubprocess.start only execs its own entry point; let the probe be that entry point.
     monkeypatch.setattr(supervisor, "_subprocess_main", exec_probe_target.exec_probe_main)
     time_machine.move_to(timezone.datetime(2024, 11, 7, 12, 34, 56, 78901), tick=False)

@@ -364,9 +364,10 @@ _HISTORY_CONFIG = dataclasses.replace(
 )
 
 
-def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+def _check_for_rows(*, session: Session, query: Select, table_name: str, print_rows: bool = False) -> int:
     num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
-    print(f"Found {num_entities} rows meeting deletion criteria.")
+    row_label = "row" if num_entities == 1 else "rows"
+    print(f"Found {num_entities} {row_label} in table {table_name} meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
 
@@ -491,6 +492,7 @@ def _do_delete(
     dialect_name = bind.dialect.name
     batch_counter = itertools.count(1)
     source_table_name = _format_table_name(orm_model.schema, orm_model.name)
+    direct_source_table: Table | None = None
     attempt_archives: dict[str, Table] = {}
     attempt_archive_suffix = uuid4().hex[:16]
 
@@ -503,9 +505,29 @@ def _do_delete(
         suffix = f"__b{batch_no}" if batch_size else ""
 
         if batch_size:
-            print(f"Performing Delete (batch {batch_no}, max {batch_size} rows)...")
+            print(f"Performing Delete from {source_table_name} (batch {batch_no}, max {batch_size} rows)...")
         else:
-            print("Performing Delete...")
+            print(f"Performing Delete from {source_table_name}...")
+
+        if skip_archive:
+            try:
+                if direct_source_table is None:
+                    metadata = reflect_tables([source_table_name], session)
+                    direct_source_table = metadata.tables[source_table_name]
+                _delete_directly(
+                    limited_query=limited_query,
+                    source_table=direct_source_table,
+                    session=session,
+                    dialect_name=dialect_name,
+                )
+                session.commit()
+            except BaseException:
+                with suppress(Exception):
+                    session.rollback()
+                raise
+            # The direct DELETE embeds limited_query, so skip_if_referenced is re-evaluated in
+            # that statement. The short-delete warning below is only needed after an archive copy.
+            continue
 
         # using bulk delete
         # create a new table and copy the rows there
@@ -514,12 +536,7 @@ def _do_delete(
             orm_model.schema,
             f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
         )
-        print(f"Moving data to table {target_table_name}")
-        target_table = None
-        # Lets the ``finally`` cleanup below tell the failure path (don't let a
-        # cleanup error mask the original) from the success path (a cleanup error
-        # is a real problem and must propagate).
-        error_raised = False
+        print(f"Moving data from {source_table_name} to table {target_table_name}")
 
         try:
             if dialect_name == "mysql":
@@ -578,6 +595,11 @@ def _do_delete(
             logger.debug("delete statement:\n%s", delete.compile())
             deleted = cast("CursorResult", session.execute(delete)).rowcount
             session.commit()
+            row_label = "row" if deleted == 1 else "rows"
+            if batch_size:
+                print(f"Deleted {deleted} {row_label} from {source_table_name} (batch {batch_no}).")
+            else:
+                print(f"Deleted {deleted} {row_label} from {source_table_name}.")
 
             # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
             # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
@@ -605,42 +627,47 @@ def _do_delete(
                     )
 
         except BaseException:
-            error_raised = True
-            # Roll back the failed transaction so its locks are released before
-            # the archive table is dropped in the ``finally`` block below.
-            # ``rollback()`` itself can raise (e.g. the connection died); suppress
-            # it so it does not shadow the original error being re-raised.
             with suppress(Exception):
                 session.rollback()
             raise
-        finally:
-            if target_table is not None and skip_archive:
-                # Drop the archive table on the session's own connection. Binding
-                # the drop to ``session.get_bind()`` (the Engine) would check out a
-                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
-                # indefinitely on the metadata lock still held by this session's
-                # open transaction when the DELETE above failed -- the ``db clean``
-                # hang reported in #66177.
-                try:
-                    target_table.drop(bind=session.connection())
-                    session.commit()
-                except Exception:
-                    # If we are already unwinding from a delete failure, a cleanup
-                    # error here must not replace the original exception (Python
-                    # makes a ``finally``-raised error the top-level one). Log and
-                    # let the original delete error keep propagating. On the success
-                    # path (no delete error), a drop/commit failure is a real
-                    # problem, so re-raise it.
-                    if not error_raised:
-                        raise
-                    logger.warning(
-                        "Failed to drop archive table %s while cleaning up after a "
-                        "delete failure; propagating the original delete error instead.",
-                        target_table_name,
-                        exc_info=True,
-                    )
 
-    print("Finished Performing Delete")
+    print(f"Finished Performing Delete from {source_table_name}")
+
+
+def _delete_directly(
+    *,
+    limited_query: Select,
+    source_table: Table,
+    session: Session,
+    dialect_name: str,
+) -> None:
+    pk_cols = list(source_table.primary_key.columns)
+    pk_query = limited_query.with_only_columns(
+        *[literal_column(f"{_BASE_TABLE_ALIAS}.{col.name}").label(col.name) for col in pk_cols]
+    )
+    rows_to_delete = pk_query.subquery("rows_to_delete")
+
+    if dialect_name == "mysql":
+        delete = source_table.delete().where(
+            select(literal(1))
+            .select_from(rows_to_delete)
+            .where(and_(*[source_table.c[col.name] == rows_to_delete.c[col.name] for col in pk_cols]))
+            .exists()
+        )
+    elif len(pk_cols) == 1:
+        pk_col = pk_cols[0]
+        delete = source_table.delete().where(
+            source_table.c[pk_col.name].in_(select(rows_to_delete.c[pk_col.name]))
+        )
+    else:
+        delete = source_table.delete().where(
+            tuple_(*[source_table.c[col.name] for col in pk_cols]).in_(
+                select(*[rows_to_delete.c[col.name] for col in pk_cols])
+            )
+        )
+
+    logger.debug("direct delete statement:\n%s", delete.compile())
+    session.execute(delete)
 
 
 def _subquery_keep_last(
@@ -763,7 +790,7 @@ def _build_query(
         query = query.outerjoin(
             subquery,
             and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
                 base_table_recency_col == column(max_date_col_name),
             ),
         )
@@ -815,7 +842,12 @@ def _cleanup_table(
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
-    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
+    num_rows = _check_for_rows(
+        session=session,
+        query=query,
+        table_name=_format_table_name(orm_model.schema, orm_model.name),
+        print_rows=False,
+    )
 
     if num_rows and not dry_run:
         if orm_model.name == "xcom_v2":
@@ -876,12 +908,15 @@ def _confirm_delete(
     tables: list[str],
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    asset_ids: list[int] | None = None,
 ) -> None:
     for_tables = f" for tables {tables!r}" if tables else ""
     for_dags = f" for the following dags: {dag_ids!r}" if dag_ids else ""
     excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if exclude_dag_ids else ""
+    for_assets = f" for asset IDs {asset_ids!r}" if asset_ids is not None else ""
     question = (
-        f"You have requested that we purge all data prior to {date}{for_tables}{for_dags}{excluding_dags}.\n"
+        f"You have requested that we purge all data prior to "
+        f"{date}{for_tables}{for_dags}{excluding_dags}{for_assets}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
@@ -1027,6 +1062,7 @@ def run_cleanup(
     table_names: list[str] | None = None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    asset_ids: list[int] | None = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
@@ -1051,6 +1087,8 @@ def run_cleanup(
     :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
         will perform maintenance on all dags.
     :param exclude_dag_ids: Optional. List of dag ids to exclude from maintenance.
+    :param asset_ids: Optional. Only clean events for these asset IDs. Requires table_names=["asset_event"].
+        An empty list selects no events.
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
@@ -1061,12 +1099,27 @@ def run_cleanup(
         if any per-table cleanup encountered an error. By default errors are suppressed, a warning
         summary is logged, and the command exits 0 even if some tables were not cleaned.
     """
+    if asset_ids is not None and set(table_names or []) != {"asset_event"}:
+        raise SystemExit("--asset-ids requires explicitly selecting only --tables asset_event.")
+
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
     # Get all tables to clean (root + dependents)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
+    if asset_ids is not None:
+        asset_config = effective_config_dict["asset_event"]
+        effective_config_dict["asset_event"] = dataclasses.replace(
+            asset_config,
+            extra_columns=[*(asset_config.extra_columns or []), "asset_id"],
+            extra_filters=[
+                *(asset_config.extra_filters or []),
+                literal_column(f"{_BASE_TABLE_ALIAS}.asset_id").in_(asset_ids),
+            ],
+        )
     if dry_run:
         print("Performing dry run for db cleanup.")
+        if asset_ids is not None:
+            print(f"Restricting cleanup to asset IDs {asset_ids!r}.")
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"
@@ -1078,6 +1131,7 @@ def run_cleanup(
             tables=sorted(effective_table_names),
             dag_ids=dag_ids,
             exclude_dag_ids=exclude_dag_ids,
+            asset_ids=asset_ids,
         )
     existing_tables: set[str] = {
         table

@@ -108,6 +108,9 @@ class SerializedMappedOperator(DAGNode):
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     is_stub: bool = attrs.field(init=False, default=False)
     _arg_bindings: list[dict[str, Any]] | None = attrs.field(alias="arg_bindings", init=False, default=None)
+    _external_clear_target: dict[str, Any] | None = attrs.field(
+        alias="external_clear_target", init=False, default=None
+    )
     _task_module: str
     task_type: str
     _operator_name: str
@@ -194,6 +197,11 @@ class SerializedMappedOperator(DAGNode):
     def arg_bindings(self) -> list[dict[str, Any]] | None:
         """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
         return self._arg_bindings
+
+    @property
+    def external_clear_target(self) -> dict[str, Any] | None:
+        """Always ``None``: a mapped operator's clear target is resolved per run, on a worker."""
+        return self._external_clear_target
 
     @property
     def owner(self) -> str:
@@ -297,7 +305,7 @@ class SerializedMappedOperator(DAGNode):
         return float(value)
 
     @property
-    def max_retry_delay(self) -> datetime.timedelta | float | None:
+    def max_retry_delay(self) -> datetime.timedelta | None:
         return self._get_partial_kwargs_or_operator_default("max_retry_delay")
 
     @property
@@ -387,7 +395,7 @@ class SerializedMappedOperator(DAGNode):
         from airflow import plugins_manager
 
         operator_extra_links = plugins_manager.get_operator_extra_links()
-        operator_class_type = self.operator_class["task_type"]  # type: ignore
+        operator_class_type = self.operator_class["task_type"]
         for ope in operator_extra_links:
             if ope.operators and any(operator_class_type in cls.__name__ for cls in ope.operators):
                 op_extra_links_from_plugin.update({ope.name: ope})

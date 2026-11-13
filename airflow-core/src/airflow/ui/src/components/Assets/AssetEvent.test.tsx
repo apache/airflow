@@ -46,4 +46,37 @@ describe("AssetEvent", () => {
 
     expect(screen.getByText("dagRun.partitionKey: foo")).toBeInTheDocument();
   });
+
+  const sourceEvent = {
+    ...baseEvent,
+    source_dag_id: "producer",
+    source_run_id: "run_1",
+    source_task_id: "body.produce",
+  } satisfies Partial<AssetEventResponse> as AssetEventResponse;
+
+  it("links the source to the task instance", () => {
+    render(<AssetEvent assetId={1} event={sourceEvent} />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name: "producer" })).toHaveAttribute(
+      "href",
+      "/dags/producer/runs/run_1/tasks/body.produce",
+    );
+  });
+
+  it("links the source to the iteration that emitted the event inside a task loop", () => {
+    const regionId = "01a1c466-2f84-76be-aac3-2aca74761c14";
+
+    render(
+      <AssetEvent
+        assetId={1}
+        event={{ ...sourceEvent, source_region_id: regionId, source_region_index: 2 }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByRole("link", { name: "producer" })).toHaveAttribute(
+      "href",
+      `/dags/producer/runs/run_1/tasks/body.produce?region_id=${regionId}&region_index=2`,
+    );
+  });
 });

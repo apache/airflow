@@ -36,7 +36,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -52,9 +52,11 @@ if TYPE_CHECKING:
         ToolUse,
     )
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 __all__ = ["AirflowTools"]
+
+_MCP_HINT = "Connect Strands' MCPClient to the server instead."
 
 # Strands refuses two plugins with the same name on one agent, so each instance gets its own.
 _instance_numbers = itertools.count(1)
@@ -66,7 +68,9 @@ class AirflowTools(Plugin):
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()`` (a ``.filtered()`` function runs once, when this
+    is built, with ``ctx.deps`` set to ``None``), or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. The agent, its
     model and its loop stay plain Strands.
 
@@ -83,7 +87,7 @@ class AirflowTools(Plugin):
     Pass it in ``plugins=``, not ``tools=``: Strands ignores a plugin given as a tool, and
     handing over only its ``tools`` leaves out the hook that ends the run on a failure.
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as a Strands result
     with ``status="error"``, counted against the tool's retry limit once per model turn
@@ -97,12 +101,12 @@ class AirflowTools(Plugin):
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         # Before Plugin.__init__, which reads every attribute, ``name`` and ``tools`` included.
         self._name = f"airflow-tools-{next(_instance_numbers)}"
         self._run = object()
         self._airflow_tools: list[AgentTool] = [
-            _to_strands_tool(tool, lambda: self._run) for tool in collect_tools(sources)
+            _to_strands_tool(tool, lambda: self._run) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
         ]
         super().__init__()
 
@@ -111,7 +115,7 @@ class AirflowTools(Plugin):
         return self._name
 
     @property
-    def tools(self) -> list[AgentTool]:  # type: ignore[override]
+    def tools(self) -> list[AgentTool]:
         # Plugin types this as its decorated tools; the registry takes any AgentTool.
         return self._airflow_tools
 

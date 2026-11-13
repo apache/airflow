@@ -24,6 +24,9 @@ from unittest import mock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from starlette.middleware.gzip import GZipMiddleware
@@ -31,6 +34,7 @@ from starlette.middleware.gzip import GZipMiddleware
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
 from airflow import settings
+from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
 from airflow.utils.session import create_session_async
@@ -212,6 +216,37 @@ def test_api_metrics_middleware_skipped_without_a_metrics_backend(apps):
     assert HttpMetricsMiddleware not in installed
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        pytest.param("/api/v2/monitor/health", id="root-app"),
+        pytest.param("/auth/token", id="mounted-auth-manager-app"),
+        pytest.param("/execution/health", id="mounted-execution-app"),
+    ],
+)
+def test_fastapi_native_telemetry_records_no_spans(path):
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+
+    with mock.patch("opentelemetry.trace.get_tracer_provider", return_value=provider):
+        TestClient(app_module.create_app(apps="all")).get(path, headers={"traceparent": traceparent})
+
+    assert [
+        span.name for span in exporter.get_finished_spans() if span.instrumentation_scope.name == "fastapi"
+    ] == []
+
+
+def test_jwt_refresh_middleware_skips_static_mount():
+    """Static UI assets are served without resolving the user from the JWT cookie."""
+    [middleware] = [
+        m for m in app_module.create_app(apps="core").user_middleware if m.cls is JWTRefreshMiddleware
+    ]
+
+    assert middleware.kwargs == {"skip_path_prefixes": ("/static/",)}
+
+
 def test_catch_all_route_last():
     """
     Ensure the catch all route that returns the initial html is the last route in the fastapi app.
@@ -333,6 +368,22 @@ class TestGetCookiePath:
         """When base_url contains a nested subpath, get_cookie_path() should return it."""
         with mock.patch.object(app_module, "API_ROOT_PATH", "/org/team-a/airflow/"):
             assert app_module.get_cookie_path() == "/org/team-a/airflow/"
+
+
+@pytest.mark.parametrize(
+    ("scheme", "ssl_cert", "exp"),
+    [
+        ("http", "", False),
+        ("https", "", True),
+        ("http", "/foo/bar/cert.crt", True),
+        ("https", "/foo/bar/cert/crt", True),
+    ],
+)
+def test_request_cookie_is_secure(scheme, ssl_cert, exp):
+    request = mock.Mock()
+    request.base_url.scheme = scheme
+    with conf_vars({("api", "ssl_cert"): ssl_cert}):
+        assert app_module.request_cookie_is_secure(request) == exp
 
 
 def test_create_auth_manager_thread_safety():

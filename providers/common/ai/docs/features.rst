@@ -87,8 +87,7 @@ Choose a model
      - Uses a model that cannot write text, such as TypeSafe's hosted Jev or Ollama's
        decision models, to answer a typed question with one value from a set you
        define, plus a confidence.
-     - Jev: ``typesafe``, and install ``pydantic-ai-slim`` 2.45+; others: install
-       ``pydantic-ai-slim`` 2.53+
+     - Jev: ``typesafe``; others: install ``pydantic-ai-slim`` 2.53+
    * - :doc:`LlamaIndex models <hooks/llamaindex>`
      - Builds LlamaIndex language and embedding models from a connection.
      - ``llamaindex``, and install the vendor's package for vendors other than OpenAI
@@ -247,8 +246,8 @@ Recover from failures
 Bring your own agent
 --------------------
 
-The Strands, ADK, Anthropic SDK, OpenAI Agents SDK and other-framework routes get every
-toolset except
+The Strands, ADK, Anthropic SDK, OpenAI Agents SDK, Claude Agent SDK and other-framework
+routes get every toolset except
 ``MCPToolset`` and ``AgentSkillsToolset``.
 
 .. list-table::
@@ -275,6 +274,10 @@ toolset except
      - Gives an OpenAI Agents SDK agent the toolsets. Run through ``run_durably``, a retry
        replays its completed calls.
      - None; install ``openai-agents``
+   * - :doc:`Claude Agent SDK <frameworks/claude_agent_sdk>`
+     - Gives the Claude Agent SDK's agent loop the toolsets through an in-process MCP
+       server.
+     - ``claude-agent-sdk``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
        :doc:`turns a toolset into LangChain tools <toolsets/langchain>`.
@@ -298,8 +301,8 @@ See what ran
      - Exports model and tool calls as OpenTelemetry spans.
      - None
    * - :ref:`AI Model tab <howto/observability:model-tab>`
-     - Shows the model on the task instance page of ``@task.llm`` and ``@task.agent``
-       tasks, and for ``@task.agent`` the token counts and an estimated cost.
+     - Shows the model on the task instance page of ``@task.agent`` and every ``@task.llm*``
+       task except ``@task.llm_batch``, and their token counts and an estimated cost.
      - None
 
 .. toctree::

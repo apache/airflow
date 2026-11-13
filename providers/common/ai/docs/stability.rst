@@ -46,11 +46,13 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - ``@task.llm`` and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - Sends the prompt to the model from ``llm_conn_id`` and returns the output as the
        task's return value: a string by default, or an instance of ``output_type``,
-       dumped to a dict when ``serialize_output=True``. Before Airflow 3.3 an instance is
-       always dumped to a dict. ``decision_policy`` is experimental; see below.
+       dumped to a dict when ``serialize_output=True``. Some models arrive as dicts without it;
+       see :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
+       ``decision_policy`` is experimental; see below.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
-       returns its output under the same rules as ``@task.llm``. Code mode is
+       returns its output as the task's return value. Some models arrive as dicts; see
+       :ref:`When a model arrives as a dict <structured-output-dict-shape>`. Code mode is
        experimental; see below.
    * - Per-tool approval on ``AgentOperator`` (:doc:`tool_approval`)
      - On Airflow 3.3 and later, a call to a tool marked with Pydantic AI's approval API
@@ -69,6 +71,10 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
        later run can continue it. Cannot be combined with ``enable_hitl_review``.
+   * - ``emit_message_history`` on ``AgentOperator``
+     - Publishes the finished conversation under the ``message_history`` XCom key without
+       seeding the run. Defaults to ``True`` when ``message_history`` is set, and ``False``
+       stops a seeded run from publishing it. Cannot be combined with ``enable_hitl_review``.
    * - ``durable=True`` on ``AgentOperator`` and ``@task.agent``, and
        :class:`~airflow.providers.common.ai.durable.AirflowDurability`
        (:doc:`durable_execution`)
@@ -94,11 +100,13 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Generates SQL from the prompt and returns it without running it. With
        ``validate_sql=True``, the default, the task fails unless the output is a single
        statement that parses for ``dialect`` and is one of ``allowed_sql_types``
-       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); with the default
-       types, a write nested inside the statement fails it too. A reviewer's edit under
+       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); unless
+       ``allowed_sql_types`` admits a write, a write nested inside the statement fails it
+       too. A reviewer's edit under
        ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
        ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
-       schema.
+       schema. ``datasource_config`` reads object storage through the DataFusion engine of
+       ``common.sql``, which pins ``datafusion`` below 52.
    * - ``@task.llm_file_analysis`` and
        :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
      - Reads the file at ``file_path``, or up to ``max_files`` files under a prefix,
@@ -116,6 +124,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        ``severity`` of ``critical``, ``warning`` or ``info``. ``context_strategy="basic"``
        sends columns only; ``"full"``, the default, adds keys and indexes for database
        sources.
+       ``data_sources`` reads object storage through the DataFusion engine of
+       ``common.sql``, which pins ``datafusion`` below 52.
    * - ``@task.llm_batch`` and
        :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
      - Submits ``requests`` to the batch API that the ``model_id`` prefix selects, writes
@@ -134,7 +144,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :doc:`connections/pydantic_ai_azure` keep their meaning, so an existing connection
        keeps producing the same model.
    * - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`
-     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``. Read-only
+     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``, each named
+       ``<tool_prefix>_<name>`` when ``tool_prefix`` is set. Read-only
        unless ``allow_writes=True``. When ``allowed_tables`` is set, other tables are
        refused. ``query`` returns at most ``max_rows`` rows, and keeps the rows and column
        names within ``max_result_bytes`` bytes. When ``query`` fails or refuses a
@@ -190,9 +201,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - Output review: ``require_approval``, ``enable_hitl_review`` and the review plugin
      - With ``require_approval=True``, the task defers after generating output and returns
        it only once a person approves it on the Required Actions page. A rejection, or a
-       timeout under the default ``on_approval_timeout="fail"``, fails the task, except on
-       ``@task.llm_branch``, where it skips the downstream tasks unless
-       ``fail_on_reject=True``.
+       timeout under the default ``on_approval_timeout="fail"``, fails the task. With
+       ``fail_on_reject=False``, the default on ``@task.llm_branch``, a rejection skips the
+       downstream tasks instead.
 
 Experimental features
 ---------------------
@@ -250,10 +261,10 @@ Everything this provider ships that is not in the table above is experimental.
        ``capture_content``; :doc:`observability`)
      - Span names and attributes come from Pydantic AI's instrumentation and the
        OpenTelemetry GenAI conventions, which are still in development.
-   * - :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` used directly
+   * - :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`
        (:doc:`toolsets/logging`)
-     - The wrapper ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
-       may change.
+     - The capability ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
+       and behaviour may change.
    * - The Strands plugin, the ADK toolset and Strands checkpoint resume
        (:doc:`frameworks/index`)
      - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its
@@ -265,6 +276,9 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`frameworks/openai_agents`)
      - Written against OpenAI Agents SDK 0.20 and 0.23. The SDK is pre-1.0 and changes
        its tool and runner APIs between minor releases.
+   * - The Claude Agent SDK adapter (:doc:`frameworks/claude_agent_sdk`)
+     - New; the SDK is pre-1.0, and its in-process MCP server turns a handler's exception
+       into an error result the adapter has to work around.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)

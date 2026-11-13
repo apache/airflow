@@ -27,6 +27,66 @@
 Changelog
 ---------
 
+15.3.1
+......
+
+.. note::
+
+    ``S3ToAzureBlobStorageOperator`` now verifies S3 TLS certificates by default: ``s3_verify`` defaults
+    to ``None``, deferring to the connection and botocore default. Pass ``s3_verify=False`` to keep the
+    previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify S3 TLS certificates by default in S3ToAzureBlobStorageOperator (#76222)``
+
+Misc
+~~~~
+
+* ``Raise azure-batch minimum to 15.1.0 and azure-mgmt-compute minimum to 38.0.0 (#75270)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
+
+15.3.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, ``PowerBIDatasetRefreshOperator`` resumes an existing refresh
+    by default. Durable execution starts refreshes on the worker, so workers need access
+    to the Power BI service. Set ``durable=False`` to preserve triggerer-only access:
+    the trigger starts a fresh refresh on each try and cancels it after polling errors.
+    On Airflow versions before 3.3, durable execution is disabled and this triggerer-only
+    behavior is preserved automatically. ``MSGraphAsyncOperator`` recovery remains opt-in
+    with ``durable=True`` and requires Airflow 3.3 or later.
+
+Features
+~~~~~~~~
+
+* ``Add AzureAISearchHook to the Microsoft Azure provider (#74290)``
+* ``Make the PowerBI refresh and MSGraph operators durable (#74675, #75272)``
+* ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
+* ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
+
+Misc
+~~~~
+
+* ``Require azure-keyvault-secrets 4.11.0 or newer (#73822)``
+* ``Accept optional task instances in Azure Blob remote-log type hints (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-20 (#75209)``
+
 15.2.1
 ......
 

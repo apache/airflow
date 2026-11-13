@@ -58,6 +58,11 @@ logger = logging.getLogger(__name__)
 
 CALLBACK_METRICS_PREFIX = "deadline_alerts"
 
+# Must be in sync with the identically named constants in airflow.sdk.definitions.deadline
+EVALUATION_TIMING_FIELD = "evaluation_timing"
+DAGRUN_CREATED_TIMING = "DAGRUN_CREATED"
+DAGRUN_QUEUED_TIMING = "DAGRUN_QUEUED"
+
 
 class DeadlineDagRunProtocol(Protocol):
     """The Dag run interface deadline references are evaluated against."""
@@ -289,10 +294,33 @@ class Deadline(Base):
             data["kwargs"] = kwargs
             return data
 
+        callback_failed = False
         if isinstance(self.callback, TriggererCallback):
-            self.callback.data = callback_data_with_context()
+            from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 
-            self.callback.queue(session=session)
+            data = callback_data_with_context()
+            # The triggerer decodes the context with full serde, which rebuilds a value in either
+            # encoding as an object, and strict serialize raises on the current one. Fail the
+            # callback instead of queueing it: raising here would abort the scheduler loop, and the
+            # deadline would be picked up and raise again on every restart.
+            if found := find_reserved_keys(data["kwargs"]["context"], root="context"):
+                _, keys = found
+                logger.error(
+                    "Not queueing the callback of deadline %s for Dag %s, run %s: its context holds "
+                    "reserved serialization keys %s",
+                    self.id,
+                    self.dagrun.dag_id,
+                    self.dagrun.run_id,
+                    ", ".join(keys),
+                )
+                self.callback.state = CallbackState.FAILED
+                self.callback.output = (
+                    f"Not queued: the callback context holds reserved serialization keys {', '.join(keys)}"
+                )
+                callback_failed = True
+            else:
+                self.callback.data = data
+                self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
@@ -324,6 +352,12 @@ class Deadline(Base):
                 {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
             ),
         )
+        if callback_failed:
+            stats.incr(
+                **self.callback.get_metric_info(
+                    CallbackState.FAILED, self.callback.output, team_name=team_name
+                )
+            )
 
 
 class ReferenceModels:
@@ -356,6 +390,8 @@ class ReferenceModels:
 
     class BaseDeadlineReference(LoggingMixin, ABC):
         """Base class for all Deadline implementations."""
+
+        evaluation_timing: str = DAGRUN_CREATED_TIMING
 
         @classproperty
         def reference_name(cls: Any) -> str:
@@ -423,6 +459,8 @@ class ReferenceModels:
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
+
+        evaluation_timing: str = DAGRUN_QUEUED_TIMING
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at

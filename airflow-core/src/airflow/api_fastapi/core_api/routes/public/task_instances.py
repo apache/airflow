@@ -118,6 +118,8 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
 )
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    DependentClear,
+    ExternalClearDepthExceeded,
     _discard_task_state_store,
     _get_task_group_task_ids,
     _patch_task_group_state,
@@ -126,6 +128,9 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_group_validate_request,
     _patch_ti_validate_request,
     _reload_tis_with_rendered_fields,
+    build_dag_clear_check,
+    clear_dependent_runs,
+    find_dependent_clears,
     patch_region_selection,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -214,7 +219,12 @@ def get_mapped_task_instances(
     dag_bag: DagBagDep,
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -560,7 +570,12 @@ def get_task_instances(
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -642,7 +657,10 @@ def get_task_instances(
     ] = None,
     iteration: Annotated[
         int | None,
-        Query(ge=0, description="Narrow ``loop_id`` to a single pass of that loop."),
+        Query(
+            ge=1,
+            description="Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.",
+        ),
     ] = None,
     cursor: str | None = Query(
         None,
@@ -846,9 +864,9 @@ def get_task_instances_batch(
     resolver: CoordinateResolverDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
-    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
-    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
         Range(
             lower_bound_gte=body.run_after_gte,
@@ -874,7 +892,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=TI.start_date,  # type: ignore[arg-type]
+        attribute=TI.start_date,
     )
     end_date = RangeFilter(
         Range(
@@ -883,7 +901,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=TI.end_date,  # type: ignore[arg-type]
+        attribute=TI.end_date,
     )
     duration = RangeFilter(
         Range(
@@ -892,12 +910,12 @@ def get_task_instances_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=TI.duration,  # type: ignore[arg-type]
+        attribute=TI.duration,
     )
-    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
@@ -1190,10 +1208,35 @@ def post_clear_task_instances(
             status.HTTP_404_NOT_FOUND, "Selected task execution is not current in this DAG run"
         )
 
+    include_dependent_dags = (
+        body.include_downstream if body.include_dependent_dags is None else body.include_dependent_dags
+    )
+    can_clear_dag = build_dag_clear_check(user, session=session)
+
+    def find_dependents(selection: Sequence[TI]) -> list[DependentClear]:
+        if not include_dependent_dags or not selection:
+            return []
+        try:
+            return find_dependent_clears(
+                selection,
+                dag_bag=dag_bag,
+                can_clear=can_clear_dag,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+                session=session,
+            )
+        except ExternalClearDepthExceeded as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+
     if task_instances:
         if not dry_run:
             run_keys = {(ti.dag_id, ti.run_id) for ti in task_instances}
-            lock_dag_runs(session, run_keys, refresh=True)
+            # Runs a cascade reaches are locked in the same ordered batch as the source runs, so two clears
+            # from opposite ends of linked Dags cannot deadlock. The plan is worked out again under the lock.
+            dependent_run_keys = {
+                (clear.dag.dag_id, clear.run_id) for clear in find_dependents(task_instances)
+            }
+            lock_dag_runs(session, run_keys | dependent_run_keys, refresh=True)
             if body.task_instance_ids is None:
                 task_instances = [ti for ti in select_candidates() if (ti.dag_id, ti.run_id) in run_keys]
         task_instances = session.scalars(
@@ -1256,6 +1299,10 @@ def post_clear_task_instances(
             .execution_options(populate_existing=True)
         ).all()
 
+    dependent_clears = find_dependents(task_instances)
+    if dry_run:
+        task_instances = [*task_instances, *(ti for clear in dependent_clears for ti in clear.task_instances)]
+
     if not dry_run:
         whole_task_keys = {
             (ti.dag_id, ti.run_id, ti.task_id)
@@ -1294,6 +1341,16 @@ def post_clear_task_instances(
                     prevent_running_task=body.prevent_running_task,
                     whole_task_keys=whole_task_keys,
                 )
+            if dependent_clears:
+                task_instances = [
+                    *task_instances,
+                    *clear_dependent_runs(
+                        dependent_clears,
+                        body=body,
+                        dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
+                        session=session,
+                    ),
+                ]
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
         except ValueError as e:

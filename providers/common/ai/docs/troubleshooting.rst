@@ -33,16 +33,32 @@ Model and connection errors
 
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
-    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, or use a
-    vendor connection type (:doc:`connections/pydantic_ai_azure`,
+    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
+    **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
+    or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
     supply their own platform.
+
+``Connection '...' sets 'model_provider' to '...', which is not a provider pydantic-ai recognizes``
+    The connection's **Default Model Provider** is not a pydantic-ai provider. Check it for a
+    typo; ``openai``, ``openai-chat`` and ``anthropic`` are examples of valid values.
 
 ``'...' is not a provider pydantic-ai recognizes``
     The text before the first ``:`` in the model name is not a pydantic-ai provider.
     Check it for a typo. If the vendor's own model id contains a ``:`` (Bedrock-style
     version suffixes, for example), use the matching vendor connection type instead of
     the generic one.
+
+``Could not reach the database of connection '...'``
+    A ``SQLToolset`` tool could not reach the database the connection points at: the
+    connection is not defined, the host is unreachable, the credentials were rejected,
+    the driver or SQLAlchemy dialect failed to load or connect, or the connection was
+    lost while listing tables or reading a schema.
+    The attempt fails with ``SQLToolsetConnectionError`` instead of handing the error to
+    the model, and Airflow's retry runs the call again. The driver's own message follows
+    the colon. A connection that
+    is not defined, or a SQLAlchemy dialect that is not installed, fails every retry the
+    same way: define the connection or install the package. See :doc:`toolsets/sql`.
 
 An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pydantic_ai_harness``
     The provider is installed without the extra for that vendor, or without ``code-mode``
@@ -116,21 +132,28 @@ as a task failure.
     attempt, which a human review loop's regenerations do not keep. Pick one. See
     :doc:`durable_execution`.
 
-``durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders')``
-    Durable replay records each tool call under its toolset's id, so a
-    ``FunctionToolset``, ``MCPToolset`` or ``DynamicToolset`` without one is refused when
-    the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
-    around it does not reach it. See :doc:`durable_execution`.
+``durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather')``
+    Durable replay records each call of a pydantic-ai ``MCPToolset`` under the toolset's
+    id, and none is derived from the server's URL or command. Set ``id=`` on the toolset
+    itself; an id on a ``Toolset`` capability around it does not reach it. See
+    :ref:`durable-toolset-ids`.
+
+``durable=True names the steps of a toolset built per run after the function that builds it, but ... has no __qualname__``
+    A function that builds a toolset is named by its module and qualified name, and a
+    ``functools.partial`` or a callable object has none. Pass it as
+    ``DynamicToolset(function, id=...)``. See :ref:`durable-toolset-ids`.
 
 ``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
-    Two different toolset objects share an id, so durable replay could not tell their
-    recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
+    Two different toolset objects share an id, or two functions that build toolsets share
+    a module and qualified name (two lambdas in one Dag file), so durable replay could not
+    tell their recorded calls apart. Give each its own ``id=``, or wrap a function in
+    ``DynamicToolset(function, id=...)``. See :ref:`durable-toolset-ids`.
 
 ``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
     ``capabilities`` would record every step twice. Drop one of them.
 
-``message_history and enable_hitl_review=True cannot be used together``
+``message_history and enable_hitl_review=True cannot be used together`` and ``emit_message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
     than silently dropping the reviewed turns. See :doc:`message_history`.
 
@@ -155,11 +178,13 @@ Run-time errors
     connection as described above.
 
 ``DurableJournalError: durable execution could not record a step's result, because it is not JSON-serializable``
-    A tool returned a value that cannot be encoded as JSON. The model could not have read
-    it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
-    Pydantic model. See :doc:`durable_execution`.
+    A tool returned a value that cannot be encoded as JSON, such as an object with no JSON
+    form or a dataclass holding bytes that are not UTF-8 text. It would fail the same way
+    on every attempt, so the task fails without retrying. Return text, numbers, bytes,
+    lists, dicts or a Pydantic model without bytes fields; put bytes in a dict rather than
+    a field of your own class. See :doc:`durable_execution`.
 
-``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
+Durable execution on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and
     ``[common.ai] durable_cache_path`` must be set. On 3.3 and later the task state store
     is used and the option is ignored. See :doc:`durable_execution`.

@@ -77,6 +77,21 @@ is small enough:
 through ``loop.previous``. The gate appears as a task in the loop, named after
 the condition function: ``refine.accurate_enough`` in this example.
 
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_graph.png
+           :alt: Graph view of refine_estimate showing the refine loop group with improve, evaluate and the accurate_enough gate, followed by finished (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_graph.png
+           :alt: Graph view of refine_estimate showing the refine loop group with improve, evaluate and the accurate_enough gate, followed by finished (Light Mode)
+
 Tasks inside a loop body receive ``loop`` as a context parameter, so a parameter with that name in a
 loop body must be keyword-only and cannot have a default other than ``None``.
 
@@ -122,14 +137,68 @@ Returning a ``LoopDecision(stop=..., reason=...)`` instead of a ``bool`` lets yo
 detailed information about why the loop continued or finished. ``stop`` has the same meaning as the
 plain ``bool`` return value. The ``reason`` field is optional text, written by the Dag author, that
 the Airflow UI shows next to the iteration's outcome, for example ``error 0.17, needs < 1e-06``. It
-is limited to 512 bytes of UTF-8; anything longer will result in the gate task failing outright. This
-decision will then show up in the UI on Task Instance Details section of the gate task.
+is limited to 512 bytes of UTF-8; anything longer will result in the gate task failing outright. The
+reason then shows in the UI as the **Decision** in the header of the gate's task instance.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_decision.png
+           :alt: Header of the accurate_enough gate task instance in iteration 3 of 4, showing its decision reason (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_decision.png
+           :alt: Header of the accurate_enough gate task instance in iteration 3 of 4, showing its decision reason (Light Mode)
 
 The reason is also recorded when the loop fails because it reached ``max_iterations`` without
 stopping.
 
 The ``accurate_enough`` condition in the ``refine_estimate`` example above returns a
 ``LoopDecision``, so each iteration of that loop shows its error next to its outcome.
+:doc:`Refine a draft within a budget <apache-airflow-providers-common-ai:use_cases/refine_a_draft_within_a_budget>`
+uses the same pattern for LLM calls, stopping with a reason when a judge passes the draft or when
+the loop has spent its dollar or token budget.
+
+Ask a person in each iteration
+------------------------------
+
+A loop body can wait for a person, so someone reviews each iteration's result before the loop
+decides whether to go on. This example asks a model for a release note with ``@task.llm``, has a
+person approve it or request changes with
+:class:`~airflow.providers.standard.operators.hitl.HITLOperator`, and repeats until they approve.
+From the second iteration the prompt includes the previous draft and the reviewer's feedback, read
+through ``loop.previous`` (see :ref:`loops-pass-data`):
+
+.. exampleinclude:: /../../providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_review_loop.py
+   :language: python
+   :start-after: [START howto_loop_llm_review]
+   :end-before: [END howto_loop_llm_review]
+
+Each iteration opens its own review, listed on the **Required Actions** page and in the review task's
+**Required Action** tab. ``decide`` turns the reviewer's answer into the iteration's result, so
+``until`` stops the loop on approval and otherwise records the feedback as the decision reason, which
+the group's **Iterations** tab shows for every iteration. See :doc:`/tutorial/hitl` for the other
+ways to ask for input.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_review.png
+           :alt: The review loop at iteration 3 of up to 5 in the Graph view, next to the review form with the model's third draft and a feedback field (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_review.png
+           :alt: The review loop at iteration 3 of up to 5 in the Graph view, next to the review form with the model's third draft and a feedback field (Light Mode)
 
 Read the loop context
 =====================
@@ -145,21 +214,35 @@ definition.
    * - Attribute
      - Meaning
    * - ``loop.index``
-     - The current iteration number, starting at zero.
+     - The current iteration number, starting at one.
    * - ``loop.max_iterations``
      - The configured limit on the number of iterations.
    * - ``loop.previous``
-     - The previous iteration's result, or ``None`` in iteration 0.
+     - The previous iteration's result, or ``None`` in iteration 1.
    * - ``loop.result``
      - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
+   * - ``loop.region_id``
+     - The id of the loop execution (trajectory) that holds this iteration. It is the same for every task
+       instance of the iteration, mapped ones included.
+   * - ``loop.trajectory``
+     - The number of that trajectory: 1 for the loop's first execution, and one more each time a rerun
+       replaces later iterations, see :ref:`loops-trajectories`.
+   * - ``loop.forked_from_region_id``
+     - The ``loop.region_id`` of the previous trajectory, or ``None`` in trajectory 1.
+   * - ``loop.resumes_from_index``
+     - The first iteration this trajectory holds, or ``None`` in trajectory 1, which holds them from 1.
 
 Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
 task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.
+The task instance also exposes the loop context as ``ti.loop``, and for a mapped task
+``ti.expanded_ti_count`` is the number of instances in its expansion, counted within the iteration.
+
+.. _loops-pass-data:
 
 Pass data between iterations
 ============================
 
-Between iterations, use ``loop.previous``. Check ``loop.index == 0`` to handle
+Between iterations, use ``loop.previous``. Check ``loop.index == 1`` to handle
 the first iteration. Do not test ``loop.previous is None``: it is also ``None``
 when the previous terminal task returned nothing, and a previous result of
 ``0``, ``False``, or an empty collection can be valid data.
@@ -200,6 +283,7 @@ task's latest iteration.
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull; see :ref:`loops-outside-result`.
+* A Dag that uses a loop needs an XCom backend that supports loops. The default backend does. If your backend does not, for example a custom one written before loops existed, the Dag fails with an error when it is parsed and again when a task starts. See Custom XCom Backends in :doc:`/core-concepts/xcoms`.
 * The experimental DagRun wait API also requires an outside-loop result task. Marking a loop member as the Dag result raises ``ValueError`` while the Dag is parsed, and the wait API rejects results selected directly from a loop member. Mark a task outside the loop as the result instead, for example one that returns the last element of a loop task's results. See :ref:`dag-result`.
 
 Connect a loop to other tasks
@@ -239,8 +323,8 @@ The task receives a sequence (``LazyXComSequence``) with one element for each
 iteration the loop ran, in iteration order, so ``results[-1]`` is the last
 iteration's result and ``len(results)`` is the number of iterations. A mapped
 loop task gives one element per mapped instance for each iteration, ordered by
-iteration first and then by map index: all instances of iteration 0, then all
-instances of iteration 1, and so on. ``ti.xcom_pull(task_ids=...)`` and
+iteration first and then by map index: all instances of iteration 1, then all
+instances of iteration 2, and so on. ``ti.xcom_pull(task_ids=...)`` and
 ``{{ ti.xcom_pull(task_ids=...) }}`` in a template return the same sequence.
 
 Only the current executions are included. Iterations that a rerun replaced do
@@ -257,9 +341,10 @@ gate's state. A trigger rule such as ``always`` does not wait for the loop and
 may see only the iterations that exist so far.
 
 Inside the loop nothing changes: use ``loop.result`` and ``loop.previous``. A
-task outside the loop cannot pull a single value from a loop task, because the
-task ran once for each iteration, and cannot use its output to expand a mapped
-task.
+``ti.xcom_pull`` of another task in the same loop returns that task's value from the
+current iteration. A task outside the loop cannot pull a single value from a loop
+task, because the task ran once for each iteration, and cannot use its output to
+expand a mapped task.
 
 .. _loops-mapped-tasks:
 
@@ -289,11 +374,27 @@ first iteration, then each previous result plus one.
    :start-after: [START mapped_loop]
    :end-before: [END mapped_loop]
 
-The loop iteration and mapped position are separate "coordinates". In this
-example, each iteration has mapped instances 0 and 1, so mapped instance 1 in
-iteration 0 is distinct from mapped instance 1 in iteration 1.
+The loop iteration and mapped position are separate "coordinates", and they do
+not count from the same number: iterations start at 1 and map indexes start at
+0. In this example iteration 1 has mapped instances 0 and 1, so mapped instance
+1 in iteration 1 is distinct from mapped instance 1 in iteration 2.
 Mapped instances appear within their loop iteration, so you can inspect their
 states, tries, and logs separately.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_mapped.png
+           :alt: Mapped task instances of process_batch.process showing map indexes 0 and 1 in iterations 1 and 2 (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_mapped.png
+           :alt: Mapped task instances of process_batch.process showing map indexes 0 and 1 in iterations 1 and 2 (Light Mode)
 
 Mapping a whole loop, nesting loops, and placing a loop inside a mapped task
 group are not supported.
@@ -345,15 +446,56 @@ execution. Downstream tasks then run as they would after any successful gate: th
 gate that was marked successful by hand from one that stopped because ``until`` returned ``True``.
 Any later iterations retained after a selective clear remain unchanged.
 
+The gate's task instance exposes its decision as ``ti.loop_decision``, a ``LoopDecision``, once the gate
+has evaluated it. With ``until``, ``stop`` is ``True`` when ``until`` ended the loop, even at its last
+iteration. When ``stop`` is ``False`` at the last iteration (``loop.index == loop.max_iterations``),
+the loop reached ``max_iterations`` without meeting ``until`` and the gate fails. A gate that fails before
+deciding, for example because ``until`` raised, or that was marked successful by hand, has no decision.
+
 Iterations and execution history
 ================================
 
 In the Grid, select the loop's task group in a Dag run to open its Task Instances
-tab. The **Iteration** filter narrows the table to one iteration, or shows
-**All iterations**, and the **Iteration** column shows which iteration each task
-instance belongs to. The gate's state and logs explain why the loop continued,
+tab. Choose an iteration from the **Iteration** switcher in the breadcrumb, or with
+the **Loop** filter, to narrow the table to that iteration; **All** shows every
+iteration. The **Iteration** column shows which iteration each task instance
+belongs to. The gate's state and logs explain why the loop continued,
 stopped, or failed. Each task's tries and logs remain accessible within its
 iteration.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_iterations.png
+           :alt: Task Instances of the refine loop group narrowed to iteration 2, with the Iteration breadcrumb, the Loop filter and the Iteration column (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_iterations.png
+           :alt: Task Instances of the refine loop group narrowed to iteration 2, with the Iteration breadcrumb, the Loop filter and the Iteration column (Light Mode)
+
+The group's **Iterations** tab lists every iteration, newest first, with its state, start date,
+duration, number of tasks and the gate's decision reason. Select an iteration's number to open the
+Task Instances tab narrowed to that iteration.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_iterations_tab.png
+           :alt: Iterations tab of the refine loop group listing iterations 4 to 1 with each gate's decision reason (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_iterations_tab.png
+           :alt: Iterations tab of the refine loop group listing iterations 4 to 1 with each gate's decision reason (Light Mode)
 
 Iterations cleared by a rerun are kept as history but are not shown in the UI
 in 3.4.0.
@@ -361,15 +503,32 @@ in 3.4.0.
 Clear tasks inside a loop
 ==========================
 
+Open a task instance inside the loop and select the clear button in its header, or press
+:kbd:`Shift+C`, to open the **Clear Task Instance** dialog.
 Use these controls to select how far a clear extends through the loop:
 
-* **Clear downstream tasks** includes downstream tasks. It starts selected unless you have
+* **Downstream** includes downstream tasks. It starts selected unless you have
   changed your saved clear options. Clearing a task this way can also clear
   the gate in the same iteration.
-* **Clear later loop iterations**, selected by default, clears later
+* **Later iterations**, selected by default, clears later
   iterations when the selection includes a gate task, whether selected
-  directly or through **Clear downstream tasks**. The gate runs again and decides
+  directly or through **Downstream**. The gate runs again and decides
   whether the loop should continue from that point.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: /img/ui-dark/loops_clear.png
+           :alt: Clear Task Instance dialog opened from the refine.improve task instance page for iteration 2, with Downstream and Later iterations selected, listing the affected tasks in iterations 2 to 4 (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: /img/ui-light/loops_clear.png
+           :alt: Clear Task Instance dialog opened from the refine.improve task instance page for iteration 2, with Downstream and Later iterations selected, listing the affected tasks in iterations 2 to 4 (Light Mode)
 
 Clearing later iterations does not require the loop to run the same number of
 iterations again. The gate can stop earlier or continue further, within the
@@ -384,14 +543,14 @@ Suppose each iteration contains this sequence:
 
    prepare → process → consume → gate
 
-The loop has already run iterations 0 through 4. You clear ``process`` in
-iteration 2 with **Clear downstream tasks** and **Clear later loop iterations** both selected:
+The loop has already run iterations 1 through 4. You clear ``process`` in
+iteration 2 with **Downstream** and **Later iterations** both selected:
 
 * ``prepare`` in iteration 2 remains completed.
 * ``process``, ``consume``, and the gate in iteration 2 run again.
 * Later iterations 3 and 4 are cleared. Whether replacement iterations run
   depends on the new gate decisions.
-* Iterations 0 and 1 remain untouched.
+* Iteration 1 remains untouched.
 
 If the gate now stops at iteration 2, replacement iterations 3 and 4 are not
 created.
@@ -399,7 +558,7 @@ created.
 Keep later iterations
 ---------------------
 
-Deselect **Clear later loop iterations** to keep the later iterations.
+Deselect **Later iterations** to keep the later iterations.
 Rerunning an earlier gate then does not change the loop progression that
 already followed it: a new stop result does not remove later iterations, and
 a new continue result does not create a duplicate next iteration.
@@ -412,3 +571,17 @@ which leave them in place. To keep later iterations, clear from the UI or the
 REST endpoint.
 
 Tasks you leave uncleared are not recomputed using the results of the rerun.
+
+.. _loops-trajectories:
+
+Reruns and trajectories
+-----------------------
+
+Clearing later iterations starts a new execution of the loop that replaces the previous ones from the
+iteration after the rerun gate. Each execution is a trajectory, identified by ``loop.region_id`` and
+numbered by ``loop.trajectory``: 1 for the first one, growing by one with each rerun. The rerun gate, and
+whatever you clear in its iteration, run again in the trajectory that iteration belongs to, with their
+next try. The replacement iterations run in the new trajectory, from ``loop.resumes_from_index``, and their
+tries count from 1 again for each task. In the example above, iteration 2 stays in trajectory 1, while
+replacement iterations 3 and 4 run in trajectory 2, with ``loop.resumes_from_index`` 3. Task log paths show
+the trajectory after the iteration, as in ``pass=3.2``.

@@ -59,6 +59,13 @@ from airflow.utils.sqlalchemy import UtcDateTime, build_upsert_stmt
 
 log = logging.getLogger(__name__)
 
+EXTERNAL_CLEAR_TARGET_XCOM_KEY = "_airflow_external_clear_target"
+"""
+Key the API server records a task's reported cross-Dag clear target under, from its success report.
+
+Neither the Execution API's nor the public API's XCom routes accept it.
+"""
+
 if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
@@ -456,6 +463,34 @@ class _XComOperations:
             # Already deserialized (e.g., set via Task Execution API)
             return result.value
 
+    @staticmethod
+    def deserialize_value_primitives(result: Any) -> Any:
+        """
+        Deserialize an XCom value to plain JSON types only.
+
+        Unlike :meth:`deserialize_value` this never runs the Airflow serialization
+        module, so a ``__classname__`` envelope in the stored value is returned as an
+        ordinary ``dict`` instead of being imported and instantiated.
+
+        This is what dependency evaluation uses, in the scheduler and in the API
+        server's task instance dependencies endpoint. The values it consumes are
+        primitives, so XCom is read without reconstructing objects in that process. Callers that genuinely need the
+        original Python object (task code pulling another task's return value) keep
+        using :meth:`deserialize_value`.
+
+        :param result: The XCom database row or object containing a ``value`` attribute.
+        :return: The value as plain JSON types (``dict``, ``list``, ``str``, ``int``,
+            ``float``, ``bool`` or ``None``).
+        """
+        if result.value is None:
+            return None
+
+        try:
+            return json.loads(result.value)
+        except (ValueError, TypeError):
+            # Already deserialized (e.g., set via Task Execution API)
+            return result.value
+
 
 def _rows():
     from airflow.models.dagrun import DagRun
@@ -685,6 +720,21 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     @staticmethod
     def _process_row(row: Row) -> Any:
         return get_xcom_model().deserialize_value(row)
+
+
+class LazyXComPrimitivesSelectSequence(LazyXComSelectSequence):
+    """
+    Like :class:`LazyXComSelectSequence`, but never reconstructs Python objects.
+
+    Used by XCom reads during dependency evaluation. See
+    :meth:`XComModel.deserialize_value_primitives`.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _process_row(row: Row) -> Any:
+        return get_xcom_model().deserialize_value_primitives(row)
 
 
 __compat_imports = {

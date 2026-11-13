@@ -75,6 +75,10 @@ own sandbox (:doc:`../tool_approval` lists every limit). ``.filtered()`` drops t
 from what the model is offered, as the :ref:`MCP guide <howto/toolset:mcp-filtered>`
 shows. ``.defer_loading()`` hides a toolset's tools from the model until it searches for
 them, which pays off on a toolset with many tools (see :doc:`progressive_disclosure`).
+In an agent written for another framework, which gets the toolset through
+``AirflowTools``, ``.filtered()``, ``.prefixed()`` and ``.renamed()`` carry over;
+``.approval_required()`` and ``.defer_loading()`` raise a ``TypeError`` (see
+:doc:`../frameworks/index`).
 
 :doc:`logging` and :doc:`langchain` do not reach a system of their own: one wraps a
 toolset to log its calls, the other converts a toolset for a LangChain agent.
@@ -89,7 +93,7 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
     Files with DataFusion <datafusion>
     MCP servers <mcp>
     Agent Skills <skills>
-    Sandboxed execution <../sandbox/index>
+    Sandboxes <../sandbox/index>
     Vendor-managed agents <managed_agent>
     LangChain tools <langchain>
     Tool call logging <logging>
@@ -105,7 +109,6 @@ Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package 
         AgentSkillsToolset,
         DataFusionToolset,
         HookToolset,
-        LoggingToolset,
         ManagedAgentToolset,
         MCPToolset,
         ObjectStorageToolset,
@@ -113,10 +116,11 @@ Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package 
         SQLToolset,
     )
 
-``SQLToolset`` and ``DataFusionToolset`` depend on optional extras. If the extra is not
-installed, the first access to the name raises ``AirflowOptionalProviderFeatureException``.
-``MCPToolset`` imports without its extra; the missing dependency raises ``ImportError``
-when the toolset first connects to the MCP server.
+``SQLToolset``, ``DataFusionToolset`` and ``MCPToolset`` depend on optional extras. If the
+extra is not installed, they raise ``AirflowOptionalProviderFeatureException``. For
+``SQLToolset`` and ``DataFusionToolset`` this happens on the first access to the name.
+``MCPToolset`` imports without its extra; it raises only when the toolset first connects
+to the MCP server.
 
 Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any
@@ -267,8 +271,15 @@ When the model calls a tool with arguments that fail its schema, or the tool ask
 model to try again (``ModelRetry``), the error goes back to the model so it can correct
 the call. What counts differs by toolset:
 
-- ``SQLToolset`` and ``DataFusionToolset`` turn every query error into ``ModelRetry``,
-  so a misspelled column and a dropped connection both count.
+- ``SQLToolset`` counts an error the database returns for a statement, such as a
+  misspelled column, and a statement it refuses itself (a write while
+  ``allow_writes`` is off, a table outside ``allowed_tables``). Failing to reach the
+  database fails the run straight away, except through a hook that only connects when
+  the statement runs; see :doc:`sql`.
+- ``DataFusionToolset`` counts a query naming a column or table that does not exist and,
+  while ``allow_writes`` is off, a statement it refuses itself (a write, or SQL it cannot
+  parse). Other errors from running a query go back to the model as a failed result
+  without using the budget.
 - ``HookToolset`` counts invalid arguments and a call that supplies a pinned
   argument. An exception from the hook itself fails the run straight away.
 - ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or
@@ -299,16 +310,16 @@ used to allow exactly one correction whatever ``retries`` said, so an agent that
 query, and a large integer ``retries`` meant for output validation also lets a failing
 database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
 behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK, Anthropic
-tool runner and OpenAI Agents SDK bridges) there is no agent budget, so each tool gets one correction unless its
+tool runner, OpenAI Agents SDK and Claude Agent SDK bridges) there is no agent budget, so each tool gets one correction unless its
 toolset sets ``max_retries``.
 
 Layering
 --------
 
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is not an
-alternative to anything above. It is a wrapper: it takes a toolset and returns a
-toolset that logs each call. Choose a route first, then decide whether to wrap
-it. The same applies to
+:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` is not an
+alternative to anything above. It is a capability: it wraps the agent's assembled
+function toolset so that each call is logged. Choose a route first, then decide
+whether to log it. The same applies to
 :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`,
 which converts a chosen toolset for a different agent framework rather than
 offering another way to reach a system; :doc:`logging` and :doc:`langchain` cover

@@ -82,7 +82,7 @@ KNOWN_DEPRECATED_CLASSES = [
 # a provider's own runtime rather than constructed by users -- and are intentionally not
 # part of the registry's public "toolsets" module category, so they are exempt from
 # check_all_provider_classes_are_registered's registration requirement. Contrast with
-# e.g. LoggingToolset, which is documented in the toolsets how-to guide and is registered.
+# e.g. SQLToolset, which is documented in the toolsets how-to guide and is registered.
 INTERNAL_UNREGISTERED_TOOLSET_CLASSES = {
     # Masks what a Dag author's toolset returns; applied automatically by AgentOperator.
     "airflow.providers.common.ai.utils.toolset_base.MaskingToolset",

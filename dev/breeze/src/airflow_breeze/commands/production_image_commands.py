@@ -44,6 +44,7 @@ from airflow_breeze.commands.common_image_options import (
     option_from_run,
     option_github_token_for_images,
     option_image_file_dir,
+    option_image_flavor,
     option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
@@ -53,6 +54,7 @@ from airflow_breeze.commands.common_image_options import (
     option_runtime_apt_command,
     option_runtime_apt_deps,
     option_skip_image_file_deletion,
+    option_use_pinned_os_deps_images,
     option_verify,
     option_wait_for_image,
 )
@@ -260,6 +262,7 @@ def prod_image_group():
 @option_dry_run
 @option_github_repository
 @option_github_token
+@option_image_flavor
 @option_include_success_outputs
 @option_install_mysql_client_type
 @option_parallelism
@@ -279,6 +282,7 @@ def prod_image_group():
     envvar="SKIP_ASSET_COMPILED_CHECK",
 )
 @option_skip_cleanup
+@option_use_pinned_os_deps_images
 @option_use_uv_default_depends_on_installation_method
 @option_verbose
 @option_version_suffix
@@ -313,6 +317,7 @@ def build(
     docker_host: str | None,
     github_repository: str,
     github_token: str | None,
+    image_flavor: str,
     include_success_outputs,
     install_airflow_reference: str | None,
     install_airflow_version: str | None,
@@ -332,6 +337,7 @@ def build(
     skip_asset_compiled_check: bool,
     skip_cleanup: bool,
     use_constraints_for_context_distributions: bool,
+    use_pinned_os_deps_images: bool,
     use_uv: bool | None,
     version_suffix: str,
 ):
@@ -411,6 +417,7 @@ def build(
         cleanup_context=cleanup_context,
         commit_sha=commit_sha,
         debian_version=debian_version,
+        image_flavor=image_flavor,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
         docker_host=docker_host,
@@ -433,6 +440,7 @@ def build(
         runtime_apt_command=runtime_apt_command,
         runtime_apt_deps=runtime_apt_deps,
         use_constraints_for_context_distributions=use_constraints_for_context_distributions,
+        use_pinned_os_deps_images=use_pinned_os_deps_images,
         use_uv=use_uv,
         version_suffix=version_suffix,
     )

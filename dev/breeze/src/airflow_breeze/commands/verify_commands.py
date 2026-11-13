@@ -42,7 +42,15 @@ APACHE_AIRFLOW_URL = re.compile(r"github\.com[:/]apache/airflow(\.git)?/?$")
 
 
 def _run_git(*args: str) -> CompletedProcess:
-    return run_command(["git", *args], capture_output=True, text=True, check=False, cwd=AIRFLOW_ROOT_PATH)
+    # Read-only queries: dry-run would skip them and return empty output.
+    return run_command(
+        ["git", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
+        dry_run_override=False,
+    )
 
 
 def find_default_base_ref() -> str | None:
@@ -153,13 +161,16 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
         f"[info]{len(changed_files)} changed file(s) against {base_ref}, "
         f"CI default Python {result['default_python_version']}[/]\n"
     )
-    table = Table(title="What CI runs for this change" if full else "What to run for this change")
-    table.add_column("kind")
-    table.add_column("runs_in")
-    table.add_column("command", overflow="fold")
-    for item in result["items"]:
-        table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
-    console.print(table)
+    if result["items"]:
+        table = Table(title="What CI runs for this change" if full else "What to run for this change")
+        table.add_column("kind")
+        table.add_column("runs_in")
+        table.add_column("command", overflow="fold")
+        for item in result["items"]:
+            table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
+        console.print(table)
+    else:
+        console.print("[info]No tests or docs builds to run locally for the changed files.[/]")
     console.print(
         "\n[info]Static checks are not listed. Run prek as usual. It picks the hooks for the changed files.[/]"
     )

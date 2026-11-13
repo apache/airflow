@@ -19,6 +19,7 @@ from __future__ import annotations
 THIRD_PARTY_INDEXES = {
     "boto3": "https://boto3.amazonaws.com/v1/documentation/api/latest",
     "celery": "https://docs.celeryq.dev/en/stable/",
+    "dateutil": "https://dateutil.readthedocs.io/en/stable",
     "docker": "https://docker-py.readthedocs.io/en/stable",
     "hdfs": "https://hdfscli.readthedocs.io/en/latest",
     "jinja2": "https://jinja.palletsprojects.com/en/3.1.x",

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
@@ -48,6 +49,7 @@ from airflow.api_fastapi.common.parameters import (
     teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.xcom import reject_reserved_xcom_key
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
     XComCreateBody,
@@ -66,7 +68,14 @@ from airflow.models.dag import DagModel
 from airflow.models.dynamic_region import LOOP_XCOM_PREFIX
 from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XComModel, build_xcom_read_query, select_producers, xcom_entity
+from airflow.models.xcom import (
+    EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+    XComModel,
+    build_xcom_read_query,
+    select_producers,
+    xcom_entity,
+)
+from airflow.serialization.stringify import stringify as stringify_xcom
 
 xcom_router = AirflowRouter(
     tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
@@ -141,28 +150,15 @@ def get_xcom_entry(
     value = result.value
 
     if deserialize:
-        # Custom XCom backends may store references (eg: object storage paths) in the database.
-        # The custom XCom backend's deserialize_value() resolves these to actual values, but that is only
-        # used on workers during task execution. The API reads directly from the database and uses
-        # stringify() to convert DB values (references or serialized data) to human readable
-        # format for UI display or for API users.
-        import json
-
-        from airflow.serialization.stringify import (
-            StringifyNotSupportedError,
-            stringify as stringify_xcom,
-        )
-
+        # The value is rendered from what is stored in the database: no XCom backend is involved and no
+        # object is reconstructed from it. A custom backend may store a reference (eg: an object
+        # storage path) there; only workers resolve it into the actual value.
         try:
             parsed_value = json.loads(result.value)
         except (ValueError, TypeError):
             # Already deserialized (e.g., set via Task Execution API)
             parsed_value = result.value
-
-        try:
-            value = stringify_xcom(parsed_value)
-        except StringifyNotSupportedError:
-            value = XComModel.deserialize_value(result)
+        value = stringify_xcom(parsed_value)
     else:
         # For native format, return the raw serialized value from the database
         # This preserves the JSON string format that the API expects
@@ -235,7 +231,10 @@ def get_xcom_entries(
     exclude_internal_keys: Annotated[
         bool,
         Query(
-            description="Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons."
+            description=(
+                "Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons "
+                "and cross-Dag clear targets."
+            )
         ),
     ] = False,
 ) -> XComCollectionResponse:
@@ -293,7 +292,10 @@ def get_xcom_entries(
     if xcom_key is not None:
         query = query.where(entity.key == xcom_key)
     if exclude_internal_keys:
-        query = query.where(~entity.key.startswith(LOOP_XCOM_PREFIX, autoescape=True))
+        query = query.where(
+            ~entity.key.startswith(LOOP_XCOM_PREFIX, autoescape=True),
+            entity.key != EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+        )
 
     query, total_entries = paginated_select(
         statement=query,
@@ -325,12 +327,6 @@ def get_xcom_entries(
     return XComCollectionResponse(xcom_entries=entries, total_entries=total_entries)
 
 
-def _reject_reserved_loop_key(key: str) -> None:
-    # Loop gates write these keys through the Execution API, which validates their values.
-    if key.startswith(LOOP_XCOM_PREFIX):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
-
-
 @xcom_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -357,7 +353,7 @@ def create_xcom_entry(
     """Create an XCom entry."""
     from airflow.models.dagrun import DagRun
 
-    _reject_reserved_loop_key(request_body.key)
+    reject_reserved_xcom_key(request_body.key)
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate Dag ID
@@ -462,7 +458,7 @@ def update_xcom_entry(
     dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
-    _reject_reserved_loop_key(xcom_key)
+    reject_reserved_xcom_key(xcom_key)
     scope = resolve_task_scope(
         dag_id=dag_id,
         run_id=dag_run_id,

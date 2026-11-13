@@ -33,9 +33,11 @@ from strands.models.model import Model
 from strands.tools.registry import ToolRegistry
 from strands.types.exceptions import EventLoopException
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.strands import AirflowTools
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
@@ -104,7 +106,7 @@ def _run_through_checkpoints(agent: Agent, prompt: str) -> AgentResult:
     result = agent(prompt)
     while result.checkpoint is not None:
         # Strands types the prompt as AgentInput, which leaves out its checkpointResume block.
-        result = agent({"checkpointResume": {"checkpoint": result.checkpoint.to_dict()}})  # type: ignore[arg-type]
+        result = agent({"checkpointResume": {"checkpoint": result.checkpoint.to_dict()}})
     return result
 
 
@@ -128,6 +130,10 @@ def _run_agent(plugin: AirflowTools, tool_name: str, tool_input: dict[str, Any])
 
 
 class TestAirflowTools:
+    def test_an_mcp_toolset_points_to_strands_mcp_client(self):
+        with pytest.raises(MCPToolsetNotSupportedError, match="Strands' MCPClient"):
+            AirflowTools(MCPToolset("mcp_default"))
+
     def test_adds_every_tool_of_a_toolset(self):
         plugin = AirflowTools(SQLToolset("pg_default"))
 

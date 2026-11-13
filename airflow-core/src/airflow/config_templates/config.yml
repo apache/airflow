@@ -1763,10 +1763,10 @@ api:
       default: "False"
     dag_cache_size:
       description: |
-        Max number of deserialized SerializedDAG objects the API server keeps in memory.
-        Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
-        ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
-        before 3.2.2.
+        Max number of deserialized SerializedDAG objects the API server keeps in memory. Set to 0 for no
+        size limit, leaving eviction to ``dag_cache_ttl``. Setting both this and ``dag_cache_ttl`` to 0
+        disables eviction, so the API server retains every deserialized Dag it loads until restart, matching
+        the behavior before 3.2.2.
 
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
@@ -2758,6 +2758,7 @@ scheduler:
       description: |
         Only count scheduler runs where the scheduler was idle (no tasks queued or finished)
         toward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.
+        Has no effect unless ``[scheduler] num_runs`` is a positive number.
       version_added: 3.2.0
       type: boolean
       example: ~
@@ -2775,11 +2776,47 @@ scheduler:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as assets that are no longer
-        referenced and should be marked as orphaned.
+        referenced and should be marked as orphaned. The same cleanup marks the Dags of inactive
+        bundles stale, removes stale Dag warnings, and ends Dag processor Jobs using the Execution
+        API that exceeded ``[dag_processor] job_heartbeat_timeout``.
       version_added: 2.5.0
       type: integer
       example: ~
       default: "60"
+    dag_cache_size:
+      description: |
+        Max number of deserialized SerializedDAG objects the scheduler keeps in memory, keyed by Dag version
+        ID. Once full, the least recently used version is evicted, so this is a hard ceiling on how much the
+        cache can grow no matter how many Dag versions accumulate.
+
+        Raise it if the scheduler has more Dag versions with runs in flight than this; a limit below the
+        working set evicts versions that are still being scheduled, costing a database fetch and a
+        deserialization on the next loop. Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``.
+        Setting both this and ``dag_cache_ttl`` to 0 disables eviction, so the scheduler retains every
+        deserialized Dag it loads until restart, matching the behavior before 3.3.2.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "512"
+    dag_cache_ttl:
+      description: |
+        Seconds a deserialized SerializedDAG stays in the scheduler's cache. Defaults to 0, which disables
+        TTL and leaves eviction to the ``dag_cache_size`` LRU policy.
+
+        Note that each re-check resets an entry's expiry, so a TTL only reclaims Dag versions that stop being
+        requested for the whole interval. Versions still referenced by active Dag runs are kept, so
+        ``dag_cache_size`` remains the only hard ceiling and a TTL alone (``dag_cache_size = 0``) bounds
+        memory by the concurrently active set rather than outright.
+
+        Note: this does not govern staleness. A Dag update that creates a new version is picked up
+        immediately, because the new version is a different cache key. A version rewritten in place is
+        re-checked against its current ``dag_hash`` once ``[core] min_serialized_dag_update_interval`` has
+        elapsed since the entry was last validated, so that option bounds how long a rewritten version can be
+        served stale.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "0"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
@@ -3345,15 +3382,15 @@ dag_processor:
         If ``extensions`` is omitted, the extensions declared by the importer class are used.
 
         An entry may also be given as a bare classpath string when it needs no other
-        settings, so ``["my_company.importers.YamlDagImporter"]`` is equivalent to
-        ``[{"classpath": "my_company.importers.YamlDagImporter"}]``.
+        settings, so ``["my_company.importers.TomlDagImporter"]`` is equivalent to
+        ``[{"classpath": "my_company.importers.TomlDagImporter"}]``.
       version_added: 3.4.0
       type: string
       example: >
         [
               {
-                "classpath": "my_company.importers.YamlDagImporter",
-                "extensions": [".yaml", ".yml"],
+                "classpath": "my_company.importers.TomlDagImporter",
+                "extensions": [".toml"],
                 "kwargs": {}
               }
             ]
@@ -3440,10 +3477,27 @@ dag_processor:
         dag processor is considered unhealthy.
         This is used by the health check in the **/health** endpoint and in ``airflow jobs check``
         CLI for DagProcessorJob.
+        For processors using the Execution API, a new registration with the same session
+        credential can replace an unhealthy Job after this threshold, releasing its claimed
+        work. This can happen before ``[dag_processor] job_heartbeat_timeout`` expires.
       version_added: 3.2.0
       type: integer
       example: ~
       default: "30"
+    job_heartbeat_timeout:
+      description: |
+        Seconds a Dag processor using the Execution API may go without a recorded Job heartbeat.
+        After this, the scheduler's next cleanup (every ``[scheduler] parsing_cleanup_interval``)
+        ends the Job and releases the callbacks and parse requests it claimed.
+        This must be at least ``[dag_processor] health_check_threshold``. That shorter health
+        threshold also allows a new registration with the same session credential to replace
+        an unhealthy Job, without waiting for this timeout or scheduler cleanup.
+        A callback that ran before its acknowledgment was recorded can run again after the Job
+        times out or is replaced, repeating its side effects. Callbacks should tolerate repeated execution.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "300"
     disable_bundle_versioning:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not

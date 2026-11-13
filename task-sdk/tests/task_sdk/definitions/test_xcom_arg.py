@@ -295,6 +295,28 @@ def test_xcom_map_raise_to_skip(run_ti, mock_supervisor_comms):
     assert result == ["a", "b"]
 
 
+def test_xcom_map_dict(run_ti, mock_supervisor_comms):
+    result = set()
+    with DAG("test") as dag:
+
+        @dag.task
+        def push():
+            return {"a": 1, "b": 2}
+
+        @dag.task
+        def pull(value):
+            result.add(value)
+
+        pull.expand(value=push().map(lambda kv: f"{kv[0]}={kv[1]}"))
+
+    mock_supervisor_comms.send.return_value = XComResult(key=BaseXCom.XCOM_RETURN_KEY, value={"a": 1, "b": 2})
+
+    for map_index in range(2):
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
+
+    assert result == {"a=1", "b=2"}
+
+
 def test_xcom_concat(run_ti, mock_supervisor_comms):
     from airflow.sdk.definitions.xcom_arg import _ConcatResult
 

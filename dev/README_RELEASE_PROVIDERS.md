@@ -42,6 +42,7 @@
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
   - [Push the RC tags](#push-the-rc-tags)
+  - [Re-cut a candidate before the vote email is sent](#re-cut-a-candidate-before-the-vote-email-is-sent)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
@@ -386,6 +387,10 @@ later, when you rebase the PR with the latest main before merging it.
 export RELEASE_DATE=$(date "+%Y-%m-%d")
 ```
 
+Once the release-prep PR is merged, this date names the wave: the `providers/${RELEASE_DATE}` tag,
+the SVN folder, the source tarball and the vote email all use it. Every later step must use the same
+value, even when you run it on a later day.
+
 The RELEASE_DATE can also optionally have `_01`, `_02` suffixes appended to it to indicate that the release
 is the first, second or third release candidate for the provider that day. It's unlikely to happen that
 we have several release candidates for the same provider in a single day, but this makes it possible to
@@ -516,12 +521,34 @@ breeze release-management update-providers-next-version
 > interactive breeze command instead of the skill. Run it regardless of whether you think any
 > provider uses the `# use next version` comment — the command is a no-op when none do.
 
+The command only acts on lines the PR author marked. It does not notice when a PR starts importing
+something from another provider (most often `common.compat`) without raising the minimum version
+pin. That holds even for a provider that is **not** in this wave: its next release ships with the
+old floor, and users who already have that older dependent provider installed get an `ImportError`.
+For every new import from another provider in the wave's PRs, find the first release that shipped
+the symbol and make sure the pin is at least that version:
+
+```shell script
+# The commit that introduced the symbol, then the first provider release tag that contains it
+git log --reverse --format=%h -S "<symbol>" -- providers/common/compat/src | head -1
+git tag --contains <commit> "providers-common-compat/*" --sort=v:refname | grep -v rc | head -1
+```
+
+In the 2026-10-14 wave, `openai` imported `get_async_extra_dejson` but still pinned
+`common.compat` below 1.21.0, the first release that has it.
+
 ## Create a PR with the changes
 
 Make sure to set labels: `allow provider dependency bump` and `skip common compat check` to the PR,
 so that the PR is not blocked by selective checks.
 
-You can do it for example this way:
+CI reads the labels from the event that started the run, and adding a label does not start a new
+run. `gh pr create --label` adds the labels a moment after the PR is opened, so the first run sees
+none of them (`PR_LABELS: []` in the job log) and selective checks fail, for example with
+`common_compat_changed_without_next_version`. Re-running the failed jobs replays the same event and
+fails the same way. Open the PR as a draft and mark it ready once the labels are set. The
+`ready_for_review` event starts a run that sees them. `gh` does not accept `--draft` together
+with `--web`, so pick "Create draft pull request" in the browser:
 
 ```shell script
 gh pr create \
@@ -530,7 +557,11 @@ gh pr create \
   --label "skip common compat check" \
   --body "Prepare providers release ${RELEASE_DATE}" \
   --web
+# After creating the draft in the browser and checking that both labels are set:
+gh pr ready
 ```
+
+If CI already ran without the labels, close and reopen the PR to start a run that sees them.
 
 ## Apply incremental changes and merge the PR
 
@@ -722,8 +753,14 @@ key you want to use.
 * Cleanup dist folder:
 
 ```shell script
-export RELEASE_DATE=$(date "+%Y-%m-%d%n")
+# The wave's release preparation date from the release-prep PR, not today's date.
+export RELEASE_DATE=<YYYY-MM-DD>
 export AIRFLOW_REPO_ROOT=$(pwd -P)
+# The merge commit of the release-prep PR. Tag and build exactly this commit, never "whatever HEAD is".
+export WAVE_SHA=<sha>
+# The remote that `git remote -v` shows pushing to apache/airflow: `origin` in a fresh clone
+export APACHE_REMOTE=<remote>
+git checkout ${WAVE_SHA}
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
@@ -732,13 +769,16 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 These instructions assume the standard remote naming convention
 (`upstream` → `apache/airflow`, `origin` → your fork — see
 [`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
+A fresh `git clone` used for the build (see below) has only `origin`, pointing at `apache/airflow`.
+Set `APACHE_REMOTE` below to whichever remote `git remote -v` shows pointing at `apache/airflow` (a
+URL such as `git@github.com:apache/airflow.git` works too). Never push the tags to your fork.
 Set tags for the providers in the repo.
 
 
 ```shell script
 echo "Tagging with providers/${RELEASE_DATE}"
-git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
-git push upstream providers/${RELEASE_DATE}
+git tag -s providers/${RELEASE_DATE} ${WAVE_SHA} -m "Tag providers for ${RELEASE_DATE}" --force
+git push ${APACHE_REMOTE} providers/${RELEASE_DATE}
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
@@ -768,8 +808,8 @@ if you only build few packages, run:
 
 ```shell script
 echo "Tagging with providers/${RELEASE_DATE}"
-git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
-git push upstream providers/${RELEASE_DATE}
+git tag -s providers/${RELEASE_DATE} ${WAVE_SHA} -m "Tag providers for ${RELEASE_DATE}" --force
+git push ${APACHE_REMOTE} providers/${RELEASE_DATE}
 breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix "" PACKAGE PACKAGE ....
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 
@@ -822,6 +862,10 @@ svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
 cd "$AIRFLOW_REPO_ROOT"
 ```
+
+`svn commit` asks for your ASF password unless SVN has it cached, so run it in your own terminal.
+From an agent session or a script without a terminal it fails with `E215004` (authentication
+failed) instead of prompting.
 
 Verify that the files are available in the ${RELEASE_DATE} folder under
 [providers](https://dist.apache.org/repos/dist/dev/airflow/providers/)
@@ -914,6 +958,22 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
      read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
      ```
 
+     `read -s` needs a terminal, so it cannot work when an agent or a script runs the upload for
+     you. In that case, use Magpie's
+     [`secret-prompt`](https://github.com/apache/magpie/tree/main/tools/secret-prompt) instead of the
+     two exports. It asks for the token in the terminal or, when there is none, in a dialog (macOS
+     `osascript`, Linux `zenity`/`kdialog`, or `pinentry`). It shows the exact command that will
+     receive the token and passes the token only to that command, so the token never lands in your
+     shell, a file or the agent's transcript. Install it once, then prefix `twine upload` in the
+     command below:
+
+     ```shell script
+     uv tool install "git+https://github.com/apache/magpie#subdirectory=tools/secret-prompt"
+     # ... then, in the upload command below, replace "twine upload" with:
+     secret-prompt --env TWINE_PASSWORD --set TWINE_USERNAME=__token__ --prefix pypi- \
+       --title "PyPI upload" --prompt "Paste the single-use PyPI token" -- twine upload
+     ```
+
   4. Run the upload (below).
   5. **Delete the token** at
      [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
@@ -972,8 +1032,41 @@ Verify the pushed tags point where you think they do. Plain `git ls-remote` prin
 SHA for annotated tags, which never matches the commit and looks alarming; dereference it with `^{}`:
 
 ```shell script
-git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
+git ls-remote ${APACHE_REMOTE} "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
+
+## Re-cut a candidate before the vote email is sent
+
+When a problem turns up after the candidates are built and staged but **before** the vote email has
+gone out, you can rebuild the same wave instead of starting a new one. Nobody has started verifying
+it yet. Merge the fix, then:
+
+* Keep `RELEASE_DATE`. The SVN folder, the wave tag and the vote email keep their names.
+* Check that the fix is the only change to the wave's providers since the original build:
+  `git log --oneline <old WAVE_SHA>..<new commit> -- providers/<provider> ...`. Anything else listed
+  would ship untested and missing from the changelog and the testing issue: either fold it in
+  (changelog entries, testing-issue rows) or apply the fix on a branch cut from the old `WAVE_SHA`
+  and tag that commit instead.
+* Set `WAVE_SHA` to the new commit and move the wave tag there:
+  `git tag -s -f providers/${RELEASE_DATE} ${WAVE_SHA} -m "Tag providers for ${RELEASE_DATE}"`, then
+  `git push --force ${APACHE_REMOTE} refs/tags/providers/${RELEASE_DATE}`.
+* Check out the new commit (`git checkout ${WAVE_SHA}`, and confirm with `git rev-parse HEAD`), then
+  re-run the [build and sign](#build-and-sign-the-source-and-convenience-packages) steps from the
+  cleanup of `dist/` onwards, minus the wave tag you just moved. Skip the `export RELEASE_DATE=...`
+  line there and keep the original date, or a re-cut on a later day renames the tarball.
+* In `dev/airflow/providers/${RELEASE_DATE}`, `svn rm` the files of any provider or version that is no
+  longer in the wave, copy the new build over the rest, and commit (`svn add --force .` picks up any
+  new files). The filenames carry no `rcN`, so unchanged providers' files are simply replaced.
+* PyPI never lets you reuse a filename, so publish the next candidate number (`rc2` → `rc3`), and pass
+  it explicitly as `--version-suffix rc3`: breeze only moves past an rcN whose tag exists locally,
+  and the previous candidate's tags may not have been created yet. If the wave's providers are at
+  different candidate numbers, build each group with its own next suffix. The previous `rcN` stays on PyPI,
+  and its tags stay in git if they were pushed. Nobody voted on it, and the vote email names only the
+  new one.
+* Push the new RC tags at `${WAVE_SHA}` and republish the staging docs.
+
+Once the vote email is out, do not do this: cancel the vote and run a new wave, or remove the
+provider from it.
 
 ## Prepare documentation in Staging
 
@@ -1039,8 +1132,9 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
-There is also a manual way of running the workflows (see at the end of the document, this should normally
-not be needed unless there is some problem with workflow automation above)
+You can also run each workflow by hand from the GitHub UI, as described in
+[Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
+This should normally not be needed unless there is some problem with the workflow automation above.
 
 ## Prepare issue in GitHub to keep status of testing
 
@@ -1103,6 +1197,11 @@ sed -i '' -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
 # On GNU/Linux:
 sed -i -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
 ```
+
+Testers do not always tick the box: some confirm a PR in a comment instead ("tested #12345, works").
+Before you extract the ticks, read the previous issue's comments and tick any PR confirmed there in
+the previous issue itself, so the record is complete and the extraction picks it up. In the
+2026-10-14 wave, five such PRs were confirmed only in comments.
 
 Review the resulting `[x]` lines in `files/provider_issue.md` (PRs only present in the new wave stay
 unchecked). If the issue was already created, apply the same local edit and then edit the online issue as described in Step 3.
@@ -1205,7 +1304,7 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/${RELEASE_DATE}
 The test procedure for PMC members is described in
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDERS.md#verify-the-release-candidate-by-pmc-members
 
-The test procedure for and Contributors who would like to test this RC is described in:
+The test procedure for Contributors who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDERS.md#verify-the-release-candidate-by-contributors
 
 
@@ -1258,7 +1357,7 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 Set expected release tag (the same as announced in the vote email):
 
 ```shell script
-export RELEASE_DATE=2025-11-03
+export RELEASE_DATE=<YYYY-MM-DD>
 ````
 
 Go to the directory where you have airflow checked out and set AIRFLOW_REPO_ROOT variable
@@ -1349,7 +1448,8 @@ cd "$AIRFLOW_REPO_ROOT"
 2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
-git fetch upstream --tags
+# --force also updates local tags that were moved upstream, such as a re-cut wave tag
+git fetch upstream --tags --force
 git checkout providers/${RELEASE_DATE}
 ```
 
@@ -1704,7 +1804,7 @@ that the Airflow works as you expected.
 # Publish release
 
 ```shell script
-export RELEASE_DATE=2025-11-14
+export RELEASE_DATE=<YYYY-MM-DD>
 export RELEASE_MANAGER_NAME="RELEASE_MANAGER_NAME"
 echo "prepare release date is ${RELEASE_DATE}"
 ```
@@ -1933,6 +2033,9 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
      read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
      ```
 
+     When an agent or a script without a terminal runs the upload, use `secret-prompt` instead, as
+     described in the [release candidate upload](#publish-the-regular-distributions-to-pypi-release-candidates).
+
   4. Run the upload (below).
   5. **Delete the token** at
      [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
@@ -1971,10 +2074,11 @@ at `apache/airflow`, so it also works for release-manager setups where the
 apache/airflow clone is configured as `origin`. Set tags for the providers in the
 repository.
 
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behavior would be to clean such local tags up.
-
-If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
+By default (`--clean-tags`), the command recreates tags that already exist and force-pushes them, so
+you can re-run it after a failed push. Don't re-run it after a successful push: it would replace every
+published tag with a new tag object and change the tag dates that the provider metadata uses as release
+dates. Pass `--no-clean-tags` (or set `CLEAN_TAGS=false`) to make it stop at the first tag that already
+exists locally.
 
 As when [pushing the RC tags](#push-the-rc-tags), check out the wave tag first — `tag-providers`
 tags `HEAD`, so the final tags must be created from the wave commit and not from whatever the
@@ -1990,7 +2094,7 @@ breeze release-management tag-providers --release-date ${RELEASE_DATE}
 Then confirm each pushed tag resolves to the wave commit (`^{}` dereferences the annotated tag):
 
 ```shell script
-git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
+git ls-remote "${APACHE_REMOTE:?set it to the remote that pushes to apache/airflow}" "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Update airflow-site index for new providers
@@ -2074,7 +2178,7 @@ If the wave releases a provider for the first time, open the `apache/airflow-sit
 command fails otherwise, and lists the PR to merge when it completes - see
 [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers).
 
-If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
+If you need to exclude some providers from the documentation you need to add `--exclude-docs` flag
 with space separated list of excluded providers.
 
 ```shell script
@@ -2100,8 +2204,9 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
-There is also a manual way of running the workflows (see at the end of the document, this should normally
-not be needed unless there is some problem with workflow automation above)
+You can also run each workflow by hand from the GitHub UI, as described in
+[Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
+This should normally not be needed unless there is some problem with the workflow automation above.
 
 > [!NOTE]
 > The **Provider Registry** at `airflow.apache.org/registry/` is rebuilt automatically as part of the
@@ -2229,7 +2334,7 @@ Announcement is done from official Apache-Airflow accounts.
 
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+* Bluesky: https://bsky.app/profile/airflow.apache.org
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

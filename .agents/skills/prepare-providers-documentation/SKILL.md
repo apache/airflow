@@ -696,6 +696,14 @@ vote rather than re-cut in this release.
 > doc preparation and PR creation, so it is easy to forget when the skill
 > hands back to the regular release workflow.
 
+The command only resolves pins an author marked. While classifying, also
+note every PR that starts importing a symbol from another provider (most often
+`common.compat`) and check that the importing provider's floor is at least
+the first release that shipped it, even when the importing provider is not in
+this wave. If it is not, raise the floor in this PR and tell the release
+manager. The recipe is in "Update versions of dependent providers to the next
+version" in `dev/README_RELEASE_PROVIDERS.md`.
+
 **Provider dependency-bump CI guard.** Every `>=` bump this produces (and any
 inter-provider `>=` bump made during the wave, e.g. a `breaking` provider that
 dependents must now require) trips the `check_provider_dependency_bumps`
@@ -706,8 +714,9 @@ only be performed by Release Managers!"*. That guard exists to stop
 release wave the bumps are legitimate. The release PR **must carry the
 `allow provider dependency bump` label** to bypass it — every prior "Prepare
 providers release …" PR carries this label. Tell the release manager to add
-the label to the PR (it re-triggers the check via the `labeled` event); the
-bumps are not a mistake to revert.
+the label to the PR; the bumps are not a mistake to revert. Adding a label
+does not re-run CI (the workflow has no `labeled` trigger), so if CI already
+ran without it, close and reopen the PR to start a run that sees the label.
 
 ### Phase 5 — Validate
 

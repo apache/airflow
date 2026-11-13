@@ -17,12 +17,16 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import or_, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.dag_runs import is_filtered_existing_run
+from airflow.api_fastapi.common.parameters import RangeFilter, datetime_range_filter_factory
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
@@ -60,6 +64,10 @@ gantt_router = AirflowRouter(prefix="/gantt", tags=["Gantt"])
 def get_gantt_data(
     dag_id: str,
     run_id: str,
+    start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("start_date", TaskInstance))
+    ],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TaskInstance))],
     session: SessionDep,
     dag_bag: DagBagDep,
 ) -> GanttResponse:
@@ -97,14 +105,22 @@ def get_gantt_data(
         # loses each earlier try the moment a clear archives it -- including the attempt the
         # filter above drops the pending retry in favour of.
     ).execution_options(include_all_attempts=True)
+    query = start_date_range.to_orm(query)
+    query = end_date_range.to_orm(query)
 
     results = session.execute(query).fetchall()
 
     if not results:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"No task instances for dag_id={dag_id} run_id={run_id}",
-        )
+        if not is_filtered_existing_run(
+            dag_id,
+            run_id,
+            has_filter=start_date_range.is_active() or end_date_range.is_active(),
+            session=session,
+        ):
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"No task instances for dag_id={dag_id} run_id={run_id}",
+            )
 
     resolver = TaskCoordinateResolver(dag_bag, session)
     resolver.prefetch_regions(results)

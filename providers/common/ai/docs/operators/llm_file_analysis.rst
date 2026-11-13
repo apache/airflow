@@ -77,7 +77,8 @@ Structured Output
 
 Set ``output_type`` to a Pydantic ``BaseModel`` when you want a typed response
 back from the LLM instead of a plain string. The model instance is pushed to
-XCom unchanged so downstream tasks can type-hint the class directly. The
+XCom unchanged so downstream tasks can type-hint the class directly. Inside a
+list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead. The
 declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for deserialization by the
 worker when it loads the Dag. Define the class at **module scope** and bind it to
@@ -157,11 +158,11 @@ Parameters
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
-- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
-  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
-  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
-  downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, an output that is itself a Pydantic ``BaseModel`` is dumped with
+  ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal`` fields keep their types.
+  Default ``False``: a model whose class the worker registers from ``output_type`` flows through XCom
+  unchanged. Some outputs are pushed as dicts either way; see
+  :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
 
 ``decision_policy`` is not supported here: the operator runs its own ``execute``
 without the confidence gate and rejects a policy with a bar at construction.
@@ -196,3 +197,13 @@ Parquet and Avro readers require their corresponding optional extras:
 
     pip install "apache-airflow-providers-common-ai[parquet]"
     pip install "apache-airflow-providers-common-ai[avro]"
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
+for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

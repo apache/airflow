@@ -47,6 +47,13 @@
   "dagWarnings": {
     "error_one": "1 Hata",
     "errorAndWarning": "1 Hata ve {{warningText}}",
+    "types": {
+      "asset conflict": "Varlık çakışması",
+      "duplicate dag id": "Yinelenen Dag ID",
+      "non-existent pool": "Var olmayan işlem havuzu",
+      "runtime varying value": "Çalışma zamanında değişen değer",
+      "task group cycle": "Görev grubunda döngü"
+    },
     "warning_one": "1 Uyarı",
     "warning_other": "{{count, number}} Uyarı"
   },

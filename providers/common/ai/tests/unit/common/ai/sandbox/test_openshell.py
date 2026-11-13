@@ -1377,12 +1377,17 @@ class TestRunWrapper:
     def test_a_background_child_does_not_hold_the_call(self):
         started = time.monotonic()
         result = self._run("sleep 304 & echo started", seconds=30)
+        elapsed = time.monotonic() - started
 
-        survivors = self._pids("sleep 304")
+        # The forked child may not have exec'd sleep yet when the wrapper returns.
+        for _ in range(100):
+            if survivors := self._pids("sleep 304"):
+                break
+            time.sleep(0.05)
         for pid in survivors:
             os.kill(pid, signal.SIGKILL)
         assert (result.returncode, result.stdout) == (0, b"started\n")
-        assert time.monotonic() - started < 5
+        assert elapsed < 5
         assert survivors
 
     def test_a_failure_to_stage_the_command_has_its_own_status(self, tmp_path):

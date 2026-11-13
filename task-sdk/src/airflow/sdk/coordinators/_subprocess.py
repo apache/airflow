@@ -30,6 +30,7 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
+import logging
 import os
 import selectors
 import signal
@@ -39,37 +40,114 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
 import structlog
 
-from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
+from airflow.sdk.bases.xcom import (
+    XComCoordinate,
+    build_loop_error,
+    build_own_coordinate,
+    is_legacy_xcom_backend,
+    is_own_xcom,
+    is_stored_through_backend,
+)
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
-from airflow.sdk.execution_time.bundles import initialize_ti_bundle
-from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.coordinators._xcom_backend import (
+    XComBackendCall,
+    XComBackendError,
+    XComBackendProcess,
+    runs_in_helper,
+    send_unless_exited,
+)
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
+from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
+    ErrorResponse,
+    GetXCom,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    RetryTask,
+    SetXCom,
+    TaskState,
+    XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
+)
+from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
+from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_xcom,
+    handle_get_xcom,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
+    handle_set_xcom,
+)
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
+from airflow.sdk.execution_time.supervisor import (
+    MIN_HEARTBEAT_INTERVAL,
+    SERVER_TERMINATED,
+    ActivitySubprocess,
+    NeverRaised,
+    ProcessTracker,
+    RequestHandler,
+    RequestResult,
+    ResponseSent,
+    forward_to_log,
+    register_request_method,
+    signal_process_tree,
+)
 
 if TYPE_CHECKING:
     import pathlib
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Generator, Sequence
     from typing import Self
 
+    from pydantic import BaseModel, JsonValue
     from structlog.typing import FilteringBoundLogger
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
+    from airflow.sdk.bases.xcom import BaseXCom, _OwnTaskInstance
+    from airflow.sdk.coordinators._xcom_backend import XComBackendResult
+    from airflow.sdk.execution_time.comms import SetTaskStateStore
+    from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
+
+# How long the supervisor waits for an XCom backend call it cannot service from its request loop.
+_XCOM_BACKEND_CALL_TIMEOUT = 60.0
+# The default ``xcom_key`` of ``BaseOperatorLink`` starts with this prefix.
+_EXTRA_LINK_XCOM_KEY_PREFIX = "_link_"
+
+
+class _TaskStoppedError(Exception):
+    """The task was stopped while the supervisor waited for an XCom backend call, which may have failed."""
+
+    def __init__(self, error: str | None) -> None:
+        super().__init__(error)
+        self.error = error
+
+
+# The tail of each stream is kept: a runtime that fails to start reports why at the end.
+_STARTUP_OUTPUT_LIMIT = 16384
+
+# A runtime that keeps printing while it fails to connect is read no further than this, so it cannot
+# hold up the failure.
+_STARTUP_DRAIN_BUDGET = 1024 * 1024
+
+_STARTUP_OUTPUT_TRUNCATED = f"[earlier output dropped, last {_STARTUP_OUTPUT_LIMIT} bytes]".encode()
 
 
 def _start_server() -> socket.socket:
@@ -92,7 +170,7 @@ def _socket_address(value: tuple | str) -> tuple[str, int] | None:
     #   * IPv4-mapped     "::ffff:127.0.0.1" -> "127.0.0.1"  (Linux, via /proc/net/tcp6)
     #   * IPv4-compatible "::127.0.0.1"      -> "127.0.0.1"  (macOS, via psutil)
     # Otherwise the JVM's connection fails the check and every Java task is rejected with
-    # "process exited with 1 before connecting".
+    # "The runtime exited with 1 before connecting".
     try:
         parsed = ipaddress.ip_address(host)
     except ValueError:
@@ -203,17 +281,102 @@ def _build_runtime_env() -> dict[str, str]:
     }
 
 
+def _kill_leftover_group(pid: int) -> None:
+    """
+    Kill what an exited runtime left in its process group, which ``getpgid`` can no longer resolve.
+
+    A group outlives its leader, so it is reached by the leader's pid. Not when another process has
+    reused that pid, since the group could then be that process's.
+    """
+    if psutil.pid_exists(pid):
+        return
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(pid, signal.SIGKILL)
+
+
+def _read_available(soc: socket.socket, drain_size: int) -> bytes:
+    """Return the data *soc* holds now, without waiting for more from a process that may still run."""
+    soc.setblocking(False)
+    chunks = []
+    budget = _STARTUP_DRAIN_BUDGET
+    with contextlib.suppress(BlockingIOError, OSError):
+        while budget > 0 and (chunk := soc.recv(min(drain_size, budget))):
+            budget -= len(chunk)
+            chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _report_startup_output(
+    target_loggers: tuple[FilteringBoundLogger, ...],
+    drains: dict[str, socket.socket],
+    drained: dict[socket.socket, bytes],
+    drain_size: int,
+) -> None:
+    """
+    Write what a runtime printed before it failed to connect to the task log, one event per line.
+
+    The output goes through the forwarder a connected runtime's output goes through, rather than
+    into the error message, so every line keeps its own level and timestamp. The task instance is
+    not started yet when this runs. If the supervisor then finds the task was cleared while it was
+    queued, it stops without reporting a state, and these lines stay in this try's local log file
+    without being uploaded. They never reach another try: the log file is per try.
+    """
+    for key, soc in drains.items():
+        output = drained[soc] + _read_available(soc, drain_size)
+        level = logging.ERROR if key == "stderr" else logging.INFO
+        forward = forward_to_log(target_loggers, f"task.{key}", level)
+        next(forward)
+        if len(output) > _STARTUP_OUTPUT_LIMIT:
+            output = output[-_STARTUP_OUTPUT_LIMIT:]
+            forward.send(_STARTUP_OUTPUT_TRUNCATED)
+        for line in output.splitlines(keepends=True):
+            forward.send(line)
+
+
+@contextlib.contextmanager
+def _raise_as_launch_error(prefix: str) -> Generator[None, None, None]:
+    """
+    Raise a failure in the block as a TaskLaunchError, so the supervisor fails the task with its reason.
+
+    Use it only before the task instance is started: the supervisor starts the task instance itself
+    when it fails one with a TaskLaunchError. A TaskLaunchError raised in the block is kept as it is.
+    An OSError or ValueError, such as a missing runtime or artifact, or an artifact that cannot run,
+    is retryable. Any other failure, such as a coordinator bug, is not: retrying cannot fix it.
+    """
+    try:
+        yield
+    except TaskLaunchError:
+        raise
+    except (OSError, ValueError) as e:
+        raise TaskLaunchError(f"{prefix}: {e}") from e
+    except Exception as e:
+        raise TaskLaunchError(f"{prefix}: {e}", retryable=False) from e
+
+
 def _accept_connections(
     servers: dict[str, socket.socket],
     drains: dict[str, socket.socket],
     proc: subprocess.Popen,
     *,
+    target_loggers: tuple[FilteringBoundLogger, ...],
     max_wait: float = 10.0,
     drain_size: int = 4096,
 ) -> tuple[dict[socket.socket, socket.socket], dict[socket.socket, bytes]]:
-    """Block until the subprocess connects to servers, draining stdout/stderr along the way."""
+    """
+    Block until the subprocess connects to servers, draining stdout/stderr along the way.
+
+    :raises TaskLaunchError: when the subprocess exits or *max_wait* elapses before it connects. What
+        the subprocess wrote to the *drains* until then goes to *target_loggers* first.
+    """
     accepted: dict[socket.socket, socket.socket] = {}
     drained: dict[socket.socket, bytes] = {s: b"" for s in drains.values()}
+
+    def _fail(reason: str) -> NoReturn:
+        for s in accepted.values():
+            s.close()
+        _report_startup_output(target_loggers, drains, drained, drain_size)
+        raise TaskLaunchError(f"The runtime {reason}")
+
     with selectors.DefaultSelector() as sel:
         for key, soc in itertools.chain(servers.items(), drains.items()):
             sel.register(soc, selectors.EVENT_READ, data=key)
@@ -221,13 +384,9 @@ def _accept_connections(
         while len(accepted) < len(servers):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                for s in accepted.values():
-                    s.close()
-                raise TimeoutError("process did not connect within timeout")
+                _fail(f"did not connect within {max_wait} seconds")
             if proc.poll() is not None:
-                for s in accepted.values():
-                    s.close()
-                raise RuntimeError(f"process exited with {proc.returncode} before connecting")
+                _fail(f"exited with {proc.returncode} before connecting")
             for event, _ in sel.select(timeout=min(remaining, 1.0)):
                 soc = cast("socket.socket", event.fileobj)
                 if soc in drained:
@@ -302,11 +461,14 @@ class _ResourceTracker:
                 case socket.socket():
                     o.close()
                 case subprocess.Popen():
-                    o.terminate()
+                    signal_process_tree(o.pid, signal.SIGTERM, fallback=o.send_signal)
                     try:
                         o.wait(self.timeout)
                     except subprocess.TimeoutExpired:
-                        o.kill()
+                        signal_process_tree(o.pid, signal.SIGKILL, fallback=o.send_signal)
+                    # A runtime that exited before connecting was already reaped, so its group
+                    # is out of reach above while what it spawned is still running.
+                    _kill_leftover_group(o.pid)
 
     def track(self, *objects: Tracked) -> tuple[Tracked, ...]:
         self.tracked.update((id(o), o) for o in objects)
@@ -345,53 +507,67 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         sentry_integration: str = "",
         command: Sequence[str],
         subprocess_schema_version: str | None = None,
+        subprocess_logs_to_stdout: bool = False,
         startup_timeout: float = 10.0,
         **kwargs,
     ) -> Self:
+        process_log = logger or structlog.get_logger(logger_name="task").bind()
+        # 'self' only exists once the runtime has connected, so the loggers its output is forwarded
+        # to are resolved here, for a launch that fails before that.
+        target_loggers = cls._default_target_loggers(process_log, subprocess_logs_to_stdout)
         with _ResourceTracker(timeout=startup_timeout) as tracker:
-            comm_server, logs_server = tracker.track(_start_server(), _start_server())
-            stdout_r, stdout_w = tracker.track(*socket.socketpair())
-            stderr_r, stderr_w = tracker.track(*socket.socketpair())
+            with _raise_as_launch_error("The runtime cannot start"):
+                comm_server, logs_server = tracker.track(_start_server(), _start_server())
+                stdout_r, stdout_w = tracker.track(*socket.socketpair())
+                stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
-            proc = subprocess.Popen(
-                [
-                    *command,
-                    "--comm={0[0]}:{0[1]}".format(comm_server.getsockname()),
-                    "--logs={0[0]}:{0[1]}".format(logs_server.getsockname()),
-                ],
-                stdout=stdout_w.fileno(),
-                stderr=stderr_w.fileno(),
-                env=_build_runtime_env(),
-            )
-            tracker.track(proc)
-            for soc in tracker.untrack(stdout_w, stderr_w):
-                soc.close()
-            log.info("Starting subprocess", pid=proc.pid)
+                proc = subprocess.Popen(
+                    [
+                        *command,
+                        "--comm={0[0]}:{0[1]}".format(comm_server.getsockname()),
+                        "--logs={0[0]}:{0[1]}".format(logs_server.getsockname()),
+                    ],
+                    stdout=stdout_w.fileno(),
+                    stderr=stderr_w.fileno(),
+                    env=_build_runtime_env(),
+                    # Own process group, so the supervisor can signal everything the runtime
+                    # spawned with os.killpg, as the Python task runner has done since #65505.
+                    # Popen returns after exec, so the group exists before kill().
+                    # Must agree with new_process_group=True below.
+                    process_group=0,
+                )
+                tracker.track(proc)
+                for soc in tracker.untrack(stdout_w, stderr_w):
+                    soc.close()
+                log.info("Starting subprocess", pid=proc.pid)
 
-            socks, drained = _accept_connections(
-                {"comm": comm_server, "logs": logs_server},
-                {"stdout": stdout_r, "stderr": stderr_r},
-                proc,
-                max_wait=startup_timeout,
-            )
-            tracker.track(*socks.values())
+                socks, drained = _accept_connections(
+                    {"comm": comm_server, "logs": logs_server},
+                    {"stdout": stdout_r, "stderr": stderr_r},
+                    proc,
+                    target_loggers=target_loggers,
+                    max_wait=startup_timeout,
+                )
+                tracker.track(*socks.values())
 
-            self = cls(
-                id=what.id,
-                pid=proc.pid,
-                process=PopenTracker(proc),
-                process_log=logger or structlog.get_logger(logger_name="task").bind(),
-                start_time=time.monotonic(),
-                stdin=socks[comm_server],
-                subprocess_schema_version=subprocess_schema_version,
-                comm_server=comm_server,
-                logs_server=logs_server,
-                **kwargs,
-            )
-            self._register_pipe_readers(
-                *tracker.untrack(stdout_r, stderr_r, socks[comm_server], socks[logs_server]),
-                data=drained,
-            )
+                self = cls(
+                    id=what.id,
+                    pid=proc.pid,
+                    process=PopenTracker(proc),
+                    process_log=process_log,
+                    start_time=time.monotonic(),
+                    stdin=socks[comm_server],
+                    subprocess_schema_version=subprocess_schema_version,
+                    subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                    # The supervisor signals the group; must agree with process_group=0 above.
+                    new_process_group=True,
+                    comm_server=comm_server,
+                    logs_server=logs_server,
+                    **kwargs,
+                )
+                self._register_pipe_readers(
+                    stdout_r, stderr_r, socks[comm_server], socks[logs_server], data=drained
+                )
             self._on_child_started(
                 ti=what,
                 dag_rel_path=dag_rel_path,
@@ -399,79 +575,349 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 sentry_integration=sentry_integration,
             )
 
-            # Untrack everything left. 'self' keeps track of these and closes
-            # the servers when the subprocess exits in 'wait'.
-            tracker.untrack(comm_server, logs_server, proc)
+            # 'self' owns everything from here: it closes the pipes and the servers when the
+            # subprocess exits in 'wait'. Until this point the tracker still owns them, so a
+            # failure registering the pipes or starting the task instance releases them.
+            tracker.untrack(
+                stdout_r,
+                stderr_r,
+                socks[comm_server],
+                socks[logs_server],
+                comm_server,
+                logs_server,
+                proc,
+            )
 
         return self
+
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
+        super()._on_child_started(
+            ti=ti,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
+        # A language runtime may not send SetExecutionTimeout, so the clock starts once it has the task.
+        # If the runtime sends it, the clock restarts from that message.
+        self._arm_execution_timeout()
+
+    _xcom_backend: XComBackendProcess | None = attrs.field(default=None, init=False)
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
 
-        Unlike ``XCom.delete``, this method does not purge the XCom backend, for two reasons. XComs that a
-        runtime pushes go straight to the API server and never pass through the backend. Also, a purge may
-        need a connection that a hook running in the supervisor process cannot look up, such as a
-        connection that exists only in Airflow's metadata database. So if Python code stored an XCom for
-        this task instance through the backend, deleting that XCom here leaves the stored object in the
-        backend's storage.
-
-        If an XCom cannot be deleted, this try fails and the task does not run.
+        Like ``XCom.delete``, this reads, deletes, then purges each XCom. A failure fails this try, as it
+        does for a Python task.
         """
+        self._execution_timeout_seconds = ti_context.execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
-                self.client.xcoms.delete(ti.dag_id, ti.run_id, ti.task_id, key, ti.map_index)
+                _, purge = self._delete_xcom(
+                    DeleteXCom(
+                        key=key,
+                        dag_id=ti.dag_id,
+                        run_id=ti.run_id,
+                        task_id=ti.task_id,
+                        map_index=ti.map_index,
+                    )
+                )
+                if purge is not None:
+                    self._run_xcom_backend_call(purge)
+            except _TaskStoppedError as e:
+                if self._terminal_state == SERVER_TERMINATED:
+                    # wait() reports that the server stopped this try.
+                    self.process_log.warning(
+                        "Stopped clearing XComs; the server stopped the task", key=key, error=e.error
+                    )
+                    self.kill(signal.SIGKILL)
+                    return None
+                self.process_log.error(
+                    "Stopped clearing XComs; the task process has exited",
+                    key=key,
+                    exit_code=self._exit_code,
+                    error=e.error,
+                )
+                self._fail_before_start(
+                    ti_context, f"The task process exited with code {self._exit_code} before the task started"
+                )
+                return None
             except Exception as e:
                 self.process_log.exception("Failed to clear XCom; not running the task", key=key)
-                end_date = datetime.now(tz=UTC)
-                reason = f"Failed to clear XCom {key!r}: {e}"
-                # wait() sends this outcome to the server after the runtime process exits, the same
-                # way it sends an outcome that the runtime itself reported.
-                self._pending_terminal_state_msg = (
-                    RetryTask(end_date=end_date, retry_reason=reason)
-                    if ti_context.should_retry
-                    else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
-                )
-                self.kill(signal.SIGKILL)
+                self._fail_before_start(ti_context, f"Failed to clear XCom {key!r}: {e}")
                 return None
         # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.
         return ti_context.model_copy(update={"xcom_keys_to_clear": []})
 
+    def _fail_before_start(self, ti_context: TIRunContext, reason: str) -> None:
+        end_date = datetime.now(tz=UTC)
+        # wait() sends this outcome to the server after the runtime process exits, the same
+        # way it sends an outcome that the runtime itself reported.
+        self._pending_terminal_state_msg = (
+            RetryTask(end_date=end_date, retry_reason=reason)
+            if ti_context.should_retry
+            else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
+        )
+        self.kill(signal.SIGKILL)
+
     def wait(self) -> int:
         code = super().wait()
         self._close_unused_sockets(self._comm_server, self._logs_server)
         return code
 
+    def _handle_set_task_state_store(
+        self, msg: SetTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        # A Python task warns in its own setter; a language SDK runtime cannot compute the size
+        # json.dumps gives, so the supervisor warns for it in the task log.
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            if _json_size_exceeds(msg.value, limit):
+                self.process_log.warning(
+                    "Task store value exceeds configured max_value_storage_bytes",
+                    key=msg.key,
+                    max_value_storage_bytes=limit,
+                )
+        return super()._handle_set_task_state_store(msg, log, req_id)
 
-def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    def _monitor_subprocess(self):
+        try:
+            super()._monitor_subprocess()
+        finally:
+            self._stop_xcom_backend()
+
+    def _start_xcom_backend_call(
+        self, call: XComBackendCall, finish: Callable[[XComBackendResult], None]
+    ) -> None:
+        """Send ``call`` to the XCom backend process, which starts on the first call it handles."""
+        if self._xcom_backend is not None and not self._xcom_backend.can_run_a_call:
+            self._stop_xcom_backend()
+        if self._xcom_backend is None:
+            self._xcom_backend = XComBackendProcess.start(
+                id=self.id,
+                client=self.client,
+                logger=self.process_log,
+                selector=self.selector,
+            )
+        self._xcom_backend.send_call(call, finish)
+
+    def _stop_xcom_backend(self) -> None:
+        """Stop the XCom backend process, so that the next call starts one that can answer it."""
+        if (backend := self._xcom_backend) is not None:
+            self._xcom_backend = None
+            backend.stop()
+
+    def _call_xcom_backend(
+        self,
+        call: XComBackendCall,
+        then: Callable[[XComBackendResult], RequestResult],
+        req_id: int,
+    ) -> ResponseSent:
+        """
+        Answer request ``req_id`` with ``then(result)`` once the XCom backend has run ``call``.
+
+        The request loop keeps servicing the task while the call runs. A call that fails fails the request.
+        """
+
+        def answer(resp: BaseModel | None, error: ErrorResponse | None, **dump_opts: bool) -> None:
+            if not send_unless_exited(self, resp, req_id, error, **dump_opts):
+                self.process_log.warning(
+                    "The runtime exited before its XCom request was answered", request_id=req_id
+                )
+
+        def finish(result: XComBackendResult) -> None:
+            try:
+                if result.error is not None:
+                    raise XComBackendError(result.error)
+                resp, dump_opts = then(result)
+            except Exception as e:
+                self.process_log.exception("Failed to handle the XCom backend result", request_id=req_id)
+                answer(None, _build_request_error(e))
+            else:
+                answer(resp, None, **dump_opts)
+
+        self._start_xcom_backend_call(call, finish)
+        return ResponseSent.ALREADY_SENT
+
+    def _run_xcom_backend_call(self, call: XComBackendCall) -> None:
+        """
+        Run ``call`` and wait for it, for a caller with no request loop to return to.
+
+        :raises _TaskStoppedError: when the task is stopped before the call returns or as it returns.
+        :raises XComBackendError: when the call fails or is not answered in time.
+        """
+        answer: list[XComBackendResult] = []
+        self._start_xcom_backend_call(call, answer.append)
+        deadline = time.monotonic() + _XCOM_BACKEND_CALL_TIMEOUT
+        # The task has not started, so it has no requests to read.
+        while not answer and not self._is_stopped() and (now := time.monotonic()) < deadline:
+            self._service_subprocess(max_wait_time=min(deadline - now, MIN_HEARTBEAT_INTERVAL))
+            self._send_heartbeat_if_needed()
+        error = answer[0].error if answer else "The XCom backend did not answer in time"
+        if not answer:
+            # The process is still running the call.
+            self._stop_xcom_backend()
+        if self._is_stopped():
+            # The task must not start, even after a call that succeeded.
+            raise _TaskStoppedError(error)
+        if error is not None:
+            raise XComBackendError(error)
+
+    def _is_stopped(self) -> bool:
+        # kill() can fail to stop the process, so a server stop counts on its own.
+        return self._exit_code is not None or self._terminal_state == SERVER_TERMINATED
+
+    def _handle_set_xcom(
+        self, msg: SetXCom, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        xcom = _get_xcom_backend()
+        if not (is_stored_through_backend(msg.key) and not _is_extra_link(msg.key) and runs_in_helper(xcom)):
+            return handle_set_xcom(self.client, msg)
+        ti = cast("_OwnTaskInstance", self.ti)
+        if is_own_xcom(ti, msg.dag_id, msg.run_id, msg.task_id, msg.resolved_map_index):
+            coordinate = build_own_coordinate(ti)
+        else:
+            coordinate = XComCoordinate(msg.dag_id, msg.run_id, msg.task_id)
+        # A loop iteration has map index -1. A mapped task in a loop is not caught here, since the
+        # supervisor does not parse the Dag.
+        if coordinate.region_id is not None and msg.resolved_map_index == -1 and is_legacy_xcom_backend(xcom):
+            error = _build_request_error(build_loop_error(xcom, f"Task {msg.task_id!r}"))
+            self.send_msg(None, request_id=req_id, error=error)
+            return ResponseSent.ALREADY_SENT
+        return self._call_xcom_backend(
+            XComBackendCall.store(coordinate, msg.resolved_map_index, msg.key, msg.value),
+            lambda stored: handle_set_xcom(self.client, msg.model_copy(update={"value": stored.value})),
+            req_id,
+        )
+
+    def _handle_get_xcom(
+        self, msg: GetXCom, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, dump_opts = handle_get_xcom(self.client, msg)
+        if not (isinstance(result, XComResult) and result.value is not None and _is_loaded_through_backend()):
+            return result, dump_opts
+        return self._call_xcom_backend(
+            XComBackendCall(hook="load", key=msg.key, value=result.value),
+            lambda loaded: (result.model_copy(update={"value": loaded.value}), dump_opts),
+            req_id,
+        )
+
+    def _handle_get_xcom_sequence_item(
+        self, msg: GetXComSequenceItem, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
+        if not (isinstance(result, XComSequenceIndexResult) and _is_loaded_through_backend()):
+            return result, dump_opts
+        return self._call_xcom_backend(
+            XComBackendCall(hook="load", key=msg.key, value=result.root),
+            lambda loaded: (XComSequenceIndexResult(root=loaded.value), dump_opts),
+            req_id,
+        )
+
+    def _handle_get_xcom_sequence_slice(
+        self, msg: GetXComSequenceSlice, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
+        if not (isinstance(result, XComSequenceSliceResult) and result.root and _is_loaded_through_backend()):
+            return result, dump_opts
+        return self._call_xcom_backend(
+            XComBackendCall(hook="load_many", key=msg.key, value=result.root),
+            lambda loaded: (
+                XComSequenceSliceResult(root=cast("list[JsonValue]", loaded.value)),
+                dump_opts,
+            ),
+            req_id,
+        )
+
+    def _handle_delete_xcom(
+        self, msg: DeleteXCom, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, purge = self._delete_xcom(msg)
+        if purge is None:
+            return result
+        # A failed purge fails the request, as XCom.delete does.
+        return self._call_xcom_backend(purge, lambda _: result, req_id)
+
+    def _delete_xcom(self, msg: DeleteXCom) -> tuple[RequestResult, XComBackendCall | None]:
+        """
+        Delete an XCom, and return the call that purges it from the XCom backend as ``XCom.delete`` does.
+
+        The read is not guarded, as in ``XCom.delete``, since skipping the purge would silently leave the
+        stored data behind.
+        """
+        if not runs_in_helper(_get_xcom_backend()):
+            return handle_delete_xcom(self.client, msg), None
+        row, _ = handle_get_xcom(
+            self.client,
+            GetXCom(
+                key=msg.key,
+                dag_id=msg.dag_id,
+                run_id=msg.run_id,
+                task_id=msg.task_id,
+                map_index=msg.map_index,
+            ),
+        )
+        result = handle_delete_xcom(self.client, msg)
+        if isinstance(row, XComResult) and row.value is not None:
+            return result, XComBackendCall(hook="purge", key=msg.key, value=row.value)
+        return result, None
+
+    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[Any]]] = {
+        **ActivitySubprocess._request_handlers,
+        **dict(
+            [
+                register_request_method(DeleteXCom, _handle_delete_xcom),
+                register_request_method(GetXCom, _handle_get_xcom),
+                register_request_method(GetXComSequenceItem, _handle_get_xcom_sequence_item),
+                register_request_method(GetXComSequenceSlice, _handle_get_xcom_sequence_slice),
+                register_request_method(SetXCom, _handle_set_xcom),
+            ]
+        ),
+    }
+
+
+def _build_request_error(exc: Exception) -> ErrorResponse:
+    """Report ``exc`` to the runtime as an XCom backend failure, unless the API server rejected the request."""
+    if isinstance(exc, ServerResponseError):
+        return ErrorResponse.from_server_error(exc)
+    return ErrorResponse(
+        error=ErrorType.XCOM_BACKEND_ERROR,
+        detail={"status_code": None, "message": str(exc), "exception_type": type(exc).__name__},
+    )
+
+
+def _get_xcom_backend() -> type[BaseXCom]:
+    from airflow.sdk.execution_time import xcom
+
+    return xcom.XCom
+
+
+def _is_loaded_through_backend() -> bool:
+    return runs_in_helper(_get_xcom_backend())
+
+
+def _is_extra_link(key: str) -> bool:
     """
-    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
+    Whether ``key`` holds an operator extra link, which the UI reads from the XCom row as it is.
 
-    A bundle resolved without a version points at the bundle's shared, mutable
-    checkout: another task refreshing the same bundle resets it underneath a running
-    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
-    lock is a no-op. Re-resolving at the version current now yields a private
-    ``versions/<version>`` tree that the lock does cover.
-
-    Bundles that do not track versions have nothing to pin and keep their single path.
+    A runtime does not say that a key holds a link, so this goes by the default
+    ``BaseOperatorLink.xcom_key``, which is the only key a runtime writes a link under today.
     """
-    bundle = initialize_ti_bundle(target)
-    if bundle.version is not None:
-        return bundle
-
-    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-    if version is None:
-        return bundle
-    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
-    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
+    return key.startswith(_EXTRA_LINK_XCOM_KEY_PREFIX)
 
 
-def _resolve_task_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
     """
-    Materialize the Dag bundle of a task, pinned to a concrete version.
+    Materialize the Dag bundle of *bundle_info*, pinned to a concrete version.
 
     *logger* is the task logger, so materialization failures surface in the task log.
 
@@ -479,7 +925,7 @@ def _resolve_task_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) 
     """
     cannot_read = f"Dag bundle {bundle_info.name!r} cannot be read"
     try:
-        bundle = _initialize_pinned_bundle(bundle_info, logger)
+        bundle = initialize_pinned_bundle(bundle_info, logger)
     except Exception as e:
         raise TaskLaunchError(f"{cannot_read}: {e}") from e
     try:
@@ -508,12 +954,18 @@ def _is_file_in_bundle(bundle: BaseDagBundle, rel_path: str) -> bool:
 
 
 def _require_supported_schema_version(version: str) -> None:
-    """Raise ``ValueError`` unless the supervisor of this worker's Task SDK knows *version*."""
+    """
+    Check that the supervisor of this worker's Task SDK knows *version*.
+
+    :raises TaskLaunchError: when it does not. Retrying cannot fix it, so this does not retry.
+    """
     try:
         get_schema_version_migrator().resolve_version(version)
     except ValueError as e:
-        raise ValueError(
-            f"uses supervisor schema version {version!r}, which this worker's Task SDK does not support"
+        raise TaskLaunchError(
+            f"The runtime uses supervisor schema version {version!r}, which this worker's Task SDK "
+            "does not support. Upgrade the worker's Airflow, or rebuild the artifact against it.",
+            retryable=False,
         ) from e
 
 
@@ -553,17 +1005,14 @@ class SubprocessCoordinator(BaseCoordinator):
         That is the bundle named by ``task_handler_bundle_name``, or the task's own
         bundle when it is unset. *logger* is the task logger, so materialization
         failures surface in the task log.
+
+        :raises TaskLaunchError: when the bundle cannot be read.
         """
         if self.task_handler_bundle_name is None:
             target = bundle_info
         else:
             target = BundleInfo(name=self.task_handler_bundle_name)
-
-        bundle = _initialize_pinned_bundle(target, logger)
-        path = bundle.path
-        if not path.exists():
-            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
-        return bundle
+        return _resolve_bundle(target, logger)
 
     def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
         """Return the artifact roots resolved for the active task or Dag parse."""
@@ -584,6 +1033,10 @@ class SubprocessCoordinator(BaseCoordinator):
         :class:`_PopenActivitySubprocess` once the listening sockets have been
         bound. A ``None`` schema version disables schema migration; messages are
         then exchanged at the runtime's native wire format.
+
+        Raise ``TaskLaunchError(..., retryable=...)`` when the implementation knows whether
+        retrying can help. Any other exception is reported as a launch failure with a
+        retryability guessed from its type.
         """
         raise NotImplementedError
 
@@ -594,8 +1047,9 @@ class SubprocessCoordinator(BaseCoordinator):
         Build the command that runs *what* from the native Dag file at *path*.
 
         Subclasses can retrieve the root of the Dag bundle holding *path* with
-        :meth:`_get_scan_roots`. The contract is that of :meth:`_build_execute_task_command`.
-        Raise an exception when the file cannot run *what*.
+        :meth:`_get_scan_roots`. The contract is that of :meth:`_build_execute_task_command`,
+        including how to report whether a failure is worth retrying. Raise an exception when the
+        file cannot run *what*.
         """
         raise NotImplementedError(f"{type(self).__name__} cannot run the tasks of a native Dag")
 
@@ -702,8 +1156,7 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         Check that *rel_path* is a file of *bundle* that this coordinator can run, and return its command.
 
-        :raises TaskLaunchError: when the file is missing or cannot be read, cannot run *what*, or needs
-            a supervisor schema version that this worker's Task SDK does not support.
+        :raises TaskLaunchError: when the file is missing or cannot be read, or cannot run *what*.
         """
         version = f" at version {bundle.version!r}" if bundle.version is not None else ""
         try:
@@ -716,14 +1169,10 @@ class SubprocessCoordinator(BaseCoordinator):
             raise TaskLaunchError(
                 f"Dag file {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}"
             )
-        try:
+        with _raise_as_launch_error(
+            f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot run"
+        ):
             command, schema_version = self._build_dag_file_command(what=what, path=bundle.path / rel_path)
-            if schema_version is not None:
-                _require_supported_schema_version(schema_version)
-        except Exception as e:
-            raise TaskLaunchError(
-                f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot run: {e}"
-            ) from e
         return command, schema_version
 
     def execute_task(
@@ -746,28 +1195,35 @@ class SubprocessCoordinator(BaseCoordinator):
         read other files of the bundle, such as the JARs on a Java classpath. Any other task runs the
         artifact found by scanning the bundle that holds the artifacts.
 
-        :raises TaskLaunchError: when a native Dag file cannot run, before the runtime starts.
+        :raises TaskLaunchError: when the runtime cannot start: a native Dag file cannot run, the
+            artifact of any other task cannot be found or run, the artifact needs a supervisor schema
+            version that this worker's Task SDK does not support, or the runtime exits or times out
+            before it connects.
         """
         task_logger = logger or log
         rel_path = os.fspath(dag_rel_path)
-        is_native = self._is_native_dag_file(rel_path, bundle_info.name)
-        if is_native:
-            bundle = _resolve_task_bundle(bundle_info, task_logger)
-        else:
-            bundle = self._resolve_artifact_bundle(bundle_info, task_logger)
-        # Hold the version lock across start()/wait() so bundle cleanup cannot
-        # rmtree a version this task is still reading from, mirroring
-        # task_runner.main() for the Python task path.
-        with (
-            BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version),
-            self._set_scan_roots([bundle.path]),
-        ):
-            if is_native:
-                command, subprocess_schema_version = self._build_native_task_command(
-                    what=what, bundle=bundle, rel_path=rel_path
-                )
-            else:
-                command, subprocess_schema_version = self._build_execute_task_command(what=what)
+        with contextlib.ExitStack() as stack:
+            with _raise_as_launch_error(
+                f"Cannot prepare the runtime of task {what.task_id!r} in Dag {what.dag_id!r}"
+            ):
+                is_native = self._is_native_dag_file(rel_path, bundle_info.name)
+                if is_native:
+                    bundle = _resolve_bundle(bundle_info, task_logger)
+                else:
+                    bundle = self._resolve_artifact_bundle(bundle_info, task_logger)
+                # Hold the version lock across start()/wait() so bundle cleanup cannot
+                # rmtree a version this task is still reading from, mirroring
+                # task_runner.main() for the Python task path.
+                stack.enter_context(BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version))
+                stack.enter_context(self._set_scan_roots([bundle.path]))
+                if is_native:
+                    command, subprocess_schema_version = self._build_native_task_command(
+                        what=what, bundle=bundle, rel_path=rel_path
+                    )
+                else:
+                    command, subprocess_schema_version = self._build_execute_task_command(what=what)
+                if subprocess_schema_version is not None:
+                    _require_supported_schema_version(subprocess_schema_version)
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,

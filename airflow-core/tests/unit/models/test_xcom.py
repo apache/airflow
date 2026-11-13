@@ -587,3 +587,93 @@ class TestXComRoundTrip:
         deserialized_value = XComModel.deserialize_value(mock_xcom)
 
         assert deserialized_value == expected_value
+
+
+_TUPLE_ENVELOPE = {"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1, 2]}
+
+
+@pytest.fixture
+def no_serde_deserialize():
+    with mock.patch("airflow.sdk.serde.deserialize", side_effect=AssertionError("must not construct")) as m:
+        yield m
+
+
+class TestXComPrimitives:
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(json.dumps(_TUPLE_ENVELOPE), _TUPLE_ENVELOPE, id="classname-str"),
+            pytest.param(json.dumps({"a": [_TUPLE_ENVELOPE]}), {"a": [_TUPLE_ENVELOPE]}, id="nested"),
+            pytest.param(_TUPLE_ENVELOPE, _TUPLE_ENVELOPE, id="already-loaded"),
+            pytest.param(None, None, id="none"),
+        ],
+    )
+    def test_deserialize_value_primitives(self, value, expected, no_serde_deserialize):
+        result = XComModel.deserialize_value_primitives(MagicMock(value=value))
+
+        assert result == expected
+        no_serde_deserialize.assert_not_called()
+
+    @pytest.fixture
+    def mapped_tis(self, session, task_instance):
+        tis = []
+        for map_index in (0, 1):
+            ti = create_task_instance(
+                EmptyOperator(task_id="mapped"),
+                run_id=task_instance.run_id,
+                dag_version_id=task_instance.dag_version_id,
+                map_index=map_index,
+            )
+            ti.dag_id = task_instance.dag_id
+            session.add(ti)
+            tis.append(ti)
+        session.commit()
+        return tis
+
+    @staticmethod
+    def _set_envelope(session, ti):
+        XComModel.set(
+            key="xcom_1",
+            value=json.dumps(_TUPLE_ENVELOPE),
+            serialize=False,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            session=session,
+        )
+
+    def test_xcom_pull_full_reconstructs(self, session, task_instance):
+        self._set_envelope(session, task_instance)
+
+        assert task_instance.xcom_pull(task_ids="task_1", key="xcom_1", session=session) == (1, 2)
+
+    def test_xcom_pull_primitives_single_value(self, session, task_instance, no_serde_deserialize):
+        self._set_envelope(session, task_instance)
+
+        result = task_instance.xcom_pull(task_ids="task_1", key="xcom_1", session=session, full=False)
+
+        assert result == _TUPLE_ENVELOPE
+        no_serde_deserialize.assert_not_called()
+
+    def test_xcom_pull_primitives_multiple_tasks(self, session, task_instances, no_serde_deserialize):
+        for ti in task_instances:
+            self._set_envelope(session, ti)
+
+        result = task_instances[0].xcom_pull(
+            task_ids=["task_1", "task_2"], key="xcom_1", session=session, full=False
+        )
+
+        assert type(result).__name__ == "LazyXComPrimitivesSelectSequence"
+        assert list(result) == [_TUPLE_ENVELOPE, _TUPLE_ENVELOPE]
+        no_serde_deserialize.assert_not_called()
+
+    def test_xcom_pull_primitives_mapped_task(self, session, task_instance, mapped_tis, no_serde_deserialize):
+        for ti in mapped_tis:
+            self._set_envelope(session, ti)
+
+        result = task_instance.xcom_pull(task_ids="mapped", key="xcom_1", session=session, full=False)
+
+        assert type(result).__name__ == "LazyXComPrimitivesSelectSequence"
+        assert list(result) == [_TUPLE_ENVELOPE, _TUPLE_ENVELOPE]
+        no_serde_deserialize.assert_not_called()
