@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-12T19:03:24.249955
+# This constraints file was automatically generated on 2026-11-13T19:06:15.856855
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -92,7 +92,7 @@ amqp==5.4.2
 annotated-doc==0.0.5
 annotated-types==0.8.0
 ansicolors==1.1.8
-anthropic==2.6.0
+anthropic==2.7.0
 anyio==4.16.0
 apache-airflow-providers-airbyte==6.2.0
 apache-airflow-providers-akeyless==0.3.2
@@ -271,7 +271,7 @@ certifi==2026.10.23
 cffi==2.1.1
 chardet==7.7.0
 charset-normalizer==3.5.2
-ciso8601==2.3.3
+ciso8601==2.4.1
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.4.1
@@ -286,7 +286,7 @@ comm==0.2.3
 confluent-kafka==2.16.1
 crcmod-plus==2.3.6
 cron_descriptor==2.2.1
-croniter==6.2.4
+croniter==7.0.0
 cryptography==50.0.2
 curlify==3.0.0
 darabonba-core==1.0.10
@@ -319,11 +319,11 @@ facebook_business==26.0.4
 fastapi-cli==0.0.32
 fastapi==0.162.2
 fastavro==1.13.1
-fastcore==2.2.39
+fastcore==2.2.40
 fasteners==0.20
 fastjsonschema==2.22.3
 fastuuid==0.14.0
-filelock==4.2.9
+filelock==4.2.10
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
 flower==2.2.0
@@ -402,9 +402,9 @@ griffelib==2.4.1
 grpc-google-iam-v1==0.14.6
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-health-checking==1.81.1
+grpcio-health-checking==1.81.2
 grpcio-status==1.85.1
-grpcio-tools==1.81.1
+grpcio-tools==1.81.2
 grpcio==1.85.1
 grpclib==0.4.9
 gssapi==1.12.0
@@ -638,7 +638,7 @@ reactivex==6.1.0
 redis==8.1.0
 redshift_connector==2.2.0
 referencing==0.37.0
-regex==2026.11.7
+regex==2026.11.9
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -666,7 +666,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.10
 six==1.17.0
 slack_sdk==3.46.0
-smart_open==9.0.2
+smart_open==9.0.3
 smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
@@ -710,7 +710,7 @@ tqdm==4.70.1
 traitlets==5.16.1
 trino==0.340.0
 truststore==0.10.5
-typer==0.28.0
+typer==0.29.0
 types-certifi==2021.10.8.3
 types-requests==2.33.0.20261030
 types-toml==0.10.8.20260518
@@ -741,7 +741,7 @@ wirerope==1.0.0
 wrapt==2.5.2
 xmlsec==1.3.18
 xmltodict==1.0.4
-xxhash==4.0.2
+xxhash==4.1.0
 yandex-query-client==0.1.4
 yandexcloud==0.414.0
 yarl==1.25.1
