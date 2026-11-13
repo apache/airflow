@@ -20,7 +20,7 @@
 Mapped tasks vs iterable tasks
 ==============================
 
-.. versionadded:: 3.4.0
+.. versionadded:: 3.5.0
 
 Airflow provides two complementary ways to process collections of data:
 

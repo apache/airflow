@@ -47,7 +47,7 @@ from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_installed
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_5_PLUS
 
 if TYPE_CHECKING:
     try:
@@ -404,7 +404,7 @@ def test_extract_metadata_no_extractor_emits_unknown_source_and_inlets_outlets(
     assert metadata.outputs == outlets
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason=".iterate() is available from Airflow 3.4")
+@pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason=".iterate() is available from Airflow 3.5")
 def test_extract_metadata_of_an_iterated_operator_falls_back_to_its_inlets_and_outlets():
     """
     An iterated operator is run by an IterableOperator, which has none of the wrapped operator's
