@@ -743,7 +743,7 @@ The default, ``{}``, disables monitoring. For example, in ``airflow.cfg``:
 .. code-block:: ini
 
     [scheduler]
-    asset_partition_pending_timeouts = {"clean_and_combine_player_stats": 7200}
+    pending_partitioned_dag_run_timeout = {"clean_and_combine_player_stats": 7200}
 
 Use the same setting on every scheduler. For each configured, active partitioned Dag,
 the scheduler adds an ``asset partition pending`` warning when its oldest pending-run
