@@ -95,7 +95,7 @@ class TestFallbackChainExhausted:
         assert not isinstance(error.__cause__, FallbackChainExhaustedError)
         assert error.member_errors == error.__cause__.exceptions
         assert [member.status_code for member in error.member_errors] == [429, 400]
-        assert error.attempts == error.__cause__.attempts
+        assert error.attempts == getattr(error.__cause__, "attempts", ())
         # Not durable: no journal progress to report.
         assert error.replayed_steps is None
         assert error.recorded_steps is None

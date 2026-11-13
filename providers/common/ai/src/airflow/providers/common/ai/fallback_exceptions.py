@@ -58,7 +58,8 @@ class FallbackChainExhaustedError(FallbackExceptionGroup):
     ) -> FallbackChainExhaustedError:
         """Build the error from the group the chain raised, keeping its attempts and members."""
         error = cls(group.message, list(group.exceptions))
-        error.attempts = group.attempts
+        # ``attempts`` arrived in pydantic-ai-slim 2.55.0; the provider still supports 2.46.0.
+        error.attempts = getattr(group, "attempts", ())
         error.replayed_steps = replayed_steps
         error.recorded_steps = recorded_steps
         return error
