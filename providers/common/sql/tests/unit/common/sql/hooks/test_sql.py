@@ -31,6 +31,7 @@ from sqlalchemy import event
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook, resolve_dialects
@@ -503,3 +504,141 @@ def test_inspector_closes_its_dbapi_connections_after_each_inspection(tmp_path):
     assert table_names == ["users"]
     assert opened
     assert closed == opened
+
+
+CURSOR_SPEC = ["execute", "fetchall", "close", "description", "rowcount"]
+
+
+class TestDbApiHookCancelQuery:
+    @staticmethod
+    def _hook_with_cursor(cursor: MagicMock) -> DbApiHook:
+        hook = mock_db_hook(DbApiHook)
+        hook.get_conn().cursor.return_value = cursor
+        return hook
+
+    @staticmethod
+    def _cancel_during(hook: DbApiHook, cursor_method: MagicMock) -> list[bool]:
+        """Record what ``cancel_query`` returns when it is called from inside ``cursor_method``."""
+        outcome: list[bool] = []
+
+        def cancel(*args, **kwargs):
+            outcome.append(hook.cancel_query())
+            return []
+
+        cursor_method.side_effect = cancel
+        return outcome
+
+    def test_nothing_to_cancel_when_no_statement_is_running(self, caplog):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+
+        with caplog.at_level(logging.INFO):
+            assert hook.cancel_query() is False
+
+        assert "there is nothing to cancel" in caplog.text
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+        cursor.cancel.assert_not_called()
+
+    def test_cancel_through_cursor(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel", "connection"])
+        hook = self._hook_with_cursor(cursor)
+        outcome = self._cancel_during(hook, cursor.execute)
+
+        hook.run("select pg_sleep(600)")
+
+        assert outcome == [True]
+        cursor.cancel.assert_called_once_with()
+        cursor.connection.cancel.assert_not_called()
+        assert hook._running_cursor is None
+
+    def test_cancel_falls_back_to_connection(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "connection"])
+        hook = self._hook_with_cursor(cursor)
+        outcome = self._cancel_during(hook, cursor.execute)
+
+        hook.run("select pg_sleep(600)")
+
+        assert outcome == [True]
+        cursor.connection.cancel.assert_called_once_with()
+        assert hook._running_cursor is None
+
+    def test_cancel_not_supported_by_driver(self, caplog):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "connection"])
+        cursor.connection = MagicMock(spec=["commit", "close"])
+        hook = self._hook_with_cursor(cursor)
+        outcome = self._cancel_during(hook, cursor.execute)
+
+        with caplog.at_level(logging.WARNING):
+            hook.run("select pg_sleep(600)")
+
+        assert outcome == [False]
+        assert "does not support cancelling a running SQL statement" in caplog.text
+
+    def test_cancel_while_handler_fetches_results(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+        outcome = self._cancel_during(hook, cursor.fetchall)
+
+        hook.run("select * from big_table", handler=fetch_all_handler)
+
+        assert outcome == [True]
+        cursor.cancel.assert_called_once_with()
+        assert hook._running_cursor is None
+
+    def test_cancel_when_run_command_is_called_directly(self):
+        # Hooks with their own ``run`` (e.g. ``DatabricksSqlHook``) only call ``_run_command``
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+        outcome = self._cancel_during(hook, cursor.execute)
+
+        hook._run_command(cursor, "select pg_sleep(600)", None)
+
+        assert outcome == [True]
+        assert hook._running_cursor is None
+
+    def test_running_cursor_is_cleared_when_statement_fails(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        cursor.execute.side_effect = RuntimeError("boom")
+        hook = self._hook_with_cursor(cursor)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            hook.run("select 1")
+
+        cursor.cancel.assert_not_called()
+        assert hook._running_cursor is None
+
+    @pytest.mark.parametrize("interrupted_method", ["execute", "fetchall"])
+    def test_statement_is_cancelled_when_interrupted_by_timeout(self, interrupted_method):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        getattr(cursor, interrupted_method).side_effect = AirflowTaskTimeout()
+        hook = self._hook_with_cursor(cursor)
+
+        with pytest.raises(AirflowTaskTimeout):
+            hook.run("select pg_sleep(600)", handler=fetch_all_handler)
+
+        cursor.cancel.assert_called_once_with()
+        assert hook._running_cursor is None
+
+    def test_statement_is_not_cancelled_on_timeout_when_disabled(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        cursor.execute.side_effect = AirflowTaskTimeout()
+        hook = self._hook_with_cursor(cursor)
+        hook.cancel_on_interrupt = False
+
+        with pytest.raises(AirflowTaskTimeout):
+            hook.run("select pg_sleep(600)")
+
+        cursor.cancel.assert_not_called()
+        assert hook._running_cursor is None
+
+    def test_timeout_is_raised_when_cancelling_fails(self, caplog):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        cursor.execute.side_effect = AirflowTaskTimeout()
+        cursor.cancel.side_effect = RuntimeError("connection is closed")
+        hook = self._hook_with_cursor(cursor)
+
+        with caplog.at_level(logging.ERROR), pytest.raises(AirflowTaskTimeout):
+            hook.run("select pg_sleep(600)")
+
+        assert "Failed to cancel the running SQL statement" in caplog.text
+        assert hook._running_cursor is None
