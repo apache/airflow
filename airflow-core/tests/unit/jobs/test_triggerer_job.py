@@ -1654,7 +1654,13 @@ class TestTriggerRunner:
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
@@ -1668,7 +1674,13 @@ class TestTriggerRunner:
     def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -1687,7 +1699,13 @@ class TestTriggerRunner:
         """on_kill() is called when CancelledError carries the user-action sentinel."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
@@ -1709,7 +1727,13 @@ class TestTriggerRunner:
         """on_kill() is not called when CancelledError has no user-action sentinel (shutdown/EOF)."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -1726,7 +1750,13 @@ class TestTriggerRunner:
         """on_kill() is not called when the trigger was handed to another triggerer."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError(_REASSIGNED_CANCEL_MSG)
@@ -1750,8 +1780,8 @@ class TestTriggerRunner:
         user_task = MagicMock(spec=asyncio.Task)
         reassigned_task = MagicMock(spec=asyncio.Task)
         trigger_runner.triggers = {
-            1: {"task": user_task, "is_watcher": False, "name": "user", "events": 0},
-            2: {"task": reassigned_task, "is_watcher": False, "name": "moved", "events": 0},
+            1: {"task": user_task, "is_watcher": False, "for_task": True, "name": "user", "events": 0},
+            2: {"task": reassigned_task, "is_watcher": False, "for_task": True, "name": "moved", "events": 0},
         }
         trigger_runner.to_cancel.append(1)
         trigger_runner.to_release.append(2)
@@ -1783,7 +1813,13 @@ class TestTriggerRunner:
         """CancelledError propagates even if on_kill() raises."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
@@ -1834,7 +1870,13 @@ class TestTriggerRunner:
 
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": True,
+                "for_task": True,
+                "name": "us",
+                "events": 0,
+            }
         }
         trigger = _SharedTrigger(queue_url="https://q", region="us")
         trigger.task_instance = MagicMock()
@@ -1929,6 +1971,7 @@ class TestTriggerRunner:
                 trigger_id: {
                     "task": MagicMock(spec=asyncio.Task),
                     "is_watcher": True,
+                    "for_task": True,
                     "name": "us",
                     "events": 0,
                 }
@@ -1996,7 +2039,13 @@ class TestTriggerRunner:
         """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "for_task": True,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
@@ -2081,6 +2130,42 @@ class TestTriggerRunner:
 
         trigger_runner.triggers[2]["task"].cancel()
         await trigger_runner.cleanup_finished_triggers()
+
+    @pytest.mark.parametrize(
+        ("ti", "expected_failures"),
+        [
+            pytest.param(None, 1, id="asset-watcher"),
+            pytest.param(MagicMock(map_index=-1), 0, id="deferred-task"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
+    @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+    @pytest.mark.asyncio
+    async def test_trigger_failing_after_an_event(
+        self, mock_get_trigger_by_classpath, mock_decrypt_kwargs, ti, expected_failures
+    ) -> None:
+        error = ValueError("boom")
+
+        class EventThenFailTrigger(BaseEventTrigger):
+            def serialize(self):
+                return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+            async def run(self):
+                yield TriggerEvent("done")
+                raise error
+
+        mock_get_trigger_by_classpath.return_value = EventThenFailTrigger
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.to_create.append(
+            workloads.RunTrigger.model_construct(id=1, ti=ti, classpath="abc", encrypted_kwargs="{}")
+        )
+        await trigger_runner.create_triggers()
+        await asyncio.wait([trigger_runner.triggers[1]["task"]])
+        await trigger_runner.cleanup_finished_triggers()
+
+        assert len(trigger_runner.events) == 1
+        assert list(trigger_runner.failed_triggers) == [(1, error)] * expected_failures
 
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
@@ -3977,7 +4062,13 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
     """An event from a trigger outside any shared stream carries no persist-confirmation seq."""
     trigger_runner = TriggerRunner()
     trigger_runner.triggers = {
-        1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "t", "events": 0}
+        1: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": False,
+            "for_task": True,
+            "name": "t",
+            "events": 0,
+        }
     }
     trigger = SuccessTrigger()
     trigger.task_instance = MagicMock()
@@ -4014,7 +4105,13 @@ async def test_run_trigger_sets_current_trigger_ti_only_for_task_instance_trigge
 
     trigger_runner = TriggerRunner()
     trigger_runner.triggers = {
-        5: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "t", "events": 0}
+        5: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": False,
+            "for_task": True,
+            "name": "t",
+            "events": 0,
+        }
     }
     trigger = _RecordingTrigger()
     if has_task_instance:
@@ -4053,7 +4150,13 @@ async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_
 
     trigger_runner = TriggerRunner()
     trigger_runner.triggers = {
-        5: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "t", "events": 0}
+        5: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": True,
+            "for_task": True,
+            "name": "t",
+            "events": 0,
+        }
     }
     trigger = _SharedTrigger()
     trigger.task_instance = ti
@@ -4078,6 +4181,7 @@ async def test_trigger_event_payload_not_logged_at_info(cap_structlog):
         1: {
             "task": MagicMock(spec=asyncio.Task),
             "is_watcher": False,
+            "for_task": True,
             "name": "test_dag/run_id/test_task/0/1",
             "events": 0,
         }
@@ -4120,6 +4224,7 @@ async def test_trigger_event_payload_available_at_debug(cap_structlog):
         1: {
             "task": MagicMock(spec=asyncio.Task),
             "is_watcher": False,
+            "for_task": True,
             "name": "test_dag/run_id/test_task/0/1",
             "events": 0,
         }
