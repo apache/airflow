@@ -32,6 +32,9 @@ def mock_connection(host=None, extra=None, uri=None):
     conn = MagicMock(spec=Connection)
     conn.host = host
     conn.extra = extra
+    conn.login = None
+    conn.password = None
+    conn.port = None
     conn.get_uri.return_value = uri if uri is not None else (host or "")
     return conn
 
@@ -79,6 +82,17 @@ class TestSqliteHookConn:
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with("file:/host", uri=True)
         self.db_hook.get_connection.assert_called_once_with("non_default")
+
+    def test_get_uri_ignores_unused_fields(self):
+        conn = Connection(
+            conn_type="sqlite",
+            host="/path/to/database.db",
+            login="testuser",
+            password="testpassword",
+            port=1234,
+        )
+        self.db_hook.get_connection = mock.Mock(return_value=conn)
+        assert self.db_hook.get_uri() == "sqlite:////path/to/database.db"
 
 
 class TestSqliteHook:
@@ -235,3 +249,15 @@ class TestSqliteHook:
         assert engine.name == "sqlite"
         # Assert filepath of the sqliate DB is correct
         assert engine.url.database == hook.get_connection(conn_id).host
+
+    def test_get_ui_field_behaviour(self):
+        assert SqliteHook.get_ui_field_behaviour() == {
+            "hidden_fields": ["port", "login", "password"],
+            "relabeling": {
+                "host": "File path",
+            },
+            "placeholders": {
+                "host": "/path/to/database.db (leave empty or use :memory: for an in-memory database)",
+                "extra": '{"mode": "ro"}',
+            },
+        }
