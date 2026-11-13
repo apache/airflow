@@ -20,6 +20,8 @@ import uuid
 
 import pytest
 from pydantic import TypeAdapter
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -294,6 +296,84 @@ class TestDagRunContext:
         # Relationship should be normalized to a safe iterable.
         assert events is not None
         assert isinstance(events, list)
+
+    def test_dagrun_context_consumed_asset_events_with_invalidated_transaction(self, session):
+        """
+        DagRunContext should recover when the DagRun is attached to a session whose
+        transaction was invalidated by a prior database error.
+
+        Lazy-loading a relationship on such a session raises PendingRollbackError,
+        which is a SQLAlchemyError but not a DetachedInstanceError, so the recovery
+        must catch SQLAlchemyError broadly and reload from a fresh session; otherwise
+        update_state() silently drops the Dag-level callback and the scheduler logs
+        "callback is empty" (#63374).
+        """
+        independent_session = sessionmaker(bind=session.get_bind(), expire_on_commit=False)()
+        current_time = timezone.utcnow()
+        dag_run = DagRun(
+            dag_id="test_dag",
+            run_id="test_run_invalidated_transaction",
+            logical_date=current_time,
+            state="running",
+            run_type="manual",
+        )
+        independent_session.add(dag_run)
+        independent_session.commit()
+
+        try:
+            # A failed flush (duplicate dag_id/run_id) poisons the session; any
+            # further SQL raises PendingRollbackError until rollback.
+            independent_session.add(
+                DagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_invalidated_transaction",
+                    logical_date=current_time,
+                    state="running",
+                    run_type="manual",
+                )
+            )
+            with pytest.raises(IntegrityError):
+                independent_session.flush()
+
+            context = DagRunContext(dag_run=dag_run, last_ti=None)
+
+            events = context.dag_run.consumed_asset_events
+
+            # Relationship should be normalized to a safe iterable.
+            assert events is not None
+            assert isinstance(events, list)
+        finally:
+            independent_session.rollback()
+            independent_session.close()
+
+    def test_dagrun_context_reload_with_deleted_dagrun(self, session):
+        """
+        DagRunContext should degrade gracefully when the DagRun row is deleted while
+        the callback request is being produced: the reload finds no row, the context
+        is still built, and consumed_asset_events normalizes to an empty list.
+        """
+        independent_session = sessionmaker(bind=session.get_bind(), expire_on_commit=False)()
+        current_time = timezone.utcnow()
+        dag_run = DagRun(
+            dag_id="test_dag",
+            run_id="test_run_deleted_reload",
+            logical_date=current_time,
+            state="running",
+            run_type="manual",
+        )
+        independent_session.add(dag_run)
+        independent_session.commit()
+        independent_session.expunge(dag_run)
+
+        # Delete the row behind the detached instance's back.
+        with sessionmaker(bind=session.get_bind(), expire_on_commit=False)() as other_session:
+            other_session.delete(other_session.get(DagRun, dag_run.id))
+            other_session.commit()
+
+        context = DagRunContext(dag_run=dag_run, last_ti=None)
+
+        assert context.dag_run.consumed_asset_events == []
+        independent_session.close()
 
 
 class TestDagCallbackRequestWithContext:

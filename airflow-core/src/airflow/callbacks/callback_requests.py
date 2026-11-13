@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 import structlog
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.exc import NoInspectionAvailable
+from sqlalchemy.exc import NoInspectionAvailable, SQLAlchemyError
 from sqlalchemy.orm.attributes import set_committed_value
-from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
 from airflow.utils.state import TaskInstanceState
@@ -118,8 +117,11 @@ class DagRunContext(BaseModel):
         except NoInspectionAvailable:
             return values
 
-        # Relationship access may raise DetachedInstanceError; on that path, reload DagRun
-        # from the DB to avoid crashing the scheduler.
+        # Relationship access may raise DetachedInstanceError, but also any other
+        # SQLAlchemyError: a session whose transaction was invalidated by a prior
+        # database error raises PendingRollbackError, and a closed session raises
+        # InvalidRequestError. On any of those paths, reload the DagRun from the DB
+        # on a fresh session instead of dropping the Dag-level callback (#63374).
         try:
             events = dag_run.consumed_asset_events
             set_committed_value(
@@ -127,10 +129,9 @@ class DagRunContext(BaseModel):
                 "consumed_asset_events",
                 list(events) if events is not None else [],
             )
-        except DetachedInstanceError:
-            log.warning(
-                "DagRunContext encountered DetachedInstanceError while accessing "
-                "consumed_asset_events; reloading DagRun from DB."
+        except SQLAlchemyError:
+            log.exception(
+                "DagRunContext failed to access consumed_asset_events; reloading DagRun from DB.",
             )
             from sqlalchemy import select
             from sqlalchemy.orm import selectinload
@@ -139,26 +140,41 @@ class DagRunContext(BaseModel):
             from airflow.models.dagrun import DagRun
             from airflow.utils.session import create_session
 
-            # Defensive guardrail: reload DagRun with eager-loaded relationships on
-            # DetachedInstanceError to recover state without adding DB I/O to the hot path.
+            # Read the primary key through the instance identity: attribute access on
+            # an expired instance would hit the same broken session and re-raise.
+            identity = sa_inspect(dag_run).identity
+            if identity is None:
+                raise
+
+            # Defensive guardrail: reload the DagRun with eager-loaded relationships
+            # on a fresh session (the broken one is unusable) without adding DB I/O
+            # to the hot path.
             with create_session() as session:
                 dag_run_reloaded = session.scalar(
                     select(DagRun)
-                    .where(DagRun.id == dag_run.id)
+                    .where(DagRun.id == identity[0])
                     .options(
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     )
                 )
 
-                # DagRun exists; reload is expected to succeed.
-                dag_run_reloaded = cast("DagRun", dag_run_reloaded)
-                reloaded_events = dag_run_reloaded.consumed_asset_events
-
-            # Install DB-backed relationship state on the detached instance.
-            set_committed_value(
-                dag_run, "consumed_asset_events", list(reloaded_events) if reloaded_events is not None else []
-            )
+            if dag_run_reloaded is None:
+                # The row is gone (e.g. purged between failure and callback
+                # production); degrade gracefully instead of crashing.
+                log.warning(
+                    "DagRun no longer exists in the DB; using empty consumed_asset_events.",
+                    dag_run_id=str(identity),
+                )
+                set_committed_value(dag_run, "consumed_asset_events", [])
+            else:
+                # Hand the freshly loaded instance to the validation instead of the
+                # broken one: a session invalidated by a failed flush expires every
+                # attribute of the original instance, so even restoring the
+                # relationship would leave the conversion failing on the remaining
+                # expired columns. The reloaded state reflects the last committed
+                # data, which is the best available snapshot in this recovery path.
+                return {**values, "dag_run": dag_run_reloaded}
 
         return values
 
