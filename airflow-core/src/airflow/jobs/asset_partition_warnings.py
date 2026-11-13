@@ -31,7 +31,11 @@ from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from sqlalchemy.orm import Session
+
+    PendingRunTimeouts: TypeAlias = dict[str, float]
 
 
 class AssetPartitionWaitMonitor:
@@ -44,10 +48,12 @@ class AssetPartitionWaitMonitor:
 
     def check(self) -> None:
         # Validate before reconciling: invalid configuration must not clear existing warnings.
-        configured = conf.getjson("scheduler", "asset_partition_pending_timeouts")
+        configured = conf.getjson("scheduler", "pending_partitioned_dag_run_timeout")
         if not isinstance(configured, dict):
-            raise ValueError("asset_partition_pending_timeouts must be a JSON object of Dag IDs to seconds")
-        timeouts: dict[str, float] = {}
+            raise ValueError(
+                "pending_partitioned_dag_run_timeout must be a JSON object of consumer Dag IDs to seconds"
+            )
+        timeouts: PendingRunTimeouts = {}
         for dag_id, value in configured.items():
             if (
                 not isinstance(dag_id, str)
@@ -58,7 +64,7 @@ class AssetPartitionWaitMonitor:
                 or not math.isfinite(value)
             ):
                 raise ValueError(
-                    "asset_partition_pending_timeouts requires nonempty Dag IDs and finite positive seconds"
+                    "pending_partitioned_dag_run_timeout requires nonempty consumer Dag IDs and finite positive seconds"
                 )
             timeouts[dag_id] = value
 
@@ -72,7 +78,7 @@ class AssetPartitionWaitMonitor:
         self._cursor = dag_ids[-1] if len(dag_ids) == self._batch_size else None
 
     def _get_next_batch(
-        self, timeouts: dict[str, float], *, session: Session, after: str | None
+        self, timeouts: PendingRunTimeouts, *, session: Session, after: str | None
     ) -> list[str]:
         # Use database ordering for both candidates and cursor comparisons. Python ordering
         # can differ from the database collation. Include existing warnings even with no policy.
@@ -93,7 +99,7 @@ class AssetPartitionWaitMonitor:
             query = query.where(DagModel.dag_id > after)
         return list(session.scalars(query))
 
-    def _refresh(self, dag_ids: list[str], timeouts: dict[str, float], *, session: Session) -> None:
+    def _refresh(self, dag_ids: list[str], timeouts: PendingRunTimeouts, *, session: Session) -> None:
         existing = {
             dag_id: message
             for dag_id, message in session.execute(
@@ -105,7 +111,7 @@ class AssetPartitionWaitMonitor:
         }
         now = timezone.utcnow()
         overdue: dict[str, str] = {}
-        if (monitored := [dag_id for dag_id in dag_ids if dag_id in timeouts]):
+        if monitored := [dag_id for dag_id in dag_ids if dag_id in timeouts]:
             pending = session.execute(
                 select(
                     AssetPartitionDagRun.target_dag_id,
@@ -127,12 +133,12 @@ class AssetPartitionWaitMonitor:
                 timeout = timeouts[dag_id]
                 if (now - oldest).total_seconds() > timeout:
                     overdue[dag_id] = (
-                        f"{count} pending partition rows; oldest pending since {oldest.isoformat()}. "
+                        f"{count} pending partitioned Dag runs; oldest pending since {oldest.isoformat()}. "
                         f"The configured wait threshold is {timeout:g} seconds. "
                         "Inspect the pending asset inputs for this Dag."
                     )
 
-        if (cleared := existing.keys() - overdue.keys()):
+        if cleared := existing.keys() - overdue.keys():
             session.execute(
                 delete(DagWarning).where(
                     DagWarning.dag_id.in_(cleared),

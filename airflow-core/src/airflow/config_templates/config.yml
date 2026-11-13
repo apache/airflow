@@ -2817,12 +2817,13 @@ scheduler:
       type: integer
       example: ~
       default: "0"
-    asset_partition_pending_timeouts:
+    pending_partitioned_dag_run_timeout:
       description: |
         Maximum pending age in seconds for each monitored partitioned asset Dag, as a JSON object
-        mapping exact Dag IDs to positive numbers. Empty by default. When the oldest pending row
-        exceeds its threshold, the scheduler records an ``asset partition pending`` Dag warning
-        in the UI and Dag warnings API. This does not fail a run or change scheduling.
+        mapping exact consumer Dag IDs, not asset names or URIs, to positive numbers. Empty by
+        default. When the oldest pending partitioned Dag run exceeds its threshold, the scheduler
+        records a warning in the Dag warnings API and the Dag's page in the UI. This does not
+        fail a run or change scheduling.
 
         Every 60 seconds, each scheduler checks up to 100 configured Dags or Dags with existing
         warnings, rotating through the remainder on subsequent checks. Use the same configuration

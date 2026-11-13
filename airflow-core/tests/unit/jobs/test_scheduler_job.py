@@ -15588,7 +15588,7 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
 @conf_vars(
     {
         ("scheduler", "batch_asset_events"): "True",
-        ("scheduler", "asset_partition_pending_timeouts"): '{"dependency-edit-consumer": 60}',
+        ("scheduler", "pending_partitioned_dag_run_timeout"): '{"dependency-edit-consumer": 60}',
     }
 )
 def test_partition_wait_warning_after_dependency_edit_clears_when_real_run_is_created(

@@ -63,6 +63,7 @@
     "errorAndWarning": "1 Error and {{warningText}}",
     "types": {
       "asset conflict": "Asset conflict",
+      "asset partition pending": "Pending partitioned Dag runs",
       "duplicate dag id": "Duplicate Dag ID",
       "non-existent pool": "Non-existent pool",
       "runtime varying value": "Runtime-varying value",

@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 NOW = timezone.datetime(2026, 11, 12, 12)
-TIMEOUT_OPTION = ("scheduler", "asset_partition_pending_timeouts")
+TIMEOUT_OPTION = ("scheduler", "pending_partitioned_dag_run_timeout")
 WARNING_TYPE = DagWarningType.ASSET_PARTITION_PENDING
 
 
@@ -460,7 +460,7 @@ def test_invalid_policy_preserves_existing_warning(policy):
 
     with (
         conf_vars({TIMEOUT_OPTION: policy}),
-        pytest.raises(ValueError, match="asset_partition_pending_timeouts"),
+        pytest.raises(ValueError, match="pending_partitioned_dag_run_timeout"),
     ):
         AssetPartitionWaitMonitor().check()
 
