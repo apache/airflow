@@ -642,7 +642,7 @@ def test_run_once_keeps_servicing_runner_activity_for_a_second(jobless_superviso
     clock = [100.0]
     mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", side_effect=lambda: clock[0])
 
-    def service_log_line(self, max_wait_time):
+    def service_log_line(self, _):
         clock[0] += 0.3
 
     service = mocker.patch.object(
@@ -652,25 +652,36 @@ def test_run_once_keeps_servicing_runner_activity_for_a_second(jobless_superviso
     jobless_supervisor.run_once()
 
     assert [c.args[1] for c in service.call_args_list] == pytest.approx([1.0, 0.7, 0.4, 0.1])
-    TriggerRunnerSupervisor.load_triggers.assert_called_once()
     TriggerRunnerSupervisor.clean_unused.assert_called_once()
 
 
-def test_run_once_handles_runner_events_without_waiting_out_the_second(jobless_supervisor, mocker):
-    """Events from the runner are dispatched as soon as they arrive."""
+@pytest.mark.parametrize(
+    "runner_activity",
+    [
+        pytest.param(
+            lambda self: self.events.append(
+                TriggerEventEntry(trigger_id=1, event=TriggerEvent(True), persist_seq=None)
+            ),
+            id="event",
+        ),
+        pytest.param(lambda self: self.failed_triggers.append((1, None)), id="failure"),
+        pytest.param(lambda self: setattr(self, "_exit_code", 1), id="runner-exit"),
+    ],
+)
+def test_run_once_stops_waiting_when_the_runner_needs_handling(jobless_supervisor, mocker, runner_activity):
+    """Events, failures and a runner exit are handled without waiting out the second."""
     _patch_run_once_database_work(mocker)
-    entry = TriggerEventEntry(trigger_id=1, event=TriggerEvent(True), persist_seq=None)
     service = mocker.patch.object(
         TriggerRunnerSupervisor,
         "_service_subprocess",
         autospec=True,
-        side_effect=lambda self, _: self.events.append(entry),
+        side_effect=lambda self, _: runner_activity(self),
     )
 
     jobless_supervisor.run_once()
 
     service.assert_called_once()
-    TriggerRunnerSupervisor.handle_events.assert_called_once()
+    TriggerRunnerSupervisor.clean_unused.assert_called_once()
 
 
 @pytest.fixture
