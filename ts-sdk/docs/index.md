@@ -22,8 +22,8 @@
 Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
 > **Note**
-> This package is **1.0.0**: the API may change, it requires **Node 22+**, and
-> it is **ESM-only**.
+> Language SDK support is **experimental**: the API may change. The package requires
+> **Node 22+** and is **ESM-only**.
 
 ## Quick Start
 
