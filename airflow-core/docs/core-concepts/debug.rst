@@ -112,3 +112,64 @@ Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experie
       dag.test()
 
 2. Run / debug the Dag file.
+
+Debugging Dags in a deployed environment
+----------------------------------------
+
+The sections above debug Dags locally with ``dag.test()``. Once a Dag is deployed
+and has produced real Dag runs, you usually want to inspect a specific task
+instance against that live run, and re-run just that task to validate a fix,
+instead of replaying the whole Dag from scratch.
+
+Inspecting task instances
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Open the Dag in the **Grid** view and click a task instance to see its details.
+The **Logs** tab shows the task's output, and the **XComs** tab lists the values
+the task pushed — the same data you can pull in code with
+``run.get_task_instance(...).xcom_pull(...)`` as shown above. See
+:doc:`xcoms` for how XComs are stored and retrieved.
+
+The same information can be inspected from the command line, without a browser:
+
+.. code-block:: bash
+
+  # Current state of a single task instance for one run
+  airflow tasks state <dag_id> <task_id> <run_id>
+
+  # Why a task instance is not being scheduled (unmet upstream dependencies)
+  airflow tasks failed-deps <dag_id> <task_id> <run_id>
+
+  # Render a task instance's templated fields for a specific run
+  airflow tasks render <dag_id> <task_id> <run_id>
+
+In each of the commands above, ``<run_id>`` can also be the Dag run's logical
+date.
+
+Re-running a single task
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``airflow tasks test`` runs one task instance immediately, without waiting for
+its dependencies and without recording its state in the metadata database, which
+makes it a low-risk way to check that a fixed task behaves as expected:
+
+.. code-block:: bash
+
+  airflow tasks test <dag_id> <task_id> <run_id>
+
+To make the scheduler actually re-run a task as part of its real Dag run, clear
+the task instance so it goes back to the *None* state:
+
+.. code-block:: bash
+
+  # Re-run matching task instances within a logical-date window
+  airflow tasks clear <dag_id> --task-regex "<task_id>" \
+      --start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD> --yes
+
+  # Add --downstream to also re-run everything after the cleared task
+  airflow tasks clear <dag_id> --task-regex "<task_id>" \
+      --start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD> --downstream --yes
+
+You can clear a task instance from the UI as well: in the **Grid** view, use the
+**Clear** action on a task. Once the re-run task succeeds, inspect its logs and
+XComs again to confirm the behaviour before clearing any downstream tasks.
