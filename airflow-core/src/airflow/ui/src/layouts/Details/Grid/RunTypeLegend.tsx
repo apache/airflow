@@ -26,9 +26,12 @@ import { Tooltip } from "src/system-components";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
-const runTypes: Array<DAGRunResponse["run_type"]> = [
+// Every run type the API can return needs a row here, otherwise the grid shows an icon the
+// legend does not explain. RunTypeLegend.test.tsx holds this list to the generated enum.
+export const RUN_TYPE_LEGEND_ORDER: Array<DAGRunResponse["run_type"]> = [
   "scheduled",
   "manual",
+  "operator_triggered",
   "backfill",
   "asset_triggered",
   "asset_materialization",
@@ -44,7 +47,7 @@ export const RunTypeLegend = () => {
           <Text fontSize="xs" fontWeight="bold" mb={1}>
             {translate("dag:grid.runTypeLegend")}
           </Text>
-          {runTypes.map((runType) => (
+          {RUN_TYPE_LEGEND_ORDER.map((runType) => (
             <Flex align="center" gap={2} key={runType}>
               {/* Grid bars show no icon for scheduled runs; the spacer keeps the labels aligned. */}
               {runType === "scheduled" ? (

@@ -19,6 +19,8 @@
 import { createInstance, type i18n, type Resource } from "i18next";
 import { describe, expect, it } from "vitest";
 
+import { $DagRunType } from "openapi/requests/schemas.gen";
+
 import { i18nBaseOptions } from "./config";
 
 const localeFiles: Record<string, Record<string, unknown>> = import.meta.glob(
@@ -233,5 +235,16 @@ describe("locale interpolation variables", () => {
       .filter((offender) => offender !== undefined);
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("run type labels", () => {
+  it("labels every run type the API can return", () => {
+    // These are rendered as translate(`common:runTypes.${run_type}`), which the static key check
+    // above cannot see, so a run type with no key reaches the user as the raw key text.
+    const labels = (resources.en?.common as { runTypes: Record<string, string> }).runTypes;
+    const unlabelled = $DagRunType.enum.filter((runType) => !(runType in labels));
+
+    expect(unlabelled).toEqual([]);
   });
 });

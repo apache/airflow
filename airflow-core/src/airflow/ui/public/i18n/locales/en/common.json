@@ -260,6 +260,7 @@
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Manual",
+    "operator_triggered": "Operator Triggered",
     "scheduled": "Scheduled"
   },
   "scroll": {
