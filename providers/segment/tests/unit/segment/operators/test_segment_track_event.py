@@ -57,7 +57,7 @@ class TestSegmentHook:
 
 
 class TestSegmentTrackEventOperator:
-    @mock.patch("airflow.providers.segment.operators.segment_track_event.SegmentHook")
+    @mock.patch("airflow.providers.segment.operators.segment_track_event.SegmentHook", autospec=True)
     def test_execute(self, mock_hook):
         # Given
         user_id = "user_id"
@@ -75,7 +75,7 @@ class TestSegmentTrackEventOperator:
         operator.execute(None)
 
         # Then
-        mock_hook.return_value.track.assert_called_once_with(
+        mock_hook.return_value.get_conn.return_value.track.assert_called_once_with(
             user_id=user_id,
             event=event,
             properties=properties,
