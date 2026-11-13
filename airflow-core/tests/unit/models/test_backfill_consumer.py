@@ -25,6 +25,8 @@ import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun
 from airflow.models.asset import AssetEvent, AssetModel, AssetPartitionDagRun, PartitionedAssetKeyLog
 from airflow.models.backfill import (
@@ -38,11 +40,15 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
 )
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import (
+    AllowedKeyMapper,
     Asset,
+    CronPartitionTimetable,
     DayWindow,
     HourWindow,
+    IdentityMapper,
     MinimumCount,
     PartitionedAssetTimetable,
     RollupMapper,
@@ -64,6 +70,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
+from tests_common.test_utils.mock_executor import MockExecutor
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -336,7 +343,18 @@ def test_refused_with_multi_team(dag_maker, session):
     ("schedule", "reason"),
     [
         pytest.param(
-            PartitionedAssetTimetable(assets=SALES), "RollupMapper", id="identity-not-in-this-slice"
+            PartitionedAssetTimetable(assets=SALES, default_partition_mapper=AllowedKeyMapper(["us", "eu"])),
+            "AllowedKeyMapper",
+            id="allowed-key-mapper",
+        ),
+        pytest.param(
+            PartitionedAssetTimetable(
+                assets=SALES & Asset(uri="s3://lake/returns", name="returns"),
+                default_partition_mapper=IdentityMapper(),
+                partition_mapper_config={SALES: _weekly_mapper()},
+            ),
+            "must all use",
+            id="identity-mixed-with-rollup",
         ),
         pytest.param(
             PartitionedAssetTimetable(
@@ -524,3 +542,293 @@ def test_explicit_keys_over_the_limit_create_nothing(dag_maker, session):
     with pytest.raises(TooManyBackfillPartitions):
         _backfill_keys([W06, W07, W08])
     assert session.scalars(select(Backfill)).all() == []
+
+
+# ---------------------------------------------------------------------------------------------
+# Consumers whose inputs use IdentityMapper. A key has no date of its own: it takes the
+# partition date of the run that wrote its evidence, as live scheduling does.
+# ---------------------------------------------------------------------------------------------
+ORDERS = Asset(uri="s3://lake/orders", name="orders")
+REFUNDS = Asset(uri="s3://lake/refunds", name="refunds")
+
+
+def _identity_consumer(dag_maker, session, assets=ORDERS):
+    _consumer(dag_maker, session, schedule=PartitionedAssetTimetable(assets=assets), dag_id="orders_report")
+
+
+def _produced(
+    session, key: str, *, asset_name="orders", hour=1, producer="daily_orders", run_suffix=""
+) -> None:
+    """A producer run with a partition date, and the event it wrote."""
+    partition_date = timezone.parse(f"{key}T{hour:02d}:00:00")
+    run_id = f"scheduled__{key}_{asset_name}{run_suffix}"
+    session.add(
+        DagRun(
+            dag_id=producer,
+            run_id=run_id,
+            run_type="scheduled",
+            state=DagRunState.SUCCESS,
+            partition_key=key,
+            partition_date=partition_date,
+        )
+    )
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == asset_name))
+    session.add(
+        AssetEvent(asset_id=asset_id, partition_key=key, source_dag_id=producer, source_run_id=run_id)
+    )
+    session.commit()
+
+
+def _event_with_no_source_run(session, key: str, asset_name="orders") -> None:
+    """An event as the REST API writes it: no source Dag and no source run."""
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == asset_name))
+    session.add(AssetEvent(asset_id=asset_id, partition_key=key))
+    session.commit()
+
+
+def _identity_backfill(from_date="2026-02-01", to_date="2026-02-28T23:59:59", **kwargs):
+    return _backfill(dag_id="orders_report", from_date=from_date, to_date=to_date, **kwargs)
+
+
+def _identity_runs(session):
+    return _runs(session, dag_id="orders_report")
+
+
+def test_identity_keys_come_from_events_whose_source_run_is_in_the_range(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-01-31", "2026-02-01", "2026-02-02", "2026-02-03", "2026-03-01"):
+        _produced(session, key)
+
+    backfill = _identity_backfill(from_date="2026-02-01", to_date="2026-02-03T23:59:59")
+
+    runs = _identity_runs(session)
+    assert [r.partition_key for r in runs] == ["2026-02-01", "2026-02-02", "2026-02-03"]
+    # The run gets the partition date of the producer run that wrote its evidence.
+    assert [r.partition_date for r in runs] == [timezone.parse(f"2026-02-0{d}T01:00:00") for d in (1, 2, 3)]
+    assert {(r.run_type, r.state, r.backfill_id) for r in runs} == {
+        (DagRunType.BACKFILL_JOB, DagRunState.QUEUED, backfill.id)
+    }
+    assert [[e.partition_key for e in r.consumed_asset_events] for r in runs] == [
+        ["2026-02-01"],
+        ["2026-02-02"],
+        ["2026-02-03"],
+    ]
+    # No producer run was created.
+    assert len(session.scalars(select(DagRun).where(DagRun.dag_id == "daily_orders")).all()) == 5
+
+
+def test_identity_bounds_are_instants_on_the_evidence_date(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02", "2026-02-03"):
+        _produced(session, key)
+
+    # The producer's partitions are at 01:00, so a to-date at midnight leaves the last day out.
+    _identity_backfill(from_date="2026-02-01", to_date="2026-02-03")
+
+    assert [r.partition_key for r in _identity_runs(session)] == ["2026-02-01", "2026-02-02"]
+
+
+def test_identity_key_whose_newest_event_has_no_source_run_gets_no_run(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02"):
+        _produced(session, key)
+    _event_with_no_source_run(session, "2026-02-02")
+
+    backfill = _identity_backfill()
+
+    assert _results(session, backfill) == [
+        ("2026-02-01", None, True),
+        ("2026-02-02", "no single partition date", False),
+    ]
+    assert [r.partition_key for r in _identity_runs(session)] == ["2026-02-01"]
+
+
+def test_identity_newest_event_is_the_evidence(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    _produced(session, "2026-02-01")
+    _produced(session, "2026-02-01", run_suffix="_again")
+
+    _identity_backfill()
+
+    [run] = _identity_runs(session)
+    assert [e.source_run_id for e in run.consumed_asset_events] == ["scheduled__2026-02-01_orders_again"]
+
+
+def test_identity_two_assets_agree_disagree_or_miss(dag_maker, session):
+    _identity_consumer(dag_maker, session, assets=ORDERS & REFUNDS)
+    # 02-01: both assets, same partition time. 02-02: only orders. 02-03: the two times differ.
+    _produced(session, "2026-02-01", asset_name="orders")
+    _produced(session, "2026-02-01", asset_name="refunds")
+    _produced(session, "2026-02-02", asset_name="orders")
+    _produced(session, "2026-02-03", asset_name="orders", hour=1)
+    _produced(session, "2026-02-03", asset_name="refunds", hour=3)
+
+    backfill = _identity_backfill()
+
+    assert _results(session, backfill) == [
+        ("2026-02-01", None, True),
+        ("2026-02-02", "missing input", False),
+        ("2026-02-03", "no single partition date", False),
+    ]
+    [run] = _identity_runs(session)
+    assert sorted(e.asset.name for e in run.consumed_asset_events) == ["orders", "refunds"]
+
+
+def test_identity_existing_run_is_found_by_the_evidence_date(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    _produced(session, "2026-02-01")
+    first = _identity_backfill()
+    [run] = _identity_runs(session)
+    run.state = DagRunState.SUCCESS
+    run.start_date = timezone.utcnow()
+    session.get(Backfill, first.id).completed_at = timezone.utcnow()
+    session.commit()
+
+    second = _identity_backfill()
+
+    assert _results(session, second) == [("2026-02-01", "already exists", False)]
+    assert len(_identity_runs(session)) == 1
+
+
+def test_identity_dry_run(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02"):
+        _produced(session, key)
+    _event_with_no_source_run(session, "2026-02-02")
+
+    infos = list(
+        _do_dry_run(
+            dag_id="orders_report",
+            from_date=pendulum.parse("2026-02-01"),
+            to_date=pendulum.parse("2026-02-28"),
+            reverse=False,
+            reprocess_behavior=ReprocessBehavior.NONE,
+            session=session,
+        )
+    )
+
+    assert [(i.partition_key, i.partition_date) for i in infos] == [
+        ("2026-02-01", timezone.parse("2026-02-01T01:00:00"))
+    ]
+    assert _identity_runs(session) == []
+
+
+def test_identity_no_event_in_the_range_is_rejected(dag_maker, session):
+    from airflow.models.backfill import NoBackfillRunsToCreate
+
+    _identity_consumer(dag_maker, session)
+    _produced(session, "2026-03-05")
+    with pytest.raises(NoBackfillRunsToCreate):
+        _identity_backfill()
+    assert session.scalars(select(Backfill)).all() == []
+
+
+def test_identity_explicit_keys_take_their_dates_from_the_evidence(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02", "2026-02-05"):
+        _produced(session, key)
+    _event_with_no_source_run(session, "2026-02-02")
+
+    backfill = _backfill_keys(
+        ["2026-02-05", "2026-02-02", "2026-02-01", "2026-02-09"], dag_id="orders_report"
+    )
+
+    # Keys with a date come first, by date. Keys with no single date come after, in request order.
+    assert _results(session, backfill) == [
+        ("2026-02-01", None, True),
+        ("2026-02-05", None, True),
+        ("2026-02-02", "no single partition date", False),
+        ("2026-02-09", "no single partition date", False),
+    ]
+    stored = session.get(Backfill, backfill.id)
+    assert (stored.from_date, stored.to_date) == (
+        timezone.parse("2026-02-01T01:00:00"),
+        timezone.parse("2026-02-05T01:00:00"),
+    )
+
+
+def test_identity_explicit_keys_with_no_dated_key_are_refused(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    _event_with_no_source_run(session, "us")
+    with pytest.raises(InvalidBackfillPartitionKeys, match="single partition date"):
+        _backfill_keys(["us", "eu"], dag_id="orders_report")
+    assert session.scalars(select(Backfill)).all() == []
+
+
+@pytest.mark.parametrize(
+    ("keys", "reason"),
+    [
+        pytest.param(["2026-02-01", "2026-02-01"], "more than once", id="duplicate"),
+        pytest.param([], "empty", id="empty"),
+    ],
+)
+def test_identity_explicit_keys_that_are_not_valid_are_refused(dag_maker, session, keys, reason):
+    _identity_consumer(dag_maker, session)
+    _produced(session, "2026-02-01")
+    with pytest.raises(InvalidBackfillPartitionKeys, match=reason):
+        _backfill_keys(keys, dag_id="orders_report")
+    assert session.scalars(select(Backfill)).all() == []
+
+
+@conf_vars({("scheduler", "max_consumer_backfill_partitions"): "2"})
+def test_identity_range_over_the_key_limit_creates_nothing(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02", "2026-02-03"):
+        _produced(session, key)
+    with pytest.raises(TooManyBackfillPartitions):
+        _identity_backfill()
+    assert session.scalars(select(Backfill)).all() == []
+    assert _identity_runs(session) == []
+
+
+def test_identity_reverse_order(dag_maker, session):
+    _identity_consumer(dag_maker, session)
+    for key in ("2026-02-01", "2026-02-02", "2026-02-03"):
+        _produced(session, key)
+
+    backfill = _identity_backfill(reverse=True)
+
+    assert [key for key, _, _ in _results(session, backfill)] == ["2026-02-03", "2026-02-02", "2026-02-01"]
+
+
+def test_identity_backfill_run_gets_the_same_partition_date_as_a_live_run(dag_maker, session):
+    """A real producer run emits through the asset manager, and the real scheduler step creates the live run."""
+    _identity_consumer(dag_maker, session)
+    with dag_maker(
+        dag_id="daily_orders",
+        schedule=CronPartitionTimetable("0 1 * * *", timezone="UTC", key_format="%Y-%m-%d"),
+        session=session,
+    ) as producer:
+        EmptyOperator(task_id="load", outlets=[ORDERS])
+    producer_run = dag_maker.create_dagrun(
+        partition_key="2026-02-01", partition_date=timezone.parse("2026-02-01T01:00:00"), session=session
+    )
+    [ti] = producer_run.get_task_instances(session=session)
+    session.commit()
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[outlet.asprofile() for outlet in producer.get_task("load").outlets],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {"orders_report"}
+    [live] = _identity_runs(session)
+    assert live.run_type == DagRunType.ASSET_TRIGGERED
+    live_date = live.partition_date
+    live_event_ids = [event.id for event in live.consumed_asset_events]
+    live.state = DagRunState.SUCCESS
+    live.start_date = timezone.utcnow()
+    session.commit()
+
+    _identity_backfill(reprocess_behavior=ReprocessBehavior.COMPLETED)
+
+    backfilled = [r for r in _identity_runs(session) if r.run_type == DagRunType.BACKFILL_JOB]
+    assert len(backfilled) == 1
+    assert backfilled[0].partition_key == "2026-02-01"
+    assert backfilled[0].partition_date == live_date == timezone.parse("2026-02-01T01:00:00")
+    assert [event.id for event in backfilled[0].consumed_asset_events] == live_event_ids
+    assert len(live_event_ids) == 1

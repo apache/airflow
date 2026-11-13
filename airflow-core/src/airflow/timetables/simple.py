@@ -400,6 +400,16 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             for unique_key, _ in self.asset_condition.iter_assets()
         ]
 
+    def backfill_selects_keys_from_events(self) -> bool:
+        """
+        Whether a backfill takes this timetable's partition keys from existing asset events.
+
+        That is the case when every input uses ``IdentityMapper``. Such a key has no date of
+        its own: its date is the partition date of the run that wrote the event, which is the
+        date that live scheduling carries onto the consumer.
+        """
+        return all(type(mapper) is IdentityMapper for mapper in self._backfill_mappers())
+
     def backfill_unsupported_reason(self) -> str | None:
         """
         Say why this timetable cannot be backfilled, or return None when it can.
@@ -417,9 +427,14 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         members = condition.objects if isinstance(condition, SerializedAssetAll) else [condition]
         if not all(isinstance(member, SerializedAsset) for member in members):
             return "the asset condition must be one asset, or assets joined with &"
+        if self.backfill_selects_keys_from_events():
+            return None
         for mapper in self._backfill_mappers():
             if not is_rollup(mapper):
-                return f"{type(mapper).__name__} is not supported; only a RollupMapper input is"
+                return (
+                    f"{type(mapper).__name__} is not supported here; the inputs must all use "
+                    "IdentityMapper, or all use a supported RollupMapper"
+                )
             grain = mapper.upstream_mapper
             if type(grain) not in _BACKFILL_GRAIN_STEP():
                 return f"a rollup with {type(grain).__name__} is not supported"
@@ -445,6 +460,8 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         """
         if reason := self.backfill_unsupported_reason():
             raise ValueError(reason)
+        if self.backfill_selects_keys_from_events():
+            raise ValueError("the partition keys of an IdentityMapper input come from asset events")
         per_asset = [
             list(_iter_rollup_periods(mapper, earliest, latest)) for mapper in self._backfill_mappers()
         ]
@@ -467,6 +484,8 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         """
         if reason := self.backfill_unsupported_reason():
             raise ValueError(reason)
+        if self.backfill_selects_keys_from_events():
+            raise ValueError("the partition keys of an IdentityMapper input come from asset events")
         if len(set(partition_keys)) != len(partition_keys):
             raise ValueError("a partition key is listed more than once")
         resolved: list[tuple[datetime, str]] = []
