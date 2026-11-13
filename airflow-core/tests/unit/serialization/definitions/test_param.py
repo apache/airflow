@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from jsonschema import FormatChecker
 
 from airflow.serialization.definitions.param import SerializedParam
 
@@ -58,3 +61,16 @@ class TestSerializedParam:
         """Test invalid ISO 8601 duration strings."""
         with pytest.raises(Exception, match="is not a 'duration'"):
             SerializedParam(duration, type="string", format="duration").resolve(raises=True)
+
+    @mock.patch.dict(FormatChecker.checkers)
+    def test_string_datetime_validated_without_rfc3339_validator(self):
+        """A default install has no rfc3339-validator, so jsonschema registers no date-time checker."""
+        FormatChecker.checkers.pop("date-time", None)
+        with pytest.raises(Exception, match="is not a 'date-time'"):
+            SerializedParam("garbage", type="string", format="date-time").resolve(raises=True)
+        assert SerializedParam("2024-01-01t00:00:00z", type="string", format="date-time").resolve()
+
+    @pytest.mark.parametrize("value", ["2024-01-01T00:00:00", "2024-01-01 00:00:00+00:00"])
+    def test_string_iso8601_datetime_accepted_unchanged(self, value, recwarn):
+        assert SerializedParam(value, type="string", format="date-time").resolve(raises=True) == value
+        assert not recwarn.list
