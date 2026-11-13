@@ -56,6 +56,59 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) is not None
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
+    @pytest.mark.parametrize(
+        "version_values",
+        [{}, {"airflowVersion": "3.2.2"}],
+        ids=["chart-default", "airflow-3.2.2"],
+    )
+    def test_should_not_add_metadata_database_env_to_task_container(self, version_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", **version_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        env_names = jmespath.search("spec.containers[0].env[*].name", docs[0])
+
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" not in env_names
+        assert "AIRFLOW_CONN_AIRFLOW_DB" not in env_names
+
+    @pytest.mark.parametrize(
+        ("airflow_version", "expect_database"),
+        [
+            ("3.2.2", True),
+            ("3.3.2", True),
+            ("3.4.0", False),
+        ],
+    )
+    def test_should_set_kerberos_sidecar_database_env_by_airflow_version(
+        self, airflow_version, expect_database
+    ):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "executor": "KubernetesExecutor",
+                "kerberos": {"enabled": True},
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        spec = docs[0]["spec"]
+        kerberos_sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+        database_env_names = {
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+        }
+
+        kerberos_env_names = {env["name"] for env in kerberos_sidecar.get("env", [])}
+        expected = database_env_names if expect_database else set()
+        assert database_env_names & kerberos_env_names == expected
+
+        base_env_names = {env["name"] for env in spec["containers"][0].get("env", [])}
+        assert database_env_names.isdisjoint(base_env_names)
+
     def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
             values={

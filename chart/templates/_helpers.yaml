@@ -70,14 +70,14 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
+  {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN (not .ExcludeDatabase) }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: {{ template "airflow_metadata_secret_key" . }}
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
+  {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB (not .ExcludeDatabase) }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
