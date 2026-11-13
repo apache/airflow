@@ -23,7 +23,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, false, func, literal, select, union_all
-from sqlalchemy.orm import defaultload
+from sqlalchemy.orm import defaultload, joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
@@ -88,6 +88,7 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskCo
 from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dag_version import DagVersion
 from airflow.models.hitl import HITLDetail, awaiting_response_clause
 from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import TaskCoordinateResolver
@@ -283,7 +284,11 @@ def get_dags(
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
             .options(
-                defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
+                defaultload(HITLDetail.task_instance).options(
+                    joinedload(TaskInstance.task_instance_note),
+                    joinedload(TaskInstance.dag_version).joinedload(DagVersion.bundle),
+                    joinedload(TaskInstance.rendered_task_instance_fields),
+                )
             )
             .where(HITLDetail.responded_at.is_(None), awaiting_response_clause())
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
