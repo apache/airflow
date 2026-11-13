@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import errno
 import functools
 import io
 import logging
@@ -3220,8 +3221,19 @@ def supervise_task(
         logger: FilteringBoundLogger | None = None
         log_file_descriptor: BinaryIO | TextIO | None = None
         if log_path:
-            logger, log_file_descriptor = _configure_logging(log_path, client)
-            logger = logger.bind(ti_id=str(ti.id))
+            try:
+                logger, log_file_descriptor = _configure_logging(log_path, client)
+            except OSError as e:
+                if e.errno != errno.ENAMETOOLONG:
+                    raise
+                log.warning(
+                    "Cannot create the task log file because a path component is too long; "
+                    "the task logs will not be written to a local file",
+                    log_path=log_path,
+                    ti_id=str(ti.id),
+                )
+            else:
+                logger = logger.bind(ti_id=str(ti.id))
 
         backends = ensure_secrets_backend_loaded()
         log.info(
