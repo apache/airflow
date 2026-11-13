@@ -630,6 +630,14 @@ downstream Dag partition key:
   * ``StartOfHourMapper`` -> ``2026-03-10T09``
   * ``StartOfDayMapper`` -> ``2026-03-10``
   * ``StartOfYearMapper`` -> ``2026``
+
+  Temporal mappers also accept the default output of any temporal mapper, so
+  they can be chained. For example, ``StartOfYearMapper`` maps
+  ``2026-03-10T09``, ``2026-03-10``, ``2026-03``, and ``2026-Q1`` to ``2026``.
+  A key with a custom ``output_format`` needs a matching ``input_format``
+  on the mapper that consumes it. The upstream mapper of a ``RollupMapper``
+  only accepts keys in its ``input_format``, because those are the keys
+  the rollup waits for.
 * ``ProductMapper`` maps composite keys segment-by-segment.
   It applies one mapper per segment and then rejoins the mapped segments.
   For example, with key ``us|2026-03-10T09:00:00``,
