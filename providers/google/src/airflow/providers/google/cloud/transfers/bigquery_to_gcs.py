@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
+from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, TableReference, UnknownJob
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
@@ -335,7 +335,15 @@ class BigQueryToGCSOperator(BaseOperator):
             )
 
         project_id = self.project_id or self.hook.project_id
-        table_object = self.hook.get_client(project_id).get_table(self.source_project_dataset_table)
+        # ``Client.get_table`` does not understand the legacy ``project:dataset.table`` form,
+        # so resolve the table the same way the extract job does.
+        source_project_id, source_dataset_id, source_table_id = self.hook.split_tablename(
+            table_input=self.source_project_dataset_table,
+            default_project_id=self.hook.project_id,
+        )
+        table_object = self.hook.get_client(project_id).get_table(
+            TableReference(DatasetReference(source_project_id, source_dataset_id), source_table_id)
+        )
 
         input_dataset = Dataset(
             namespace="bigquery",
