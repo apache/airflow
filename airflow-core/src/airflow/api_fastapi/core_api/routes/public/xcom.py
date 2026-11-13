@@ -49,6 +49,7 @@ from airflow.api_fastapi.common.parameters import (
     teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.xcom import reject_reserved_xcom_key
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
     XComCreateBody,
@@ -314,12 +315,6 @@ def get_xcom_entries(
     return XComCollectionResponse(xcom_entries=entries, total_entries=total_entries)
 
 
-def _reject_reserved_loop_key(key: str) -> None:
-    # Loop gates write these keys through the Execution API, which validates their values.
-    if key.startswith(LOOP_XCOM_PREFIX):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
-
-
 @xcom_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -346,7 +341,7 @@ def create_xcom_entry(
     """Create an XCom entry."""
     from airflow.models.dagrun import DagRun
 
-    _reject_reserved_loop_key(request_body.key)
+    reject_reserved_xcom_key(request_body.key)
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate Dag ID
@@ -451,7 +446,7 @@ def update_xcom_entry(
     dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
-    _reject_reserved_loop_key(xcom_key)
+    reject_reserved_xcom_key(xcom_key)
     scope = resolve_task_scope(
         dag_id=dag_id,
         run_id=dag_run_id,

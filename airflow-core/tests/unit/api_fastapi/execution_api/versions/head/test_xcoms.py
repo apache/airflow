@@ -1595,6 +1595,20 @@ class TestXComsDeleteEndpoint:
             assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
             assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
 
+    def test_xcom_delete_rejects_reserved_key(self, client, create_task_instance, authenticate_as, session):
+        key = "_airflow_loop_decision_reason"
+        ti = create_task_instance()
+        ti.xcom_push(key=key, value='"reason"', session=session)
+        session.commit()
+        authenticate_as(ti)
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Reserved loop XCom key"
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, key, session=verify) is not None
+
     @pytest.mark.parametrize(
         ("target_task_id", "ti_map_index"),
         [
