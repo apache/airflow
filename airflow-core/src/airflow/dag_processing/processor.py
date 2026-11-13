@@ -614,16 +614,21 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
     Parse one Dag file in a child process for the Dag processor manager.
 
-    The child's output goes to the file's parse log, and its requests are answered with
+    The child's output goes to the file's parse log, or to stdout when
+    ``[logging] dag_processor_log_target`` is ``stdout``, and its requests are answered with
     :attr:`client`. The parse is done once the child has exited and all its sockets are closed;
     :attr:`parsing_result` then holds what it sent. Subclasses start the child and send it the
     parse request.
     """
 
-    logger_filehandle: BinaryIO = attrs.field(  # type: ignore[assignment]  # mypy picks the text overload
+    logger_filehandle: BinaryIO | None = attrs.field(  # type: ignore[assignment]  # mypy picks the text overload
         factory=functools.partial(open, os.devnull, "wb")
     )
-    """The file's parse log, which the process closes. Without one, the output is discarded."""
+    """
+    The file's parse log, which the process closes, or ``None`` when the logs go to stdout.
+
+    Without one, the output is discarded.
+    """
     parsing_result: DagFileParsingResult | None = None
     parse_source: DagParseSource = attrs.field(factory=DagParseSource)
     dispatch_sequence: int = 0
@@ -641,14 +646,6 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     _api_parse_context: DagParseContext | None = attrs.field(init=False, default=None)
     api_request_error: str | None = attrs.field(init=False, default=None)
     """The Execution API request that failed while parsing; Dag code may then have used a fallback value."""
-
-    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
-        base = super()._get_target_loggers()
-        if not self.subprocess_logs_to_stdout:
-            return base
-        return tuple(
-            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
-        )
 
     def _create_log_forwarder(
         self,
@@ -768,6 +765,8 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
     def close(self):
         self.cleanup_sockets_after_kill()
+        if self.logger_filehandle is None:
+            return
         try:
             self.logger_filehandle.close()
         except OSError:
