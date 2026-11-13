@@ -37,7 +37,7 @@ from airflow.providers.common.io.state_store.backend import (
     _write_to_object_storage,
 )
 from airflow.sdk import ObjectStoragePath
-from airflow.sdk.state import AssetScope, TaskScope
+from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 from tests_common.test_utils.config import conf_vars
 
@@ -347,7 +347,7 @@ class TestStateStoreObjectStorageBackend:
             pytest.param(-1, True, id="above-threshold"),
         ],
     )
-    def test_serialize_threshold_boundary_roundtrips(
+    def test_serialize_threshold_boundary(
         self,
         request,
         base_path,
@@ -368,15 +368,48 @@ class TestStateStoreObjectStorageBackend:
             store = StateStoreObjectStorageBackend()
             scope = request.getfixturevalue(scope_fixture)
             ref = getattr(store, serialize)(value=value, key="k", scope=scope)
-            result = getattr(store, deserialize)(ref)
 
-            assert result == value
             if offloaded:
                 assert ref.startswith("file://")
                 assert len(ObjectStoragePath(ref).read_bytes()) == stored_size
+                assert getattr(store, deserialize)(ref) == value
             else:
-                assert len(ref) == stored_size
-                assert not ref.startswith("file://")
+                # The base class default keeps the value inline in the database.
+                assert ref is None
+
+    @pytest.mark.parametrize(
+        ("kind", "scope_fixture"),
+        [pytest.param("task", "task_scope", id="task"), pytest.param("asset", "asset_scope", id="asset")],
+    )
+    @pytest.mark.parametrize(
+        "base_default",
+        [pytest.param(None, id="sdk-keeps-inline"), pytest.param('{"x": 1}', id="sdk-wraps-every-return")],
+    )
+    def test_serialize_below_threshold_defers_to_base_class(
+        self, request, kind, scope_fixture, base_default, base_path
+    ):
+        """Below the threshold the backend defers to the installed SDK's default instead of offloading."""
+        scope = request.getfixturevalue(scope_fixture)
+        method = f"serialize_{kind}_state_store_to_ref"
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "10000",
+            }
+        ):
+            store = StateStoreObjectStorageBackend()
+            with mock.patch.object(
+                BaseStoreBackend, method, autospec=True, return_value=base_default
+            ) as base_method:
+                ref = getattr(store, method)(value={"x": 1}, key="k", scope=scope)
+
+        assert ref == base_default
+        base_method.assert_called_once_with(store, value={"x": 1}, key="k", scope=scope)
+
+    def test_deserialize_decodes_inline_json_from_older_versions(self, store):
+        """Rows written before inline storage hold the JSON-encoded value instead of a storage path."""
+        assert store.deserialize_task_state_store_from_ref('{"x": 1}') == {"x": 1}
+        assert store.deserialize_asset_state_store_from_ref('{"x": 1}') == {"x": 1}
 
     def test_negative_threshold_raises(self, base_path):
         with conf_vars(

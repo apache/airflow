@@ -1,0 +1,15 @@
+State store values a worker backend keeps in the database are stored inline
+
+With ``[workers] state_store_backend`` set, the Task SDK used to wrap every value the backend returned in
+``{"__airflow_state_ref__": ...}``, including values the backend kept in the metadata database. Those values
+are now stored inline as plain JSON, so the UI and REST API show the value itself. Values the backend offloads
+are still stored as a reference, and rows written in the old format still read back.
+
+**Custom state store backends:** ``BaseStoreBackend.serialize_task_state_store_to_ref()`` and
+``serialize_asset_state_store_to_ref()`` may now return ``None`` to keep a value inline, and the base class
+default returns ``None`` instead of ``json.dumps(value)``. A backend that calls ``super()`` and uses the result
+as a string must handle ``None``. A backend that still returns a JSON string for values it keeps in the
+database keeps working, but those values stay wrapped as before.
+
+**Reserved key:** ``set()`` on the task and asset state store now raises ``ValueError`` for a value whose
+top-level keys include ``__airflow_state_ref__``, whether or not a worker backend is configured.

@@ -776,8 +776,8 @@ checkpoint. See :doc:`/core-concepts/task-state-store` for the full concept.
   one, ``[state_store] default_retention_days`` applies, where ``0`` means never expire.
 * ``delete`` removes one key, and ``clear`` removes every key of the task instance.
 * ``[workers] state_store_backend`` is not used from Java tasks, so values are always stored in the metadata
-  database. A key written by a Python task through a custom backend reads back as that backend's reference
-  marker.
+  database. A key a Python task's custom backend offloaded reads back as that backend's reference marker. A
+  value the backend kept in the database reads back as-is.
 
 .. _java-sdk/logging:
 
