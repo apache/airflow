@@ -32,7 +32,7 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.serialization.definitions.baseoperator import _SerializedOperator
 
 
 @attrs.define()
@@ -47,7 +47,7 @@ class XComOperatorLink(LoggingMixin):
     xcom_key: str
 
     def get_link(
-        self, operator: Operator, *, ti_key: TaskInstanceKey, region_id: UUID = SENTINEL_REGION_ID
+        self, operator: _SerializedOperator, *, ti_key: TaskInstanceKey, region_id: UUID = SENTINEL_REGION_ID
     ) -> str:
         """
         Retrieve the link from the XComs.
