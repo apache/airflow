@@ -1083,3 +1083,35 @@ def test_evidence_is_looked_up_once_for_each_key_in_one_request(dag_maker, sessi
 
     assert len(lookups) == 2
     assert len(_identity_runs(session)) == 2
+
+
+@conf_vars({("scheduler", "max_consumer_backfill_partitions"): "1"})
+def test_identity_key_limit_counts_candidates_before_the_date_check(dag_maker, session):
+    """Two keys have events in February. Only one keeps a February date, but both count."""
+    _identity_consumer(dag_maker, session)
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "orders"))
+    for key, run_id, date in (
+        ("01", "feb_01", "2026-02-01T00:00:00"),
+        ("02", "feb_02", "2026-02-02T00:00:00"),
+        ("01", "mar_01", "2026-03-01T00:00:00"),
+    ):
+        session.add(
+            DagRun(
+                dag_id="monthly_orders",
+                run_id=run_id,
+                run_type="scheduled",
+                state=DagRunState.SUCCESS,
+                partition_key=key,
+                partition_date=timezone.parse(date),
+            )
+        )
+        session.add(
+            AssetEvent(
+                asset_id=asset_id, partition_key=key, source_dag_id="monthly_orders", source_run_id=run_id
+            )
+        )
+        session.commit()
+
+    with pytest.raises(TooManyBackfillPartitions, match="candidate"):
+        _identity_backfill(from_date="2026-02-01", to_date="2026-02-28")
+    assert session.scalars(select(Backfill)).all() == []

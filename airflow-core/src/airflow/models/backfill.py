@@ -657,8 +657,12 @@ def _consumer_infos_from_events(
         keys = list(partition_keys)
     selected: list[str] = [key for key in keys if key is not None]
     if len(selected) > limit:
+        # The limit is on the candidate keys, before the date of each one is known. It bounds
+        # the evidence lookups of a request, so it must be checked before they are made. A
+        # candidate that the date check below drops still counts.
         raise TooManyBackfillPartitions(
-            f"The request selects more than {limit} partitions of Dag {dag.dag_id}. Use a shorter range."
+            f"The request has more than {limit} candidate partition keys of Dag {dag.dag_id}. "
+            "Use a shorter range."
         )
 
     dated: list[tuple[datetime, str]] = []
