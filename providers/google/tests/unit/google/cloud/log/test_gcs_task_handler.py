@@ -267,11 +267,8 @@ class TestGCSRemoteLogIO:
                     f.write(f"cycle {cycle}\n")
                 gcs_remote_log_io.upload(local_log, self.ti)
 
-        # GCSRemoteLogIO.write() joins old and new content with an unconditional "\n" separator
-        # (pre-existing behavior, not part of this fix), so each upload after the first adds a
-        # blank line. What matters here is that each cycle's line appears exactly once.
         final_content = next(iter(remote_store.values()))
-        assert final_content == "cycle 1\n\ncycle 2\n\ncycle 3\n"
+        assert final_content == "cycle 1\ncycle 2\ncycle 3\n"
         for cycle in range(1, 4):
             assert final_content.count(f"cycle {cycle}") == 1
         assert local_log.read_text() == ""
