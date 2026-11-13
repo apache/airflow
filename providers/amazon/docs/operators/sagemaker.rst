@@ -67,6 +67,51 @@ To create an Amazon Sagemaker training job you can use
     :start-after: [START howto_operator_sagemaker_training]
     :end-before: [END howto_operator_sagemaker_training]
 
+Durable execution
+"""""""""""""""""
+
+``SageMakerTrainingOperator`` submits a training job and then polls it to completion on the
+worker. By default the operator runs in a *durable* mode that makes this crash-safe: the training
+job name is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+before polling begins, so if the worker crashes or is preempted and the task is retried, the
+operator reconnects to the job that is already running in SageMaker instead of starting a new one.
+
+On retry the operator checks the prior job's status:
+
+* if it is ``InProgress``, the operator reconnects and continues polling
+* if it is ``Completed``, the operator returns its result without resubmitting
+* if it is ``Failed``, ``Stopped`` or ``Stopping``, or the name is no longer found, the operator
+  submits a new job
+
+Unlike Glue, a job that is still ``Stopping`` gets a new submit rather than a reconnect. A stopping
+SageMaker job never produces a model, and ``cancel_on_kill`` leaves the job in exactly that state
+when a timed out attempt is killed. A new submit is renamed with a timestamp suffix when
+``action_if_job_exists="timestamp"`` (the default), because the earlier job still holds its name.
+Spot training resume through ``CheckpointConfig`` is unaffected, since the checkpoint
+``S3Uri`` does not depend on the job name.
+
+Clearing a task is treated the same as a retry, which matters for a task whose job already
+completed: clearing does not delete the stored job name, so the next attempt returns the existing
+result without starting a new job. See :doc:`apache-airflow:core-concepts/resumable-tasks` for why,
+and for the ``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+To opt out and always start a new job on retry, set ``durable=False``:
+
+.. code-block:: python
+
+  training = SageMakerTrainingOperator(
+      task_id="train_model",
+      config=training_config,
+      durable=False,
+  )
+
+Durable execution applies to the synchronous path. When ``deferrable=True`` is set, ``durable`` has
+no effect.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always starts a new job on retry, exactly as before this feature existed.
+
 .. _howto/operator:SageMakerModelOperator:
 
 Create an Amazon SageMaker model

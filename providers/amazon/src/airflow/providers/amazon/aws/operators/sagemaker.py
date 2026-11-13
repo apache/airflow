@@ -21,7 +21,7 @@ import json
 import time
 import urllib
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from botocore.exceptions import ClientError
 
@@ -1328,7 +1328,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         self.execute_resumable(context)
         # On reconnect the mixin returns poll_until_complete's value and never calls
         # get_job_result, so the result is read off the operator instead.
-        return cast("dict[str, dict]", self._result)
+        return {"Training": self.serialized_training_data}
 
     def submit_job(self, context: Context) -> str:
         # Not in execute(): on a reconnecting retry the S3Operations uploads would raise on the
