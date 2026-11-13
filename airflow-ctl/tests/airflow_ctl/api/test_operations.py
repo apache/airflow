@@ -113,7 +113,11 @@ from airflowctl.api.datamodels.generated import (
     TaskResponse,
     TaskStateStoreCollectionResponse,
     TaskStateStoreResponse,
+    TriggerCollectionResponse,
     TriggerDAGRunPostBody,
+    TriggerDetailResponse,
+    TriggerKind,
+    TriggerStatus,
     VariableBody,
     VariableCollectionResponse,
     VariableResponse,
@@ -3364,3 +3368,70 @@ class TestPluginsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.plugins.list_import_errors()
         assert response == self.plugin_import_error_collection_response
+
+
+class TestTriggersOperations:
+    trigger_response = TriggerDetailResponse(
+        id=4,
+        kind=TriggerKind.TASK,
+        classpath="airflow.triggers.temporal.TimeDeltaTrigger",
+        created_date=datetime.datetime(2025, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
+        queue=None,
+        team_name=None,
+        status=TriggerStatus.RUNNING,
+        triggerer_hostname="triggerer-1",
+        consecutive_failures=0,
+        first_failed_at=None,
+        last_failed_at=None,
+        last_error=None,
+        last_event_at=None,
+        dag_id="example_dag",
+        task_instance=None,
+        callback=None,
+        asset_watchers=[],
+    )
+    trigger_collection_response = TriggerCollectionResponse(triggers=[trigger_response], total_entries=1)
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/triggers/4"
+            return httpx.Response(200, json=json.loads(self.trigger_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.triggers.get(trigger_id=4) == self.trigger_response
+
+    def test_list_sends_filters(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/triggers"
+            assert dict(request.url.params) == {
+                "kind": "task",
+                "status": "running",
+                "triggerer_hostname": "triggerer-1",
+                "dag_id": "example_dag",
+                "asset_id": "3",
+                "limit": "5",
+                "offset": "10",
+                "order_by": "-last_event_at",
+            }
+            return httpx.Response(200, json=json.loads(self.trigger_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.triggers.list(
+            kind="task",
+            status="running",
+            triggerer_hostname="triggerer-1",
+            dag_id="example_dag",
+            asset_id=3,
+            limit=5,
+            offset=10,
+            order_by="-last_event_at",
+        )
+        assert response == self.trigger_collection_response
+
+    def test_list_omits_unset_filters(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert dict(request.url.params) == {"limit": "100"}
+            return httpx.Response(200, json=json.loads(self.trigger_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.triggers.list() == self.trigger_collection_response

@@ -129,3 +129,7 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
+
+triggers:
+  get: "Retrieve a trigger by its ID, with who it runs for and how it is doing"
+  list: "List triggers of every kind, optionally filtered by kind, status, triggerer host, Dag or asset"
