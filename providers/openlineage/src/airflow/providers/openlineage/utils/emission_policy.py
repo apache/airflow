@@ -1308,7 +1308,9 @@ def _apply_manual_state_change_gate(
     """
     if not config.emit:
         return config
-    emit, rule = _resolve_field_with_source(list(tiers), EMIT_MANUAL_STATE_CHANGE_EVENTS, True)
+    emit, rule = _resolve_field_with_source(
+        [list(tier) for tier in tiers], EMIT_MANUAL_STATE_CHANGE_EVENTS, True
+    )
     if rule is None:
         return config
     _audit_log_conf_field(EMIT_MANUAL_STATE_CHANGE_EVENTS, emit, context, rule)

@@ -108,14 +108,7 @@ class AirflowDagRunFacet(RunFacet):
 
 @define
 class AirflowAssetEventRunFacet(RunFacet):
-    """
-    Airflow facet describing an asset event produced outside of any task, e.g. by an asset watcher.
-
-    Attributes:
-        asset: The asset: ``name``, ``uri``, ``group`` and ``extra``, and ``id`` when Airflow passes it.
-        assetEvent: The asset event: ``extra`` and ``sourceAliases``, and ``id``, ``watcherName``,
-            ``triggerClasspath``, ``partitionKey`` and ``partitionDate`` when available.
-    """
+    """Airflow facet describing an asset event produced outside of any task, e.g. by an asset watcher."""
 
     asset: dict
     assetEvent: dict
