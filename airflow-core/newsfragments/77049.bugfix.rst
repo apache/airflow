@@ -1,0 +1,1 @@
+Log a warning in the triggerer when a trigger's ``cleanup()`` method raises an exception, instead of silently ignoring it, so failed cleanups (for example unclosed clients or leaked resources) are visible in the triggerer log.

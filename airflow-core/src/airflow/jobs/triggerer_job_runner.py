@@ -2024,7 +2024,8 @@ class TriggerRunner:
                 # CancelledError will get injected when we're stopped - which is
                 # fine, the cleanup process will understand that, but we want to
                 # allow triggers a chance to cleanup, either in that case or if
-                # they exit cleanly. Exception from cleanup methods are ignored.
+                # they exit cleanly. Exceptions from cleanup methods are
+                # logged, not raised.
                 if shared_key is not None:
                     try:
                         await self._shared_streams.unsubscribe(trigger_id, shared_key)
@@ -2036,8 +2037,10 @@ class TriggerRunner:
                             trigger_id=trigger_id,
                             key=shared_key,
                         )
-                with suppress(Exception):
+                try:
                     await trigger.cleanup()
+                except Exception:
+                    await self.log.awarning("cleanup() raised an exception", name=name, exc_info=True)
 
                 await self.log.ainfo("trigger completed", name=name)
 
