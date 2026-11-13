@@ -240,9 +240,12 @@ class ListValidator(metaclass=abc.ABCMeta):
     """
 
     def __init__(self, validate_list: str | None = None) -> None:
-        self.validate_list: tuple[str, ...] | None = (
-            tuple(item.strip().lower() for item in validate_list.split(",")) if validate_list else None
+        # An empty entry (trailing or doubled comma, blank list) is a regex that matches every name,
+        # so it would turn an allow list into "allow all" and a block list into "block all".
+        entries = tuple(
+            item for item in (e.strip().lower() for e in (validate_list or "").split(",")) if item
         )
+        self.validate_list: tuple[str, ...] | None = entries or None
 
     @classmethod
     def __subclasshook__(cls, subclass: Callable[[str], str]) -> bool:
