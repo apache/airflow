@@ -184,9 +184,11 @@ dependencies = [
 "claude-agent-sdk" = ["claude-agent-sdk>=0.2.160"]
 # The OpenAI Codex adapter in airflow.providers.common.ai.tools.openai_codex. ``mcp`` and
 # ``uvicorn`` are listed because the adapter serves its tools from an MCP server built on the
-# mcp 2.x API and runs it with uvicorn directly (the floors are mcp's own).
+# mcp 2.x API and runs it with uvicorn directly (uvicorn's floor is mcp's own). The workspace
+# resolves one mcp for every provider, and the Databricks Unity MCP tests check client error
+# messages that mcp 2.2.0 added, so mcp is not floored lower.
 # The wheel of openai-codex pulls in the ``codex`` CLI binary (119-152 MB per platform).
-"openai-codex" = ["openai-codex>=0.163.0", "mcp>=2.0.0", "uvicorn>=0.31.1"]
+"openai-codex" = ["openai-codex>=0.163.0", "mcp>=2.2.0", "uvicorn>=0.31.1"]
 
 [dependency-groups]
 dev = [
@@ -218,7 +220,7 @@ dev = [
     "protobuf>=6.31.1",
     "claude-agent-sdk>=0.2.160",
     "openai-codex>=0.163.0",
-    "mcp>=2.0.0",
+    "mcp>=2.2.0",
     "uvicorn>=0.31.1",
 ]
 
