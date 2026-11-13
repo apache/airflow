@@ -76,6 +76,11 @@ class AthenaSparkTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: Seconds between status checks. Defaults to 30.
     :param waiter_max_attempts: Maximum number of polling attempts. Defaults to 120.
     :param aws_conn_id: Airflow connection used for AWS credentials. Defaults to ``aws_default``.
+    :param region_name: AWS region. If not set, default boto3 behavior is used.
+        Defaults to None.
+    :param verify: Whether to verify SSL certificates, or the path to a CA bundle.
+        Defaults to None.
+    :param botocore_config: Optional botocore configuration dict. Defaults to None.
     """
 
     aws_hook_class = AthenaHook
@@ -109,12 +114,4 @@ class AthenaSparkTrigger(AwsBaseWaiterTrigger):
             region_name=region_name,
             verify=verify,
             botocore_config=botocore_config,
-        )
-
-    def hook(self) -> AwsGenericHook:
-        return AthenaHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name,
-            verify=self.verify,
-            config=self.botocore_config,
         )

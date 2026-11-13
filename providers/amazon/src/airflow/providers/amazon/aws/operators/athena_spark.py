@@ -58,7 +58,6 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
     :param region_name: AWS region. If not set, default boto3 behavior is used. Defaults to None.
     :param verify: Whether to verify SSL certificates. Defaults to None.
     :param botocore_config: Optional botocore configuration dict. Defaults to None.
-
     """
 
     aws_hook_class = AthenaHook
@@ -166,20 +165,12 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
         """Handle the trigger result and return calculation metadata."""
         self._calculation_execution_id = calculation_execution_id
 
-        try:
-            if event is None:
-                raise RuntimeError("Trigger error: event is None")
-
-            if event.get("status") != "success":
-                raise RuntimeError(
-                    f"Error waiting for Athena Spark calculation "
-                    f"{calculation_execution_id}: "
-                    f"{event.get('message', 'Unknown trigger error.')}"
-                )
-
-        except RuntimeError:
+        if event is None or event.get("status") != "success":
             self._stop_calculation(calculation_execution_id)
-            raise
+            message = "event is None" if event is None else event.get("message", "Unknown trigger error.")
+            raise RuntimeError(
+                f"Error waiting for Athena Spark calculation {calculation_execution_id}: {message}"
+            )
 
         execution_info = self.hook.get_spark_calculation_info(calculation_execution_id)
         final_state = execution_info.get("Status", {}).get("State")

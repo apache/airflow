@@ -83,7 +83,7 @@
             ]
         },
         "spark_calculation_terminal": {
-        "operation": "GetCalculationExecutionStatus",
+        "operation": "GetCalculationExecution",
         "delay": 30,
         "maxAttempts": 120,
         "acceptors": [
