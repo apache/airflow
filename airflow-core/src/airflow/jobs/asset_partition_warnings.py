@@ -103,10 +103,9 @@ class AssetPartitionWaitMonitor:
                 )
             )
         }
-        monitored = [dag_id for dag_id in dag_ids if dag_id in timeouts]
         now = timezone.utcnow()
         overdue: dict[str, str] = {}
-        if monitored:
+        if (monitored := [dag_id for dag_id in dag_ids if dag_id in timeouts]):
             pending = session.execute(
                 select(
                     AssetPartitionDagRun.target_dag_id,
