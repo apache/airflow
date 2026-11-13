@@ -21,6 +21,7 @@ import os
 import queue
 import sys
 import threading
+import time
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import cache
@@ -196,12 +197,16 @@ class _AssetWatcherEventEmitter:
     Emit OpenLineage events for asset watcher events on one background daemon thread.
 
     Asset watcher events are reported from the triggerer's main loop, which must never wait on an
-    OpenLineage transport. ``submit`` never blocks: events that do not fit in the queue are dropped, and the
-    number dropped is logged from the thread. The thread is a daemon so a hanging transport cannot hold up
-    process exit, and it is the only user of its adapter, so the OpenLineage client is never used concurrently.
+    OpenLineage transport. ``submit`` never blocks and never logs: events that do not fit in the queue are only
+    counted, and the thread logs the number dropped ``DROPPED_EVENTS_LOG_INTERVAL`` seconds after the first one.
+    While no events arrive, the thread sleeps without waking up.
+    The thread is a daemon so a hanging transport cannot hold up process exit, and it is the only user of its
+    adapter, so the OpenLineage client is never used concurrently.
 
     :param max_queue_size: The number of events that can wait to be emitted, greater than ``0``.
     """
+
+    DROPPED_EVENTS_LOG_INTERVAL = 60.0
 
     def __init__(self, max_queue_size: int):
         self.log = logging.getLogger(__name__)
@@ -224,39 +229,59 @@ class _AssetWatcherEventEmitter:
         except queue.Full:
             with self._dropped_count_lock:
                 self._dropped_count += 1
-                is_first_drop = self._dropped_count == 1
-            if is_first_drop:
-                self.log.warning(
-                    "OpenLineage is dropping asset watcher events: %s events are already waiting to be emitted, "
-                    "the limit set by [openlineage] asset_watcher_event_queue_size. The number of dropped events "
-                    "is logged once events are emitted again.",
-                    self._max_queue_size,
-                )
+
+    def log_unsent_events(self) -> None:
+        """Log the events dropped since the last report and those still waiting, which are lost on exit."""
+        self._log_dropped_events()
+        if waiting_count := self._queue.qsize():
+            self.log.warning(
+                "OpenLineage did not emit %s asset watcher events that were still waiting when the process stopped.",
+                waiting_count,
+            )
 
     def _log_dropped_events(self) -> None:
         with self._dropped_count_lock:
             dropped_count, self._dropped_count = self._dropped_count, 0
         if dropped_count:
             self.log.warning(
-                "OpenLineage dropped %s asset watcher events because the queue limited by "
-                "[openlineage] asset_watcher_event_queue_size was full.",
+                "OpenLineage dropped %s asset watcher events because %s events were already waiting to be "
+                "emitted, the limit set by [openlineage] asset_watcher_event_queue_size.",
                 dropped_count,
+                self._max_queue_size,
             )
 
     def _run(self) -> None:
+        # Set only while dropped events wait to be logged, so an idle thread sleeps until the next event.
+        dropped_events_log_due: float | None = None
         while True:
-            asset_event, event_time = self._queue.get()
-            self._log_dropped_events()
+            timeout = (
+                None if dropped_events_log_due is None else max(dropped_events_log_due - time.monotonic(), 0)
+            )
             try:
-                self._emit(asset_event, event_time)
-            except Exception as err:
-                self.log.warning(
-                    "OpenLineage failed to emit asset watcher event of asset `%s`: %s: %s",
-                    asset_event.asset.name,
-                    type(err).__name__,
-                    err,
-                )
-                self.log.debug("Exception details:", exc_info=True)
+                item = self._queue.get(timeout=timeout)
+            except queue.Empty:
+                item = None
+            if dropped_events_log_due is not None and time.monotonic() >= dropped_events_log_due:
+                self._log_dropped_events()
+                dropped_events_log_due = None
+            if item is not None:
+                self._emit_safely(*item)
+            # Events are only dropped while the queue is full, so this runs before the thread can go idle.
+            if dropped_events_log_due is None and self._dropped_count:
+                dropped_events_log_due = time.monotonic() + self.DROPPED_EVENTS_LOG_INTERVAL
+
+    def _emit_safely(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
+        try:
+            self._emit(asset_event, event_time)
+        # Once the thread ends, every later event would be dropped without a word, so nothing may end it.
+        except BaseException as err:
+            self.log.warning(
+                "OpenLineage failed to emit asset watcher event of asset `%s`: %s: %s",
+                asset_event.asset.name,
+                type(err).__name__,
+                err,
+            )
+            self.log.debug("Exception details:", exc_info=True)
 
     def _emit(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
         asset_name = asset_event.asset.name
@@ -1237,6 +1262,9 @@ class OpenLineageListener:
     @hookimpl
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
+        emitter = self._asset_watcher_event_emitter
+        if emitter is not None and emitter.pid == os.getpid():
+            emitter.log_unsent_events()
         if self._executor is None:
             # Do not build a pool just to tear it down -- on the task runner this hook fires at the
             # end of every task, where no pool was ever needed.
@@ -1487,7 +1515,17 @@ class OpenLineageListener:
                 )
                 self._are_asset_watcher_events_disabled = True
                 return None
-            self._asset_watcher_event_emitter = _AssetWatcherEventEmitter(max_queue_size)
+            try:
+                self._asset_watcher_event_emitter = _AssetWatcherEventEmitter(max_queue_size)
+            except Exception as err:
+                self.log.warning(
+                    "OpenLineage asset watcher events are turned off, as their emitter thread could not start: "
+                    "%s: %s",
+                    type(err).__name__,
+                    err,
+                )
+                self._are_asset_watcher_events_disabled = True
+                return None
             return self._asset_watcher_event_emitter
 
     def submit_callable(self, callable, *args, **kwargs):

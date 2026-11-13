@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
@@ -3642,6 +3643,66 @@ class TestOpenLineageListenerAssetEvents:
         getattr(listener.log, log_level).assert_called_once()
 
     @patch(
+        "airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter",
+        autospec=True,
+        side_effect=RuntimeError("can't start new thread"),
+    )
+    def test_turns_events_off_when_emitter_thread_cannot_start(self, mock_emitter_cls):
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+
+        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+
+        mock_emitter_cls.assert_called_once()
+        listener.log.warning.assert_called_once()
+
+    @patch(
+        "airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets",
+        autospec=True,
+        return_value=[],
+    )
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
+    def test_hook_does_not_wait_for_a_hanging_transport(self, mock_adapter_cls, _):
+        in_transport, release = threading.Event(), threading.Event()
+
+        def _hang(**_):
+            in_transport.set()
+            release.wait(timeout=30)
+
+        mock_adapter_cls.return_value.asset_watcher_event.side_effect = _hang
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+        asset_event = _build_listener_asset_event()
+        try:
+            with conf_vars({("openlineage", "asset_watcher_event_queue_size"): "5"}):
+                listener.on_asset_event_emitted(asset_event=asset_event)
+                assert in_transport.wait(timeout=10)
+                emitter = listener._asset_watcher_event_emitter
+                emitter.log = MagicMock(spec=logging.Logger)
+                for _ in range(1000):
+                    started = time.monotonic()
+                    listener.on_asset_event_emitted(asset_event=asset_event)
+                    assert time.monotonic() - started < 1
+        finally:
+            release.set()
+
+        # One event is held by the hanging transport, five wait in the queue and the rest are dropped.
+        assert emitter._dropped_count == 995
+        listener.log.warning.assert_not_called()
+        emitter.log.warning.assert_not_called()
+
+    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
+    def test_before_stopping_logs_unsent_asset_watcher_events(self, mock_emitter_cls):
+        mock_emitter_cls.return_value.pid = os.getpid()
+        listener = OpenLineageListener()
+        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+
+        listener.before_stopping(component=MagicMock())
+
+        mock_emitter_cls.return_value.log_unsent_events.assert_called_once_with()
+
+    @patch(
         "airflow.providers.openlineage.plugins.listener.is_asset_event_from_asset_watcher",
         autospec=True,
         side_effect=RuntimeError("boom"),
@@ -3682,18 +3743,32 @@ class TestAssetWatcherEventEmitter:
         assert emitted_on[0].daemon
 
     @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
-    def test_drops_events_when_queue_is_full_and_logs_how_many(self, mock_emit):
+    def test_idle_thread_waits_for_the_next_event_without_a_timeout(self, mock_emit):
+        emitter = _AssetWatcherEventEmitter(max_queue_size=10)
+        get_spy = MagicMock(wraps=emitter._queue.get)
+        emitter._queue.get = get_spy
+
+        emitter.submit(_build_listener_asset_event(), self.EVENT_TIME)
+
+        deadline = time.monotonic() + 10
+        while not get_spy.called and time.monotonic() < deadline:
+            time.sleep(0.01)
+        mock_emit.assert_called_once()
+        get_spy.assert_called_once_with(timeout=None)
+
+    @patch.object(_AssetWatcherEventEmitter, "DROPPED_EVENTS_LOG_INTERVAL", 0.05)
+    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
+    def test_counts_dropped_events_and_logs_them_from_the_thread(self, mock_emit):
         emitter = _AssetWatcherEventEmitter(max_queue_size=1)
         emitter.log = MagicMock(spec=logging.Logger)
         asset_event = _build_listener_asset_event()
-        started, release, next_emitted = threading.Event(), threading.Event(), threading.Event()
+        started, release, logged = threading.Event(), threading.Event(), threading.Event()
+        emitter.log.warning.side_effect = lambda *_, **__: logged.set()
 
         def _block_first(*_):
             if mock_emit.call_count == 1:
                 started.set()
                 release.wait(timeout=10)
-            else:
-                next_emitted.set()
 
         mock_emit.side_effect = _block_first
         try:
@@ -3701,14 +3776,35 @@ class TestAssetWatcherEventEmitter:
             assert started.wait(timeout=10)
             for _ in range(3):
                 emitter.submit(asset_event, self.EVENT_TIME)
-            emitter.log.warning.assert_called_once()
+            emitter.log.warning.assert_not_called()
         finally:
             release.set()
 
-        assert next_emitted.wait(timeout=10)
-        assert mock_emit.call_count == 2
-        assert emitter.log.warning.call_count == 2
-        assert emitter.log.warning.call_args.args[1] == 2
+        assert logged.wait(timeout=10)
+        emitter.log.warning.assert_called_once()
+        assert emitter.log.warning.call_args.args[1:] == (2, 1)
+
+    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
+    def test_logs_unsent_events(self, mock_emit):
+        emitter = _AssetWatcherEventEmitter(max_queue_size=2)
+        emitter.log = MagicMock(spec=logging.Logger)
+        started, release = threading.Event(), threading.Event()
+
+        def _block(*_):
+            started.set()
+            release.wait(timeout=10)
+
+        mock_emit.side_effect = _block
+        try:
+            for _ in range(4):
+                emitter.submit(_build_listener_asset_event(), self.EVENT_TIME)
+                started.wait(timeout=10)
+
+            emitter.log_unsent_events()
+        finally:
+            release.set()
+
+        assert [log_call.args[1] for log_call in emitter.log.warning.mock_calls] == [1, 2]
 
     @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
     def test_keeps_emitting_after_an_emission_fails(self, mock_emit):
@@ -3719,7 +3815,7 @@ class TestAssetWatcherEventEmitter:
 
         def _fail_then_succeed(*_):
             if mock_emit.call_count == 1:
-                raise RuntimeError("transport down")
+                raise SystemExit("transport down")
             done.set()
 
         mock_emit.side_effect = _fail_then_succeed
