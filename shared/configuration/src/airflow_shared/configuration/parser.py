@@ -88,6 +88,30 @@ CUSTOM_BACKEND_CONFIG_KEYS = {
     "general": ("secrets", "backend"),
     "worker": ("workers", "secrets_backend"),
 }
+# (section, key) pairs of the backend kwargs options that can also be set one kwarg at a time, by an
+# environment variable named by _build_kwarg_env_prefix(). Such a variable is reported as an option
+# named "<key in singular>__<kwarg>" in the same section, e.g. [secrets] backend_kwarg__role_id.
+PER_KEY_BACKEND_KWARGS_OPTIONS = (
+    ("secrets", "backend_kwargs"),
+    ("workers", "secrets_backend_kwargs"),
+)
+
+
+def _is_per_key_backend_kwarg(section: str, key: str) -> bool:
+    """
+    Check whether ``key`` in ``section`` holds one kwarg of a backend kwargs option.
+
+    Such an option carries the same material as the backend kwargs option it belongs to (a Vault
+    ``secret_id``, for example), but it is not a registered option, so it is recognised by its name.
+
+    :param section: base section name
+    :param key: option name
+    :return: True if the option is one of the per-key kwargs listed in PER_KEY_BACKEND_KWARGS_OPTIONS
+    """
+    return any(
+        section == kwargs_section and key.startswith(f"{kwargs_key.replace('_kwargs', '_kwarg')}__")
+        for kwargs_section, kwargs_key in PER_KEY_BACKEND_KWARGS_OPTIONS
+    )
 
 
 def team_section_name(team_name: str, section: str) -> str:
@@ -608,6 +632,8 @@ class AirflowConfigParser(ConfigParser):
         parsed out of the variable name; the name is matched against the tail that each option
         registered as sensitive contributes instead. The ``_CMD`` / ``_SECRET`` fallbacks are
         matched too, because - unlike for a base section - they are never resolved into their value.
+        So is a team scoped per-key backend kwarg (see ``PER_KEY_BACKEND_KWARGS_OPTIONS``), which is
+        named ``AIRFLOW__<TEAM>___<SECTION>__<KEY in singular>__<KWARG>``.
 
         :param env_var: environment variable name
         :return: True if the variable holds a team scoped value of an option registered as sensitive
@@ -619,6 +645,14 @@ class AirflowConfigParser(ConfigParser):
         # section, so a name not containing it cannot be a team scoped one.
         if "___" not in env_var:
             return False
+        for kwargs_section, kwargs_key in PER_KEY_BACKEND_KWARGS_OPTIONS:
+            kwarg_tail = (
+                f"___{_build_kwarg_env_prefix(kwargs_section, kwargs_key).removeprefix(ENV_VAR_PREFIX)}"
+            )
+            # The team name sits before the tail and the kwarg name after it; neither may be empty.
+            position = env_var.find(kwarg_tail, len(ENV_VAR_PREFIX) + 1)
+            if position != -1 and len(env_var) > position + len(kwarg_tail):
+                return True
         for section, key in self.sensitive_config_values:
             option_tail = self._env_var_name(section, key).removeprefix(ENV_VAR_PREFIX)
             for tail in (f"___{option_tail}", f"___{option_tail}_CMD", f"___{option_tail}_SECRET"):
@@ -635,8 +669,10 @@ class AirflowConfigParser(ConfigParser):
         override of the very same option is held by a ``<team name>=<section>`` config file section
         or by an ``AIRFLOW__<TEAM>___<SECTION>__<KEY>`` environment variable. Both of those
         spellings are resolved back to the base option here, so that a team scoped value is treated
-        exactly like the base one. A name that does not resolve to a registered option is not
-        sensitive - so this only ever recognises more options as sensitive, never fewer.
+        exactly like the base one. The per-key kwargs of a backend kwargs option (see
+        ``PER_KEY_BACKEND_KWARGS_OPTIONS``) are sensitive under every spelling as well. Any other name
+        that does not resolve to a registered option is not sensitive - so this only ever recognises
+        more options as sensitive, never fewer.
 
         :param section: section name, either a base one or a team scoped one
         :param key: option name
@@ -657,6 +693,8 @@ class AirflowConfigParser(ConfigParser):
                     continue
                 if (base_section, key.removesuffix(fallback_suffix)) in self.sensitive_config_values:
                     return True
+        if _is_per_key_backend_kwarg(base_section, key):
+            return True
         # A team scoped environment variable is reported under the section and key its name splits
         # into, which is neither the base nor the team scoped section name.
         return self._names_sensitive_team_env_var(self._env_var_name(section, key))

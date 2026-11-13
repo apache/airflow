@@ -1157,6 +1157,37 @@ existing_list = one,two,three
         # A team name matching a registered option does not make the section sensitive either.
         assert not test_conf.is_sensitive_option("sensitive_key=test", "key1")
 
+    def test_is_sensitive_option_recognises_per_key_backend_kwargs(self):
+        """A single backend kwarg set on its own is sensitive under every spelling of its section."""
+        test_conf = AirflowConfigParser()
+
+        assert test_conf.is_sensitive_option("secrets", "backend_kwarg__role_id")
+        assert test_conf.is_sensitive_option("workers", "secrets_backend_kwarg__role_id")
+        assert test_conf.is_sensitive_option("team_a=secrets", "backend_kwarg__role_id")
+        assert test_conf.is_sensitive_option("team_a=workers", "secrets_backend_kwarg__role_id")
+        # The section and key an AIRFLOW__<TEAM>___SECRETS__BACKEND_KWARG__<KWARG> name splits into.
+        assert test_conf.is_sensitive_option("team_a", "_secrets__backend_kwarg__role_id")
+        assert test_conf.is_sensitive_option("team_a", "_workers__secrets_backend_kwarg__role_id")
+
+        # The kwarg prefix only counts in the section the backend kwargs option belongs to.
+        assert not test_conf.is_sensitive_option("workers", "backend_kwarg__role_id")
+        assert not test_conf.is_sensitive_option("team_a=test", "backend_kwarg__role_id")
+        assert not test_conf.is_sensitive_option("team_a", "_test__backend_kwarg__role_id")
+
+    def test_team_scoped_per_key_backend_kwarg_is_hidden_in_as_dict(self):
+        """A team scoped per-key backend kwarg set by an environment variable is hidden in as_dict."""
+        test_conf = AirflowConfigParser()
+        with patch.dict(
+            os.environ,
+            {"AIRFLOW__TEAM_A___SECRETS__BACKEND_KWARG__ROLE_ID": "team_a_role_id"},
+        ):
+            assert test_conf.as_dict(display_sensitive=False)["team_a"][
+                "_secrets__backend_kwarg__role_id"
+            ] == ("< hidden >")
+            assert test_conf.as_dict(display_sensitive=True)["team_a"][
+                "_secrets__backend_kwarg__role_id"
+            ] == ("team_a_role_id")
+
     def test_team_scoped_sensitive_value_is_hidden_in_as_dict(self):
         """A sensitive option set in a [team=section] section is hidden like the base option is."""
         test_conf = AirflowConfigParser()
