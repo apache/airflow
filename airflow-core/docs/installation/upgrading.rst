@@ -67,6 +67,65 @@ In order to manually migrate the database you should run the ``airflow db migrat
 environment. It can be run either in your virtual environment or in the containers that give
 you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 
+Downgrading to an earlier version
+=================================
+
+``airflow db downgrade`` reverses **schema** migrations. It does not rewrite the contents of
+rows that a newer version of Airflow already wrote. Alembic downgrade scripts restore tables,
+columns and the ``alembic_version`` marker, but any serialized payload written while the newer
+version was running stays on disk in the newer version's format.
+
+This matters because Airflow ships forward-compatibility shims and not backward-compatibility
+ones. A newer version generally knows how to read rows an older version wrote; an older version
+has no way to know about a format that did not exist when it was released.
+
+.. warning::
+
+    Downgrading between minor versions is not a supported rollback path once the newer version
+    has run against your metadata database. Restoring a backup taken **before** the upgrade is
+    the only reliable way back.
+
+What can go wrong
+.................
+
+Airflow 3.2 moved trigger keyword arguments from the legacy ``BaseSerialization`` envelope to
+the Task SDK serializer. The two envelopes do not share a shape:
+
+.. code-block:: text
+
+    legacy (3.1.x and earlier)   {"__type": ..., "__var": ...}
+    Task SDK serde (3.2 onward)  {"__classname__": ..., "__version__": ..., "__data__": ...}
+
+Airflow 3.2 reads both: ``Trigger._decrypt_kwargs`` tries the Task SDK deserializer first and
+falls back to ``BaseSerialization`` when that raises. Airflow 3.1.x calls ``BaseSerialization``
+directly, with no fallback, so a row written by 3.2 makes it index a key that isn't there:
+
+.. code-block:: text
+
+    File ".../airflow/serialization/serialized_objects.py", line 652, in deserialize
+        var = encoded_var[Encoding.VAR]
+    KeyError: <Encoding.VAR: '__var'>
+
+The schema downgrade reports success, so the database looks healthy while the scheduler and
+triggerer crash-loop on startup as soon as they load an affected row.
+
+Rolling back safely
+...................
+
+1. Take a backup of the metadata database **before** you upgrade, not after you decide to roll
+   back. See ``Upgrade preparation - make a backup of DB`` above.
+2. If you need to roll back, stop all Airflow components, restore that backup, and redeploy the
+   older Airflow image. Any DAG runs, task instances and triggers created after the backup are
+   lost - that is the trade-off, and there is no way to keep them in a format the older version
+   can read.
+3. If you have no pre-upgrade backup, expect manual repair rather than a clean rollback. Rows
+   in the newer format have to be deleted or rewritten by hand, which loses the work they
+   represent and risks leaving the database internally inconsistent.
+
+The interactive prompt shown by ``airflow db downgrade`` says it is about to "reverse schema
+migrations for the airflow metastore". Read that literally: schema only. Passing ``--yes``
+skips the prompt entirely.
+
 Offline SQL migration scripts
 =============================
 If you want to run the upgrade script offline, you can use the ``-s`` or ``--show-sql-only`` flag
