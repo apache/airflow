@@ -145,6 +145,11 @@ class PostgresHook(DbApiHook):
         during the session. To avoid a memory leak psycopg2 only saves the last 50 messages.
         For details, see: `PostgreSQL logging configuration parameters
         <https://www.postgresql.org/docs/current/runtime-config-logging.html>`__
+    :param client_side_binding: Optional. With psycopg (v3), use ``psycopg.ClientCursor`` so query
+        parameters are bound on the client, as psycopg2 does. Needed for statements the server
+        can't parameterize, e.g. ``CREATE VIEW``, ``SET`` or several statements in one query.
+        Can also be set via the connection extra ``client_side_binding``; this parameter takes
+        precedence. Has no effect with psycopg2.
     """
 
     conn_name_attr = "postgres_conn_id"
@@ -166,6 +171,7 @@ class PostgresHook(DbApiHook):
         "sqlalchemy_scheme",
         "sqlalchemy_query",
         "azure_conn_id",
+        "client_side_binding",
     }
     default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
@@ -175,6 +181,7 @@ class PostgresHook(DbApiHook):
         options: str | None = None,
         enable_log_db_messages: bool = False,
         sqlalchemy_scheme: str | None = None,
+        client_side_binding: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -183,6 +190,7 @@ class PostgresHook(DbApiHook):
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
         self._sqlalchemy_scheme = sqlalchemy_scheme
+        self._client_side_binding = client_side_binding
 
     @staticmethod
     def __cast_nullable(value, dst_type: type) -> Any:
@@ -322,6 +330,14 @@ class PostgresHook(DbApiHook):
         if raw_cursor:
             key, value = self._get_cursor_config(raw_cursor)
             conn_args[key] = value
+
+        client_side_binding = self._client_side_binding
+        if client_side_binding is None:
+            client_side_binding = conn.extra_dejson.get("client_side_binding", False)
+        if USE_PSYCOPG3 and client_side_binding:
+            from psycopg import ClientCursor
+
+            conn_args["cursor_factory"] = ClientCursor
 
         self.conn = self._create_connection(conn_args)
 
