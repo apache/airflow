@@ -138,4 +138,4 @@ class TelegramFileOperator(BaseOperator):
             token=self.token,
             chat_id=self.chat_id,
         )
-        telegram_hook.send_file(**self.telegram_kwargs)
+        telegram_hook.send_file(self.telegram_kwargs)
