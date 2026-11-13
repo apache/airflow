@@ -38,9 +38,12 @@ from typing import TYPE_CHECKING, Any
 
 from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
+from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.signals import import_modules as celery_import_modules, worker_ready
 from sqlalchemy import select
+from sqlalchemy.exc import DatabaseError, InterfaceError, InvalidRequestError
+from sqlalchemy.orm.exc import StaleDataError
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import (
@@ -551,7 +554,12 @@ class BulkStateFetcher(LoggingMixin):
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
-    @retry
+    @retry(
+        retry=retry_if_exception_type((DatabaseError, InterfaceError, InvalidRequestError, StaleDataError)),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(log, logging.WARNING),
+        reraise=True,
+    )
     def _query_task_cls_from_db_backend(self, task_ids: set[str], **kwargs):
         session = self.celery_app.backend.ResultSession()
         task_cls = getattr(self.celery_app.backend, "task_cls", TaskDb)
