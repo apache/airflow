@@ -1492,6 +1492,23 @@ def test_trigger_logger_close():
     mock_fh.close.assert_called_once()
 
 
+def test_trigger_logger_falls_back_when_log_path_name_too_long(tmp_path, caplog):
+    factory = TriggerLoggingFactory(log_path=f"dag_id=d/run_id={'r' * 250}/attempt=1.log")
+
+    with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+        logger = factory(processors=[])
+        logger.info("trigger log line")
+        assert factory(processors=[]) is logger
+        factory.upload_to_remote()
+    factory.close()
+
+    assert {
+        "event": "Cannot create the trigger log file because a path component is too long; "
+        "the trigger logs will not be written to a local file",
+        "log_level": "warning",
+    } in caplog
+
+
 def test_trigger_logger_fd_closed_when_removed(session):
     trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
 

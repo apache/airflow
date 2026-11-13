@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import errno
 import functools
 import gc
 import logging
@@ -537,12 +538,24 @@ class TriggerLoggingFactory:
         log_file = init_log_file(self.log_path)
 
         pretty_logs = False
-        if pretty_logs:
-            self._filehandle = log_file.open("w", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(self._filehandle)
-        else:
-            self._filehandle = log_file.open("wb")
-            underlying_logger = structlog.BytesLogger(self._filehandle)
+        try:
+            if pretty_logs:
+                self._filehandle = log_file.open("w", buffering=1)
+                underlying_logger: WrappedLogger = structlog.WriteLogger(self._filehandle)
+            else:
+                self._filehandle = log_file.open("wb")
+                underlying_logger = structlog.BytesLogger(self._filehandle)
+        except OSError as e:
+            if e.errno != errno.ENAMETOOLONG:
+                raise
+            fallback_logger = structlog.get_logger(logger_name=__name__).bind()
+            fallback_logger.warning(
+                "Cannot create the trigger log file because a path component is too long; "
+                "the trigger logs will not be written to a local file",
+                log_path=self.log_path,
+            )
+            self.bound_logger = fallback_logger
+            return fallback_logger
         logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
         self.bound_logger = logger
         return logger
