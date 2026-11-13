@@ -144,7 +144,9 @@ class LogType(str, Enum):
     WORKER = "worker"
 
 
-def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
+def _fetch_logs_from_service(
+    url: str, log_relative_path: str, headers: dict[str, str] | None = None
+) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
@@ -165,7 +167,7 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     response = requests.get(
         url,
         timeout=timeout,
-        headers={"Authorization": generator.generate({"filename": log_relative_path})},
+        headers={**(headers or {}), "Authorization": generator.generate({"filename": log_relative_path})},
         stream=True,
     )
     response.encoding = "utf-8"
@@ -179,6 +181,31 @@ if not _parse_timestamp:
     def _parse_timestamp(line: str):
         timestamp_str, _ = line.split(" ", 1)
         return pendulum.parse(timestamp_str.strip("[]"))
+
+
+def _get_log_server_url(hostname: str, log_relative_path: str, log_type: LogType | None = None) -> str:
+    """Return the URL of a log on a triggerer's log server, or a worker's for any other ``log_type``."""
+    if log_type == LogType.TRIGGER:
+        config_key = "trigger_log_server_port"
+        deprecated_config_key = "triggerer_log_server_port"
+        if (
+            conf.get("logging", config_key, fallback=None) is None
+            and conf.get("logging", deprecated_config_key, fallback=None) is not None
+        ):
+            logger.warning(
+                "The [logging] %s option is deprecated. Please use [logging] %s instead.",
+                deprecated_config_key,
+                config_key,
+            )
+            config_key = deprecated_config_key
+        config_default = 8794
+    else:
+        config_key = "worker_log_server_port"
+        config_default = 8793
+    return urljoin(
+        f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
+        log_relative_path,
+    )
 
 
 def _stream_lines_by_chunk(
@@ -672,36 +699,15 @@ class FileTaskHandler(logging.Handler):
         if log_type == LogType.TRIGGER:
             if not ti.triggerer_job:
                 raise RuntimeError("Could not build triggerer log URL; no triggerer job.")
-            config_key = "trigger_log_server_port"
-            deprecated_config_key = "triggerer_log_server_port"
-            if (
-                conf.get("logging", config_key, fallback=None) is None
-                and conf.get("logging", deprecated_config_key, fallback=None) is not None
-            ):
-                logger.warning(
-                    "The [logging] %s option is deprecated. Please use [logging] %s instead.",
-                    deprecated_config_key,
-                    config_key,
-                )
-                config_key = deprecated_config_key
-            config_default = 8794
             hostname = ti.triggerer_job.hostname
             log_relative_path = self.add_triggerer_suffix(log_relative_path, job_id=ti.triggerer_job.id)
         else:
             hostname = ti.hostname
-            config_key = "worker_log_server_port"
-            config_default = 8793
 
         if not hostname:
             return None, None
 
-        return (
-            urljoin(
-                f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
-                log_relative_path,
-            ),
-            log_relative_path,
-        )
+        return _get_log_server_url(hostname, log_relative_path, log_type), log_relative_path
 
     def read(
         self,

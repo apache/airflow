@@ -599,6 +599,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
      - ``GET``
    * - ``GET``
+     - ``/api/v2/triggers/{trigger_id}/logs``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/variables``
      - ``Variable``
      - ``GET``

@@ -2105,6 +2105,26 @@ export const useTriggerServiceGetTrigger = <TData = Common.TriggerServiceGetTrig
   triggerId: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggerKeyFn({ triggerId }, queryKey), queryFn: () => TriggerService.getTrigger({ triggerId }) as TData, ...options });
 /**
+* Get Trigger Logs
+* Get the most recent lines a trigger logged, whatever its kind.
+*
+* For a deferred task's trigger, the trigger part of that task try's log; for a callback's trigger, the
+* callback's log; for an asset watcher, its own log files. Lines come from the triggerer running it now,
+* from remote logging, and from the API server's own log folder, merged in time order. The trigger must be
+* visible to the caller, as in GET /triggers/{trigger_id}, and its owner's logs readable.
+* @param data The data for the request.
+* @param data.triggerId
+* @param data.tailLines Number of most recent log lines to return.
+* @param data.accept
+* @returns TaskInstancesLogResponse Successful Response
+* @throws ApiError
+*/
+export const useTriggerServiceGetTriggerLogs = <TData = Common.TriggerServiceGetTriggerLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept, tailLines, triggerId }: {
+  accept?: "application/json" | "*/*" | "application/x-ndjson";
+  tailLines?: number;
+  triggerId: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggerLogsKeyFn({ accept, tailLines, triggerId }, queryKey), queryFn: () => TriggerService.getTriggerLogs({ accept, tailLines, triggerId }) as TData, ...options });
+/**
 * Get Variable
 * Get a variable entry.
 * @param data The data for the request.
