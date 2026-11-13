@@ -62,11 +62,13 @@ jobs:
     steps:
       - name: "Resolve the release branches from the latest release on to their current commits"
         id: find
+        shell: bash
         env:
           LATEST_RELEASE: ${{ inputs.latest-release }}
           GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
+          REPOSITORY: "apache/airflow"
         run: |
+          set -euo pipefail
           if ! jq -e 'has("airflow-version")' <<< "${LATEST_RELEASE}" > /dev/null; then
             echo "No released Airflow version to start from"
             echo "targets=[]" >> "${GITHUB_OUTPUT}"
@@ -76,7 +78,7 @@ jobs:
             --jq '.[].ref | ltrimstr("refs/heads/")' > "${RUNNER_TEMP}/constraints-branches.txt"
           # Versions compare as numbers: the API lists v2-10-test before v2-9-test.
           gh api --paginate "repos/${REPOSITORY}/git/matching-refs/heads/v" --jq '.[]' \
-            | jq -s -c --argjson release "${LATEST_RELEASE}" \
+            | jq -s -c --argjson release "${LATEST_RELEASE}" --arg repository "${REPOSITORY}" \
                 --rawfile constraints "${RUNNER_TEMP}/constraints-branches.txt" '
                 ($release["airflow-version"] | split(".")[:2] | map(tonumber)) as $floor
                 | ($constraints | split("\n")) as $constraint_branches
@@ -84,6 +86,7 @@ jobs:
                     | (.ref | capture("^refs/heads/v(?<major>[0-9]+)-(?<minor>[0-9]+)-test$")) as $v
                     | select([($v.major | tonumber), ($v.minor | tonumber)] >= $floor)
                     | {
+                        repository: $repository,
                         branch: "v\($v.major)-\($v.minor)-test",
                         sha: .object.sha,
                         "airflow-constraints-reference": "constraints-\($v.major)-\($v.minor)",
@@ -97,6 +100,15 @@ jobs:
           jq -r '.[] | select(."has-constraints" | not)
             | "::notice::\(.branch): skipped, \(."airflow-constraints-reference") does not exist yet"' \
             "${RUNNER_TEMP}/branch-tips.json"
+          # The branch of a release in the matrix always has its constraints branch, so not finding it
+          # means the lookup is broken, and passing would test nothing.
+          release_branch=$(jq -r '."airflow-version" | split(".") | "v\(.[0])-\(.[1])-test"' \
+            <<< "${LATEST_RELEASE}")
+          if ! jq -e --arg branch "${release_branch}" 'any(.[]; .branch == $branch and ."has-constraints")' \
+              "${RUNNER_TEMP}/branch-tips.json" > /dev/null; then
+            echo "::error::${release_branch} or its constraints branch not found in ${REPOSITORY}"
+            exit 1
+          fi
           echo "targets=$(jq -c '[.[] | select(."has-constraints") | del(."has-constraints")]' \
             "${RUNNER_TEMP}/branch-tips.json")" >> "${GITHUB_OUTPUT}"
 
@@ -122,6 +134,7 @@ jobs:
       - name: "Checkout ${{ matrix.target.branch }} ( ${{ matrix.target.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          repository: ${{ matrix.target.repository }}
           ref: ${{ matrix.target.sha }}
           persist-credentials: false
       - name: "Install Breeze from ${{ matrix.target.branch }}"
