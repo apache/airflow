@@ -316,7 +316,7 @@ Alternatively, Jinja can also be instructed to render a native Python object. Th
 Reserved params keyword
 -----------------------
 
-In Apache Airflow 2.2.0 ``params`` variable is used during Dag serialization. Please do not use that name in third party operators.
+In Apache Airflow 2.2.0, the ``params`` variable is used during Dag serialization. Please do not use that name in third-party operators.
 If you upgrade your environment and get the following error:
 
 .. code-block::
@@ -366,7 +366,7 @@ For example, you can use the ``pre_execute`` method to elegantly determine if a 
         Check if a given task instance should be skipped if the `tasks_to_skip` Airflow Variable is a list that contains the task id.
         """
         tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
-        if context["task"].task_id in on_ice:
+        if context["task"].task_id in tasks_to_skip:
             raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
 
 
@@ -384,4 +384,8 @@ The ``pre_execute`` and ``post_execute`` methods include the task instance's con
 Difference between pre-/post-execute and setup/teardown
 -------------------------------------------------------
 
-The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to before setup or cleanup operations before and after multiple task instances are executed within a Dag run.
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to perform setup or cleanup operations before and after multiple task instances are executed within a Dag run.
+
+.. seealso::
+
+    For more details on setup and teardown tasks, see :doc:`/howto/setup-and-teardown`.
