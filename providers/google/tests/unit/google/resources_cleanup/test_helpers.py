@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -241,10 +242,74 @@ async def test_run_command_async():
     process = MagicMock()
     process.returncode = 0
     process.communicate = AsyncMock(return_value=(b"out", b"err"))
+    env = {"TEST_ENV": "value"}
 
     with patch.object(
         helpers.asyncio, "create_subprocess_shell", AsyncMock(return_value=process)
     ) as mock_create:
-        await helpers.run_command_async("echo test")
+        await helpers.run_command_async("echo test", env=env)
 
-    mock_create.assert_awaited_once()
+    mock_create.assert_awaited_once_with(
+        "echo test",
+        stdout=helpers.asyncio.subprocess.PIPE,
+        stderr=helpers.asyncio.subprocess.PIPE,
+        env=env,
+    )
+
+
+def test_get_access_token_refreshes_and_reuses_credentials(monkeypatch):
+    credentials = MagicMock(valid=False, token=None)
+
+    def refresh(_request):
+        credentials.valid = True
+        credentials.token = "test-token"
+
+    credentials.refresh.side_effect = refresh
+    mock_default = MagicMock(return_value=(credentials, None))
+    monkeypatch.setattr(helpers, "_google_credentials", None)
+    monkeypatch.setattr(helpers.google.auth, "default", mock_default)
+
+    assert helpers._get_access_token() == "test-token"
+    assert helpers._get_access_token() == "test-token"
+
+    mock_default.assert_called_once_with(scopes=[helpers.GOOGLE_CLOUD_PLATFORM_SCOPE])
+    credentials.refresh.assert_called_once()
+
+
+def test_get_access_token_requires_token(monkeypatch):
+    credentials = MagicMock(valid=True, token=None)
+    monkeypatch.setattr(helpers, "_google_credentials", credentials)
+
+    with pytest.raises(RuntimeError, match="did not provide an access token"):
+        helpers._get_access_token()
+
+
+@pytest.mark.anyio
+async def test_curl_uses_http1_and_retries():
+    url = "https://dataform.googleapis.com/v1/projects/test-project/locations/us-central1/repositories/repo"
+
+    with (
+        patch.object(helpers, "_get_access_token", return_value="test-token") as mock_get_token,
+        patch.object(helpers, "run_command_async", AsyncMock(return_value=0)) as mock_run,
+    ):
+        await helpers.curl(url, log_prefix="[1/1] ")
+
+    command = mock_run.await_args.args[0]
+    assert command.startswith("curl --fail --silent --show-error --http1.1")
+    assert "--retry 5 --retry-delay 5 --retry-max-time 120" in command
+    assert "-X DELETE" in command
+    assert "Authorization: Bearer $GOOGLE_OAUTH_ACCESS_TOKEN" in command
+    assert url in command
+    assert "test-token" not in command
+    assert mock_run.await_args.kwargs["env"]["GOOGLE_OAUTH_ACCESS_TOKEN"] == "test-token"
+    mock_get_token.assert_called_once_with()
+
+
+@pytest.mark.anyio
+async def test_curl_raises_for_failed_request():
+    with (
+        patch.object(helpers, "_get_access_token", return_value="test-token"),
+        patch.object(helpers, "run_command_async", AsyncMock(return_value=92)),
+        pytest.raises(subprocess.CalledProcessError),
+    ):
+        await helpers.curl("https://dataform.googleapis.com/v1/test-resource")
