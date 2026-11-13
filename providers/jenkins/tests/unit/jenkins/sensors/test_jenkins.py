@@ -113,3 +113,18 @@ class TestJenkinsBuildSensor:
                 assert output == (not build_state)
                 assert jenkins_mock.get_job_info.call_count == 0 if build_number else 1
                 assert jenkins_mock.get_build_info.call_count == 2
+
+    @patch("airflow.providers.jenkins.sensors.jenkins.JenkinsHook", autospec=True)
+    def test_poke_failed_build_passes_with_default_target_states(self, mock_hook):
+        mock_hook.return_value.get_build_building_state.return_value = False
+        mock_hook.return_value.get_build_result.return_value = "FAILURE"
+
+        sensor = JenkinsBuildSensor(
+            jenkins_connection_id="fake_jenkins_connection",
+            task_id="sensor_test",
+            job_name="a_job_on_jenkins",
+            build_number=1,
+        )
+
+        assert sensor.poke(None) is True
+        mock_hook.return_value.get_build_result.assert_called_once_with("a_job_on_jenkins", 1)
