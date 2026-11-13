@@ -1243,6 +1243,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         f"Failed to poll for the driver status {max_missed_job_status_reports} times: "
                         f"returncode = {returncode}"
                     )
+            else:
+                missed_job_status_reports = 0
 
     def _poll_k8s_driver_via_api(self) -> str | None:
         """
