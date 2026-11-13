@@ -39,6 +39,7 @@ from airflow.models.backfill import (
     TooManyBackfillPartitions,
     _create_backfill,
     _do_dry_run,
+    _plan_backfill,
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -832,3 +833,113 @@ def test_identity_backfill_run_gets_the_same_partition_date_as_a_live_run(dag_ma
     assert backfilled[0].partition_date == live_date == timezone.parse("2026-02-01T01:00:00")
     assert [event.id for event in backfilled[0].consumed_asset_events] == live_event_ids
     assert len(live_event_ids) == 1
+
+
+# ---------------------------------------------------------------------------------------------
+# The plan: every selected key, with what the backfill would do for it.
+# ---------------------------------------------------------------------------------------------
+def _plan(session, dag_id="weekly_report", from_date="2026-02-01", to_date="2026-02-28", **kwargs):
+    return [
+        (entry.info.partition_key, entry.result, entry.missing_inputs)
+        for entry in _plan_backfill(
+            dag_id=dag_id,
+            from_date=pendulum.parse(from_date) if from_date else None,
+            to_date=pendulum.parse(to_date) if to_date else None,
+            reverse=False,
+            reprocess_behavior=kwargs.pop("reprocess_behavior", ReprocessBehavior.NONE),
+            session=session,
+            **kwargs,
+        )
+    ]
+
+
+def test_plan_names_the_missing_inputs_of_each_key(dag_maker, session):
+    """The table of example 3: the load for 2026-02-10 never ran."""
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-01-26", "2026-03-08", skip=("2026-02-10",))
+
+    assert _plan(session) == [
+        (W06, "run", []),
+        (W07, "missing input", [("sales", "2026-02-10")]),
+        (W08, "run", []),
+        (W09, "run", []),
+    ]
+    # A plan creates nothing.
+    assert _runs(session) == []
+    assert session.scalars(select(Backfill)).all() == []
+
+
+def test_plan_shows_existing_runs_and_follows_reprocess_behavior(dag_maker, session):
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-02-02", "2026-02-15")
+    first = _backfill(from_date="2026-02-02", to_date="2026-02-02")
+    assert _plan(session, from_date="2026-02-02", to_date="2026-02-09") == [
+        (W06, "in flight", []),
+        (W07, "run", []),
+    ]
+    [run] = _runs(session)
+    run.state = DagRunState.SUCCESS
+    run.start_date = timezone.utcnow()
+    session.get(Backfill, first.id).completed_at = timezone.utcnow()
+    session.commit()
+
+    assert _plan(session, from_date="2026-02-02", to_date="2026-02-09") == [
+        (W06, "already exists", []),
+        (W07, "run", []),
+    ]
+    assert _plan(
+        session, from_date="2026-02-02", to_date="2026-02-09", reprocess_behavior=ReprocessBehavior.COMPLETED
+    ) == [(W06, "run", []), (W07, "run", [])]
+
+
+def test_plan_for_explicit_keys(dag_maker, session):
+    _consumer(dag_maker, session)
+    _daily_events(session, "2026-02-02", "2026-02-08")
+
+    assert _plan(session, from_date=None, to_date=None, partition_keys=[W07, W06]) == [
+        (W06, "run", []),
+        (W07, "missing input", [("sales", f"2026-02-{d:02d}") for d in range(9, 16)]),
+    ]
+
+
+def test_plan_for_an_identity_consumer(dag_maker, session):
+    _identity_consumer(dag_maker, session, assets=ORDERS & REFUNDS)
+    _produced(session, "2026-02-01", asset_name="orders")
+    _produced(session, "2026-02-01", asset_name="refunds")
+    _produced(session, "2026-02-02", asset_name="orders")
+    _produced(session, "2026-02-03", asset_name="orders", hour=1)
+    _produced(session, "2026-02-03", asset_name="refunds", hour=3)
+
+    assert _plan(session, dag_id="orders_report", to_date="2026-02-28T23:59:59") == [
+        ("2026-02-01", "run", []),
+        ("2026-02-02", "missing input", [("refunds", "2026-02-02")]),
+        ("2026-02-03", "no single partition date", []),
+    ]
+
+
+def test_plan_for_a_periodic_dag_lists_skipped_runs_too(dag_maker, session):
+    with dag_maker(
+        dag_id="daily_sales",
+        schedule=CronPartitionTimetable("0 1 * * *", timezone="UTC", key_format="%Y-%m-%d"),
+        session=session,
+    ):
+        EmptyOperator(task_id="load")
+    session.commit()
+    session.add(
+        DagRun(
+            dag_id="daily_sales",
+            run_id="scheduled__2026-02-02",
+            run_type="scheduled",
+            state=DagRunState.SUCCESS,
+            start_date=timezone.utcnow(),
+            partition_key="2026-02-02",
+            partition_date=timezone.parse("2026-02-02T01:00:00"),
+        )
+    )
+    session.commit()
+
+    assert _plan(session, dag_id="daily_sales", to_date="2026-02-03T23:59:59") == [
+        ("2026-02-01", "run", []),
+        ("2026-02-02", "already exists", []),
+        ("2026-02-03", "run", []),
+    ]

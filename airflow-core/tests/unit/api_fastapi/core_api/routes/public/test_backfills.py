@@ -48,6 +48,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dag_bundles,
@@ -1790,3 +1791,104 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         assert (
             response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
         )
+
+
+class TestConsumerBackfill(TestBackfillEndpoint):
+    """A Dag scheduled on partitioned assets, through the REST routes (AIP-129 proof of concept)."""
+
+    WEEKS = ["2026-02-02 (W06)", "2026-02-09 (W07)"]
+
+    @staticmethod
+    def _consumer(dag_maker, session, mapper=None):
+        from airflow.sdk import Asset, PartitionedAssetTimetable, RollupMapper, StartOfWeekMapper, WeekWindow
+
+        sales = Asset(uri="s3://lake/sales", name="sales")
+        mapper = mapper or RollupMapper(
+            upstream_mapper=StartOfWeekMapper(input_format="%Y-%m-%d"), window=WeekWindow()
+        )
+        schedule = PartitionedAssetTimetable(assets=sales, default_partition_mapper=mapper)
+        with dag_maker(session=session, dag_id="weekly_report", schedule=schedule):
+            EmptyOperator(task_id="build_report")
+        session.commit()
+
+    @staticmethod
+    def _daily_events(session, days):
+        from airflow.models.asset import AssetEvent, AssetModel
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "sales"))
+        for day in days:
+            session.add(AssetEvent(asset_id=asset_id, partition_key=f"2026-02-{day:02d}"))
+        session.commit()
+
+    @staticmethod
+    def _body(**overrides):
+        return {
+            "dag_id": "weekly_report",
+            "from_date": "2026-02-02T00:00:00+00:00",
+            "to_date": "2026-02-09T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+            "reprocess_behavior": ReprocessBehavior.NONE,
+            **overrides,
+        }
+
+    def test_create_backfill_for_a_consumer(self, session, dag_maker, test_client):
+        self._consumer(dag_maker, session)
+        self._daily_events(session, [d for d in range(2, 16) if d != 10])
+
+        response = test_client.post(url="/backfills", json=self._body())
+
+        assert response.status_code == 200, response.json()
+        assert response.json()["dag_id"] == "weekly_report"
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == "weekly_report")).all()
+        assert [(r.partition_key, r.run_type, r.state) for r in runs] == [
+            (self.WEEKS[0], DagRunType.BACKFILL_JOB, DagRunState.QUEUED)
+        ]
+        results = session.execute(
+            select(BackfillDagRun.partition_key, BackfillDagRun.exception_reason).order_by(
+                BackfillDagRun.sort_ordinal
+            )
+        ).all()
+        assert [tuple(row) for row in results] == [(self.WEEKS[0], None), (self.WEEKS[1], "missing input")]
+
+    def test_dry_run_for_a_consumer(self, session, dag_maker, test_client):
+        self._consumer(dag_maker, session)
+        self._daily_events(session, range(2, 16))
+
+        response = test_client.post(url="/backfills/dry_run", json=self._body())
+
+        assert response.status_code == 200, response.json()
+        assert [b["partition_key"] for b in response.json()["backfills"]] == self.WEEKS
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == "weekly_report")).all() == []
+
+    def test_a_consumer_that_is_not_supported_is_a_422(self, session, dag_maker, test_client):
+        from airflow.sdk import HourWindow, RollupMapper, StartOfHourMapper
+
+        self._consumer(
+            dag_maker, session, mapper=RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow())
+        )
+
+        for url in ("/backfills", "/backfills/dry_run"):
+            response = test_client.post(url=url, json=self._body())
+            assert response.status_code == 422, (url, response.json())
+            assert "StartOfHourMapper" in response.json()["detail"]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_a_consumer_with_multi_team_is_a_422(self, session, dag_maker, test_client):
+        self._consumer(dag_maker, session)
+
+        response = test_client.post(url="/backfills", json=self._body())
+
+        assert response.status_code == 422, response.json()
+        assert "multi_team" in response.json()["detail"]
+
+    @conf_vars({("scheduler", "max_consumer_backfill_partitions"): "1"})
+    def test_a_range_over_the_key_limit_is_a_422(self, session, dag_maker, test_client):
+        self._consumer(dag_maker, session)
+        self._daily_events(session, range(2, 16))
+
+        response = test_client.post(url="/backfills", json=self._body())
+
+        assert response.status_code == 422, response.json()
+        assert session.scalars(select(Backfill)).all() == []

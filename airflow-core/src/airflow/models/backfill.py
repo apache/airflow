@@ -26,7 +26,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import sqlalchemy as sa
 import structlog
@@ -285,6 +285,9 @@ class BackfillDagRunExceptionReason(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+BACKFILL_PLAN_RESULT_RUN = "run"
 
 
 class BackfillDagRun(Base):
@@ -677,7 +680,22 @@ def _link_consumer_evidence(dag: SerializedDAG, dr: DagRun, evidence: list[Any],
     )
 
 
-def _do_dry_run(
+class BackfillPlanEntry(NamedTuple):
+    """
+    What a backfill would do for one Dag run.
+
+    ``result`` is ``run``, or the reason why no run would be created. ``missing_inputs`` lists
+    the (asset name, partition key) pairs that have no asset event, for the result ``missing input``.
+
+    :meta private:
+    """
+
+    info: DagRunInfo
+    result: str
+    missing_inputs: list[tuple[str, str]]
+
+
+def _plan_backfill(
     *,
     dag_id: str,
     from_date: datetime | None,
@@ -687,7 +705,8 @@ def _do_dry_run(
     session: Session,
     dag_run_conf: dict | None = None,
     partition_keys: list[str] | None = None,
-) -> Iterable[DagRunInfo]:
+) -> list[BackfillPlanEntry]:
+    """List every Dag run that a backfill request selects, with what the backfill would do for it."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
@@ -718,19 +737,53 @@ def _do_dry_run(
     )
 
     is_consumer = _is_asset_consumer(dag)
+    plan: list[BackfillPlanEntry] = []
     for info in dagrun_info_list:
-        if TYPE_CHECKING:
-            assert info.logical_date
         if is_consumer and info.partition_date is None:
+            plan.append(
+                BackfillPlanEntry(info, BackfillDagRunExceptionReason.NO_SINGLE_PARTITION_DATE.value, [])
+            )
             continue
         dr = session.scalar(
             statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info),
         )
-        if dr and _get_dag_run_no_create_reason(dr, reprocess_behavior):
+        if dr and (reason := _get_dag_run_no_create_reason(dr, reprocess_behavior)):
+            plan.append(BackfillPlanEntry(info, str(getattr(reason, "value", reason)), []))
             continue
-        if is_consumer and info.partition_key and _consumer_evidence(dag, info.partition_key, session)[1]:
-            continue
-        yield info
+        if is_consumer and info.partition_key:
+            missing = _consumer_evidence(dag, info.partition_key, session)[1]
+            if missing:
+                plan.append(
+                    BackfillPlanEntry(info, BackfillDagRunExceptionReason.MISSING_INPUT.value, missing)
+                )
+                continue
+        plan.append(BackfillPlanEntry(info, BACKFILL_PLAN_RESULT_RUN, []))
+    return plan
+
+
+def _do_dry_run(
+    *,
+    dag_id: str,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    reverse: bool,
+    reprocess_behavior: ReprocessBehavior,
+    session: Session,
+    dag_run_conf: dict | None = None,
+    partition_keys: list[str] | None = None,
+) -> Iterable[DagRunInfo]:
+    for entry in _plan_backfill(
+        dag_id=dag_id,
+        from_date=from_date,
+        to_date=to_date,
+        reverse=reverse,
+        reprocess_behavior=reprocess_behavior,
+        session=session,
+        dag_run_conf=dag_run_conf,
+        partition_keys=partition_keys,
+    ):
+        if entry.result == BACKFILL_PLAN_RESULT_RUN:
+            yield entry.info
 
 
 def _create_backfill_dag_run_non_partitioned(
