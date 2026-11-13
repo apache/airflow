@@ -402,7 +402,8 @@ When ``emit_asset_watcher_events`` or ``emit`` turns them off, the listener only
 keeps nothing else in the Triggerer: no queue, no background thread and no OpenLineage client for these events.
 :ref:`[openlineage] asset_watcher_event_queue_size <config:openlineage__asset_watcher_event_queue_size>` sets
 how many events can wait to be emitted, and ``0`` or a negative value turns them off too. When the queue is
-full, further events are dropped, and the number dropped is logged once events are emitted again.
+full, further events are dropped, and the number dropped is logged at most once a minute. Events still
+waiting when the Triggerer stops are not emitted, and their number is logged.
 
 .. _emission_policy_manual_state_changes:openlineage:
 
