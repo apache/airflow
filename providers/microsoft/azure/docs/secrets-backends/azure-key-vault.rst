@@ -59,7 +59,7 @@ If you have set ``connections_prefix`` as ``airflow-connections``, then for a co
 you would want to store your connection at ``airflow-connections-smtp-default``.
 
 The value of the secret must be the :ref:`connection URI representation <generating_connection_uri>`
-of the connection object.
+or the :ref:`JSON representation <connection-serialization-json-example>` of the connection object.
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
