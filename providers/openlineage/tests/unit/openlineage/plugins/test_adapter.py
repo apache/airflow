@@ -1882,21 +1882,31 @@ def test_adapter_build_job():
     }
 
 
+@mock.patch(
+    "airflow.providers.openlineage.plugins.adapter.get_airflow_asset_event_run_facet",
+    autospec=True,
+    side_effect=lambda _: {
+        "airflowAssetEvent": AirflowAssetEventRunFacet(asset={"name": "orders"}, assetEvent={})
+    },
+)
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=False)
-def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outputs(_):
+def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outputs(_, mock_run_facet):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
     event_time = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC)
     run_facets = {"airflowAssetEvent": AirflowAssetEventRunFacet(asset={"name": "orders"}, assetEvent={})}
     outputs = [Dataset(namespace="s3://bucket", name="orders")]
+    asset_event = mock.sentinel.asset_event
 
     adapter.asset_watcher_event(
+        asset_event=asset_event,
         run_id="01970000-0000-7000-8000-000000000000",
         job_name="asset_watcher.orders",
         event_time=event_time,
-        run_facets=run_facets,
         outputs=outputs,
     )
+
+    assert mock_run_facet.mock_calls == [call(asset_event), call(asset_event)]
 
     expected_run = Run(
         runId="01970000-0000-7000-8000-000000000000",

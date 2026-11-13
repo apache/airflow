@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import uuid
 from collections import defaultdict
@@ -29,7 +30,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pandas as pd
 import pytest
@@ -57,7 +58,6 @@ from airflow.providers.openlineage.plugins.listener import (
 from airflow.providers.openlineage.plugins.macros import lineage_run_id
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-from airflow.providers.openlineage.utils.utils import get_airflow_asset_event_run_facet
 from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
@@ -3562,11 +3562,12 @@ class TestOpenLineageListenerAssetEvents:
         mock_emitter_cls.return_value.submit.assert_not_called()
 
     @time_machine.travel(datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc), tick=False)
-    @pytest.mark.parametrize(("queue_size", "expected_max_queue_size"), [(None, 100), ("0", 0), ("5", 5)])
+    @pytest.mark.parametrize(("queue_size", "expected_max_queue_size"), [(None, 100), ("5", 5)])
     @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
     def test_submits_asset_watcher_event_with_event_time(
         self, mock_emitter_cls, queue_size, expected_max_queue_size
     ):
+        mock_emitter_cls.return_value.pid = os.getpid()
         listener = OpenLineageListener()
         asset_event = _build_listener_asset_event()
 
@@ -3575,15 +3576,32 @@ class TestOpenLineageListenerAssetEvents:
             listener.on_asset_event_emitted(asset_event=asset_event)
 
         mock_emitter_cls.assert_called_once_with(expected_max_queue_size)
-        mock_emitter_cls.return_value.submit.assert_called_with(
-            asset_event, datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
+        assert (
+            mock_emitter_cls.return_value.submit.mock_calls
+            == [call(asset_event, datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc))] * 2
         )
 
+    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
+    def test_builds_a_new_emitter_in_a_forked_process(self, mock_emitter_cls):
+        parent_emitter, child_emitter = MagicMock(pid=1), MagicMock(pid=2)
+        mock_emitter_cls.side_effect = [parent_emitter, child_emitter]
+        listener = OpenLineageListener()
+        asset_event = _build_listener_asset_event()
+
+        with patch("airflow.providers.openlineage.plugins.listener.os.getpid", return_value=1):
+            listener.on_asset_event_emitted(asset_event=asset_event)
+        with patch("airflow.providers.openlineage.plugins.listener.os.getpid", return_value=2):
+            listener.on_asset_event_emitted(asset_event=asset_event)
+
+        parent_emitter.submit.assert_called_once()
+        child_emitter.submit.assert_called_once()
+
     @pytest.mark.parametrize(
-        "conf_overrides",
+        ("conf_overrides", "log_level"),
         [
             pytest.param(
                 {("openlineage", "emission_policy"): '[{"scope": {}, "controls": {"emit": false}}]'},
+                "info",
                 id="emit-disabled",
             ),
             pytest.param(
@@ -3592,33 +3610,36 @@ class TestOpenLineageListenerAssetEvents:
                         '[{"scope": {}, "controls": {"emit_asset_watcher_events": false}}]'
                     )
                 },
+                "info",
                 id="asset-watcher-events-disabled",
             ),
-            pytest.param({("openlineage", "asset_watcher_event_queue_size"): "-1"}, id="negative-queue-size"),
+            pytest.param(
+                {("openlineage", "asset_watcher_event_queue_size"): "0"}, "info", id="zero-queue-size"
+            ),
+            pytest.param(
+                {("openlineage", "asset_watcher_event_queue_size"): "-1"}, "info", id="negative-queue-size"
+            ),
+            pytest.param(
+                {("openlineage", "asset_watcher_event_queue_size"): "many"},
+                "warning",
+                id="invalid-queue-size",
+            ),
         ],
     )
     @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
-    def test_creates_nothing_when_asset_watcher_events_are_disabled(self, mock_emitter_cls, conf_overrides):
+    def test_creates_nothing_and_logs_once_when_asset_watcher_events_are_disabled(
+        self, mock_emitter_cls, conf_overrides, log_level
+    ):
         listener = OpenLineageListener()
         listener.log = MagicMock(spec=logging.Logger)
 
         with conf_vars(conf_overrides):
             listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
+            listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
 
         mock_emitter_cls.assert_not_called()
         assert listener._asset_watcher_event_emitter is None
-        listener.log.info.assert_called_once()
-
-    @patch("airflow.providers.openlineage.plugins.listener._AssetWatcherEventEmitter", autospec=True)
-    def test_logs_warning_when_asset_watcher_event_queue_is_full(self, mock_emitter_cls):
-        mock_emitter_cls.return_value.submit.return_value = False
-        listener = OpenLineageListener()
-        listener.log = MagicMock(spec=logging.Logger)
-
-        listener.on_asset_event_emitted(asset_event=_build_listener_asset_event())
-
-        listener.log.warning.assert_called_once()
-        assert "asset_watcher_event_queue_size" in listener.log.warning.call_args.args[0]
+        getattr(listener.log, log_level).assert_called_once()
 
     @patch(
         "airflow.providers.openlineage.plugins.listener.is_asset_event_from_asset_watcher",
@@ -3643,7 +3664,7 @@ class TestAssetWatcherEventEmitter:
 
     @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
     def test_emits_submitted_events_on_a_daemon_thread(self, mock_emit):
-        emitter = _AssetWatcherEventEmitter(max_queue_size=0)
+        emitter = _AssetWatcherEventEmitter(max_queue_size=10)
         asset_event = _build_listener_asset_event()
         emitted_on: list[threading.Thread] = []
         done = threading.Event()
@@ -3654,34 +3675,44 @@ class TestAssetWatcherEventEmitter:
 
         mock_emit.side_effect = _record
 
-        assert emitter.submit(asset_event, self.EVENT_TIME) is True
+        emitter.submit(asset_event, self.EVENT_TIME)
         assert done.wait(timeout=10)
         mock_emit.assert_called_once_with(emitter, asset_event, self.EVENT_TIME)
         assert emitted_on[0] is not threading.main_thread()
         assert emitted_on[0].daemon
 
     @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
-    def test_drops_events_when_queue_is_full(self, mock_emit):
+    def test_drops_events_when_queue_is_full_and_logs_how_many(self, mock_emit):
         emitter = _AssetWatcherEventEmitter(max_queue_size=1)
+        emitter.log = MagicMock(spec=logging.Logger)
         asset_event = _build_listener_asset_event()
-        started, release = threading.Event(), threading.Event()
+        started, release, next_emitted = threading.Event(), threading.Event(), threading.Event()
 
-        def _block(*_):
-            started.set()
-            release.wait(timeout=10)
+        def _block_first(*_):
+            if mock_emit.call_count == 1:
+                started.set()
+                release.wait(timeout=10)
+            else:
+                next_emitted.set()
 
-        mock_emit.side_effect = _block
+        mock_emit.side_effect = _block_first
         try:
             emitter.submit(asset_event, self.EVENT_TIME)
             assert started.wait(timeout=10)
-            assert emitter.submit(asset_event, self.EVENT_TIME) is True
-            assert emitter.submit(asset_event, self.EVENT_TIME) is False
+            for _ in range(3):
+                emitter.submit(asset_event, self.EVENT_TIME)
+            emitter.log.warning.assert_called_once()
         finally:
             release.set()
 
+        assert next_emitted.wait(timeout=10)
+        assert mock_emit.call_count == 2
+        assert emitter.log.warning.call_count == 2
+        assert emitter.log.warning.call_args.args[1] == 2
+
     @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
     def test_keeps_emitting_after_an_emission_fails(self, mock_emit):
-        emitter = _AssetWatcherEventEmitter(max_queue_size=0)
+        emitter = _AssetWatcherEventEmitter(max_queue_size=10)
         emitter.log = MagicMock(spec=logging.Logger)
         asset_event = _build_listener_asset_event()
         done = threading.Event()
@@ -3701,21 +3732,6 @@ class TestAssetWatcherEventEmitter:
         assert "transport down" in [str(arg) for arg in emitter.log.warning.call_args.args]
         emitter.log.debug.assert_called_once_with("Exception details:", exc_info=True)
 
-    @patch.object(_AssetWatcherEventEmitter, "_emit", autospec=True)
-    def test_starts_a_new_thread_when_previous_one_is_gone(self, mock_emit):
-        emitter = _AssetWatcherEventEmitter(max_queue_size=0)
-        dead_thread = threading.Thread(target=lambda: None)
-        dead_thread.start()
-        dead_thread.join()
-        emitter._thread = dead_thread
-        done = threading.Event()
-        mock_emit.side_effect = lambda *_: done.set()
-
-        emitter.submit(_build_listener_asset_event(), self.EVENT_TIME)
-
-        assert done.wait(timeout=10)
-        assert emitter._thread is not dead_thread
-
     @patch(
         "airflow.providers.openlineage.plugins.listener.get_asset_event_output_datasets",
         autospec=True,
@@ -3723,16 +3739,16 @@ class TestAssetWatcherEventEmitter:
     )
     @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
     def test_emit_sends_asset_watcher_event_pair(self, mock_adapter_cls, _):
-        emitter = _AssetWatcherEventEmitter(max_queue_size=0)
+        emitter = _AssetWatcherEventEmitter(max_queue_size=10)
         asset_event = _build_listener_asset_event()
 
         emitter._emit(asset_event, self.EVENT_TIME)
 
         mock_adapter_cls.return_value.asset_watcher_event.assert_called_once_with(
+            asset_event=asset_event,
             run_id=mock.ANY,
             job_name="asset_watcher.orders",
             event_time=self.EVENT_TIME,
-            run_facets=get_airflow_asset_event_run_facet(asset_event),
             outputs=[self.ASSET_DATASET],
         )
         run_id = mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["run_id"]
@@ -3745,7 +3761,7 @@ class TestAssetWatcherEventEmitter:
     )
     @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
     def test_emit_skips_events_of_excluded_dataset(self, mock_adapter_cls, _):
-        emitter = _AssetWatcherEventEmitter(max_queue_size=0)
+        emitter = _AssetWatcherEventEmitter(max_queue_size=10)
         emitter.log = MagicMock(spec=logging.Logger)
         rule = {"scope": {}, "controls": {"exclude_datasets": ["file://host/orders.csv"]}}
 
@@ -3762,7 +3778,7 @@ class TestAssetWatcherEventEmitter:
     )
     @patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter", autospec=True)
     def test_emit_sends_events_of_untranslatable_asset_despite_exclusions(self, mock_adapter_cls, _):
-        emitter = _AssetWatcherEventEmitter(max_queue_size=0)
+        emitter = _AssetWatcherEventEmitter(max_queue_size=10)
         rule = {"scope": {}, "controls": {"exclude_datasets": [".*"]}}
 
         with conf_vars({("openlineage", "emission_policy"): json.dumps([rule])}):
@@ -3774,10 +3790,30 @@ class TestAssetWatcherEventEmitter:
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestManualStateChangeEmissionPolicy:
     @pytest.mark.parametrize(
-        ("task", "expected_manual"),
+        ("task", "state", "error", "expected_manual"),
         [
-            pytest.param(None, True, id="api-server-without-task"),
-            pytest.param(EmptyOperator(task_id="my_task"), False, id="scheduler-with-task"),
+            pytest.param(
+                None,
+                State.FAILED,
+                "TaskInstance's state was manually set to `failed`.",
+                True,
+                id="api-server-failure",
+            ),
+            pytest.param(
+                None, State.FAILED, "Executor reported a mismatch", False, id="scheduler-failure-no-task"
+            ),
+            pytest.param(
+                EmptyOperator(task_id="my_task"),
+                State.FAILED,
+                "Executor reported a mismatch",
+                False,
+                id="scheduler-failure-with-task",
+            ),
+            pytest.param(None, State.SUCCESS, None, True, id="api-server-success"),
+            pytest.param(None, State.SKIPPED, None, True, id="api-server-skip"),
+            pytest.param(
+                EmptyOperator(task_id="my_task"), State.SUCCESS, None, False, id="success-with-task"
+            ),
         ],
     )
     @patch(
@@ -3785,12 +3821,12 @@ class TestManualStateChangeEmissionPolicy:
         autospec=True,
         return_value=replace(EmissionPolicy.defaults(), emit=False),
     )
-    def test_state_change_applies_emission_policy(self, mock_resolve, task, expected_manual):
+    def test_state_change_applies_emission_policy(self, mock_resolve, task, state, error, expected_manual):
         listener = OpenLineageListener()
         ti = MagicMock(spec=TaskInstance, task=task, dag_id="my_dag", task_id="my_task")
 
         with patch.object(listener, "submit_callable", autospec=True) as mock_submit:
-            listener._on_task_instance_manual_state_change(ti, ti.dag_run, State.FAILED)
+            listener._on_task_instance_manual_state_change(ti, ti.dag_run, state, error=error)
 
         mock_resolve.assert_called_once_with(
             operator=task, dag_id="my_dag", task_id="my_task", manual_state_change=expected_manual

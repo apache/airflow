@@ -47,7 +47,6 @@ from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_2_PLUS,
     DagRunInfo,
     build_asset_watcher_event_ol_run_id,
-    get_airflow_asset_event_run_facet,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -67,6 +66,7 @@ from airflow.providers.openlineage.utils.utils import (
     is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
     is_dag_run_state_set_manually,
+    is_task_instance_state_set_manually,
     print_warning,
 )
 from airflow.settings import configure_orm
@@ -196,39 +196,57 @@ class _AssetWatcherEventEmitter:
     Emit OpenLineage events for asset watcher events on one background daemon thread.
 
     Asset watcher events are reported from the triggerer's main loop, which must never wait on an
-    OpenLineage transport. ``submit`` never blocks: events that do not fit in the queue are dropped.
-    The thread is a daemon so a hanging transport cannot hold up process exit, and it is the only
-    user of its adapter, so the OpenLineage client is never used concurrently.
+    OpenLineage transport. ``submit`` never blocks: events that do not fit in the queue are dropped, and the
+    number dropped is logged from the thread. The thread is a daemon so a hanging transport cannot hold up
+    process exit, and it is the only user of its adapter, so the OpenLineage client is never used concurrently.
 
-    :param max_queue_size: The number of events that can wait to be emitted, ``0`` for no limit.
+    :param max_queue_size: The number of events that can wait to be emitted, greater than ``0``.
     """
 
     def __init__(self, max_queue_size: int):
         self.log = logging.getLogger(__name__)
+        # Threads and the queue's lock do not survive a fork intact, so a forked process builds its own emitter.
+        self.pid = os.getpid()
         self._queue: queue.Queue[tuple[ListenerAssetEvent, datetime]] = queue.Queue(maxsize=max_queue_size)
-        self._thread: threading.Thread | None = None
-        # The hook can be called from several threads in the API server, which must not start two workers.
-        self._lock = threading.Lock()
+        self._max_queue_size = max_queue_size
+        self._dropped_count = 0
+        self._dropped_count_lock = threading.Lock()
         self._adapter: OpenLineageAdapter | None = None
+        self._thread = threading.Thread(
+            target=self._run, name="openlineage-asset-watcher-events", daemon=True
+        )
+        self._thread.start()
 
-    def submit(self, asset_event: ListenerAssetEvent, event_time: datetime) -> bool:
-        """Queue the asset event for emission; return ``False`` if the queue is full and it was dropped."""
-        with self._lock:
-            # Threads do not survive a fork, so a forked process starts its own.
-            if self._thread is None or not self._thread.is_alive():
-                self._thread = threading.Thread(
-                    target=self._run, name="openlineage-asset-watcher-events", daemon=True
-                )
-                self._thread.start()
+    def submit(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
+        """Queue the asset event for emission, or drop it if the queue is full."""
         try:
             self._queue.put_nowait((asset_event, event_time))
         except queue.Full:
-            return False
-        return True
+            with self._dropped_count_lock:
+                self._dropped_count += 1
+                is_first_drop = self._dropped_count == 1
+            if is_first_drop:
+                self.log.warning(
+                    "OpenLineage is dropping asset watcher events: %s events are already waiting to be emitted, "
+                    "the limit set by [openlineage] asset_watcher_event_queue_size. The number of dropped events "
+                    "is logged once events are emitted again.",
+                    self._max_queue_size,
+                )
+
+    def _log_dropped_events(self) -> None:
+        with self._dropped_count_lock:
+            dropped_count, self._dropped_count = self._dropped_count, 0
+        if dropped_count:
+            self.log.warning(
+                "OpenLineage dropped %s asset watcher events because the queue limited by "
+                "[openlineage] asset_watcher_event_queue_size was full.",
+                dropped_count,
+            )
 
     def _run(self) -> None:
         while True:
             asset_event, event_time = self._queue.get()
+            self._log_dropped_events()
             try:
                 self._emit(asset_event, event_time)
             except Exception as err:
@@ -256,12 +274,12 @@ class _AssetWatcherEventEmitter:
         if self._adapter is None:
             self._adapter = OpenLineageAdapter()
         self._adapter.asset_watcher_event(
+            asset_event=asset_event,
             run_id=build_asset_watcher_event_ol_run_id(asset_event, event_time),
             # All watchers of an asset share one job, so the name doesn't depend on whether Airflow passes the
             # watcher to listeners; the watcher is in the run facet instead.
             job_name=f"asset_watcher.{asset_name}",
             event_time=event_time,
-            run_facets=get_airflow_asset_event_run_facet(asset_event),
             outputs=outputs,
         )
 
@@ -273,6 +291,7 @@ class OpenLineageListener:
         self._executor = None
         # Created for the first asset watcher event to emit, so a component that emits none has no queue or thread.
         self._asset_watcher_event_emitter: _AssetWatcherEventEmitter | None = None
+        self._are_asset_watcher_events_disabled = False
         self._asset_watcher_event_emitter_lock = threading.Lock()
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
@@ -959,20 +978,24 @@ class OpenLineageListener:
         the scheduler, and bursts of external-state-change events no longer produce a
         fork-per-event.
 
-        A state set through the UI or API is reported on the API server, which has no task objects, while the
-        scheduler has the task, so an event without the task is a manual state change, which
-        ``emit_manual_state_change_events`` can suppress.
+        A state set through the UI or API is a manual state change, which ``emit_manual_state_change_events`` can
+        suppress. Only the API server reports a success or skip without the task. A failure is recognized by
+        the error the API server passes, as the scheduler also fails task instances without their task, e.g.
+        when it can't load the serialized Dag.
         """
         self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
         end_date = timezone.utcnow()
 
-        # The scheduler has the task; the API server, where manual changes are reported, does not.
         task = getattr(ti, "task", None)
+        if ti_state == TaskInstanceState.FAILED:
+            manual_state_change = is_task_instance_state_set_manually(error)
+        else:
+            manual_state_change = task is None
         controls = resolve_task_emission_policy(
             operator=task,
             dag_id=ti.dag_id,
             task_id=ti.task_id,
-            manual_state_change=task is None,
+            manual_state_change=manual_state_change,
         )
         if not controls.emit:
             self.log.info(
@@ -1414,39 +1437,58 @@ class OpenLineageListener:
         """
         Queue OpenLineage events for an asset event produced by an asset watcher.
 
-        Called on the triggerer's main loop, so only the cheap checks run here; building and
-        emitting the events, and resolving the emission policy, happens on the emitter thread. Asset events produced by tasks are
+        Called on the triggerer's main loop, so only cheap checks run here, and nothing is logged per event;
+        building and emitting the events happens on the emitter thread. Asset events produced by tasks are
         already reported as outputs of the task's own OpenLineage events.
         """
         if not is_asset_event_from_asset_watcher(asset_event):
             return
-        asset_name = asset_event.asset.name
-        if not are_asset_watcher_events_enabled():
-            self.log.info(
-                "Skipping OpenLineage asset watcher event of asset `%s`: disabled by the emission policy.",
-                asset_name,
-            )
+        emitter = self._get_asset_watcher_event_emitter()
+        if emitter is None:
             return
-        max_queue_size = conf.asset_watcher_event_queue_size()
-        if max_queue_size < 0:
-            self.log.info(
-                "Skipping OpenLineage asset watcher event of asset `%s`: disabled by a negative "
-                "[openlineage] asset_watcher_event_queue_size.",
-                asset_name,
-            )
-            return
-        with self._asset_watcher_event_emitter_lock:
-            if self._asset_watcher_event_emitter is None:
-                self._asset_watcher_event_emitter = _AssetWatcherEventEmitter(max_queue_size)
         # The time the event was stored, on Airflow versions that pass it to listeners
         event_time = getattr(asset_event, "timestamp", None) or timezone.utcnow()
-        if not self._asset_watcher_event_emitter.submit(asset_event, event_time):
-            self.log.warning(
-                "Skipping OpenLineage asset watcher event of asset `%s`: %s events are already waiting to be "
-                "emitted, the limit set by [openlineage] asset_watcher_event_queue_size.",
-                asset_name,
-                max_queue_size,
-            )
+        emitter.submit(asset_event, event_time)
+
+    def _get_asset_watcher_event_emitter(self) -> _AssetWatcherEventEmitter | None:
+        """Return the asset watcher event emitter of this process, or ``None`` if these events are turned off."""
+        emitter = self._asset_watcher_event_emitter
+        if emitter is not None and emitter.pid == os.getpid():
+            return emitter
+        if self._are_asset_watcher_events_disabled:
+            return None
+        with self._asset_watcher_event_emitter_lock:
+            emitter = self._asset_watcher_event_emitter
+            if emitter is not None and emitter.pid == os.getpid():
+                return emitter
+            if self._are_asset_watcher_events_disabled:
+                return None
+            # Decided once per process, so a disabled or misconfigured listener logs once, not per event.
+            if not are_asset_watcher_events_enabled():
+                self.log.info("OpenLineage asset watcher events are turned off by the emission policy.")
+                self._are_asset_watcher_events_disabled = True
+                return None
+            try:
+                max_queue_size = conf.asset_watcher_event_queue_size()
+            except Exception as err:
+                self.log.warning(
+                    "OpenLineage asset watcher events are turned off, as [openlineage] "
+                    "asset_watcher_event_queue_size is invalid: %s: %s",
+                    type(err).__name__,
+                    err,
+                )
+                self._are_asset_watcher_events_disabled = True
+                return None
+            if max_queue_size <= 0:
+                self.log.info(
+                    "OpenLineage asset watcher events are turned off by [openlineage] "
+                    "asset_watcher_event_queue_size set to %s.",
+                    max_queue_size,
+                )
+                self._are_asset_watcher_events_disabled = True
+                return None
+            self._asset_watcher_event_emitter = _AssetWatcherEventEmitter(max_queue_size)
+            return self._asset_watcher_event_emitter
 
     def submit_callable(self, callable, *args, **kwargs):
         try:
