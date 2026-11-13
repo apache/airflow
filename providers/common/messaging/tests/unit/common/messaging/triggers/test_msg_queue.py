@@ -212,10 +212,10 @@ class TestMessageQueueTrigger:
 class TestMessageQueueTriggerScheme:
     """Test cases for the new scheme parameter functionality."""
 
-    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
-    def test_queue_takes_precedence_over_scheme(self):
-        """Test that queue parameter takes precedence when both are provided."""
-        trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
+    def test_queue_uri_takes_precedence_over_scheme(self):
+        """Test that queue_uri parameter takes precedence when both are provided."""
+        trigger = MessageQueueTrigger(queue_uri=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
         assert trigger.queue_uri == PROVIDER_1_QUEUE
         assert trigger.scheme is None
 
@@ -238,7 +238,21 @@ class TestMessageQueueTriggerScheme:
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
         assert trigger.queue is None
 
-    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
+    def test_queue_param_sets_trigger_queue_alongside_scheme(self):
+        """Test that the unified `queue` parameter sets the trigger queue when used with scheme."""
+        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, queue="my-trigger-queue")
+        assert trigger.scheme == PROVIDER_2_SCHEME
+        assert trigger.queue_uri is None
+        assert trigger.queue == "my-trigger-queue"
+
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
+    def test_queue_param_sets_trigger_queue_alongside_queue_uri(self):
+        """Test that `queue` sets the trigger queue when used alongside deprecated `queue_uri`."""
+        trigger = MessageQueueTrigger(queue_uri=PROVIDER_1_QUEUE, queue="my-trigger-queue")
+        assert trigger.queue_uri == PROVIDER_1_QUEUE
+        assert trigger.queue == "my-trigger-queue"
+
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
     def test_trigger_queue_param_sets_trigger_queue_alongside_deprecated_queue(self):
         """The deprecated `queue` (broker URI) parameter claims the `queue` keyword, so trigger
         queue routing must go through the distinct `trigger_queue` parameter instead."""
@@ -246,9 +260,20 @@ class TestMessageQueueTriggerScheme:
         assert trigger.queue_uri == PROVIDER_1_QUEUE
         assert trigger.queue == "my-trigger-queue"
 
-    def test_trigger_queue_param_sets_trigger_queue_alongside_scheme(self):
-        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, trigger_queue="my-trigger-queue")
+    def test_trigger_queue_param_deprecation_warning(self):
+        """Test that `trigger_queue` emits a deprecation warning in favor of `queue`."""
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `trigger_queue` parameter is deprecated and will be removed in a future version. Use `queue` instead",
+        ):
+            trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, trigger_queue="my-trigger-queue")
         assert trigger.queue == "my-trigger-queue"
+
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
+    def test_queue_and_trigger_queue_both_provided_raises(self):
+        """Test that providing both `queue` and deprecated `trigger_queue` raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot provide both `queue` and deprecated `trigger_queue`"):
+            MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, queue="q1", trigger_queue="q2")
 
     def test_scheme_provider_matching(self):
         """Test that scheme matching works correctly."""
