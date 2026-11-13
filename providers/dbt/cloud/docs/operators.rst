@@ -100,15 +100,19 @@ the worker dies and the task retries, the operator checks that run instead of tr
 * If the run errored, was cancelled or no longer exists, the operator triggers a new run as before,
   which respects ``retry_from_failure``.
 
-Clearing the task, or its whole Dag run, discards the stored run id by default, so the next try
-triggers a new run. This is what you want after fixing upstream data.
+Clearing the task instance from the UI or the REST API discards the stored run id by default, so the
+next try triggers a new run. This is what you want after fixing upstream data. To keep the stored run
+id instead, tick "keep task state" in the clear dialog or pass ``keep_task_state=true`` to the clear
+endpoint. The next try then treats the stored run like a retry does.
 
-To keep the stored run id instead, tick "keep task state" in the clear dialog, pass
-``keep_task_state=true`` to the clear endpoints, or add ``--keep-task-state`` to ``airflow dags clear``
-/ ``airflow tasks clear``. The next try then treats the stored run like a retry does: it waits on the
-run if it is still going, returns without running dbt if it succeeded, and triggers a new run if it
-failed. Clearing a task that is waiting on the worker cancels its run first, so the next try triggers
-a new run anyway. Only a deferred task's run keeps going. See
+Before Airflow 3.5, clearing the whole Dag run, marking a task as success or failed, and
+``airflow tasks clear`` / ``airflow dags clear`` keep the stored run id. So if you clear the whole Dag
+run after fixing upstream data, a task whose run succeeded returns without running dbt again. Clear
+the task instance itself instead. From Airflow 3.5, every way of clearing discards the stored run id
+by default.
+
+Clearing a task that is waiting on the worker cancels its run first, so the next try triggers a new
+run either way. Only a deferred task's run keeps going. See
 :ref:`apache-airflow:concepts-resumable-tasks` for details.
 
 Below Airflow 3.3 the operator always triggers a new run on retry. Set ``durable=False`` to get that
