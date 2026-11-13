@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 import os
+import re
 import selectors
 import signal
 import time
@@ -59,6 +60,7 @@ from airflow.sdk.execution_time.supervisor import (
 from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.utils.helpers import GROUP_KEY_REGEX, KEY_REGEX
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -110,6 +112,43 @@ def _get_import_timeout(path: str) -> float | None:
     if not isinstance(timeout, (int, float)):
         raise TypeError(f"Value ({timeout}) from get_dagbag_import_timeout must be int or float")
     return timeout if timeout > 0 else None
+
+
+def _check_id(
+    dag_id: str, subject: str, value: str, max_length: int, regex: re.Pattern[str], allowed: str
+) -> None:
+    if (length := len(value)) > max_length:
+        raise DeserializationError(
+            dag_id, f"{subject} {value!r} is {length} characters long; at most {max_length} are allowed"
+        )
+    if not regex.match(value):
+        raise DeserializationError(dag_id, f"{subject} {value!r} has to be made of {allowed} exclusively")
+
+
+def _validate_ids(dag: SerializedDAG) -> None:
+    """
+    Reject the ids the Task SDK's ``validate_key`` and ``validate_group_key`` reject.
+
+    The SDK checks them when a Dag is built, which a Dag that a Lang-SDK runtime serialized never was.
+
+    :raises DeserializationError: if the dag id, a task id or a task group's own id is too long or made
+        of other characters.
+    """
+    key_characters = "alphanumeric characters, dashes, dots and underscores"
+    _check_id(dag.dag_id, "Dag id", dag.dag_id, 250, KEY_REGEX, key_characters)
+    for task_id in dag.task_dict:
+        _check_id(dag.dag_id, f"Dag {dag.dag_id!r} task id", task_id, 250, KEY_REGEX, key_characters)
+    # Each group's own id, not the dotted one it gets from its parents, as validate_group_key sees it.
+    for group in dag.task_group.get_task_group_dict().values():
+        if group._group_id is not None:
+            _check_id(
+                dag.dag_id,
+                f"Dag {dag.dag_id!r} task group id",
+                group._group_id,
+                200,
+                GROUP_KEY_REGEX,
+                "alphanumeric characters, dashes and underscores",
+            )
 
 
 def _start_runtime_entrypoint() -> None:
@@ -430,6 +469,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             DagSerialization.fill_config_defaults(dag.data)
             try:
                 deserialized = DagSerialization.validate_serialized_dag(dag.data)
+                _validate_ids(deserialized)
                 self._apply_team_rules(dag.data, deserialized)
             except DeserializationError as e:
                 message = f"Cannot load the serialized Dag: {e}"
