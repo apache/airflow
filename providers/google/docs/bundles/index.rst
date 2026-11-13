@@ -45,3 +45,45 @@ Example of using the GCSDagBundle:
         }
       }
     ]'
+
+GCSArchiveDagBundle
+===================
+
+Use :class:`~airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle` when the Dags are published as
+one ``.tar.gz`` object. :class:`~airflow.providers.google.cloud.bundles.gcs.GCSDagBundle` downloads every
+object under ``prefix`` one at a time. Each object costs a full request round-trip, so bundles made of
+many small files can take a long time to stage — a cost paid by every component that stages the bundle,
+which with ephemeral workers (e.g. KubernetesExecutor task pods) means on every task start.
+
+``GCSArchiveDagBundle`` stages the bundle from the ``archive_object``: one metadata read to detect changes
+(unchanged archives are not re-downloaded when the staged tree still has files), one download pinned to that
+object generation, then a local unpack and a swap into place. The archive is the only source of the Dags.
+Configure this class instead of ``GCSDagBundle``; there is no ``prefix`` argument and no second copy to keep
+in sync.
+
+Archive mode requires Python 3.11.4 or later, because unpacking uses ``tarfile`` ``filter="data"``
+(added in that release). Constructing ``GCSArchiveDagBundle`` on an older interpreter raises
+``RuntimeError``.
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+      {
+        "name": "my-gcs-dags",
+        "classpath": "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle",
+        "kwargs": {
+          "gcp_conn_id": "google_cloud_default",
+          "bucket_name": "my-airflow-bucket",
+          "archive_object": "bundle-archives/dags.tar.gz",
+          "refresh_interval": 60
+        }
+      }
+    ]'
+
+Publishing the archive is the responsibility of your deployment process. Members are extracted relative to
+the bundle root, so pack the contents of the Dags directory rather than the directory itself — for example:
+
+.. code-block:: bash
+
+    tar -C ./dags -czf dags.tar.gz .
+    gcloud storage cp dags.tar.gz gs://my-airflow-bucket/bundle-archives/dags.tar.gz
