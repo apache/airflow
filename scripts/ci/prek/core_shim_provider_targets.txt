@@ -1,0 +1,56 @@
+# Provider targets of core ``add_deprecated_classes`` shims, from main and every released core.
+# Released cores keep their shims, so a target stays here, and in its provider, after main
+# drops the shim entry. Remove a line only when no provider version that ships the target
+# supports a core that still has the shim, i.e. after the provider's Airflow floor passes it.
+#
+# Format: one dotted target per line; ``<module>.*`` is a wildcard (``"*"``) shim.
+airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
+airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
+airflow.providers.common.sql.operators.generic_transfer.GenericTransfer
+airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler
+airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
+airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler
+airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
+airflow.providers.smtp.operators.smtp.EmailOperator
+airflow.providers.smtp.utils.emailer.build_mime_message
+airflow.providers.smtp.utils.emailer.get_email_address_list
+airflow.providers.smtp.utils.emailer.send_email
+airflow.providers.smtp.utils.emailer.send_email_smtp
+airflow.providers.smtp.utils.emailer.send_mime_email
+airflow.providers.standard.hooks.filesystem.FSHook
+airflow.providers.standard.hooks.package_index.PackageIndexHook
+airflow.providers.standard.hooks.subprocess.SubprocessHook
+airflow.providers.standard.operators.bash.BashOperator
+airflow.providers.standard.operators.branch.BaseBranchOperator
+airflow.providers.standard.operators.branch.BranchMixIn
+airflow.providers.standard.operators.datetime.BranchDateTimeOperator
+airflow.providers.standard.operators.empty.EmptyOperator
+airflow.providers.standard.operators.latest_only.LatestOnlyOperator
+airflow.providers.standard.operators.python.BranchExternalPythonOperator
+airflow.providers.standard.operators.python.BranchPythonOperator
+airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator
+airflow.providers.standard.operators.python.ExternalPythonOperator
+airflow.providers.standard.operators.python.PythonOperator
+airflow.providers.standard.operators.python.PythonVirtualenvOperator
+airflow.providers.standard.operators.python.ShortCircuitOperator
+airflow.providers.standard.operators.smooth.SmoothOperator
+airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator
+airflow.providers.standard.operators.weekday.BranchDayOfWeekOperator
+airflow.providers.standard.sensors.bash.BashSensor
+airflow.providers.standard.sensors.date_time.DateTimeSensor
+airflow.providers.standard.sensors.date_time.DateTimeSensorAsync
+airflow.providers.standard.sensors.external_task.ExternalDagLink
+airflow.providers.standard.sensors.external_task.ExternalTaskMarker
+airflow.providers.standard.sensors.external_task.ExternalTaskSensor
+airflow.providers.standard.sensors.filesystem.FileSensor
+airflow.providers.standard.sensors.python.PythonSensor
+airflow.providers.standard.sensors.time.TimeSensor
+airflow.providers.standard.sensors.time.TimeSensorAsync
+airflow.providers.standard.sensors.time_delta.TimeDeltaSensor
+airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAsync
+airflow.providers.standard.sensors.weekday.DayOfWeekSensor
+airflow.providers.standard.triggers.external_task.DagStateTrigger
+airflow.providers.standard.triggers.external_task.WorkflowTrigger
+airflow.providers.standard.triggers.file.FileTrigger
+airflow.providers.standard.triggers.temporal.DateTimeTrigger
+airflow.providers.standard.triggers.temporal.TimeDeltaTrigger
