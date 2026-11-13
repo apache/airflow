@@ -129,6 +129,7 @@ from airflow.triggers.base import (
 )
 from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
+from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -3842,6 +3843,56 @@ def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_superviso
             jobless_supervisor.handle_events()
 
     assert list(jobless_supervisor.persisted_event_seqs) == []
+
+
+@pytest.fixture
+def asset_watcher_trigger_id(session):
+    trigger_model = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger_model)
+    session.flush()
+    asset = AssetModel("listener-after-commit")
+    asset.add_trigger(trigger_model, "listener-after-commit-watcher")
+    session.add(asset)
+    session.commit()
+    yield trigger_model.id
+    clear_db_assets()
+
+
+def _count_committed_asset_events() -> int:
+    with create_session(scoped=False) as other_session:
+        return other_session.execute(select(func.count()).select_from(AssetEvent)).scalar_one()
+
+
+@mock.patch("airflow.assets.manager.AssetManager.notify_asset_changed", autospec=True)
+@mock.patch("airflow.assets.manager.AssetManager.nofity_asset_event_emitted", autospec=True)
+def test_on_trigger_event_runs_asset_listeners_after_commit(
+    mock_event_emitted, mock_asset_changed, jobless_supervisor, asset_watcher_trigger_id
+):
+    committed_counts: list[int] = []
+    mock_asset_changed.side_effect = lambda **_: committed_counts.append(_count_committed_asset_events())
+    mock_event_emitted.side_effect = lambda **_: committed_counts.append(_count_committed_asset_events())
+
+    jobless_supervisor.on_trigger_event(trigger_id=asset_watcher_trigger_id, event=TriggerEvent("payload"))
+
+    assert committed_counts == [1, 1]
+
+
+@mock.patch("airflow.assets.manager.AssetManager._queue_dagruns", autospec=True)
+@mock.patch("airflow.assets.manager.AssetManager.notify_asset_changed", autospec=True)
+@mock.patch("airflow.assets.manager.AssetManager.nofity_asset_event_emitted", autospec=True)
+def test_on_trigger_event_skips_asset_listeners_when_transaction_fails(
+    mock_event_emitted, mock_asset_changed, mock_queue_dagruns, jobless_supervisor, asset_watcher_trigger_id
+):
+    mock_queue_dagruns.side_effect = OperationalError("SELECT 1", {}, Exception("deadlock"))
+
+    with pytest.raises(OperationalError):
+        jobless_supervisor.on_trigger_event(
+            trigger_id=asset_watcher_trigger_id, event=TriggerEvent("payload")
+        )
+
+    mock_asset_changed.assert_not_called()
+    mock_event_emitted.assert_not_called()
+    assert _count_committed_asset_events() == 0
 
 
 @pytest.mark.parametrize(
