@@ -375,3 +375,7 @@ def __getattr__(name: str):
     # Store for next time
     globals()[name] = val
     return val
+
+
+def __dir__() -> list[str]:
+    return sorted({*globals(), *__lazy_imports})
