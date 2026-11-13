@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+.. warning::
+  ``ClickHouseHook`` now reuses one client per hook instance. ``get_conn()``, and so ``run()`` and
+  ``SQLExecuteQueryOperator``, still opens a new ClickHouse session per connection, but the client
+  from ``get_client()`` (also used by ``bulk_insert_rows()``) has no session. Pass
+  ``client_kwargs={"autogenerate_session_id": True}`` to share one session across all calls
+  (not thread-safe). Closing a connection returned by ``get_conn()`` no longer closes the client;
+  call ``ClickHouseHook.close()`` or use the hook as a context manager to release it.
+
 1.0.1
 .....
 
