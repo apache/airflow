@@ -101,7 +101,6 @@ from airflow.sdk.exceptions import (
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
-    AssetEventDagRunReferenceResult,
     AwaitInputTask,
     CommsDecoder,
     DagResult,
@@ -150,9 +149,9 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
-    TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    build_dag_run_context,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -177,7 +176,6 @@ from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
     import jinja2
-    from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
     from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
@@ -334,19 +332,13 @@ class RuntimeTaskInstance(TaskInstance):
 
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
-        # TODO: Move this to `airflow.sdk.execution_time.context`
-        #   once we port the entire context logic from airflow/utils/context.py ?
         from airflow.sdk.plugins_manager import integrate_macros_plugins
 
         integrate_macros_plugins()
 
         dag_run_conf: dict[str, Any] | None = None
-        macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
             dag_run_conf = from_server.dag_run.conf or dag_run_conf
-            macros_accessor = MacrosAccessor(
-                team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
-            )
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
@@ -366,7 +358,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(self.task.inlets),
-                "macros": macros_accessor,
+                "macros": MacrosAccessor(),
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
                 # "test_mode": task_instance.test_mode,
@@ -401,15 +393,11 @@ class RuntimeTaskInstance(TaskInstance):
             if (loop := self.loop) is not None:
                 self._cached_template_context["loop"] = loop
             dag_run = from_server.dag_run
+            # The keys that come from the Dag run are shared with deadline callbacks. The task's
+            # params (which include the task's own) stay as they were set above.
+            dag_run_context = build_dag_run_context(dag_run, multi_team=bool(from_server.multi_team))
+            self._cached_template_context.update(dag_run_context)
             context_from_server: Context = {
-                # TODO: Assess if we need to pass these through timezone.coerce_datetime
-                "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "partition_key": dag_run.partition_key,
-                "partition_date": coerce_datetime(dag_run.partition_date),
-                "triggering_asset_events": TriggeringAssetEventsAccessor.build(
-                    AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
-                    for event in dag_run.consumed_asset_events
-                ),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
@@ -421,28 +409,12 @@ class RuntimeTaskInstance(TaskInstance):
             }
             self._cached_template_context.update(context_from_server)
 
-            if logical_date := coerce_datetime(dag_run.logical_date):
-                if TYPE_CHECKING:
-                    assert isinstance(logical_date, DateTime)
-                ds = logical_date.strftime("%Y-%m-%d")
-                ds_nodash = ds.replace("-", "")
-                ts = logical_date.isoformat()
-                ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
-                ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
-                # logical_date and data_interval either coexist or be None together
+            if ds_nodash := dag_run_context.get("ds_nodash"):
                 self._cached_template_context.update(
                     {
                         # keys that depend on logical_date
-                        "logical_date": logical_date,
-                        "ds": ds,
-                        "ds_nodash": ds_nodash,
                         "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
-                        "ts": ts,
-                        "ts_nodash": ts_nodash,
-                        "ts_nodash_with_tz": ts_nodash_with_tz,
                         # keys that depend on data_interval
-                        "data_interval_end": coerce_datetime(dag_run.data_interval_end),
-                        "data_interval_start": coerce_datetime(dag_run.data_interval_start),
                         "prev_data_interval_start_success": lazy_object_proxy.Proxy(
                             lambda: coerce_datetime(get_previous_dagrun_success(self.id).data_interval_start)
                         ),

@@ -81,6 +81,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     OKResponse,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
@@ -115,6 +116,8 @@ from airflow.sdk.execution_time.context import (
     _process_connection_result_conn,
     _set_variable,
     _wrap_external_ref,
+    build_dag_run_context,
+    build_deadline_callback_context,
     context_to_airflow_vars,
     set_current_context,
 )
@@ -3165,3 +3168,169 @@ class TestMacrosAccessorTeamScoping:
 
         assert accessor.team_a_macros.team_a_macro() == "team-a"
         assert accessor.global_macros.shared_macro() == "shared"
+
+
+def _dag_run(**overrides):
+    from airflow.sdk.api.datamodels._generated import DagRun
+
+    return DagRun(
+        **{
+            "dag_id": "ctx_dag",
+            "run_id": "ctx_run",
+            "logical_date": timezone.datetime(2024, 6, 15, 12, 30),
+            "data_interval_start": timezone.datetime(2024, 6, 15),
+            "data_interval_end": timezone.datetime(2024, 6, 16),
+            "run_after": timezone.datetime(2024, 6, 16),
+            "start_date": timezone.datetime(2024, 6, 15, 12, 30),
+            "end_date": None,
+            "partition_key": None,
+            "run_type": "scheduled",
+            "state": "running",
+            "consumed_asset_events": [],
+            **overrides,
+        }
+    )
+
+
+class TestBuildDagRunContext:
+    def test_keys_are_in_a_task_context(self, create_runtime_ti, mock_supervisor_comms):
+        """A callback gets a task's context without the task keys, so every key it gets is in a task's context."""
+        from airflow.sdk import DAG, Param
+
+        with DAG("ctx_dag", params={"x": Param(1, type="integer")}) as dag:
+            task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="ctx_dag")
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=None, data_interval_start=None, start_date=None, end_date=None
+        )
+        dag_run = runtime_ti._ti_context_from_server.dag_run
+
+        task_context = runtime_ti.get_template_context()
+        context = build_dag_run_context(dag_run, dag)
+
+        assert set(context) <= set(task_context)
+        assert {"dag", "params", "macros", "var", "conn", "triggering_asset_events"} <= set(context)
+        for key in set(context) - {"macros", "var", "conn", "triggering_asset_events"}:
+            assert context[key] == task_context[key], key
+
+    def test_without_logical_date(self):
+        dag_run = _dag_run(logical_date=None, data_interval_start=None, data_interval_end=None)
+
+        context = build_dag_run_context(dag_run)
+
+        assert set(context) == {
+            "dag_run",
+            "run_id",
+            "partition_key",
+            "partition_date",
+            "triggering_asset_events",
+            "macros",
+            "var",
+            "conn",
+        }
+
+    def test_params_are_the_dags_with_the_run_conf_applied(self):
+        from airflow.sdk import DAG
+
+        dag = DAG("ctx_dag", params={"x": 1, "y": "a"})
+
+        context = build_dag_run_context(_dag_run(conf={"x": 2}), dag)
+
+        assert context["dag"] is dag
+        assert context["params"] == {"x": 2, "y": "a"}
+
+
+class TestBuildDeadlineCallbackContext:
+    @pytest.mark.parametrize(
+        "deadline_time",
+        ["2024-06-15T13:00:00+00:00", "2024-06-15T15:00:00+02:00", timezone.datetime(2024, 6, 15, 13)],
+        ids=["utc-string", "offset-string", "datetime"],
+    )
+    def test_deadline_time_is_an_aware_datetime(self, deadline_time):
+        """deadline_time travels as an ISO string in the workload JSON and is a datetime again here."""
+        context = build_deadline_callback_context(_dag_run(), deadline_id="abc", deadline_time=deadline_time)
+
+        built = context["deadline"]["deadline_time"]
+        assert isinstance(built, datetime)
+        # The same type as logical_date, so filters and date math treat them alike.
+        assert type(built) is type(context["logical_date"])
+        assert built.tzinfo is not None
+        assert built == timezone.datetime(2024, 6, 15, 13)
+        assert built - timedelta(hours=1) == timezone.datetime(2024, 6, 15, 12)
+        assert context["deadline"]["id"] == "abc"
+
+    def test_callback_source_is_deadline(self):
+        from airflow.sdk import CallbackMeta, CallbackSource
+
+        context = build_deadline_callback_context(_dag_run(), deadline_id=None, deadline_time=None)
+
+        assert context["callback"] == CallbackMeta(source=CallbackSource.DEADLINE)
+        assert "deadline" not in context
+
+    def test_keys_are_known_context_keys(self):
+        from airflow.sdk import DAG
+        from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
+
+        context = build_deadline_callback_context(
+            _dag_run(), DAG("ctx_dag"), deadline_id="abc", deadline_time="2024-06-15T13:00:00+00:00"
+        )
+
+        assert set(context) <= KNOWN_CONTEXT_KEYS
+
+
+class TestRenderCallbackKwargs:
+    @staticmethod
+    def _context(dag=None):
+        return build_deadline_callback_context(
+            _dag_run(), dag, deadline_id="abc", deadline_time="2024-06-15T13:00:00+00:00"
+        )
+
+    def test_renders_nested_values(self):
+        from airflow.sdk.execution_time.context import render_callback_kwargs
+
+        context = self._context()
+        kwargs = {
+            "text": "{{ run_id }} {{ deadline.deadline_time | ds }}",
+            "nested": {"ds": ["{{ ds }}", ("{{ ds_nodash }}",)], "count": 3},
+            "context": context,
+        }
+
+        rendered = render_callback_kwargs(kwargs, context)
+
+        assert rendered == {
+            "text": "ctx_run 2024-06-15",
+            "nested": {"ds": ["2024-06-15", ("20240615",)], "count": 3},
+            "context": context,
+        }
+
+    def test_uses_the_dag_template_env(self):
+        from airflow.sdk import DAG
+        from airflow.sdk.execution_time.context import render_callback_kwargs
+
+        dag = DAG(
+            "ctx_dag",
+            params={"x": 7},
+            user_defined_macros={"team": "data"},
+            user_defined_filters={"shout": str.upper},
+        )
+
+        rendered = render_callback_kwargs({"text": "{{ team | shout }} {{ params.x }}"}, self._context(dag))
+
+        assert rendered == {"text": "DATA 7"}
+
+    def test_undefined_value_is_passed_unrendered_with_a_warning(self, captured_logs):
+        """The Dag's StrictUndefined applies, and the failing kwarg is passed as is; the others render."""
+        from airflow.sdk import DAG
+        from airflow.sdk.execution_time.context import render_callback_kwargs
+
+        kwargs = {"bad": "{{ no_such_key }}", "good": "{{ ds }}"}
+
+        rendered = render_callback_kwargs(kwargs, self._context(DAG("ctx_dag")))
+
+        assert rendered == {"bad": "{{ no_such_key }}", "good": "2024-06-15"}
+        assert {
+            "event": "Could not render the template in callback kwarg, passing it unrendered",
+            "kwarg": "bad",
+            "error": "UndefinedError: 'no_such_key' is undefined",
+            "level": "warning",
+        }.items() <= captured_logs[0].items()

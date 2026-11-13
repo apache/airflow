@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import signal
 import socket
+import sys
+import types
 import uuid
 from dataclasses import dataclass
 from datetime import timedelta
@@ -31,18 +33,22 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk import DAG, BaseNotifier, CallbackMeta, CallbackSource, timezone
 from airflow.sdk.api.client import CallbackOperations, Client
-from airflow.sdk.api.datamodels._generated import CallbackTerminalState, XComResponse
+from airflow.sdk.api.datamodels._generated import CallbackTerminalState, DagRunState, DagRunType, XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
+    _parse_callback_dag,
     execute_callback,
     supervise_callback,
 )
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     ConnectionResult,
+    DagRunResult,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     GetXCom,
@@ -52,8 +58,24 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     _RequestFrame,
 )
+from airflow.sdk.execution_time.context import build_deadline_callback_context
 
 from tests_common.test_utils.config import conf_vars
+
+DAG_RUN = DagRunResult(
+    dag_id="ctx_dag",
+    run_id="ctx_run",
+    logical_date=timezone.datetime(2024, 6, 15, 12, 30),
+    data_interval_start=timezone.datetime(2024, 6, 15),
+    data_interval_end=timezone.datetime(2024, 6, 16),
+    run_after=timezone.datetime(2024, 6, 16),
+    start_date=timezone.datetime(2024, 6, 15, 12, 30),
+    end_date=None,
+    partition_key=None,
+    run_type=DagRunType.SCHEDULED,
+    state=DagRunState.RUNNING,
+    consumed_asset_events=[],
+)
 
 
 def callback_no_args():
@@ -246,6 +268,20 @@ class TestExecuteCallback:
         assert success is False
         assert "Unsupported callback kwargs encoding" in error
 
+    def test_execute_callback_reuses_the_dag_module_parsed_for_the_context(self, monkeypatch):
+        """A callback defined in the Dag file is not run from the file again once the Dag was parsed."""
+        module_name = "unusual_prefix_0123abcd_my_dag"
+        module = types.ModuleType(module_name)
+        module.my_callback = callback_recording_kwargs
+        monkeypatch.setitem(sys.modules, module_name, module)
+
+        success, error = execute_callback(
+            f"{module_name}.my_callback", {"arg": 1}, Path("missing.py"), Path("/no/such/bundle"), Mock()
+        )
+
+        assert (success, error) == (True, None)
+        assert received_kwargs == {"arg": 1}
+
 
 class TestCallbackHandleRequest:
     """Verify that CallbackSubprocess._handle_request dispatches each message type to the correct handler."""
@@ -360,6 +396,15 @@ class TestCallbackHandleRequest:
             message=MaskSecret(value="super_secret", name="api_key"),
             test_id="mask_secret",
             mask_secret_args=("super_secret", "api_key"),
+        ),
+        RequestCase(
+            message=GetDagRun(dag_id="ctx_dag", run_id="ctx_run"),
+            test_id="get_dag_run",
+            client_mock=ClientMock(
+                method_path="dag_runs.get_detail",
+                args=("ctx_dag", "ctx_run"),
+                response=DAG_RUN,
+            ),
         ),
     ]
 
@@ -619,6 +664,7 @@ class TestCallbackSubprocessStart:
             dag_rel_path=base_start_kwargs["dag_rel_path"],
             log=ANY,
             callback_kwargs_encoding=callback_kwargs_encoding,
+            render_kwargs=False,
         )
 
     def test_execute_callback_with_bundle_info_should_pass_correct_parameters(
@@ -649,6 +695,7 @@ class TestCallbackSubprocessStart:
             dag_rel_path=adjusted_kwargs["dag_rel_path"],
             log=ANY,
             callback_kwargs_encoding=None,
+            render_kwargs=False,
         )
 
     def test_callback_supervisor_with_bundle_info_should_adjust_sys_path(
@@ -873,3 +920,186 @@ class TestSuperviseCallbackReportsTerminalState:
         mock_start.return_value = Mock(wait=Mock(return_value=0))
 
         assert self._supervise(client) == 0
+
+
+class TestCallbackContextFetch:
+    """The subprocess target builds the context from the Dag run and its parsed Dag."""
+
+    @pytest.fixture(autouse=True)
+    def base_mocks_setup(self):
+        with (
+            patch("airflow.sdk.execution_time.comms.CommsDecoder") as mock_comms,
+            patch("airflow.sdk.execution_time.callback_supervisor.WatchedSubprocess.start") as mock_super,
+            patch("airflow.sdk.execution_time.callback_supervisor.execute_callback") as mock_execute,
+            patch("airflow.sdk.execution_time.callback_supervisor._parse_callback_dag") as mock_parse,
+        ):
+            mock_execute.return_value = (True, None)
+            # The target replaces SUPERVISOR_COMMS with a new CommsDecoder[...](...) instance.
+            self.mock_comms_instance = mock_comms.__getitem__.return_value.return_value
+            self.mock_super_start = mock_super
+            self.mock_execute_callback = mock_execute
+            self.dag = DAG("ctx_dag", params={"x": 1})
+            mock_parse.return_value = self.dag
+            self.mock_parse = mock_parse
+            yield
+
+    def _start_and_run_target(self, **overrides):
+        CallbackSubprocess.start(
+            **{
+                "id": str(uuid.uuid4()),
+                "callback_path": "my_module.my_callback",
+                "callback_kwargs": {"message": "{{ dag_run.dag_id }} {{ logical_date | ds_nodash }}"},
+                "dag_rel_path": Path("dags/my_dag.py"),
+                "client": Mock(),
+                **overrides,
+            }
+        )
+        self.mock_super_start.call_args.kwargs["target"]()
+
+    def test_builds_context_from_the_dag_run_and_the_parsed_dag(self):
+        self.mock_comms_instance.send.return_value = DAG_RUN
+
+        self._start_and_run_target(
+            dag_id="ctx_dag", run_id="ctx_run", deadline_id="abc", deadline_time="2024-06-15T13:00:00+00:00"
+        )
+
+        self.mock_comms_instance.send.assert_called_once_with(GetDagRun(dag_id="ctx_dag", run_id="ctx_run"))
+        self.mock_parse.assert_called_once_with("ctx_dag", Path("dags/my_dag.py"), None, None, ANY)
+        call = self.mock_execute_callback.call_args.kwargs
+        # Rendered in execute_callback, after the kwargs are decoded.
+        assert call["render_kwargs"] is True
+        assert call["callback_kwargs"]["message"] == "{{ dag_run.dag_id }} {{ logical_date | ds_nodash }}"
+        context = call["callback_kwargs"]["context"]
+        assert context["dag"] is self.dag
+        assert context["params"] == {"x": 1}
+        assert context["ds"] == "2024-06-15"
+        assert context["callback"] == CallbackMeta(source=CallbackSource.DEADLINE)
+        assert context["deadline"] == {"id": "abc", "deadline_time": timezone.datetime(2024, 6, 15, 13)}
+        assert callable(context["xcom_pull"])
+
+    @pytest.mark.parametrize(
+        "send",
+        [Mock(side_effect=RuntimeError("API down")), Mock(return_value=object())],
+        ids=["error", "bad"],
+    )
+    def test_exits_when_the_dag_run_cannot_be_fetched(self, send):
+        self.mock_comms_instance.send = send
+
+        with pytest.raises(SystemExit) as exc_info:
+            self._start_and_run_target(dag_id="ctx_dag", run_id="ctx_run")
+
+        assert exc_info.value.code == 1
+        self.mock_execute_callback.assert_not_called()
+
+    def test_no_fetch_without_dag_run_ids(self):
+        self._start_and_run_target()
+
+        self.mock_comms_instance.send.assert_not_called()
+        self.mock_parse.assert_not_called()
+        call = self.mock_execute_callback.call_args.kwargs
+        assert call["callback_kwargs"] == {"message": "{{ dag_run.dag_id }} {{ logical_date | ds_nodash }}"}
+        assert call["render_kwargs"] is False
+
+
+class TestParseCallbackDag:
+    def test_parses_the_dag_file_in_the_bundle(self, tmp_path):
+        (tmp_path / "dags").mkdir()
+        (tmp_path / "dags" / "my_dag.py").write_text(
+            "from airflow.sdk import DAG\n"
+            "with DAG('my_dag', params={'x': 1}, user_defined_macros={'team': 'data'}):\n"
+            "    pass\n"
+        )
+
+        dag = _parse_callback_dag(
+            "my_dag", Path("dags/my_dag.py"), str(tmp_path), BundleInfo(name="b", version=None), Mock()
+        )
+
+        assert dag is not None
+        assert dag.dag_id == "my_dag"
+        assert dag.user_defined_macros == {"team": "data"}
+
+    def test_missing_dag_returns_none(self, tmp_path):
+        (tmp_path / "other.py").write_text("x = 1\n")
+        log = Mock()
+
+        assert _parse_callback_dag("my_dag", Path("other.py"), str(tmp_path), None, log) is None
+        log.warning.assert_called_once()
+
+
+ctx_received: dict[str, Any] = {}
+
+
+def ctx_recording_callback(**kwargs):
+    ctx_received.clear()
+    ctx_received.update(kwargs)
+
+
+class RecordingNotifier(BaseNotifier):
+    template_fields = ("text",)
+    seen: list[str] = []
+
+    def __init__(self, text):
+        super().__init__()
+        RecordingNotifier.seen.append(text)
+        self.text = text
+
+    def notify(self, context):
+        RecordingNotifier.seen.append(self.text)
+
+
+class TestExecuteCallbackRendering:
+    @staticmethod
+    def _context(conf=None, dag=None):
+        return build_deadline_callback_context(
+            DAG_RUN.model_copy(update={"conf": conf}),
+            dag,
+            deadline_id="abc",
+            deadline_time="2024-06-15T13:00:00+00:00",
+        )
+
+    def _execute(self, path, kwargs, encoding=None):
+        return execute_callback(
+            callback_path=path,
+            callback_kwargs=kwargs,
+            dag_rel_path=Path("test.py"),
+            bundle_path=None,
+            log=Mock(),
+            callback_kwargs_encoding=encoding,
+            render_kwargs=True,
+        )
+
+    def test_function_kwargs_are_rendered_after_decoding(self):
+        from airflow.sdk.serde import serialize
+
+        context = self._context()
+        kwargs = {
+            "text": serialize("{{ run_id }} {{ deadline.deadline_time | ds }}"),
+            "nested": serialize({"days": ["{{ ds }}"]}),
+            "context": context,
+        }
+
+        assert self._execute(f"{__name__}.ctx_recording_callback", kwargs, encoding="serde") == (True, None)
+
+        assert ctx_received["text"] == "ctx_run 2024-06-15"
+        assert ctx_received["nested"] == {"days": ["2024-06-15"]}
+        assert ctx_received["context"] is context
+
+    def test_xcom_pull_can_be_used_in_templates(self):
+        context = {**self._context(), "xcom_pull": lambda task_id: f"value-of-{task_id}"}
+
+        self._execute(
+            f"{__name__}.ctx_recording_callback", {"text": "{{ xcom_pull('extract') }}", "context": context}
+        )
+
+        assert ctx_received["text"] == "value-of-extract"
+
+    def test_notifier_kwargs_are_rendered_once_by_the_notifier(self):
+        """A conf value that holds braces is rendered once, by the notifier, and not a second time."""
+        RecordingNotifier.seen = []
+        context = self._context(conf={"msg": "{{ ds }}"}, dag=DAG("ctx_dag"))
+
+        self._execute(
+            f"{__name__}.RecordingNotifier", {"text": "{{ dag_run.conf['msg'] }}", "context": context}
+        )
+
+        assert RecordingNotifier.seen == ["{{ dag_run.conf['msg'] }}", "{{ ds }}"]

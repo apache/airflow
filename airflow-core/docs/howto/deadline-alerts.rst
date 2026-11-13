@@ -282,7 +282,7 @@ A **custom synchronous callback** might look like this:
     def custom_sync_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         context = kwargs.get("context", {})
-        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
+        print(f"Deadline exceeded for Dag {context['dag_run'].dag_id}!")
         print(f"Context: {context}")
         print(f"Alert type: {kwargs.get('alert_type')}")
         # Additional custom handling here
@@ -332,7 +332,7 @@ A **custom asynchronous callback** might look like this:
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
         context = kwargs.get("context", {})
-        print(f"Deadline exceeded for Dag {context.get('dag_run', {}).get('dag_id')}!")
+        print(f"Deadline exceeded for Dag {context['dag_run'].dag_id}!")
         print(f"Context: {context}")
         print(f"Alert type: {kwargs.get('alert_type')}")
         # Additional custom handling here
@@ -380,15 +380,28 @@ A **custom asynchronous callback** might look like this:
 Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
-:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
-provided context as part of their execution. This means that templating can be used when using a Notifier
-as long as the variables being templated are included in the simplified context. This currently includes the
-ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
-response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
+The context is built when the callback runs, from the Dag run as it is at that point. It is a task's context
+without the task fields: ``dag_run``, ``run_id``, ``logical_date``, ``ds``, ``ts``, ``data_interval_start``,
+``params``, ``macros``, ``var``, ``conn`` and the rest of what a task gets from its Dag run and Dag. Fields that
+need a task instance, such as ``ti``, ``task`` or ``prev_start_date_success``, are not there. It also has the
+Deadline Alert as ``deadline`` (``{{ deadline.id }}``, ``{{ deadline.deadline_time | ds }}``, where
+``deadline_time`` is a datetime) and ``callback``, whose ``source`` is ``CallbackSource.DEADLINE``.
+
+Airflow renders :ref:`concepts:jinja-templating` in the ``kwargs`` of function callbacks the way it renders
+``op_kwargs`` for a ``PythonOperator``: every value, including the ones nested in lists and dicts, with the
+Dag's template environment, so ``StrictUndefined`` and the Dag's ``user_defined_macros`` and
+``user_defined_filters`` apply. A value that fails to render is passed to the callback as is, and a warning is
+written to the callback log. Notifiers are not rendered beforehand, since they render their own template
+fields with the same context.
+
+Asynchronous callbacks run in the triggerer, which gets the Dag in its serialized form, as it does for tasks
+that start from the triggerer. A serialized Dag does not keep ``user_defined_macros``, ``user_defined_filters``,
+``template_undefined`` or ``jinja_environment_kwargs``, so asynchronous callback templates can't use them and
+always use ``StrictUndefined``. Synchronous callbacks parse the Dag file, as tasks do, and have all of them.
 
 Synchronous callbacks can also read XComs from tasks in the same Dag run through ``context["xcom_pull"]``,
-for example ``context["xcom_pull"]("extract")`` or ``context["xcom_pull"]("extract", key="row_count")``.
+for example ``context["xcom_pull"]("extract")``, ``context["xcom_pull"]("extract", key="row_count")``, or
+``{{ xcom_pull("extract") }}`` in a templated kwarg.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
