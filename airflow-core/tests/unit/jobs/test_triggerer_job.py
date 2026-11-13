@@ -2132,17 +2132,17 @@ class TestTriggerRunner:
         await trigger_runner.cleanup_finished_triggers()
 
     @pytest.mark.parametrize(
-        ("ti", "expected_failures"),
+        ("for_task", "expected_failures"),
         [
-            pytest.param(None, 1, id="asset-watcher"),
-            pytest.param(MagicMock(map_index=-1), 0, id="deferred-task"),
+            pytest.param(False, 1, id="asset-watcher"),
+            pytest.param(True, 0, id="deferred-task"),
         ],
     )
-    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", autospec=True, return_value={})
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
     @pytest.mark.asyncio
     async def test_trigger_failing_after_an_event(
-        self, mock_get_trigger_by_classpath, mock_decrypt_kwargs, ti, expected_failures
+        self, mock_get_trigger_by_classpath, mock_decrypt_kwargs, for_task, expected_failures
     ) -> None:
         error = ValueError("boom")
 
@@ -2157,6 +2157,7 @@ class TestTriggerRunner:
         mock_get_trigger_by_classpath.return_value = EventThenFailTrigger
 
         trigger_runner = TriggerRunner()
+        ti = _make_ti_dto() if for_task else None
         trigger_runner.to_create.append(
             workloads.RunTrigger.model_construct(id=1, ti=ti, classpath="abc", encrypted_kwargs="{}")
         )
