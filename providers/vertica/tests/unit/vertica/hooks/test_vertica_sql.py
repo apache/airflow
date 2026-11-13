@@ -23,7 +23,9 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from sqlalchemy.engine import Engine
+from sqlalchemy.dialects import registry
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.engine.default import DefaultDialect
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -85,7 +87,7 @@ def mock_cursor(mock_get_conn):
 
 def test_sqlalchemy_url_property(vertica_hook):
     url = vertica_hook.sqlalchemy_url.render_as_string(hide_password=False)
-    expected_url = f"vertica-python://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
+    expected_url = f"vertica+vertica_python://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
     assert url.startswith(expected_url)
 
 
@@ -200,7 +202,7 @@ def test_get_uri(vertica_hook):
     """
     Test that the get_uri() method returns the correct connection string.
     """
-    assert vertica_hook.get_uri() == "vertica-python://user:pass@vertica.cloud.com:5433/test_db"
+    assert vertica_hook.get_uri() == "vertica+vertica_python://user:pass@vertica.cloud.com:5433/test_db"
 
 
 def test_get_sqlalchemy_engine(vertica_hook):
@@ -222,12 +224,74 @@ def test_get_sqlalchemy_engine(vertica_hook):
 
         actual_url = call_args["url"]
 
-        assert actual_url.drivername == "vertica-python"
+        assert actual_url.drivername == "vertica+vertica_python"
         assert actual_url.username == "user"
         assert actual_url.password == "pass"
         assert actual_url.host == "vertica.cloud.com"
         assert actual_url.port == 5433
         assert actual_url.database == "test_db"
+
+
+class StubVerticaDialect(DefaultDialect):
+    """Stand-in for a Vertica SQLAlchemy dialect package, registered under the same name they use."""
+
+    name = "vertica"
+    driver = "vertica_python"
+    supports_statement_cache = True
+
+    @classmethod
+    def import_dbapi(cls):
+        import vertica_python
+
+        return vertica_python
+
+    @classmethod
+    def dbapi(cls):
+        # SQLAlchemy < 2.0 calls dbapi() instead of import_dbapi(); SQLAlchemy 2 uses import_dbapi() when defined.
+        return cls.import_dbapi()
+
+
+@pytest.fixture
+def vertica_dialect_registered():
+    """
+    Register a dialect as ``vertica.vertica_python``, the name Vertica dialects register.
+
+    ``vertica-sqlalchemy-dialect``, ``sqlalchemy-vertica`` and ``sqlalchemy-vertica-python`` all
+    declare the ``sqlalchemy.dialects`` entry point ``vertica.vertica_python``.
+    """
+    name = "vertica.vertica_python"
+    previous = registry.impls.get(name)
+    registry.register(name, __name__, "StubVerticaDialect")
+    yield
+    if previous is None:
+        registry.impls.pop(name, None)
+    else:
+        registry.impls[name] = previous
+
+
+def test_get_uri_can_be_parsed_by_sqlalchemy(vertica_hook):
+    """Regression: the URI used to have the scheme "vertica-python", which make_url cannot parse."""
+    url = make_url(vertica_hook.get_uri())
+    assert url.drivername == "vertica+vertica_python"
+    assert url.host == HOST
+    assert url.database == DATABASE
+
+
+@pytest.mark.usefixtures("vertica_dialect_registered")
+def test_get_sqlalchemy_engine_resolves_vertica_dialect(vertica_hook):
+    """Regression: the engine is created through the registered Vertica dialect, without mocking."""
+    engine = vertica_hook.get_sqlalchemy_engine()
+    assert isinstance(engine.dialect, StubVerticaDialect)
+    assert engine.url.drivername == "vertica+vertica_python"
+    assert engine.url.host == HOST
+    assert engine.url.port == PORT
+    assert engine.url.database == DATABASE
+
+
+@pytest.mark.usefixtures("vertica_dialect_registered")
+def test_dialect_name_is_vertica(vertica_hook):
+    """Regression: dialect_name fell back to "default" because get_uri() could not be parsed."""
+    assert vertica_hook.dialect_name == "vertica"
 
 
 @pytest.mark.parametrize("sql", ["", "\n", " "])

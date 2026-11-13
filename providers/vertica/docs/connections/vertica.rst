@@ -81,3 +81,23 @@ Extra (optional)
             "connection_timeout": 30,
             "backup_server_node": ["bck_server_1", "bck_server_2"]
          }
+
+Using SQLAlchemy
+----------------
+
+``VerticaHook.get_sqlalchemy_engine()`` and the features built on it (for example
+``DataFrame.to_sql`` with the hook's engine, ``inspector`` or ``get_table_schema``) need the
+``sqlalchemy`` extra and a Vertica SQLAlchemy dialect. The hook builds a
+``vertica+vertica_python://`` URL from the connection, which is the name Vertica dialects register.
+
+* With SQLAlchemy 2.x, `sqlalchemy-vertica <https://pypi.org/project/sqlalchemy-vertica/>`_ has been
+  checked to work (connection, inspection and ``DataFrame.to_sql``).
+* The official `vertica-sqlalchemy-dialect <https://pypi.org/project/vertica-sqlalchemy-dialect/>`_
+  requires SQLAlchemy 1.4.44 or lower, so it does not work with SQLAlchemy 2.x.
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-vertica[sqlalchemy]' sqlalchemy-vertica
+
+Connection extras are passed to the dialect as URL query parameters, and the dialect decides how to
+convert them for vertica-python.
