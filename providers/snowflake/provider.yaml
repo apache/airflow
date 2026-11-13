@@ -189,7 +189,6 @@ connection-types:
       placeholders:
         extra: |
           {
-            "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",
             "private_key_file": "private key",
             "session_parameters": "session parameters",
             "client_request_mfa_token": "client request mfa token",
@@ -213,6 +212,7 @@ connection-types:
         database: snowflake db name
         region: snowflake hosted region
         role: snowflake role
+        authenticator: snowflake (default), oauth, programmatic_access_token, WORKLOAD_IDENTITY
         private_key_file: Path of snowflake private key (PEM Format)
         private_key_content: Content to snowflake private key (PEM format)
         workload_identity_provider: AWS, AZURE, GCP or OIDC
@@ -248,6 +248,12 @@ connection-types:
             - 'null'
       role:
         label: Role
+        schema:
+          type:
+            - string
+            - 'null'
+      authenticator:
+        label: Authenticator
         schema:
           type:
             - string

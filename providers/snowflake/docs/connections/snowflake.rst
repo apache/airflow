@@ -61,12 +61,13 @@ Extra (optional)
     * ``role``: Snowflake role.
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
       `Workload Identity Federation <https://docs.snowflake.com/en/user-guide/workload-identity-federation>`_,
-      set it to ``WORKLOAD_IDENTITY`` and also set ``workload_identity_provider`` (see below). For Programmatic Access
+      set ``workload_identity_provider`` (see below); ``authenticator`` then defaults to ``WORKLOAD_IDENTITY``. For Programmatic Access
       Token (PAT) authentication, set it to ``programmatic_access_token`` and put the PAT token in the
       Password field. The same connection works for ``SnowflakeHook``, ``SnowflakeSqlApiHook``,
       ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
-    * ``workload_identity_provider``: The cloud whose workload identity is used as the Snowflake credential
-      when ``authenticator`` is ``WORKLOAD_IDENTITY``. One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. With
+    * ``workload_identity_provider``: The cloud whose workload identity is used as the Snowflake credential.
+      One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. When ``authenticator`` is not set, setting this
+      selects the ``WORKLOAD_IDENTITY`` authenticator. With
       Workload Identity Federation no long-lived secret (password, key-pair or PAT) is stored; the workload's
       cloud identity is the credential. Requires ``snowflake-connector-python>=3.17.0`` and the workload to
       run on the matching cloud. ``AWS``, ``AZURE`` and ``GCP`` fetch the identity token from the cloud's
@@ -170,8 +171,8 @@ JSON format example with Workload Identity Federation (WIF)
 
 To authenticate without a stored secret using
 `Workload Identity Federation <https://docs.snowflake.com/en/user-guide/workload-identity-federation>`_,
-set ``authenticator`` to ``WORKLOAD_IDENTITY`` and ``workload_identity_provider`` to the cloud the
-workload runs on (here ``GCP``). No password, key-pair or token is stored; the workload's cloud identity
+set ``workload_identity_provider`` to the cloud the workload runs on (here ``GCP``); ``authenticator``
+then defaults to ``WORKLOAD_IDENTITY``. No password, key-pair or token is stored; the workload's cloud identity
 is the credential. The Snowflake side needs a ``TYPE = SERVICE`` user that trusts the workload's identity
 and is granted a role with access to the target objects.
 
@@ -185,7 +186,6 @@ and is granted a role with access to the target objects.
             "database": "database",
             "warehouse": "snow-warehouse",
             "role": "role",
-            "authenticator": "WORKLOAD_IDENTITY",
             "workload_identity_provider": "GCP"
         }
     }'
