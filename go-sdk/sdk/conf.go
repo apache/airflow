@@ -61,6 +61,11 @@ import (
 // carry the defaults of the Dag's params, so in a scheduled run every field
 // keeps the value it came in with.
 //
+// The fields of an embedded pointer whose field name is unexported take no
+// key, even when target already points it at a struct, because the decoder
+// cannot allocate such a pointer and the keys are matched per type. Embed the
+// struct by value, or give its type an exported name, to fill those fields.
+//
 // The `arg:` tag that binds a TaskFlow argument has no effect here. Read a key
 // that no field name can match, such as target-table, from [DagRun.Conf], or
 // name it in a `json:` tag.
@@ -86,6 +91,12 @@ func (d DagRun) UnmarshalConf(target any) error {
 	matched, err := matchConfValue(d.Conf, rv.Type().Elem())
 	if err != nil {
 		return err
+	}
+	// A nil conf has nothing to decode. Encoding what matchConfValue returns
+	// for it gives {} or null, and decoding either would still allocate parts
+	// of target, reset them, or call UnmarshalJSON.
+	if d.Conf == nil {
+		return nil
 	}
 	blob, err := json.Marshal(matched)
 	if err != nil {
@@ -278,6 +289,10 @@ func collectConfFields(structType reflect.Type, fields *confFields) []reflect.Ty
 			continue
 		}
 		if f.Anonymous && !tagged {
+			// The decoder cannot allocate a pointer to an unexported struct.
+			if f.Type.Kind() == reflect.Pointer && !f.IsExported() {
+				continue
+			}
 			if inner := confStructType(f.Type); inner != nil {
 				embedded = append(embedded, inner)
 				continue

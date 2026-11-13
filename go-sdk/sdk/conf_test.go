@@ -76,6 +76,19 @@ type skippedEmbedConf struct {
 	Tablename string
 }
 
+type SourceTable struct {
+	SourceName string
+}
+
+// etlTable is unexported and SourceTable is exported, so only the fields of
+// *SourceTable take conf keys.
+type embeddedPointerConf struct {
+	*etlTable
+	*SourceTable
+
+	Zone string
+}
+
 type untypedConf struct {
 	RowCount int64
 	Options  map[string]any
@@ -227,6 +240,29 @@ func TestUnmarshalConfPromotesNoFieldOfASkippedEmbeddedStruct(t *testing.T) {
 	assert.Empty(t, conf.TableName, `a json:"-" embedded struct takes no conf key`)
 }
 
+// A conf key reaches no field of an embedded pointer whose field name is
+// unexported, even one the task set before the call, while the fields beside
+// it still take their keys.
+func TestUnmarshalConfPromotesNoFieldOfAnUnexportedEmbeddedPointer(t *testing.T) {
+	run := dagRunWithConf(map[string]any{
+		"table_name":  "sales",
+		"source_name": "raw",
+		"zone":        "eu",
+	})
+	var unset embeddedPointerConf
+	preset := embeddedPointerConf{etlTable: &etlTable{TableName: "default"}}
+
+	require.NoError(t, run.UnmarshalConf(&unset))
+	require.NoError(t, run.UnmarshalConf(&preset))
+
+	assert.Equal(
+		t,
+		embeddedPointerConf{SourceTable: &SourceTable{SourceName: "raw"}, Zone: "eu"},
+		unset,
+	)
+	assert.Equal(t, "default", preset.TableName)
+}
+
 func TestUnmarshalConfRejectsTwoKeysThatMatchOneField(t *testing.T) {
 	var conf etlConf
 
@@ -298,4 +334,20 @@ func TestUnmarshalConfOfARunWithoutAConf(t *testing.T) {
 	require.NoError(t, DagRun{DagID: "dag1", RunID: "run1"}.UnmarshalConf(&conf))
 
 	assert.Equal(t, etlConf{Limit: 100}, conf)
+}
+
+// Nothing to decode means nothing to allocate or reset either.
+func TestUnmarshalConfOfARunWithoutAConfLeavesTheTargetAsItIs(t *testing.T) {
+	run := DagRun{DagID: "dag1", RunID: "run1"}
+	var nilMap map[string]any
+	var nilPointer *etlConf
+	var untyped any = "default"
+
+	require.NoError(t, run.UnmarshalConf(&nilMap))
+	require.NoError(t, run.UnmarshalConf(&nilPointer))
+	require.NoError(t, run.UnmarshalConf(&untyped))
+
+	assert.Nil(t, nilMap)
+	assert.Nil(t, nilPointer)
+	assert.Equal(t, "default", untyped)
 }
