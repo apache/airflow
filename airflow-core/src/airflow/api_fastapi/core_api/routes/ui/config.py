@@ -69,6 +69,7 @@ def get_configs() -> ConfigResponse:
             if conf.has_option("core", "rerun_with_latest_version")
             else None
         ),
+        "backends_order": conf.get("secrets", "backends_order"),
     }
 
     config.update({key: value for key, value in additional_config.items()})

@@ -1,4 +1,8 @@
 {
+  "backendsOrder": {
+    "loading": "Loading...",
+    "title": "Secret backends order"
+  },
   "columns": {
     "description": "Description",
     "key": "Key",
