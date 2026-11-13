@@ -60,6 +60,9 @@ from airflowctl.api.datamodels.generated import (
     ConnectionResponse,
     ConnectionTestResponse,
     CreateAssetEventsBody,
+    DagBundleCollectionResponse,
+    DagBundleDetailResponse,
+    DagBundleResponse,
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
@@ -3364,3 +3367,54 @@ class TestPluginsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.plugins.list_import_errors()
         assert response == self.plugin_import_error_collection_response
+
+
+class TestDagBundlesOperations:
+    bundle_response = DagBundleResponse(
+        name="dags-folder",
+        active=True,
+        version=None,
+        last_refreshed=datetime.datetime(2025, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
+        bundle_url=None,
+        team_name=None,
+        import_error_count=0,
+    )
+    bundle_detail_response = DagBundleDetailResponse(
+        **bundle_response.model_dump(),
+        dag_count=3,
+    )
+    bundle_collection_response = DagBundleCollectionResponse(dag_bundles=[bundle_response], total_entries=1)
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dagBundles/dags-folder"
+            return httpx.Response(200, json=json.loads(self.bundle_detail_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.dagbundles.get(bundle_name="dags-folder") == self.bundle_detail_response
+
+    def test_get_encodes_the_bundle_name(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path.decode().split("?")[0] == "/api/v2/dagBundles/a%2Fb"
+            return httpx.Response(200, json=json.loads(self.bundle_detail_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.dagbundles.get(bundle_name="a/b")
+
+    def test_list_sends_paging_and_ordering(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dagBundles"
+            assert dict(request.url.params) == {"limit": "5", "offset": "10", "order_by": "-last_refreshed"}
+            return httpx.Response(200, json=json.loads(self.bundle_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dagbundles.list(limit=5, offset=10, order_by="-last_refreshed")
+        assert response == self.bundle_collection_response
+
+    def test_list_defaults_to_one_hundred_results(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert dict(request.url.params) == {"limit": "100"}
+            return httpx.Response(200, json=json.loads(self.bundle_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.dagbundles.list() == self.bundle_collection_response
