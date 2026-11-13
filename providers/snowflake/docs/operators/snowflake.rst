@@ -189,11 +189,31 @@ between, the handles won't be there for the next retry, and the operator will su
 fresh instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
 ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose
-statements already succeeded: clearing does not delete the stored handles, so the next attempt
-reads them back and returns immediately without submitting the SQL again. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task deletes the stored statement handles by default (Airflow 3.4+), and so does clearing
+its whole Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next
+attempt then reads the stored statement handles back. What the next attempt does depends on the
+state of the statements at that point:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Statement state
+     - Default clear
+     - Clear that keeps task state
+   * - Still running
+     - Submits the SQL again. The first statements keep running.
+     - Reconnects to the running statements.
+   * - Succeeded
+     - Submits the SQL again.
+     - Returns right away without running the SQL again.
+   * - Failed or aborted
+     - Submits the SQL again.
+     - Submits the SQL again.
+
+Keep task state when statements are still running and nothing about the code or inputs changed, so
+you don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of
+clearing.
 
 This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
 polling synchronously can cancel the statements via ``on_kill`` before the next attempt gets a

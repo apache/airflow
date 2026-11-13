@@ -203,7 +203,7 @@ model failed in its second cycle; ``cycle`` counts from 0:
 answer, or an interrupt or a cancellation, which it does not resume. It deletes the
 saved state then, so clearing the task later starts the agent over. If that delete
 fails, the task still succeeds and logs ``Could not delete the Strands agent's saved
-state``, and a later clear of the whole Dag run resumes from the last pause.
+state``, and a later clear that keeps task state resumes from the last pause.
 
 A retry runs some work again:
 
@@ -221,8 +221,8 @@ A retry runs some work again:
   or keep sandbox work out of a durable agent.
 
 A retry resumes the saved conversation with the system prompt it was saved with.
-So does clearing the whole Dag run, which keeps task state. To run a changed system
-prompt on a failed task, clear the task itself without keeping its task state.
+So does a clear that keeps task state. To run a changed system prompt on a failed
+task, clear it without keeping its task state, which is the default.
 
 An agent whose model keeps the conversation server-side (``model.stateful``) raises
 ``ValueError``: Strands' `session manager
