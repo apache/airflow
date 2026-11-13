@@ -38,6 +38,8 @@ from airflow_breeze.utils.fork_ci_messages import (
     Marker,
     ci_change_approval_comment,
     ci_modification_note_comment,
+    deleted_fork_close_comment,
+    failed_inactivity_close_comment,
     gate_modified_close_comment,
     inactivity_close_comment,
     job_status_context,
@@ -144,6 +146,8 @@ def test_parse_marker_malformed(body):
         ),
         pytest.param(gate_modified_close_comment(change="it changes `x`"), id="gate-modified"),
         pytest.param(ungated_comment(MARKER, base_ref="v2-10-test"), id="ungated"),
+        pytest.param(deleted_fork_close_comment(), id="deleted-fork"),
+        pytest.param(failed_inactivity_close_comment(days=7), id="failed-inactivity"),
     ],
 )
 def test_every_comment_ends_with_footer(text):
