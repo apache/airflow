@@ -132,8 +132,7 @@ class AssetPartitionWaitMonitor:
                         "Inspect the pending asset inputs for this Dag."
                     )
 
-        cleared = existing.keys() - overdue.keys()
-        if cleared:
+        if (cleared := existing.keys() - overdue.keys()):
             session.execute(
                 delete(DagWarning).where(
                     DagWarning.dag_id.in_(cleared),
