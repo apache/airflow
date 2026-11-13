@@ -77,7 +77,7 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def submit_job(self, context: Context) -> str | None:
         self.hook._conf[_K8S_WAIT_APP_COMPLETION_CONF] = "false"
         self.hook.submit(self.operator.application)
-        pod_name = self.hook._kubernetes_driver_pod
+        pod_name = self.hook._kubernetes_driver_pod_name
         namespace = self.hook._connection["namespace"]
         if not pod_name:
             raise RuntimeError("spark-submit did not capture a K8s driver pod name")
@@ -112,7 +112,7 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def poll_until_complete(self, external_id: str, context: Context) -> None:
         if external_id is not None:
             _, pod_name = self.operator._parse_k8s_external_id(external_id)
-            self.hook._kubernetes_driver_pod = pod_name
+            self.hook._kubernetes_driver_pod_name = pod_name
         terminal_phase = self.hook._poll_k8s_driver_via_api()
         # Cache only when the pod actually reached Succeeded, the 404/vanished path
         # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
@@ -308,6 +308,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         Requires Airflow 3.3 or newer; below that, ``durable`` has no effect -- setting it
         explicitly only emits a warning.
     :param reconnect_on_retry: deprecated, use ``durable`` instead.
+    :param kubernetes_driver_container_name: Name of the Spark driver container used for identification to track status
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -336,6 +337,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         "env_vars",
         "post_submit_commands",
         "properties_file",
+        "kubernetes_driver_container_name",
     )
 
     def __init__(
@@ -383,6 +385,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         ),
         reconnect_on_retry: bool | None = None,
         durable: bool | None = None,
+        kubernetes_driver_container_name: str | None = None,
         **kwargs: Any,
     ) -> None:
         if reconnect_on_retry is not None:
@@ -438,6 +441,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
+        self.kubernetes_driver_container_name = kubernetes_driver_container_name
 
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
@@ -570,4 +574,5 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             track_driver_via_k8s_api=self._track_driver_via_k8s_api,
             yarn_track_via_rm_api=self._yarn_track_via_rm_api,
             yarn_rm_auth=self._yarn_rm_auth,
+            kubernetes_driver_container_name=self.kubernetes_driver_container_name,
         )
