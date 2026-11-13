@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
@@ -35,6 +36,15 @@ tracer = trace.get_tracer(__name__)
 
 # Read by the durable execution banner on the task logs page.
 DURABLE_RECORD_KEY = "__airflow_durable__"
+
+
+class DurableDecision(StrEnum):
+    """What a try did with the external job; mirrored in the logs banner."""
+
+    SUBMITTED = "submitted"
+    RESUBMITTED = "resubmitted"
+    RECONNECTED = "reconnected"
+    ALREADY_SUCCEEDED = "already_succeeded"
 
 
 class ResumableJobMixin(ABC):
@@ -195,12 +205,12 @@ class ResumableJobMixin(ABC):
                     )
 
         if reconnect_to is not None:
-            self._record_try(context, "reconnected", reconnect_to)
+            self._record_try(context, DurableDecision.RECONNECTED, reconnect_to)
             result = self.poll_until_complete(reconnect_to, context)
-            self._record_try(context, "reconnected", reconnect_to, job_finished=True)
+            self._record_try(context, DurableDecision.RECONNECTED, reconnect_to, job_finished=True)
             return result
         if already_succeeded_id is not None:
-            self._record_try(context, "already_succeeded", already_succeeded_id)
+            self._record_try(context, DurableDecision.ALREADY_SUCCEEDED, already_succeeded_id)
             return self.get_job_result(already_succeeded_id, context)
         external_id = self.submit_job(context)
 
@@ -212,9 +222,11 @@ class ResumableJobMixin(ABC):
                 external_id=external_id,
             )
             if failed_id is None:
-                self._record_try(context, "submitted", external_id)
+                self._record_try(context, DurableDecision.SUBMITTED, external_id)
             else:
-                self._record_try(context, "resubmitted", external_id, previous_external_id=failed_id)
+                self._record_try(
+                    context, DurableDecision.RESUBMITTED, external_id, previous_external_id=failed_id
+                )
 
         self.poll_until_complete(external_id, context)
         return self.get_job_result(external_id, context)
@@ -222,7 +234,7 @@ class ResumableJobMixin(ABC):
     def _record_try(
         self,
         context: Context,
-        decision: str,
+        decision: DurableDecision,
         external_id: JsonValue,
         *,
         job_finished: bool = False,
@@ -236,18 +248,25 @@ class ResumableJobMixin(ABC):
             now = datetime.now(tz=UTC)
             stored = task_state_store.get(DURABLE_RECORD_KEY)
             record: dict[str, Any] = stored if isinstance(stored, dict) else {}
-            if decision in ("submitted", "resubmitted"):
+            if decision in (DurableDecision.SUBMITTED, DurableDecision.RESUBMITTED):
                 record["submitted_at"] = now.isoformat()
             saved_seconds = None
             if job_finished and record.get("submitted_at"):
                 saved_seconds = (now - datetime.fromisoformat(record["submitted_at"])).total_seconds()
+            # Airflow states rather than the provider's raw status string, so the UI can render them.
+            status = None
+            if decision == DurableDecision.RECONNECTED:
+                status = "success" if job_finished else "running"
+            elif decision == DurableDecision.ALREADY_SUCCEEDED:
+                status = "success"
             try_number = getattr(context.get("ti"), "try_number", None)
             record["tries"] = [t for t in record.get("tries", []) if t.get("try_number") != try_number]
             record["tries"].append(
                 {
                     "try_number": try_number,
-                    "decision": decision,
+                    "decision": decision.value,
                     "external_id": external_id,
+                    "status": status,
                     "saved_seconds": saved_seconds,
                     **({"previous_external_id": previous_external_id} if previous_external_id else {}),
                 }

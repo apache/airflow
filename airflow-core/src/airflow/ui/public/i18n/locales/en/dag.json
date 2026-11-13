@@ -110,9 +110,15 @@
     "debug": "DEBUG",
     "durable": {
       "detail": {
-        "already_succeeded": "Job {{id}} had already finished, so no new run was needed.",
-        "reconnected": "Avoided running a second copy of a ~{{duration}} job ({{id}}).",
-        "reconnectedRunning": "Waiting on job {{id}} instead of starting it again."
+        "already_succeeded": "The job had already finished, so no new run was needed.",
+        "reconnected": "Avoided running a second copy of a ~{{duration}} job.",
+        "reconnectedRunning": "Waiting on the running job instead of starting it again."
+      },
+      "job": {
+        "id": "Job ID: {{id}}",
+        "label": "Job",
+        "runTime": "Run time: {{duration}}",
+        "submittedAt": "Submitted:"
       },
       "title": {
         "already_succeeded": "Used result of already finished job",

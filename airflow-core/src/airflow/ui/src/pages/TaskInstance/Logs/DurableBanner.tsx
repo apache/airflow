@@ -16,29 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useTaskStateStoreServiceGetTaskStateStore } from "openapi/queries";
-import type { TaskInstanceResponse } from "openapi/requests";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests";
 
-import { Alert } from "src/system-components";
+import { Alert, Tooltip } from "src/system-components";
+
+import { StateBadge } from "src/components/StateBadge";
+import Time from "src/components/Time";
 
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { renderDuration } from "src/utils/datetimeUtils";
 
-// Written by ResumableJobMixin in the Task SDK.
+// Written by ResumableJobMixin in the Task SDK, which also defines DurableDecision.
 const DURABLE_RECORD_KEY = "__airflow_durable__";
 
+export const DurableDecision = {
+  ALREADY_SUCCEEDED: "already_succeeded",
+  RECONNECTED: "reconnected",
+  RESUBMITTED: "resubmitted",
+  SUBMITTED: "submitted",
+} as const;
+
 type DurableTry = {
-  readonly decision: string;
+  readonly decision: (typeof DurableDecision)[keyof typeof DurableDecision];
   readonly external_id: unknown;
   readonly saved_seconds: number | null;
+  readonly status?: TaskInstanceState | null;
   readonly try_number: number | null;
 };
 
-const DECISIONS_THAT_SAVE = new Set(["already_succeeded", "reconnected"]);
+type DurableRecord = {
+  readonly submitted_at?: string;
+  readonly tries?: Array<DurableTry>;
+};
 
 export const DurableBanner = ({
   taskInstance,
@@ -50,7 +64,7 @@ export const DurableBanner = ({
   >;
   readonly tryNumber?: number;
 }) => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "common"]);
   const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId: taskInstance?.dag_id });
 
@@ -65,16 +79,20 @@ export const DurableBanner = ({
     },
     undefined,
     {
-      enabled: taskInstance !== undefined,
+      // A first try never reconnects or reuses a result, so only retries can show the banner.
+      enabled: taskInstance !== undefined && (tryNumber ?? 0) > 1,
       refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
       // Most tasks are not durable, so the key is usually missing.
       retry: false,
     },
   );
 
-  const tries = (data?.value as { tries?: Array<DurableTry> } | undefined)?.tries ?? [];
-  const entry = tries.find(
-    (attempt) => attempt.try_number === tryNumber && DECISIONS_THAT_SAVE.has(attempt.decision),
+  const record = (data?.value ?? {}) as DurableRecord;
+  const entry = (record.tries ?? []).find(
+    (attempt) =>
+      attempt.try_number === tryNumber &&
+      (attempt.decision === DurableDecision.RECONNECTED ||
+        attempt.decision === DurableDecision.ALREADY_SUCCEEDED),
   );
 
   if (entry === undefined) {
@@ -84,22 +102,45 @@ export const DurableBanner = ({
   const seconds = entry.saved_seconds;
   const externalId =
     typeof entry.external_id === "string" ? entry.external_id : JSON.stringify(entry.external_id);
-  let detail = translate(`logs.durable.detail.${entry.decision}`, { id: externalId });
+  let detail = translate(`logs.durable.detail.${entry.decision}`);
 
-  if (entry.decision === "reconnected") {
+  if (entry.decision === DurableDecision.RECONNECTED) {
     detail =
       seconds === null
-        ? translate("logs.durable.detail.reconnectedRunning", { id: externalId })
-        : translate("logs.durable.detail.reconnected", {
-            duration: renderDuration(Math.round(seconds)),
-            id: externalId,
-          });
+        ? translate("logs.durable.detail.reconnectedRunning")
+        : translate("logs.durable.detail.reconnected", { duration: renderDuration(Math.round(seconds)) });
   }
+
+  const jobDetails = (
+    <VStack align="start" gap={0}>
+      <Text>{translate("logs.durable.job.id", { id: externalId })}</Text>
+      {record.submitted_at === undefined ? undefined : (
+        <Text>
+          {translate("logs.durable.job.submittedAt")} <Time datetime={record.submitted_at} />
+        </Text>
+      )}
+      {seconds === null ? undefined : (
+        <Text>
+          {translate("logs.durable.job.runTime", { duration: renderDuration(Math.round(seconds)) })}
+        </Text>
+      )}
+    </VStack>
+  );
 
   return (
     <Box mb={2}>
       <Alert status="info" title={translate(`logs.durable.title.${entry.decision}`)}>
-        {detail}
+        <HStack gap={2}>
+          <Text>{detail}</Text>
+          <Tooltip content={jobDetails}>
+            <StateBadge state={entry.status ?? null}>
+              {translate("logs.durable.job.label")}
+              {entry.status === undefined || entry.status === null
+                ? undefined
+                : `: ${translate(`common:states.${entry.status}`)}`}
+            </StateBadge>
+          </Tooltip>
+        </HStack>
       </Alert>
     </Box>
   );

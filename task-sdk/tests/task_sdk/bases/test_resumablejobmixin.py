@@ -157,16 +157,29 @@ class TestDurableRecord:
         with time_machine.travel("2026-11-10 10:01:00+00:00", tick=False) as traveller:
 
             def poll(external_id, context):
-                saved_while_running.append(task_state.get(DURABLE_RECORD_KEY)["tries"][-1]["saved_seconds"])
+                running = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
+                saved_while_running.append((running["status"], running["saved_seconds"]))
                 traveller.move_to("2026-11-10 10:20:00+00:00")
 
             op.poll_until_complete = poll
             op.execute_resumable({"task_state_store": task_state, "ti": ti})
 
-        assert saved_while_running == [None]
+        assert saved_while_running == [("running", None)]
         assert task_state.get(DURABLE_RECORD_KEY)["tries"] == [
-            {"try_number": 1, "decision": "submitted", "external_id": "job-001", "saved_seconds": None},
-            {"try_number": 2, "decision": "reconnected", "external_id": "job-001", "saved_seconds": 1200.0},
+            {
+                "try_number": 1,
+                "decision": "submitted",
+                "external_id": "job-001",
+                "status": None,
+                "saved_seconds": None,
+            },
+            {
+                "try_number": 2,
+                "decision": "reconnected",
+                "external_id": "job-001",
+                "status": "success",
+                "saved_seconds": 1200.0,
+            },
         ]
 
     def test_resubmit_after_failed_job_records_the_failed_job(self):
@@ -180,6 +193,7 @@ class TestDurableRecord:
             "try_number": None,
             "decision": "resubmitted",
             "external_id": "job-001",
+            "status": None,
             "saved_seconds": None,
             "previous_external_id": "job-000",
         }

@@ -25,7 +25,7 @@ import type { TaskInstanceResponse } from "openapi/requests";
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import { DurableBanner } from "./DurableBanner";
+import { DurableBanner, DurableDecision } from "./DurableBanner";
 
 vi.mock("openapi/queries", async () => ({
   ...(await vi.importActual("openapi/queries")),
@@ -33,10 +33,34 @@ vi.mock("openapi/queries", async () => ({
 }));
 
 const TRIES = [
-  { decision: "submitted", external_id: "run_1", saved_seconds: null, try_number: 1 },
-  { decision: "reconnected", external_id: "run_1", saved_seconds: 90, try_number: 2 },
-  { decision: "already_succeeded", external_id: "run_1", saved_seconds: null, try_number: 3 },
-  { decision: "reconnected", external_id: "run_1", saved_seconds: null, try_number: 4 },
+  {
+    decision: DurableDecision.SUBMITTED,
+    external_id: "run_1",
+    saved_seconds: null,
+    status: null,
+    try_number: 1,
+  },
+  {
+    decision: DurableDecision.RECONNECTED,
+    external_id: "run_1",
+    saved_seconds: 90,
+    status: "success",
+    try_number: 2,
+  },
+  {
+    decision: DurableDecision.ALREADY_SUCCEEDED,
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "success",
+    try_number: 3,
+  },
+  {
+    decision: DurableDecision.RECONNECTED,
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "running",
+    try_number: 4,
+  },
 ];
 
 const renderFor = (tryNumber: number) => {
@@ -66,9 +90,20 @@ describe("DurableBanner", () => {
     expect(screen.getByText(detail)).toBeInTheDocument();
   });
 
-  it("shows nothing for a try that submitted a new job", () => {
+  it("shows the job status in a badge", () => {
+    renderFor(4);
+
+    expect(screen.getByText("logs.durable.job.label: common:states.running")).toBeInTheDocument();
+  });
+
+  it("does not fetch the record on a first try", () => {
     renderFor(1);
 
+    expect(vi.mocked(useTaskStateStoreServiceGetTaskStateStore)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      undefined,
+      expect.objectContaining({ enabled: false }),
+    );
     expect(screen.queryByText("logs.durable", { exact: false })).not.toBeInTheDocument();
   });
 });
