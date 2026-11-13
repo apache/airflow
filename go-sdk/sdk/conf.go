@@ -53,6 +53,8 @@ import (
 // underscores are ignored. Objects nested in the conf follow the same rules,
 // including objects in slices and objects that are map values. The keys of a
 // map field stay as written, because they are data rather than field names.
+// Other `json:` tag options keep their encoding/json meaning, so a `,string`
+// field needs its conf value as a quoted string.
 //
 // Keys that match no field are ignored, because other tasks in the run may
 // read them. A field with no matching key keeps the value target already

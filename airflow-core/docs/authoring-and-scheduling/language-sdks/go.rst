@@ -522,25 +522,8 @@ type per key. ``UnmarshalConf`` reads the conf into a struct with typed fields i
 For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31T00:00:00Z"}``,
 ``etl.TargetTable`` is ``"sales"``, ``etl.Since`` is that date, and ``etl.Limit`` stays ``100``.
 
-* Each key goes to the field whose name matches it when case and underscores are ignored, so ``target_table``
-  reaches ``TargetTable``. A ``json:`` tag renames the field, and the tag name matches the same way. Objects
-  nested in the conf follow the same rule, including objects in slices and objects that are map values. The
-  keys of a map field stay as written, because they are data rather than field names.
-* The ``arg:`` tag that binds a TaskFlow argument has no effect here. Read a key that no field name can match,
-  such as ``target-table``, from ``Conf``, or name it in a ``json:`` tag.
-* A number decoded into an ``any``, such as a field of type ``any`` or a value of a ``map[string]any`` or
-  ``[]any`` field, arrives as a ``json.Number`` rather than as the number type ``Conf`` carries, because a
-  ``float64`` cannot hold every integer a conf can. Read it with its ``Int64`` or ``Float64`` method, or give
-  the field a Go integer or float type to have the decoder convert it. Of those, only an integer type keeps
-  every digit of a large integer.
-* Keys that match no field are ignored, because other tasks in the run may read them. A field with no matching
-  key keeps the value the struct already holds, so set the defaults before the call, as ``Limit`` does above.
-* The conf holds only the values the run was triggered with. In a Python task, ``params`` combines the conf
-  with the defaults of the Dag's params. ``UnmarshalConf`` does not add those defaults, so in a scheduled run
-  every field keeps the value it came in with.
-* It returns an error when a value does not fit the type of its field, when two keys such as ``target_table``
-  and ``TARGET_TABLE`` match one field and neither names it exactly, or when two fields of the struct differ
-  only in case or underscores.
+For how keys match fields and when it returns an error,
+see `DagRun.UnmarshalConf <https://pkg.go.dev/github.com/apache/airflow/go-sdk/sdk#DagRun.UnmarshalConf>`__.
 
 .. _go-sdk/client:
 
