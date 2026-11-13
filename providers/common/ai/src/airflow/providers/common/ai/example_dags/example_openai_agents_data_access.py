@@ -25,11 +25,12 @@ agent as function tools.
 
 Before running:
 
-1. Install the SDK and the provider the bucket needs:
-   ``pip install "openai-agents>=0.20.0" "apache-airflow-providers-amazon[s3fs]"``.
-2. Create a connection (``LLM_CONN_ID``, default ``openai_default``) whose password is
-   an OpenAI API key. Set its host to the base URL of any other OpenAI-compatible
-   endpoint, such as a gateway or a self-hosted server.
+1. Install the SDK, the OpenAI provider and the provider the bucket needs:
+   ``pip install "openai-agents>=0.20.0" "apache-airflow-providers-openai>=2.2.0"
+   "apache-airflow-providers-amazon[s3fs]"``.
+2. Create an OpenAI connection (``LLM_CONN_ID``, default ``openai_default``) whose
+   password is an OpenAI API key. Set its host to the base URL of any other
+   OpenAI-compatible endpoint, such as a gateway or a self-hosted server.
 3. Create the two data connections: ``warehouse_agent_reader`` (a ``DbApiHook``
    database, such as Postgres) and ``aws_reports_reader`` (AWS). Give each credentials
    that can read only what the agent needs.
@@ -39,7 +40,7 @@ from __future__ import annotations
 
 import os
 
-from airflow.providers.common.compat.sdk import BaseHook, dag, task
+from airflow.providers.common.compat.sdk import dag, task
 
 LLM_CONN_ID = os.environ.get("LLM_CONN_ID", "openai_default")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-5.6-luna")
@@ -53,13 +54,13 @@ def example_openai_agents_data_access():
     """Answer a revenue question from the warehouse and the finance reports."""
 
     @task
-    def explain_revenue(question: str = DEFAULT_QUESTION) -> str:
+    async def explain_revenue(question: str = DEFAULT_QUESTION) -> str:
         # The SDK is an optional dependency, so it is imported when the task runs, not at parse time.
         from agents import Agent, OpenAIChatCompletionsModel, RunConfig, Runner
-        from openai import AsyncOpenAI
 
         from airflow.providers.common.ai.tools.openai_agents import AirflowTools
         from airflow.providers.common.ai.toolsets import ObjectStorageToolset, SQLToolset
+        from airflow.providers.openai.hooks.openai import OpenAIHook
 
         warehouse = SQLToolset(
             # A role granted SELECT on these two tables only.
@@ -75,21 +76,18 @@ def example_openai_agents_data_access():
             max_read_bytes=1024 * 1024,
         )
 
-        llm = BaseHook.get_connection(LLM_CONN_ID)
-        agent = Agent(
-            name="revenue_analyst",
-            model=OpenAIChatCompletionsModel(
-                model=LLM_MODEL,
-                openai_client=AsyncOpenAI(api_key=llm.password, base_url=llm.host or None),
-            ),
-            instructions=(
-                "Answer revenue questions. Query the warehouse for the numbers, and read "
-                "the finance reports for context."
-            ),
-            tools=AirflowTools(warehouse, reports),
-        )
-        # The SDK sends traces to OpenAI by default; see the guide's tracing section.
-        result = Runner.run_sync(agent, question, run_config=RunConfig(tracing_disabled=True))
+        async with await OpenAIHook(LLM_CONN_ID).aget_conn() as client:
+            agent = Agent(
+                name="revenue_analyst",
+                model=OpenAIChatCompletionsModel(model=LLM_MODEL, openai_client=client),
+                instructions=(
+                    "Answer revenue questions. Query the warehouse for the numbers, and read "
+                    "the finance reports for context."
+                ),
+                tools=AirflowTools(warehouse, reports),
+            )
+            # The SDK sends traces to OpenAI by default; see the guide's tracing section.
+            result = await Runner.run(agent, question, run_config=RunConfig(tracing_disabled=True))
         return result.final_output
 
     explain_revenue()
