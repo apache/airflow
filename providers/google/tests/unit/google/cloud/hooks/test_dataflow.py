@@ -31,6 +31,7 @@ import pytest
 from google.cloud.dataflow_v1beta3 import (
     GetJobMetricsRequest,
     GetJobRequest,
+    Job,
     JobView,
     ListJobMessagesRequest,
     ListJobsRequest,
@@ -691,6 +692,27 @@ class TestDataflowTemplateHook:
         )
         jobs_controller.return_value.fetch_job_id.assert_called_once_with()
         assert result == TEST_JOB_ID
+
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"), autospec=True)
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"), autospec=True)
+    def test_get_latest_job_by_name(self, mock_get_conn, jobs_controller):
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME}
+        jobs_controller.return_value.fetch_latest_job_by_name.return_value = job
+
+        result = self.dataflow_hook.get_latest_job_by_name(
+            job_name=UNIQUE_JOB_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        jobs_controller.assert_called_once_with(
+            dataflow=mock_get_conn.return_value,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            num_retries=self.dataflow_hook.num_retries,
+        )
+        jobs_controller.return_value.fetch_latest_job_by_name.assert_called_once_with(UNIQUE_JOB_NAME)
+        assert result == job
 
 
 class TestDataflowJob:
@@ -1467,6 +1489,82 @@ class TestDataflowJob:
         assert result == expected_job_id
         assert jobs_controller._job_id == expected_job_id
 
+    @pytest.mark.parametrize(
+        ("jobs", "expected_job_id"),
+        [
+            pytest.param(
+                [
+                    {
+                        "id": "job-older-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                        "createTime": "2026-06-25T15:00:00Z",
+                    },
+                    {
+                        "id": "job-newer-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_FAILED,
+                        "createTime": "2026-06-25T16:00:00Z",
+                    },
+                    {
+                        "id": "job-other-name-id",
+                        "name": "test-job-other",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T17:00:00Z",
+                    },
+                ],
+                "job-newer-id",
+                id="newest_job_with_exact_name",
+            ),
+            pytest.param(
+                [
+                    {
+                        "id": "job-other-name-id",
+                        "name": "test-job-other",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T17:00:00Z",
+                    },
+                ],
+                None,
+                id="no_job_with_name",
+            ),
+            pytest.param(
+                [
+                    {
+                        "id": "job-older-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                        "createTime": "2026-06-25T16:00:00Z",
+                    },
+                    {
+                        "id": "job-newer-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T16:00:00.100Z",
+                    },
+                ],
+                "job-newer-id",
+                id="create_time_with_and_without_fraction",
+            ),
+        ],
+    )
+    def test_fetch_latest_job_by_name(self, jobs, expected_job_id):
+        mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value
+        mock_jobs.list.return_value.execute.return_value = {"jobs": jobs}
+        mock_jobs.list_next.return_value = None
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        job = jobs_controller.fetch_latest_job_by_name("Test-Job")
+
+        mock_jobs.list.assert_called_once_with(
+            projectId=TEST_PROJECT, location=TEST_LOCATION, name="test-job"
+        )
+        assert (job["id"] if job else None) == expected_job_id
+
     def test_fetch_job_id_without_job_name_returns_existing_job_id(self):
         jobs_controller = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -1860,6 +1958,56 @@ class TestAsyncDataflowHook:
         )
         initialize_client_mock.assert_called_once()
         client.list_jobs.assert_called_once_with(request=request)
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_jobs_with_name(self, initialize_client_mock, hook):
+        client = initialize_client_mock.return_value
+
+        await hook.list_jobs(project_id=TEST_PROJECT_ID, location=TEST_LOCATION, name="test-job")
+
+        client.list_jobs.assert_called_once_with(
+            request=ListJobsRequest(
+                {"project_id": TEST_PROJECT_ID, "location": TEST_LOCATION, "name": "test-job"}
+            )
+        )
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected_job_id"),
+        [
+            pytest.param(
+                [
+                    Job(id="job-older-id", name="test-job", create_time={"seconds": 100}),
+                    Job(id="job-newer-id", name="test-job", create_time={"seconds": 200}),
+                    Job(id="job-other-name-id", name="test-job-other", create_time={"seconds": 300}),
+                ],
+                "job-newer-id",
+                id="newest_job_with_exact_name",
+            ),
+            pytest.param(
+                [Job(id="job-other-name-id", name="test-job-other", create_time={"seconds": 300})],
+                None,
+                id="no_job_with_name",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.list_jobs"), autospec=True)
+    async def test_get_latest_job_by_name(self, mock_list_jobs, hook, jobs, expected_job_id):
+        async def jobs_pager():
+            for job in jobs:
+                yield job
+
+        mock_list_jobs.return_value = jobs_pager()
+
+        job = await hook.get_latest_job_by_name(
+            job_name="Test-Job", project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+
+        mock_list_jobs.assert_awaited_once_with(
+            hook, project_id=TEST_PROJECT_ID, location=TEST_LOCATION, name="test-job"
+        )
+        assert (job.id if job else None) == expected_job_id
 
     @pytest.mark.asyncio
     @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
