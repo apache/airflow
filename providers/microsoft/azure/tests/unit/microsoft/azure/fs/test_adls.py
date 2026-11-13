@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.fs.adls import get_fs
+from airflow.providers.microsoft.azure.fs.adls import _bare_account_name_from_host, get_fs
 
 if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
     # Handle collection of the test by non-db case
@@ -97,10 +97,9 @@ def mocked_blob_file_system():
             ),
             {
                 "account_url": "https://testaccountname.blob.core.windows.net/",
-                # "account_url": "https://testaccountid.blob.core.windows.net/",
+                "account_name": "account_name",
                 "client_id": "testaccountname",
                 "client_secret": "password",
-                "account_name": "account_name",
                 "account_key": "account_key",
                 "sas_token": "sas_token",
                 "tenant_id": "tenant_id",
@@ -120,7 +119,6 @@ def mocked_blob_file_system():
             ),
             {
                 "account_url": "https://testaccountname.blob.core.windows.net/",
-                # "account_url": "https://testaccountid.blob.core.windows.net/",
                 "account_key": "password",
             },
         ),
@@ -141,9 +139,134 @@ def mocked_blob_file_system():
                 "account_key": "password",
             },
         ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            # A mixed-case bare host is still an account name; urlparse lowercases it.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="MyAccount",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "myaccount",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname",
+                password="account_key",
+                extra={},
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_key": "account_key",
+            },
+        ),
+        (
+            # Custom domain / private endpoint: adls connections set account_host (a real
+            # adlfs parameter, carried through the extras overlay) rather than a full URL in
+            # host, which adlfs would ignore. This is the path the filesystem docs point at.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                    "account_host": "custom.blob.core.mydomain.io",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "custom.blob.core.mydomain.io",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "account_name": "testaccountname",
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
     ],
     indirect=["mocked_connection"],
 )
 def test_get_fs(mocked_connection, expected_options, mocked_blob_file_system):
     get_fs(mocked_connection.conn_id)
     mocked_blob_file_system.assert_called_once_with(**expected_options)
+
+
+@pytest.mark.parametrize(
+    ("host", "expected"),
+    [
+        ("testaccountname", "testaccountname"),
+        # Full endpoints (dotted host, scheme, port or path) are not bare account names, so
+        # they never reach the account_name path.
+        ("testaccountname.dfs.core.windows.net", None),
+        ("https://testaccountname.blob.core.windows.net", None),
+        ("testaccountname:443", None),
+        ("testaccountname/container", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_bare_account_name_from_host(host, expected):
+    assert _bare_account_name_from_host(host) == expected
