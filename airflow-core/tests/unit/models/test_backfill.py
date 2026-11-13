@@ -50,7 +50,7 @@ from airflow.models.backfill import (
     _handle_clear_run,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
+from airflow.sdk import Asset, CronPartitionTimetable
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
@@ -1010,11 +1010,6 @@ def test_get_latest_dag_run_row_partitioned(session: Session):
         pytest.param("@once", {}, id="once"),
         pytest.param("@continuous", {"max_active_runs": 1}, id="continuous"),
         pytest.param([Asset(uri="test://asset", name="test-asset")], {}, id="asset-scheduled"),
-        pytest.param(
-            PartitionedAssetTimetable(assets=Asset(uri="test://partitioned", name="test-partitioned")),
-            {},
-            id="partitioned-asset",
-        ),
     ],
 )
 def test_create_backfill_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_maker, session):
@@ -1043,11 +1038,6 @@ def test_create_backfill_non_periodic_schedule_rejected(schedule, dag_kwargs, da
         pytest.param("@once", {}, id="once"),
         pytest.param("@continuous", {"max_active_runs": 1}, id="continuous"),
         pytest.param([Asset(uri="test://asset", name="test-asset")], {}, id="asset-scheduled"),
-        pytest.param(
-            PartitionedAssetTimetable(assets=Asset(uri="test://partitioned", name="test-partitioned")),
-            {},
-            id="partitioned-asset",
-        ),
     ],
 )
 def test_do_dry_run_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_maker, session):
