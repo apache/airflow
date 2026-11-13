@@ -225,3 +225,45 @@ class TestAssetDeadlinesEndpoint:
         with pytest.raises(HTTPException) as exc_info:
             get_asset_deadlines(asset_id=999999, session=session)
         assert exc_info.value.status_code == 404
+
+
+class TestPartitionedAssetTimetableRunDeadline:
+    def test_multi_asset_run_deadline_synced_and_scheduled(self, session):
+        from airflow.sdk import DAG, Asset, PartitionedAssetTimetable
+        from airflow.sdk.bases.operator import BaseOperator
+
+        class _DummyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        session.merge(DagBundleModel(name="dags-folder"))
+        session.flush()
+        session.add(DagModel(dag_id="multi_asset_consumer", bundle_name="dags-folder"))
+        orders = AssetModel(name="orders_daily", uri="s3://bucket/orders_daily", active=AssetActive())
+        customers = AssetModel(
+            name="customers_daily", uri="s3://bucket/customers_daily", active=AssetActive()
+        )
+        session.add_all([orders, customers])
+        session.flush()
+
+        sdk_orders = Asset(name="orders_daily", uri="s3://bucket/orders_daily")
+        sdk_customers = Asset(name="customers_daily", uri="s3://bucket/customers_daily")
+        run_dl = AssetDeadline(
+            interval=timedelta(hours=8), callback=SyncCallback(_sample_callback), name="run_sla"
+        )
+
+        with DAG(
+            dag_id="multi_asset_consumer",
+            schedule=PartitionedAssetTimetable(assets=sdk_orders & sdk_customers, run_deadline=run_dl),
+            start_date=datetime(2026, 1, 1),
+        ) as dag:
+            _DummyOperator(task_id="join_assets")
+
+        ser_dag = LazyDeserializedDAG(data=DagSerialization.to_dict(dag))
+        SerializedDagModel.write_dag(ser_dag, bundle_name="dags-folder", session=session)
+        session.flush()
+
+        alerts = session.scalars(select(DeadlineAlert).where(DeadlineAlert.name == "run_sla")).all()
+        assert len(alerts) == 2
+        assert {a.asset_id for a in alerts} == {orders.id, customers.id}
+        assert all(a.is_producer is False for a in alerts)
