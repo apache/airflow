@@ -319,6 +319,43 @@ concurrent approach is dramatically faster — see the
     ``asyncio.to_thread()`` or ``contextvars.copy_context().run()``, which carry the iteration's
     context over.
 
+When every iteration returns a page of items, for example one list of rows per API call,
+``.flatten()`` on the task's output reads those pages as one sequence of items:
+
+.. code-block:: python
+
+    pages = fetch_page.iterate(page=range(10))  # each iteration returns a list of rows
+    load_rows(pages.flatten())  # one sequence of rows, page boundaries gone
+
+The flattened view expands each page one level: a page that is a list, tuple or set gives its
+elements, and an element that is a list itself, such as a row of values, stays one item, as do
+mappings, strings, bytes and scalars. It knows its length without reading a page, because the
+iterated task tallies the item count of each value as it pushes it, and it keeps only the
+page it is reading, so a downstream task can iterate it, index it or slice it while holding
+one page in memory at a time. An ``iterate()`` over it holds two, the page its indexed tasks
+use and the one they move on to, read once for all of them.
+
+The items are the same however the task was spread. A spread task pushes one chunk of results
+per task instance; ``.flatten()`` reads the chunks as one sequence too, one chunk at a time, so
+``fetch_page.spread(across=4).iterate(...)`` gives the same rows as the task above.
+
+Calls chain, and each one expands exactly one level more, so the Dag states the depth it wants.
+``.flatten(depth=2)`` is shorthand for two calls:
+
+.. code-block:: python
+
+    load_rows(pages.flatten())  # the rows of every page
+    load_cells(pages.flatten().flatten())  # the cells of every row
+    load_cells(pages.flatten(depth=2))  # the same
+
+The item count is tallied for the first level only. The length of a second level is counted by
+reading every page once, so an ``iterate()`` over it reads the pages twice: once to count, once
+to use. Iterating it as a plain argument needs no length and reads every page once.
+
+``expand()`` does not see the flattened length: the scheduler creates as many mapped task
+instances as the upstream task has results, not as it has flattened items. Use ``iterate()`` to
+run a task over the flattened items.
+
 Why Iterable Tasks?
 ---------------------------
 
