@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.app import (
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.listeners.listener import get_listener_manager
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
@@ -97,29 +98,13 @@ def _initialize_api_server_stats() -> None:
         )
 
 
-def _safe_notify_listeners(hook_name: str, component: FastAPI) -> None:
-    """Safely notify listeners so that a failure in one plugin does not abort others."""
-    from airflow.listeners.listener import get_listener_manager
-
-    lm = get_listener_manager()
-    hook_caller = getattr(lm.hook, hook_name, None)
-    if not hook_caller:
-        return
-    for impl in hook_caller.get_hookimpls():
-        try:
-            impl.function(component=component)
-        except Exception:
-            log.exception(
-                "Error calling listener %s hook in %s",
-                hook_name,
-                getattr(impl, "plugin_name", impl.plugin),
-            )
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
-    _safe_notify_listeners("on_starting", component=app)
+    try:
+        get_listener_manager().hook.on_starting(component=app)
+    except Exception:
+        log.exception("Error calling listener on_starting hook")
     async with AsyncExitStack() as stack:
         stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
@@ -131,7 +116,10 @@ async def lifespan(app: FastAPI):
         try:
             yield
         finally:
-            _safe_notify_listeners("before_stopping", component=app)
+            try:
+                get_listener_manager().hook.before_stopping(component=app)
+            except Exception:
+                log.exception("Error calling listener before_stopping hook")
 
 
 @providers_configuration_loaded

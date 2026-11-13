@@ -1173,7 +1173,17 @@ class OpenLineageListener:
 
         if thread_executor is not None:
             try:
-                thread_executor.shutdown(wait=True)
+                thread_executor.shutdown(wait=False, cancel_futures=False)
+                timeout_val = conf.execution_timeout()
+                for thread in list(thread_executor._threads):
+                    thread.join(timeout=timeout_val)
+                    if thread.is_alive():
+                        self.log.warning(
+                            "OpenLineage API server thread did not finish within execution_timeout=%ss "
+                            "and will be abandoned.",
+                            timeout_val,
+                        )
+                thread_executor.shutdown(wait=False, cancel_futures=True)
             except BaseException:
                 self.log.warning("OpenLineage thread executor did not shut down cleanly.", exc_info=True)
                 thread_executor.shutdown(wait=False, cancel_futures=True)
@@ -1355,25 +1365,30 @@ class OpenLineageListener:
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
+    def _reset_failed_executor(self, failed_executor: Executor) -> None:
+        """Reset and cleanly shut down a failed executor if it has not already been replaced."""
+        with self._lock:
+            if self._is_api_server:
+                if self._thread_executor is failed_executor:
+                    with suppress(Exception):
+                        self._thread_executor.shutdown(wait=False, cancel_futures=True)
+                    self._thread_executor = None
+            else:
+                if self._executor is failed_executor:
+                    with suppress(Exception):
+                        self._executor.shutdown(wait=False)
+                    self._executor = None
+
     def submit_callable(self, callable, *args, **kwargs):
         current_executor = self.executor
         try:
             fut = current_executor.submit(callable, *args, **kwargs)
         except RuntimeError:
-            if self._is_api_server:
-                self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
-                with self._lock:
-                    if self._thread_executor is current_executor:
-                        with suppress(Exception):
-                            self._thread_executor.shutdown(wait=False, cancel_futures=True)
-                        self._thread_executor = None
-            else:
-                self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
-                with self._lock:
-                    if self._executor is current_executor:
-                        with suppress(Exception):
-                            self._executor.shutdown(wait=False)
-                        self._executor = None
+            self.log.warning(
+                "%s is unusable; recreating and retrying submission.",
+                current_executor.__class__.__name__,
+            )
+            self._reset_failed_executor(current_executor)
             fut = self.executor.submit(callable, *args, **kwargs)
 
         fut.add_done_callback(self.log_submit_error)

@@ -3285,8 +3285,11 @@ class TestExecuteRouting:
         mock_dag_run = MagicMock()
         mock_dag_run.dag_id = "test_dag"
         mock_dag_run.run_id = "test_run"
-        mock_dag_run.logical_date = None
-        mock_dag_run.run_after = None
+        now = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        mock_dag_run.logical_date = now
+        mock_dag_run.run_after = now
+        mock_dag_run.start_date = now
+        mock_dag_run.end_date = now
         mock_dag_run.data_interval_start = None
         mock_dag_run.data_interval_end = None
         mock_dag_run.clear_number = 0
@@ -3440,7 +3443,7 @@ class TestExecuteRouting:
                 listener.before_stopping(component=app)
 
     def test_before_stopping_shuts_down_thread_pool_in_api_server(self):
-        """In API server, before_stopping shuts down ThreadPoolExecutor with wait=True."""
+        """In API server, before_stopping cleanly shuts down ThreadPoolExecutor."""
         from concurrent.futures import ThreadPoolExecutor
 
         from fastapi import FastAPI
@@ -3450,12 +3453,81 @@ class TestExecuteRouting:
         listener.on_starting(component=app)
 
         mock_thread_executor = MagicMock(spec=ThreadPoolExecutor)
+        mock_thread_executor._threads = []
         listener._thread_executor = mock_thread_executor
 
         listener.before_stopping(component=app)
 
-        mock_thread_executor.shutdown.assert_called_once_with(wait=True)
+        mock_thread_executor.shutdown.assert_any_call(wait=False, cancel_futures=False)
+        mock_thread_executor.shutdown.assert_any_call(wait=False, cancel_futures=True)
         assert listener._thread_executor is None
+
+    def test_before_stopping_stalled_thread_cancels_pending_futures(self):
+        """If worker thread is stalled, before_stopping times out, logs warning, and cancels queued futures."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        gate = threading.Event()
+
+        def stalled_work():
+            gate.wait(timeout=5)
+
+        with conf_vars({("openlineage", "execution_timeout"): "1"}):
+            _ = listener.submit_callable(stalled_work)
+            fut2 = listener.submit_callable(lambda: "queued")
+
+            listener.log = MagicMock()
+            listener.before_stopping(component=app)
+
+            # fut2 should be cancelled
+            assert fut2.cancelled()
+            # Stalled thread warning should be logged
+            listener.log.warning.assert_called()
+            warning_msg = listener.log.warning.call_args[0][0]
+            assert "execution_timeout" in warning_msg
+
+            gate.set()
+
+    def test_api_server_manual_dag_run_state_real_thread_pool_reaches_transport(self):
+        """Event submitted via real ThreadPoolExecutor in API server reaches transport."""
+        from fastapi import FastAPI
+
+        from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        now = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        mock_dag_run.logical_date = now
+        mock_dag_run.run_after = now
+        mock_dag_run.start_date = now
+        mock_dag_run.end_date = now
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_dag_run.dag = None
+        mock_dag_run.get_state.return_value = "success"
+
+        emitted_events = []
+        mock_client = MagicMock()
+        mock_client.emit.side_effect = lambda event: emitted_events.append(event)
+
+        adapter = _get_process_adapter()
+        with mock.patch.object(adapter, "get_or_create_openlineage_client", return_value=mock_client):
+            listener.on_dag_run_success(
+                dag_run=mock_dag_run,
+                msg="Dag Run's state was manually set to `success`.",
+            )
+            listener.before_stopping(component=app)
+
+        assert len(emitted_events) == 1
 
     def test_fork_safety_recreates_lock_and_resets_executors(self):
         """After fork, _after_fork_child recreates lock and resets executors."""
