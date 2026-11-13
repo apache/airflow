@@ -24,13 +24,12 @@ import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
-import { Modal, SegmentedControl } from "src/system-components";
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
-import { KeepTaskStateCheckbox } from "src/components/Clear/KeepTaskStateCheckbox";
-import { useKeepTaskState } from "src/components/Clear/useKeepTaskState";
 
+import { useClearKeepTaskStateDefault } from "src/hooks/useUserSettings";
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
 
@@ -44,7 +43,8 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const [note, setNote] = useState<string | null>(null);
-  const [keepTaskState, setKeepTaskState] = useKeepTaskState(open);
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const { bulkClear, error, isPending } = useBulkClearDagRuns({
     deselectKeys,
     onSuccessConfirm: onClose,
@@ -65,7 +65,14 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
 
   return (
     <>
-      <Button onClick={onOpen} size="sm" variant="outline">
+      <Button
+        onClick={() => {
+          setKeepTaskState(keepTaskStateDefault);
+          onOpen();
+        }}
+        size="sm"
+        variant="outline"
+      >
         <CgRedo />
         {translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_other") })}
       </Button>
@@ -76,14 +83,28 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
             disabled={affectedTasks.total_entries === 0}
             loading={isPending || isFetching}
             onClick={() => {
-              bulkClear(selectedDagRuns, { keepTaskState, note, onlyFailed, onlyNew });
+              bulkClear(selectedDagRuns, {
+                keepTaskState: keepTaskState && !onlyNew,
+                note,
+                onlyFailed,
+                onlyNew,
+              });
             }}
           >
             <CgRedo />
             {translate("modal.confirm")}
           </Button>
         }
-        footerOptions={<KeepTaskStateCheckbox checked={keepTaskState} onChange={setKeepTaskState} />}
+        footerOptions={
+          onlyNew ? undefined : (
+            <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
+          )
+        }
         onOpenChange={handleClose}
         open={open}
         size="xl"

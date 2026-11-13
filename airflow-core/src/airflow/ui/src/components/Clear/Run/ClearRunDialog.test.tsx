@@ -64,7 +64,7 @@ afterEach(() => {
 
 describe("ClearRunDialog", () => {
   it.each([
-    { expected: undefined, stored: false, tick: false },
+    { expected: false, stored: false, tick: false },
     { expected: true, stored: false, tick: true },
     { expected: true, stored: true, tick: false },
   ])(
@@ -85,4 +85,18 @@ describe("ClearRunDialog", () => {
       expect(clearBody?.keep_task_state).toBe(expected);
     },
   );
+
+  it("hides the box and sends no keep_task_state when only adding new tasks", async () => {
+    localStorage.setItem(CLEAR_KEEP_TASK_STATE_KEY, JSON.stringify(true));
+    render(<ClearRunDialog dagRun={dagRun} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    fireEvent.click(await screen.findByRole("button", { name: /options\.queueNew/iu }));
+
+    expect(screen.queryByRole("checkbox", { name: /keepTaskState/iu })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    await waitFor(() => expect(clearBody).toBeDefined());
+    expect(clearBody?.only_new).toBe(true);
+    expect(clearBody?.keep_task_state).toBe(false);
+  });
 });

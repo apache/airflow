@@ -28,12 +28,10 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { KeepTaskStateCheckbox } from "src/components/Clear/KeepTaskStateCheckbox";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
-import { useKeepTaskState } from "src/components/Clear/useKeepTaskState";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
+import { useClearKeepTaskStateDefault, useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -50,7 +48,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const { t: translate } = useTranslation();
 
   const [note, setNote] = useState<string | null>(dagRun.note);
-  const [keepTaskState, setKeepTaskState] = useKeepTaskState(open);
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
 
   useEffect(() => {
     if (open) {
@@ -125,7 +124,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               dagRunId,
               requestBody: {
                 dry_run: false,
-                ...(keepTaskState ? { keep_task_state: true } : {}),
+                keep_task_state: keepTaskState && !onlyNew,
                 note: note === dagRun.note ? undefined : note,
                 only_failed: onlyFailed,
                 only_new: onlyNew,
@@ -139,7 +138,14 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
       }
       footerOptions={
         <>
-          <KeepTaskStateCheckbox checked={keepTaskState} onChange={setKeepTaskState} />
+          {onlyNew ? undefined : (
+            <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
+          )}
           {shouldShowBundleVersionOption ? (
             <Checkbox
               checked={runOnLatestVersionForced || runOnLatestVersion}

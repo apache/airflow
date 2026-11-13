@@ -60,7 +60,7 @@ afterEach(() => {
 
 describe("BulkClearDagRunsButton", () => {
   it.each([
-    { expected: undefined, stored: false, tick: false },
+    { expected: false, stored: false, tick: false },
     { expected: true, stored: false, tick: true },
     { expected: true, stored: true, tick: false },
   ])(
@@ -84,4 +84,37 @@ describe("BulkClearDagRunsButton", () => {
       expect(clearBody?.keep_task_state).toBe(expected);
     },
   );
+
+  it("resets the box to the default when reopened after a successful clear", async () => {
+    render(<BulkClearDagRunsButton deselectKeys={vi.fn()} selectedDagRuns={dagRuns} />, {
+      wrapper: Wrapper,
+    });
+    const openButton = screen.getByRole("button", { name: /runAndTaskActions\.clear\.button/iu });
+
+    fireEvent.click(openButton);
+    fireEvent.click(await screen.findByRole("checkbox", { name: /keepTaskState/iu }));
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await waitFor(() => expect(screen.queryByRole("checkbox", { name: /keepTaskState/iu })).toBeNull());
+
+    fireEvent.click(openButton);
+
+    expect(await screen.findByRole("checkbox", { name: /keepTaskState/iu })).not.toBeChecked();
+  });
+
+  it("hides the box and sends no keep_task_state when only adding new tasks", async () => {
+    localStorage.setItem(CLEAR_KEEP_TASK_STATE_KEY, JSON.stringify(true));
+    render(<BulkClearDagRunsButton deselectKeys={vi.fn()} selectedDagRuns={dagRuns} />, {
+      wrapper: Wrapper,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /runAndTaskActions\.clear\.button/iu }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /options\.queueNew/iu }));
+
+    expect(screen.queryByRole("checkbox", { name: /keepTaskState/iu })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    await waitFor(() => expect(clearBody).toBeDefined());
+    expect(clearBody?.only_new).toBe(true);
+    expect(clearBody?.keep_task_state).toBe(false);
+  });
 });

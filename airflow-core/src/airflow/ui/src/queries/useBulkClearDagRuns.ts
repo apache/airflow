@@ -97,10 +97,10 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
       requestBody: {
         dag_runs: dagRuns.map((dagRun) => ({ dag_id: dagRun.dag_id, dag_run_id: dagRun.dag_run_id })),
         dry_run: false,
+        keep_task_state: options.keepTaskState,
         note: options.note ?? undefined,
         only_failed: options.onlyFailed,
         only_new: options.onlyNew,
-        ...(options.keepTaskState ? { keep_task_state: true } : {}),
       },
     });
   };
