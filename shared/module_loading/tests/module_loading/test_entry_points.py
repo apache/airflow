@@ -121,7 +121,7 @@ def test_entry_points_with_dist_deduplicates_without_reading_metadata():
 @pytest.mark.parametrize(
     "error",
     [TypeError, KeyError, FileNotFoundError, AttributeError],
-    ids=["stdlib", "importlib-metadata-8", "importlib-metadata-10-no-file", "no-attribute"],
+    ids=["stdlib", "importlib-metadata-8", "importlib-metadata-9-no-file", "no-attribute"],
 )
 def test_entry_points_with_dist_without_name_are_not_deduplicated(error):
     distributions = [
