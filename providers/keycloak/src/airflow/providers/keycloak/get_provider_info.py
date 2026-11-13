@@ -106,6 +106,13 @@ def get_provider_info():
                         "example": "3",
                         "default": "3",
                     },
+                    "team_level_authorization": {
+                        "description": "Whether one authorization decision holds for every resource of a type within a team.\nBy default the auth manager asks Keycloak once per Dag, asset, connection, pool or variable\nwhen listing them, because a Keycloak policy can read the id of the resource. When no policy\nof the realm does, set this to ``True``: the auth manager then asks once per team (once in\ntotal for assets, and for every type when multi-team is disabled) and applies the answer to\nall resources of that type. Do not enable it when a policy grants access per resource.\n",
+                        "type": "boolean",
+                        "version_added": "0.13.0",
+                        "example": None,
+                        "default": "False",
+                    },
                 },
             }
         },

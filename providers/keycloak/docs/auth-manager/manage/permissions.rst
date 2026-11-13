@@ -124,6 +124,35 @@ import errors for files with no registered Dag, reparsing such files, and Dag bu
 ``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
 the ``View`` resource, which every team role can read.
 
+Listing resources when permissions are granted per team
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Whenever Airflow lists Dags, assets, connections, pools or variables, the auth manager asks Keycloak which
+of them the user may access. By default it sends one request per resource, with the id of the resource as a
+claim, so that a Keycloak policy can grant access to individual resources. With many resources this makes
+pages that list them slow: the Dag list sends one request per Dag and, from Airflow 3.4.0, one per asset.
+
+The permissions created by the CLI are granted by role and group only, and no policy reads the id of the
+resource. Keycloak then gives the same answer for every Dag of a team. When that holds for your realm, enable
+``team_level_authorization`` in the ``[keycloak_auth_manager]`` section:
+
+.. code-block:: ini
+
+  [keycloak_auth_manager]
+  team_level_authorization = True
+
+The auth manager then sends one request per team and resource type and applies the answer to all resources of
+that type in the team. Assets do not belong to a team, so one request decides for all assets. When multi-team
+is disabled, one request decides for each resource type.
+
+.. warning::
+
+  Do not enable this setting when a policy of the realm grants or denies access to individual resources, for
+  example a JavaScript or regex policy that reads the ``resource_id`` claim. Such a policy would then be
+  evaluated for one resource only and its answer applied to all the others.
+
+Checks of a single resource, such as opening or triggering one Dag, are not affected by this setting.
+
 More resources about permissions can be found in the official documentation of Keycloak:
 
 1- `Keycloak Authorization Process <https://www.keycloak.org/docs/latest/authorization_services/index.html#the-authorization-process>`_

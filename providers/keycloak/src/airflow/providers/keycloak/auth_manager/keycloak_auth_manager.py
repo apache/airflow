@@ -62,6 +62,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_REQUESTS_RETRIES_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
+    CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -584,6 +585,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                     details=DagDetails(**details_kwargs),
                 )
 
+            if self._team_level_authorization():
+                _, authorized = check(min(dag_ids))
+                return set(dag_ids) if authorized else set()
+
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 results = executor.map(check, dag_ids)
 
@@ -710,6 +715,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                     method=method, user=user, details=details
                 )
 
+            if self._team_level_authorization():
+                _, authorized = check(candidates[0])
+                return {cast("str", details.id) for details in candidates} if authorized else set()
+
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 results = executor.map(check, candidates)
             return {asset_id for asset_id, authorized in results if authorized}
@@ -742,6 +751,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                     user=user,
                     details=ConnectionDetails(**details_kwargs),
                 )
+
+            if self._team_level_authorization():
+                _, authorized = check(min(conn_ids))
+                return set(conn_ids) if authorized else set()
 
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 results = executor.map(check, conn_ids)
@@ -776,6 +789,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                     details=PoolDetails(**details_kwargs),
                 )
 
+            if self._team_level_authorization():
+                _, authorized = check(min(pool_names))
+                return set(pool_names) if authorized else set()
+
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 results = executor.map(check, pool_names)
             return {pool_name for pool_name, authorized in results if authorized}
@@ -808,6 +825,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                     user=user,
                     details=VariableDetails(**details_kwargs),
                 )
+
+            if self._team_level_authorization():
+                _, authorized = check(min(variable_keys))
+                return set(variable_keys) if authorized else set()
 
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 results = executor.map(check, variable_keys)
@@ -866,6 +887,18 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resources_resp.raise_for_status()
 
         return {r["name"][len(prefix) :] for r in resources_resp.json() if r["name"].startswith(prefix)}
+
+    @staticmethod
+    def _team_level_authorization() -> bool:
+        """
+        Whether one decision of Keycloak holds for every resource of a type within a team.
+
+        The auth manager sends the id of the resource as a claim, so that a policy can decide per
+        resource. When no policy of the realm reads that claim, Keycloak answers the same for every
+        Dag, connection, pool and variable of a team, and for every asset. Listing them then needs one
+        request per team instead of one per resource.
+        """
+        return conf.getboolean(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY, fallback=False)
 
     @staticmethod
     def _get_token_url(server_url, realm):
