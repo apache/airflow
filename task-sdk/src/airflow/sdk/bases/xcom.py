@@ -21,8 +21,11 @@ import asyncio
 import collections
 import contextvars
 import hashlib
-from collections.abc import AsyncIterator, Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Protocol
+from bisect import bisect_right
+from collections.abc import AsyncIterator, Iterable, Iterator, Mapping, Sequence, Sized
+from functools import partial
+from itertools import accumulate, islice
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
@@ -817,6 +820,230 @@ class BaseXCom:
         cls.purge(xcom_result)
 
 
+def _flatten(item: Any) -> Iterator[Any]:
+    """
+    Yield the items of a page: the elements of a list, anything else as the one item it is.
+
+    One level, never deeper: what a page holds is the task's data, and a row ``["a", 1, None]``
+    is an item there, which is what an insert's ``rows`` takes. Expanding as deep as the lists go
+    would hand that insert the cells of every row as its rows.
+
+    A mapping is an item, not a container: a dict is iterable over its keys, so without this
+    rule a row ``{"id": ..., "value": ...}`` would come out as its key strings. Strings and
+    bytes are items for the same reason.
+    """
+    if isinstance(item, Iterable) and not isinstance(item, (str, bytes, Mapping)):
+        yield from item
+    else:
+        yield item
+
+
+def flattened_count(value: Any) -> int:
+    """How many items ``value`` adds to a :class:`FlattenedXComIterable`; counted when it is pushed."""
+    return sum(1 for _ in _flatten(value))
+
+
+class FlattenedItems(Sequence):
+    """
+    A flattened sequence read one level further: the elements of each of its items.
+
+    This is what a second ``.flatten()`` gives, and a third over that: every call expands exactly
+    one level, by the rule of the first (:func:`_flatten`), so the Dag author states the depth.
+    Rows ``["a", 1]``, ``["b", 2]`` come out as ``"a", 1, "b", 2``.
+
+    Iterating reads the items in order and holds one of them at a time. The producer tallied the
+    count of the first level only, so ``len()`` and indexing read every item once to learn where
+    each one's elements start, and keep those positions, not the items.
+
+    ``items`` is a flattened view (:class:`FlattenedXComIterable`, the chunks of a spread task
+    read as one sequence, or this class): a sequence that also has the ``aget()`` the indexed
+    tasks of an iterated task read through.
+    """
+
+    def __init__(self, items: Sequence[Any]) -> None:
+        self._items = items
+        #: Position of each item's first element, and after the last one the length; None until read.
+        self._starts: list[int] | None = None
+        #: One indexed task reads the positions; the others that ask meanwhile wait for them.
+        self._locating = asyncio.Lock()
+
+    def __iter__(self) -> Iterator[Any]:
+        for item in self._items:
+            yield from _flatten(item)
+
+    def __len__(self) -> int:
+        return self._located()[-1]
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        if isinstance(key, slice):
+            return [self[index] for index in range(*key.indices(len(self)))]
+        item, index = self._item_of(self._located(), key)
+        return self._element(self._items[item], index)
+
+    async def alen(self) -> int:
+        """Async twin of ``len(self)``: counted in a worker thread, since the count reads the items."""
+        return (await self._alocated())[-1]
+
+    async def aget(self, index: int) -> Any:
+        """
+        Async twin of ``self[index]``, for the indexed tasks of an iterated task reading at once.
+
+        The item is read through the ``aget()`` of the sequence underneath, which shares a page
+        read between the indexed tasks that ask for it at the same time.
+        """
+        item, index = self._item_of(await self._alocated(), index)
+        return self._element(await self._items.aget(item), index)  # type: ignore[attr-defined]
+
+    def flatten(self) -> FlattenedItems:
+        """Return these elements read one level further still."""
+        return FlattenedItems(self)
+
+    def _located(self) -> list[int]:
+        if self._starts is None:
+            self._starts = list(accumulate(map(flattened_count, self._items), initial=0))
+        return self._starts
+
+    async def _alocated(self) -> list[int]:
+        if self._starts is None:
+            async with self._locating:
+                # Read in a worker thread, once: whoever waited for the lock finds the positions.
+                await asyncio.to_thread(self._located)
+        return self._located()
+
+    @staticmethod
+    def _item_of(starts: list[int], index: int) -> tuple[int, int]:
+        """Return the item that holds position ``index`` and the element's position in that item."""
+        position = range(starts[-1])[index]
+        item = bisect_right(starts, position) - 1
+        return item, position - starts[item]
+
+    @staticmethod
+    def _element(item: Any, index: int) -> Any:
+        return next(islice(_flatten(item), index, None))
+
+    def __repr__(self) -> str:
+        return f"{self._items!r}.flatten()"
+
+
+class FlattenedChunks(Sequence):
+    """
+    The chunks of a spread task read as one sequence of their items, one chunk at a time.
+
+    A spread task (``.spread(across=...).iterate(...)``) pushes one chunk of results per task
+    instance, so pulling its result gives a sequence of chunks. The levels expanded here are the
+    ones the tasks made, never the data's own: the chunks, and in a chunk each result. So the
+    items are the same however the producing task was spread (results ``[a, b]`` and ``[c]`` come
+    out as ``a, b, c`` from one task instance and from four), and an item that is a list, a row
+    for an insert, stays whole.
+
+    Iterating reads a chunk when it is reached and keeps nothing of the chunks before it, so the
+    consuming task holds one chunk's items at most, not every item of every chunk.
+
+    ``len()`` asks each chunk for its length and remembers the total: a chunk that knows its
+    flattened length (the ``XComIterable`` of a spread task instance) has none of its items read.
+    Every iteration reads the chunks again, so a task that goes over a small result more than once
+    copies it first (``list(...)``).
+
+    Indexing, which is how an iterated task downstream reads its items, keeps each chunk's
+    flattened view once it has asked for them (``_locate``): a view remembers where the pages it
+    has read start, so reading the items in order reads every page once instead of walking to
+    each item from the chunk's first page. The indexed tasks read at the same time, so they go
+    through ``aget()``, which leaves the page reads to the view's own ``aget()``.
+    """
+
+    def __init__(self, chunks: Iterable[Any]) -> None:
+        self._chunks = chunks
+        self._length: int | None = None
+        self._views: list[Sequence[Any]] | None = None
+        #: Flattened position of each view's first item, and after the last one the length.
+        self._starts: list[int] = [0]
+        #: One indexed task lists the chunks; the others that ask meanwhile wait for its views.
+        self._locating = asyncio.Lock()
+
+    @staticmethod
+    def _items(chunk: Any) -> Iterable[Any]:
+        """
+        Return the items a chunk adds to the flattened sequence.
+
+        A chunk that flattens itself (the ``XComIterable`` of an iterated task instance) is asked
+        to: it gives the items of each of its results and knows how many there are without reading
+        them. Any other chunk is one result and adds its elements, by the same one-level rule
+        (:func:`_flatten`). A task instance that returned nothing adds nothing.
+        """
+        if chunk is None:
+            return ()
+        if callable(getattr(chunk, "flatten", None)):
+            return chunk.flatten()
+        return _flatten(chunk)
+
+    def __iter__(self) -> Iterator[Any]:
+        for chunk in self._chunks:
+            yield from self._items(chunk)
+
+    def __len__(self) -> int:
+        if self._length is None:
+            self._length = sum(
+                len(items) if isinstance(items, Sized) else sum(1 for _ in items)
+                for items in map(self._items, self._chunks)
+            )
+        return self._length
+
+    def __getitem__(self, key: int | slice) -> Any:
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            if step > 0:
+                return list(islice(self, start, stop, step))
+            return list(self)[key]
+        view, index = self._located(key)
+        return view[index]
+
+    async def alen(self) -> int:
+        """Async twin of ``len(self)``: counted in a worker thread, since a count may read chunks."""
+        return await asyncio.to_thread(len, self)
+
+    async def aget(self, index: int) -> Any:
+        """
+        Async twin of ``self[index]``, for the indexed tasks of an iterated task reading at once.
+
+        The chunks are listed in a worker thread (listing them may call the supervisor), once:
+        every read after that finds its view on the loop, where a thread per item cost more than
+        the read itself. The item is then read through its view's own ``aget()`` when it has one,
+        which shares a page read between the indexed tasks that ask for it at the same time.
+        """
+        if self._views is None:
+            async with self._locating:
+                await asyncio.to_thread(self._locate)
+        view, index = self._located(index)
+        if hasattr(view, "aget"):
+            return await view.aget(index)
+        return view[index]
+
+    def flatten(self) -> FlattenedItems:
+        """Return the items read one level further: the elements of each (see :class:`FlattenedItems`)."""
+        return FlattenedItems(self)
+
+    def _located(self, index: int) -> tuple[Sequence[Any], int]:
+        """Return the flattened view that holds position ``index`` and the item's position in that view."""
+        views = self._locate()
+        position = range(self._starts[-1])[index]
+        view = bisect_right(self._starts, position) - 1
+        return views[view], position - self._starts[view]
+
+    def _locate(self) -> list[Sequence[Any]]:
+        """Keep the flattened view of every chunk and where each starts, listing the chunks once."""
+        if self._views is None:
+            views = [
+                items if isinstance(items, Sequence) else list(items)
+                for items in map(self._items, self._chunks)
+            ]
+            self._starts = list(accumulate(map(len, views), initial=0))
+            self._views, self._length = views, self._starts[-1]
+        return self._views
+
+    def __repr__(self) -> str:
+        return f"FlattenedChunks({self._chunks!r})"
+
+
 class XComIterable(Sequence):
     """
     An iterable that lazily fetches XCom values one by one instead of loading all at once.
@@ -841,6 +1068,10 @@ class XComIterable(Sequence):
     (``region_id``, ``region_index``), and its element reads name them: a reader outside the loop,
     one in a later pass (``loop.previous``) and one in the same pass all read the items of the pass
     that produced them. Outside any loop both are None and the reads carry no scope.
+
+    ``flattened_length`` is the item count of :meth:`flatten`, tallied by the producer as it pushes
+    each value (see :func:`flattened_count`) so the flattened view knows its length without reading
+    a page; ``None`` when the producer did not tally it.
     """
 
     def __init__(
@@ -853,6 +1084,7 @@ class XComIterable(Sequence):
         skipped: Sequence[int] = (),
         region_id: UUID | str | None = None,
         region_index: int | None = None,
+        flattened_length: int | None = None,
     ):
         self.task_id = task_id
         self.dag_id = dag_id
@@ -863,11 +1095,13 @@ class XComIterable(Sequence):
         # A serialized iterable carries the region id as a string.
         self.region_id = UUID(str(region_id)) if region_id is not None else None
         self.region_index = region_index
+        self.flattened_length = flattened_length
 
     def _index_of(self, position: int) -> int:
         """Map ``position`` in the sequence to its input index, stepping over the skipped indices."""
-        # range() maps a negative position from the end and raises IndexError past either end.
-        index = range(len(self))[position]
+        # range() maps a negative position from the end and raises IndexError past either end;
+        # XComIterable's own length, as a FlattenedXComIterable's len() counts items, not positions.
+        index = range(XComIterable.__len__(self))[position]
         for skipped_index in self.skipped:
             if skipped_index > index:
                 break
@@ -881,7 +1115,7 @@ class XComIterable(Sequence):
         return self.length - len(self.skipped)
 
     async def alen(self) -> int:
-        """Async twin of ``len(self)``, for readers on the event loop that take a length before each read."""
+        """Async twin of ``len(self)``, for a length that may take a read (see :class:`FlattenedXComIterable`)."""
         return len(self)
 
     def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
@@ -934,6 +1168,24 @@ class XComIterable(Sequence):
             query["_region_index"] = self.region_index
         return query
 
+    def flatten(self) -> Sequence[Any]:
+        """
+        Return a FlattenedXComIterable: the items of every page, one level (see :func:`_flatten`).
+
+        It reads the same pages, of the same loop pass when the producer ran inside a loop.
+        """
+        return FlattenedXComIterable(
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            length=self.length,
+            skipped=self.skipped,
+            region_id=self.region_id,
+            region_index=self.region_index,
+            flattened_length=self.flattened_length,
+        )
+
     def serialize(self) -> dict:
         """Ensure the object is JSON serializable."""
         data = {
@@ -943,6 +1195,7 @@ class XComIterable(Sequence):
             "map_index": self.map_index,
             "length": self.length,
             "skipped": self.skipped,
+            "flattened_length": self.flattened_length,
         }
         if self.region_id is not None:
             data["region_id"] = str(self.region_id)
@@ -953,6 +1206,134 @@ class XComIterable(Sequence):
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
         return cls(**data)
+
+
+class FlattenedXComIterable(XComIterable):
+    """
+    An XComIterable read as the items of its pages: the elements of a page that is a list, one level.
+
+    A list inside a page, a mapping, a string and bytes are items (see :func:`_flatten`).
+
+    ``__len__``/``__getitem__`` speak in flattened positions, not the pages ``XComIterable`` stores.
+    The length is the ``flattened_length`` the producer tallied while pushing; an iterable pushed
+    without one is counted by reading its pages once. Sync reads hold the last page fetched,
+    flattened, and nothing more, so a sequential read (iteration, a slice) fetches every page
+    exactly once, and a jump backwards restarts from the first page.
+
+    The async reads of an iterated task (:meth:`aget`) run concurrently, one per indexed task in
+    flight, so nothing they share changes across an ``await``: the position where each page read
+    so far starts is recorded once (``_page_starts``), and the read of a page is shared between
+    the indexed tasks that ask for it at the same time, the reads of the last ``MAX_PAGE_READS``
+    pages held, in flight or done, the page the indexed tasks use now and the one they move on to.
+    A reader behind the recorded pages starts from them without a request.
+    """
+
+    #: Page reads held for the async reads: the page the indexed tasks use now and the one they
+    #: move on to, since their positions straddle a page boundary part of the time.
+    MAX_PAGE_READS: ClassVar[int] = 2
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._page, self._offset = -1, 0
+        self._items: list[Any] = []
+        #: Flattened position where each page read so far starts; grows in page order.
+        self._page_starts: list[int] = [0]
+        self._page_reads: collections.OrderedDict[int, asyncio.Future[list[Any]]] = collections.OrderedDict()
+
+    def __len__(self) -> int:
+        if self.flattened_length is None:
+            self.flattened_length = sum(
+                flattened_count(XComIterable.__getitem__(self, page))
+                for page in range(XComIterable.__len__(self))
+            )
+        return self.flattened_length
+
+    async def alen(self) -> int:
+        if self.flattened_length is None:
+            # Counted one page at a time, like __len__, through the shared page reads, so the
+            # count records where every page starts and holds no more than MAX_PAGE_READS pages.
+            count = 0
+            for page in range(XComIterable.__len__(self)):
+                _, items = await self._page_items(page)
+                count += len(items)
+            self.flattened_length = count
+        return self.flattened_length
+
+    def _page_for(self, index: int) -> int | None:
+        """Return the next page to fetch on the way to flattened position ``index``, or None if held."""
+        if index < self._offset:
+            self._page, self._offset, self._items = -1, 0, []
+        if index < self._offset + len(self._items):
+            return None
+        return self._page + 1
+
+    def _hold(self, page: int, value: Any) -> None:
+        self._offset += len(self._items)
+        self._page, self._items = page, list(_flatten(value))
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        if isinstance(key, slice):
+            return [self[index] for index in range(*key.indices(len(self)))]
+        index = range(len(self))[key]
+        while (page := self._page_for(index)) is not None:
+            self._hold(page, XComIterable.__getitem__(self, page))
+        return self._items[index - self._offset]
+
+    async def aget(self, index: int) -> Any:
+        """
+        Async counterpart of ``self[index]``: page reads through :meth:`XComIterable.aget`, shared.
+
+        Starts from the last recorded page that begins at or before ``index`` and walks the pages
+        from there, so the indexed tasks reading at the same time share the pages they ask for.
+        """
+        index = range(await self.alen())[index]
+        page = bisect_right(self._page_starts, index) - 1
+        while True:
+            start, items = await self._page_items(page)
+            if index < start + len(items):
+                return items[index - start]
+            page += 1
+
+    async def _page_items(self, page: int) -> tuple[int, list[Any]]:
+        """Return the flattened items of ``page`` and the position of its first one, recording the next page's."""
+        start = self._page_starts[page]
+        items = await self._shared_page_read(page)
+        if len(self._page_starts) == page + 1:
+            self._page_starts.append(start + len(items))
+        return start, items
+
+    async def _shared_page_read(self, page: int) -> list[Any]:
+        """
+        Return the flattened items of ``page``, read once for all the indexed tasks that ask while it is held.
+
+        A read is shared with ``asyncio.shield``, so an indexed task being cancelled does not cancel
+        a read others wait for; a read that fails is forgotten, so the next indexed task reads the
+        page again. It runs in the context of the first indexed task that asks for it.
+        """
+        read = self._page_reads.get(page)
+        if read is None:
+            read = self._page_reads[page] = asyncio.ensure_future(self._read_page(page))
+            read.add_done_callback(partial(self._forget_failed_page_read, page))
+            while len(self._page_reads) > self.MAX_PAGE_READS:
+                self._page_reads.popitem(last=False)
+        else:
+            self._page_reads.move_to_end(page)
+        return await asyncio.shield(read)
+
+    async def _read_page(self, page: int) -> list[Any]:
+        return list(_flatten(await XComIterable.aget(self, page)))
+
+    def _forget_failed_page_read(self, page: int, read: asyncio.Future[list[Any]]) -> None:
+        if (read.cancelled() or read.exception() is not None) and self._page_reads.get(page) is read:
+            del self._page_reads[page]
+
+    def flatten(self) -> FlattenedItems:
+        """Return the items read one level further: the elements of each (see :class:`FlattenedItems`)."""
+        return FlattenedItems(self)
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        return FlattenedXComIterable(**data)
 
 
 class _AsyncXComIterator:

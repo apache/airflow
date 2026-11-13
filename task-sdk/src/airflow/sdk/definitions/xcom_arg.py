@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, overload
 import attrs
 
 from airflow.sdk import TriggerRule
+from airflow.sdk.bases.xcom import FlattenedChunks
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.loop import is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
@@ -183,6 +184,20 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
+
+    def flatten(self, depth: int = 1) -> FlattenXComArg:
+        """
+        Read the value as one sequence of its items, ``depth`` levels expanded, one by default.
+
+        Calls chain, each expanding one level more: ``.flatten(depth=2)`` is
+        ``.flatten().flatten()``, one :class:`FlattenXComArg` per level.
+        """
+        if depth < 1:
+            raise ValueError(f"depth must be at least 1, got {depth}")
+        flattened = FlattenXComArg(self)
+        for _ in range(depth - 1):
+            flattened = FlattenXComArg(flattened)
+        return flattened
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
@@ -348,6 +363,11 @@ class PlainXComArg(XComArg):
         if self.key != BaseXCom.XCOM_RETURN_KEY:
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
+
+    def flatten(self, depth: int = 1) -> FlattenXComArg:
+        if self.key != BaseXCom.XCOM_RETURN_KEY:
+            raise ValueError("cannot flatten non-return XCom")
+        return super().flatten(depth)
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
@@ -648,9 +668,55 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
+@attrs.define
+class FlattenXComArg(XComArg):
+    """
+    An XCom reference with a ``flatten()`` call applied: its value read as one sequence of items.
+
+    One level is expanded: the items of each result of an iterated task, and for a spread task,
+    which pushes one chunk of results per task instance, the items of each result of each chunk
+    (:class:`~airflow.sdk.bases.xcom.FlattenedChunks`). So the items are the same however the task
+    was spread. A list inside a result, a mapping, a string and bytes are items.
+
+    Calls chain, each one expanding one level more: ``.flatten().flatten()``, or
+    ``.flatten(depth=2)``, over pages of rows gives the cells. The value the inner one resolved to
+    is a flattened view, and every such view has a ``flatten()`` that reads it one level further.
+
+    :meta private:
+    """
+
+    arg: XComArg
+
+    def __repr__(self) -> str:
+        return f"{self.arg!r}.flatten()"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {"arg": serialize_xcom_arg(self.arg)}
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        return self._flattened(self.arg.resolve(context))
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._flattened(await self.arg.aresolve(context))
+
+    @staticmethod
+    def _flattened(value: Any) -> Any:
+        """Return ``value`` read as its items; a value that is no sequence of results is returned as it is."""
+        if not isinstance(value, Iterable) or isinstance(value, (str, bytes, Mapping)):
+            return value
+        flatten = getattr(value, "flatten", None)
+        if callable(flatten):
+            return flatten()
+        return FlattenedChunks(value)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
     "concat": ConcatXComArg,
+    "flatten": FlattenXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
@@ -684,6 +750,11 @@ def _(xcom_arg: PlainXComArg, resolved_val: Sized, upstream_map_indexes: dict[st
 
 @get_task_map_length.register
 def _(xcom_arg: MapXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
+    return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
+
+
+@get_task_map_length.register
+def _(xcom_arg: FlattenXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
     return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
 
 

@@ -27,13 +27,16 @@ from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
+from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.definitions.xcom_arg import (
     SchedulerConcatXComArg,
+    SchedulerFlattenXComArg,
     SchedulerMapXComArg,
     SchedulerPlainXComArg,
     SchedulerZipXComArg,
+    deserialize_xcom_arg,
     get_task_map_length,
 )
 from airflow.utils.state import TaskInstanceState
@@ -281,9 +284,27 @@ def test_mapped_length_dies_with_the_pushed_value(dag_maker, session):
     assert get_mapped_ti_count(consume_task, dr.run_id, session=session) == 2
 
 
+def test_flatten_deserializes_to_one_scheduler_arg_per_level(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+
+        @dag.task
+        def source():
+            return [[1], [2]]
+
+        flattened = source().flatten(depth=2)
+
+    serialized_dag = dag_maker.serialized_dag
+    source_arg = SchedulerPlainXComArg(serialized_dag.get_task("source"), XCOM_RETURN_KEY)
+
+    deserialized = deserialize_xcom_arg(serialize_xcom_arg(flattened), serialized_dag)
+
+    assert deserialized == SchedulerFlattenXComArg(SchedulerFlattenXComArg(source_arg))
+    assert list(deserialized.iter_references()) == [(serialized_dag.get_task("source"), XCOM_RETURN_KEY)]
+
+
 @pytest.mark.parametrize(
     ("operation", "expected_length"),
-    [("plain", 2), ("map", 2), ("zip", 2), ("zip_longest", 5), ("concat", 7)],
+    [("plain", 2), ("map", 2), ("flatten", 2), ("zip", 2), ("zip_longest", 5), ("concat", 7)],
 )
 def test_map_length_selects_retained_producer_in_callers_iteration(
     dag_maker, session, operation, expected_length
@@ -342,6 +363,7 @@ def test_map_length_selects_retained_producer_in_callers_iteration(
     argument = {
         "plain": source_arg,
         "map": SchedulerMapXComArg(source_arg, ["str"]),
+        "flatten": SchedulerFlattenXComArg(source_arg),
         "zip": SchedulerZipXComArg([source_arg, outside_arg], NOTSET),
         "zip_longest": SchedulerZipXComArg([source_arg, outside_arg], None),
         "concat": SchedulerConcatXComArg([source_arg, outside_arg]),
