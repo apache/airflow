@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import os
 import signal
 import socket
 import uuid
@@ -30,12 +31,16 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 import structlog
+from task_sdk.execution_time import exec_probe_target
 
 from airflow.sdk.api.client import CallbackOperations, Client
 from airflow.sdk.api.datamodels._generated import CallbackTerminalState, XComResponse
+from airflow.sdk.execution_time import callback_supervisor
 from airflow.sdk.execution_time.callback_supervisor import (
+    CallbackStartupDetails,
     CallbackSubprocess,
     Path,
+    _callback_subprocess_main,
     execute_callback,
     supervise_callback,
 )
@@ -52,8 +57,6 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     _RequestFrame,
 )
-
-from tests_common.test_utils.config import conf_vars
 
 
 def callback_no_args():
@@ -574,13 +577,24 @@ class TestCallbackSubprocessStart:
             patch("airflow.sdk.execution_time.comms.CommsDecoder") as mock_comms,
             patch("airflow.sdk.execution_time.callback_supervisor.WatchedSubprocess.start") as mock_super,
             patch("airflow.sdk.execution_time.callback_supervisor.execute_callback") as mock_execute,
+            patch(
+                "airflow.sdk.execution_time.callback_supervisor._task_process_uses_exec",
+                return_value=False,
+            ) as mock_uses_exec,
         ):
             mock_execute.return_value = (True, None)
 
             self.mock_comms_decoder = mock_comms
             self.mock_super_start = mock_super
             self.mock_execute_callback = mock_execute
+            self.mock_uses_exec = mock_uses_exec
             yield
+
+    def _run_callback_target(self):
+        startup_details = self.mock_super_start.return_value.send_msg.call_args.args[0]
+        decoder = self.mock_comms_decoder.__getitem__.return_value.return_value
+        decoder._get_response.return_value = startup_details
+        self.mock_super_start.call_args.kwargs["target"]()
 
     @pytest.fixture
     def mock_bundle_setup(self):
@@ -605,11 +619,25 @@ class TestCallbackSubprocessStart:
     @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
     def test_execute_callback_receives_correct_parameters(self, base_start_kwargs, callback_kwargs_encoding):
         """Test that execute_callback receives the correct parameters."""
-        CallbackSubprocess.start(**base_start_kwargs, callback_kwargs_encoding=callback_kwargs_encoding)
-        self.mock_super_start.call_args.kwargs["target"]()
+        proc = CallbackSubprocess.start(
+            **base_start_kwargs, callback_kwargs_encoding=callback_kwargs_encoding
+        )
+        self._run_callback_target()
 
         self.mock_super_start.assert_called_with(
-            id=uuid.UUID(base_start_kwargs["id"]), client=base_start_kwargs["client"], target=ANY, logger=None
+            id=uuid.UUID(base_start_kwargs["id"]),
+            client=base_start_kwargs["client"],
+            target=_callback_subprocess_main,
+            logger=None,
+            use_exec=False,
+        )
+        proc.send_msg.assert_called_once_with(ANY, request_id=0)
+        startup_details = proc.send_msg.call_args.args[0]
+        assert startup_details == CallbackStartupDetails(
+            callback_path=base_start_kwargs["callback_path"],
+            callback_kwargs=base_start_kwargs["callback_kwargs"],
+            callback_kwargs_encoding=callback_kwargs_encoding,
+            dag_rel_path=str(base_start_kwargs["dag_rel_path"]),
         )
 
         self.mock_execute_callback.assert_called_with(
@@ -629,10 +657,14 @@ class TestCallbackSubprocessStart:
         adjusted_kwargs = {**base_start_kwargs, "bundle_info": bundle_info}
 
         CallbackSubprocess.start(**adjusted_kwargs)
-        self.mock_super_start.call_args.kwargs["target"]()
+        self._run_callback_target()
 
         self.mock_super_start.assert_called_with(
-            id=uuid.UUID(adjusted_kwargs["id"]), client=adjusted_kwargs["client"], target=ANY, logger=None
+            id=uuid.UUID(adjusted_kwargs["id"]),
+            client=adjusted_kwargs["client"],
+            target=_callback_subprocess_main,
+            logger=None,
+            use_exec=False,
         )
 
         mock_bundle_setup["manager"].get_bundle.assert_called_once_with(
@@ -643,7 +675,7 @@ class TestCallbackSubprocessStart:
         mock_bundle_setup["bundle"].initialize.assert_called_once()
 
         self.mock_execute_callback.assert_called_with(
-            bundle_path=str(mock_bundle_setup["bundle_path"]),
+            bundle_path=mock_bundle_setup["bundle_path"],
             callback_kwargs=adjusted_kwargs["callback_kwargs"],
             callback_path=adjusted_kwargs["callback_path"],
             dag_rel_path=adjusted_kwargs["dag_rel_path"],
@@ -660,7 +692,7 @@ class TestCallbackSubprocessStart:
             adjusted_kwargs = {**base_start_kwargs, "bundle_info": bundle_info}
 
             CallbackSubprocess.start(**adjusted_kwargs)
-            self.mock_super_start.call_args.kwargs["target"]()
+            self._run_callback_target()
 
             assert str(mock_bundle_setup["bundle_path"]) in mock_sys_path
 
@@ -671,13 +703,13 @@ class TestCallbackSubprocessStart:
         CallbackSubprocess.start(**base_start_kwargs)
 
         with pytest.raises(SystemExit) as exc_info:
-            self.mock_super_start.call_args.kwargs["target"]()
+            self._run_callback_target()
 
         assert exc_info.value.code == 1
 
     def _run_target_with_context(self, base_start_kwargs, context):
         CallbackSubprocess.start(**{**base_start_kwargs, "callback_kwargs": {"context": context}})
-        self.mock_super_start.call_args.kwargs["target"]()
+        self._run_callback_target()
         return self.mock_execute_callback.call_args.kwargs["callback_kwargs"]["context"]
 
     @pytest.mark.parametrize(
@@ -706,22 +738,25 @@ class TestCallbackSubprocessStart:
         assert "xcom_pull" not in context
         assert "Callback context has no Dag run, so xcom_pull is not available" in caplog
 
-    @pytest.mark.parametrize("option_value", ["True", "False"])
-    def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
-        """
-        ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
-        callback child: its target is a closure, which only a bare fork can run.
-        """
-        with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
-            CallbackSubprocess.start(**base_start_kwargs)
+    @pytest.mark.parametrize("use_exec", [True, False])
+    def test_start_uses_task_process_exec_decision(self, base_start_kwargs, use_exec):
+        """CallbackSubprocess.start passes the task-process fresh-interpreter decision to its target."""
+        self.mock_uses_exec.return_value = use_exec
+        CallbackSubprocess.start(**base_start_kwargs)
 
-        assert self.mock_super_start.call_args.kwargs.get("use_exec", False) is False
+        assert self.mock_super_start.call_args.kwargs["use_exec"] is use_exec
+        assert self.mock_super_start.call_args.kwargs["target"] is _callback_subprocess_main
 
-    def test_start_imports_task_runner_before_forking(self, base_start_kwargs):
-        """The callback child is forked from this process, so it inherits a task runner imported here."""
+    @pytest.mark.parametrize("use_exec", [True, False])
+    def test_start_imports_task_runner_only_before_bare_fork(self, base_start_kwargs, use_exec):
         calls = []
-        self.mock_super_start.side_effect = lambda **kwargs: calls.append("fork")
+        self.mock_uses_exec.return_value = use_exec
 
+        def record_start(**kwargs):
+            calls.append("start")
+            return self.mock_super_start.return_value
+
+        self.mock_super_start.side_effect = record_start
         with patch(
             "airflow.sdk.execution_time.callback_supervisor._import_task_runner_before_fork",
             autospec=True,
@@ -729,7 +764,32 @@ class TestCallbackSubprocessStart:
         ):
             CallbackSubprocess.start(**base_start_kwargs)
 
-        assert calls == ["import task runner", "fork"]
+        assert calls == (["start"] if use_exec else ["import task runner", "start"])
+
+
+@pytest.mark.usefixtures("disable_capturing")
+def test_callback_fresh_interpreter_end_to_end(captured_logs, monkeypatch):
+    """A fresh interpreter receives callback inputs and runs the requested callback."""
+    tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    monkeypatch.setenv(
+        "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
+    )
+    monkeypatch.setattr(callback_supervisor, "_task_process_uses_exec", lambda: True)
+    monkeypatch.setattr(CallbackSubprocess, "_upload_logs", lambda self: None)
+
+    proc = CallbackSubprocess.start(
+        id=str(uuid.uuid4()),
+        callback_path=f"{exec_probe_target.__name__}.callback_exec_probe",
+        callback_kwargs={"value": "ok"},
+        dag_rel_path=Path("dag.py"),
+        client=Mock(spec=Client),
+    )
+
+    assert proc.wait() == 0, captured_logs
+    assert any(
+        entry.get("logger") == "task.stdout" and entry.get("event") == "callback-exec-ok"
+        for entry in captured_logs
+    )
 
 
 @pytest.fixture
