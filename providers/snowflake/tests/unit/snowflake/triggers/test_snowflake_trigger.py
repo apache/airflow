@@ -206,7 +206,9 @@ class TestSnowflakeSqlApiTrigger:
 
         events = [event async for event in trigger.run()]
 
-        assert events == [TriggerEvent(error)]
+        assert events == [
+            TriggerEvent({**error, "query_id": "q2", "statement_query_ids": ["q1", "q2", "q3"]})
+        ]
         assert [c.args[1] for c in mock_get_query_status.call_args_list] == ["q1", "q2"]
 
     @pytest.mark.asyncio
@@ -222,7 +224,7 @@ class TestSnowflakeSqlApiTrigger:
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
-        assert TriggerEvent(mock_response) == actual
+        assert TriggerEvent({**mock_response, "query_id": "uuid", "statement_query_ids": QUERY_IDS}) == actual
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
@@ -232,4 +234,10 @@ class TestSnowflakeSqlApiTrigger:
 
         task = [i async for i in self.TRIGGER.run()]
         assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        # A failed status check is not a failed statement, so the event carries no statement context.
+        assert (
+            TriggerEvent(
+                {"status": "error", "message": "Failed to get status for query uuid: Test exception"}
+            )
+            in task
+        )
