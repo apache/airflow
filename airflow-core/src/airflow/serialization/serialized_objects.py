@@ -53,7 +53,11 @@ from airflow.models.connection import Connection
 from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
-from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
+from airflow.sdk.bases.operator import (
+    OPERATOR_DEFAULTS,  # TODO: Copy this into the scheduler?
+    get_merged_defaults,
+)
+from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin  # noqa: SDK001
 from airflow.sdk.definitions._internal.expandinput import MappedArgument
 from airflow.sdk.definitions._internal.loop import LoopTaskGroup  # noqa: SDK001
 from airflow.sdk.definitions.asset import (
@@ -171,6 +175,15 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
+
+
+def _is_durable_operator(op: SdkOperator) -> bool:
+    if isinstance(op, MappedOperator):
+        # partial() leaves non-BaseOperator default_args like ``durable`` to unmapping, so resolve them here.
+        default_args, _ = get_merged_defaults(op.dag, op.task_group, None, None)
+        default = default_args.get("durable", issubclass(op.operator_class, ResumableJobMixin))
+        return op.partial_kwargs.get("durable", default) is True
+    return getattr(op, "durable", None) is True
 
 
 def _encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
@@ -1074,6 +1087,9 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if isinstance(op, DeclaresExternalClearTarget) and (target := op.external_clear_target) is not None:
             serialize_op["_external_clear_target"] = target.serialize()
 
+        if _is_durable_operator(op):
+            serialize_op["_is_durable"] = True
+
         if op.is_stub:
             # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
             # which only lang-SDK (non-Python) workloads ever need.
@@ -1263,6 +1279,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         # Used to determine if an Operator is inherited from SkipMixin
         setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
+        setattr(op, "_is_durable", encoded_op.get("_is_durable") is True)
 
         # Fails closed like the Dag-level flag: a non-Python producer's blob is never schema-validated
         # on this path, so anything that is not JSON ``true`` means "not a stub".

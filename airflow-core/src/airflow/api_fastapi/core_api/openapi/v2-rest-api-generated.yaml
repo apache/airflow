@@ -19584,6 +19584,9 @@ components:
           - type: boolean
           - type: 'null'
           title: Is Mapped
+        is_durable:
+          type: boolean
+          title: Is Durable
         extra_links:
           items:
             type: string
@@ -19619,6 +19622,7 @@ components:
       - params
       - class_ref
       - is_mapped
+      - is_durable
       - extra_links
       title: TaskResponse
       description: Task serializer for responses.
