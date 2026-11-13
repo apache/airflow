@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import os
 import signal
 import threading
 import uuid
@@ -678,9 +679,8 @@ class TestCommsDecoder:
 
     def test_a_closed_loop_whose_calls_waited_for_each_other_is_not_kept(self, socket_pair):
         """
-        Calls that waited for each other on one event loop leave that loop referenced by its lock. Once
-        its last call is answered the decoder lets the loop go, so sync code running
-        ``asyncio.run()`` once per call does not keep every closed loop until the task ends.
+        The decoder keeps no event loop: sync code running ``asyncio.run()`` once per call does not
+        keep every closed loop until the task ends, even when the loop's calls overlapped.
         """
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
@@ -696,7 +696,56 @@ class TestCommsDecoder:
         gc.collect()
 
         assert [loop() for loop in loops] == [None, None, None]
-        assert len(decoder._loop_queues) == 0
+
+    def test_asend_from_every_event_loop_runs_on_one_thread_of_the_decoder(self, socket_pair):
+        """
+        The decoder makes every asend() request on one thread of its own, not on the loops' default
+        executors, so two loops' calls never take two threads and to_thread work keeps its executor.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        threading.Thread(target=self._serve, args=(w, 4, 0), daemon=True).start()
+        threads: set[str] = set()
+        exchange = CommsDecoder._exchange
+
+        def recording_exchange(self, msg, frame_bytes):
+            threads.add(threading.current_thread().name)
+            return exchange(self, msg, frame_bytes)
+
+        async def two_calls():
+            await asyncio.gather(decoder.asend(GetVariable(key="a")), decoder.asend(GetVariable(key="b")))
+
+        with mock.patch.object(CommsDecoder, "_exchange", autospec=True, side_effect=recording_exchange):
+            asyncio.run(two_calls())
+            asyncio.run(two_calls())
+
+        assert len(threads) == 1
+        assert threads.pop().startswith("supervisor-comms")
+
+    @pytest.mark.execution_timeout(10)
+    @pytest.mark.filterwarnings("ignore:This process .* is multi-threaded:DeprecationWarning")
+    def test_asend_in_a_forked_child_is_served(self, socket_pair):
+        """
+        Threads do not survive a fork. A child forked after the parent made an asend() starts a
+        worker thread of its own instead of queueing its request for one that no longer exists.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        threading.Thread(target=self._serve, args=(w, 2, 0), daemon=True).start()
+        assert asyncio.run(decoder.asend(GetVariable(key="parent"))).key == "parent"
+
+        pid = os.fork()
+        if pid == 0:
+            # In the child: exit without running pytest's teardown, 0 only when the call was answered.
+            status = 1
+            try:
+                signal.alarm(5)
+                if asyncio.run(decoder.asend(GetVariable(key="child"))).key == "child":
+                    status = 0
+            finally:
+                os._exit(status)
+
+        assert os.waitpid(pid, 0)[1] == 0
 
     def test_send_from_the_paused_loop_waits_for_an_asend_in_flight(self, socket_pair):
         """

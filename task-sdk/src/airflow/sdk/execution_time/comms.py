@@ -50,10 +50,11 @@ from __future__ import annotations
 
 import asyncio
 import itertools
+import os
 import threading
 import traceback
-import weakref
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -222,71 +223,32 @@ class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, 
     error: dict[str, Any] | None = None
 
 
-class _LoopQueue:
+class _RequestWorker:
     """
-    The calls of one event loop to the supervisor, taking the channel one at a time.
+    The one thread that makes a decoder's ``asend()`` requests, whichever event loop they come from.
 
-    Entered with ``async with`` around one request, it waits for the loop's ``asyncio.Lock``, so only
-    one thread of the loop's default executor waits for the channel. A lock no call waited for holds
-    no reference to its loop, and calls one after another keep reusing it. ``asyncio.Lock`` binds to
-    its loop on its first wait, though, and would then keep the loop alive as the key that finds this
-    queue: a queue a call waited for leaves its :class:`_LoopQueues` with its last call. It refers to
-    its loop weakly itself, so as not to keep it either.
+    Requests queue for it in the order they were made, and it needs no loop to finish one. The
+    first request of a process starts it: threads do not survive a fork, so a forked child gets
+    a thread of its own.
     """
 
-    __slots__ = ("_callers", "_contended", "_lock", "_loop", "_queues")
-
-    def __init__(self, queues: _LoopQueues, loop: asyncio.AbstractEventLoop) -> None:
-        self._queues = queues
-        self._loop = weakref.ref(loop)
-        self._lock = asyncio.Lock()
-        self._callers = 0
-        self._contended = False
-
-    async def __aenter__(self) -> None:
-        if self._callers:
-            # Another call of this loop holds or waits for the lock, so this one waits for it.
-            self._contended = True
-        self._callers += 1
-        try:
-            await self._lock.acquire()
-        except BaseException:
-            self._leave()
-            raise
-
-    async def __aexit__(self, *exc_info: object) -> None:
-        self._lock.release()
-        self._leave()
-
-    def _leave(self) -> None:
-        self._callers -= 1
-        if not self._callers and self._contended and (loop := self._loop()) is not None:
-            self._queues.forget(loop)
-
-
-class _LoopQueues:
-    """One :class:`_LoopQueue` per event loop that calls the supervisor, dropped with its loop."""
-
-    __slots__ = ("_queues",)
+    __slots__ = ("_executor", "_lock", "_pid")
 
     def __init__(self) -> None:
-        self._queues: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopQueue] = (
-            weakref.WeakKeyDictionary()
-        )
+        self._executor: ThreadPoolExecutor | None = None
+        self._pid: int | None = None
+        self._lock = threading.Lock()
 
-    def __len__(self) -> int:
-        return len(self._queues)
-
-    def for_loop(self, loop: asyncio.AbstractEventLoop) -> _LoopQueue:
-        """Return the queue of ``loop``'s calls; only that loop's coroutines ask for it."""
-        queue = self._queues.get(loop)
-        if queue is None:
-            queue = self._queues[loop] = _LoopQueue(self, loop)
-        return queue
-
-    def forget(self, loop: asyncio.AbstractEventLoop) -> None:
-        """Drop ``loop``'s queue, whose lock now refers to the loop and would keep it alive."""
-        self._queues.pop(loop, None)
+    def executor(self) -> ThreadPoolExecutor:
+        """Return this process's single-thread executor, for ``loop.run_in_executor``."""
+        if self._pid != (pid := os.getpid()):
+            with self._lock:
+                if self._pid != pid:
+                    self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="supervisor-comms")
+                    self._pid = pid
+        if TYPE_CHECKING:
+            assert self._executor is not None
+        return self._executor
 
 
 @attrs.define()
@@ -314,11 +276,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # thread was in the middle of a request. The RLock records its owner when it is taken, so no
     # moment is left where the thread holds the lock but is not yet known as its holder.
     _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
-    # One queue per event loop: asend() can be called from several at once (sync code running
-    # asyncio.run() on a worker thread while another loop has calls in flight), and an asyncio.Lock binds
-    # to the loop that first waits on it. Each loop queues its own calls, so only one thread of its
-    # default executor waits for the channel; _thread_lock orders the loops.
-    _loop_queues: _LoopQueues = attrs.field(factory=_LoopQueues, repr=False)
+    _worker: _RequestWorker = attrs.field(factory=lambda: _RequestWorker(), repr=False, init=False)
     # Whether the thread holding _thread_lock is between writing a request and reading its
     # response. Only that thread can read it as True once it holds the lock itself.
     _exchanging: bool = attrs.field(default=False, repr=False, init=False)
@@ -389,10 +347,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         Take ``_thread_lock``, exchange one request and its response, and release it.
 
-        A request whose caller gave up while this thread waited for the lock is not sent: nothing
-        reached the parent yet, and its side effects (an XCom push, a state update) belong to a
-        coroutine that was cancelled. Once sent, its response is always read, so the next request
-        never reads it as its own.
+        A request whose caller gave up while this thread waited for the lock (a ``send()`` on
+        another thread held the channel) is not sent: nothing reached the parent yet, and its side
+        effects (an XCom push, a state update) belong to a coroutine that was cancelled. Once sent,
+        its response is always read, so the next request never reads it as its own.
         """
         with self._thread_lock:
             if abandoned.is_set():
@@ -403,24 +361,21 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         Send a request to the parent without blocking.
 
-        The running loop's :class:`_LoopQueue` orders its coroutines; the request itself runs in a
-        worker thread, which takes ``_thread_lock``, writes the request, reads its response and
-        releases the lock, and that lock orders the loops.
-        Cancelling the await cancels the future, not that thread: a request not sent yet is
-        dropped, one already sent has its response drained before the thread lets go of the
-        channel, so the next request never reads a response that was not its own, nor finds the
-        lock taken with nobody left to release it.
+        The request runs on the decoder's own worker thread, which takes ``_thread_lock``, writes
+        the request, reads its response and releases the lock. Requests of every event loop queue
+        for that one thread. Cancelling the await drops a request that was not sent yet; one already
+        sent has its response drained before the thread lets go of the channel, so the next request
+        never reads a response that was not its own.
         """
         frame_bytes = self._make_frame(msg).as_bytes()
-
-        loop = asyncio.get_running_loop()
-        async with self._loop_queues.for_loop(loop):
-            abandoned = threading.Event()
-            try:
-                return await loop.run_in_executor(None, self._locked_exchange, msg, frame_bytes, abandoned)
-            except BaseException:
-                abandoned.set()
-                raise
+        abandoned = threading.Event()
+        try:
+            return await asyncio.get_running_loop().run_in_executor(
+                self._worker.executor(), self._locked_exchange, msg, frame_bytes, abandoned
+            )
+        except BaseException:
+            abandoned.set()
+            raise
 
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
