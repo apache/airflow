@@ -70,6 +70,8 @@ ADD_ONE = "accumulate.add_one"
 GATE = "accumulate.__loop_gate"
 MAPPED_LOOP_DAG_ID = "example_task_loop_mapped_test"
 NOT_CONVERGING_DAG_ID = "example_task_loop_not_converging_test"
+UNTIL_MET_EARLY_DAG_ID = "example_task_loop_until_met_early_test"
+UNTIL_MET_AT_LAST_DAG_ID = "example_task_loop_until_met_at_last_test"
 
 # Each key is the name that a test uses to find its Dag run. Each value is the ID of the Dag to trigger
 # for that run.
@@ -80,6 +82,8 @@ DAG_RUNS = {
     "keep_later_iterations": LOOP_DAG_ID,
     "mapped": MAPPED_LOOP_DAG_ID,
     "not_converging": NOT_CONVERGING_DAG_ID,
+    "until_met_early": UNTIL_MET_EARLY_DAG_ID,
+    "until_met_at_last": UNTIL_MET_AT_LAST_DAG_ID,
 }
 
 # Seconds that a Dag run gets to finish. The runs that the dag_runs fixture triggers share one deadline. If
@@ -287,3 +291,22 @@ def test_loop_that_never_meets_until_fails_the_run(dag_runs):
         ("poll.reached_ten", 2, -1): ("failed", 1),
         ("after", None, -1): ("upstream_failed", 0),
     }
+
+
+@pytest.mark.parametrize(
+    ("run_name", "dag_id", "iterations"),
+    [
+        pytest.param("until_met_early", UNTIL_MET_EARLY_DAG_ID, 2, id="early"),
+        pytest.param("until_met_at_last", UNTIL_MET_AT_LAST_DAG_ID, 3, id="at-last"),
+    ],
+)
+def test_loop_stops_when_until_is_met(run_name, dag_id, iterations, dag_runs):
+    task_instances = wait_for_run(dag_id, dag_runs.run_ids[run_name], "success", dag_runs.deadline)
+
+    expected = {
+        (task_id, iteration, -1): ("success", 1)
+        for task_id in ("poll.check", "poll.reached_target")
+        for iteration in range(1, iterations + 1)
+    }
+    expected["after", None, -1] = ("success", 1)
+    assert get_states_and_tries(task_instances) == expected

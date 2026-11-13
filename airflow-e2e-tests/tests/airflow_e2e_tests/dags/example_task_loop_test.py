@@ -23,7 +23,7 @@ from datetime import timedelta
 from airflow.sdk import dag, task, task_group
 
 
-@dag(schedule=None, catchup=False, tags=["example"])
+@dag(schedule=None, catchup=False, tags=["example", "task-loop"])
 def example_task_loop_test():
     @task_group
     def accumulate():
@@ -45,7 +45,7 @@ def example_task_loop_test():
 example_task_loop_test()
 
 
-@dag(schedule=None, catchup=False, tags=["example"])
+@dag(schedule=None, catchup=False, tags=["example", "task-loop"])
 def example_task_loop_mapped_test():
     @task_group
     def grow():
@@ -73,7 +73,7 @@ example_task_loop_mapped_test()
 @dag(
     schedule=None,
     catchup=False,
-    tags=["example"],
+    tags=["example", "task-loop"],
     default_args={"retries": 1, "retry_delay": timedelta(seconds=1)},
 )
 def example_task_loop_not_converging_test():
@@ -96,3 +96,30 @@ def example_task_loop_not_converging_test():
 
 
 example_task_loop_not_converging_test()
+
+
+def poll_until(dag_id: str, *, target: int, max_iterations: int):
+    @dag(dag_id=dag_id, schedule=None, catchup=False, tags=["example", "task-loop"])
+    def poll_until_target():
+        @task_group
+        def poll():
+            @task
+            def check(*, loop):
+                return loop.index
+
+            check()
+
+        def reached_target(*, loop):
+            return loop.result >= target
+
+        @task
+        def after():
+            pass
+
+        poll.loop(max_iterations=max_iterations, until=reached_target) >> after()
+
+    poll_until_target()
+
+
+poll_until("example_task_loop_until_met_early_test", target=2, max_iterations=5)
+poll_until("example_task_loop_until_met_at_last_test", target=3, max_iterations=3)
