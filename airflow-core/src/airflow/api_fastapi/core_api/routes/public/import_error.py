@@ -50,6 +50,7 @@ from airflow.api_fastapi.core_api.datamodels.import_error import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    REDACTED_FILE_CONTENT,
     AccessView,
     GetUserDep,
     requires_access_view,
@@ -58,7 +59,6 @@ from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 
-REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all Dags in the file"
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
 
 
@@ -126,7 +126,7 @@ def get_import_error(
 
     # Check if user has read access to all the Dags defined in the file
     if not file_dag_ids.issubset(readable_dag_ids):
-        error.stacktrace = REDACTED_STACKTRACE
+        error.stacktrace = REDACTED_FILE_CONTENT
     return error
 
 
@@ -319,7 +319,7 @@ def get_import_errors(
         ]
         if not auth_manager.batch_is_authorized_dag(requests, user=user):
             session.expunge(import_error)
-            import_error.stacktrace = REDACTED_STACKTRACE
+            import_error.stacktrace = REDACTED_FILE_CONTENT
         import_errors.append(import_error)
 
     return ImportErrorCollectionResponse(

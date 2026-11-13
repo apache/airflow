@@ -27,11 +27,10 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.dag_sources import DAGSourceResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import REDACTED_FILE_CONTENT, GetUserDep, requires_access_dag
 from airflow.models import DagModel
 from airflow.models.dag_version import DagVersion
 
-REDACTED_SOURCE = "REDACTED - you do not have read permission on all Dags in the file"
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
 
 
@@ -96,7 +95,7 @@ def get_dag_source(
         if file_dag_ids:
             readable_dag_ids = get_auth_manager().get_authorized_dag_ids(user=user)
             if not file_dag_ids.issubset(readable_dag_ids):
-                content = REDACTED_SOURCE
+                content = REDACTED_FILE_CONTENT
 
     dag_source_model = DAGSourceResponse(
         dag_id=dag_id,
