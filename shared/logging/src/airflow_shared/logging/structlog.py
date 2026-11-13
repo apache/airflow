@@ -20,6 +20,7 @@ from __future__ import annotations
 import codecs
 import io
 import itertools
+import linecache
 import logging
 import os
 import re
@@ -363,6 +364,16 @@ def _make_safe_enc_hook(default):
     return safe_enc_hook
 
 
+def _add_source_lines(stacks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add each frame's source code ``line``, which structlog's ``ExceptionDictTransformer`` omits."""
+    for stack in stacks:
+        for frame in stack["frames"]:
+            linecache.checkcache(frame["filename"])
+            if line := linecache.getline(frame["filename"], frame["lineno"]).strip():
+                frame["line"] = line
+    return stacks
+
+
 @cache
 def structlog_processors(
     json_output: bool,
@@ -420,29 +431,25 @@ def structlog_processors(
     # structlog to ignore.
 
     import contextlib
+    import importlib
 
     import click
 
     suppress: tuple[ModuleType, ...] = (click, contextlib)
-    try:
-        import httpcore
-
-        suppress = (*suppress, httpcore)
-    except ImportError:
-        pass
-    try:
-        import httpx
-
-        suppress = (*suppress, httpx)
-    except ImportError:
-        pass
+    # airflow-core is still on httpx while the Task SDK is on httpx2, so either (or both) may
+    # be installed; tracked at https://github.com/apache/airflow/issues/70522
+    for module_name in ("httpcore", "httpcore2", "httpx", "httpx2"):
+        with contextlib.suppress(ImportError):
+            suppress = (*suppress, importlib.import_module(module_name))
 
     if json_output:
         dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
             use_rich=False, show_locals=False, suppress=suppress
         )
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+        dict_tracebacks = structlog.processors.ExceptionRenderer(
+            lambda exc_info: _add_source_lines(dict_exc_formatter(exc_info))
+        )
 
         import msgspec
 
@@ -690,6 +697,7 @@ def configure_logging(
             "airflow": {"level": log_level.upper()},
             # These ones are too chatty even at info
             "httpx": {"level": "WARN"},
+            "httpx2": {"level": "WARN"},
             "sqlalchemy.engine": {"level": "WARN"},
             "alembic.runtime.plugins": {"level": "WARN"},
         }

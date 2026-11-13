@@ -24,7 +24,7 @@ from collections.abc import MutableSequence, Sequence
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.cloud.orchestration.airflow.service_v1 import (
@@ -610,7 +610,7 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {self._credentials.token}",
                 },
-                timeout=timeout,
+                timeout=ClientTimeout(total=timeout),
             ) as response:
                 return await response.json(), response.status
 

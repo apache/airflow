@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 import os
 from typing import TYPE_CHECKING
@@ -26,6 +27,8 @@ import time_machine
 from fastapi import FastAPI
 from fastapi.routing import Mount
 from fastapi.testclient import TestClient
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -133,11 +136,12 @@ def _authed_test_client(app: FastAPI, request):
             ),
         )
     with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
+        with TestClient(
             app,
             headers={"Authorization": f"Bearer {token}"},
             base_url=f"{BASE_URL}{get_api_path(request)}",
-        )
+        ) as test_client:
+            yield test_client
 
 
 @pytest.fixture
@@ -167,22 +171,66 @@ def fresh_test_client(request):
 
 @pytest.fixture
 def unauthenticated_test_client(request, _isolated_shared_app):
-    return TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}")
+    with TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}") as test_client:
+        yield test_client
 
 
 @pytest.fixture
-def unauthorized_test_client(request, _isolated_shared_app):
-    app = _isolated_shared_app
-    auth_manager: SimpleAuthManager = app.state.auth_manager
+def unauthorized_headers(_isolated_shared_app):
+    auth_manager: SimpleAuthManager = _isolated_shared_app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
     )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def unauthorized_test_client(request, _isolated_shared_app, unauthorized_headers):
     with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
-            app,
-            headers={"Authorization": f"Bearer {token}"},
+        with TestClient(
+            _isolated_shared_app,
+            headers=unauthorized_headers,
             base_url=f"{BASE_URL}{get_api_path(request)}",
-        )
+        ) as test_client:
+            yield test_client
+
+
+@pytest.fixture
+def deny_dag_edit_access():
+    """Let the test client's user do everything with a Dag but edit the Dag itself (``PUT``)."""
+    with mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+        autospec=True,
+        side_effect=lambda _self, *, method, user, access_entity=None, details=None: (
+            not (method == "PUT" and access_entity is None)
+        ),
+    ) as mock_is_authorized_dag:
+        yield mock_is_authorized_dag
+
+
+@pytest.fixture
+def event_loop_queries():
+    """
+    Collect the SQL statements executed on the event loop thread.
+
+    FastAPI serializes responses on the event loop, so a statement collected here blocks the whole
+    API server while it waits for a database connection.
+    """
+    statements: list[str] = []
+
+    def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        # Only the event loop thread has a running loop; threadpool workers raise here.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        statements.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        yield statements
+    finally:
+        event.remove(Engine, "before_cursor_execute", before_cursor_execute)
 
 
 @pytest.fixture
@@ -248,7 +296,7 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
                 EmptyOperator(task_id=f"task{task_number + 1}")
         dag_maker.create_dagrun(
             run_id=f"run{version_number}",
-            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.UTC),
             session=session,
         )
         session.commit()

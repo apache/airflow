@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -25,7 +26,9 @@
 Package apache-airflow-providers-anthropic
 ------------------------------------------------------
 
-`Anthropic <https://docs.claude.com/>`__
+`Anthropic <https://docs.claude.com/>`__ provider for Apache Airflow.
+Wraps the official Anthropic Python SDK to run the Claude Message Batches API
+asynchronously from Airflow, plus direct message and token-counting helpers.
 
 
 This is detailed commit list of changes for versions provider package: ``anthropic``.

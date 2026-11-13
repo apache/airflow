@@ -14,3 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Durable execution: replay an agent's completed steps when Airflow retries its task."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from airflow.providers.common.ai.durable.capability import AirflowDurability
+
+__all__ = ["AirflowDurability"]
+
+
+def __getattr__(name: str) -> object:
+    # Lazy, so the framework-neutral journal can be imported without pydantic-ai's durable API.
+    if name == "AirflowDurability":
+        from airflow.providers.common.ai.durable.capability import AirflowDurability
+
+        return AirflowDurability
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

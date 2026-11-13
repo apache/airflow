@@ -21,6 +21,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
+import { PluginActions } from "src/components/PluginActions";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -38,9 +39,9 @@ export const DagCardActions = ({ dag }: { readonly dag: DAGWithLatestDagRunsResp
       allowedRunTypes={dag.allowed_run_types}
       dagDisplayName={dag.dag_display_name}
       dagId={dag.dag_id}
-      isPaused={dag.is_paused}
     />
     <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
     <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
+    <PluginActions entity={{ dag, destination: "dag" }} />
   </>
 );

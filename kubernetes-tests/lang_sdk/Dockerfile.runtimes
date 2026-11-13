@@ -1,0 +1,42 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Runtime image for every lang-SDK coordinator queue: the stock prod image plus a
+# headless JRE (JavaCoordinator execs `java`) and Node.js (NodeCoordinator execs
+# `node`). The Go queue needs neither -- a Go bundle is a self-contained static
+# binary -- but it shares this image too, since the Dag processor itself needs
+# both runtimes to parse native Java and TypeScript Dags, and using one image
+# everywhere keeps the pod templates and the Helm image override identical
+# across components.
+#
+# Node comes as the official binary rather than a deb: the NodeSource nodejs
+# package depends on python3, which apt would satisfy on the hardened images by
+# replacing the image's own Python with Debian's.
+ARG BASE_IMAGE
+ARG NODE_IMAGE="node:22-bookworm-slim"
+FROM ${NODE_IMAGE} AS node
+
+FROM ${BASE_IMAGE}
+
+USER root
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y default-jre-headless \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+USER airflow

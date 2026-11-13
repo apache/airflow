@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -195,9 +195,9 @@ class TestGenerateDagWithLatestRunQuery:
             dag_id=dag_id,
             run_id="manual__older",
             run_type="manual",
-            logical_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            logical_date=datetime(2025, 1, 1, tzinfo=UTC),
             state=DagRunState.SUCCESS,
-            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            start_date=datetime(2025, 1, 1, tzinfo=UTC),
         )
         session.add(older_run)
         newer_run = DagRun(
@@ -300,9 +300,9 @@ class TestGenerateDagWithLatestRunQuery:
                     dag_id=dag_id,
                     run_id=f"manual__{run_idx}",
                     run_type="manual",
-                    logical_date=datetime(2024, 1, 1 + run_idx, tzinfo=timezone.utc),
+                    logical_date=datetime(2024, 1, 1 + run_idx, tzinfo=UTC),
                     state=DagRunState.SUCCESS,
-                    start_date=datetime(2024, 1, 1 + run_idx, 1, tzinfo=timezone.utc),
+                    start_date=datetime(2024, 1, 1 + run_idx, 1, tzinfo=UTC),
                 )
                 session.add(dagrun)
         session.commit()

@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "कम दिखाएं",
     "seeMoreContext": "अधिक दिखाएं",
-    "showMoreAlerts_one": "+{{count}} और अलर्ट",
-    "showMoreAlerts_other": "+{{count}} और अलर्ट्स"
+    "showMoreAlerts_one": "+{{count, number}} और अलर्ट",
+    "showMoreAlerts_other": "+{{count, number}} और अलर्ट्स"
   },
   "deadlines": {
     "pending": {
@@ -17,25 +17,40 @@
     "showMore": "और दिखाएं",
     "title": "डेडलाइन"
   },
-  "deferredSlotsNotCounted": "स्लॉट में नहीं गिने गए डिफर्ड: {{count}}",
+  "deferredSlotsNotCounted": "स्लॉट में नहीं गिने गए डिफर्ड: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "बार में दिखाए गए डिफर्ड टास्क पूल स्लॉट के विरुद्ध गिने जाते हैं। बार के नीचे दिखाए गए डिफर्ड टास्क उन पूल से हैं जो डिफर्ड टास्क को स्लॉट के विरुद्ध नहीं गिनते।",
   "favorite": {
-    "favoriteDags_one": "पहला {{count}} पसंदीदा डैग",
-    "favoriteDags_other": "पहले {{count}} पसंदीदा डैग्स",
+    "favoriteDags_one": "पहला {{count, number}} पसंदीदा डैग",
+    "favoriteDags_other": "पहले {{count, number}} पसंदीदा डैग्स",
     "noDagRuns": "इस डैग के लिए अभी तक कोई डैगरन नहीं है।",
     "noFavoriteDags": "अभी तक कोई पसंदीदा नहीं। अपने पसंदीदा में जोड़ने के लिए सूची में किसी डैग के बगल में स्टार आइकन पर क्लिक करें।"
   },
   "group": "ग्रुप",
   "health": {
     "dagProcessor": "डैग प्रोसेसर",
+    "degraded": "निम्नीकृत",
+    "degradedHint": {
+      "dagProcessor": "कुछ विन्यस्त डैग बंडल को कोई डैग प्रोसेसर पार्स नहीं कर रहा है।",
+      "triggerer": "कुछ टीमों के लिए स्थगित टास्क चलाने वाला कोई ट्रिगरर नहीं है।"
+    },
+    "down": "डाउन",
     "health": "स्वास्थ्य",
     "healthy": "स्वस्थ",
+    "instances": {
+      "bundles": "बंडल",
+      "hostname": "होस्ट",
+      "team": "टीम",
+      "title_one": "{{title}} — {{status}} ({{count, number}} इंस्टेंस)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} इंस्टेंस)",
+      "unknownHostname": "अज्ञात होस्ट"
+    },
     "lastHeartbeat": "अंतिम हार्टबीट",
     "metaDatabase": "मेटा डेटाबेस",
     "scheduler": "शेड्यूलर",
     "status": "स्थिति",
     "triggerer": "ट्रिगरर",
-    "unhealthy": "अस्वस्थ"
+    "unhealthy": "अस्वस्थ",
+    "unknownStatus": "अज्ञात"
   },
   "history": "इतिहास",
   "importErrors": {

@@ -39,6 +39,7 @@ class _MockTI:
     run_id: str = "integration_test_run"
     try_number: int = 1
     map_index: int = -1
+    id: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
 
 
 @pytest.mark.integration("elasticsearch")
@@ -145,3 +146,34 @@ class TestElasticsearchRemoteLogIOIntegration:
         log_entry = json.loads(log_messages[0])
         assert "error_detail" in log_entry
         assert log_entry["error_detail"] == error_detail
+
+    @pytest.mark.parametrize(
+        ("written", "reader", "expected"),
+        [
+            pytest.param(["legacy"], "x", ["legacy"], id="pre-upgrade-logs-stay-readable"),
+            pytest.param(["x", "y"], "x", ["x"], id="post-upgrade-reader-sees-only-its-try"),
+            pytest.param(["x", "y"], "y", ["y"], id="post-upgrade-other-try"),
+            pytest.param(["legacy", "x", "y"], "x", ["legacy", "x"], id="mixed-index"),
+        ],
+    )
+    @patch(
+        "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
+        ["message"],
+    )
+    def test_read_scopes_to_try_and_keeps_pre_upgrade_logs(self, tmp_path, written, reader, expected):
+        """Tries sharing one log_id stay separate, and entries without ti_id stay readable."""
+        try_ids = {"x": uuid.uuid4(), "y": uuid.uuid4()}
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, _MockTI(), 1)
+        for name in written:
+            if name == "legacy":
+                legacy_entry = {"message": name, "log_id": log_id, "offset": 1}
+                self.elasticsearch_io.client.index(index=self.target_index, document=legacy_entry)
+                continue
+            log_file = tmp_path / f"{name}.log"
+            log_file.write_text(json.dumps({"message": name}) + "\n")
+            self.elasticsearch_io.upload(log_file, _MockTI(id=try_ids[name]))
+        self.elasticsearch_io.client.indices.refresh(index=self.target_index)
+
+        _, log_messages = self.elasticsearch_io.read("", _MockTI(id=try_ids[reader]))
+
+        assert sorted(json.loads(message)["event"] for message in log_messages) == sorted(expected)

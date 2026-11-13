@@ -42,3 +42,7 @@ docs port="6060":
 # Regenerate the coordinator-protocol data models from the task-sdk supervisor schema
 generate-models:
   go generate ./pkg/execution/genmodels/...
+
+# Regenerate the Dag, task and task group spec structs from the core Dag serialization schema
+generate-specs:
+  go generate ./airflow/...

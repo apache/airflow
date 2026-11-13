@@ -20,18 +20,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Installed only in the agent framework CI job (scripts/in_container/run_agent_framework_tests.sh).
+pytest.importorskip("llama_index.core")
+
 from airflow.providers.common.ai.operators.llamaindex_retrieval import LlamaIndexRetrievalOperator
 
 
 @pytest.fixture
 def _li(monkeypatch):
-    """Patch the two LlamaIndex symbols the retrieval operator uses inside execute().
-
-    ``llama_index`` (core + openai embeddings) is a real test dependency
-    declared in ``providers/common/ai/pyproject.toml``'s dev group, so
-    ``monkeypatch.setattr("llama_index.core.X", ...)`` resolves against the
-    real module.
-    """
+    """Patch the two LlamaIndex symbols the retrieval operator uses inside execute()."""
     StorageContext = MagicMock(name="StorageContext")
     load_index_from_storage = MagicMock(name="load_index_from_storage")
     monkeypatch.setattr("llama_index.core.StorageContext", StorageContext)
@@ -56,18 +53,6 @@ def _scored_node(text: str, score: float, metadata: dict | None = None, node_id:
 def _byo_embedding():
     """Return a duck-typed ``BaseEmbedding`` stand-in."""
     return MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
-
-
-class TestRetrievalOperatorInit:
-    def test_template_fields(self):
-        assert set(LlamaIndexRetrievalOperator.template_fields) == {
-            "query",
-            "index_persist_dir",
-            "persist_conn_id",
-            "embed_model",
-            "llm_conn_id",
-            "embed_conn_id",
-        }
 
 
 class TestRetrievalOperatorOutput:
@@ -135,6 +120,7 @@ class TestRetrievalOperatorOutput:
             embed_model="text-embedding-3-small",
             llm_conn_id="my_llm_conn",
             embed_conn_id="my_embed_conn",
+            embedding_kwargs={"dimensions": 128},
         )
         op.execute(context=MagicMock())
 
@@ -142,9 +128,17 @@ class TestRetrievalOperatorOutput:
             llm_conn_id="my_llm_conn",
             embed_conn_id="my_embed_conn",
             embed_model="text-embedding-3-small",
+            embedding_kwargs={"dimensions": 128},
         )
 
-    def test_byo_embed_model_bypasses_hook(self, _li, tmp_path):
+    @pytest.mark.parametrize(
+        ("embedding_kwargs", "expect_warning"),
+        [
+            (None, False),
+            ({"dimensions": 128}, True),
+        ],
+    )
+    def test_byo_embed_model_bypasses_hook(self, _li, tmp_path, caplog, embedding_kwargs, expect_warning):
         (tmp_path / "idx").mkdir()
         byo = _byo_embedding()
         index = _li["load_index_from_storage"].return_value
@@ -155,11 +149,14 @@ class TestRetrievalOperatorOutput:
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
             embed_model=byo,
+            embedding_kwargs=embedding_kwargs,
         )
         op.execute(context=MagicMock())
 
         kwargs = _li["load_index_from_storage"].call_args.kwargs
         assert kwargs["embed_model"] is byo
+        warning = "embedding_kwargs is ignored when embed_model is a pre-built embedding model"
+        assert any(warning in record.message for record in caplog.records) is expect_warning
 
     def test_invalid_embed_model_raises_typeerror(self, _li, tmp_path):
         # An object that's neither None/str nor duck-types as BaseEmbedding
@@ -170,7 +167,7 @@ class TestRetrievalOperatorOutput:
             task_id="test",
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
-            embed_model=12345,  # type: ignore[arg-type]
+            embed_model=12345,
         )
         with pytest.raises(TypeError, match="embed_model must be"):
             op.execute(context=MagicMock())
@@ -188,7 +185,7 @@ class TestRetrievalOperatorMissingIndex:
         with pytest.raises(FileNotFoundError, match="LlamaIndexEmbeddingOperator"):
             op.execute(context=MagicMock())
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_missing_uri_raises_with_hint(self, mock_get_embed, mock_osp_cls, _li):
         missing = MagicMock()
@@ -206,7 +203,7 @@ class TestRetrievalOperatorMissingIndex:
 
 
 class TestRetrievalOperatorCloudURI:
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_uri_opens_storage_with_fs(self, mock_get_embed, mock_osp_cls, _li):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``

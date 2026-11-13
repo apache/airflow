@@ -123,7 +123,7 @@ def login_callback(request: Request):
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
         access_token=tokens["access_token"],
-        refresh_token=tokens["refresh_token"],
+        refresh_token=tokens.get("refresh_token"),
     )
     token = get_auth_manager().generate_jwt(user)
     request.state.jwt_token_issued = True
@@ -149,9 +149,14 @@ def login_callback(request: Request):
             COOKIE_NAME_ACCESS_TOKEN, tokens["access_token"], path=cookie_path, secure=secure, httponly=True
         )
 
-        response.set_cookie(
-            COOKIE_NAME_REFRESH_TOKEN, tokens["refresh_token"], path=cookie_path, secure=secure, httponly=True
-        )
+        if tokens.get("refresh_token"):
+            response.set_cookie(
+                COOKIE_NAME_REFRESH_TOKEN,
+                tokens["refresh_token"],
+                path=cookie_path,
+                secure=secure,
+                httponly=True,
+            )
 
     return response
 

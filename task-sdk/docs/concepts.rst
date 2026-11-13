@@ -45,7 +45,7 @@ Understanding the task lifecycle helps Dag authors write more effective tasks an
   - ``task_reschedule_count``: Number of times this task has been rescheduled
   - ``variables``: List of Airflow variables accessible to the task instance
   - ``connections``: List of Airflow connections accessible to the task instance
-  - ``upstream_map_indexes``: Mapping of upstream task IDs to their map indexes for dynamic task mapping scenarios
+  - ``upstream_map_indexes``: Mapping of upstream task IDs to their map indexes for task mapping scenarios
   - ``next_method``: Method name to call when resuming from a deferred state (set when task resumes from a trigger)
   - ``next_kwargs``: Arguments to pass to the ``next_method`` (can be encrypted for sensitive data)
   - ``xcom_keys_to_clear``: List of XCom keys that need to be cleared and purged by the worker

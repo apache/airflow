@@ -28,7 +28,7 @@ storing watermarks in Airflow Variables, which have no asset-level scoping.
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from airflow.sdk import DAG, Asset, task
 
@@ -57,7 +57,7 @@ with DAG(
         records = _fetch_records(since=watermark)
         row_count = len(records)
 
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         state.set("watermark", now)
         state.set("total_runs", state.get("total_runs", default=0) + 1)
         state.set(

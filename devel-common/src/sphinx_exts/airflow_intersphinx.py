@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from provider_yaml_utils import load_package_data
-from sphinx.util.inventory import InventoryFile
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -33,50 +32,12 @@ INVENTORY_FILENAME = "objects.inv"
 
 
 def _inventory_for(package_name: str, versioned: bool) -> Path:
-    """
-    Prefer an inventory written earlier in this run, fall back to the one fetched from the published docs.
-
-    The html builder writes its inventory at the root of the build directory; a spelling-only build
-    writes one into its own output directory (see ``_dump_inventory_after_spelling_build``, the
-    directory name mirrors ``AirflowDocsBuilder.log_spelling_output_dir``).
-    """
+    """Prefer the inventory built earlier in this run, fall back to the one fetched from the published docs."""
     build_dir = GENERATED_PATH / "_build" / "docs" / package_name / ("stable" if versioned else "")
-    built_this_run = (
-        build_dir / INVENTORY_FILENAME,
-        build_dir / f"output-spelling-results-{package_name}" / INVENTORY_FILENAME,
-    )
-    downloaded = GENERATED_PATH / "_inventory_cache" / package_name / INVENTORY_FILENAME
-    return next((inventory for inventory in built_this_run if inventory.exists()), downloaded)
-
-
-class _HtmlTargetUris:
-    """Gives inventory entries the URIs the html build would, so the file is an ordinary inventory."""
-
-    @staticmethod
-    def get_target_uri(docname: str, typ: str | None = None) -> str:
-        return f"{docname}.html"
-
-
-def _dump_inventory_after_spelling_build(app: Sphinx, exception: Exception | None) -> None:
-    """
-    Write ``objects.inv`` after a successful spelling build.
-
-    Cross-references are resolved by every builder, so a ``--spellcheck-only`` run of package B fails
-    on a label that package A added in the same change unless A's fresh inventory is available. Only
-    the html builder writes inventories, which used to force the spellcheck run to rebuild every
-    package a second time with html. Writing the inventory here lets a spellcheck-only run resolve
-    references the same way a docs build does.
-
-    "Successful" means the build ran to completion, not that it passed: under ``-W`` Sphinx (8.1 and
-    9.x) counts warnings and sets a non-zero exit status at the end instead of aborting, so a package
-    with a genuine misspelling or an unresolved reference still reaches this hook with
-    ``exception=None`` and still publishes its complete inventory for the packages that depend on it.
-    Only a build that crashed part-way (``exception`` set) is skipped, because its environment may
-    not hold every document.
-    """
-    if exception is not None or app.builder.name != "spelling":
-        return
-    InventoryFile.dump(os.path.join(app.outdir, INVENTORY_FILENAME), app.env, _HtmlTargetUris())  # type: ignore[arg-type]
+    built_this_run = build_dir / INVENTORY_FILENAME
+    if built_this_run.exists():
+        return built_this_run
+    return GENERATED_PATH / "_inventory_cache" / package_name / INVENTORY_FILENAME
 
 
 def _create_init_py(app, config):
@@ -133,7 +94,6 @@ def _generate_provider_intersphinx_mapping() -> dict[str, tuple[str, tuple[str, 
 def setup(app: Sphinx):
     """Sets the plugin up"""
     app.connect("config-inited", _create_init_py)
-    app.connect("build-finished", _dump_inventory_after_spelling_build)
 
     return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}
 

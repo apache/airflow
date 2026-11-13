@@ -26,7 +26,7 @@ import re
 from collections.abc import Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 from urllib.parse import urlparse
 
 from databricks.sql.utils import ParamEscaper
@@ -42,9 +42,26 @@ from airflow.providers.databricks.utils.query_tags import build_query_tags
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DISALLOWED_SQL_TOKENS = (";", "--", "/*", "*/")
+
+
+class _CopyIntoTarget(NamedTuple):
+    catalog: str | None
+    schema: str | None
+    table: str
+
+
+def _resolve_copy_into_target(table_name: str, *, catalog: str | None, schema: str | None) -> _CopyIntoTarget:
+    """Split a 1, 2, or 3-part ``table_name``, filling missing leading parts from ``catalog`` and ``schema``."""
+    parts = table_name.split(".")
+    if len(parts) == 3:
+        return _CopyIntoTarget(catalog=parts[0], schema=parts[1], table=parts[2])
+    if len(parts) == 2:
+        return _CopyIntoTarget(catalog=catalog, schema=parts[0], table=parts[1])
+    return _CopyIntoTarget(catalog=catalog, schema=schema, table=table_name)
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -484,7 +501,6 @@ class DatabricksCopyIntoOperator(BaseOperator):
                     raise ValueError("expression_list must not contain statement separators or comments.")
 
     def _create_sql_query(self) -> str:
-
         self._validate_sql_fragments()
         escaper = ParamEscaper()
         maybe_with = ""
@@ -582,16 +598,7 @@ FILEFORMAT = {self._file_format}
         from airflow.providers.common.compat.openlineage.facet import Dataset, Error
 
         try:
-            table_parts = self.table_name.split(".")
-            if len(table_parts) == 3:  # catalog.schema.table
-                catalog, schema, table = table_parts
-            elif len(table_parts) == 2:  # schema.table
-                catalog = None
-                schema, table = table_parts
-            else:
-                catalog = None
-                schema = None
-                table = self.table_name
+            catalog, schema, table = _resolve_copy_into_target(self.table_name, catalog=None, schema=None)
 
             hook = self._get_hook()
             schema = schema or hook.get_openlineage_default_schema()  # Fallback to default schema
@@ -655,3 +662,54 @@ FILEFORMAT = {self._file_format}
             job_facets={"sql": SQLJobFacet(query=SQLParser.normalize_sql(self._sql))},
             run_facets=run_facets,
         )
+
+
+class DatabricksCopyIntoAssetOperator(DatabricksCopyIntoOperator):
+    """
+    Run ``COPY INTO`` and declare the target Unity Catalog table as an asset outlet.
+
+    Accepts every :class:`DatabricksCopyIntoOperator` argument. ``table_name`` stays templated.
+    ``unity_table`` is static, so the asset is known when the Dag is parsed.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksCopyIntoAssetOperator`
+
+    :param unity_table: Static identity of the ``COPY INTO`` target table. When ``outlets`` is
+        omitted, the outlets are ``[unity_table.to_asset()]``. When ``outlets`` is passed, including
+        ``outlets=[]``, it is kept as is, so callers that want extra outlets include
+        ``unity_table.to_asset()`` among them. At execution, the rendered ``table_name`` is resolved
+        with ``catalog`` and ``schema`` and must equal ``unity_table``. Otherwise ``ValueError`` is
+        raised and no SQL runs.
+    """
+
+    def __init__(self, *, unity_table: UnityTableIdentity, **kwargs) -> None:
+        if "outlets" not in kwargs:
+            kwargs["outlets"] = [unity_table.to_asset()]
+        super().__init__(**kwargs)
+        self.unity_table = unity_table
+
+    def execute(self, context: Context) -> Any:
+        expected = _CopyIntoTarget(
+            catalog=self.unity_table.catalog, schema=self.unity_table.schema, table=self.unity_table.table
+        )
+        target = _resolve_copy_into_target(self.table_name, catalog=self._catalog, schema=self._schema)
+        normalized_target = _CopyIntoTarget(
+            catalog=target.catalog.lower() if target.catalog is not None else None,
+            schema=target.schema.lower() if target.schema is not None else None,
+            table=target.table.lower(),
+        )
+        if normalized_target != expected:
+            raise ValueError(
+                f"COPY INTO target {target._asdict()} resolved from table_name={self.table_name!r}, "
+                f"catalog={self._catalog!r}, schema={self._schema!r} does not match "
+                f"unity_table {expected._asdict()}."
+            )
+
+        hook = self._get_hook()
+        if (hook.host or "").lower() != self.unity_table.host:
+            raise ValueError(
+                f"Databricks connection host {hook.host!r} does not match "
+                f"unity_table host {self.unity_table.host!r}."
+            )
+        return super().execute(context)

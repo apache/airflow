@@ -17,23 +17,32 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import airflow.models.xcom
+from airflow.providers.common.io.xcom import backend as xcom_backend
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils import db
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+    XCOM_RETURN_KEY,
+)
 
 pytestmark = [pytest.mark.db_test]
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.sdk.bases.xcom import XComCoordinate
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel
     from airflow.sdk import ObjectStoragePath
@@ -139,7 +148,16 @@ class TestXComObjectStorageBackend:
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                res = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 res = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -190,7 +208,16 @@ class TestXComObjectStorageBackend:
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
         if AIRFLOW_V_3_0_PLUS:
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                value = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 value = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -250,7 +277,16 @@ class TestXComObjectStorageBackend:
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                res = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 res = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -313,7 +349,16 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 map_index=task_instance.map_index,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                value = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 value = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -350,6 +395,57 @@ class TestXComObjectStorageBackend:
         assert p.exists() is False
         assert not value
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
+    @conf_vars({("common.io", "xcom_objectstorage_compression"): ""})
+    @pytest.mark.parametrize("key", ["a/key", "k" * 300, ".", "report.gz", "data.zip"])
+    @pytest.mark.parametrize("ti_id", [uuid.uuid4(), None], ids=["own-push", "another-tasks-xcom"])
+    def test_store_value_writes_a_path_for_the_task_instance_or_for_the_write(self, ti_id, key):
+        value = {"key": "bigvaluebigvaluebigvalue" * 100}
+        coordinate = XComCoordinate("dag", "run", "task", ti_id)
+
+        stored = XComObjectStorageBackend.store_value(coordinate, key, value)
+        again = XComObjectStorageBackend.store_value(coordinate, key, value)
+
+        assert stored.startswith(f"{self.path}/dag/run/task/{'ti' if ti_id else 'write'}-")
+        assert (stored == again) == (ti_id is not None)
+        assert XComObjectStorageBackend.load_value(stored) == value
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
+    @conf_vars({("common.io", "xcom_objectstorage_compression"): ""})
+    def test_store_value_keeps_a_small_value_in_the_database(self, tmp_path):
+        coordinate = XComCoordinate("dag", "run", "task", uuid.uuid4())
+
+        stored = XComObjectStorageBackend.store_value(coordinate, "key", "small")
+
+        assert stored == "small"
+        assert XComObjectStorageBackend.load_value(stored) == "small"
+        assert not list((tmp_path / "xcom").iterdir())
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
+    @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})
+    def test_store_value_appends_the_compression_suffix(self):
+        value = {"key": "bigvaluebigvaluebigvalue" * 100}
+        coordinate = XComCoordinate("dag", "run", "task", uuid.uuid4())
+
+        stored = XComObjectStorageBackend.store_value(coordinate, "key", value)
+
+        assert stored.endswith("/key.json.gz")
+        assert XComObjectStorageBackend.load_value(stored) == value
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
+    @conf_vars({("common.io", "xcom_objectstorage_compression"): ""})
+    def test_store_value_shortens_the_path_to_fit_the_key_limit(self, monkeypatch):
+        value = {"key": "bigvaluebigvaluebigvalue" * 100}
+        base = str(xcom_backend._get_base_path())
+        monkeypatch.setattr(xcom_backend, "_MAX_PATH_LENGTH", len(base.encode()) + 1 + 200)
+        coordinate = XComCoordinate("d" * 250, "r" * 250, "t" * 250, uuid.uuid4())
+
+        stored = XComObjectStorageBackend.store_value(coordinate, "key", value)
+
+        assert len(stored.removeprefix(f"{base}/").encode()) <= 200
+        assert stored.endswith(f"/ti-{coordinate.ti_id}/key.json")
+        assert XComObjectStorageBackend.load_value(stored) == value
+
     @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})
     def test_compression(self, task_instance, session, mock_supervisor_comms):
         session.add(task_instance)
@@ -374,7 +470,16 @@ class TestXComObjectStorageBackend:
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                res = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 res = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,

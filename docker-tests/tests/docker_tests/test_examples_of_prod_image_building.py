@@ -53,6 +53,8 @@ def get_latest_airflow_image():
 )
 @pytest.mark.parametrize("script_file", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/*.sh", recursive=True))
 def test_shell_script_example(script_file):
+    # The examples build on the floating base image tag unless BASE_IMAGE is set - set it to the pinned
+    # image (`breeze` builds use it) to build them on the base the CI passed on.
     run_command(["bash", script_file])
 
 

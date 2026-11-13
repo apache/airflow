@@ -70,6 +70,27 @@ class TestDagRunTrigger:
         assert dag_run.logical_date == logical_date
         assert dag_run.run_type == DagRunType.OPERATOR_TRIGGERED
 
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": [{"__type": "datetime", "__var": 0.0}]}),
+        ],
+    )
+    def test_trigger_dag_run_rejects_reserved_conf_keys(self, client, session, dag_maker, key, conf):
+        dag_id = "test_trigger_dag_run_reserved_conf"
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        response = client.post(f"/execution/dag-runs/{dag_id}/test_run_id", json={"conf": conf})
+
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all() == []
+
     def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
         """partition_key accepted when Dag uses a partitioned timetable (happy-path guard)."""
         dag_id = "test_trigger_dag_run_partition_key"

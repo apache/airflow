@@ -429,6 +429,22 @@ You can read more about executors and how to write your own in :doc:`core-concep
   of people did, but there were some hard-coded behaviours that preferred in-built
   executors, and custom executors could not provide full functionality that built-in executors had.
 
+Dag Importers
+-------------
+
+|experimental|
+
+Dag importers turn the contents of a Dag bundle into Dags, which lets Airflow load Dags from formats other
+than Python files. All Dag importers derive from :class:`~airflow.sdk.importers.AbstractDagImporter`.
+
+The importer interface, as listed in the :doc:`Task SDK API reference <task-sdk:api>`, is public, but it may
+still change in a minor release while it is being stabilized.
+
+You can read more about Dag importers and how to write your own in
+:doc:`administration-and-deployment/dag-importers`.
+
+.. versionadded:: 3.4.0
+
 Secrets Backends
 ----------------
 
@@ -556,7 +572,10 @@ of the following alternatives:
 * **Task Context**: Use :func:`~airflow.sdk.get_current_context` to access task instance
   information and methods like :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_dr_count`,
   :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_dagrun_state`, and
-  :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_task_states`.
+  :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_task_states`. To update the note for
+  the current Dag run at runtime, use
+  :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.update_dagrun_note` instead of writing
+  directly to ``DagRun.note`` in the metadata database.
 
 * **REST API**: Use the :doc:`Stable REST API <stable-rest-api-ref>` for programmatic
   access to Airflow metadata.

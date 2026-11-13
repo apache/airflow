@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -45,7 +46,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.api_fastapi.common.types import CliLoginMethods, ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
@@ -53,7 +54,6 @@ from airflow.models.asset import AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
-from airflow.typing_compat import Unpack
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -163,7 +163,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        # A synchronous DB lookup, kept off the event loop
+        if (jti := payload.get("jti")) and await run_in_threadpool(RevokedToken.is_revoked, jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:
@@ -183,6 +184,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         method.
         """
         return []
+
+    def get_jwt_refresh_middleware(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return the JWTRefreshMiddleware to refresh the Airflow JWT token.
+
+        Middlewares added by this method will be initialised before middleware from
+        ``get_fastapi_middlewares()``. To disable JWT refresh return an empty list.
+        To add more middleware, simply add more tuples here in the same format as
+        ``get_fastapi_middlewares()``.
+        """
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+        from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
+
+        return [(JWTRefreshMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
@@ -221,6 +236,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session.
         """
         return None
+
+    def get_cli_login_methods(self) -> CliLoginMethods:
+        """
+        Return the login methods offered to command-line clients such as airflowctl.
+
+        Clients read them before logging in, so they can tell which flows the server supports.
+        By default, no method is advertised.
+        """
+        return CliLoginMethods()
 
     def refresh_user(self, *, user: T) -> T | None:
         """
@@ -718,7 +742,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
         )
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-        rows: Sequence[Row[Unpack[tuple[str, str]]]] = session.execute(stmt).all()  # type: ignore[type-arg]
+        rows: Sequence[Row[*tuple[str, str]]] = session.execute(stmt).all()  # type: ignore[type-arg]
         dags_by_team: dict[str, set[str]] = defaultdict(set)
         for dag_id, team_name in rows:
             dags_by_team[team_name].add(dag_id)
@@ -787,7 +811,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
-            pools_by_team[team_name].add(pool_name)
+            if pool_name is not None:
+                pools_by_team[team_name].add(pool_name)
 
         pool_names: set[str] = set()
         for team_name, team_pool_names in pools_by_team.items():

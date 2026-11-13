@@ -59,11 +59,7 @@ export const getDefaultFilterValue = (config: FilterConfig): FilterValue => {
     return { endDate: undefined, startDate: undefined };
   }
 
-  if (config.type === "multiselect") {
-    return [];
-  }
-
-  return "";
+  return config.type === "multiselect" ? [] : "";
 };
 
 export const parseFilterDate = (date?: string | null) =>

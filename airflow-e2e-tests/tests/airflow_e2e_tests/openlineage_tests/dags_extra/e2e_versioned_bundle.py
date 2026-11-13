@@ -53,10 +53,10 @@ class MockVersionedLocalDagBundle(LocalDagBundle):
             digest.update(str(dag_file.stat().st_size).encode())
         version = digest.hexdigest()[:12]
         try:
-            # Preferred on newer cores; bare str is deprecated for versioned bundles.
+            # Preferred on newer Airflow versions; bare str is deprecated for versioned bundles.
             from airflow.dag_processing.bundles.base import BundleVersion
 
             return BundleVersion(version=version)
         except ImportError:
-            # Older Airflow cores (compat runs) predate BundleVersion — a bare string still works.
+            # Older Airflow versions (compat runs) predate BundleVersion — a bare string still works.
             return version

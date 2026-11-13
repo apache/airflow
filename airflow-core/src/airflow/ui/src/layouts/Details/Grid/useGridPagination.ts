@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { GridRunsResponse } from "openapi/requests";
+import { useParams } from "react-router-dom";
 
-import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { useDagServiceGetLatestRunInfo } from "openapi/queries";
+import type { GridRunsResponse } from "openapi/requests";
 
 type Params = {
   gridRuns: Array<GridRunsResponse> | undefined;
@@ -65,10 +66,11 @@ export const computePaginationState = ({
  * handlers that advance the offset in either direction.
  */
 export const useGridPagination = ({ gridRuns, limit, offset, setOffset }: Params): Result => {
-  // Fetch only the latest run (no filters) so we can tell whether it is
-  // already visible in the current grid window.
-  const { data: latestRuns } = useGridRuns({ limit: 1 });
-  const latestRunId = latestRuns?.[0]?.run_id;
+  const { dagId = "" } = useParams();
+  const { data: latestRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
+    enabled: Boolean(dagId),
+  });
+  const latestRunId = latestRun?.run_id;
 
   return {
     ...computePaginationState({ gridRuns, latestRunId, limit, offset }),

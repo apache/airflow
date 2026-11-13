@@ -37,8 +37,9 @@ from airflow.api_fastapi.common.parameters.search import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
-from airflow.models.hitl import HITLDetail
+from airflow.models.hitl import HITLDetail, awaiting_response_clause
 from airflow.models.pool import Pool
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.utils.state import TaskInstanceState
@@ -54,17 +55,11 @@ class _PendingActionsFilter(BaseParam[bool]):
         if self.value is None and self.skip_none:
             return select
 
-        from airflow.models.hitl import HITLDetail
-        from airflow.models.taskinstance import TaskInstance
-
         # Join with HITLDetail and TaskInstance to find Dags
         pending_actions_count_subquery = (
             sql_select(func.count(HITLDetail.ti_id))
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(
-                HITLDetail.responded_at.is_(None),
-                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
-            )
+            .where(HITLDetail.responded_at.is_(None), awaiting_response_clause())
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
         )
@@ -84,6 +79,33 @@ class _PendingActionsFilter(BaseParam[bool]):
 
 
 QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
+
+
+class _IsAliveFilter(BaseParam[bool]):
+    """Filter jobs by liveness, resolved in SQL so it agrees with pagination counts."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        from sqlalchemy import case
+
+        from airflow.jobs.job import Job
+
+        # The case wraps the result so it is always True/False (never NULL), keeping the negated
+        # is_alive=False query exact.
+        alive = case(
+            (Job.is_alive_clause(("SchedulerJob", "TriggererJob", "DagProcessorJob")), True),
+            else_=False,
+        )
+        return select.where(alive if self.value else ~alive)
+
+    @classmethod
+    def depends(cls, is_alive: bool | None = Query(None)) -> _IsAliveFilter:
+        return cls().set_value(is_alive)
+
+
+QueryJobIsAliveFilter = Annotated[_IsAliveFilter, Depends(_IsAliveFilter.depends)]
 
 
 # Variables
@@ -202,7 +224,7 @@ QueryHITLDetailMapIndexFilter = Annotated[
     FilterParam[int | None],
     Depends(
         filter_param_factory(
-            TaskInstance.map_index,
+            public_map_index_expression(TaskInstance),
             int | None,
             filter_name="map_index",
         )

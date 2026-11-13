@@ -23,7 +23,10 @@ import json
 import logging
 import re
 import ssl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
 from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
@@ -87,7 +90,9 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
             log.warning(
                 "No visibility_timeout configured in [celery_broker_transport_options]. "
                 "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
-                "will be redelivered by the broker, which terminates the original task. "
+                "will be redelivered by the broker. On Airflow 3.2.0 and newer the redelivered "
+                "message is discarded and the original task keeps running; on earlier versions the "
+                "redelivery terminates the original task. "
                 "If you have long-running tasks, increase this value in your Airflow configuration: "
                 "[celery_broker_transport_options] visibility_timeout = <seconds>"
             )
@@ -110,6 +115,23 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
                     f"Broker transport option {option} value should be written in the correct JSON format."
                 ) from exc
     return broker_transport_options
+
+
+def _get_database_engine_options(result_backend: str, options: dict[str, Any]) -> dict[str, Any]:
+    if not result_backend.startswith("db+"):
+        return options
+    try:
+        driver = make_url(result_backend.removeprefix("db+")).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Defer invalid or unavailable dialects to Celery's backend initialization.
+        return options
+    if driver != "psycopg":
+        return options
+    # Celery creates its own engines, so metadata-engine defaults do not protect transaction poolers.
+    return {
+        **options,
+        "connect_args": {"prepare_threshold": None, **options.get("connect_args", {})},
+    }
 
 
 def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
@@ -177,8 +199,12 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
         ),
         "result_backend": result_backend,
         "result_backend_transport_options": result_backend_transport_options,
-        "database_engine_options": team_conf.getjson(
-            "celery", "result_backend_sqlalchemy_engine_options", fallback={}
+        "database_engine_options": _get_database_engine_options(
+            result_backend,
+            cast(
+                "dict[str, Any]",
+                team_conf.getjson("celery", "result_backend_sqlalchemy_engine_options", fallback={}),
+            ),
         ),
         "worker_concurrency": team_conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
         "worker_enable_remote_control": team_conf.getboolean(

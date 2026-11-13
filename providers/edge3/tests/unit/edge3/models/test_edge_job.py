@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -90,15 +90,15 @@ def test_build_job_key_keeps_task_key_unless_full_callback_identity(dag_id, run_
     assert key == TaskInstanceKey(dag_id, "abc", run_id, try_number, map_index)
 
 
-@time_machine.travel(datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC), tick=False)
 def test_queued_dttm_defaults_to_now():
     job = _make_job()
 
-    assert job.queued_dttm == datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+    assert job.queued_dttm == datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def test_queued_dttm_explicit_value_is_kept():
-    queued = datetime(2025, 6, 1, 8, 30, 0, tzinfo=dt_timezone.utc)
+    queued = datetime(2025, 6, 1, 8, 30, 0, tzinfo=UTC)
 
     job = _make_job(queued_dttm=queued)
 
@@ -106,14 +106,14 @@ def test_queued_dttm_explicit_value_is_kept():
 
 
 def test_last_update_t_returns_timestamp_of_last_update():
-    last_update = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+    last_update = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
     job = _make_job(last_update=last_update)
 
     assert job.last_update_t == last_update.timestamp()
 
 
-@time_machine.travel(datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC), tick=False)
 def test_last_update_t_falls_back_to_now_when_unset():
     job = _make_job()
 
@@ -128,7 +128,7 @@ class TestEdgeJobModelPersistence:
         session.commit()
 
     def test_round_trip(self, session: Session):
-        queued = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        queued = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         session.add(
             _make_job(
                 queued_dttm=queued,

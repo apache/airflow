@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Path
 from pydantic import BaseModel, Field
@@ -39,6 +40,9 @@ class WorkerApiDocs:
         description="For dynamically mapped tasks the mapping number, -1 if the task is not mapped.",
     )
     state = Path(title="Task State", description="State of the assigned task under execution.")
+    task_instance_id_description = (
+        "Attempt UUID of the job; tells apart task instances that share the other key fields."
+    )
 
 
 class EdgeJobBase(BaseModel):
@@ -76,6 +80,9 @@ class EdgeJobFetched(EdgeJobBase):
         ),
     ]
     concurrency_slots: Annotated[int, Field(description="Number of concurrency slots the job requires.")]
+    task_instance_id: UUID | None = Field(
+        default=None, description="Attempt UUID required when reporting this job's state."
+    )
 
     @property
     def identifier(self) -> str:
@@ -119,6 +126,9 @@ class WorkerQueuesBody(WorkerQueuesBase):
     """Queues that a worker supports to run jobs on."""
 
     free_concurrency: Annotated[int, Field(description="Number of free concurrency slots on the worker.")]
+    supports_task_instance_uuid: bool = Field(
+        default=False, description="Whether the worker reports task-instance UUIDs when updating jobs."
+    )
 
 
 class WorkerStateBody(WorkerQueuesBase):
@@ -171,6 +181,10 @@ class PushLogsBody(BaseModel):
 
     log_chunk_time: Annotated[datetime, Field(description="Time of the log chunk at point of sending.")]
     log_chunk_data: Annotated[str, Field(description="Log chunk data as incremental log text.")]
+    task_instance_id: Annotated[
+        UUID | None,
+        Field(description=WorkerApiDocs.task_instance_id_description),
+    ] = None
 
 
 class WorkerRegistrationReturn(BaseModel):

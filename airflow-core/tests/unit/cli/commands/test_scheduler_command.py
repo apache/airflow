@@ -194,3 +194,41 @@ class TestSchedulerCommand:
         call_kwargs = mock_scheduler_job.call_args[1]
         assert call_kwargs["only_idle"] is True
         assert call_kwargs["num_runs"] == 5
+
+    @conf_vars({("scheduler", "only_idle"): "True"})
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_only_idle_from_config_does_not_block_startup(self, mock_process, mock_scheduler_job, caplog):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler"])
+        assert args.num_runs <= 0
+
+        scheduler_command.scheduler(args)
+
+        assert mock_scheduler_job.call_args[1]["only_idle"] is True
+        assert (
+            "`[scheduler] only_idle` is enabled but has no effect because the run limit is not a "
+            "positive number; set --num-runs or `[scheduler] num_runs` to a positive number." in caplog
+        )
+
+    @conf_vars({("scheduler", "only_idle"): "True"})
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_no_only_idle_overrides_config(self, mock_process, mock_scheduler_job):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler", "--no-only-idle"])
+
+        scheduler_command.scheduler(args)
+
+        assert mock_scheduler_job.call_args[1]["only_idle"] is False
+
+    @conf_vars({("scheduler", "only_idle"): "True"})
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_only_idle_from_config_reaches_job_runner(self, mock_process, mock_scheduler_job):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler", "-n", "5"])
+
+        scheduler_command.scheduler(args)
+
+        assert mock_scheduler_job.call_args[1]["only_idle"] is True

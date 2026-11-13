@@ -104,6 +104,26 @@ class TestAnalyticsDecoratedOperator:
         "airflow.providers.common.sql.operators.analytics.AnalyticsOperator.execute",
         autospec=True,
     )
+    def test_execute_renders_only_the_returned_queries(self, mock_execute):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        op = _AnalyticsDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "SELECT * FROM {{ table }}",
+            datasource_configs=DATASOURCE_CONFIGS,
+            result_output_format="{{ output_format }}",
+        )
+        context = {"table": "users_data", "output_format": "{{ other }}", "other": "rendered twice"}
+
+        op.render_template_fields(context)
+        op.execute(context=context)
+
+        assert op.queries == ["SELECT * FROM users_data"]
+        assert op.result_output_format == "{{ other }}"
+
+    @patch(
+        "airflow.providers.common.sql.operators.analytics.AnalyticsOperator.execute",
+        autospec=True,
+    )
     def test_execute_merges_op_kwargs_into_callable(self, mock_execute):
         """op_kwargs are forwarded to the callable to build queries."""
         mock_execute.return_value = "mocked output"

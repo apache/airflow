@@ -36,12 +36,12 @@ package org.apache.airflow.sdk
  *   public double threshold; // binds threshold
  * }
  *
- * @Builder.TaskHandler(dag = "etl", task = "score")
+ * @Airflow.TaskHandler(dag = "etl", task = "score")
  * public Result score(Client client, ScoreInput input) { ... }
  * ```
  *
  * A `TaskInput` binds the same way whichever authoring API declares it: as a
- * `@Builder.TaskHandler` parameter, as above, or as the input type of an
+ * `@Airflow.TaskHandler` parameter, as above, or as the input type of an
  * [InputTask]. A task method may declare at most one `TaskInput` parameter
  * and, if it does, no other data parameters — the `TaskInput` owns the whole named-argument
  * surface, so field names and flat positions cannot shift each other.

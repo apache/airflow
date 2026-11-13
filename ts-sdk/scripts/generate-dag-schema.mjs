@@ -22,7 +22,7 @@
 //
 // Reads the vendored Dag serialization schema (`schema/dag-schema.json`, kept
 // in sync with `airflow-core/src/airflow/serialization/schema.json` by the
-// `sync-ts-sdk-dag-schema` prek hook) and emits
+// `sync-ts-sdk-schemas` prek hook) and emits
 // `src/generated/dag-schema-fields.ts`: the two field interfaces plus the
 // table of schema keys and defaults the serializer needs.
 //
@@ -104,6 +104,8 @@ export const EXCLUDED_TASK_FIELDS = {
   is_setup: "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
   is_teardown: "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
   on_failure_fail_dagrun: "only valid on teardown tasks, which the SDK does not model yet",
+  returns_dag_result:
+    "the SDK does not send dag_result on the return-value XCom push, so the flag would do nothing",
 };
 
 /**

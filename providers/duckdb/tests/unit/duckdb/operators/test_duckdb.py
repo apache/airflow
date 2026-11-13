@@ -38,14 +38,43 @@ class TestDuckDBExecuteQueryOperator:
         assert isinstance(hook, DuckDBHook)
         assert hook.get_conn_id() == DuckDBHook.default_conn_name
 
-    def test_get_db_hook_bypasses_the_connection_lookup(self):
-        """The whole point of the override: no Airflow connection row is required."""
+    def test_a_missing_connection_falls_back_to_a_plain_hook(self):
+        """No Airflow connection row is required: DuckDB is useful with no configuration at all."""
         operator = DuckDBExecuteQueryOperator(
             task_id="t", sql="SELECT 1", conn_id=DuckDBHook.default_conn_name
         )
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
             hook = operator.get_db_hook()
             assert hook.get_database() == ":memory:"
+
+    def test_connection_type_selects_the_hook(self):
+        """
+        The connection's type chooses the hook class.
+
+        This is what lets another provider ship a DuckDB connection type with extra behaviour, so a
+        Dag moves between environments by changing connection rather than by changing operator.
+        """
+
+        class _CloudDuckDBHook(DuckDBHook):
+            pass
+
+        connection = mock.Mock(conn_type="duckdb_cloud")
+        connection.get_hook.return_value = _CloudDuckDBHook()
+        operator = DuckDBExecuteQueryOperator(task_id="t", sql="SELECT 1", conn_id="cloud")
+        with mock.patch(GET_CONNECTION, return_value=connection):
+            hook = operator.get_db_hook()
+
+        assert isinstance(hook, _CloudDuckDBHook)
+        connection.get_hook.assert_called_once_with(hook_params={})
+
+    def test_a_connection_that_is_not_duckdb_raises(self):
+        """Resolving by connection type means a wrong type would otherwise return a foreign hook."""
+        connection = mock.Mock(conn_type="postgres")
+        connection.get_hook.return_value = object()
+        operator = DuckDBExecuteQueryOperator(task_id="t", sql="SELECT 1", conn_id="pg")
+        with mock.patch(GET_CONNECTION, return_value=connection):
+            with pytest.raises(ValueError, match="needs a DuckDB connection type"):
+                operator.get_db_hook()
 
     def test_hook_params_are_forwarded_to_the_hook(self):
         operator = DuckDBExecuteQueryOperator(

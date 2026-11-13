@@ -84,14 +84,14 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
 
 
 Debugging Airflow Dags on the command line
-==========================================
+------------------------------------------
 
 With the same two line addition as mentioned in the above section, you can now easily debug a Dag using pdb as well.
 Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experience on the command line.
 
 .. code-block:: bash
 
-  [Breeze:3.10.19] root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
+  [Breeze:3.11.16] root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
   > /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py(18)<module>()
   -> """Example Dag demonstrating the usage of the BashOperator."""
   (Pdb) b 45

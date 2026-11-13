@@ -274,10 +274,16 @@ class TestResolveVersionData:
         ("dag_version", "bundle_version", "expected"),
         [
             pytest.param(
-                mock.Mock(version_data={"schema_version": 1}),
+                mock.Mock(bundle_version="abc123", version_data={"schema_version": 1}),
                 "abc123",
                 {"schema_version": 1},
                 id="pinned-with-data",
+            ),
+            pytest.param(
+                mock.Mock(bundle_version="def456", version_data={"schema_version": 1}),
+                "abc123",
+                None,
+                id="pinned-to-overwritten-bundle-version",
             ),
             pytest.param(
                 mock.Mock(version_data={"schema_version": 1}),
@@ -307,7 +313,7 @@ class TestDagVersionGetDiff:
                     EmptyOperator(task_id=f"task{task_number + 1}")
             dag_maker.create_dagrun(
                 run_id=f"run{version_number}",
-                logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+                logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.UTC),
                 session=session,
             )
             session.commit()
@@ -344,7 +350,7 @@ class TestDagVersionGetDiff:
                     for task_number in range(version_number):
                         EmptyOperator(task_id=f"task{task_number + 1}")
                 scheduler_dag = sync_dag_to_db(dag, bundle_name=bundle_name, session=session)
-                logical_date = datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc)
+                logical_date = datetime.datetime(2020, 1, version_number, tzinfo=datetime.UTC)
                 scheduler_dag.create_dagrun(
                     run_id=f"run{version_number}",
                     run_after=logical_date,

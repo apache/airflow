@@ -21,6 +21,7 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - main
+      - v3-4-test
       - v3-3-test
       - v3-2-test
       - v3-1-test
@@ -35,6 +36,7 @@ permissions:
 jobs:
   get-pr-info:
     name: "Get PR information"
+    if: github.repository == 'apache/airflow'
     runs-on: ubuntu-slim
     outputs:
       should-run: ${{ steps.pr-info.outputs.should-run }}

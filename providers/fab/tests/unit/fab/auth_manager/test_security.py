@@ -55,6 +55,7 @@ from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.override import (
+    DagAccessControlValidationError,
     FabAirflowSecurityManagerOverride,
     FabException,
 )
@@ -866,7 +867,7 @@ def test_has_all_dag_access(app, security_manager):
 
 
 def test_access_control_with_non_existent_role(security_manager):
-    with pytest.raises(FabException) as ctx:
+    with pytest.raises(DagAccessControlValidationError) as ctx:
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
@@ -874,10 +875,12 @@ def test_access_control_with_non_existent_role(security_manager):
             },
         )
     assert "role does not exist" in str(ctx.value)
+    assert isinstance(ctx.value, FabException)
+    assert isinstance(ctx.value, ValueError)
 
 
 def test_access_control_with_non_allowed_resource(security_manager):
-    with pytest.raises(FabException) as ctx:
+    with pytest.raises(DagAccessControlValidationError) as ctx:
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
@@ -908,11 +911,14 @@ def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
             )
 
 
-def test_access_control_with_invalid_permission(app, security_manager):
-    invalid_actions = [
+@pytest.mark.parametrize(
+    "action",
+    [
         "can_varimport",  # a real action, but not a member of DAG_ACTIONS
         "can_eat_pudding",  # clearly not a real action
-    ]
+    ],
+)
+def test_access_control_with_invalid_permission(app, security_manager, action):
     username = "LaUser"
     rolename = "team-a"
     with create_user_scope(
@@ -920,18 +926,17 @@ def test_access_control_with_invalid_permission(app, security_manager):
         username=username,
         role_name=rolename,
     ):
-        for action in invalid_actions:
-            with pytest.raises(FabException) as ctx:
-                security_manager._sync_dag_view_permissions(
-                    "access_control_test",
-                    access_control={rolename: {action}},
-                )
-            assert "invalid permissions" in str(ctx.value)
-            if hasattr(permissions, "resource_name"):
-                assert "invalid permission" in str(ctx.value)
-            else:
-                # Test with old airflow running new FAB
-                assert "invalid resource name" in str(ctx.value)
+        with pytest.raises(DagAccessControlValidationError) as ctx:
+            security_manager._sync_dag_view_permissions(
+                "access_control_test",
+                access_control={rolename: {action}},
+            )
+        assert "invalid permissions" in str(ctx.value)
+        if hasattr(permissions, "resource_name"):
+            assert "invalid permission" in str(ctx.value)
+        else:
+            # Test with old airflow running new FAB
+            assert "invalid resource name" in str(ctx.value)
 
 
 def test_access_control_is_set_on_init(

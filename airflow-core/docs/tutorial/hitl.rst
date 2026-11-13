@@ -125,6 +125,34 @@ As you can see in the body of this code snippet, you can use XComs to get inform
 
 |
 
+Formatting the body
+-------------------
+
+The ``body`` of every HITL operator is rendered as Markdown in the UI.
+In Markdown, a single line break inside a paragraph is displayed as a space, so a multi-line value such as a
+templated XCom shows up on one line.
+To keep the line breaks, wrap the value in a fenced code block, or separate the lines with blank lines.
+
+.. code-block:: python
+
+    ApprovalOperator(
+        task_id="confirm_deletion",
+        subject="Should the following files be deleted?",
+        body="""Dry-run result:
+
+    ```
+    {{ ti.xcom_pull(task_ids='dry_run') }}
+    ```
+    """,
+    )
+
+.. versionchanged:: 3.4
+
+   Code blocks in the body keep their line breaks. On earlier versions, lines inside a code block are
+   also joined, so separate them with blank lines instead.
+
+|
+
 Branch Selection
 ----------------
 
@@ -219,7 +247,11 @@ calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
     # Submit the response; the test run resumes the task on its next poll.
     # map_index is -1 for non-mapped tasks.
     PATCH /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails
-    {"chosen_options": ["Approve"], "params_input": {}}
+    {"chosen_options": ["Approve"], "params_input": {}, "request_created_at": "<created_at from the GET>"}
+
+``request_created_at`` is optional. Copy it unchanged from the request you read: if the task asked
+again in the meantime (a retry, a clear, or an operator that pauses more than once in one run), the
+answer is refused with ``409`` instead of being applied to a request you did not read.
 
 .. note::
 

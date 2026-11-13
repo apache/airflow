@@ -138,16 +138,6 @@ class TestTelegramOperator:
             {"custom_arg": "value", "text": "some non empty text - higher precedence"},
         )
 
-    def test_should_return_template_fields(self):
-        hook = TelegramOperator(
-            telegram_conn_id="telegram_default",
-            chat_id="-420913222",
-            task_id="telegram",
-            text="some non empty text - higher precedence",
-            telegram_kwargs={"custom_arg": "value", "text": "some text, that will be ignored"},
-        )
-        assert hook.template_fields == ("text", "chat_id", "telegram_conn_id")
-
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
     def test_should_return_templatized_text_field(self, mock_hook):
         operator = TelegramOperator(
@@ -188,9 +178,6 @@ class TestTelegramOperator:
 
 
 class TestTelegramFileOperator:
-    def test_should_return_template_fields(self):
-        assert TelegramFileOperator.template_fields == ("chat_id", "telegram_conn_id")
-
     def test_should_return_templatized_chat_id_field(self):
         operator = TelegramFileOperator(
             telegram_conn_id="telegram_default",

@@ -20,6 +20,11 @@
 Load documents: ``DocumentLoaderOperator``
 ==========================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
 to parse files into ``list[dict(text, metadata)]`` for downstream embedding
 pipelines. The operator bridges Airflow's connectivity layer (hooks that

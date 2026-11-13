@@ -272,6 +272,20 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "client_factory": {
+                        "description": "Import path of a callable returning the ``kubernetes.client.CoreV1Api`` the executor\nshould use, for deployments that mint their own credentials. If the callable takes a\n``team_name`` argument, it is called with the executor's team (``None`` for an executor\nwith no team); otherwise it is called with no arguments. When set it replaces the\ndefault client construction entirely, so ``in_cluster``, ``cluster_context``,\n``config_file``, ``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and\n``api_client_retry_configuration`` no longer apply. It is resolved in every process that\nneeds a client, including the pod watcher subprocess, so it must be importable on the\nscheduler and the API server. Each process keeps the returned client, so it has to\nrefresh its own credentials.\n",
+                        "version_added": "10.24.0",
+                        "type": "string",
+                        "example": "my_company.kubernetes.build_client",
+                        "default": None,
+                    },
+                    "async_client_factory": {
+                        "description": "Import path of a callable returning the ``kubernetes_asyncio.client.CoreV1Api`` used for\nconcurrent pod creation, called the same way as ``client_factory``. Required when\n``client_factory`` is set and ``async_pod_creation`` is enabled, so that both clients\ncarry the same credentials; the executor refuses to start without it.\n",
+                        "version_added": "10.24.0",
+                        "type": "string",
+                        "example": "my_company.kubernetes.build_async_client",
+                        "default": None,
+                    },
                     "kube_client_request_args": {
                         "description": "Keyword parameters to pass while calling a kubernetes client core_v1_api methods\nfrom Kubernetes Executor provided as a single line formatted JSON dictionary string.\nList of supported params are similar for all core_v1_apis, hence a single config\nvariable for all apis. See:\nhttps://raw.githubusercontent.com/kubernetes-client/python/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/api/core_v1_api.py\n",
                         "version_added": None,

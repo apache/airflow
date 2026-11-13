@@ -22,7 +22,7 @@ import abc
 import builtins
 import json
 import types
-from dataclasses import fields
+from dataclasses import MISSING, fields
 from unittest.mock import patch
 
 import pytest
@@ -38,6 +38,7 @@ from extract_parameters import (
     get_category,
     is_durable_capable,
     load_resumable_job_mixin,
+    read_guide_docs,
     supports_deferrable,
 )
 
@@ -382,6 +383,27 @@ class TestIsDurableCapable:
 
         assert is_durable_capable(CommentedNonDelegatingSubclass, FakeResumableJobMixin) is False
 
+    def test_mentioning_execute_resumable_is_not_mistaken_for_a_call(self):
+        """Only a real `execute_resumable()` call counts: a whole-line comment, a trailing
+        comment or a docstring naming it would otherwise report the subclass capable."""
+
+        class WholeLineComment(FullyImplementedResumableOperator):
+            def execute(self, context):
+                # this path deliberately skips execute_resumable(context)
+                return None
+
+        class TrailingComment(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return None  # deliberately skips execute_resumable(context)
+
+        class Docstring(FullyImplementedResumableOperator):
+            def execute(self, context):
+                """Deliberately skips execute_resumable()."""
+                return None
+
+        for operator_cls in (WholeLineComment, TrailingComment, Docstring):
+            assert is_durable_capable(operator_cls, FakeResumableJobMixin) is False, operator_cls.__name__
+
     def test_non_class_execute_call_does_not_shadow_real_delegation(self):
         """A local name that is not a class in the MRO (e.g. a DB cursor) is skipped rather
         than dead-ending the walk before the real delegation below it."""
@@ -618,6 +640,70 @@ def _wrap_in_foreign_module(func):
     return foreign.__dict__["wrapper"]
 
 
+class GrandparentCallingOverridableHelper:
+    """Its execute() dispatches to a helper a subclass is free to replace."""
+
+    def execute(self, context):
+        return self.run_job(context)
+
+    def run_job(self, context):
+        return None
+
+
+class MiddleDelegatingToSuperExecute(GrandparentCallingOverridableHelper):
+    def execute(self, context):
+        return super().execute(context)
+
+
+class SubclassOverridingHelperToDefer(MiddleDelegatingToSuperExecute):
+    """Only the subclass's copy of `run_job` defers, and the call to it lives two hops up
+    the chain. Resolving `self.<name>()` against the class the hop landed on instead of the
+    class being asked about finds the grandparent's inert copy and reports not deferrable.
+    """
+
+    def run_job(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class SharedHelperReachedAtTwoBudgets:
+    """`check_state` is reached twice: once down the long leg with too little depth budget
+    left to walk out to the defer, and once straight from execute() with budget to spare.
+    A `visited` key without the remaining depth in it skips the second visit and reports
+    not deferrable.
+    """
+
+    def execute(self, context):
+        self.first_leg(context)
+        return self.check_state(context)
+
+    def first_leg(self, context):
+        return self.second_leg(context)
+
+    def second_leg(self, context):
+        return self.third_leg(context)
+
+    def third_leg(self, context):
+        return self.check_state(context)
+
+    def check_state(self, context):
+        return self.poll(context)
+
+    def poll(self, context):
+        return self.wait_for_job(context)
+
+    def wait_for_job(self, context):
+        return self.submit(context)
+
+    def submit(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
 class DeferralCommentOnlyOperator:
     """A comment naming self.defer() is not a deferral, the same way it is not delegation."""
 
@@ -705,6 +791,18 @@ class TestSupportsDeferrable:
 
     def test_comment_mentioning_defer_is_not_mistaken_for_deferral(self):
         assert supports_deferrable(DeferralCommentOnlyOperator) is False
+
+    @pytest.mark.parametrize(
+        "operator_cls",
+        [
+            pytest.param(SubclassOverridingHelperToDefer, id="helper-resolved-against-class-under-test"),
+            pytest.param(SharedHelperReachedAtTwoBudgets, id="helper-rewalked-with-more-depth-budget"),
+        ],
+    )
+    # SharedHelperReachedAtTwoBudgets only exercises the depth-aware `visited` key at this budget.
+    @patch("extract_parameters._MAX_DEFERRAL_WALK_DEPTH", 6)
+    def test_helper_call_is_walked_to_the_deferral(self, operator_cls):
+        assert supports_deferrable(operator_cls) is True
 
 
 # ---------------------------------------------------------------------------
@@ -912,6 +1010,20 @@ FAKE_PROVIDER_YAML = {
 
 
 # ---------------------------------------------------------------------------
+# read_guide_docs
+# ---------------------------------------------------------------------------
+def test_read_guide_docs_skips_generated_and_release_note_pages(tmp_path):
+    (tmp_path / "_api" / "x").mkdir(parents=True)
+    (tmp_path / "_api" / "x" / "index.rst").write_text("Generated.\n")
+    (tmp_path / "changelog.rst").write_text("Release notes.\n")
+    (tmp_path / "toolsets.rst").write_text("``HookToolset``\n---------------\n\nProse.\n")
+
+    result = read_guide_docs(tmp_path)
+
+    assert set(result) == {"toolsets.rst"}
+
+
+# ---------------------------------------------------------------------------
 # TestDiscoverClassesFromProvider
 # ---------------------------------------------------------------------------
 class TestDiscoverClassesFromProvider:
@@ -998,6 +1110,88 @@ class TestDiscoverClassesFromProvider:
         assert operators[0]["name"] == "FakeOperator"
         assert operators[0]["import_path"] == "airflow.providers.amazon.aws.operators.s3.FakeOperator"
         assert operators[0]["provider_id"] == "amazon"
+
+    def test_guide_section_becomes_a_guide_url(self, provider_yaml_path, base_classes):
+        """A class documented by a section of its own gets a link to that section;
+        one that is only in the API reference keeps just its ``docs_url``."""
+        docs_dir = provider_yaml_path.parent / "docs" / "operators"
+        docs_dir.mkdir(parents=True)
+        (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nProse.\n")
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["FakeOperator"]["guide_url"] == (
+            "https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable"
+            "/operators/s3.html#fakeoperator"
+        )
+        assert "guide_url" not in by_name["FakeSensor"]
+
+    @pytest.mark.parametrize(
+        ("tag_exists", "expected_anchor"),
+        [
+            pytest.param(True, "released-title-fakeoperator", id="tag-exists-reads-released-docs"),
+            pytest.param(False, "fakeoperator", id="no-tag-reads-working-tree"),
+        ],
+    )
+    def test_guide_docs_come_from_release_tag_when_it_exists(
+        self, provider_yaml_path, base_classes, tag_exists, expected_anchor
+    ):
+        docs_dir = provider_yaml_path.parent / "docs" / "operators"
+        docs_dir.mkdir(parents=True)
+        (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nUnreleased title.\n")
+        released = {
+            "operators/s3.rst": "Released title: ``FakeOperator``\n--------------------------------\n"
+        }
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.git_tag_exists", return_value=tag_exists) as tag_check,
+            patch("extract_parameters.detect_layout", return_value="new"),
+            patch("extract_parameters.read_guide_docs_at_tag", return_value=released) as read_at_tag,
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes, version="1.2.3")
+
+        tag_check.assert_called_once_with("providers-amazon/1.2.3")
+        if tag_exists:
+            read_at_tag.assert_called_once_with("providers-amazon/1.2.3", "new", "amazon")
+        else:
+            read_at_tag.assert_not_called()
+        guide_url = {r["name"]: r for r in result}["FakeOperator"]["guide_url"]
+        assert guide_url.endswith(f"/operators/s3.html#{expected_anchor}")
+
+    @pytest.mark.parametrize(
+        ("version", "layout", "expect_tag_lookup"),
+        [
+            pytest.param("", "new", False, id="no-version-skips-tag-lookup"),
+            pytest.param("1.2.3", None, True, id="undetectable-layout-falls-back"),
+        ],
+    )
+    def test_guide_docs_fall_back_to_working_tree(
+        self, provider_yaml_path, base_classes, version, layout, expect_tag_lookup
+    ):
+        docs_dir = provider_yaml_path.parent / "docs" / "operators"
+        docs_dir.mkdir(parents=True)
+        (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nProse.\n")
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.git_tag_exists", return_value=True) as tag_check,
+            patch("extract_parameters.detect_layout", return_value=layout),
+            patch("extract_parameters.read_guide_docs_at_tag") as read_at_tag,
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes, version=version)
+
+        assert tag_check.called is expect_tag_lookup
+        read_at_tag.assert_not_called()
+        guide_url = {r["name"]: r for r in result}["FakeOperator"]["guide_url"]
+        assert guide_url.endswith("/operators/s3.html#fakeoperator")
 
     def test_discovers_sensor(self, provider_yaml_path, base_classes):
         with (
@@ -1093,14 +1287,18 @@ class TestDiscoverClassesFromProvider:
         assert operators[0]["short_description"] == "Copy objects in S3."
 
     def test_all_module_fields_present(self, provider_yaml_path, base_classes):
-        """Every discovered entry has every `Module` dataclass field (derived, not hardcoded)."""
+        """Every discovered entry has every required `Module` dataclass field (derived, not hardcoded).
+
+        Fields with a default (e.g. ``guide_url``) are attached separately and only
+        when applicable, so they are allowed to be absent here.
+        """
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
             patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
         ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
-        required_fields = {f.name for f in fields(Module)}
+        required_fields = {f.name for f in fields(Module) if f.default is MISSING}
         for entry in result:
             missing = required_fields - entry.keys()
             assert not missing, f"Missing fields {missing} in {entry['name']}"

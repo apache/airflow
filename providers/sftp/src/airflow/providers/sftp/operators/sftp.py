@@ -189,6 +189,7 @@ class SFTPOperator(BaseOperator):
                     remote_host=self.remote_host,
                     concurrency=self.concurrency,
                     prefetch=self.prefetch,
+                    no_host_key_check=self.sftp_hook.no_host_key_check,
                 ),
                 method_name="execute_complete",
             )

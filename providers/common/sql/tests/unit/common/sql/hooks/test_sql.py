@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import inspect
 import logging
+import sqlite3
+from contextlib import closing
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pandas as pd
 import polars as pl
 import pytest
+from sqlalchemy import event
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -470,3 +473,33 @@ def test_inspector_is_cached():
         inspector2 = hook.inspector
         assert inspector1 is inspector2
         mock_get_engine.assert_called_once()
+
+
+def test_inspector_closes_its_dbapi_connections_after_each_inspection(tmp_path):
+    """A cached inspector must not hold a pooled DBAPI connection open for the hook's lifetime."""
+    db_path = tmp_path / "inspect.db"
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+    hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+    opened, closed = [], []
+    real_get_sqlalchemy_engine = hook.get_sqlalchemy_engine
+
+    def get_sqlalchemy_engine_with_listeners(engine_kwargs=None):
+        engine = real_get_sqlalchemy_engine(engine_kwargs)
+        event.listen(engine, "connect", lambda dbapi_conn, _record: opened.append(dbapi_conn))
+        event.listen(engine, "close", lambda dbapi_conn, _record: closed.append(dbapi_conn))
+        return engine
+
+    with (
+        patch.object(hook, "get_uri", autospec=True, return_value=f"sqlite:///{db_path}"),
+        patch.object(
+            hook, "get_sqlalchemy_engine", autospec=True, side_effect=get_sqlalchemy_engine_with_listeners
+        ),
+    ):
+        columns = hook.get_table_schema("users")
+        table_names = hook.inspector.get_table_names()
+
+    assert columns == [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "TEXT"}]
+    assert table_names == ["users"]
+    assert opened
+    assert closed == opened

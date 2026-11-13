@@ -84,6 +84,40 @@ class TestLoginRouter:
             assert response.cookies["_access_token"] == "access_token"
             assert response.cookies["_refresh_token"] == "refresh_token"
 
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_callback_without_refresh_token(
+        self, mock_get_keycloak_client, mock_get_auth_manager, client
+    ):
+        code = "code"
+        token = "token"
+        state = "state"
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.token.return_value = {
+            "access_token": "access_token",
+            "id_token": "id_token",
+            # no refresh_token key -- simulates Keycloak with "Use Refresh Tokens" disabled
+        }
+        mock_keycloak_client.userinfo.return_value = {
+            "sub": "sub",
+            "preferred_username": "preferred_username",
+        }
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        mock_auth_manager = Mock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.generate_jwt.return_value = token
+        response = client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}&state={state}",
+            follow_redirects=False,
+            cookies={"_oauth_state": state},
+        )
+        mock_auth_manager.generate_jwt.assert_called_once()
+        user = mock_auth_manager.generate_jwt.call_args[0][0]
+        assert user.get_id() == "sub"
+        assert user.refresh_token is None
+        assert response.status_code == 303
+        assert "_refresh_token" not in response.cookies
+
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login_sets_secure_state_cookie_behind_tls_proxy(self, mock_get_keycloak_client, client):
         mock_keycloak_client = Mock()

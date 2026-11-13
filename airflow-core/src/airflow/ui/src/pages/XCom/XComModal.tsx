@@ -41,12 +41,25 @@ type XComModalProps = {
   readonly mapIndex: number;
   readonly mode: "add" | "edit";
   readonly onClose: () => void;
+  readonly regionId?: string;
+  readonly regionIndex?: number;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey?: string;
 };
 
-const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcomKey }: XComModalProps) => {
+const XComModal = ({
+  dagId,
+  isOpen,
+  mapIndex,
+  mode,
+  onClose,
+  regionId,
+  regionIndex,
+  runId,
+  taskId,
+  xcomKey,
+}: XComModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const queryClient = useQueryClient();
   const [key, setKey] = useState("");
@@ -59,8 +72,12 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
     {
       dagId,
       dagRunId: runId,
-      deserialize: true,
+      // Editing needs the stored type; display deserialization can parse JSON-looking strings.
+      deserialize: false,
       mapIndex,
+      regionId,
+      regionIndex,
+      stringify: false,
       taskId,
       xcomKey: xcomKey ?? "",
     },
@@ -73,7 +90,7 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
     if (isOpen && isEditMode && data) {
       const val = data.value;
 
-      setValue(typeof val === "string" ? val : JSON.stringify(val, undefined, 2));
+      setValue(JSON.stringify(val, undefined, 2));
     }
   }, [data, isEditMode, isOpen]);
 
@@ -147,6 +164,8 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
         dagRunId: runId,
         requestBody: {
           map_index: mapIndex,
+          region_id: regionId,
+          region_index: regionIndex,
           value: parsedValue,
         },
         taskId,
@@ -159,6 +178,8 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
         requestBody: {
           key,
           map_index: mapIndex,
+          region_id: regionId,
+          region_index: regionIndex,
           value: parsedValue,
         },
         taskId,

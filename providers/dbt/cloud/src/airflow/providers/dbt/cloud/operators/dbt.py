@@ -289,6 +289,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                         execution_deadline=execution_deadline,
                         account_id=self.account_id,
                         poll_interval=self.check_interval,
+                        hook_params=self.hook_params,
                     ),
                     method_name="execute_complete",
                 )

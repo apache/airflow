@@ -18,15 +18,15 @@
 Example DAG demonstrating pluggable retry policies.
 
 A retry policy evaluates the actual exception at failure time and decides
-whether to retry (with a custom delay), fail immediately, or fall through
-to the standard retry logic.
+whether to retry (with a custom delay), fail immediately, reschedule without
+using a retry, or fall through to the standard retry logic.
 """
 
 from __future__ import annotations
 
+# [START retry_policy_definition]
 from datetime import timedelta
 
-# [START retry_policy_definition]
 from airflow.sdk import DAG, ChainRetryPolicy, ExceptionRetryPolicy, RetryAction, RetryRule, task
 
 API_RETRY_POLICY = ExceptionRetryPolicy(
@@ -43,7 +43,7 @@ API_RETRY_POLICY = ExceptionRetryPolicy(
             reason="Auth failure, not retryable",
         ),
         RetryRule(
-            exception=ConnectionError,
+            exception="requests.exceptions.ConnectionError",
             action=RetryAction.RETRY,
             retry_delay=timedelta(seconds=30),
         ),
@@ -52,12 +52,7 @@ API_RETRY_POLICY = ExceptionRetryPolicy(
 # [END retry_policy_definition]
 
 # [START retry_policy_on_task]
-with DAG(
-    dag_id="example_retry_policy",
-    schedule=None,
-    catchup=False,
-    tags=["example", "retry_policy"],
-):
+with DAG(dag_id="example_retry_policy", tags=["example", "retry_policy"]):
 
     @task(retries=5, retry_delay=timedelta(minutes=1), retry_policy=API_RETRY_POLICY)
     def call_external_api():
@@ -75,7 +70,7 @@ with DAG(
 STANDARD_RETRY_POLICY = ExceptionRetryPolicy(
     rules=[
         RetryRule(exception="requests.exceptions.HTTPError", action=RetryAction.FAIL),
-        RetryRule(exception=ConnectionError, retry_delay=timedelta(seconds=10)),
+        RetryRule(exception="requests.exceptions.ConnectionError", retry_delay=timedelta(seconds=10)),
     ],
 )
 # [END retry_policy_reusable]
@@ -98,3 +93,25 @@ CHAINED_RETRY_POLICY = ChainRetryPolicy(
     ]
 )
 # [END retry_policy_chain]
+
+# [START retry_policy_reschedule]
+
+
+class WarehouseBusyError(Exception):
+    """Raised by the task when the warehouse it submits queries to has no free slots."""
+
+
+# Come back every 10 minutes while the warehouse is busy, for up to 4 hours, without using
+# any of the task's retries. After 4 hours the standard retry logic takes over.
+WAREHOUSE_RETRY_POLICY = ExceptionRetryPolicy(
+    rules=[
+        RetryRule(
+            exception=WarehouseBusyError,
+            action=RetryAction.RESCHEDULE,
+            retry_delay=timedelta(minutes=10),
+            reschedule_timeout=timedelta(hours=4),
+            reason="Warehouse busy",
+        ),
+    ],
+)
+# [END retry_policy_reschedule]

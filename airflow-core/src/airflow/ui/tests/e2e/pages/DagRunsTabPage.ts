@@ -57,18 +57,6 @@ export class DagRunsTabPage extends BasePage {
     await this.waitForRunsTableToLoad();
   }
 
-  public async filterByState(state: string): Promise<void> {
-    const currentUrl = new URL(this.page.url());
-
-    currentUrl.searchParams.set("state", state.toLowerCase());
-
-    await expect(async () => {
-      await this.navigateTo(currentUrl.pathname + currentUrl.search);
-      await expect(this.page).toHaveURL(/.*state=.*/);
-      await this.waitForRunsTableToLoad();
-    }).toPass({ intervals: [2000], timeout: 30_000 });
-  }
-
   public async navigateToDag(dagId: string): Promise<void> {
     await expect(async () => {
       await this.navigateTo(`/dags/${dagId}`);
@@ -123,20 +111,6 @@ export class DagRunsTabPage extends BasePage {
     return responseJson.dag_run_id;
   }
 
-  public async verifyFilteredByState(expectedState: string): Promise<void> {
-    await this.waitForRunsTableToLoad();
-
-    const rows = this.tableRows;
-
-    await expect(rows).not.toHaveCount(0);
-
-    const nonMatchingRows = rows.filter({
-      hasNot: this.page.getByTestId("state-badge").getByText(new RegExp(expectedState, "i")),
-    });
-
-    await expect(nonMatchingRows).toHaveCount(0);
-  }
-
   public async verifyRunDetailsDisplay(): Promise<void> {
     const firstRow = this.tableRows.first();
 
@@ -154,13 +128,6 @@ export class DagRunsTabPage extends BasePage {
     const timeElements = firstRow.locator("time");
 
     await expect(timeElements.first()).toBeVisible();
-  }
-
-  public async verifyRunsExist(): Promise<void> {
-    const firstRow = this.tableRows.first();
-
-    await expect(firstRow).toBeVisible({ timeout: 30_000 });
-    await expect(this.tableRows).not.toHaveCount(0);
   }
 
   public async verifySearchResults(pattern: string): Promise<void> {

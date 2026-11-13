@@ -1351,6 +1351,140 @@ def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(mo
         assert position[f"r{i}"] < position[f"r{i + 1}"]
 
 
+# Deserialization orders a group's children by label, so these Dags declare children in label order
+# to give the Task SDK sort the same input as the serialized one.
+
+
+def _make_sibling_groups_cycle():
+    with DAG("sibling_groups_cycle", schedule=None, start_date=DEFAULT_DATE) as dag:
+        end = EmptyOperator(task_id="end")
+        with TaskGroup("group1"):
+            a1 = EmptyOperator(task_id="a1")
+            a2 = EmptyOperator(task_id="a2")
+        with TaskGroup("group2"):
+            b1 = EmptyOperator(task_id="b1")
+            b2 = EmptyOperator(task_id="b2")
+        start = EmptyOperator(task_id="start")
+        start >> [a1, b2]
+        a1 >> b1
+        b2 >> a2
+        [a2, b1] >> end
+    return dag
+
+
+def _make_group_bridged_by_outside_task():
+    with DAG("group_bridged_by_outside_task", schedule=None, start_date=DEFAULT_DATE) as dag:
+        bridge = EmptyOperator(task_id="bridge")
+        with TaskGroup("group"):
+            a = EmptyOperator(task_id="a")
+            b = EmptyOperator(task_id="b")
+        a >> bridge >> b
+    return dag
+
+
+def _make_bridged_group_among_siblings():
+    with DAG("bridged_group_among_siblings", schedule=None, start_date=DEFAULT_DATE) as dag:
+        after = EmptyOperator(task_id="after")
+        bridge = EmptyOperator(task_id="bridge")
+        with TaskGroup("group"):
+            a = EmptyOperator(task_id="a")
+            b = EmptyOperator(task_id="b")
+        for i in range(3):
+            EmptyOperator(task_id=f"x{i}")
+        a >> bridge >> b >> after
+    return dag
+
+
+def _make_nested_bridged_group():
+    with DAG("nested_bridged_group", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("outer"):
+            after = EmptyOperator(task_id="after")
+            bridge = EmptyOperator(task_id="bridge")
+            with TaskGroup("inner"):
+                a = EmptyOperator(task_id="a")
+                b = EmptyOperator(task_id="b")
+        a >> bridge >> b >> after
+    return dag
+
+
+def _make_three_group_ring():
+    with DAG("three_group_ring", schedule=None, start_date=DEFAULT_DATE) as dag:
+        groups = {}
+        for group_id in ("g0", "g1", "g2"):
+            with TaskGroup(group_id):
+                groups[group_id] = (EmptyOperator(task_id="first"), EmptyOperator(task_id="second"))
+        groups["g1"][0] >> groups["g0"][1]
+        groups["g2"][0] >> groups["g1"][1]
+        groups["g0"][0] >> groups["g2"][1]
+    return dag
+
+
+def _get_topological_orders(group_dict):
+    return {
+        group_id: [node.node_id for node in group.topological_sort(group_dict=group_dict)]
+        for group_id, group in group_dict.items()
+    }
+
+
+@pytest.mark.parametrize(
+    ("make_dag", "expected"),
+    [
+        pytest.param(
+            _make_sibling_groups_cycle,
+            {
+                None: ["start", "group1", "group2", "end"],
+                "group1": ["group1.a1", "group1.a2"],
+                "group2": ["group2.b1", "group2.b2"],
+            },
+            id="sibling-groups",
+        ),
+        pytest.param(
+            _make_group_bridged_by_outside_task,
+            {None: ["bridge", "group"], "group": ["group.a", "group.b"]},
+            id="group-bridged-by-outside-task",
+        ),
+        # Only two of six siblings depend on a later sibling, which keeps the sweep.
+        pytest.param(
+            _make_bridged_group_among_siblings,
+            {
+                None: ["bridge", "group", "x0", "x1", "x2", "after"],
+                "group": ["group.a", "group.b"],
+            },
+            id="bridged-group-among-siblings",
+        ),
+        # Two of outer's three children depend on a later sibling, which selects pass numbering.
+        pytest.param(
+            _make_nested_bridged_group,
+            {
+                None: ["outer"],
+                "outer": ["outer.bridge", "outer.inner", "outer.after"],
+                "outer.inner": ["outer.inner.a", "outer.inner.b"],
+            },
+            id="nested-bridged-group",
+        ),
+        # Two of the three siblings depend on a later sibling, which selects pass numbering.
+        pytest.param(
+            _make_three_group_ring,
+            {
+                None: ["g0", "g1", "g2"],
+                "g0": ["g0.first", "g0.second"],
+                "g1": ["g1.first", "g1.second"],
+                "g2": ["g2.first", "g2.second"],
+            },
+            id="three-group-ring",
+        ),
+    ],
+)
+def test_topological_sort_task_group_cycle(make_dag, expected):
+    """Siblings that depend on each other only at the group level are ordered instead of raising."""
+    dag = make_dag()
+    dag.check_cycle()
+    serialized = create_scheduler_dag(dag)
+
+    assert _get_topological_orders(serialized.task_group.get_task_group_dict()) == expected
+    assert _get_topological_orders(dag.task_group.get_task_group_dict()) == expected
+
+
 def test_task_group_arrow_with_setup_group():
     with DAG(dag_id="setup_group_teardown_group") as dag:
         with TaskGroup("group_1") as g1:

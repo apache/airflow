@@ -25,7 +25,6 @@ from sqlalchemy import func, select
 
 from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
-from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool, normalize_pool_name_for_stats
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
@@ -37,7 +36,6 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     set_default_pool_slots,
 )
-from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -187,11 +185,8 @@ class TestPool:
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
 
         dr = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dr.dag_id)
-        ti1 = create_task_instance(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti1.refresh_from_db()
-        ti2 = create_task_instance(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti2.refresh_from_db()
+        ti1 = dr.get_task_instance(op1.task_id)
+        ti2 = dr.get_task_instance(op2.task_id)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -237,15 +232,11 @@ class TestPool:
             op3 = EmptyOperator(task_id="dummy3")
 
         dr = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dr.dag_id)
-        ti1 = create_task_instance(task=op1, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti2 = create_task_instance(task=op2, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti3 = create_task_instance(task=op3, run_id=dr.run_id, dag_version_id=dag_version.id)
-        ti1.refresh_from_db()
+        ti1 = dr.get_task_instance(op1.task_id)
+        ti2 = dr.get_task_instance(op2.task_id)
+        ti3 = dr.get_task_instance(op3.task_id)
         ti1.state = State.RUNNING
-        ti2.refresh_from_db()
         ti2.state = State.QUEUED
-        ti3.refresh_from_db()
         ti3.state = State.SCHEDULED
 
         session = settings.Session()

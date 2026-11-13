@@ -31,12 +31,11 @@ import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
-from typing_extensions import NotRequired
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
