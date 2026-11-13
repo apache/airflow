@@ -53,6 +53,12 @@ The first two are declared using TaskFlow, and automatically pass the return val
 
 ``send_email_notification`` is a more traditional Operator, but even it can use the return value of ``compose_email`` to set its parameters, and again, automatically work out that it must be *downstream* of ``compose_email``.
 
+.. note::
+
+  Indexing an ``XComArg`` with square brackets (for example ``email_info['subject']``) does **not** perform dictionary access on the task's return value. Instead, it returns a new ``XComArg`` that references the XCom pushed by the upstream task under the key ``subject``.
+
+  This only works when that key was pushed as its own XCom, which happens automatically when the upstream task uses ``multiple_outputs=True`` and returns a dictionary (see :ref:`XComs <concepts:xcom>`). If the key is not available as a separate XCom, referencing it this way fails at run time.
+
 You can also use a plain value or variable to call a TaskFlow function - for example, this will work as you expect (but, of course, won't run the code inside the task until the Dag is executed - the ``name`` value is persisted as a task parameter until that time)::
 
     @task
