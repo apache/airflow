@@ -67,6 +67,8 @@ from airflowctl.api.datamodels.generated import (
     DagVersionResponse,
     DAGWarningCollectionResponse,
     DryRunBackfillCollectionResponse,
+    EventLogCollectionResponse,
+    EventLogResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -1200,3 +1202,55 @@ class PluginsOperations(BaseOperations):
         """List plugin import errors from the API server."""
         self.response = self.client.get("plugins/importErrors")
         return validate_response(self.response.content, PluginImportErrorCollectionResponse)
+
+
+class EventLogsOperations(BaseOperations):
+    """Event log operations."""
+
+    def get(self, event_log_id: int) -> EventLogResponse | ServerResponseError:
+        """Get an event log entry."""
+        self.response = self.client.get(f"eventLogs/{event_log_id}")
+        return validate_response(self.response.content, EventLogResponse)
+
+    def list(
+        self,
+        dag_id: str | None = None,
+        task_id: str | None = None,
+        run_id: str | None = None,
+        event: str | None = None,
+        owner: str | None = None,
+        before: datetime.datetime | None = None,
+        after: datetime.datetime | None = None,
+        limit: int = 100,
+        offset: int | None = None,
+        order_by: str | None = None,
+    ) -> EventLogCollectionResponse | ServerResponseError:
+        """
+        List event log entries (at most `limit` results).
+
+        Args:
+            dag_id: Only entries for this Dag
+            task_id: Only entries for this task
+            run_id: Only entries for this Dag run
+            event: Only entries of this event type, for example `trigger_dag_run`
+            owner: Only entries caused by this user
+            before: Only entries logged before this time
+            after: Only entries logged after this time
+            limit: Limit the number of results returned
+            offset: Offset to start returning results from
+            order_by: Order the results by the specified field, prefixed with `-` for descending
+        """
+        params = _build_query_params(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            event=event,
+            owner=owner,
+            before=before,
+            after=after,
+            limit=limit,
+            offset=offset,
+            order_by=order_by,
+        )
+        self.response = self.client.get("eventLogs", params=params)
+        return validate_response(self.response.content, EventLogCollectionResponse)
