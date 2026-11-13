@@ -23,6 +23,7 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+import { SmoothOperatorButton } from "src/components/SmoothOperator/SmoothOperator";
 
 import { TaskIcon } from "src/assets/TaskIcon";
 
@@ -32,16 +33,19 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => {
   return (
     <HeaderCard
       actions={
-        task.doc_md === null ? undefined : (
-          <DisplayMarkdownButton
-            bg="bg"
-            header={translate("task.documentation")}
-            icon={<FiBookOpen />}
-            mdContent={task.doc_md}
-            text={translate("docs.documentation")}
-            variant="outline"
-          />
-        )
+        <>
+          {task.doc_md === null ? undefined : (
+            <DisplayMarkdownButton
+              bg="bg"
+              header={translate("task.documentation")}
+              icon={<FiBookOpen />}
+              mdContent={task.doc_md}
+              text={translate("docs.documentation")}
+              variant="outline"
+            />
+          )}
+          <SmoothOperatorButton operatorName={task.operator_name} taskId={task.task_id ?? ""} />
+        </>
       }
       icon={<TaskIcon />}
       stats={[
