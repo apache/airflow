@@ -1094,6 +1094,46 @@ class TestPatchConnection(TestConnectionEndpoint):
         get_response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert json.loads(get_response.json()["extra"]) == {"config": "***"}
 
+    @pytest.mark.enable_redact
+    def test_patch_rejects_deleted_extra_record_with_masked_secret(self, test_client, session):
+        connection_id = "masked_extra_list_security"
+        original = {
+            "users": [
+                {"name": "alice", "password": "Alice-secret"},
+                {"name": "bob", "password": "Bob-secret"},
+            ]
+        }
+
+        connection = Connection(
+            conn_id=connection_id,
+            conn_type="http",
+            extra=json.dumps(original),
+        )
+        session.add(connection)
+        session.commit()
+
+        redacted = json.loads(test_client.get(f"/connections/{connection_id}").json()["extra"])
+        assert redacted["users"][0]["password"] == "***"
+        assert redacted["users"][1]["password"] == "***"
+
+        edited = {"users": [redacted["users"][1]]}
+
+        response = test_client.patch(
+            f"/connections/{connection_id}",
+            json={
+                "connection_id": connection_id,
+                "conn_type": "http",
+                "extra": json.dumps(edited),
+            },
+            params={"update_mask": ["extra"]},
+        )
+
+        assert response.status_code == 400
+
+        session.expire_all()
+        stored = session.query(Connection).filter_by(conn_id=connection_id).one()
+        assert json.loads(stored.extra) == original
+
     def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
         """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
         self.create_connection()
