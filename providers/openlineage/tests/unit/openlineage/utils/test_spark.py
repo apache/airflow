@@ -45,8 +45,8 @@ EXAMPLE_CONTEXT = {
         task_id="task_id",
         try_number=1,
         map_index=1,
-        logical_date=dt.datetime(2024, 11, 11),
-        dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11), clear_number=0),
+        logical_date=dt.datetime(2024, 11, 11, tzinfo=dt.UTC),
+        dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11, tzinfo=dt.UTC), clear_number=0),
     )
 }
 EXAMPLE_HTTP_TRANSPORT_CONFIG = {

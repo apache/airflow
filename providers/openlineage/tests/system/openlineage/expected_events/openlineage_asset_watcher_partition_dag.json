@@ -2,12 +2,6 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_asset_watcher_partition_dag"
-        }
-    },
-    {
-        "eventType": "START",
-        "job": {
             "name": "openlineage_asset_watcher_partition_dag.create_trigger_file",
             "facets": {
                 "sourceCode": {
@@ -32,13 +26,61 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_asset_watcher_partition_dag.wait_for_asset_watcher_events"
+            "name": "openlineage_asset_watcher_partition_dag_child__notrigger"
+        },
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dagRun": {
+                        "partition_key": "2026-11-04"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag_child__notrigger.consume_asset_event"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dagRun": {
+                        "partition_key": "2026-11-04"
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
-            "name": "openlineage_asset_watcher_partition_dag.wait_for_asset_watcher_events"
+            "name": "openlineage_asset_watcher_partition_dag_child__notrigger"
+        },
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dagRun": {
+                        "partition_key": "2026-11-04"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_asset_watcher_partition_dag_child__notrigger.consume_asset_event"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dagRun": {
+                        "partition_key": "2026-11-04"
+                    }
+                }
+            }
         }
     },
     {
@@ -78,7 +120,9 @@
                         "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger",
                         "extra": {
                             "from_trigger": true,
-                            "payload": true
+                            "payload": {
+                                "file": "openlineage_asset_watcher_partition_dag.trigger"
+                            }
                         },
                         "partitionKey": "2026-11-04",
                         "partitionDate": null,
@@ -125,7 +169,9 @@
                         "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger",
                         "extra": {
                             "from_trigger": true,
-                            "payload": true
+                            "payload": {
+                                "file": "openlineage_asset_watcher_partition_dag.trigger"
+                            }
                         },
                         "partitionKey": "2026-11-04",
                         "partitionDate": null,

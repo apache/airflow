@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import os
 import traceback
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -590,17 +591,18 @@ class OpenLineageAdapter(LoggingMixin):
 
         Both events carry the full set of facets, so either one alone describes the asset event.
         """
-        job = self._build_job(job_name=job_name, job_type=_JOB_TYPE_ASSET_WATCHER)
-        run = self._build_run(run_id=run_id, run_facets={**run_facets, **get_airflow_debug_facet()})
+        run_facets = {**run_facets, **get_airflow_debug_facet()}
         for event_type in (RunState.START, RunState.COMPLETE):
+            # Each event gets its own job, run, facets and datasets, so nothing done to one while it is emitted
+            # reaches the other
             self.emit(
                 RunEvent(
                     eventType=event_type,
                     eventTime=event_time.isoformat(),
-                    job=job,
-                    run=run,
+                    job=self._build_job(job_name=job_name, job_type=_JOB_TYPE_ASSET_WATCHER),
+                    run=self._build_run(run_id=run_id, run_facets=copy.deepcopy(run_facets)),
                     inputs=[],
-                    outputs=outputs,
+                    outputs=copy.deepcopy(outputs),
                     producer=_PRODUCER,
                 )
             )

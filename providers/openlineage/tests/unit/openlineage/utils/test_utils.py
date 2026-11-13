@@ -32,7 +32,6 @@ from uuid import UUID, uuid4
 import attrs
 import pendulum
 import pytest
-import time_machine
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import parent_run
 from sqlalchemy.orm.exc import DetachedInstanceError
@@ -50,7 +49,6 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowJobFacet,
 )
 from airflow.providers.openlineage.utils.utils import (
-    _MAX_ASSET_EVENT_VALUE_SIZE,
     _MAX_DOC_BYTES,
     AssetInfo,
     DagInfo,
@@ -64,7 +62,6 @@ from airflow.providers.openlineage.utils.utils import (
     _build_labeled_edge_map,
     _convert_to_json_safe,
     _extract_ol_info_from_asset_event,
-    _get_json_safe_value_within_size_limit,
     _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
     _get_task_groups_details,
@@ -82,8 +79,6 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_airflow_state_run_facet,
     get_asset_event_output_datasets,
-    get_asset_event_time,
-    get_asset_watcher_job_name,
     get_dag_documentation,
     get_dag_job_dependency_facet,
     get_dag_parent_run_facet,
@@ -6858,22 +6853,6 @@ class TestAssetWatcherEventHelpers:
 
         assert is_asset_event_from_asset_watcher(asset_event) is expected
 
-    def test_get_asset_watcher_job_name(self):
-        assert get_asset_watcher_job_name(_build_listener_asset_event()) == "asset_watcher.orders"
-
-    @time_machine.travel(datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC), tick=False)
-    @pytest.mark.parametrize(
-        ("with_source_fields", "expected"),
-        [
-            pytest.param(True, datetime.datetime(2026, 11, 4, 10, 0, tzinfo=datetime.UTC), id="stored"),
-            pytest.param(False, datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC), id="now"),
-        ],
-    )
-    def test_get_asset_event_time(self, with_source_fields, expected):
-        asset_event = _build_listener_asset_event(with_source_fields=with_source_fields)
-
-        assert get_asset_event_time(asset_event) == expected
-
     def test_build_asset_watcher_event_ol_run_id_is_deterministic_with_source_fields(self):
         asset_event = _build_listener_asset_event(with_source_fields=True)
         later = datetime.datetime(2026, 11, 5, tzinfo=datetime.UTC)
@@ -6898,20 +6877,13 @@ class TestAssetWatcherEventHelpers:
         assert UUID(run_id).version == 7
         assert run_id != build_asset_watcher_event_ol_run_id(asset_event, event_time)
 
-    def test_get_json_safe_value_within_size_limit_handles_unsafe_values(self):
+    def test_get_airflow_asset_event_run_facet_falls_back_to_empty_extra(self):
         circular: dict = {}
         circular["self"] = circular
-        oversized = "x" * _MAX_ASSET_EVENT_VALUE_SIZE
 
-        assert _get_json_safe_value_within_size_limit({"a": [1, "b"]}) == {"a": [1, "b"]}
-        assert _get_json_safe_value_within_size_limit({"at": datetime.datetime(2026, 1, 1)}) == {
-            "at": "2026-01-01 00:00:00"
-        }
-        assert _get_json_safe_value_within_size_limit(circular) == "<not serializable: ValueError>"
-        assert _get_json_safe_value_within_size_limit(oversized) == (
-            f"<omitted: {_MAX_ASSET_EVENT_VALUE_SIZE + 2} characters exceeds limit of "
-            f"{_MAX_ASSET_EVENT_VALUE_SIZE}>"
-        )
+        facet = get_airflow_asset_event_run_facet(_build_listener_asset_event(extra=circular))
+
+        assert facet["airflowAssetEvent"].assetEvent["extra"] == {}
 
     @pytest.mark.parametrize(
         ("with_source_fields", "expected_source_fields"),
@@ -6988,6 +6960,7 @@ class TestAssetWatcherEventHelpers:
         pytest.param("Dag Run's state was manually set to `failed`.", True, id="manual-failed"),
         pytest.param("success", False, id="scheduler-success"),
         pytest.param("task_failure", False, id="scheduler-failure"),
+        pytest.param("", False, id="api-server-or-timeout-before-3.3.1"),
         pytest.param(None, False, id="no-message"),
     ],
 )
