@@ -29,3 +29,12 @@ def test_deprecated_exception():
     with pytest.warns(DeprecatedImportWarning, match=warning_pattern):
         # If there is no warning, then most possible it imported somewhere else.
         assert getattr(airflow, "AirflowException") is AirflowException
+
+
+def test_dir_exposes_lazy_imports():
+    """dir(airflow) must list the lazy imports so REPLs, IDEs and tooling can
+    discover the public API before each name is first accessed (PEP-562
+    pairs __getattr__ with __dir__)."""
+    expected = set(airflow.__lazy_imports)
+    missing = expected - set(dir(airflow))
+    assert missing == set(), f"lazy imports missing from dir(): {sorted(missing)}"
