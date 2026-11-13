@@ -370,6 +370,19 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
+        # A labeled edge (`task_group >> Label("x") >> other`) should hand the
+        # TaskGroup itself to the modifier, so the group-level (join id) wiring is
+        # preserved when the other side arrives. Registering the group's
+        # individual tasks instead would flatten the edge, and combined with the
+        # old EdgeModifier group conversion it made a task inside the group
+        # (or every leaf of the group) the upstream of the other side.
+        from airflow.sdk.definitions.edges import EdgeModifier
+
+        for relative in task_or_task_list:
+            if isinstance(relative, EdgeModifier):
+                relative.update_relative(self, not upstream)
+                return
+
         # Helper function to find leaves from a task list or task group
         def find_leaves(group_or_task) -> list[Any]:
             while group_or_task:
