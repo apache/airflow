@@ -320,6 +320,17 @@ Kerberos is active for ``trino`` integration tests, the following code has been 
 
 
 
+Performance Harness
+-------------------
+
+``airflow-core/tests/integration/performance`` holds a load harness for the scheduler and the executor
+path. It starts the Airflow components as subprocesses against the ``otel`` and ``redis``
+integrations on Postgres, drains a backlog of fan-out Dags and shows the numbers on the
+"Scheduler performance" Grafana dashboard. It never runs in CI: the folder is collected only when
+its path is named on the pytest command line. See its
+`README <../../airflow-core/tests/integration/performance/README.md>`__ for how to run it and how to
+compare a change with the original code.
+
 -----
 
 For other kinds of tests look at `Testing document <../09_testing.rst>`__

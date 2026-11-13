@@ -1,0 +1,480 @@
+{
+  "uid": "airflow-scheduler-perf",
+  "title": "Scheduler performance",
+  "id": null,
+  "tags": [
+    "perf"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "schemaVersion": 30,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Utilization",
+      "description": "Scheduler: share of wall time spent inside the scheduler loop. Workers: Celery's own count of held slots over the budget the harness configured.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_max(100 * histogram_sum(rate(airflow_scheduler_scheduler_loop_duration_milliseconds[2m])) / 1000, 100)",
+          "legendFormat": "scheduler busy"
+        },
+        {
+          "refId": "B",
+          "expr": "clamp_max(100 * perf_worker_slots_occupied / perf_worker_slot_budget, 100)",
+          "legendFormat": "worker slots occupied"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "spanNulls": true
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "CPU by role",
+      "description": "Per process tree the harness started; 100 is one busy core. Worker trees are summed.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "perf_process_cpu_percent{role!~\"worker_.*\"}",
+          "legendFormat": "{{role}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(perf_process_cpu_percent{role=~\"worker_.*\"})",
+          "legendFormat": "workers"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "percent",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Worker slots",
+      "description": "Slots held according to Celery, which includes the fork and supervisor overhead that the database's running state never sees.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "perf_worker_slots_occupied",
+          "legendFormat": "occupied"
+        },
+        {
+          "refId": "B",
+          "expr": "perf_worker_slot_budget",
+          "legendFormat": "budget"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "budget"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Resident memory by role",
+      "description": "Summed over each process tree, so pages shared with forked children count more than once.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "perf_process_rss_bytes{role!~\"worker_.*\"}",
+          "legendFormat": "{{role}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(perf_process_rss_bytes{role=~\"worker_.*\"})",
+          "legendFormat": "workers"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Hand-off rate",
+      "description": "Task instances per second crossing each state boundary. The first curve is the scheduler handing work to the executor, the second the API server starting them. Prometheus scrapes every 30 seconds, so a stage that fills and drains within one scrape leaves no rate behind; the cumulative panel below and report_run.py count those too.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(histogram_count(rate(airflow_task_scheduled_duration_milliseconds[2m])))",
+          "legendFormat": "scheduled to queued"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(histogram_count(rate(airflow_task_queued_duration_milliseconds[2m])))",
+          "legendFormat": "queued to running"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Task timeline, mean seconds per phase",
+      "description": "Where a task instance spends its life. A scheduler change should move the first curve. The first two are means over the last five minutes. Each task process reports its own running time once and exits, so that curve is the mean over the task processes the collector still exposes, roughly the last five minutes as well.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(histogram_sum(rate(airflow_task_scheduled_duration_milliseconds[5m]))) / sum(histogram_count(rate(airflow_task_scheduled_duration_milliseconds[5m]))) / 1000",
+          "legendFormat": "scheduled: waiting on the scheduler"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(histogram_sum(rate(airflow_task_queued_duration_milliseconds[5m]))) / sum(histogram_count(rate(airflow_task_queued_duration_milliseconds[5m]))) / 1000",
+          "legendFormat": "queued: waiting for a worker slot"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(histogram_sum(airflow_task_duration_milliseconds)) / sum(histogram_count(airflow_task_duration_milliseconds)) / 1000",
+          "legendFormat": "running"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Scheduler loop duration",
+      "description": "",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_sum(rate(airflow_scheduler_scheduler_loop_duration_milliseconds[2m])) / histogram_count(rate(airflow_scheduler_scheduler_loop_duration_milliseconds[2m]))",
+          "legendFormat": "mean"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, rate(airflow_scheduler_scheduler_loop_duration_milliseconds[2m]))",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "ms",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Backlog",
+      "description": "",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "airflow_pool_scheduled_slots{pool_name=\"default_pool\"}",
+          "legendFormat": "scheduled: decided, not yet shipped"
+        },
+        {
+          "refId": "B",
+          "expr": "airflow_pool_queued_slots{pool_name=\"default_pool\"}",
+          "legendFormat": "queued: at the broker"
+        },
+        {
+          "refId": "C",
+          "expr": "airflow_pool_running_slots{pool_name=\"default_pool\"}",
+          "legendFormat": "running"
+        },
+        {
+          "refId": "D",
+          "expr": "airflow_executor_queued_tasks",
+          "legendFormat": "executor queued"
+        },
+        {
+          "refId": "E",
+          "expr": "airflow_executor_running_tasks",
+          "legendFormat": "executor running"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Tasks handed off, cumulative, one curve per scheduler process",
+      "description": "Each test case of the test starts its own scheduler, so each test case is its own curve; the slope is the hand-off rate.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (exported_instance) (histogram_count(airflow_task_scheduled_duration_milliseconds))",
+          "legendFormat": "{{exported_instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ]
+}
