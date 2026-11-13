@@ -221,6 +221,55 @@ class DeadlineAlert:
         )
 
 
+class AssetDeadline:
+    """Store Asset Deadline values needed to alert when an expected asset event does not arrive."""
+
+    def __init__(
+        self,
+        *,
+        callback: AsyncCallback | SyncCallback,
+        cron: str | None = None,
+        interval: timedelta | VariableInterval | None = None,
+        name: str | None = None,
+    ):
+        if (cron is None) == (interval is None):
+            raise ValueError("AssetDeadline requires exactly one of 'cron' or 'interval'.")
+
+        if cron is not None:
+            from croniter import croniter
+
+            if not isinstance(cron, str) or not cron.strip() or not croniter.is_valid(cron):
+                raise ValueError(f"Invalid cron expression for AssetDeadline: {cron!r}")
+
+        if interval is not None:
+            if isinstance(interval, timedelta):
+                interval = timedelta(seconds=interval.total_seconds())
+                if interval <= timedelta(0):
+                    raise ValueError("AssetDeadline 'interval' must be a positive timedelta.")
+            elif not isinstance(interval, VariableInterval):
+                raise ValueError(
+                    f"Interval must be a `timedelta` or a `VariableInterval`, received {type(interval).__name__}."
+                )
+
+        if type(callback) not in DEADLINE_CALLBACK_TYPES:
+            raise ValueError(
+                f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
+            )
+
+        self.cron = cron
+        self.interval = interval
+        self.callback = callback
+        self.name = name
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AssetDeadline):
+            return NotImplemented
+        return self.cron == other.cron and self.interval == other.interval and self.callback == other.callback
+
+    def __hash__(self) -> int:
+        return hash((self.cron, self.interval, self.callback))
+
+
 class DeadlineReference:
     """
     The public interface class for all DeadlineReference options.

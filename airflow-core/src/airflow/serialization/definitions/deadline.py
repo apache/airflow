@@ -380,3 +380,30 @@ class SerializedDeadlineAlert:
     interval: timedelta | SerializedVariableInterval
     callback: Any
     name: str | None = None
+
+
+class AssetDeadlineFields:
+    """Define field names used in AssetDeadline serialization/deserialization."""
+
+    NAME = "name"
+    CRON = "cron"
+    INTERVAL = "interval"
+    CALLBACK = "callback"
+
+
+@attrs.define
+class SerializedAssetDeadline:
+    """Serialized representation of an asset deadline."""
+
+    cron: str | None
+    interval: timedelta | SerializedVariableInterval | None
+    callback: Any
+    name: str | None = None
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SerializedAssetDeadline):
+            return NotImplemented
+        return self.cron == other.cron and self.interval == other.interval and self.callback == other.callback
+
+    def __hash__(self) -> int:
+        return hash((self.cron, self.interval, self.callback))

@@ -87,7 +87,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
+from airflow.serialization.definitions.deadline import SerializedAssetDeadline, SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     WaitPolicyNotSupported,
@@ -107,7 +107,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
-    from airflow.sdk.definitions.deadline import DeadlineAlert
+    from airflow.sdk.definitions.deadline import AssetDeadline, DeadlineAlert
     from airflow.sdk.definitions.partition_mappers.wait_policy import WaitPolicy
     from airflow.triggers.base import BaseEventTrigger
 
@@ -234,6 +234,8 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
                     if ac.consumer_teams is not None:
                         ac_dict["consumer_teams"] = ac.consumer_teams
                     d["access_control"] = ac_dict
+            if a.deadline is not None:
+                d["deadline"] = encode_asset_deadline(a.deadline)
             return d
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
@@ -244,6 +246,26 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
         case AssetRef() | SerializedAssetRef():
             return {"__type": DAT.ASSET_REF, **attrs.asdict(a)}
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
+
+
+def encode_asset_deadline(d: AssetDeadline | SerializedAssetDeadline) -> dict[str, Any]:
+    """
+    Encode an asset deadline.
+
+    :meta private:
+    """
+    from airflow.sdk.serde import serialize
+
+    return {
+        "name": d.name,
+        "cron": d.cron,
+        "interval": serialize(d.interval) if d.interval is not None else None,
+        "callback": (
+            _encode_decoded_deadline_callback(d.callback)
+            if isinstance(d, SerializedAssetDeadline)
+            else serialize(d.callback)
+        ),
+    }
 
 
 def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[str, Any]:
@@ -530,6 +552,11 @@ class _Serializer:
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
                 for asset, partition_mapper in timetable.partition_mapper_config.items()
             ],
+            **(
+                {"run_deadline": encode_asset_deadline(timetable.run_deadline)}
+                if timetable.run_deadline is not None
+                else {}
+            ),
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {

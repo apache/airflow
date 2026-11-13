@@ -2174,6 +2174,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Lock expired, unhandled deadlines with FOR UPDATE SKIP LOCKED so
                     # concurrent HA scheduler replicas don't both process the same row
                     # and create duplicate callbacks.
+                    Deadline.schedule_asset_deadlines(session=session)
+
                     deadline_query = (
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))

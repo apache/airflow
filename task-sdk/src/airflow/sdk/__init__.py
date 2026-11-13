@@ -29,6 +29,7 @@ __all__ = [
     "AssetAndTimeSchedule",
     "AssetOrTimeSchedule",
     "AssetTriggeredTimetable",
+    "AssetDeadline",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
@@ -169,6 +170,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.deadline import (
+        AssetDeadline,
         BaseDeadlineReference,
         DeadlineAlert,
         DeadlineReference,
@@ -262,6 +264,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "AssetAny": (".definitions.asset", "AssetAny"),
     "AssetOrTimeSchedule": (".definitions.timetables.assets", "AssetOrTimeSchedule"),
     "AssetTriggeredTimetable": (".definitions.timetables.assets", "AssetTriggeredTimetable"),
+    "AssetDeadline": (".definitions.deadline", "AssetDeadline"),
     "AssetWatcher": (".definitions.asset", "AssetWatcher"),
     "AsyncCallback": (".definitions.callback", "AsyncCallback"),
     "BaseAsyncOperator": (".bases.operator", "BaseAsyncOperator"),

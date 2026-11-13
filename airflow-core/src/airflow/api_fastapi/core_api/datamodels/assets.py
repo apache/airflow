@@ -298,3 +298,32 @@ class MaterializeAssetBody(TriggerDAGRunPostBody):
         return params
 
     model_config = ConfigDict(extra="forbid")
+
+
+class AssetDeadlineAlertResponse(BaseModel):
+    """Configured AssetDeadline rule serializer for responses."""
+
+    id: UUID
+    name: str | None = None
+    cron: str | None = None
+    interval: dict | None = None
+    is_producer: bool = False
+    created_at: datetime
+
+
+class AssetDeadlineInstanceResponse(BaseModel):
+    """Scheduled or missed Asset Deadline instance serializer for responses."""
+
+    id: UUID
+    deadline_time: datetime
+    missed: bool
+    partition_key: str | None = None
+    deadline_alert_id: UUID | None = None
+    created_at: datetime
+
+
+class AssetDeadlinesResponse(BaseModel):
+    """Combined AssetDeadline rules and scheduled/missed instances for an asset."""
+
+    alerts: list[AssetDeadlineAlertResponse]
+    deadlines: list[AssetDeadlineInstanceResponse]
