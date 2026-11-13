@@ -2505,23 +2505,58 @@ class TestSchedulerJob:
         session.flush()
         assert total_executed_ti == len(res)
 
-    def test_find_executable_task_instances_order_logical_date(self, dag_maker):
+    def test_find_executable_task_instances_order_run_after(self, dag_maker):
         """
-        Test that task instances follow logical_date order priority. If two dagruns with
-        different logical dates are scheduled, tasks with earliest dagrun logical date will first
+        Test that task instances follow run_after order priority. If two dagruns with
+        different run_after are scheduled, tasks with earliest dagrun run_after will first
         be executed
         """
-        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date-a"
-        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date-b"
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_run_after-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_run_after-b"
         task_id = "task-a"
         session = settings.Session()
         with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
             EmptyOperator(task_id=task_id)
-        dr1 = dag_maker.create_dagrun(logical_date=DEFAULT_DATE + timedelta(hours=1))
+        dr1 = dag_maker.create_dagrun(run_after=DEFAULT_DATE + timedelta(hours=1))
 
         with dag_maker(dag_id=dag_id_2, max_active_tasks=16, session=session):
             EmptyOperator(task_id=task_id)
-        dr2 = dag_maker.create_dagrun()
+        dr2 = dag_maker.create_dagrun(run_after=DEFAULT_DATE)
+
+        dr1 = session.merge(dr1, load=False)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        tis = dr1.task_instances + dr2.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        session.flush()
+        assert [ti.key for ti in res] == [tis[1].key]
+        session.rollback()
+
+    def test_find_executable_task_instances_order_ignores_logical_date(self, dag_maker):
+        """
+        Test that logical_date doesn't affect the order. The run with the earlier ``logical_date`` has
+        the later ``run_after`` and should be picked second.
+        """
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_ignores_logical_date-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_ignores_logical_date-b"
+        task_id = "task-a"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
+            EmptyOperator(task_id=task_id)
+        dr1 = dag_maker.create_dagrun(logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE + timedelta(hours=2))
+
+        with dag_maker(dag_id=dag_id_2, max_active_tasks=16, session=session):
+            EmptyOperator(task_id=task_id)
+        dr2 = dag_maker.create_dagrun(
+            logical_date=DEFAULT_DATE + timedelta(hours=1), run_after=DEFAULT_DATE + timedelta(hours=1)
+        )
 
         dr1 = session.merge(dr1, load=False)
 
@@ -2967,18 +3002,18 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    def test_find_executable_task_instances_order_logical_date_and_priority(self, dag_maker):
-        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date_and_priority-a"
-        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date_and_priority-b"
+    def test_find_executable_task_instances_order_run_after_and_priority(self, dag_maker):
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_run_after_and_priority-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_run_after_and_priority-b"
         task_id = "task-a"
         session = settings.Session()
         with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
             EmptyOperator(task_id=task_id, priority_weight=1)
-        dr1 = dag_maker.create_dagrun()
+        dr1 = dag_maker.create_dagrun(run_after=DEFAULT_DATE)
 
         with dag_maker(dag_id=dag_id_2, max_active_tasks=16, session=session):
             EmptyOperator(task_id=task_id, priority_weight=4)
-        dr2 = dag_maker.create_dagrun(logical_date=DEFAULT_DATE + timedelta(hours=1))
+        dr2 = dag_maker.create_dagrun(run_after=DEFAULT_DATE + timedelta(hours=1))
 
         dr1 = session.merge(dr1, load=False)
         scheduler_job = Job()
@@ -5590,6 +5625,113 @@ class TestSchedulerJob:
 
         session.rollback()
         session.close()
+
+    def test_schedule_dag_run_with_future_logical_date(self, dag_maker):
+        """
+        Test that a run with a future logical_date is scheduled as long as its run_after has passed.
+        """
+        session = settings.Session()
+        with dag_maker(dag_id="test_schedule_dag_run_with_future_logical_date", session=session):
+            # EmptyOperator would be marked success directly by schedule_tis.
+            BashOperator(task_id="dummy", bash_command="true")
+
+        now = timezone.utcnow()
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            logical_date=now + datetime.timedelta(days=30),
+            run_after=now,
+            start_date=now,
+            state=DagRunState.RUNNING,
+        )
+
+        ti = dr.get_task_instance("dummy", session=session)
+        assert ti.state is None
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(ti)
+        assert ti.state == State.SCHEDULED
+
+        session.rollback()
+        session.close()
+
+    @pytest.mark.parametrize(
+        "catchup",
+        [
+            pytest.param(False, id="catchup_false"),
+            pytest.param(True, id="catchup_true"),
+        ],
+    )
+    def test_depends_on_past_blocks_future_logical_date_run(self, dag_maker, session, catchup):
+        """Test that runs with depends_on_past and a future logical_date wait until that date arrives."""
+        day0 = timezone.datetime(2026, 1, 1)
+        day1 = day0 + timedelta(days=1)
+        day2 = day0 + timedelta(days=2)
+        day3 = day0 + timedelta(days=3)
+
+        with dag_maker(
+            dag_id="test_depends_on_past_blocks_future_logical_date_run",
+            schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"),
+            start_date=day0,
+            catchup=catchup,
+            session=session,
+            default_args={
+                "depends_on_past": True,
+            },
+        ):
+            BashOperator(task_id="dummy", bash_command="echo hi")
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        def create_run(run_type, logical_date, run_after):
+            with time_machine.travel(run_after, tick=False):
+                return dag_maker.create_dagrun(
+                    run_type=run_type,
+                    logical_date=logical_date,
+                    data_interval=DataInterval(logical_date, logical_date),
+                    run_after=run_after,
+                    state=DagRunState.RUNNING,
+                )
+
+        def schedule_and_run(dr, now, outcome=None):
+            """Schedule the run's task; if the scheduler lets it start, finish it in ``outcome`` when given."""
+            with time_machine.travel(now, tick=False):
+                self.job_runner._schedule_dag_run(dr, session)
+                session.flush()
+            ti = dr.get_task_instance("dummy", session=session)
+            session.refresh(ti)
+            if outcome and ti.state == TaskInstanceState.SCHEDULED:
+                ti.state = outcome
+                session.flush()
+            return ti
+
+        # day0 - scheduled - success
+        scheduled_day0 = create_run(DagRunType.SCHEDULED, day0, day0)
+        schedule_and_run(scheduled_day0, day0, TaskInstanceState.SUCCESS)
+
+        # day2 - triggered manually at day0 with future logical_date - waits
+        triggered_at = day0 + timedelta(hours=1)
+        manual_day2 = create_run(DagRunType.MANUAL, day2, triggered_at)
+        manual_day2_ti = schedule_and_run(manual_day2, triggered_at)
+        assert manual_day2_ti.state is None
+
+        # day1 - scheduled - failure
+        scheduled_day1 = create_run(DagRunType.SCHEDULED, day1, day1)
+        scheduled_day1_ti = schedule_and_run(scheduled_day1, day1, TaskInstanceState.FAILED)
+        assert scheduled_day1_ti.state == TaskInstanceState.FAILED
+
+        manual_day2_ti = schedule_and_run(manual_day2, day2)
+
+        # day3 - scheduled - waits
+        scheduled_day3 = create_run(DagRunType.SCHEDULED, day3, day3)
+        scheduled_day3_ti = schedule_and_run(scheduled_day3, day3)
+
+        assert manual_day2_ti.state is None
+        assert scheduled_day3_ti.state is None
 
     def test_dagrun_timeout_fails_run_and_update_next_dagrun(self, dag_maker):
         """

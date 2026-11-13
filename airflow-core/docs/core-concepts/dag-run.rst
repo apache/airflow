@@ -112,6 +112,12 @@ If your Dag logic needs the user-specified date for a manual run, use
 ``logical_date`` explicitly instead of assuming it matches
 ``data_interval_start`` or ``data_interval_end``.
 
+The ``logical_date`` of a run does not control when it starts; ``run_after``
+does. A run whose ``logical_date`` is in the future starts as soon as its
+``run_after`` has passed, which for a manual trigger defaults to the trigger
+time. When tasks compete for executor slots, the scheduler also orders them by
+the run's ``run_after``, not its ``logical_date``.
+
 For upgrade guidance, see :ref:`data-interval-manual-triggering`.
 
 Re-run Dag

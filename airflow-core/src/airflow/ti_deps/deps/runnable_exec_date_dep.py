@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.timezones import timezone
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 
@@ -33,16 +32,6 @@ class RunnableExecDateDep(BaseTIDep):
         logical_date = ti.get_dagrun(session=session).logical_date
         if logical_date is None:
             return
-
-        cur_date = timezone.utcnow()
-
-        if logical_date > cur_date:
-            yield self._failing_status(
-                reason=(
-                    f"Logical date {logical_date.isoformat()} is in the future "
-                    f"(the current date is {cur_date.isoformat()})."
-                )
-            )
 
         if ti.task.end_date and logical_date > ti.task.end_date:
             yield self._failing_status(
