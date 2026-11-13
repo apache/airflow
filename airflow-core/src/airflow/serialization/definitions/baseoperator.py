@@ -116,6 +116,7 @@ class SerializedBaseOperator(DAGNode):
 
     operator_extra_links: Collection[XComOperatorLink] = []
     on_failure_fail_dagrun: bool = False
+    on_success_succeed_dagrun: bool = True
 
     outlets: Sequence = []
     owner: str = "airflow"
@@ -212,6 +213,7 @@ class SerializedBaseOperator(DAGNode):
                 "has_on_skipped_callback",
                 "has_on_success_callback",
                 "on_failure_fail_dagrun",
+                "on_success_succeed_dagrun",
                 "outlets",
                 "owner",
                 "params",
