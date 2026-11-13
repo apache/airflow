@@ -44,6 +44,8 @@ from airflow import plugins_manager, settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
+from airflow.assets.manager import asset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
@@ -4511,6 +4513,50 @@ def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
             outlet_events=[],
             session=session,
         )
+
+
+@pytest.mark.backend("postgres", "mysql")
+def test_register_asset_changes_in_db_alias_asset_created_concurrently(dag_maker, session):
+    """Another writer creates the alias-emitted asset after our lookup missed it."""
+    alias = AssetAlias("race_alias")
+    with dag_maker(dag_id="alias_race", schedule=None, session=session):
+        EmptyOperator(task_id="hi", outlets=[alias])
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    real_register = asset_manager.register_asset_change
+    calls = 0
+
+    def _lookup_misses_once(**kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            with create_session() as other:
+                other.add(AssetModel(name="race_asset", uri="s3://bucket/race_asset", group="asset"))
+            return None
+        return real_register(**kwargs)
+
+    with mock.patch.object(asset_manager, "register_asset_change", side_effect=_lookup_misses_once):
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[AssetProfile(name="race_alias", type="AssetAlias")],
+            outlet_events=[
+                {
+                    "source_alias_name": "race_alias",
+                    "dest_asset_key": {"name": "race_asset", "uri": "s3://bucket/race_asset"},
+                    "dest_asset_extra": {},
+                    "extra": {},
+                }
+            ],
+            session=session,
+        )
+    session.commit()
+
+    assert session.scalar(select(func.count()).select_from(AssetModel)) == 1
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == "alias_race"))
+    assert event is not None
+    assert [a.name for a in event.source_aliases] == ["race_alias"]
 
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):

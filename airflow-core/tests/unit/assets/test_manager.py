@@ -27,7 +27,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import event, exc, func, insert, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -44,6 +44,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
+    alias_association_table,
 )
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -187,6 +188,74 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_alias_association_tolerates_concurrent_link(self, session):
+        """Another writer links the same alias to the asset after we read its aliases."""
+        session.add(AssetModel(uri="test://race/", name="race_asset", group="asset"))
+        session.commit()
+
+        def _load(s):
+            return s.scalar(
+                select(AssetModel)
+                .where(AssetModel.name == "race_asset")
+                .options(joinedload(AssetModel.aliases))
+            )
+
+        stale = _load(session)
+        assert stale.aliases == []
+
+        if TYPE_CHECKING:
+            assert settings.Session
+            assert settings.Session.session_factory
+        other = settings.Session.session_factory()
+        try:
+            AssetManager._add_asset_alias_association(["race_alias"], _load(other), session=other)
+            other.commit()
+        finally:
+            other.close()
+
+        AssetManager._add_asset_alias_association(["race_alias"], stale, session=session)
+        session.flush()
+
+        assert [a.name for a in stale.aliases] == ["race_alias"]
+        assert session.scalar(select(func.count()).select_from(alias_association_table)) == 1
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_alias_association_tolerates_concurrent_alias_create(self, session):
+        """Another writer creates the same alias after our lookup missed it."""
+        asset = AssetModel(uri="test://race/", name="race_asset", group="asset")
+        session.add(asset)
+        session.commit()
+
+        if TYPE_CHECKING:
+            assert settings.Session
+            assert settings.Session.session_factory
+        real_scalars = session.scalars
+        calls = 0
+
+        def _lookup_then_create_alias(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            result = list(real_scalars(*args, **kwargs))
+            if calls == 1:
+                other = settings.Session.session_factory()
+                try:
+                    other.add(AssetAliasModel(name="race_alias"))
+                    other.commit()
+                finally:
+                    other.close()
+            return result
+
+        with mock.patch.object(session, "scalars", side_effect=_lookup_then_create_alias):
+            AssetManager._add_asset_alias_association(["race_alias"], asset, session=session)
+        session.flush()
+
+        assert calls == 2
+        assert [a.name for a in asset.aliases] == ["race_alias"]
+        assert session.scalar(select(func.count()).select_from(AssetAliasModel)) == 1
 
     @pytest.mark.parametrize("reference_kind", ["asset", "alias", "name", "uri"])
     def test_register_asset_change_does_not_queue_draining_dag(
