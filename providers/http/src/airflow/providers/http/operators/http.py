@@ -71,6 +71,15 @@ class HttpOperator(BaseOperator):
         function will override initial ones (e.g: if both HttpOperator.headers and `headers` have a 'cookie'
         item, the one provided by `headers` is kept). Parameters are simply overridden when any of them are
         string (e.g.: HttpOperator.endpoint is overridden by `endpoint`).
+    :param max_pages: Stop after this many responses have been accumulated, including the
+        first request. ``None`` (default) keeps requesting until ``pagination_function``
+        returns a falsy value. When the cap is reached and the callback still requests
+        another page, the operator logs a warning and returns the pages already fetched.
+        It does not fail the task and it does not issue that further request. A listing
+        that ends exactly on the cap (the callback returns a falsy value) does not warn.
+        The same cap is applied in deferrable mode. Ignored when ``pagination_function``
+        is not set. Built-in callbacks live in
+        ``airflow.providers.http.operators.pagination``.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
@@ -120,6 +129,7 @@ class HttpOperator(BaseOperator):
         data: dict[str, Any] | str | None = None,
         headers: dict[str, str] | None = None,
         pagination_function: Callable[..., Any] | None = None,
+        max_pages: int | None = None,
         response_check: Callable[..., bool] | None = None,
         response_filter: Callable[..., Any] | None = None,
         extra_options: dict[str, Any] | None = None,
@@ -143,6 +153,11 @@ class HttpOperator(BaseOperator):
         self.headers = headers or {}
         self.data = data or {}
         self.pagination_function = pagination_function
+        if max_pages is not None and (
+            isinstance(max_pages, bool) or not isinstance(max_pages, int) or max_pages < 1
+        ):
+            raise ValueError("max_pages must be a positive integer or None")
+        self.max_pages = max_pages
         self.response_check = response_check
         self.response_filter = response_filter
         self.extra_options = extra_options or {}
@@ -228,7 +243,7 @@ class HttpOperator(BaseOperator):
 
         all_responses = [response]
         while True:
-            next_page_params = self.pagination_function(response)
+            next_page_params = self._next_page_or_stop(response, page_count=len(all_responses))
             if not next_page_params:
                 break
             if self.retry_args:
@@ -332,7 +347,7 @@ class HttpOperator(BaseOperator):
         all_responses = previous_responses or []
         all_responses.append(response)
 
-        next_page_params = self.pagination_function(response)
+        next_page_params = self._next_page_or_stop(response, page_count=len(all_responses))
         if not next_page_params:
             return self.process_response(context=context, response=all_responses)
         self.defer(
@@ -345,6 +360,30 @@ class HttpOperator(BaseOperator):
             method_name="execute_complete",
             kwargs={"paginated_responses": all_responses},
         )
+
+    def _next_page_or_stop(self, response: Response, *, page_count: int) -> dict[str, Any] | None:
+        """
+        Return parameters for the next page, or None when pagination must stop.
+
+        A falsy ``pagination_function`` result ends the walk, as before. When
+        ``page_count`` has already reached ``max_pages`` and the callback still
+        requests another page, log a warning and do not request it. The pages
+        already fetched are what the operator returns.
+        """
+        if self.pagination_function is None:
+            return None
+        next_page_params = self.pagination_function(response)
+        if not next_page_params:
+            return None
+        if self.max_pages is not None and page_count >= self.max_pages:
+            self.log.warning(
+                "HttpOperator reached max_pages=%s with further pages available. "
+                "Returning the %s page(s) already fetched and not requesting another page.",
+                self.max_pages,
+                page_count,
+            )
+            return None
+        return next_page_params
 
     def _merge_next_page_parameters(self, next_page_params: dict) -> dict:
         """

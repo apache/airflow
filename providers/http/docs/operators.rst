@@ -132,19 +132,67 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
 
-The :class:`~airflow.providers.http.operators.paginated.HttpOperator` also allows to repeatedly call an API
-endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned
-in one single result. Thus, it can be more memory and CPU intensive compared to a non-paginated call.
+:class:`~airflow.providers.http.operators.http.HttpOperator` can call an endpoint repeatedly when
+you pass ``pagination_function``. Every response is kept in memory and returned together, so a long
+listing uses more memory than a single call. With a pagination function, the result is a list of
+response texts, and ``response_check`` / ``response_filter`` receive that list.
 
-By default, the result of the HttpOperator will become a list of Response.text (instead of one single
-Response.text object).
+``max_pages`` stops the walk after that many accumulated responses. If the callback still asks for
+another page, the operator logs a warning and returns the pages it already has. It does not fail the
+task, and it does not keep requesting. The same cap applies when ``deferrable=True``. Leave
+``max_pages`` unset to follow the callback until it returns a falsy value, which is the existing
+contract.
 
-Example - Let's assume your API returns a JSON body containing a cursor:
-You can write a ``pagination_function`` that will receive the raw ``request.Response`` object of your request, and
-generate new request parameters (as ``dict``) based on this cursor. The HttpOperator will repeat calls to the
-API until the function stop returning anything.
+Example - an API returns a cursor in the JSON body. The callback receives the raw ``requests.Response``
+and returns the next request parameters, or nothing when the listing is finished:
 
 .. exampleinclude:: /../../http/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_pagination_function]
     :end-before: [END howto_operator_http_pagination_function]
+
+Built-in pagination
+~~~~~~~~~~~~~~~~~~~
+
+Four helpers in ``airflow.providers.http.operators.pagination`` build that callback for the usual
+listing shapes. Each one is stateless: the next page comes only from the last response body and the
+query string of ``response.url``. A deferred task is rebuilt between pages, so a counter stored on
+the callback would reset and repeat a page. The helpers themselves have no page cap; set ``max_pages``
+on the operator, including when you write the callback yourself.
+
+* ``offset_pagination`` advances an ``offset`` query parameter by ``page_size``.
+* ``page_number_pagination`` advances a page number (page 1 when the URL has none).
+* ``cursor_pagination`` sends the maximum value of a record field. Set ``numeric=True`` when the
+  values are numeric strings. Text ordering ranks ``"999"`` above ``"1000"``, so the cursor stops
+  moving and later ids are never requested.
+* ``next_link_pagination`` follows a next URL in the body (``path="page.next"``). A link on another
+  host is ignored unless ``allow_other_hosts=True``. The operator still calls the connection host:
+  only the link's path and query are kept, so connection credentials are not sent elsewhere. Pass
+  ``base_path`` when the connection host already contains a path (``https://api.example.com/v2``)
+  and the next URL repeats it, otherwise the hook requests ``/v2/v2/...``.
+
+Offset, page, and cursor are read from the URL query. ``HttpHook`` puts ``data`` in the query string
+for ``GET`` and in the body for other methods, so the helpers target GET listings. A cursor that
+lives only in a POST body still needs a custom callback.
+
+.. code-block:: python
+
+    from airflow.providers.http.operators.http import HttpOperator
+    from airflow.providers.http.operators.pagination import offset_pagination
+
+    get_orders = HttpOperator(
+        task_id="get_orders",
+        http_conn_id="orders_api",
+        method="GET",
+        endpoint="/orders",
+        data={"offset": 0, "limit": 100, "status": "open"},
+        pagination_function=offset_pagination(
+            page_size=100,
+            records_key="orders",
+            has_more_key="has_more",
+        ),
+        max_pages=50,
+        response_filter=lambda responses: [
+            order for response in responses for order in response.json()["orders"]
+        ],
+    )
