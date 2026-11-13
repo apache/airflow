@@ -1930,3 +1930,8 @@ def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outp
         )
         for event_type in (RunState.START, RunState.COMPLETE)
     ]
+    start, complete = (emit_call.args[0] for emit_call in client.emit.mock_calls)
+    assert start.run is not complete.run
+    assert start.job is not complete.job
+    assert start.outputs[0] is not complete.outputs[0]
+    assert start.run.facets["airflowAssetEvent"] is not complete.run.facets["airflowAssetEvent"]

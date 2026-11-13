@@ -31,6 +31,7 @@ from airflow.providers.openlineage.utils.emission_policy import (
     DatasetFilter,
     EmissionPolicy,
     Rule,
+    are_asset_watcher_events_enabled,
     resolve_asset_watcher_emission_policy,
     resolve_dag_emission_policy,
     resolve_task_emission_policy,
@@ -2684,11 +2685,14 @@ class TestResolveAssetWatcherEmissionPolicy:
         with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
             return resolve_asset_watcher_emission_policy("orders")
 
-    def test_defaults_when_no_rules(self):
-        policy = self._resolve([])
+    @staticmethod
+    def _are_enabled(rules: list[dict]) -> bool:
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            return are_asset_watcher_events_enabled()
 
-        assert policy.emit is True
-        assert policy.dataset_filter.exclude([self.ASSET_DATASET]) == [self.ASSET_DATASET]
+    def test_defaults_when_no_rules(self):
+        assert self._are_enabled([]) is True
+        assert self._resolve([]).dataset_filter.exclude([self.ASSET_DATASET]) == [self.ASSET_DATASET]
 
     @pytest.mark.parametrize(
         ("rules", "expected_emit"),
@@ -2729,7 +2733,7 @@ class TestResolveAssetWatcherEmissionPolicy:
         ],
     )
     def test_only_global_emit_applies(self, rules, expected_emit):
-        assert self._resolve(rules).emit is expected_emit
+        assert self._are_enabled(rules) is expected_emit
 
     @pytest.mark.parametrize(
         ("rules", "expected_excluded"),
@@ -2764,9 +2768,9 @@ class TestResolveAssetWatcherEmissionPolicy:
     def test_selective_enable_disables_asset_watcher_events(self):
         with conf_vars({("openlineage", "emission_policy"): "", ("openlineage", "selective_enable"): "True"}):
             with pytest.warns(AirflowProviderDeprecationWarning, match="selective_enable"):
-                policy = resolve_asset_watcher_emission_policy("orders")
+                enabled = are_asset_watcher_events_enabled()
 
-        assert policy.emit is False
+        assert enabled is False
 
     @mock.patch(
         "airflow.providers.openlineage.utils.emission_policy._parse_user_rules",
@@ -2775,6 +2779,7 @@ class TestResolveAssetWatcherEmissionPolicy:
     )
     def test_returns_defaults_when_resolution_fails(self, _):
         assert resolve_asset_watcher_emission_policy("orders") == EmissionPolicy.defaults()
+        assert are_asset_watcher_events_enabled() is True
 
 
 class TestEmitAssetWatcherEventsControl:

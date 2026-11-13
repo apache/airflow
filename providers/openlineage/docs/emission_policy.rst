@@ -141,8 +141,8 @@ value inside ``scope`` (``dag_id``, ``task_id``, ``operator``, ``hook``) is trea
        :ref:`emission_policy_asset_watchers:openlineage`.
    * - ``emit_manual_state_change_events``
      - ``true``
-     - Disable the task and DAG-level events of states set manually through the UI or API. It can
-       only turn events off. See :ref:`emission_policy_manual_state_changes:openlineage`.
+     - Disable the task and DAG-level events of states set manually through the UI or API. DAG-level
+       events only on Airflow 3.3.1+. See :ref:`emission_policy_manual_state_changes:openlineage`.
    * - ``extract_operator_metadata``
      - ``true``
      - Whether to run operator-specific extractor-based metadata collection (inputs/outputs). Task events only.
@@ -392,10 +392,16 @@ so only global rules (empty ``scope``) apply to them, and only these controls:
   ``{"scope": {}, "controls": {"emit": false, "emit_asset_watcher_events": true}}`` suppresses every
   other event and keeps these. ``emit_task_events`` and ``emit_dag_events`` do not affect them.
 - ``exclude_datasets`` is matched against the asset's dataset. When it is excluded, no events are emitted for
-  the asset event at all, as they exist to report the asset and their run facet names it. Assets that cannot
-  be translated to an OpenLineage dataset are never excluded.
+  the asset event at all, as they exist to report the asset and their run facet names it. An asset that
+  cannot be translated to an OpenLineage dataset has no dataset to match, so its events are always emitted,
+  without outputs, and consumers can read its URI from the ``airflowAssetEvent`` run facet.
 
 The legacy ``selective_enable`` option suppresses them too, as no asset watcher can opt in with ``enable_lineage``.
+
+When ``emit_asset_watcher_events`` or ``emit`` turns them off, the listener only checks that once per process and
+keeps nothing else in the Triggerer: no queue, no background thread and no OpenLineage client for these events.
+:ref:`[openlineage] asset_watcher_event_queue_size <config:openlineage__asset_watcher_event_queue_size>` sets
+how many events can wait to be emitted (``0`` for no limit), and a negative value turns them off too.
 
 .. _emission_policy_manual_state_changes:openlineage:
 
@@ -404,10 +410,18 @@ Manual state changes
 
 When a task instance or Dag run state is set through the UI or API, the events reporting the new
 state are sent from the API server. ``emit_manual_state_change_events: false`` suppresses them, for
-every Dag or for some Dags or tasks. It can only turn events off: an event is sent only if both
-this control and the usual ``emit`` / ``emit_task_events`` / ``emit_dag_events`` resolution allow
-it, and Dag authoring overrides cannot re-enable it. It does not apply to failures the scheduler
+every Dag or for some Dags or tasks. An event is sent only if both this control and the usual
+``emit`` / ``emit_task_events`` / ``emit_dag_events`` resolution allow it, so
+``emit_manual_state_change_events: true`` does not bring back events that ``emit: false`` suppresses,
+and Dag authoring overrides cannot re-enable it. It does not apply to failures the scheduler
 reports for tasks whose state changed externally.
+
+.. note::
+
+    Task instance states set by hand are recognized on every Airflow 3 version, but Dag run states set by
+    hand only on **Airflow 3.3.1 and later**. Before 3.3.1, the API server reports them to listeners with the
+    same empty message the scheduler uses for a Dag run that timed out, so they can't be told apart, and
+    ``emit_manual_state_change_events`` does not suppress the Dag run events of manual changes there.
 
 .. code-block:: ini
 

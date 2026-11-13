@@ -20,9 +20,12 @@ Asset events produced by asset watchers in the triggerer, outside of any task.
 The asset watchers of the assets scheduling the child Dag fire when ``create_trigger_files`` creates their files,
 and the triggerer then emits the START and COMPLETE events of one asset watcher job per asset:
 
-- the orders asset has two watchers, each firing on its own file: both report to the same job, as two runs;
+- the orders asset has two watchers, each firing on its own file: both report to the same job, as two runs, told
+  apart by the file name their trigger sends as payload;
 - the watcher of the shared trigger asset has the same trigger as the first watcher of the orders asset, so the
-  triggerer runs that trigger once and one file produces an asset event, and a run, for each of the two assets.
+  triggerer runs that trigger once and one file produces an asset event, and a run, for each of the two assets;
+- the untranslatable asset has a URI scheme no provider translates to an OpenLineage dataset, so its events have
+  no outputs, and its URI is only in the ``airflowAssetEvent`` run facet.
 
 The excluded asset's watcher fires too, but its dataset matches the global ``exclude_datasets`` rule of the e2e
 deployment (``.*/exclude_datasets_global_.*``, in ``airflow-e2e-tests/docker/openlineage.yml``), so it emits no events.
@@ -49,9 +52,9 @@ from airflow.providers.common.compat.sdk import Variable, conf
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import Asset, AssetWatcher
 
+from system.openlineage.asset_watcher_triggers import FileDeleteWithPayloadTrigger
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.manual_state import create_asset_event
@@ -62,13 +65,18 @@ ORDERS_ASSET_NAME = "openlineage_asset_watcher_asset"
 SHARED_TRIGGER_ASSET_NAME = "openlineage_asset_watcher_shared_trigger_asset"
 TASK_ASSET_NAME = "openlineage_asset_watcher_task_asset"
 EXCLUDED_ASSET_NAME = "openlineage_asset_watcher_excluded_asset"
+UNTRANSLATABLE_ASSET_NAME = "openlineage_asset_watcher_untranslatable_asset"
 # The worker creates the files and the triggerer watches them, so they must be in a folder both of them see.
 FIRST_TRIGGER_FILE_PATH = os.path.join(conf.get("core", "dags_folder"), f"{DAG_ID}.first.trigger")
 SECOND_TRIGGER_FILE_PATH = os.path.join(conf.get("core", "dags_folder"), f"{DAG_ID}.second.trigger")
 EXCLUDED_TRIGGER_FILE_PATH = os.path.join(conf.get("core", "dags_folder"), f"{DAG_ID}.excluded.trigger")
+UNTRANSLATABLE_TRIGGER_FILE_PATH = os.path.join(
+    conf.get("core", "dags_folder"), f"{DAG_ID}.untranslatable.trigger"
+)
 EXPECTED_COMPLETE_EVENT_COUNTS = {
     f"asset_watcher.{ORDERS_ASSET_NAME}.event.complete": 2,
     f"asset_watcher.{SHARED_TRIGGER_ASSET_NAME}.event.complete": 1,
+    f"asset_watcher.{UNTRANSLATABLE_ASSET_NAME}.event.complete": 1,
 }
 
 orders_asset = Asset(
@@ -78,11 +86,11 @@ orders_asset = Asset(
     watchers=[
         AssetWatcher(
             name="openlineage_asset_watcher",
-            trigger=FileDeleteTrigger(filepath=FIRST_TRIGGER_FILE_PATH, poke_interval=1),
+            trigger=FileDeleteWithPayloadTrigger(filepath=FIRST_TRIGGER_FILE_PATH, poke_interval=1),
         ),
         AssetWatcher(
             name="openlineage_asset_watcher_second",
-            trigger=FileDeleteTrigger(filepath=SECOND_TRIGGER_FILE_PATH, poke_interval=1),
+            trigger=FileDeleteWithPayloadTrigger(filepath=SECOND_TRIGGER_FILE_PATH, poke_interval=1),
         ),
     ],
 )
@@ -93,7 +101,7 @@ shared_trigger_asset = Asset(
         AssetWatcher(
             name="openlineage_asset_watcher_shared_trigger",
             # Same class and kwargs as the first watcher of the orders asset, so both share one trigger
-            trigger=FileDeleteTrigger(filepath=FIRST_TRIGGER_FILE_PATH, poke_interval=1),
+            trigger=FileDeleteWithPayloadTrigger(filepath=FIRST_TRIGGER_FILE_PATH, poke_interval=1),
         )
     ],
 )
@@ -103,7 +111,17 @@ excluded_asset = Asset(
     watchers=[
         AssetWatcher(
             name="openlineage_asset_watcher_excluded",
-            trigger=FileDeleteTrigger(filepath=EXCLUDED_TRIGGER_FILE_PATH, poke_interval=1),
+            trigger=FileDeleteWithPayloadTrigger(filepath=EXCLUDED_TRIGGER_FILE_PATH, poke_interval=1),
+        )
+    ],
+)
+untranslatable_asset = Asset(
+    name=UNTRANSLATABLE_ASSET_NAME,
+    uri="https://openlineage-asset-watcher/untranslatable.csv",
+    watchers=[
+        AssetWatcher(
+            name="openlineage_asset_watcher_untranslatable",
+            trigger=FileDeleteWithPayloadTrigger(filepath=UNTRANSLATABLE_TRIGGER_FILE_PATH, poke_interval=1),
         )
     ],
 )
@@ -113,7 +131,7 @@ with DAG(
     dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=f"{DAG_ID}_child__notrigger",
     start_date=datetime(2021, 1, 1),
-    schedule=orders_asset | shared_trigger_asset | excluded_asset,
+    schedule=orders_asset | shared_trigger_asset | excluded_asset | untranslatable_asset,
     catchup=False,
     default_args={"retries": 0},
 ):
@@ -121,7 +139,12 @@ with DAG(
 
 
 def _create_trigger_files():
-    for path in (FIRST_TRIGGER_FILE_PATH, SECOND_TRIGGER_FILE_PATH, EXCLUDED_TRIGGER_FILE_PATH):
+    for path in (
+        FIRST_TRIGGER_FILE_PATH,
+        SECOND_TRIGGER_FILE_PATH,
+        EXCLUDED_TRIGGER_FILE_PATH,
+        UNTRANSLATABLE_TRIGGER_FILE_PATH,
+    ):
         with open(path, "w") as trigger_file:
             trigger_file.write("fire")
 
@@ -139,10 +162,10 @@ def _are_asset_watcher_events_emitted():
     )
 
 
-def _sort_by_watcher_name(event: dict) -> str:
-    """Order the runs of the two watchers of the orders asset, which share a job."""
+def _sort_by_trigger_file(event: dict) -> str:
+    """Order the runs of the two watchers of the orders asset, which share a job, by the file of their trigger."""
     asset_event = event["run"]["facets"].get("airflowAssetEvent", {}).get("assetEvent", {})
-    return asset_event.get("watcherName", "")
+    return asset_event.get("extra", {}).get("payload", {}).get("file", "")
 
 
 with DAG(
@@ -176,7 +199,7 @@ with DAG(
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        event_sort_fn=_sort_by_watcher_name,
+        event_sort_fn=_sort_by_trigger_file,
     )
 
     (

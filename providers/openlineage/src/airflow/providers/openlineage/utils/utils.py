@@ -54,7 +54,6 @@ from airflow.providers.common.compat.sdk import (
     BaseSensorOperator,
     MappedOperator,
     conf as airflow_conf,
-    timezone,
 )
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -149,8 +148,6 @@ _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPEN
 _JOB_TYPE_DAG: Literal["DAG"] = "DAG"
 _JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 _JOB_TYPE_ASSET_WATCHER: Literal["ASSET_WATCHER"] = "ASSET_WATCHER"
-# Asset and asset event extras (the latter holds the trigger payload) are user-controlled and unbounded.
-_MAX_ASSET_EVENT_VALUE_SIZE = 16 * 1024
 
 
 def try_import_from_string(string: str) -> Any:
@@ -1693,8 +1690,9 @@ def is_dag_run_state_set_manually(msg: str | None) -> bool:
     """
     Return whether a Dag run listener call reports a state set manually through the UI or API.
 
-    The listener hooks carry no explicit flag for it, so this relies on the message the API server passes,
-    which is the only caller that sets a Dag run state by hand.
+    The listener hooks carry no explicit flag for it, so this relies on the message the API server passes since
+    Airflow 3.3.1. Older versions pass an empty message, as the scheduler does for a Dag run that timed out, so
+    their manual changes can't be told apart and are not reported as manual.
     """
     return msg is not None and msg.startswith("Dag Run's state was manually set to")
 
@@ -2744,21 +2742,6 @@ def is_asset_event_from_asset_watcher(asset_event: ListenerAssetEvent) -> bool:
     )
 
 
-def get_asset_watcher_job_name(asset_event: ListenerAssetEvent) -> str:
-    """
-    Return the OpenLineage job name for the asset watchers of the asset event's asset.
-
-    All watchers of an asset share one job, so the name stays the same on Airflow versions that do not
-    tell listeners which watcher produced the event; the watcher is reported in the run facet instead.
-    """
-    return f"asset_watcher.{asset_event.asset.name}"
-
-
-def get_asset_event_time(asset_event: ListenerAssetEvent) -> datetime.datetime:
-    """Return the time the asset event was stored, or the current time when listeners are not given it."""
-    return getattr(asset_event, "timestamp", None) or timezone.utcnow()
-
-
 def build_asset_watcher_event_ol_run_id(
     asset_event: ListenerAssetEvent, event_time: datetime.datetime
 ) -> str:
@@ -2781,17 +2764,6 @@ def build_asset_watcher_event_ol_run_id(
     )
 
 
-def _get_json_safe_value_within_size_limit(value: Any) -> Any:
-    """Return ``value`` as plain JSON types, or a placeholder when it cannot be serialized or is too large."""
-    try:
-        serialized = json.dumps(value, default=str)
-    except (TypeError, ValueError) as err:
-        return f"<not serializable: {type(err).__name__}>"
-    if len(serialized) > _MAX_ASSET_EVENT_VALUE_SIZE:
-        return f"<omitted: {len(serialized)} characters exceeds limit of {_MAX_ASSET_EVENT_VALUE_SIZE}>"
-    return json.loads(serialized)
-
-
 def get_airflow_asset_event_run_facet(
     asset_event: ListenerAssetEvent,
 ) -> dict[str, AirflowAssetEventRunFacet]:
@@ -2806,13 +2778,13 @@ def get_airflow_asset_event_run_facet(
                 "name": asset.name,
                 "uri": asset.uri,
                 "group": asset.group,
-                "extra": _get_json_safe_value_within_size_limit(asset.extra),
+                "extra": _convert_to_json_safe(asset.extra, "asset.extra") or {},
             },
             assetEvent={
                 "id": getattr(asset_event, "id", None),
                 "watcherName": getattr(asset_event, "source_watcher_name", None),
                 "triggerClasspath": getattr(asset_event, "source_trigger_classpath", None),
-                "extra": _get_json_safe_value_within_size_limit(asset_event.extra),
+                "extra": _convert_to_json_safe(asset_event.extra, "assetEvent.extra") or {},
                 "partitionKey": asset_event.partition_key,
                 "partitionDate": partition_date.isoformat() if partition_date else None,
                 "sourceAliases": [alias.name for alias in asset_event.source_aliases],

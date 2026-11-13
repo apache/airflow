@@ -2,12 +2,6 @@
   {
     "eventType": "START",
     "job": {
-      "name": "openlineage_policy_manual_state_dag"
-    }
-  },
-  {
-    "eventType": "START",
-    "job": {
       "name": "openlineage_policy_manual_state_dag_tasks__notrigger"
     },
     "run": {
@@ -235,11 +229,12 @@
     }
   },
   {
+    "$since": "3.3.1",
     "eventType": "COMPLETE",
     "job": {
       "name": "openlineage_policy_manual_state_dag_dag_run__notrigger"
     },
-    "$absent": "emit_manual_state_change_events is false for the Dag"
+    "$absent": "emit_manual_state_change_events is false for the Dag; before Airflow 3.3.1 the API server doesn't mark its Dag run events as manual"
   },
   {
     "eventType": "FAIL",

@@ -17,44 +17,66 @@
 """
 Asset watcher triggers of the system test Dags, in a module of their own so the triggerer can import them.
 
-Separate from ``triggers.py`` because ``AssetTriggerEvent`` only exists on the Airflow versions that let watchers
-report a partition, and ``triggers.py`` is imported by Dags that also run on older versions.
+``AssetTriggerEvent`` only exists on the Airflow versions that let watchers report a partition, so it is imported
+where it is used and the module also works on the older versions with asset watchers.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 import anyio
 
-from airflow.triggers.base import AssetTriggerEvent, BaseEventTrigger
+from airflow.triggers.base import BaseEventTrigger, TriggerEvent
 
 
-class PartitionedFileDeleteTrigger(BaseEventTrigger):
-    """Fire once a file exists, deleting it, with an asset event for one partition of the watched asset."""
+class FileDeleteWithPayloadTrigger(BaseEventTrigger):
+    """
+    Fire once a file exists, deleting it, with the file name as the payload.
 
-    def __init__(self, filepath: str, partition_key: str, poke_interval: float = 1.0):
+    The payload ends up in the extra of the asset event, so the asset watcher events of two watchers of one asset
+    can be told apart on every Airflow version, including those that don't pass the watcher to listeners.
+    """
+
+    def __init__(self, filepath: str, poke_interval: float = 1.0):
         super().__init__()
         self.filepath = filepath
-        self.partition_key = partition_key
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             f"{type(self).__module__}.{type(self).__qualname__}",
-            {
-                "filepath": self.filepath,
-                "partition_key": self.partition_key,
-                "poke_interval": self.poke_interval,
-            },
+            {"filepath": self.filepath, "poke_interval": self.poke_interval},
         )
 
-    async def run(self):
+    async def _wait_and_delete(self) -> None:
+        filepath = anyio.Path(self.filepath)
         while True:
-            filepath = anyio.Path(self.filepath)
             if await filepath.is_file():
                 await filepath.unlink()
-                yield AssetTriggerEvent(True, partition_key=self.partition_key)
                 return
             await asyncio.sleep(self.poke_interval)
+
+    async def run(self):
+        await self._wait_and_delete()
+        yield TriggerEvent({"file": os.path.basename(self.filepath)})
+
+
+class PartitionedFileDeleteTrigger(FileDeleteWithPayloadTrigger):
+    """Fire once a file exists, deleting it, with an asset event for one partition of the watched asset."""
+
+    def __init__(self, filepath: str, partition_key: str, poke_interval: float = 1.0):
+        super().__init__(filepath=filepath, poke_interval=poke_interval)
+        self.partition_key = partition_key
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        classpath, kwargs = super().serialize()
+        return classpath, {**kwargs, "partition_key": self.partition_key}
+
+    async def run(self):
+        from airflow.triggers.base import AssetTriggerEvent
+
+        await self._wait_and_delete()
+        yield AssetTriggerEvent({"file": os.path.basename(self.filepath)}, partition_key=self.partition_key)

@@ -1443,14 +1443,52 @@ def resolve_dag_emission_policy(
         return EmissionPolicy.defaults()
 
 
+def _get_asset_watcher_rules() -> list[Rule]:
+    """
+    Return the rules that apply to asset watcher events: the global ones, with legacy options translated.
+
+    ``selective_enable`` is translated into a global ``emit: false``, as for Dag events, since no asset watcher
+    can opt in with ``enable_lineage``.
+    """
+    legacy_rules = [Rule(scope={}, controls={EMIT: False})] if _ol_conf.selective_enable() else []
+    _warn_legacy_with_emission_policy(legacy_rules, scope="dag")
+    return [rule for rule in [*legacy_rules, *_parse_user_rules()] if not rule.scope]
+
+
+@_ol_conf.cache
+def are_asset_watcher_events_enabled() -> bool:
+    """
+    Return whether asset watcher events are emitted at all, resolved once per process.
+
+    Only global rules apply to these events, so the answer is the same for every asset, and the listener can
+    check it before queueing anything. ``emit_asset_watcher_events`` beats ``emit`` within a rule.
+
+    Never raises: any failure is logged and the events are enabled, as by default.
+    """
+    try:
+        emit, emit_rule = _resolve_emit_with_source(
+            [_get_asset_watcher_rules()], "asset_watcher", EmissionPolicy.defaults().emit
+        )
+        if emit_rule is not None:
+            _audit_log_conf_field(EMIT_ASSET_WATCHER_EVENTS, emit, "asset watcher events", emit_rule)
+        return emit
+    except Exception as err:
+        log.warning(
+            "Failed to resolve OpenLineage emission policy for asset watcher events; emitting them. Error: %s",
+            err,
+        )
+        log.debug("Exception details:", exc_info=True)
+        return EmissionPolicy.defaults().emit
+
+
 def resolve_asset_watcher_emission_policy(asset_name: str) -> EmissionPolicy:
     """
     Resolve the emission policy for the events of an asset event produced by an asset watcher.
 
     These events belong to no Dag, task, operator or hook, so only global rules (empty ``scope``) apply, and of
-    their controls only ``emit_asset_watcher_events`` (which beats ``emit`` within a rule), ``emit`` and
-    ``exclude_datasets``: ``emit_task_events`` and ``emit_dag_events`` target other events. ``selective_enable`` is translated into a global ``emit: false``, as for Dag events, since no
-    asset watcher can opt in with ``enable_lineage``.
+    their controls only ``exclude_datasets``, resolved here, and ``emit_asset_watcher_events`` / ``emit``,
+    resolved once per process by :func:`are_asset_watcher_events_enabled`. The returned ``emit`` is always
+    the default.
 
     Never raises: any failure is logged and the built-in defaults are returned.
 
@@ -1458,22 +1496,11 @@ def resolve_asset_watcher_emission_policy(asset_name: str) -> EmissionPolicy:
     """
     try:
         context = f"asset watcher event of asset '{asset_name}'"
-        legacy_rules = [Rule(scope={}, controls={EMIT: False})] if _ol_conf.selective_enable() else []
-        _warn_legacy_with_emission_policy(legacy_rules, scope="dag")
-
-        global_rules = [rule for rule in [*legacy_rules, *_parse_user_rules()] if not rule.scope]
-        emit, emit_rule = _resolve_emit_with_source(
-            [global_rules], "asset_watcher", EmissionPolicy.defaults().emit
-        )
-        if emit_rule is not None:
-            _audit_log_conf_field(EMIT, emit, context, emit_rule)
-
         dataset_filter_rules = tuple(
-            rule for rule in global_rules if _get_rule_exclude_patterns(rule) is not None
+            rule for rule in _get_asset_watcher_rules() if _get_rule_exclude_patterns(rule) is not None
         )
         return replace(
             EmissionPolicy.defaults(),
-            emit=emit,
             dataset_filter=DatasetFilter(
                 tiers=(dataset_filter_rules,) if dataset_filter_rules else (), context=context
             ),

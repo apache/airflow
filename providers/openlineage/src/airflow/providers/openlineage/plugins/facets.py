@@ -112,8 +112,9 @@ class AirflowAssetEventRunFacet(RunFacet):
     Airflow facet describing an asset event produced outside of any task, e.g. by an asset watcher.
 
     Attributes:
-        asset: The asset the event was registered for (name, uri, group, extra).
-        assetEvent: The asset event itself (extra, partition key and date, source aliases).
+        asset: The asset: ``name``, ``uri``, ``group`` and ``extra``, and ``id`` when Airflow passes it.
+        assetEvent: The asset event: ``extra`` and ``sourceAliases``, and ``id``, ``watcherName``,
+            ``triggerClasspath``, ``partitionKey`` and ``partitionDate`` when available.
     """
 
     asset: dict
