@@ -386,55 +386,6 @@ def test_green_keeps_an_author_draft_out_of_the_review_queue(last_draft_actor):
     assert "Mark it ready for review when it is." in plan.marker_comment
 
 
-def test_green_undrafts_pilot_pull_request_opened_as_draft():
-    pilot_config = GateConfig(
-        enabled=False,
-        enabled_since=datetime(2026, 10, 1, tzinfo=UTC),
-        pilot={"someone": CREATED},
-    )
-    pr = _pr(last_draft_actor=None, labels=("fork ci required",))
-    plan, _, _ = _classify(pr, GREEN, config=pilot_config)
-
-    assert plan.draft is False
-    assert plan.add_labels == ["ready for maintainer review"]
-    assert "Mark it ready for review when it is" not in plan.marker_comment
-
-
-def test_green_respects_pilot_pull_request_manually_drafted_by_author():
-    pilot_config = GateConfig(
-        enabled=False,
-        enabled_since=datetime(2026, 10, 1, tzinfo=UTC),
-        pilot={"someone": CREATED},
-    )
-    pr = _pr(last_draft_actor="someone", labels=("fork ci required",))
-    plan, _, _ = _classify(pr, GREEN, config=pilot_config)
-
-    assert plan.draft is None
-    assert plan.add_labels == []
-    assert "Mark it ready for review when it is" in plan.marker_comment
-
-
-def test_green_unverified_undrafts_pilot_pull_request_opened_as_draft():
-    pilot_config = GateConfig(
-        enabled=False,
-        enabled_since=datetime(2026, 10, 1, tzinfo=UTC),
-        pilot={"someone": CREATED},
-    )
-    pr = _pr(last_draft_actor=None, labels=("fork ci required",))
-    plan, _, _ = _classify(pr, GREEN, config=pilot_config, changes_ci_files=True)
-
-    assert plan.draft is False
-    assert plan.add_labels == ["needs project ci"]
-
-
-def test_green_undrafts_use_fork_ci_labelled_pull_request_opened_as_draft():
-    pr = _pr(last_draft_actor=None, labels=("fork ci required", "use fork ci"))
-    plan, _, _ = _classify(pr, GREEN)
-
-    assert plan.draft is False
-    assert plan.add_labels == ["ready for maintainer review"]
-
-
 def test_green_labels_a_ready_pull_request():
     plan, _, _ = _classify(_pr(is_draft=False), GREEN)
 

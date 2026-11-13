@@ -310,3 +310,19 @@ def test_main_fails_when_asf_yaml_is_missing(mock_git, mock_resolve, tmp_path, m
     )
     assert main() == 1
     assert ".asf.yaml: file does not exist" in capsys.readouterr().err
+
+
+@mock.patch("check_fork_ci_gate_config.resolve_base_ref", autospec=True, return_value="HEAD")
+@mock.patch("check_fork_ci_gate_config._git", autospec=True)
+def test_main_reports_a_pilot_that_is_not_a_table(mock_git, mock_resolve, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("check_fork_ci_gate_config.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_git.return_value = None
+    (tmp_path / ".github").mkdir(parents=True)
+    (tmp_path / ".github" / "fork-ci-gate.toml").write_text('pilot = ["alice"]\n')
+    (tmp_path / ".asf.yaml").write_text(
+        "github:\n  pull_requests:\n    creation_cap:\n      bypass_users:\n        - alice\n"
+    )
+    assert main() == 1
+    err = capsys.readouterr().err
+    assert ".github/fork-ci-gate.toml: pilot must be a table" in err
+    assert ".asf.yaml" not in err

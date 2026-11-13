@@ -177,12 +177,18 @@ _STATE_TEXTS = {
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
 }
 
+_ASK_A_MAINTAINER_TO_MARK_READY = (
+    "If GitHub does not let you mark it ready because you reached the limit of open pull requests, "
+    "comment here and ask a maintainer to mark it ready for you."
+)
+
 _AUTHOR_DRAFT_TEXTS = {
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
-    "draft, so maintainers do not review it yet. Mark it ready for review when it is.",
+    "draft, so maintainers do not review it yet. Mark it ready for review when it is. "
+    f"{_ASK_A_MAINTAINER_TO_MARK_READY}",
     "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
     f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
-    "will review the change and run project CI for it.",
+    f"will review the change and run project CI for it. {_ASK_A_MAINTAINER_TO_MARK_READY}",
 }
 
 

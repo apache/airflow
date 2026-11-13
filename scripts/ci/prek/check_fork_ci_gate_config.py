@@ -218,16 +218,13 @@ def main() -> int:
         return 1
 
     try:
-        pilot_data = tomllib.loads(new_text).get("pilot", {})
-        pilot_users = list(pilot_data.keys())
-    except Exception:
-        try:
-            gate = load_gate_module()
-            new_config = gate.parse_config(new_text)
-            pilot_users = list(new_config.pilot.keys())
-        except ValueError:
-            return 1
-
+        load_gate_module().parse_config(new_text)
+    except ValueError:
+        # find_violations already reported the parse error.
+        return 1
+    # Read the logins with tomllib rather than the gate's parser, which casefolds them, so a
+    # casing difference between the two files is still reported.
+    pilot_users = list(tomllib.loads(new_text).get("pilot", {}))
     asf_violations = find_asf_yaml_sync_violations(asf_yaml_path.read_text(), pilot_users)
     for violation in asf_violations:
         print(f"{ASF_YAML_PATH}: {violation}", file=sys.stderr)
